@@ -1,0 +1,283 @@
+<!--
+IMPORTANT:
+- Policy fragment are included as-is whenever they are referenced.
+- If using variables. Ensure they are setup before use.
+- Copy and paste your code here or simply start coding
+-->
+<fragment>
+    <set-variable name="authHeader" value="@(context.Request.Headers.GetValueOrDefault("Authorization", string.Empty))" />
+    <set-variable name="soapAction" value="@(context.Request.Headers.GetValueOrDefault("SOAPAction", ""))" />
+    <set-variable name="apiName" value="@(context.Api.Name)" />
+    <trace source="b2c-auth" severity="information">
+        <message>@(String.Format("Staring authentication for request {0} of API: {1}", (string)context.Variables["soapAction"],(string)context.Variables["apiName"]))</message>
+    </trace>
+    <set-variable name="hasUsernameToken" value="@{
+            try
+            {
+            var xml = context.Request.Body.As
+                    <XElement>(preserveContent: true);
+            return xml.Descendants().Any(e => e.Name.LocalName == "UsernameToken");
+            }
+            catch
+            {
+            return false;
+            }
+            }" />
+        <choose>
+            <when condition="@(context.Variables.GetValueOrDefault
+                <bool>("hasUsernameToken"))">
+                    <!-- Handle Basic Auth -->
+                    <!-- Extract Username using XPath with correct quoting -->
+                    <set-variable name="soapBody" value="@{
+return context.Request.Body.As
+                        <string>(preserveContent: true);
+}" />
+                        <choose>
+                            <!--Soap Header Validation -->
+                            <when condition="@{
+try {
+var xml = new System.Xml.XmlDocument();
+xml.LoadXml(context.Variables.GetValueOrDefault
+                                <string>("soapBody"));
+var node = xml.SelectSingleNode("//*[local-name()='Username']");
+var node2 = xml.SelectSingleNode("//*[local-name()='Password']");
+return false; // No error
+} catch {
+return true; // Error occurred
+}
+}">
+                                    <trace source="b2c-auth" severity="error">
+                                        <message>Authentication failed. Reason: Failed to parsing SOAP Header XML</message>
+                                    </trace>
+                                    <return-response>
+                                        <set-status code="{{error-unauthorized-code}}" reason="{{error-unauthorized-message}}" />
+                                        <set-header name="Content-Type" exists-action="override">
+                                            <value>application/soap+xml; charset=utf-8</value>
+                                        </set-header>
+                                        <set-body>
+                                            <![CDATA[<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Error Access denied. Authentication failed.</faultstring></soap:Fault></soap:Body></soap:Envelope>
+]]>
+                                        </set-body>
+                                    </return-response>
+                                </when>
+                            </choose>
+                            <set-variable name="username" value="@{
+var xml = new System.Xml.XmlDocument();
+xml.LoadXml(context.Variables.GetValueOrDefault
+                                <string>("soapBody"));
+var node = xml.SelectSingleNode("//*[local-name()='Username']");
+return node != null ? node.InnerText : null;
+}" />
+                                <set-variable name="password" value="@{
+var xml = new System.Xml.XmlDocument();
+xml.LoadXml(context.Variables.GetValueOrDefault
+                                    <string>("soapBody"));
+var node = xml.SelectSingleNode("//*[local-name()='Password']");
+return node != null ? node.InnerText : null;
+}" />
+                                    <!-- Username Password Emptiness Check -->
+                                    <choose>
+                                        <when condition="@(string.IsNullOrEmpty((string)context.Variables.GetValueOrDefault
+                                            <string>("username")) || string.IsNullOrEmpty((string)context.Variables.GetValueOrDefault
+                                                <string>("password")))">
+                                                    <trace source="b2c-auth" severity="error">
+                                                        <message>Authentication failed. Reason: Username or Password is Empty</message>
+                                                    </trace>
+                                                    <return-response>
+                                                        <set-status code="{{error-unauthorized-code}}" reason="{{error-unauthorized-message}}" />
+                                                        <set-header name="Content-Type" exists-action="override">
+                                                            <value>application/soap+xml; charset=utf-8</value>
+                                                        </set-header>
+                                                        <set-body>
+                                                            <![CDATA[
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Error Access denied. Authentication failed.</faultstring></soap:Fault></soap:Body></soap:Envelope>
+]]>
+                                                        </set-body>
+                                                    </return-response>
+                                                </when>
+                                            </choose>
+                                            <!-- Setting client id for HMAC authorization as password -->
+                                            <set-variable name="clientId" value="@( (string)context.Variables.GetValueOrDefault("password") )" />
+                                            <trace source="b2c-auth" severity="information">
+                                                <message>@(String.Format("Trying to authenticate user: {0} with basic auth", (string)context.Variables["username"]))</message>
+                                            </trace>
+                                            <send-request mode="new" response-variable-name="tokenResponse" timeout="20" ignore-error="false">
+                                                <set-url>{{foc-b2c-basic-auth-token-url}}</set-url>
+                                                <set-method>POST</set-method>
+                                                <set-header name="Content-Type" exists-action="override">
+                                                    <value>application/x-www-form-urlencoded</value>
+                                                </set-header>
+                                                <set-body>@{
+return "client_id={{foc-b2c-proxy-api-client-id}}" +
+"&grant_type=client_credentials" +
+"&client_secret={{foc-b2c-proxy-api-client-secret}}" +
+"&scope={{foc-b2c-client-scope}}";
+}</set-body>
+                                            </send-request>
+                                            <!-- Send request to B2C proxy API) -->
+                                            <set-variable name="access_token" value="@( ((IResponse)context.Variables["tokenResponse"]).Body.As
+                                                <JObject>()["access_token"] )" />
+                                                <send-request mode="new" response-variable-name="tokenValidationResponse" timeout="10" ignore-error="false">
+                                                    <set-url>{{foc-b2c-auth-proxy-api-url}}</set-url>
+                                                    <set-method>POST</set-method>
+                                                    <set-header name="Content-Type" exists-action="override">
+                                                        <value>application/json</value>
+                                                    </set-header>
+                                                    <set-header name="Authorization" exists-action="override">
+                                                        <value>@($"Bearer {context.Variables["access_token"]}")</value>
+                                                    </set-header>
+                                                    <set-header name="Ocp-Apim-Subscription-Key" exists-action="override">
+                                                        <value>{{foc-b2c-proxy-api-subscription-key}}</value>
+                                                    </set-header>
+                                                    <set-header name="x-correlation-id" exists-action="override">
+                                                        <value>@(Guid.NewGuid().ToString())</value>
+                                                    </set-header>
+                                                    <set-header name="x-application-id" exists-action="override">
+                                                        <value>b2c-auth-policy</value>
+                                                    </set-header>
+                                                    <set-header name="host" exists-action="override">
+                                                        <value>{{foc-az-apim-internal-routing-host}}</value>
+                                                    </set-header>
+                                                    <set-header name="Content-Type" exists-action="override">
+                                                        <value>application/json</value>
+                                                    </set-header>
+                                                    <set-body>
+@{
+return "{ \"username\": \"" + context.Variables["username"] + "\", \"password\": \"" + context.Variables["password"] + "\" }";
+}
+</set-body>
+                                                </send-request>
+                                                <!-- Error Validation from Proxy API -->
+                                                <choose>
+                                                    <when condition="@(
+((IResponse)context.Variables["tokenValidationResponse"]).StatusCode == 401 ||
+((IResponse)context.Variables["tokenValidationResponse"]).StatusCode == 400 ||
+((IResponse)context.Variables["tokenValidationResponse"]).StatusCode == 404 ||
+((IResponse)context.Variables["tokenValidationResponse"]).StatusCode == 500 )">
+                                                        <trace source="b2c-auth" severity="error">
+                                                            <message>@(String.Format("Authentication failed. Reason : {0}",((IResponse)context.Variables["tokenValidationResponse"]).Body.As
+                                                                <string>() ))
+                                                                </message>
+                                                            </trace>
+                                                            <return-response>
+                                                                <set-status code="{{error-unauthorized-code}}" reason="{{error-unauthorized-message}}" />
+                                                                <set-header name="Content-Type" exists-action="override">
+                                                                    <value>application/soap+xml; charset=utf-8</value>
+                                                                </set-header>
+                                                                <set-body>
+                                                                    <![CDATA[<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Error Access denied. Authentication failed.</faultstring></soap:Fault></soap:Body></soap:Envelope>
+]]>
+                                                                </set-body>
+                                                            </return-response>
+                                                        </when>
+                                                        <otherwise>
+                                                            <set-variable name="tokenValidationBody" value="@((string)context.Variables.GetValueOrDefault
+                                                                <IResponse>("tokenValidationResponse")?.Body.As
+                                                                    <string>())" />
+                                                                    <!-- Parse roles from the extracted body -->
+                                                                    <set-variable name="userRoles" value="@{
+var json = context.Variables.GetValueOrDefault
+                                                                        <string>("tokenValidationBody");
+if (string.IsNullOrEmpty(json)) {
+return "";
+}
+var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
+var rolesArray = obj["roles"];
+if (rolesArray == null) {
+return "";
+}
+var rolesList = new List
+                                                                            <string>();
+foreach (var role in rolesArray) {
+rolesList.Add((string)role);
+}
+return string.Join(",", rolesList);
+}" />
+                                                                        </otherwise>
+                                                                    </choose>
+                                                                    <trace source="b2c-auth" severity="information">
+                                                                        <message>@(String.Format("User: {0} authenticated Successfully", (string)context.Variables["username"]))</message>
+                                                                    </trace>
+                                                                </when>
+                                                                <!-- Bearer Token Validation -->
+                                                                <when condition="@( !string.IsNullOrEmpty((string)context.Variables["authHeader"]) && ((string)context.Variables["authHeader"]).StartsWith("Bearer ") )">
+                                                                    <trace source="b2c-auth" severity="information">
+                                                                        <message>Trying to authenticate user with JWT auth</message>
+                                                                    </trace>
+                                                                    <!-- Handle JWT Bearer Token -->
+                                                                    <validate-jwt header-name="Authorization" failed-validation-httpcode="403" require-expiration-time="true" require-scheme="Bearer">
+                                                                        <openid-config url="{{foc-b2c-jwt-openid-url}}" />
+                                                                        <audiences>
+                                                                            <audience>@((string)context.Variables["audience"])</audience>
+                                                                        </audiences>
+                                                                        <issuers>
+                                                                            <issuer>@((string)context.Variables["issuer"])</issuer>
+                                                                        </issuers>
+                                                                    </validate-jwt>
+                                                                    <set-variable name="jwtToken" value="@{
+var header = context.Request.Headers.GetValueOrDefault("Authorization", "");
+if (string.IsNullOrEmpty(header)) { return ""; }
+return header.Replace("Bearer ", "").Trim();
+}" />
+                                                                    <!-- 2. Decode JWT payload (middle part, base64url) -->
+                                                                    <set-variable name="jwtPayload" value="@{
+var token = context.Variables.GetValueOrDefault
+                                                                        <string>("jwtToken");
+if (string.IsNullOrEmpty(token)) { return ""; }
+var parts = token.Split('.');
+if (parts.Length != 3) { return ""; }
+var payload = parts[1];
+switch (payload.Length % 4)
+{
+case 2: payload += "=="; break;
+case 3: payload += "="; break;
+}
+var bytes = System.Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
+return System.Text.Encoding.UTF8.GetString(bytes);
+}" />
+                                                                        <!-- Setting client id for HMAC authorization as client Id -->
+                                                                        <set-variable name="clientId" value="@{
+var json = context.Variables.GetValueOrDefault
+                                                                            <string>("jwtPayload");
+if (string.IsNullOrEmpty(json)) { return ""; }
+var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
+var azp = obj["azp"];
+return azp == null ? "" : (string)azp;
+}" />
+                                                                            <!-- Extract roles claim from payload -->
+                                                                            <set-variable name="userRoles" value="@{
+var json = context.Variables.GetValueOrDefault
+                                                                                <string>("jwtPayload");
+if (string.IsNullOrEmpty(json)) { return ""; }
+var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
+var rolesArray = obj["roles"];
+if (rolesArray == null) { return "adminrole-1"; }
+var rolesList = new List
+                                                                                    <string>();
+foreach (var role in rolesArray) {
+rolesList.Add((string)role);
+}
+return string.Join(",", rolesList);
+}" />
+                                                                                    <trace source="b2c-auth" severity="information">
+                                                                                        <message>@(String.Format("ClientId: {0} Authenticated Successfully", (string)context.Variables["clientId"]))</message>
+                                                                                    </trace>
+                                                                                </when>
+                                                                                <otherwise>
+                                                                                    <trace source="b2c-auth" severity="error">
+                                                                                        <message>Authentication failed: Authorization header not supplied or not recognized</message>
+                                                                                    </trace>
+                                                                                    <!-- Handle missing or unsupported Authorization header -->
+                                                                                    <return-response>
+                                                                                        <set-status code="{{error-unauthorized-code}}" reason="{{error-unauthorized-message}}" />
+                                                                                        <set-header name="Content-Type" exists-action="override">
+                                                                                            <value>application/soap+xml; charset=utf-8</value>
+                                                                                        </set-header>
+                                                                                        <set-body>
+                                                                                            <![CDATA[<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Error Access denied. Authentication failed.</faultstring></soap:Fault></soap:Body></soap:Envelope>
+]]>
+                                                                                        </set-body>
+                                                                                    </return-response>
+                                                                                </otherwise>
+                                                                            </choose>
+                                                                        </fragment>
