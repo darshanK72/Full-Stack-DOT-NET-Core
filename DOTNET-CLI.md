@@ -65,12 +65,43 @@ dotnet new xunit -n MyTests -o MyTests          # xUnit test project
 | `-o` / `--output` | Output folder |
 | `-f` / `--framework` | Target framework (e.g. `net8.0`) |
 | `--force` | Overwrite existing files |
+| `--use-program-main` | Console only — generate explicit `Program` class and `Main` method instead of top-level statements |
 
 ### Specify framework
 
 ```bash
 dotnet new console -n MyApp -f net8.0
 ```
+
+### Console app entry point style
+
+By default, `dotnet new console` scaffolds **top-level statements** (C# 9+) — a minimal `Program.cs` with no explicit `Main` method:
+
+```csharp
+Console.WriteLine("Hello, World!");
+```
+
+To scaffold a traditional **`Program` class with `static void Main`**, pass `--use-program-main`:
+
+```bash
+dotnet new console -n MyApp -o MyApp --use-program-main
+```
+
+This generates:
+
+```csharp
+namespace MyApp;
+
+internal class Program
+{
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Hello, World!");
+    }
+}
+```
+
+Use `--use-program-main` when you want the classic entry-point structure (e.g. interview practice, legacy-style samples, or teaching `Main` and command-line args explicitly).
 
 ### Create a solution file
 
@@ -337,6 +368,7 @@ dotnet publish -c Release -o ./publish
 |------|---------|
 | Check SDK version | `dotnet --version` |
 | Create console app | `dotnet new console -n App -o App` |
+| Console with explicit `Main` | `dotnet new console -n App -o App --use-program-main` |
 | Create solution | `dotnet new sln -n Solution` |
 | Add project to solution | `dotnet sln add App/App.csproj` |
 | Add project reference | `dotnet add reference ../Lib/Lib.csproj` |
