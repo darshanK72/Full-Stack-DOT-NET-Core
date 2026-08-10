@@ -188,6 +188,7 @@ namespace DotNetQuestions
          */
         public int Size()
         {
+            // doctors.Count - 1 is incorrect 
             return doctors.Count;
         }
 
@@ -229,28 +230,40 @@ namespace DotNetQuestions
          */
         public Dictionary<int, DoctorSummary> GetDoctorSummaries()
         {
-            Dictionary<int, DoctorSummary> output = new Dictionary<int, DoctorSummary>();
-            foreach (Doctor doc in doctors)
-            {
-                int totalVisits = doc.visits.Count;
-                if (totalVisits == 0)
-                {
-                    output[doc.doctorId] = new DoctorSummary(0, 0, null);
-                    continue;
-                }
-                int totalDuration = doc.visits.Sum(v => v.visitDuration);
+            // Dictionary<int, DoctorSummary> output = new Dictionary<int, DoctorSummary>();
+            // foreach (Doctor doc in doctors)
+            // {
+            //     int totalVisits = doc.visits.Count;
+            //     if (totalVisits == 0)
+            //     {
+            //         output[doc.doctorId] = new DoctorSummary(0, 0, null);
+            //         continue;
+            //     }
+            //     int totalDuration = doc.visits.Sum(v => v.visitDuration);
 
-                VisitType? mostVisitType = doc.visits
-                                    .GroupBy(v => v.visitType)
-                                    .OrderByDescending(g => g.Count())
-                                    .First()
-                                    .Key;
+            //     VisitType? mostVisitType = doc.visits
+            //                         .GroupBy(v => v.visitType)
+            //                         .OrderByDescending(g => g.Count())
+            //                         .First()
+            //                         .Key;
 
-                DoctorSummary docSumm = new DoctorSummary(totalVisits, totalDuration, mostVisitType);
+            //     DoctorSummary docSumm = new DoctorSummary(totalVisits, totalDuration, mostVisitType);
 
-                output[doc.doctorId] = docSumm;
-            }
-            return output;
+            //     output[doc.doctorId] = docSumm;
+            // }
+            // return output;
+            return doctors.ToDictionary(
+                doc => doc.doctorId,
+                doc => doc.visits.Count == 0
+                    ? new DoctorSummary(0, 0, null)
+                    : new DoctorSummary(
+                        doc.visits.Count,
+                        doc.visits.Sum(v => v.visitDuration),
+                        doc.visits
+                            .GroupBy(v => v.visitType)
+                            .OrderByDescending(g => g.Count())
+                            .First()
+                            .Key));
         }
     }
 

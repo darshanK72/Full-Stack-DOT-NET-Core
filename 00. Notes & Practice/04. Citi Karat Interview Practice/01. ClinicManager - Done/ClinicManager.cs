@@ -186,6 +186,7 @@ namespace DotNetQuestions
             int completed = 0;
             foreach (Appointment a in appointments)
             {
+                // checking whether appointment status is completed then only increment
                 if (a.status == AppointmentStatus.COMPLETED)
                 {
                     completed++;
@@ -212,8 +213,10 @@ namespace DotNetQuestions
          */
         public Dictionary<AppointmentType, double> GetAverageAppointmentDurationByType(int doctorId)
         {
-            // TODO: implement
-            return new Dictionary<AppointmentType, double>();
+            return this.appointments
+                .Where(app => app.doctorId == doctorId && app.status == AppointmentStatus.COMPLETED)
+                .GroupBy(app => app.appointmentType)
+                .ToDictionary(group => group.Key,group => group.Average(app => app.durationMinutes));
         }
 
         /**
@@ -224,7 +227,30 @@ namespace DotNetQuestions
         public Dictionary<int, DoctorAppointmentSummary> GetDoctorAppointmentSummary()
         {
             // TODO: implement
-            return new Dictionary<int, DoctorAppointmentSummary>();
+            //return new Dictionary<int, DoctorAppointmentSummary>();
+            Dictionary<int, DoctorAppointmentSummary> output = new Dictionary<int, DoctorAppointmentSummary>();
+            foreach (Doctor doc in this.doctors.Values){
+                List<Appointment> docAppoIntments = this.appointments.Where(app => app.doctorId == doc.doctorId).ToList();
+                int totalAppointments = docAppoIntments.Count;
+
+                if(totalAppointments == 0){
+                    output[doc.doctorId] = new DoctorAppointmentSummary(0,0,null);
+                    continue;
+                }
+
+                int totalDuration = docAppoIntments.Sum(app => app.durationMinutes);
+
+
+                AppointmentType type = docAppoIntments
+                                        .GroupBy(app => app.appointmentType)
+                                        .OrderByDescending(g => g.Count())
+                                        .ThenBy(g => g.Key.ToString())
+                                        .First()
+                                        .Key;
+
+                output[doc.doctorId] = new DoctorAppointmentSummary(totalAppointments,totalDuration,type);
+            }
+            return output;
         }
 
         /**
@@ -235,7 +261,33 @@ namespace DotNetQuestions
         public List<int[]> GetDoctorWorkloadRanking(int k)
         {
             // TODO: implement
-            return new List<int[]>();
+            //return new List<int[]>();
+
+            List<int[]> output = new List<int[]>();
+
+            foreach(Doctor doc in this.doctors.Values)
+            {
+                var appoits = this.appointments.Where(appo => appo.doctorId == doc.doctorId).ToList();
+                if (appoits.Count == 0) continue;
+
+                int totalMinutes = appoits.Sum(app => app.durationMinutes);
+
+                int mostFrequentPatientId = appoits
+                                    .GroupBy(app => app.patientId)
+                                    .OrderByDescending(g => g.Count())
+                                    .ThenBy(g => g.Key)
+                                    .First()
+                                    .Key;
+
+                output.Add(new int[]
+                {
+                    doc.doctorId,
+                    totalMinutes,
+                    mostFrequentPatientId
+                });
+            }
+
+            return output.OrderByDescending(p => p[1]).Take(k).ToList();
         }
     }
 
@@ -250,16 +302,16 @@ namespace DotNetQuestions
             // </bug-task1>
 
             // <task2>
-            SkipTest("testGetAverageAppointmentDurationByType");
+            RunTest("testGetAverageAppointmentDurationByType",TestGetAverageAppointmentDurationByType);
             // </task2>
 
             // <task3>
-            SkipTest("testGetDoctorAppointmentSummary");
+            RunTest("testGetDoctorAppointmentSummary",TestGetDoctorAppointmentSummary);
             // </task3>
 
             // <task4>
-            SkipTest("testGetDoctorWorkloadRankingCase1");
-            SkipTest("testGetDoctorWorkloadRankingCase2");
+            RunTest("testGetDoctorWorkloadRankingCase1",TestGetDoctorWorkloadRankingCase1);
+            RunTest("testGetDoctorWorkloadRankingCase2", TestGetDoctorWorkloadRankingCase2);
             // </task4>
 
             Console.WriteLine("\nResults: " + passed + " passed, " + failed + " failed, " + skipped + " skipped");

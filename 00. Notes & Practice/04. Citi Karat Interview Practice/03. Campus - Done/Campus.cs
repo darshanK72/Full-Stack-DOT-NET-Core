@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 /**
  *
@@ -127,7 +128,7 @@ namespace DotNetQuestions
                 if (user.userId == userId)
                 {
                     // BUG: Still using exact match instead of rank
-                    return user.accessLevel == requiredLevel;
+                    return user.accessLevel.Rank() >= requiredLevel.Rank();
                 }
             }
             return false;
@@ -137,30 +138,63 @@ namespace DotNetQuestions
         // <task2>
         public bool LogAccess(int userId, AccessEvent evt)
         {
-            // Implementation needed
+            User? user = this.users.Find(u => u.userId == userId);
+            if(user != null){
+                if(!userEvents.ContainsKey(user.userId)){
+                    userEvents[user.userId] = new List<AccessEvent>();
+                }
+                userEvents[user.userId].Add(evt);
+                return true;
+            }
             return false;
         }
 
         public List<int> GetAfterHoursUsers()
         {
-            // Implementation needed
-            return new List<int>();
+            List<int> output = new List<int>();
+            foreach(User user in this.users){
+                var userEvts = this.userEvents.GetValueOrDefault(user.userId);
+                if(userEvts == null){
+                    continue;
+                }
+
+                if(userEvts.Any(evt => evt.entryTime < 480 || evt.exitTime > 1200)){
+                    output.Add(user.userId);
+                }
+            }
+            output.Sort();
+            return output;
         }
         // </task2>
 
         // <task3>
         public Dictionary<int, int> GetHourlyOccupancy()
         {
-            // Implementation needed
-            return new Dictionary<int, int>();
+           Dictionary<int,int> output = new Dictionary<int, int>();
+           foreach(var userEvts in this.userEvents.Values){
+                foreach(AccessEvent evt in userEvts){
+                    int startHour = evt.entryTime / 60;
+                    int endHour = (evt.exitTime - 1) / 60;
+
+                    for(int i = startHour; i <= endHour; i++){
+                        if(!output.ContainsKey(i)){
+                            output[i] = 0;
+                        }
+                        output[i]++;
+                    }
+                }
+           }
+            return output;
         }
         // </task3>
 
         // <task4>
         public int GetTotalMinutesOnCampus(int userId)
         {
-            // Implementation needed
-            return 0;
+            var events = userEvents.GetValueOrDefault(userId);
+            if(events == null) return 0;
+            return events.Sum(evt => evt.exitTime - evt.entryTime);
+            
         }
         // </task4>
     }
