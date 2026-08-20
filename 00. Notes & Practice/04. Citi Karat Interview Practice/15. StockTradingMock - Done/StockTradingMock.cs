@@ -1,3 +1,7 @@
+// To clear the interview, you must complete at least one bug fix and two tasks.
+// A single task may involve multiple functions; sub-parts like 2.1 and 2.2 are considered one task.
+// Please provide a verbal walkthrough of your thought process while writing the code.
+
 // Stock Trading https://www.onlinegdb.com/online_java_compiler#
 
 /*<bug-task1>
@@ -125,13 +129,53 @@ namespace DotNetQuestions
         // TASK 3: Logic missing - returns 0
         public int GetTotal(List<StockCollection> stockCollections)
         {
-            return 0;
+            Dictionary<string, StockCollection> stockMap = stockCollections
+                .ToDictionary(stkc => stkc.Stock.Symbol);
+
+            Dictionary<string, int> holdings = Transactions
+                        .GroupBy(t => t.Stock.Symbol)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.Sum(t => (t.Type == "buy") ? t.Quantity : -t.Quantity)
+                        );
+
+            int total = 0;
+            foreach (KeyValuePair<string, int> pair in holdings)
+            {
+                if (pair.Value <= 0) continue;
+                StockCollection stkc = stockMap[pair.Key];
+                int latestPrice = stkc.PriceRecords.OrderByDescending(r => r.Date).First().Price;
+                total += latestPrice * pair.Value;
+            }
+            return total;
         }
 
         // TASK 4: Logic missing - returns 0.0
         public double GetProfit(List<StockCollection> stockCollections)
         {
-            return 0.0;
+            Dictionary<string, StockCollection> stockMap = stockCollections
+                .ToDictionary(stkc => stkc.Stock.Symbol);
+
+            int totalCost = 0;
+            int totalRevenue = 0;
+            foreach (Transaction trans in Transactions)
+            {
+                StockCollection stkc = stockMap[trans.Stock.Symbol];
+                int priceOnDate = stkc.PriceRecords.Where(pr => pr.Date == trans.Date).First().Price;
+                if (trans.Type == "buy")
+                {
+                    totalCost += priceOnDate * trans.Quantity;
+                }
+                else
+                {
+                    totalRevenue += priceOnDate * trans.Quantity;
+                }
+            }
+
+            int currentHoldingsTotal = GetTotal(stockCollections);
+
+            return totalRevenue + (currentHoldingsTotal - totalCost);
+
         }
     }
 
@@ -162,18 +206,19 @@ namespace DotNetQuestions
         // TASK 1 BUG: Crashes on empty list
         public int GetMaxPrice()
         {
-            return PriceRecords.Select(r => r.Price).Max();
+            return PriceRecords.Select(r => (int?)r.Price).Max() ?? -1;
         }
 
         // TASK 1 BUG: Crashes on empty list
         public int GetMinPrice()
         {
-            return PriceRecords.Select(r => r.Price).Min();
+            return PriceRecords.Select(r => (int?)r.Price).Min() ?? -1;
         }
 
         // TASK 1 BUG: Division by zero on empty list
         public double GetAvgPrice()
         {
+            if (PriceRecords.Count == 0) return 0.0;
             double total = PriceRecords.Select(r => r.Price).Sum();
             return total / PriceRecords.Count;
         }
@@ -181,7 +226,23 @@ namespace DotNetQuestions
         // TASK 2: Unimplemented
         public object[] GetBiggestChange()
         {
-            return null;
+            var prs = PriceRecords.OrderBy(pr => DateTime.Parse(pr.Date)).ToList();
+            int maxChange = int.MinValue;
+            string date1 = string.Empty;
+            string date2 = string.Empty;
+            for (int i = 1; i < prs.Count(); i++)
+            {
+                int change = Math.Abs(prs[i].Price - prs[i - 1].Price);
+                if (change > maxChange)
+                {
+                    maxChange = change;
+                    date1 = prs[i].Date;
+                    date2 = prs[i - 1].Date;
+                }
+            }
+            return new object[]{
+                maxChange,date2,date1
+            };
         }
 
         // TASK 2: Unimplemented
@@ -191,7 +252,7 @@ namespace DotNetQuestions
         }
     }
 
-    public class StockTradingMockStub
+    public class Program
     {
         public static void Main(string[] args)
         {

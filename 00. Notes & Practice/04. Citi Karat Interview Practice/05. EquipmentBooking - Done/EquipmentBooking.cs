@@ -178,6 +178,7 @@ namespace DotNetQuestions
         }
 
         /**
+         * <bug 1>
          * Makes a reservation if the equipment is available for the requested period.
          * Returns true if successfully reserved, false if the equipment is unavailable.
          */
@@ -201,6 +202,10 @@ namespace DotNetQuestions
                 {
                     if (startTime < res.EndTime && endTime > res.StartTime)
                     {
+                        if (res.Status == ReservationStatus.CANCELLED)
+                        {
+                            return true;
+                        }
                         return false;
                     }
                 }
@@ -237,25 +242,65 @@ namespace DotNetQuestions
 
         public List<Reservation> GetReservationsForMember(string memberName)
         {
-            return new List<Reservation>();
+            return Reservations
+                .Where(res => res.MemberName == memberName && res.Status == ReservationStatus.ACTIVE)
+                .ToList();
         }
 
         public Dictionary<string, int> GetEquipmentSummary(int equipmentId)
         {
             Dictionary<string, int> result = new Dictionary<string, int>();
-            result["total_reservations"] = 0;
-            result["total_minutes"] = 0;
+            var equpReservations = Reservations
+                .Where(res => res.EquipmentId == equipmentId && res.Status == ReservationStatus.ACTIVE)
+                .ToList();
+            result["total_reservations"] = equpReservations.Count;
+            result["total_minutes"] = equpReservations.Sum(res => res.GetDuration());
             return result;
         }
 
         public List<int> GetAvailableEquipment(int startTime, int endTime)
         {
-            return new List<int>();
+            List<int> output = new List<int>();
+            foreach (Equipment eqp in EquipmentList)
+            {
+                var reservations = Reservations
+                    .Where(res => res.EquipmentId == eqp.EquipmentId)
+                    .ToList();
+                if (reservations.Count == 0)
+                {
+                    output.Add(eqp.EquipmentId);
+                    continue;
+                }
+
+                foreach (Reservation res in reservations)
+                {
+                    if (startTime < (res.EndTime + 30) && (endTime + 29) > res.StartTime)
+                    {
+                        if (res.Status == ReservationStatus.CANCELLED)
+                        {
+                            output.Add(eqp.EquipmentId);
+                        }
+                        
+                    }else{
+                        output.Add(eqp.EquipmentId);
+                    }
+
+                }
+
+            }
+            return output;
         }
 
         public List<int> GetMostBookedEquipment(int n)
         {
-            return new List<int>();
+            return Reservations
+                    .Where(res => res.Status == ReservationStatus.ACTIVE)
+                    .GroupBy(res => res.EquipmentId)
+                    .OrderByDescending(g => g.Count())
+                    .ThenBy(g => g.Key)
+                    .Take(n)
+                    .Select(g => g.Key)
+                    .ToList();
         }
     }
 
@@ -268,12 +313,12 @@ namespace DotNetQuestions
             Console.WriteLine("\n=== EQUIPMENT BOOKING ===\n");
 
             Run("TASK 1   — Make reservation / conflict detection", TestMakeReservation);
-            Run("TASK 1   — Different equipment, no conflict",      TestDifferentEquipmentNoConflict);
-            Run("TASK 1   — Cancelled reservation frees slot",      TestCancelledReservationFreesSlot);
-            Run("TASK 2-1 — Get reservations for member",           TestGetReservationsForMember);
-            Run("TASK 2-2 — Get equipment summary",                 TestGetEquipmentSummary);
-            Run("TASK 3   — Get available equipment",               TestGetAvailableEquipment);
-            Run("TASK 4   — Get most booked equipment",             TestGetMostBookedEquipment);
+            Run("TASK 1   — Different equipment, no conflict", TestDifferentEquipmentNoConflict);
+            Run("TASK 1   — Cancelled reservation frees slot", TestCancelledReservationFreesSlot);
+            Run("TASK 2-1 — Get reservations for member", TestGetReservationsForMember);
+            Run("TASK 2-2 — Get equipment summary", TestGetEquipmentSummary);
+            Run("TASK 3   — Get available equipment", TestGetAvailableEquipment);
+            Run("TASK 4   — Get most booked equipment", TestGetMostBookedEquipment);
 
             Console.WriteLine("\n--------------------------------------------------");
             Console.WriteLine("Results: " + passed + " passed, " + failed +
@@ -482,9 +527,9 @@ namespace DotNetQuestions
             // equip 2: 90 active minutes
             // equip 3: cancelled → 0 active minutes → excluded
             manager.MakeReservation(new Reservation(101, "Alice", 1, 480, 540));  // 60 min
-            manager.MakeReservation(new Reservation(102, "Bob",   1, 600, 660));  // 60 min
+            manager.MakeReservation(new Reservation(102, "Bob", 1, 600, 660));  // 60 min
             manager.MakeReservation(new Reservation(103, "Carol", 2, 480, 570));  // 90 min
-            manager.MakeReservation(new Reservation(104, "Dave",  3, 480, 600));
+            manager.MakeReservation(new Reservation(104, "Dave", 3, 480, 600));
             manager.CancelReservation(104);
 
             Check(manager.GetMostBookedEquipment(2).SequenceEqual(new List<int> { 1, 2 }),
@@ -495,7 +540,7 @@ namespace DotNetQuestions
             // tie-breaking: equal total minutes → lower equipment ID first
             FacilityManager manager2 = new FacilityManager();
             manager2.MakeReservation(new Reservation(201, "Alice", 10, 480, 540)); // equip 10: 60 min
-            manager2.MakeReservation(new Reservation(202, "Bob",   20, 480, 540)); // equip 20: 60 min
+            manager2.MakeReservation(new Reservation(202, "Bob", 20, 480, 540)); // equip 20: 60 min
             Check(manager2.GetMostBookedEquipment(2).SequenceEqual(new List<int> { 10, 20 }),
                 "tie-break: expected [10, 20], was [" + string.Join(", ", manager2.GetMostBookedEquipment(2)) + "]");
         }

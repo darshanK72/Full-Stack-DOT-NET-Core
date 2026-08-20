@@ -79,7 +79,7 @@ namespace DotNetQuestions
                 .Count();
             // BUG: Logic below only looks for DELIVERED, missing CANCELED
             int closed = orders
-                .Where(o => o.status == OrderStatus.DELIVERED)
+                .Where(o => o.status == OrderStatus.DELIVERED || o.status == OrderStatus.CANCELED)
                 .Count();
 
             Dictionary<string, int> stats = new Dictionary<string, int>();
@@ -95,7 +95,10 @@ namespace DotNetQuestions
          */
         public Dictionary<int, double> GetRevenuePerRestaurant()
         {
-            return new Dictionary<int, double>();
+            return orders
+                .Where(o => o.status == OrderStatus.DELIVERED)
+                .GroupBy(o => o.restaurantId)
+                .ToDictionary(g => g.Key,g => g.Sum(o => o.orderValue));
         }
 
         /**
@@ -104,7 +107,10 @@ namespace DotNetQuestions
          */
         public Dictionary<int, double> GetAverageDeliveryDistancePerCustomer()
         {
-            return new Dictionary<int, double>();
+            return orders
+                    .Where(o => o.status == OrderStatus.DELIVERED)
+                    .GroupBy(o => o.customerId)
+                    .ToDictionary(g => g.Key,g => g.Average(o => o.distanceKm));
         }
 
         /**
@@ -113,7 +119,12 @@ namespace DotNetQuestions
          */
         public List<int> GetHighlyActiveCustomers()
         {
-            return new List<int>();
+            return orders
+                .GroupBy(o => o.customerId)
+                .Where(g => g.Count() >= 3)
+                .Select(g => g.Key)
+                .OrderBy(key => key)
+                .ToList();
         }
     }
 

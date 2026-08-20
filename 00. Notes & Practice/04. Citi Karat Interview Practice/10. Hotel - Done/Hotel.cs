@@ -35,6 +35,11 @@ namespace DotNetQuestions
      </task2>
      */
 
+     // from guest id - all bookings for that guest
+     // all bookings which are checkoud out
+     // form bookings - group by room type
+     // key - room type , value - Average(nights)
+
     /*<task3>
      * TASK 3: Implement getGuestBookingSummary():
      *   - Return Map<Integer, GuestBookingSummary> for every guest in the system.
@@ -138,7 +143,9 @@ namespace DotNetQuestions
         public int GetTotalRevenue() {
             int total = 0;
             foreach (Booking b in bookings) {
-                total += rooms[b.roomId].pricePerNight * b.nights;
+                if(b.status != BookingStatus.CANCELLED){
+                    total += rooms[b.roomId].pricePerNight * b.nights;
+                }
             }
             return total;
         }
@@ -146,19 +153,70 @@ namespace DotNetQuestions
         // TASK 2: Unimplemented - returns empty map.
         public Dictionary<RoomType, double> GetAverageStayDurationByRoomType(int guestId) {
             // TODO: implement
-            return new Dictionary<RoomType, double>();
+            // return new Dictionary<RoomType, double>();
+
+            return bookings.Where(b => b.guestId ==guestId)
+                .Where(b => b.status == BookingStatus.CHECKED_OUT)
+                .Select(b => new 
+                    {roomId = b.roomId,
+                    nights = b.nights,
+                    room = rooms[b.roomId]
+                })
+                .GroupBy(x => x.room.roomType)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Average(x => x.nights)
+                );
         }
 
         // TASK 3: Unimplemented - returns empty map.
         public Dictionary<int, GuestBookingSummary> GetGuestBookingSummary() {
             // TODO: implement
-            return new Dictionary<int, GuestBookingSummary>();
+            Dictionary<int,GuestBookingSummary> output = new Dictionary<int, GuestBookingSummary>();
+            foreach(Guest guest in guests.Values){
+                var guestBookings = bookings.Where(b => b.guestId == guest.guestId);
+                if(guestBookings.Count() == 0){
+                    output[guest.guestId] = new GuestBookingSummary(0,0,null);
+                    continue;
+                }
+                RoomType? favRoomType = guestBookings
+                    .GroupBy(b => rooms[b.roomId].roomType)
+                    .OrderByDescending(g => g.Count())
+                    .ThenBy(g => g.Key)
+                    .First()
+                    .Key;
+
+                var bookingSumary = new GuestBookingSummary(
+                        guestBookings.Count(),
+                        guestBookings.Sum(b => b.nights),
+                        favRoomType
+                    );
+                output[guest.guestId] = bookingSumary;
+            }
+            return output;
         }
 
         // TASK 4: Unimplemented - returns empty list.
         public List<int> GetTopSpenders(int n) {
-            // TODO: implement
-            return new List<int>();
+            
+            List<KeyValuePair<int,int>> output = new List<KeyValuePair<int, int>>();
+            foreach(Guest guest in guests.Values){
+                var guestBookings = bookings.Where(b => b.guestId == guest.guestId);
+                int total = 0;
+                if(guestBookings.Count() != 0){
+                    total = guestBookings
+                        .Where(b => b.status == BookingStatus.CHECKED_OUT)
+                        .Sum(b => rooms[b.roomId].pricePerNight * b.nights);
+                }
+                output.Add(new KeyValuePair<int, int>(guest.guestId,total));
+            }
+
+            return output
+                .OrderByDescending(kv => kv.Value)
+                .ThenBy(kv => kv.Key)
+                .Take(n)
+                .Select(kv => kv.Key)
+                .ToList();
         }
     }
 

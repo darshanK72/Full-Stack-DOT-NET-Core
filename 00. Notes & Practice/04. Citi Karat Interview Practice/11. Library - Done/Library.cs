@@ -33,6 +33,11 @@ namespace DotNetQuestions
  </task2>
  */
 
+ // loans - filter where status is overdue
+ // group by - member id
+ // to dictionary - key is memberId
+ // value = sorted list of book ids 
+
 /*<task3>
  * TASK 3: Implement calculateLateFees():
  *   - Only OVERDUE loans incur fees. ACTIVE and RETURNED loans have no fees.
@@ -42,6 +47,12 @@ namespace DotNetQuestions
  *   - Only members with at least one OVERDUE loan appear in the result.
  </task3>
  */
+
+  // loans - filter where status is overdue
+   // group by - member id
+   // to dictionary - key is memberId
+   // value - sum ( loanDay * charge )
+   // (member.tier == MemberTier.Standard) ? 0.5 : (member.tier == MemberTier == Premium) ? 0.25 : 1;
 
 /*<task4>
  * TASK 4: Implement getLoanLimitViolators():
@@ -54,6 +65,11 @@ namespace DotNetQuestions
  *   - Members exactly at their limit are NOT violators.
  </task4>
  */
+
+ // loans filter where active or overdue
+ // group by memberid
+ // filter where for each group counts > limit, we can find limit based on tier
+ // return their member id key
 
 enum MemberTier
 {
@@ -143,28 +159,54 @@ class LibraryManager
     // Bug: RETURNED loans are NOT excluded from the count.
     public int GetCurrentCheckoutCount()
     {
-        return loans.Count;
+        return loans.Where(loan => loan.status == LoanStatus.ACTIVE || loan.status == LoanStatus.OVERDUE).Count();
     }
 
     // TASK 2: Unimplemented - returns empty map.
     public Dictionary<int, List<int>> GetOverdueBooksByMember()
     {
         // TODO: implement
-        return new Dictionary<int, List<int>>();
+        // return new Dictionary<int, List<int>>();
+
+        return loans
+            .Where(loan => loan.status == LoanStatus.OVERDUE)
+            .GroupBy(loan => loan.memberId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(loan => loan.bookId).Select(loan => loan.bookId).ToList()
+            );
     }
 
     // TASK 3: Unimplemented - returns empty map.
     public Dictionary<int, double> CalculateLateFees()
     {
-        // TODO: implement
-        return new Dictionary<int, double>();
+         return loans
+            .Where(loan => loan.status == LoanStatus.OVERDUE)
+            .GroupBy(loan => loan.memberId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Sum(loan => {
+                    MemberTier tier = members[loan.memberId].tier;
+                    if(tier == MemberTier.STANDARD) return loan.loanDays * 0.5;
+                    else return loan.loanDays * 0.25;
+                })
+            );
     }
 
     // TASK 4: Unimplemented - returns empty list.
     public List<int> GetLoanLimitViolators()
     {
-        // TODO: implement
-        return new List<int>();
+         return loans
+            .Where(loan => loan.status == LoanStatus.OVERDUE || loan.status == LoanStatus.ACTIVE)
+            .GroupBy(loan => loan.memberId)
+            .Where(g => {
+                MemberTier tier = members[g.Key].tier;
+                if(tier == MemberTier.STANDARD && g.Count() > 3) return true;
+                else if(tier == MemberTier.PREMIUM && g.Count() > 5) return true;
+                else return false;
+            })
+            .Select(g => g.Key)
+            .ToList();
     }
 }
 

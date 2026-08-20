@@ -1,3 +1,7 @@
+// To clear the interview, you must complete at least one bug fix and two tasks.
+// A single task may involve multiple functions; sub-parts like 2.1 and 2.2 are considered one task.
+// Please provide a verbal walkthrough of your thought process while writing the code.
+
 
 /*<bug-task1>
  * We are building a program to manage a food delivery platform. The platform has multiple restaurants,
@@ -145,7 +149,7 @@ namespace DotNetQuestions
             int closed = 0;
             foreach (Order o in orders)
             {
-                if (o.status == OrderStatus.DELIVERED)
+                if (o.status == OrderStatus.DELIVERED || o.status == OrderStatus.CANCELED)
                 {
                     closed++;
                 }
@@ -155,24 +159,42 @@ namespace DotNetQuestions
 
         public void AddDelivery(int orderId, Delivery delivery)
         {
-            // TODO: implement — if order doesn't exist, ignore
+            Order order = orders.FirstOrDefault(o => o.orderId == orderId);
+            if (order != null)
+            {
+                order.deliverys.Add(delivery);
+            }
         }
 
         public Dictionary<int, double> GetAverageDeliveryTimeByRestaurant()
         {
-            // TODO: implement
-            return new Dictionary<int, double>();
+            // // TODO: implement
+            // return new Dictionary<int, double>();
+
+            return orders
+                .GroupBy(o => o.restaurantId)
+                .Where(g => g.SelectMany(o => o.deliverys).Any())
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.SelectMany(g => g.deliverys).Average(d => d.endMinute - d.startMinute)
+                );
         }
 
         // TASK 3: implement
         public List<int> GetTopRestaurantsByRevenue(int n)
         {
-            // TODO: implement
-            return new List<int>();
+            return orders
+             .Where(o => o.status == OrderStatus.DELIVERED)
+             .GroupBy(o => o.restaurantId)
+             .OrderByDescending(g => g.Sum(o => o.orderValue))
+             .ThenBy(g => g.Key)
+             .Take(n)
+             .Select(g => g.Key)
+             .ToList();
         }
     }
 
-    public class FoodVersion2Stub
+    public class Program
     {
         private static int passed = 0, failed = 0;
 

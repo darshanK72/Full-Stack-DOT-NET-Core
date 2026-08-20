@@ -1,3 +1,7 @@
+// To clear the interview, you must complete at least one bug fix and two tasks.
+// A single task may involve multiple functions; sub-parts like 2.1 and 2.2 are considered one task.
+// Please provide a verbal walkthrough of your thought process while writing the code.
+
 // payment transaction https://www.onlinegdb.com/online_java_compiler#
 
 /*<bug-task1>
@@ -33,6 +37,11 @@
  </task3>
  */
 
+// transaction group by acccount id
+// order by timestampsec
+// skip 3
+// Sum( if(credit add 1 if depb add 2))
+
 /*<task4>
  * TASK 4: Implement getSuspiciousAccounts():
  *   - Consider only DEBIT transactions.
@@ -43,12 +52,18 @@
  *   - Return sorted List<String> of suspicious accountIds.
  </task4>
  */
+
+// filter account where type is debit and amount >= 50
+// order by timestamp
+// foreach transaction, we find if any transaction exists if prev and current differ is less thatn or equal to 60 sec, add that into output, return sorted list of accounts ids
+
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DotNetQuestions
 {
-    public class PaymentMockStub
+    public class Payment
     {
         enum TransactionType { CREDIT, DEBIT }
 
@@ -105,6 +120,11 @@ namespace DotNetQuestions
                         balances[t.GetAccountId()] = current + t.GetAmount();
                     }
                     // BUG: Logic for DEBIT subtraction is missing here
+                    else if (t.GetTransactionType() == TransactionType.DEBIT)
+                    {
+                        int current = balances.ContainsKey(t.GetAccountId()) ? balances[t.GetAccountId()] : 0;
+                        balances[t.GetAccountId()] = current - t.GetAmount();
+                    }
                 }
                 return balances;
             }
@@ -115,7 +135,12 @@ namespace DotNetQuestions
              */
             public Dictionary<string, double> GetAverageTransactionAmountByAccount()
             {
-                return new Dictionary<string, double>();
+                return transactions
+                    .GroupBy(trs => trs.GetAccountId())
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Average(trs => trs.GetAmount())
+                    );
             }
 
             /**
@@ -124,7 +149,20 @@ namespace DotNetQuestions
              */
             public Dictionary<string, int> GetTransactionFees()
             {
-                return new Dictionary<string, int>();
+                Dictionary<string, int> output = new Dictionary<string, int>();
+                foreach (Account acc in accounts)
+                {
+                    output[acc.accountId] = 0;
+                }
+
+                foreach (var grp in transactions.GroupBy(trs => trs.GetAccountId()))
+                {
+                    int total = grp.OrderBy(trs => trs.GetTimestampSec())
+                    .Skip(3)
+                    .Sum(trs => (trs.GetTransactionType() == TransactionType.CREDIT) ? 1 : 2);
+                    output[grp.Key] = total;
+                }
+                return output;
             }
 
             /**
@@ -133,7 +171,33 @@ namespace DotNetQuestions
              */
             public List<string> GetSuspiciousAccounts()
             {
-                return new List<string>();
+                List<string> output = new List<string>();
+                var suppAccsGrps = transactions
+                    .Where(trs => trs.GetTransactionType() == TransactionType.DEBIT && trs.GetAmount() >= 50)
+                    .GroupBy(trs => trs.GetAccountId());
+
+                foreach (var grp in suppAccsGrps)
+                {
+                    var trans = grp.OrderBy(trs => trs.GetTimestampSec()).ToList();
+                    for (int i = 0; i < trans.Count; i++)
+                    {
+                        int count = 0;
+                        int startWindow = trans[i].GetTimestampSec();
+                        for (int j = i; j < trans.Count; j++)
+                        {
+                            if (trans[j].GetTimestampSec() <= startWindow + 60)
+                            {
+                                count++;
+                            }
+                        }
+                        if (count >= 3)
+                        {
+                            output.Add(grp.Key);
+                        }
+                    }
+                }
+
+                return output.OrderBy(o => o).ToList();
             }
         }
 
@@ -168,20 +232,64 @@ namespace DotNetQuestions
             // <task3>
             RunTest("TASK 2: Tiered Fees", () =>
             {
-                AccountManager mgr = new AccountManager();
+                var mgr = new AccountManager();
                 mgr.AddAccount(new Account("A1", "Alice"));
-                Check(mgr.GetTransactionFees().ContainsKey("A1"), "Task 2: Account missing from fees report");
+
+                var fees = mgr.GetTransactionFees();
+
+                Check(
+                    fees.TryGetValue("A1", out var fee),
+                    "Task 2: Account missing from fees report"
+                );
+
+                Check(
+                    fee == 0,
+                    $"Task 2: Expected zero fees for an account with no transactions, but found {fee}"
+                );
             });
             // </task3>
 
             // <task4>
             RunTest("TASK 3: Suspicious Activity", () =>
             {
-                AccountManager mgr = new AccountManager();
-                Check(mgr.GetSuspiciousAccounts() != null, "Task 3: Method returned null");
-                // Logic would fail here as it returns an empty list
-                Check(!(mgr.GetSuspiciousAccounts().Count == 0) == false, "Task 3 not implemented");
-                throw new Exception("Suspicious logic not implemented");
+                // Should flag: 3 large debits within 60s (inclusive endpoints)
+                AccountManager mgr1 = new AccountManager();
+                mgr1.AddAccount(new Account("A1", "Alice"));
+                mgr1.AddTransaction(new Transaction("T1", "A1", TransactionType.DEBIT, 50, 0));
+                mgr1.AddTransaction(new Transaction("T2", "A1", TransactionType.DEBIT, 60, 30));
+                mgr1.AddTransaction(new Transaction("T3", "A1", TransactionType.DEBIT, 75, 60)); // t+60 inclusive
+                var r1 = mgr1.GetSuspiciousAccounts();
+                Check(r1.Contains("A1"), "Task 3: A1 should be flagged (3 debits in 0–60s)");
+
+                // Should NOT flag: window exceeded by 1 second
+                AccountManager mgr2 = new AccountManager();
+                mgr2.AddAccount(new Account("A2", "Bob"));
+                mgr2.AddTransaction(new Transaction("T1", "A2", TransactionType.DEBIT, 50, 0));
+                mgr2.AddTransaction(new Transaction("T2", "A2", TransactionType.DEBIT, 50, 30));
+                mgr2.AddTransaction(new Transaction("T3", "A2", TransactionType.DEBIT, 50, 61)); // just outside
+                var r2 = mgr2.GetSuspiciousAccounts();
+                Check(!r2.Contains("A2"), "Task 3: A2 should NOT be flagged (61s > 60s window)");
+
+                // Should NOT flag: debits below $50
+                AccountManager mgr3 = new AccountManager();
+                mgr3.AddAccount(new Account("A3", "Carol"));
+                mgr3.AddTransaction(new Transaction("T1", "A3", TransactionType.DEBIT, 49, 0));
+                mgr3.AddTransaction(new Transaction("T2", "A3", TransactionType.DEBIT, 49, 10));
+                mgr3.AddTransaction(new Transaction("T3", "A3", TransactionType.DEBIT, 49, 20));
+                Check(!mgr3.GetSuspiciousAccounts().Contains("A3"),
+                    "Task 3: Debits < 50 should not trigger flag");
+
+                // Result should be sorted
+                AccountManager mgr4 = new AccountManager();
+                mgr4.AddAccount(new Account("B1", "Dave"));
+                mgr4.AddAccount(new Account("A1", "Eve"));
+                foreach (var id in new[] { "B1", "A1" })
+                    for (int t = 0; t <= 40; t += 20)
+                        mgr4.AddTransaction(new Transaction($"T{id}{t}", id,
+                            TransactionType.DEBIT, 50, t));
+                var r4 = mgr4.GetSuspiciousAccounts();
+                Check(r4.SequenceEqual(r4.OrderBy(x => x).ToList()),
+                "Task 3: Result should be sorted alphabetically");
             });
             // </task4>
 

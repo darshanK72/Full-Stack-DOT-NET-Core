@@ -49,6 +49,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DotNetQuestions
 {
@@ -108,7 +109,7 @@ namespace DotNetQuestions
                 foreach (Member m in members)
                 {
                     // BUG 1: Only checking GOLD (SILVER check is missing)
-                    if (m.membershipStatus == MembershipStatus.GOLD)
+                    if (m.membershipStatus == MembershipStatus.GOLD || m.membershipStatus == MembershipStatus.SILVER)
                     {
                         totalPaidMembers++;
                     }
@@ -122,26 +123,133 @@ namespace DotNetQuestions
             // 2.1) Returns false, causing addWorkout tests to fail
             public bool AddWorkout(int memberId, Workout workout)
             {
+                Member? member = members.FirstOrDefault(m => m.memberId == memberId);
+                if (member != null)
+                {
+                    if (!workoutMap.ContainsKey(memberId))
+                    {
+                        workoutMap[memberId] = new List<Workout>();
+                    }
+                    workoutMap[memberId].Add(workout);
+                    return true;
+                }
                 return false;
             }
 
             // 2.2) Returns empty map, causing lookup tests to fail
             public Dictionary<int, double?> GetAverageWorkoutDurations()
             {
-                return new Dictionary<int, double?>();
+                Dictionary<int, double?> output = new Dictionary<int, double?>();
+                foreach (Member mem in members)
+                {
+                    output[mem.memberId] = workoutMap[mem.memberId].Average(w => (double)w.GetDuration());
+                }
+                return output;
             }
 
             // TASK 3: Returns empty map, causing payment tests to fail
             public Dictionary<int, int> GetDuePayments()
             {
-                return new Dictionary<int, int>();
+                Dictionary<int, int> output = new Dictionary<int, int>();
+
+                foreach (Member mem in members)
+                {
+                    int freeHours = GetFreeHours(mem.membershipStatus);
+                    int rate = GetRate(mem.membershipStatus);
+                    int duePayment = 0;
+                    if (workoutMap.ContainsKey(mem.memberId))
+                    {
+                        List<Workout> memberWorkouts = workoutMap[mem.memberId].ToList();
+                        memberWorkouts.Sort((a, b) => a.GetId().CompareTo(b.GetId()));
+                        for (int i = 0; i < memberWorkouts.Count; i++)
+                        {
+                            if (i >= freeHours)
+                            {
+                                int hour = (memberWorkouts[i].GetDuration() + 59) / 60;
+                                duePayment += hour * rate;
+                            }
+                        }
+                    }
+                    output[mem.memberId] = duePayment;
+                }
+                return output;
+            }
+
+            public int GetFreeHours(MembershipStatus status)
+            {
+                switch (status)
+                {
+                    case MembershipStatus.BRONZE: return 1;
+                    case MembershipStatus.SILVER: return 3;
+                    case MembershipStatus.GOLD: return 5;
+                    default: return 0;
+                }
+            }
+
+            public int GetRate(MembershipStatus status)
+            {
+                switch (status)
+                {
+                    case MembershipStatus.BRONZE: return 10;
+                    case MembershipStatus.SILVER: return 8;
+                    case MembershipStatus.GOLD: return 6;
+                    default: return 0;
+                }
             }
 
             // TASK 4: Returns empty map, causing buddy tests to fail
             public Dictionary<int, List<int>> GetGymBuddies()
             {
-                return new Dictionary<int, List<int>>();
+                Dictionary<int, List<int>> output = new Dictionary<int, List<int>>();
+
+
+                foreach (Member mem1 in members)
+                {
+                    List<KeyValuePair<int, int>> buddyDuration = new List<KeyValuePair<int, int>>();
+                    foreach (Member mem2 in members)
+                    {
+                        if (mem1.memberId == mem2.memberId)
+                            continue;
+                        int shared = SharedDuration(mem1.memberId, mem2.memberId);
+                        if (shared > 0)
+                        {
+                            buddyDuration.Add(new KeyValuePair<int, int>(mem2.memberId, shared));
+                        }
+                    }
+
+                    buddyDuration.Sort((a, b) =>
+                    {
+                        int byDuration = b.Value.CompareTo(a.Value);
+                        if (byDuration != 0) return byDuration;
+                        return a.Key.CompareTo(b.Key);
+                    });
+
+                    output[mem1.memberId] = buddyDuration.Select(kv => kv.Key).ToList();
+                }
+
+                return output;
             }
+
+            public int SharedDuration(int mem1Id, int mem2Id)
+            {
+                if (!workoutMap.ContainsKey(mem1Id) || !workoutMap.ContainsKey(mem2Id)) return 0;
+                int result = 0;
+                foreach (Workout w1 in workoutMap[mem1Id])
+                {
+                    foreach (Workout w2 in workoutMap[mem2Id])
+                    {
+                        int maxStartTime = Math.Max(w1.GetStartTime(), w2.GetStartTime());
+                        int minEndTime = Math.Min(w1.GetEndTime(), w2.GetEndTime());
+                        if (maxStartTime < minEndTime)
+                        {
+                            result += minEndTime - maxStartTime;
+                        }
+                    }
+                }
+                return result;
+            }
+
+
         }
 
         static int passed = 0, failed = 0;

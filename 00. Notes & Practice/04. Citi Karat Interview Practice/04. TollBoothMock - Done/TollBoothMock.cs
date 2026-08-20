@@ -38,15 +38,16 @@
 * TASK 3: Implement getAverageTripTime() — average time on highway.
   </task3>
 */
-  /*<task4>
-     * TASK 4  For each car that has both ENTRY and EXIT,
-     * compute how many MAINROAD sensors it passed.
-     * Returns Map: plate -> count of M logs between entry and exit.
-	 </task4>
+/*<task4>
+   * TASK 4  For each car that has both ENTRY and EXIT,
+   * compute how many MAINROAD sensors it passed.
+   * Returns Map: plate -> count of M logs between entry and exit.
+   </task4>
 */
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DotNetQuestions
 {
@@ -89,12 +90,12 @@ namespace DotNetQuestions
          */
         public HashSet<string> GetUniquePlates()
         {
-            List<string> plates = new List<string>();
+            HashSet<string> plates = new HashSet<string>();
             foreach (TollBoothLog log in logs)
             {
                 plates.Add(log.plate);
             }
-            return new HashSet<string>(plates);
+            return plates;
         }
 
         /**
@@ -103,8 +104,20 @@ namespace DotNetQuestions
          */
         public Dictionary<string, string> FindMismatchedEntries()
         {
-            // TODO: implement
-            return new Dictionary<string, string>();
+            HashSet<string> entered = logs.Where(log => log.type == "ENTRY").Select(log => log.plate).ToHashSet();
+            HashSet<string> exited = logs.Where(log => log.type == "EXIT").Select(log => log.plate).ToHashSet();
+
+            var output = new Dictionary<string, string>();
+            foreach (string plate in entered.Except(exited))
+            {
+                output[plate] = "NO_EXIT";
+            }
+            foreach (string plate in exited.Except(entered))
+            {
+                output[plate] = "NO_ENTRY";
+            }
+
+            return output;
         }
 
         /**
@@ -112,8 +125,10 @@ namespace DotNetQuestions
          */
         public int GetCarsOnHighway()
         {
-            // TODO: implement
-            return 0;
+            HashSet<string> entered = this.logs.Where(log => log.type == "ENTRY").Select(log => log.plate).ToHashSet();
+            HashSet<string> exited = this.logs.Where(log => log.type == "EXIT").Select(log => log.plate).ToHashSet();
+
+            return entered.Except(exited).Count();
         }
 
         /**
@@ -122,8 +137,26 @@ namespace DotNetQuestions
          */
         public Dictionary<string, int> GetMainroadPassCount()
         {
-            // TODO: implement
-            return new Dictionary<string, int>();
+
+            // Only those cars who entered and exited as well.
+            // HashSet<string> entered = logs.Where(log => log.type == "ENTRY").Select(log => log.plate).ToHashSet();
+            // HashSet<string> exited = logs.Where(log => log.type == "EXIT").Select(log => log.plate).ToHashSet();
+
+            // var onHighwayCars = entered.Intersect(exited).ToHashSet();
+
+            Dictionary<string,int> output = new Dictionary<string, int>();
+            // return onHighwayCars.ToDictionary(plate => plate,plate => logs.Count(l => l.plate == plate && l.type == "M"));
+        
+
+            foreach(TollBoothLog log in logs){
+                if(log.type == "M"){
+                    if(!output.ContainsKey(log.plate)){
+                        output[log.plate] = 0;
+                    }
+                    output[log.plate]++;
+                }
+            }
+            return output;
         }
     }
 
@@ -143,20 +176,20 @@ namespace DotNetQuestions
             HighwayTracker tracker = new HighwayTracker();
             // Car ABC123: enters and exits normally
             tracker.AddLog("ENTRY", "ABC123", "2023-06-25 10:00:00");
-            tracker.AddLog("M",     "ABC123", "2023-06-25 10:05:00");
-            tracker.AddLog("M",     "ABC123", "2023-06-25 10:15:00");
-            tracker.AddLog("EXIT",  "ABC123", "2023-06-25 10:30:00");
+            tracker.AddLog("M", "ABC123", "2023-06-25 10:05:00");
+            tracker.AddLog("M", "ABC123", "2023-06-25 10:15:00");
+            tracker.AddLog("EXIT", "ABC123", "2023-06-25 10:30:00");
 
             // Car DEF456: enters but never exits (still on highway)
             tracker.AddLog("ENTRY", "DEF456", "2023-06-25 10:10:00");
-            tracker.AddLog("M",     "DEF456", "2023-06-25 10:20:00");
+            tracker.AddLog("M", "DEF456", "2023-06-25 10:20:00");
 
             // Car GHI789: exits but never entered (data anomaly)
-            tracker.AddLog("EXIT",  "GHI789", "2023-06-25 10:45:00");
+            tracker.AddLog("EXIT", "GHI789", "2023-06-25 10:45:00");
 
             // Car JKL012: enters and exits
             tracker.AddLog("ENTRY", "JKL012", "2023-06-25 11:00:00");
-            tracker.AddLog("EXIT",  "JKL012", "2023-06-25 11:45:00");
+            tracker.AddLog("EXIT", "JKL012", "2023-06-25 11:45:00");
 
             return tracker;
         }

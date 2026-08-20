@@ -1,3 +1,7 @@
+// To clear the interview, you must complete at least one bug fix and two tasks.
+// A single task may involve multiple functions; sub-parts like 2.1 and 2.2 are considered one task.
+// Please provide a verbal walkthrough of your thought process while writing the code.
+
 
 /*<bug-task1>
  * We are building the analytics back-end for a music streaming platform. The system
@@ -35,6 +39,11 @@
  *To assist you in testing the new functions, we have provided the testDedup and testMergedCountByArtist tests.
  *</task2>
  */
+
+// dedupeResults - songs and its duplicates
+// using that we can find all the artist whose songs are in the dedupe results
+// for each artist we go through dedupe result and add count of songs that are dupliate
+
 /*<task3>
  * 3) getSongReports() returns a Map from songId to SongReport for EVERY song in
  *    the catalog, regardless of whether it has been played. A song that has never
@@ -217,27 +226,65 @@ namespace DotNetQuestions
         // TASK 2.1: Return duplicate groups, kept song = smallest songId.
         public List<DedupResult> FindDuplicateGroups()
         {
-            List<DedupResult> list = new List<DedupResult>();
-            return list;
+            return songs.Values
+            .GroupBy(s => new
+            {
+                title = s.title.ToLowerInvariant(),
+                artist = s.artist.ToLowerInvariant(),
+                s.durationSeconds
+            })
+            .Where(g => g.Count() > 1)
+            .Select(g =>
+            {
+                List<int> allSongs = g.Select(s => s.songId).OrderBy(id => id).ToList();
+                int kept = allSongs[0];
+                List<int> merged = allSongs.Skip(1).ToList();
+                return new DedupResult(kept, merged);
+            })
+            .OrderBy(dr => dr.songId)
+            .ToList();
         }
 
         // TASK 2.2: Return artist -> total duplicate songs merged away for that artist.
         public Dictionary<string, int> GetMergedCountByArtist()
         {
-            // TODO: implement
-            return new Dictionary<string, int>();
+            Dictionary<string, int> counts = new Dictionary<string, int>();
+
+            foreach (DedupResult group in FindDuplicateGroups())
+            {
+                Song kept = songs[group.songId];
+                string artist = kept.artist;
+                int mergedAway = group.mergedIds.Count;
+
+                if (!counts.ContainsKey(artist))
+                    counts[artist] = 0;
+
+                counts[artist] += mergedAway;
+            }
+
+            return counts;
         }
 
         // TASK 3: Return songId -> SongReport for EVERY song in the catalog.
         public Dictionary<int, SongReport> GetSongReports()
         {
             // TODO: implement
-            return new Dictionary<int, SongReport>();
+            Dictionary<int, SongReport> output = new Dictionary<int, SongReport>();
+            foreach (Song song in songs.Values)
+            {
+                var songEvents = playEvents
+                                    .Where(ev => ev.songId == song.songId).ToList();
+                int totalPlays = songEvents.Count();
+                int completedPlays = songEvents.Where(ev => IsCompleted(ev)).Count();
+                int uniqueListeners = songEvents.GroupBy(ev => ev.userId).Count();
+                output[song.songId] = new SongReport(totalPlays, completedPlays, uniqueListeners);
+            }
+            return output;
         }
 
     }
 
-    public class MusicTestStub
+    public class Program
     {
         static int passed = 0, failed = 0;
 
@@ -245,10 +292,10 @@ namespace DotNetQuestions
         {
             Console.WriteLine("\n=== MUSIC LIBRARY — TEST SUITE ===\n");
 
-            Run("BUG 1-2: Listener stats",              TestGetListenerStats);
-            Run("TASK 2.1: Find duplicate groups",      TestDedup);
-            Run("TASK 2.2: Merged count by artist",     TestMergedCountByArtist);
-            Run("TASK 3:   Song reports",               TestSongReports);
+            Run("BUG 1-2: Listener stats", TestGetListenerStats);
+            Run("TASK 2.1: Find duplicate groups", TestDedup);
+            Run("TASK 2.2: Merged count by artist", TestMergedCountByArtist);
+            Run("TASK 3:   Song reports", TestSongReports);
 
             Console.WriteLine("\n--------------------------------------------------");
             Console.WriteLine("Results: " + passed + " passed, " + failed
@@ -315,9 +362,9 @@ namespace DotNetQuestions
             MusicLibrary lib = new MusicLibrary();
 
             // Group A: songs 1, 2, 3 share ("song a", "artist 1", 180).
-            lib.AddSong(new Song(1, "Song A",  "Artist 1", 180, null, null, null, "rock"));
-            lib.AddSong(new Song(2, "song a",  "ARTIST 1", 180, "Studio version", "First Album", null, "rock"));
-            lib.AddSong(new Song(3, "SONG A",  "artist 1", 180, "Live", "Live Album", null, null));
+            lib.AddSong(new Song(1, "Song A", "Artist 1", 180, null, null, null, "rock"));
+            lib.AddSong(new Song(2, "song a", "ARTIST 1", 180, "Studio version", "First Album", null, "rock"));
+            lib.AddSong(new Song(3, "SONG A", "artist 1", 180, "Live", "Live Album", null, null));
             lib.AddSong(new Song(30, "Song A", "Artist 1", 999));
             lib.AddSong(new Song(60, "Unrelated", "Nobody", 180));
             lib.AddSong(new Song(61, "Also Unrelated", "Else", 180));
