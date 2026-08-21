@@ -67,6 +67,8 @@ Written for clarity and recall — concepts only, no interview coaching.
 | `01. .NET Framework Architecture/INTERVIEW_QUESTIONS.md` | `01.`–`10.` `.md` chapters | `INTERVIEW_ANSWERS.md` |
 | `02. C# Language Fundamentals/INTERVIEW_QUESTIONS.md` | `02. …/` tutorial folders | `INTERVIEW_ANSWERS.md` |
 
+**Layer 2 (folder-scoped):** `@karat-interview-answers` — per-folder `KARAT_INTERVIEW_*.md`; index at `00. Notes & Practice/04. Citi Karat Interview Practice/KARAT_INDEX.md`; debrief source `KARAT_DEBRIEF_SOURCE.txt`.
+
 Future modules: same pattern — `INTERVIEW_ANSWERS.md` beside `INTERVIEW_QUESTIONS.md`.
 
 ---
