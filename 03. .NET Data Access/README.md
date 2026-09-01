@@ -1,4 +1,4 @@
-# 03. .NET Data Access
+﻿# 03. .NET Data Access
 
 ADO.NET, Dapper, and Entity Framework Core — connections, commands, ORMs, migrations, and performance.
 
@@ -6,9 +6,9 @@ ADO.NET, Dapper, and Entity Framework Core — connections, commands, ORMs, migr
 
 | # | Topic | Questions | Q&A File |
 |---|-------|-----------|----------|
-| 01 | 01. ADO.NET | 111 | [INTERVIEW_QA.md](./01. ADO.NET/INTERVIEW_QA.md) |
-| 02 | 02. Dapper | 53 | [INTERVIEW_QA.md](./02. Dapper/INTERVIEW_QA.md) |
-| 03 | 03. Entity Framework Core | 146 | [INTERVIEW_QA.md](./03. Entity Framework Core/INTERVIEW_QA.md) |
+| 01 | 01. ADO.NET | 111 | [INTERVIEW_QA.md](./01.%20ADO.NET/INTERVIEW_QA.md) |
+| 02 | 02. Dapper | 53 | [INTERVIEW_QA.md](./02.%20Dapper/INTERVIEW_QA.md) |
+| 03 | 03. Entity Framework Core | 146 | [INTERVIEW_QA.md](./03.%20Entity%20Framework%20Core/INTERVIEW_QA.md) |
 
 ---
 

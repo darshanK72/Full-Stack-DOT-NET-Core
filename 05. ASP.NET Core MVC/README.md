@@ -1,4 +1,4 @@
-# 05. ASP.NET Core MVC
+﻿# 05. ASP.NET Core MVC
 
 MVC pattern, controllers, views, Razor, model binding, validation, tag helpers, routing, areas.
 
@@ -6,21 +6,21 @@ MVC pattern, controllers, views, Razor, model binding, validation, tag helpers, 
 
 | # | Topic | Questions | Q&A File |
 |---|-------|-----------|----------|
-| 01 | Introduction to MVC Pattern | 28 | [INTERVIEW_QA.md](./01. Introduction to MVC Pattern/INTERVIEW_QA.md) |
-| 02 | Controllers & Actions | 30 | [INTERVIEW_QA.md](./02. Controllers & Actions/INTERVIEW_QA.md) |
-| 03 | Views & Razor Syntax | 29 | [INTERVIEW_QA.md](./03. Views & Razor Syntax/INTERVIEW_QA.md) |
-| 04 | Layouts, Sections & Partial Views | 27 | [INTERVIEW_QA.md](./04. Layouts, Sections & Partial Views/INTERVIEW_QA.md) |
-| 05 | ViewModels & Strongly Typed Views | 28 | [INTERVIEW_QA.md](./05. ViewModels & Strongly Typed Views/INTERVIEW_QA.md) |
-| 06 | Model Binding in MVC | 29 | [INTERVIEW_QA.md](./06. Model Binding in MVC/INTERVIEW_QA.md) |
-| 07 | Data Annotations & Validation | 30 | [INTERVIEW_QA.md](./07. Data Annotations & Validation/INTERVIEW_QA.md) |
-| 08 | Tag Helpers | 27 | [INTERVIEW_QA.md](./08. Tag Helpers/INTERVIEW_QA.md) |
-| 09 | Routing & Attribute Routing | 29 | [INTERVIEW_QA.md](./09. Routing & Attribute Routing/INTERVIEW_QA.md) |
-| 10 | Areas | 28 | [INTERVIEW_QA.md](./10. Areas/INTERVIEW_QA.md) |
-| 11 | Action Filters in MVC | 30 | [INTERVIEW_QA.md](./11. Action Filters in MVC/INTERVIEW_QA.md) |
-| 12 | TempData, ViewData & ViewBag | 28 | [INTERVIEW_QA.md](./12. TempData, ViewData & ViewBag/INTERVIEW_QA.md) |
-| 13 | AJAX & Partial Page Updates | 30 | [INTERVIEW_QA.md](./13. AJAX & Partial Page Updates/INTERVIEW_QA.md) |
-| 14 | Client-Side Validation | 28 | [INTERVIEW_QA.md](./14. Client-Side Validation/INTERVIEW_QA.md) |
-| 15 | Real-Time UI with SignalR | 29 | [INTERVIEW_QA.md](./15. Real-Time UI with SignalR/INTERVIEW_QA.md) |
+| 01 | Introduction to MVC Pattern | 28 | [INTERVIEW_QA.md](./01.%20Introduction%20to%20MVC%20Pattern/INTERVIEW_QA.md) |
+| 02 | Controllers & Actions | 30 | [INTERVIEW_QA.md](./02.%20Controllers%20%26%20Actions/INTERVIEW_QA.md) |
+| 03 | Views & Razor Syntax | 29 | [INTERVIEW_QA.md](./03.%20Views%20%26%20Razor%20Syntax/INTERVIEW_QA.md) |
+| 04 | Layouts, Sections & Partial Views | 27 | [INTERVIEW_QA.md](./04.%20Layouts,%20Sections%20%26%20Partial%20Views/INTERVIEW_QA.md) |
+| 05 | ViewModels & Strongly Typed Views | 28 | [INTERVIEW_QA.md](./05.%20ViewModels%20%26%20Strongly%20Typed%20Views/INTERVIEW_QA.md) |
+| 06 | Model Binding in MVC | 29 | [INTERVIEW_QA.md](./06.%20Model%20Binding%20in%20MVC/INTERVIEW_QA.md) |
+| 07 | Data Annotations & Validation | 30 | [INTERVIEW_QA.md](./07.%20Data%20Annotations%20%26%20Validation/INTERVIEW_QA.md) |
+| 08 | Tag Helpers | 27 | [INTERVIEW_QA.md](./08.%20Tag%20Helpers/INTERVIEW_QA.md) |
+| 09 | Routing & Attribute Routing | 29 | [INTERVIEW_QA.md](./09.%20Routing%20%26%20Attribute%20Routing/INTERVIEW_QA.md) |
+| 10 | Areas | 28 | [INTERVIEW_QA.md](./10.%20Areas/INTERVIEW_QA.md) |
+| 11 | Action Filters in MVC | 30 | [INTERVIEW_QA.md](./11.%20Action%20Filters%20in%20MVC/INTERVIEW_QA.md) |
+| 12 | TempData, ViewData & ViewBag | 28 | [INTERVIEW_QA.md](./12.%20TempData,%20ViewData%20%26%20ViewBag/INTERVIEW_QA.md) |
+| 13 | AJAX & Partial Page Updates | 30 | [INTERVIEW_QA.md](./13.%20AJAX%20%26%20Partial%20Page%20Updates/INTERVIEW_QA.md) |
+| 14 | Client-Side Validation | 28 | [INTERVIEW_QA.md](./14.%20Client-Side%20Validation/INTERVIEW_QA.md) |
+| 15 | Real-Time UI with SignalR | 29 | [INTERVIEW_QA.md](./15.%20Real-Time%20UI%20with%20SignalR/INTERVIEW_QA.md) |
 
 ---
 
