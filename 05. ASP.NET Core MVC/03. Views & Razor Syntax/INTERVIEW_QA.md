@@ -26,257 +26,268 @@
 
 ## Q1. What is a Razor view?
 
-What is a Razor view?
+**Concepts**
+- Razor view — `.cshtml` file mixing HTML and C# via `@` syntax, compiled to a class
+- View discovery — `Views/{Controller}/{Action}.cshtml` and `Views/Shared/` by convention
+- `@model` directive — declares strongly typed model for compile-time checking
+- HTML encoding — default `@` expression output, XSS protection built in
+- Precompilation — views compiled to `*.Views.dll` at publish time in Release
 
-**Answer:** A Razor view is a `.cshtml` file mixing HTML with C# code using the `@` syntax, compiled into a class that renders HTML output. Razor is the default view engine for ASP.NET Core MVC and supports layouts, partials, tag helpers, and strongly typed models.
+**Answer**
 
-- Views live under `Views/{ControllerName}/` or `Views/Shared/` by convention.
-- The `@model` directive declares the expected type for compile-time checking and IntelliSense.
-- Razor expressions HTML-encode output by default to mitigate XSS.
-- Views are precompiled into assemblies at publish in Release builds by default.
-- The view engine locates templates using conventional paths and optional area prefixes.
+A Razor view is a `.cshtml` file that mixes HTML with C# through the `@` transition character, compiled by the Razor SDK into a class that the view engine invokes to produce HTML output. The view engine locates views by convention under `Views/{ControllerName}/` or `Views/Shared/`, then optionally under area prefixes. The `@model` directive at the top declares the expected model type so the view accesses typed properties as `Model.Property` with compile-time and IntelliSense support. All `@` expressions HTML-encode their output by default, which is the primary defense against XSS in server-rendered pages. In Release builds the SDK precompiles views into a `ProjectName.Views.dll` assembly, so production serves views from DLLs without Roslyn at runtime and view syntax errors appear at build time rather than first request.
 
 ---
 
 ## Q2. What is the `@model` directive?
 
-What is the `@model` directive?
+**Concepts**
+- `@model` — declares the strongly typed model type for the view
+- `Model` property — typed accessor for the passed instance
+- Single `@model` per view — only one declaration allowed
+- `return View(viewModel)` — controller passes the typed instance
+- Partial views — also support `@model` for reusable typed fragments
 
-**Answer:** The `@model` directive at the top of a view declares the strongly typed model type, accessible as `Model` in the markup. It enables compile-time checking, IntelliSense, and clear contracts between controller and view.
+**Answer**
 
-- Example: `@model ProductEditViewModel` lets the view use `@Model.Name` with type safety.
-- Only one `@model` directive is allowed per view.
-- The controller passes the instance via `return View(viewModel)`.
-- Without `@model`, the view relies on untyped `ViewData`/`ViewBag` or `dynamic`.
-- Partial views can also declare `@model` for reusable typed fragments.
+The `@model` directive at the top of a Razor view declares the type of the data the controller passes, making it accessible as the `Model` property with full type information. I use it as `@model ProductEditViewModel` so accessing `@Model.Name` is checked at compile time and IDE tooling shows available members. Without `@model`, the view relies on untyped `ViewData` or `dynamic` where typos fail silently at runtime. Only one `@model` directive is allowed per view, and the controller passes the instance via `return View(viewModel)`. Partial views also declare `@model` so they have typed contracts when reused across multiple parent views.
 
 ---
 
 ## Q3. What is the difference between `@` and `@@` in Razor?
 
-What is the difference between `@` and `@@` in Razor?
+**Concepts**
+- `@` — transitions from HTML to C# expressions, directives, and code blocks
+- `@@` — renders a literal `@` character in HTML output
+- `@{ }` — multi-statement code block without direct output
+- CSS `@media` inside `<style>` — needs `@@media` in inline Razor styles
+- Accidental Razor parsing — unescaped `@` in JS strings triggers Razor
 
-**Answer:** A single `@` transitions from HTML to C# code — variables, expressions, and directives. `@@` renders a literal `@` character in the HTML output, escaping the Razor transition.
+**Answer**
 
-- `@DateTime.Now` evaluates the expression and writes the encoded result.
-- `@@` produces `@` in output — useful for email addresses or CSS `@media` in `<style>` blocks.
-- Directives like `@model`, `@using`, and `@inject` also start with a single `@`.
-- Code blocks use `@{ ... }` for multiple statements without inline output.
-- Misusing `@` in CSS or JavaScript strings can accidentally invoke Razor parsing.
+A single `@` transitions from HTML to C# — it starts expressions like `@DateTime.Now`, code blocks like `@{ }`, and directives like `@model` and `@using`. `@@` escapes the transition and renders a literal `@` in the HTML output. The escape is needed in email addresses, CSS `@media` rules in inline `<style>` blocks, and CSS class names containing `@` that would otherwise be parsed as Razor transitions. Directives use a single `@` and are processed at compile time while expressions are evaluated at render time. Misusing `@` inside JavaScript string literals can accidentally invoke the Razor parser, producing compilation errors or silently dropping content.
 
 ---
 
 ## Q4. How does Razor automatically encode output and why does it matter?
 
-How does Razor automatically encode output and why does it matter?
+**Concepts**
+- HTML encoding — `<`, `>`, `"`, `&` converted to HTML entities on `@` output
+- XSS prevention — encoded content displays as text, never executes as markup
+- `@Html.Raw` — explicit opt-out from encoding, for trusted content only
+- JavaScript encoding context — HTML encoding is not sufficient inside `<script>` or event attributes
+- `IHtmlContent` — bypasses auto-encoding, already-trusted HTML wrapper
 
-**Answer:** Razor HTML-encodes expressions written with `@` before writing them to the response, converting characters like `<`, `>`, and `"` to HTML entities. This prevents browser interpretation of user-supplied content as active markup — the primary defense against XSS in server-rendered pages.
+**Answer**
 
-- Encoding applies to `@Model.UserComment` in text and most attribute contexts.
-- User content rendered without encoding can execute scripts in victims' browsers.
-- Encoding is automatic — developers must explicitly opt out with `@Html.Raw()` for trusted HTML.
-- Different output contexts (JavaScript, URLs) may need additional encoding beyond HTML encoding.
-- ASP.NET Core 8 Razor uses the same encoding pipeline for all standard `@` expressions.
+Razor HTML-encodes every expression written with `@` before writing to the response, converting characters like `<`, `>`, `"`, and `&` to HTML entities. This means `@Model.UserComment` containing `<script>alert(1)</script>` renders as visible text in the browser rather than executing as script — the primary automatic defense against XSS in server-rendered MVC pages. Encoding is automatic and must be explicitly overridden with `@Html.Raw()` when the content is trusted server-side HTML. The distinction matters because different output contexts require different encoders: HTML encoding protects text and attribute contexts, but content placed inside JavaScript string literals or URL parameters requires JavaScript or URL encoding respectively — `@` does not cover those. `IHtmlContent` implementations like `HtmlString` and `TagBuilder` bypass auto-encoding because they signal already-trusted markup.
 
 ---
 
 ## Q5. What is the difference between `@Html.Raw` and default Razor output?
 
-What is the difference between `@Html.Raw` and default Razor output?
+**Concepts**
+- Default `@` output — HTML-encodes values before writing to response
+- `@Html.Raw` — writes string unchanged, bypassing encoding
+- Stored XSS — `@Html.Raw` on unsanitized user input from database
+- Allowlist HTML sanitizer — required before Raw on user-supplied rich text
+- Rich text rendering — sanitize on write or on read, then Raw on sanitized output only
 
-**Answer:** Default `@` output HTML-encodes values; `@Html.Raw(string)` writes the string unchanged into the response. Raw should only be used on trusted or server-sanitized HTML — never on unvalidated user input.
+**Answer**
 
-- Encoded output displays `<script>` as visible text; Raw executes or injects it as markup.
-- Rich text scenarios require an allowlist sanitizer before Raw, not Raw alone.
-- Tag helpers and `@` expressions are safe by default for typical display scenarios.
-- Stored XSS vulnerabilities commonly come from `@Html.Raw(Model.UserContent)` on database fields.
-- Prefer encoding unless the content is known safe or has been sanitized server-side.
+Default `@` output HTML-encodes values so `<script>` appears as literal text in the browser. `@Html.Raw(value)` writes the string unchanged directly into the response, so any HTML or script in the value is interpreted by the browser as markup. Raw should only be used on content that is either generated server-side by trusted code or sanitized through an allowlist HTML sanitizer before storage — never on raw user input from the database. Stored XSS vulnerabilities commonly come from `@Html.Raw(Model.UserContent)` on database fields, since the content passes the developer's "quick check" in local tests but carries injected payloads in production. For rich text scenarios I sanitize with a library like HtmlSanitizer on the write path or before display, then use Raw only on the sanitized output.
 
 ---
 
 ## Q6. What is a code block (`@{ }`) in Razor?
 
-What is a code block (`@{ }`) in Razor?
+**Concepts**
+- `@{ }` — arbitrary C# statements that do not directly emit output
+- Variable declarations — computed once and reused across markup
+- Control logic vs business logic — presentation-only `if/else` acceptable
+- Excessive code blocks — signal view model or view component refactoring
 
-**Answer:** A Razor code block wraps arbitrary C# statements that do not directly emit output — variable declarations, loops with manual markup, conditionals, and method calls. It separates control logic from inline expressions.
+**Answer**
 
-- `@{ var count = Model.Items.Count; }` declares variables for later use in markup.
-- Multi-line logic like `if/else` with HTML mixed inside uses `@if` or code blocks.
-- Code blocks should contain presentation logic only — not database queries or business rules.
-- `@{}` at the top level runs during view rendering on each request.
-- Excessive logic in code blocks signals the need for view models or view components.
+A Razor code block wraps arbitrary C# statements that do not directly produce output — variable declarations, assignments, loop setup, and method calls. I use `@{ var count = Model.Items.Count; }` to compute a display variable once and reference it later in markup without recomputing inline. Multi-line presentation conditionals like `@if` use the same block syntax with HTML mixed inside the branches. The key discipline is that code blocks should contain presentation logic only — formatting decisions, CSS class selection, display conditions — not database queries or business rules. When `@{}` blocks accumulate business conditionals, that signals the logic belongs in a service with the controller passing a pre-computed view model, or the reusable logic belongs in a view component with its own data loading.
 
 ---
 
 ## Q7. What is the difference between a strongly typed view and a dynamic view?
 
-What is the difference between a strongly typed view and a dynamic view?
+**Concepts**
+- `@model MyViewModel` — compile-time checked, IntelliSense-enabled
+- `ViewBag` / `ViewData` — `dynamic` / `object` dictionary, no compile-time check
+- Silent typo failures — `ViewBag.Titel` vs `ViewBag.Title`
+- Strongly typed partials — enforce contracts when reused across pages
+- Single optional cross-cutting keys — acceptable use for ViewData
 
-**Answer:** A strongly typed view declares `@model MyViewModel` and accesses typed properties via `Model`. A dynamic view uses `ViewBag`, `ViewData`, or no model — relying on runtime dictionary keys or `dynamic` without compile-time checks.
+**Answer**
 
-- Strong typing catches property renames at compile time and enables IntelliSense in the view.
-- Dynamic views fail silently on typos in `ViewBag.Title` vs `ViewBag.Titel`.
-- Strongly typed partials enforce contracts when reused across pages.
-- Dynamic data is acceptable for single optional messages but scales poorly on complex pages.
-- Controllers pass typed models with `return View(myViewModel)` for the strongly typed approach.
+A strongly typed view declares `@model MyViewModel` and accesses properties via `Model.PropertyName`, which the compiler checks at build time and IDEs surface with IntelliSense. A dynamic view uses `ViewBag` or `ViewData` dictionary lookups with string keys that only fail at runtime — a typo in `ViewBag.Titel` vs `ViewBag.Title` produces a blank field with no exception, which is exactly the trap in Q4. Strong typing catches property renames at compile time, makes controller-to-view contracts explicit, and enables partial views to declare typed contracts when reused across multiple parent views. Dynamic data is acceptable for isolated cross-cutting concerns like a single page title key or a layout-level flash message with a well-documented convention, but scales poorly once a view depends on more than one or two named pieces. I prefer strongly typed view models for anything complex and reserve `ViewBag` for simple layout metadata.
 
 ---
 
 ## Q8. What logic should not belong in a Razor view?
 
-What logic should not belong in a Razor view?
+**Concepts**
+- Business rules — pricing, tax, discount logic not testable in Razor
+- Data access via `@inject DbContext` — bypasses service-layer testing
+- Authorization checks in views — bypassable by alternate routes or API calls
+- Complex `@{}` blocks — belong in application services or view model mapping
+- Presentation formatting — acceptable view responsibility
 
-**Answer:** Views should not contain business rules, data access, authorization decisions, or complex calculations — only presentation formatting and layout. Any logic that affects correctness, security, or money belongs in services with the controller supplying ready-to-display view models.
+**Answer**
 
-- Database queries via `@inject DbContext` in views bypass service-layer testing.
-- Pricing, tax, and discount calculations duplicated in views drift from API and batch job logic.
-- Authorization checks in Razor can be bypassed by alternate routes or direct API calls.
-- Heavy `@{}` blocks with business `if` chains belong in application services or view model mapping.
-- Views may format dates and currencies but should not decide business outcomes.
+Views should format and render data the controller has already prepared; they must not contain business rules, data access, authorization decisions, or complex calculations. Pricing and tax logic in `.cshtml` bypasses service-layer unit tests, runs invisibly in view render traces, and diverges from API, batch, and email code paths that compute the same values independently. Database queries via `@inject DbContext` or `@inject IRepository` put I/O directly in the rendering pipeline with no caching seam. Authorization checks in Razor are bypassable by alternate routes or direct API calls and belong in policies, filters, or controller logic that runs before the view. Heavy `@{}` blocks with business `if` chains signal that the logic belongs in a service, with the controller passing pre-computed values through a typed view model. Views may format dates, currencies, and CSS classes — they must not decide business outcomes.
 
 ---
 
 ## Q9. What is `@inject` used for in Razor views?
 
-What is `@inject` used for in Razor views?
+**Concepts**
+- `@inject` — requests a service from DI directly in the view
+- Presentation helpers — localization, feature flags, configuration read-only
+- N+1 risk — repositories injected in loops cause per-row queries
+- View Component — preferred for views needing independent data loading
 
-**Answer:** The `@inject` directive requests a service from DI into the view — creating a property the Razor page can use during rendering. It suits small presentation helpers like localization or configuration, not data access or business services.
+**Answer**
 
-- Example: `@inject IViewLocalizer Localizer` then `@Localizer["Key"]` in markup.
-- Injected services follow DI lifetimes — scoped services align with the request.
-- Overusing `@inject` for repositories encourages fat views and N+1 query patterns.
-- View Components are the preferred pattern when a view needs its own data-loading logic.
-- Services injected into views should be presentation-oriented, not domain repositories.
+The `@inject` directive declares a DI-resolved property on the generated view class, letting the view call presentation-oriented services like `IViewLocalizer` for translations or `IOptionsSnapshot<FeatureFlags>` to check feature toggles. Injected services follow DI lifetimes — scoped services align with the request. The important constraint is that `@inject` should target presentation helpers, not repositories or domain services. Injecting `IProductRepository` or `AppDbContext` directly into a view encourages per-row queries inside `@foreach` loops, creating N+1 patterns that are invisible from the controller and extremely hard to batch. When a view genuinely needs its own data-loading logic — a sidebar, a widget, a notification count — the correct pattern is a View Component with its own model and controller-style data loading, which keeps the parent view focused on layout.
 
 ---
 
 ## Q10. What is the `@functions` block in Razor?
 
-What is the `@functions` block in Razor?
+**Concepts**
+- `@functions` — methods and properties on the generated view class
+- Presentation helpers — CSS class mappers, status label formatters
+- Data access in `@functions` — anti-pattern, bypasses service layer
+- Cross-view duplication — shared helpers belong in partials or tag helpers
+- Compile-time target — generated into the view class at build or runtime
 
-**Answer:** The `@functions` block declares methods and properties on the generated view class — typically small presentation helpers like CSS class mappers or formatters. It is not intended for data access or business logic.
+**Answer**
 
-- Example: `@functions { string StatusClass(string s) => s == "Active" ? "green" : "red"; }`
-- Functions are callable from the markup in the same view.
-- Async data loading in `@functions` is an anti-pattern — load data in the controller or view component.
-- Helpers duplicated across views should move to shared partials, tag helpers, or static helper classes.
-- `@functions` compiles into the view's generated class at build or runtime compilation time.
+The `@functions` block declares C# methods and properties directly on the generated view class, callable from the markup in the same view. It suits small, pure presentation helpers such as `string StatusClass(string s) => s == "Active" ? "green" : "red";` where inlining the switch inside markup would clutter the HTML. The boundary is that `@functions` must not perform I/O, query databases, or call services — those belong in the controller or a View Component. Async data loading inside `@functions` (awaiting a repository method on each loop iteration) is the classic N+1 pattern seen in Q11. Helpers duplicated across multiple views should move to shared partials, a Tag Helper, or a static helper class rather than being copy-pasted as `@functions` blocks.
 
 ---
 
 ## Q11. What is the difference between Razor runtime compilation and precompilation?
 
-What is the difference between Razor runtime compilation and precompilation?
+**Concepts**
+- Precompilation — `.cshtml` compiled to `*.Views.dll` at build/publish, no Roslyn at runtime
+- Runtime compilation — `AddRazorRuntimeCompilation()`, reads `.cshtml` from disk on demand
+- File watcher — runtime compilation recompiles on `.cshtml` change, Development-only
+- Build-time errors — precompilation surfaces syntax errors before deploy
+- Production default — precompilation in Release, views optional on disk
 
-**Answer:** Precompilation compiles `.cshtml` files into assemblies at build or publish time, so production serves views from DLLs without Roslyn at runtime. Runtime compilation reads `.cshtml` from disk and compiles on demand with file watching — intended for Development hot reload.
+**Answer**
 
-- Release publish defaults to precompiled views in `ProjectName.Views.dll`.
-- Runtime compilation requires `AddRazorRuntimeCompilation()` and the runtime compilation NuGet package.
-- Precompilation catches view syntax errors at build time instead of first request.
-- Runtime compilation adds CPU overhead and requires `.cshtml` files on the server.
-- Production should use precompilation; runtime compilation should be guarded with `IsDevelopment()`.
+Precompilation compiles all `.cshtml` files into assemblies at build or publish time so production runs views from DLLs without Roslyn loaded at runtime. View syntax errors appear at build time rather than first request, startup is faster, and `.cshtml` files need not be deployed to the server. Runtime compilation (`AddRazorRuntimeCompilation()` plus the runtime compilation NuGet package) reads `.cshtml` from disk and compiles on demand, with a file watcher that recompiles when files change — the intended workflow for hot reload in Development. The performance trade-off is a CPU spike on cache miss and Roslyn overhead under load. Release publish defaults to precompiled views in `ProjectName.Views.dll`, so I use runtime compilation only in Development, guarded by `builder.Environment.IsDevelopment()`, and rely on redeploy to change views in Production.
 
 ---
 
 ## Q12. When would you enable `AddRazorRuntimeCompilation`?
 
-When would you enable `AddRazorRuntimeCompilation`?
+**Concepts**
+- Development hot reload — edit `.cshtml` without rebuilding the project
+- `IsDevelopment()` guard — mandatory to prevent accidental Production use
+- Production risk — compile overhead, source files on disk, potential code injection
+- `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` — required NuGet package
+- Staging/Production — precompiled artifacts, redeploy to change views
 
-**Answer:** Enable `AddRazorRuntimeCompilation` during local Development so editing `.cshtml` files takes effect without rebuilding the entire project. It should not run in Production because it adds compile cost, requires source files on disk, and widens the attack surface if files can be modified.
+**Answer**
 
-- Register conditionally: `if (builder.Environment.IsDevelopment()) mvcBuilder.AddRazorRuntimeCompilation();`
-- Useful when iterating on layout, CSS classes, and markup with fast feedback.
-- Staging and Production rely on publish artifacts and redeploy to change views.
-- Missing guard means view edits on a server apply immediately — a misconfiguration signal.
-- Requires the `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` package.
+I enable `AddRazorRuntimeCompilation` only in Development so markup and layout changes take effect immediately during iteration without a full project rebuild — it speeds up UI work on `.cshtml` files. The registration must be conditional: `if (builder.Environment.IsDevelopment()) mvcBuilder.AddRazorRuntimeCompilation();`. Without the guard, Production and Staging also gain the ability to recompile views from disk files, which means editing `.cshtml` on the server applies immediately — a misconfiguration that allows code injection if file permissions are loose. Production should use only the precompiled assemblies from the CI publish artifact, so view changes go through redeploy. The package `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` should either not be referenced in Production builds or be guarded so it never activates.
 
 ---
 
 ## Q13. What is a partial view and when do you use one?
 
-What is a partial view and when do you use one?
+**Concepts**
+- Partial view — reusable Razor fragment without layout, rendered inline
+- `Views/Shared/` — conventional location, underscore-prefixed names
+- `<partial name="_X" model="item" />` — passes strongly typed model
+- No `_ViewStart` execution — partials do not wrap in layout
+- View Component — preferred when independent data loading is needed
 
-**Answer:** A partial view is a reusable Razor fragment without a layout, rendered into a parent view for shared markup such as form fields, cards, or pagination. Use partials to avoid copy-pasting HTML across multiple views with the same UI component.
+**Answer**
 
-- Partial views live in `Views/Shared/` or controller-specific folders, often prefixed with `_`.
-- Pass a strongly typed model with `<partial name="_ProductCard" model="item" />`.
-- Partials do not run `_ViewStart` layout wrapping — they render inline content only.
-- Use partials for static markup reuse; use View Components when independent data loading is needed.
-- Returning `PartialView()` from an action sends HTML fragments for AJAX replacement.
+A partial view is a reusable `.cshtml` fragment that renders inline content without a layout, used to avoid copy-pasting identical HTML blocks across multiple views. Partials live in `Views/Shared/` or controller-specific folders and conventionally use underscore-prefixed names like `_ProductCard.cshtml`. I pass a strongly typed model with `<partial name="_ProductCard" model="item" />` so the partial declares its own `@model` and the contract is explicit. Unlike full views, partials do not execute `_ViewStart` so they receive no layout wrapping — they produce only their own HTML, which the parent view embeds inline. Returning `PartialView()` from an action sends an HTML fragment for AJAX replacement. When the reusable component needs its own data-loading logic rather than receiving everything from the parent, a View Component is the appropriate pattern.
 
 ---
 
 ## Q14. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
 
-What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
+**Concepts**
+- `<partial>` tag helper — declarative, preferred in ASP.NET Core, IntelliSense-friendly
+- `Html.PartialAsync` — HTML helper API, returns `Task<IHtmlContent>`, must be awaited
+- `Html.Partial` (sync) — avoid, can deadlock; use async variant or tag helper
+- View engine resolution — both use the same location expander
 
-**Answer:** Both render a partial view, but `<partial>` is the recommended tag helper syntax while `Html.PartialAsync` is the older HTML helper API. The tag helper integrates with Razor tooling and avoids some synchronous rendering pitfalls of older helper patterns.
+**Answer**
 
-- `<partial name="_LoginPartial" model="Model.User" />` is declarative and preferred in ASP.NET Core 8.
-- `PartialAsync` returns `Task<IHtmlContent>` and must be awaited: `@await Html.PartialAsync("_Name", model)`.
-- Avoid `Html.Partial` (sync) — it can deadlock in certain contexts; use `PartialAsync` or the tag helper.
-- Both resolve partial views by name using the same view engine location expander.
-- Tag helpers participate in Razor compilation and attribute IntelliSense.
+Both render a partial view by name, but `<partial name="_LoginPartial" model="Model.User" />` is the recommended tag helper syntax introduced with ASP.NET Core because it integrates with Razor tooling, attribute IntelliSense, and reads more naturally alongside HTML. `Html.PartialAsync` is the older HTML helper API returning `Task<IHtmlContent>` and requires explicit awaiting: `@await Html.PartialAsync("_Name", model)`. I avoid `Html.Partial` (synchronous) because it can deadlock in certain hosting scenarios and is not the preferred pattern in ASP.NET Core. Both resolve partial views by name through the same view engine location expander so discovery behavior is identical. For new code I use the `<partial>` tag helper and migrate `Html.PartialAsync` calls over time.
 
 ---
 
 ## Q15. What is `ViewData` and how is it accessed in Razor?
 
-What is `ViewData` and how is it accessed in Razor?
+**Concepts**
+- `ViewData` — `ViewDataDictionary`, request-scoped untyped key-value store
+- `ViewBag` — `dynamic` wrapper over the same backing dictionary
+- Magic string keys — silently fail on typo without compile-time check
+- `TempData` — survives one redirect; `ViewData` does not
+- Strongly typed view models — preferred over `ViewData` for complex data
 
-**Answer:** `ViewData` is a `ViewDataDictionary` passed from controller to view for untyped key-value data surviving a single request. Access values with string keys: `ViewData["Title"]` in the controller and `@ViewData["Title"]` in the view.
+**Answer**
 
-- Values are `object` — casts may fail silently or require `(string)ViewData["Key"]`.
-- `ViewData` shares backing storage with `ViewBag` in the same request.
-- Common for page titles and layout metadata when a full view model is not used.
-- Magic string keys typo easily — shared constants or strongly typed models are safer.
-- `ViewData` does not survive redirects; use `TempData` for cross-request flash data.
+`ViewData` is a `ViewDataDictionary` shared between controller and view for untyped key-value data within a single request. I set `ViewData["Title"] = "About Us"` in the controller and read it with `@ViewData["Title"]` in the view or layout. Values are typed `object` and require explicit casts that can fail silently, which is why magic-string key typos cause blank output without exceptions. `ViewBag` is a `dynamic` wrapper over the same backing dictionary, so `ViewBag.Title` and `ViewData["Title"]` reference the same entry. `ViewData` is useful for small cross-cutting values like page titles and layout metadata, but it does not survive redirects — `TempData` handles cross-request flash data. For anything complex or typed I use a strongly typed view model so renames surface at compile time.
 
 ---
 
 ## Q16. What causes "The view 'X' was not found" errors?
 
-What causes "The view 'X' was not found" errors?
+**Concepts**
+- View discovery — `Views/{Controller}/{Action}.cshtml` convention
+- Linux case sensitivity — `Index.cshtml` vs `index.cshtml` fails on Linux
+- Publish artifact — missing `Views/` folder or `*.Views.dll` in output
+- Area views — require `Areas/{Area}/Views/{Controller}/{View}.cshtml`
+- Explicit view name typo — `return View("CustomNaem")` not found
 
-**Answer:** The view engine cannot locate a matching `.cshtml` file or precompiled view for the requested name — usually due to wrong path conventions, case sensitivity on Linux, missing publish artifacts, or explicit view names that do not exist.
+**Answer**
 
-- `return View()` expects `Views/{Controller}/{Action}.cshtml` unless a different name is passed.
-- Linux deployments are case-sensitive — `Index.cshtml` vs `index.cshtml` fails on Linux only.
-- Publish output may lack `Views/` folder or `ProjectName.Views.dll` if misconfigured.
-- Area views require `Areas/{Area}/Views/{Controller}/{View}.cshtml`.
-- Typos in `return View("CustomName")` or wrong controller name in routing cause mismatches.
+The view engine cannot locate a matching `.cshtml` file or precompiled view type for the requested name, which means the conventional path does not match, the publish artifact is incomplete, or the explicit name passed to `View()` has a typo. `return View()` expects `Views/{Controller}/{Action}.cshtml` unless a different name or path is specified, so a controller named `HomeController` with action `About` requires `Views/Home/About.cshtml`. Linux deployments are case-sensitive — `Index.cshtml` and `index.cshtml` are different files, and Windows development masks this mismatch. Publish output lacking `Views/` and `ProjectName.Views.dll` produces this error after deploy despite working locally under `dotnet run`. Area views must be at `Areas/{Area}/Views/{Controller}/{View}.cshtml` and area routing must be registered with `{area:exists}`. I verify the publish artifact locally with `dotnet publish -c Release` and run from the output folder before CI promotes it.
 
 ---
 
 ## Q17. What is `_ViewImports.cshtml` used for?
 
-What is `_ViewImports.cshtml` used for?
+**Concepts**
+- `_ViewImports.cshtml` — shared directives applied to all views in the folder hierarchy
+- `@using` — namespace imports without repeating per view
+- `@addTagHelper` — enables tag helpers project-wide
+- Nested imports — area-specific `_ViewImports` merges with parent
+- No HTML output — compilation context only
 
-**Answer:** `_ViewImports.cshtml` applies shared directives to all views in its folder and subfolders — `@using` namespaces, `@addTagHelper`, `@inject`, and `@model` inheritance via `@inherits` patterns. It reduces repetition across views.
+**Answer**
 
-- Place `@using MyApp.ViewModels` once instead of in every view.
-- `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` enables tag helpers project-wide.
-- Nested `_ViewImports.cshtml` in areas merge with parent imports.
-- It does not render HTML — only sets compilation context for child views.
-- Root `Views/_ViewImports.cshtml` applies to all views unless overridden deeper.
+`_ViewImports.cshtml` applies shared directives to all views under its folder and subfolders, eliminating repeated declarations across individual views. I place `@using MyApp.ViewModels` here once so every view in the project can reference view model types without a local `@using`. `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` enables tag helpers project-wide from one location, and `@inject IViewLocalizer Localizer` in a shared import makes localization available everywhere. Nested `_ViewImports.cshtml` files in area-specific folders merge with the root imports rather than replacing them. The file does not render any HTML — it only sets compilation context for child views. Root `Views/_ViewImports.cshtml` applies to all standard views and area imports apply additionally within their scope.
 
 ---
 
 ## Q18. What is `_ViewStart.cshtml` used for?
 
-What is `_ViewStart.cshtml` used for?
+**Concepts**
+- `_ViewStart.cshtml` — code that runs before each view renders
+- `Layout = "_Layout"` — centralizes layout assignment across all views
+- `Layout = null` — individual view opt-out from layout
+- Hierarchical execution — root then area-specific in order
+- Separate from `_ViewImports` — imports set directives; ViewStart sets runtime properties
 
-**Answer:** `_ViewStart.cshtml` runs before each view renders, typically setting the layout with `Layout = "_Layout"`. It centralizes layout assignment so individual views do not repeat the layout directive.
+**Answer**
 
-- Located at `Views/_ViewStart.cshtml` and optionally in area view folders.
-- Sets `Layout` property — views can override with `Layout = null` or a different layout path.
-- Executes in hierarchical order from root to area-specific `_ViewStart`.
-- Does not replace `_ViewImports` — imports handle namespaces; view start handles layout.
-- Child views focus on content while `_ViewStart` wraps them in the shared chrome.
-
----
-
----
+`_ViewStart.cshtml` runs before each view renders and is used almost exclusively to set the `Layout` property so individual views do not repeat the layout directive. Placing `Layout = "_Layout";` in root `Views/_ViewStart.cshtml` means every view automatically wraps in the shared layout without any per-view declaration. An individual view can override with `Layout = null;` to opt out entirely or `Layout = "~/Views/Shared/_SpecialLayout.cshtml";` for a different chrome. Multiple `_ViewStart.cshtml` files execute hierarchically from root to area-specific, so areas can assign a different default layout. This is separate from `_ViewImports` — imports handle compilation directives like namespaces and tag helpers while ViewStart handles runtime view configuration. Child views focus on their content section while `_ViewStart` handles layout wrapping transparently.
 
 ---
 
@@ -284,172 +295,181 @@ What is `_ViewStart.cshtml` used for?
 
 #### Gotcha 1. Business logic in Razor views
 
-**Answer:** Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently.
+**Concepts**
+- Pricing and discount calculations in `.cshtml` — no unit test coverage
+- Authorization checks in Razor — bypassable by alternate routes
 
-- Views should render data the controller or ViewModel already prepared.
-- Authorization belongs in filters, policies, or controller/service checks before the view executes.
-- Calculations in Razor cannot be tested independently and often diverge from API or batch logic.
-- Keep Razor limited to presentation formatting — not business decisions.
+**Answer**
+
+Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render data the controller or ViewModel already prepared. Calculations in Razor cannot be tested independently and often diverge from API or batch logic. Razor should be limited to presentation formatting, not business decisions.
 
 ---
 
 #### Gotcha 2. EF entities passed directly to views
 
-**Answer:** Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema.
+**Concepts**
+- Lazy-loaded navigations — unexpected queries during rendering
+- Over-posting — mass assignment via unlocked navigation properties
 
-- Lazy-loaded navigations can trigger unexpected queries during rendering.
-- Mass assignment can update properties the user should not control (e.g., `IsAdmin`).
-- Use dedicated ViewModels with only the fields the view needs.
-- Map between entities and ViewModels in the controller or a mapping service.
+**Answer**
+
+Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during rendering and mass assignment can update properties the user should not control such as `IsAdmin`. The fix is dedicated ViewModels with only the fields the view needs.
 
 ---
 
 #### Gotcha 3. `[FromBody]` on HTML form POST
 
-**Answer:** Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values.
+**Concepts**
+- Browser forms — `application/x-www-form-urlencoded`, not JSON
+- `[FromBody]` uses JSON input formatter — leaves model empty silently
 
-- Remove `[FromBody]` for conventional form POSTs and let model binding read form fields.
-- Use `[FromBody]` only when the client sends JSON with the correct Content-Type.
-- Silent binding failure is a common source of "my POST action receives null model" bugs.
-- AJAX forms using `FormData` follow the same form binding rules as full-page forms.
+**Answer**
+
+Standard browser forms send `application/x-www-form-urlencoded`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values. I remove `[FromBody]` for conventional form POSTs and use it only when the client sends JSON with the correct Content-Type.
 
 ---
 
 #### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
 
-**Answer:** Client-side validation is bypassable — attackers POST directly without browser scripts. Server-side validation is mandatory before any persist, redirect, or side effect.
+**Concepts**
+- Client-side validation — bypassable by direct POST
+- Server-side `ModelState.IsValid` — mandatory security gate
 
-- Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent.
-- Client validation improves UX for legitimate users only.
-- Remote validation and unobtrusive rules are not security boundaries.
-- Treat missing server validation as a security defect regardless of client script presence.
+**Answer**
+
+Client-side validation is bypassable by direct POST. Server-side validation is mandatory before any persist, redirect, or side effect. I always gate POST actions with `if (!ModelState.IsValid) return View(model);`. Missing server validation is a security defect regardless of client script presence.
 
 ---
 
 #### Gotcha 5. `return View()` after successful POST
 
-**Answer:** Returning the same view after a successful POST causes duplicate submission when the user refreshes the page — the browser resubmits the POST body.
+**Concepts**
+- Browser refresh after `return View()` — resubmits POST body
+- PRG — `return RedirectToAction` after successful mutation
 
-- Use Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create/update.
-- PRG separates the mutation (POST) from the display (GET).
-- Flash success messages via TempData on the redirect target.
-- AJAX partial POSTs have a similar concern — disable submit during request or use idempotent server logic.
+**Answer**
+
+Returning the same view after a successful POST causes duplicate submission when the user refreshes the page. The fix is Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create or update. Flash success messages go via TempData on the redirect target.
 
 ---
 
 #### Gotcha 6. `ModelState` after redirect
 
-**Answer:** `ModelState` is request-scoped and does not survive `RedirectToAction`. Validation errors are lost unless rehydrated through TempData, a second validation pass on GET, or by redisplaying the form without redirect on failure only.
+**Concepts**
+- `ModelState` — request-scoped, does not survive redirect
+- On failure — `return View(model)` with errors inline
 
-- Common pattern: redirect only on success; on validation failure return `View(model)` with errors inline.
-- To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache.
-- Do not assume errors automatically follow the user after redirect.
-- AJAX partial forms avoid redirect and can return the form partial with `ModelState` errors directly.
+**Answer**
+
+`ModelState` is request-scoped and does not survive `RedirectToAction`. The correct pattern is to redirect only on success and on validation failure return `View(model)` with errors inline. To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache.
 
 ---
 
 #### Gotcha 7. TempData read twice in layout and view
 
-**Answer:** TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless you use `Peek()` or `Keep()`.
+**Concepts**
+- TempData consumed on first read by default
+- `TempData.Peek` — read without consuming
 
-- Use `TempData.Peek("Message")` in the layout to read without consuming.
-- Or call `TempData.Keep("Message")` after the layout read so the view can read it too.
-- Prefer a single consumption point — typically the layout or a dedicated partial, not both.
-- Cookie-based TempData has size limits; avoid storing large payloads.
+**Answer**
+
+TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless `Peek()` or `Keep()` is used. I prefer a single consumption point — typically the layout or a dedicated partial, not both. Cookie-based TempData has size limits.
 
 ---
 
 #### Gotcha 8. Missing `[Area]` attribute on area controllers
 
-**Answer:** Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong conventional route.
+**Concepts**
+- `[Area("AreaName")]` — required for area route discovery
+- Without attribute — controller treated as root, returns 404
 
-- Every area controller must declare `[Area("AreaName")]` matching its folder.
-- Area routing is registered separately in `Program.cs` with the `{area:exists}` constraint.
-- Without the attribute, MVC treats the controller as a root controller.
-- Verify area registration order — specific area routes before catch-all default routes.
+**Answer**
+
+Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong route. Every area controller must declare `[Area("AreaName")]` matching its folder. Area routing is registered separately with the `{area:exists}` constraint.
 
 ---
 
 #### Gotcha 9. Link generation without `asp-area`
 
-**Answer:** Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment.
+**Concepts**
+- Tag Helpers — default to current area context
+- Cross-area links — require explicit `asp-area` and `asp-controller`
 
-- From within an area, omitting `asp-area` keeps links inside the current area — sometimes incorrectly.
-- Cross-area links require both `asp-area` and `asp-controller` (and `asp-action`).
-- Wrong URLs produce 404 or hit unintended controllers.
-- Same rule applies to `Url.Action` — pass `new { area = "Admin" }` in route values.
+**Answer**
+
+Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment. Cross-area links require both `asp-area` and `asp-controller`. The same rule applies to `Url.Action` with `new { area = "Admin" }` in route values.
 
 ---
 
 #### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
 
-**Answer:** A missing unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value — not null or empty.
+**Concepts**
+- Unchecked checkbox posts nothing — model binding sets `bool` to `false`
+- `[Required]` on `bool` never fails — `false` is a valid non-null value
 
-- Use `bool?` with `[Required]` to require an explicit true selection for consent checkboxes.
-- Or use the hidden-field pattern: hidden input `false` plus checkbox `true` so unchecked still posts `false` deliberately.
-- Server-side, verify explicit consent with a dedicated check rather than relying on `[Required]` alone.
-- This applies to both full-page forms and AJAX form posts.
+**Answer**
+
+An unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value. I use `bool?` with `[Required]` to require explicit true selection for consent checkboxes.
 
 ---
 
 #### Gotcha 11. Collection binding with gap indices
 
-**Answer:** Deleting a row from a dynamic form leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment — index 1 is missing and subsequent items may bind incorrectly or truncate.
+**Concepts**
+- Model binder expects contiguous zero-based indices
+- Gap indices — truncation or misalignment after row deletion
 
-- Reindex client-side after row deletion so indices are contiguous starting at zero.
-- Or implement a custom `IModelBinder` that tolerates non-contiguous indices.
-- Partial views rendering collection editors must maintain consistent index naming.
-- Test add/delete row scenarios explicitly in complex form POSTs.
+**Answer**
+
+Deleting a form row leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment. I reindex client-side after row deletion so indices are contiguous starting at zero, or implement a custom `IModelBinder` that tolerates non-contiguous indices.
 
 ---
 
 #### Gotcha 12. `@Html.Raw` with user content
 
-**Answer:** Default Razor encoding prevents XSS by HTML-encoding output. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side.
+**Concepts**
+- Default Razor `@` — HTML-encodes, prevents XSS
+- `@Html.Raw` — bypasses encoding, executes injected script
 
-- Encode first, then apply safe formatting — never wrap raw user input in HTML.
-- AJAX-loaded partials injected via `innerHTML` execute injected script the same as full pages.
-- Prefer `@Model.UserComment` (auto-encoded) or sanitize with a trusted HTML sanitizer library.
-- Content-Security-Policy limits blast radius but does not replace encoding.
+**Answer**
+
+Default Razor encoding prevents XSS. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side. I prefer `@Model.UserComment` (auto-encoded) for plain text or sanitize with a trusted HTML sanitizer library before using Raw.
 
 ---
 
 #### Gotcha 13. AJAX POST without antiforgery token
 
-**Answer:** Form tag helpers emit antiforgery tokens automatically, but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` header or `__RequestVerificationToken` form field or POSTs fail with 400 antiforgery errors.
+**Concepts**
+- Form tag helpers — emit antiforgery token automatically
+- `fetch` / jQuery AJAX — must send token manually
 
-- Read the hidden field value from the page and include it on every mutating AJAX request.
-- Same-origin requests send the antiforgery cookie automatically.
-- `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe methods — missing tokens fail before the action runs.
-- Do not disable antiforgery on MVC cookie-auth endpoints to "fix" AJAX — add the token instead.
+**Answer**
+
+Form tag helpers emit antiforgery tokens automatically but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` as a header or form field. `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe verb methods. I do not disable antiforgery on MVC cookie-auth endpoints — I add the token instead.
 
 ---
 
 #### Gotcha 14. Injecting Hub into MVC controller
 
-**Answer:** Hubs are not registered in DI for direct injection into controllers. Use `IHubContext<THub>` to broadcast messages from controllers, services, or background jobs.
+**Concepts**
+- Hubs not registered in DI for direct injection
+- `IHubContext<THub>` — singleton proxy for broadcasting
 
-- Injecting a concrete `Hub` fails activation or produces an instance without connection context.
-- `IHubContext<T>` is a singleton proxy registered by `AddSignalR()`.
-- Pair with Redis backplane or Azure SignalR for multi-instance fan-out.
-- Keep hubs thin; business logic stays in scoped or transient services.
+**Answer**
+
+Hubs are not registered in DI for direct injection. Injecting a concrete `Hub` fails activation or produces an instance without connection context. The correct pattern is `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()`.
 
 ---
 
 #### Gotcha 15. SignalR scale-out without backplane
 
-**Answer:** Sticky sessions alone do not fan-out events across server instances. Multi-node deployments need a Redis backplane or Azure SignalR Service so messages sent from any instance reach clients on all instances.
+**Concepts**
+- Sticky sessions — per-client affinity, not cross-instance event routing
+- `AddStackExchangeRedis` or `AddAzureSignalR` — multi-instance fan-out
 
-- Controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users connected to instance B without a backplane.
-- Sticky sessions route connections but do not route cross-instance messages.
-- Group membership and connection IDs are local to each instance.
-- Register `AddStackExchangeRedis` or `AddAzureSignalR` when scaling beyond a single node.
+**Answer**
 
----
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+Sticky sessions alone do not fan-out events across server instances. A controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users on instance B. Multi-node deployments need `AddStackExchangeRedis` or `AddAzureSignalR`.
 
 ---
 
@@ -472,30 +492,17 @@ What is `_ViewStart.cshtml` used for?
 
 *(Controller passes `comment.Body` straight from the database — no server-side sanitization.)*
 
----
+**Concepts**
+- `@Html.Raw` on unsanitized database content — stored XSS
+- Default `@comment.Body` — HTML-encodes, prevents script execution
+- Allowlist HTML sanitizer — required before Raw for intentional rich text
+- Trust boundary — treat all database content as untrusted
 
-**Answer:**
+**Answer**
 
-**Answer:** `@Html.Raw` bypasses Razor's HTML encoding, so any `<script>` or event-handler markup stored in `comment.Body` executes in the victim's browser — classic stored XSS. Default `@comment.Body` is safe for plain text but still wrong if you intentionally allow a subset of HTML.
+`@Html.Raw` bypasses Razor's HTML encoding, so any `<script>` or event-handler markup stored in `comment.Body` executes in the victim's browser — stored XSS that affects every viewer of the page, not just the attacker. QA passes because test data is safe; the encoding is only absent when malicious input is stored.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security | `@Html.Raw` on untrusted DB content | Stored XSS — account takeover, session theft |
-| Data handling | No sanitization at write or read | Malicious payload persists and affects every viewer |
-| Design | Conflating "rich text" with "raw HTML" | Team thinks Razor "fixed" XSS by using Raw for formatting |
-
-**Fix (priority order):**
-
-1. **Plain text comments:** Render with `@comment.Body` (encoded) — never `Raw` on user input.
-2. **Allowed rich text:** Sanitize server-side on save (and optionally on read) with an allowlist HTML sanitizer (e.g. Ganss.XSS / HtmlSanitizer) — strip `<script>`, `onerror=`, `javascript:` URLs; then you may use `Raw` on the **sanitized** output only.
-3. Encode at the trust boundary: treat DB comment bodies as untrusted even from "internal" users.
-4. Add CSP headers and HttpOnly cookies as defense in depth — not a substitute for encoding/sanitization.
-
-**Production takeaway:** Razor `@` expressions HTML-encode by default; `@Html.Raw` is an explicit opt-out — use only on trusted or sanitized content. Karat pairs this with "QA passed" to test whether you trust happy-path test data over threat modeling.
-
----
+For plain-text comments the fix is straightforward: replace `@Html.Raw(comment.Body)` with `@comment.Body` and auto-encoding prevents XSS. For intentional rich text — where formatting like bold and links is allowed — I sanitize server-side on write using an allowlist HTML sanitizer (for example HtmlSanitizer / Ganss.XSS) that strips `<script>`, `onerror` event attributes, and `javascript:` URLs, then store the sanitized result. Only the sanitized output is safe to pass to `@Html.Raw`. CSP headers and HttpOnly cookies provide defense in depth but do not replace encoding or sanitization.
 
 ---
 
@@ -515,30 +522,17 @@ What is `_ViewStart.cshtml` used for?
 </script>
 ```
 
----
+**Concepts**
+- HTML encoding context — does not protect inside JavaScript string literals
+- JavaScript encoding context — JS string literals require JSON/JS encoder
+- Inline event-handler interpolation — high-risk injection point
+- `data-*` attributes — safer bridge between server data and client script
 
-**Answer:**
+**Answer**
 
-**Answer:** HTML encoding (`@Model.CustomerName` in attribute/text context) does not make values safe inside **JavaScript** string literals. A name like `'); alert(document.cookie);//` breaks out of the `'...'` string in `onclick` and runs arbitrary script — an encoding-context XSS.
+HTML encoding (`@Model.CustomerName` in body and attribute text context) converts `<` and `>` to entities but does not make values safe inside JavaScript string literals. A customer name like `'); alert(document.cookie);//` breaks out of the `'...'` string in the inline `onclick` handler and runs arbitrary script — the HTML encoder leaves single quotes, parentheses, and semicolons intact because they are valid HTML characters. The "fix" for XSS in body text opened a worse injection vector in inline event attributes.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security | User data embedded in inline JS without JS encoding | XSS via `CustomerName` even when HTML encoding works elsewhere |
-| Context | HTML encoder ≠ JavaScript string encoder | "Fixed" XSS in body but opened a worse vector in attributes |
-| Design | Inline `onclick` with interpolated user data | Hard to audit; duplicates across views |
-
-**Fix (priority order):**
-
-1. Remove inline handlers; attach listeners in a script block using **`Json.Serialize(Model.CustomerName)`** (or `JsonSerializer.Serialize`) for JS string contexts — JSON encoding is correct for JS literals.
-2. Prefer **`data-*` attributes** + one external script: `<button data-customer="@Model.CustomerName" data-total="@Model.OrderTotal">` and read with `element.dataset` (still encode if injecting into JS strings).
-3. Never concatenate user input into `<script>` or event-handler attributes manually.
-4. Use tag helpers / Content Security Policy (`script-src`) to limit inline script execution.
-
-**Production takeaway:** Karat tests **encoding context** — HTML, JavaScript, URL, and CSS each need the right encoder. `@` in Razor is HTML-safe, not JavaScript-safe.
-
----
+The correct approach for passing server data to JavaScript is JSON serialization, which is the right encoder for JS literals: `<button data-customer="@Model.CustomerName" data-total="@Model.OrderTotal">` then read `element.dataset.customer` in an external script block, or inline `var name = @Json.Serialize(Model.CustomerName);` inside a script block where the JSON encoder handles all escaping correctly. I never concatenate user input into event-handler attributes or `<script>` blocks manually.
 
 ---
 
@@ -560,30 +554,16 @@ What is `_ViewStart.cshtml` used for?
 </tr>
 ```
 
----
+**Concepts**
+- Pricing and tax logic in `.cshtml` — untestable, diverges from other code paths
+- Magic rate constants in view — change requires hunting every partial
+- View model mapping — controller enriches `InvoiceLineViewModel` with computed values
 
-**Answer:**
+**Answer**
 
-**Answer:** Business rules (volume discount thresholds, tax rates, exemptions) duplicated in the view are invisible to service-layer tests and drift from API/PDF/email calculations. The view renders one number while checkout and reporting use different code paths — silent revenue and compliance bugs.
+Business rules in the view — volume discount thresholds, tax rates, tax exemption logic — are invisible to service-layer tests and run on a code path separate from API, PDF, email, and batch calculations. The service tests pass because they test the service, not the view, so a tax rate change in the wrong place fixes the service but leaves the partial using the hardcoded `0.0825m`. Revenue and compliance calculations must have a single authoritative code path.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Pricing/tax logic in `.cshtml` | Untested, unreusable across PDF, API, batch jobs |
-| Maintainability | Magic numbers (`0.15m`, `0.0825m`) in view | Tax change requires hunting every partial |
-| Correctness | `lineTotal` computed only at render time | Email template or export using service math disagrees with UI |
-
-**Fix (priority order):**
-
-1. Move calculation to a **domain/service** method (e.g. `InvoiceLineCalculator.Compute(line)` or enrich `InvoiceLineViewModel` in the controller/mapper with `LineTotal`, `Tax`, `Discount`).
-2. View becomes display-only: `@Model.LineTotal.ToString("C")` — no `@{}` business block.
-3. Unit-test the calculator with table-driven cases (quantity 9 vs 10, tax-exempt flag).
-4. Single source of truth for rates: `IOptions<TaxSettings>` or database-driven rates injected into the service, not hard-coded in Razor.
-
-**Production takeaway:** Views should **format and layout**, not decide money. Karat uses "service tests pass" to trap candidates who test only the layer they own.
-
----
+The fix: move the calculation to a domain service or enrichment step in the controller — `InvoiceLineCalculator.Compute(line)` or populate `LineTotal`, `Tax`, and `Discount` on the view model before passing to `return View(model)`. The view becomes display-only: `@Model.LineTotal.ToString("C")` — the `@{}` business block is deleted entirely. Unit tests cover the calculator with table-driven cases for quantity thresholds and exemption flags. Tax rates live in `IOptions<TaxSettings>` or a configuration database, not hardcoded in Razor.
 
 ---
 
@@ -603,30 +583,17 @@ public IActionResult About()
 <title>@(ViewData["Title"] as string ?? "MyApp")</title>
 ```
 
----
+**Concepts**
+- `ViewData` magic string typo — `"Titel"` vs `"Title"` silently writes wrong key
+- `as string` cast — returns null on missing key, no exception
+- Compile-time check — missing for `ViewData`, present for `@model` property
+- Shared constants or `[ViewData]` attribute — prevent future typo divergence
 
-**Answer:**
+**Answer**
 
-**Answer:** `ViewData["Titel"]` and `ViewData["Title"]` are unrelated keys — the typo writes a value the layout never reads, so `(ViewData["Title"] as string ?? "MyApp")` falls through to the default or empty cast without throwing. Magic strings fail at runtime with no compile-time check.
+`ViewData["Titel"]` and `ViewData["Title"]` are unrelated dictionary entries. The controller writes `"Titel"` and the layout reads `"Title"`, so the null-coalescing `as string ?? "MyApp"` falls back to the app name on every page that uses the About action — no exception, no warning, just the wrong title silently. Magic string keys have no compile-time check, so renames or typos remain invisible until a specific page is visually inspected.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Maintainability | Typo in ViewData key `"Titel"` vs `"Title"` | Wrong or default `<title>` — SEO, tabs, accessibility |
-| Type safety | `ViewData` is `object`- keyed dictionary | No IntelliSense; refactors don't rename keys |
-| Observability | Silent fallback masks bug | Production pages ship with generic title |
-
-**Fix (priority order):**
-
-1. **Strongly typed view model** with `Title` property — compiler catches renames.
-2. If keeping ViewData temporarily, **shared constants**: `ViewDataKeys.Title` used in both controller and layout.
-3. `@model PageViewModel` with `[ViewData]` attribute or `_ViewStart` setting base title pattern.
-4. Integration test: GET `/Home/About` asserts `<title>` contains "About Us".
-
-**Production takeaway:** ViewData/ViewBag magic strings are a common Karat trap — prefer strongly typed models for anything that must be consistent across controller and view.
-
----
+The fix with the highest long-term value is a strongly typed view model with a `Title` property so the compiler catches mismatches. A lighter-weight fix is a shared constant class `ViewDataKeys.Title` used in both controller and layout so the string is defined once. Adding `[ViewData]` on a base controller property also works. An integration test asserting that `GET /Home/About` returns a `<title>` containing "About Us" would have caught this immediately.
 
 ---
 
@@ -642,24 +609,21 @@ public IActionResult Dashboard()
 }
 ```
 
----
+**Concepts**
+- Strongly typed view model — compile-time safety, IntelliSense, refactor-friendly
+- Six+ ViewBag properties — threshold where untyped dictionaries become tech debt
+- ViewComponent — alternative for independent data loading per widget
+- Acceptable dynamic data — single optional cross-cutting key with documented convention
 
-**Answer:**
+**Answer**
 
-**Answer:** Refactor to `DashboardViewModel` when the view depends on multiple named pieces of data, you need compile-time safety, or the same shape is reused across actions/tests. Dynamic `ViewBag`/`ViewData` is acceptable only for trivial, single-key throwaway pages or layout cross-cutting keys with documented conventions.
+At six ViewBag properties the accumulation has clearly crossed the threshold where a strongly typed `DashboardViewModel` pays back its introduction cost. Every new `ViewBag.Foo` increases coupling, forces casts in partials, and fails silently when the value is null or the key is misspelled (Q4). A typed model makes the controller-to-view contract explicit, enables IntelliSense, and lets the compiler catch property renames across refactors. Unit tests can construct the view model directly without routing through an HTTP context.
 
-- **Worth strongly typed:** Dashboard with 6+ properties, partial views expecting specific keys, API + MVC sharing shape, frequent refactors, multiple developers — eliminates magic-string bugs (see Q4) and enables view `@model` IntelliSense.
-- **Acceptable dynamic:** One-off admin diagnostic page, prototype spike, or passing a single optional banner message from a filter where a shared `LayoutViewModel` would be heavy.
-- **Middle ground:** `ViewComponent` with its own view model for `RecentOrders` and `AlertCount` — keeps action slim and boundaries clear.
-- **Cost of delay:** Every new `ViewBag.Foo` increases coupling; partials casting `ViewBag.RecentOrders as IEnumerable<Order>` fail silently when null.
-
-**Production takeaway:** Karat favors judgment — not "never ViewBag," but "this dashboard crossed the threshold where untyped dictionaries are tech debt."
-
----
+Dynamic ViewData is acceptable for isolated cross-cutting concerns: a single `ViewData["Title"]` for page titles set by convention and read by the layout, or a flash message from a filter where creating a full base view model would be architectural overhead. The line I draw is: if the view or layout reads more than one or two named values that the controller set independently, a typed model is worth it. A View Component is a better intermediate option for the `RecentOrders` widget — it has its own typed view model and data loading without inflating the controller action.
 
 ---
 
-#### Q6. (M) After deploy to Production, first page load is fast but subsequent edits to `.cshtml` files on the server appear immediately without redeploy. Staging behaves the same. Review this `Program.cs` / project setup — what mechanism is active, and why is it a production risk?
+#### Q6. (M) After deploy to Production, first page load is fast but subsequent edits to `.cshtml` files on the server appear immediately without redeploy. Staging behaves the same. Review this `Program.cs` setup — what mechanism is active, and why is it a production risk?
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -670,40 +634,25 @@ var app = builder.Build();
 app.Run();
 ```
 
-*(`.csproj` has no special Razor publish settings; Release build deployed to Linux.)*
+**Concepts**
+- `AddRazorRuntimeCompilation` — reads `.cshtml` from disk on demand, file watcher recompiles
+- No `IsDevelopment()` guard — activates in all environments
+- Security risk — unauthorized `.cshtml` edit on server executes arbitrary logic
+- Precompiled views — correct Production approach, views in DLL not on disk
 
----
+**Answer**
 
-**Answer:**
+`AddRazorRuntimeCompilation()` without an `IsDevelopment()` guard activates in all environments. It watches `.cshtml` files on disk and recompiles them on change, which is why edits on the server apply immediately without redeploy. In Production this is a misconfiguration with three problems: performance (Roslyn compile overhead on cache miss), operational (view state drifts between server nodes if files differ), and security — if an attacker or unauthorized user can write to the views directory, a modified `.cshtml` runs arbitrary C# logic in the application process on the next request, equivalent to remote code execution.
 
-**Answer:** `AddRazorRuntimeCompilation()` compiles `.cshtml` from disk on demand (with file watching), so hot-editing views on the server works without redeploy. That is desirable in Development only; in Production it exposes compilation overhead, file-system dependency, and a **code injection surface** if an attacker can write to the views directory.
+The fix is to register runtime compilation only in Development:
 
-**Issues:**
+```csharp
+var mvc = builder.Services.AddControllersWithViews();
+if (builder.Environment.IsDevelopment())
+    mvc.AddRazorRuntimeCompilation();
+```
 
-| Category | Problem | Impact |
-|---|---|---|
-| Security | Runtime compile of changed `.cshtml` on server | Unauthorized view change → RCE-equivalent markup/logic in app process |
-| Performance | Roslyn compile on cache miss / file change | CPU spikes, slower cold requests vs precompiled views |
-| Deployment | Views expected to be immutable artifacts | Drift between nodes if one server’s files differ |
-| Configuration | No `if (env.IsDevelopment())` guard | Same behavior in Staging/Production |
-
-**Fix (priority order):**
-
-1. Register runtime compilation **only in Development**:
-
-   ```csharp
-   var mvc = builder.Services.AddControllersWithViews();
-   if (builder.Environment.IsDevelopment())
-       mvc.AddRazorRuntimeCompilation();
-   ```
-
-2. Production: rely on **Razor precompilation at publish** (default in Release) and redeploy to change views.
-3. Remove package `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` from Production deployments if unused.
-4. Ensure CI publishes immutable artifacts — no manual `.cshtml` edits on servers.
-
-**Production takeaway:** If views change without redeploy, runtime compilation is almost certainly enabled — treat that as a misconfiguration, not a feature.
-
----
+Production and Staging rely on precompiled views from the CI publish artifact and require redeploy to change views. The `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` package reference can optionally be scoped to Development build configurations to enforce this at the dependency level.
 
 ---
 
@@ -731,31 +680,17 @@ app.Run();
 </ul>
 ```
 
----
+**Concepts**
+- `@functions` data access — EF query inside view class, bypasses service layer
+- SQL in view-render traces — I/O hidden from controller profiling
+- `@inject AppDbContext` in view — no caching seam, N+1 risk if partial repeated
+- View Component or controller — correct location for data loading
 
-**Answer:**
+**Answer**
 
-**Answer:** `@functions` blocks belong to the view class for **presentation helpers** (formatting, CSS class mapping) — not data access. Injecting `AppDbContext` and querying inside `@functions` puts I/O in the view layer, bypasses controller/service testing, and runs per render with no clear transaction boundary.
+`@functions` is intended for pure presentation helpers — CSS class mappers, label formatters — not database I/O. Injecting `AppDbContext` and querying inside `@functions` puts EF Core directly in the rendering pipeline, which is why SQL appears in view-render traces rather than controller traces. There is no caching seam, no batching opportunity, and no way to unit test the data loading without the view engine. If this partial is rendered multiple times in a loop, each call to `LoadProducts` fires a separate query — the classic N+1 pattern hidden behind Razor markup.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Architecture | EF query in `.cshtml` via `@functions` | Business/data layer leak; untestable without view engine |
-| Performance | `ToListAsync` per category page render | DB load under traffic; no caching seam |
-| DI/lifetime | DbContext in view with `@inject` | Works scoped per request but hides N+1 if partial repeats |
-| Maintainability | Async logic in generated view class | Harder to mock than service interface |
-
-**Fix (priority order):**
-
-1. Load products in **controller or view model factory**: `return View(new CategoryPageViewModel { Products = await _productService.GetByCategoryAsync(id) });`
-2. View only iterates: `@foreach (var p in Model.Products)`.
-3. Use **ViewComponent** if the query is reusable widget logic with its own view model — still no DbContext in `.cshtml`.
-4. Reserve `@functions` for pure helpers, e.g. `string StatusBadgeClass(string status)`.
-
-**Production takeaway:** `@functions` abuse is a Karat code-review signal — if SQL appears in view traces, move data up one layer.
-
----
+The fix: move `LoadProducts` to a service or repository; call it in the controller before `return View(model)`, and pass the loaded data as part of the view model. The view becomes `@model CategoryViewModel` with `@foreach (var p in Model.Products)` — zero service calls in Razor. Use a View Component if the product list is a reusable widget that needs its own data-loading lifecycle, which is the correct abstraction for independent data loading inside a view hierarchy.
 
 ---
 
@@ -779,80 +714,51 @@ app.Run();
 }
 ```
 
----
+**Concepts**
+- Duplicated `@{}` blocks across views — bug divergence, no single test surface
+- Partial view — centralize shared markup with typed `StatusBadgeViewModel`
+- View Component — appropriate when the widget needs independent data
+- Tag Helper — per-attribute customization via `asp-status-badge`
 
-**Answer:**
+**Answer**
 
-**Answer:** Copy-paste across `.cshtml` files diverges because partial extraction or view components were skipped "to save time." Centralize markup in a **partial view** or **View Component** with a small view model (`StatusBadgeViewModel` with `Status`, `AgeDays`, optional `CssVariant`).
+Copy-pasting markup across five views creates five divergent code paths where a bug fix in one does not automatically propagate to the others — the exact failure described here. The root cause is skipping partial extraction "to save time" and instead copying inline `@{}` blocks. The switch logic and overdue rule belong in one location with one test.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Maintainability | Identical switch + overdue rule in five views | Bug fixed in one place only — inconsistent UI |
-| Design | Inline `@{}` logic blocks instead of shared partial | No single test surface for badge rules |
-| DRY | Slightly different CSS per page copied wholesale | Fear of breaking one page blocks refactor |
-
-**Fix (priority order):**
-
-1. Extract `_StatusBadge.cshtml` partial or `StatusBadgeViewComponent` accepting `StatusBadgeModel`.
-2. Replace duplicated blocks with `<partial name="_StatusBadge" model="..." />` or `@await Component.InvokeAsync("StatusBadge", ...)`.
-3. Move `badgeClass` switch and overdue rule to one file (or tag helper `asp-status-badge`).
-4. Add a snapshot/Razor test or single unit test for badge class mapping.
-
-**Production takeaway:** Duplicate view logic is a maintenance defect — Karat expects **partial vs View Component** trade-off: partial for simple markup; View Component when independent data loading or encapsulation is needed.
+The fix is a partial view `_StatusBadge.cshtml` accepting a typed `StatusBadgeViewModel` with `Status` and `AgeDays` properties, replacing all five duplicated blocks with `<partial name="_StatusBadge" model="new StatusBadgeViewModel { Status = item.Status, AgeDays = item.AgeDays }" />`. The switch and overdue condition live only in the partial. A View Component is the right choice if the badge also needs to load its own data (for example a real-time staleness indicator); a Tag Helper (`asp-status-badge`) is appropriate if the customization is per-attribute and purely presentation. A snapshot test or unit test on the badge class mapping catches regressions from a single location.
 
 ---
 
----
+#### Q9. (P) Production throws `InvalidOperationException: The view 'Index' was not found` for `Home/Index` after CI publish, but `dotnet run` locally finds the view. The pipeline runs `dotnet publish -c Release -o ./out` and copies only `./out` to the server. What publish or view-layout mistakes cause this, and what do you verify in the artifact?
 
-#### Q9. (P) Production throws `InvalidOperationException: The view 'Index' was not found` for `Home/Index` after CI publish, but `dotnet run` locally finds the view. The pipeline runs `dotnet publish -c Release -o ./out` and copies only `./out` to the server. What publish/view-layout mistakes cause this, and what do you verify in the artifact?
+**Concepts**
+- `dotnet run` — uses project source `Views/` on disk
+- Publish artifact — may contain precompiled DLL only, or incomplete view tree
+- `ProjectName.Views.dll` — precompiled view assembly must be present in output
+- Linux case sensitivity — view names case-sensitive on Linux, not Windows
+- `.csproj` exclusion — accidental `<Content Remove="Views/**" />` strips views
 
----
+**Answer**
 
-**Answer:**
+`dotnet run` sources views from the project `Views/` directory. The publish output of a Release build typically contains only `ProjectName.Views.dll` (precompiled) — no `.cshtml` files — so if that assembly is missing or contains wrong types, or if the view name passed to `View()` does not match the action convention, the runtime produces "view not found." The mismatch is invisible locally because source is always present.
 
-**Answer:** `dotnet run` uses project source (including `Views/` on disk); publish output may contain **precompiled assemblies only** or an incomplete view tree depending on `.csproj` settings, paths, and what the deploy step copies. The runtime searches `Views/Home/Index.cshtml` and compiled view locations — if neither exists in `./out`, you get "view not found."
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Publish | `<CopyRazorGenerateFilesToPublishDirectory>false</CopyRazorGenerateFilesToPublishDirectory>` (default) + precompilation failure | No `.cshtml` and no compiled view in output |
-| Layout | Views outside `Views/` convention or wrong area path | Works locally with custom content paths; fails on server |
-| Deploy | Copying trimmed artifact missing `Views` or `*.Views.dll` | Intermittent "works on my machine" |
-| Case sensitivity | `Index.cshtml` vs `index.cshtml` on Linux | Windows dev OK; Linux prod 404 view |
-
-**Fix (priority order):**
-
-1. Inspect publish folder: presence of **`ProjectName.Views.dll`** (precompiled) **or** `Views/Home/Index.cshtml` if copying cshtml to publish.
-2. Ensure `.csproj` does not exclude views: check `<Content Remove="Views/**" />`, `<None Remove=...>`, wrong `RazorCompileOnPublish`.
-3. Fix view path: action returns `View()` → expects `Views/Home/Index.cshtml` (or explicit `return View("~/Views/...")`).
-4. Match Linux casing; run `dotnet publish` locally and execute from `./out` before CI promote.
-5. If using runtime compilation in prod (see Q6), package must include `.cshtml` files on disk.
-
-**Production takeaway:** Always validate **`dotnet publish` output**, not `dotnet run` source tree — Karat ties MVC view errors to deployment artifacts.
+The first thing I check in `./out` is `ProjectName.Views.dll` — if it is absent, precompilation failed silently, likely due to a `.csproj` exclusion like `<Content Remove="Views/**" />` or `<None Remove="Views/**" />` that stripped views before the Razor SDK could compile them. On Linux the file system is case-sensitive: `Index.cshtml` and `index.cshtml` are different files, and Windows development masks a case mismatch. Area views must be at `Areas/{Area}/Views/{Controller}/{View}.cshtml`. An explicit `return View("CustomName")` typo also causes this. To verify before CI promotes: run `dotnet publish -c Release` locally and execute the app from `./out` against a local request — if it fails there it will fail in production.
 
 ---
 
----
+#### Q10. (M) Release builds use Razor precompilation by default in modern SDK-style projects. Explain what happens to `.cshtml` files at build/publish vs first request when precompilation is enabled, and how that differs from runtime compilation.
 
-#### Q10. (M) Release builds use Razor precompilation by default in modern SDK-style projects. Explain what happens to `.cshtml` files at **build/publish** vs **first request** when precompilation is enabled, and how that differs from runtime compilation.
+**Concepts**
+- Precompilation — `.cshtml` compiled to `*.Views.dll` at publish, Roslyn not loaded at runtime
+- `RazorCompileOnPublish` — SDK default true for Release, controls precompilation
+- First request (precompiled) — view engine loads compiled type, no disk `.cshtml` needed
+- Runtime compilation — `AddRazorRuntimeCompilation`, file-watcher, Development workflow
+- Immutable artifacts — precompiled views change only via redeploy
 
----
+**Answer**
 
-**Answer:**
+With Razor precompilation (enabled by default via `RazorCompileOnPublish=true` in Release), the Razor SDK generates C# classes from all `.cshtml` files during `dotnet publish` and compiles them into a `ProjectName.Views.dll` assembly alongside the main app DLL. View syntax errors surface at build time — not first request. At runtime the view engine locates compiled view types in the assembly; `.cshtml` files need not exist on the server, and Roslyn is not loaded. The first request is as fast as subsequent requests because no compilation happens.
 
-**Answer:** With **Razor precompilation** (`RazorCompileOnBuild` / `RazorCompileOnPublish`, default true for publish), `.cshtml` files are compiled into assemblies (e.g. `MyApp.Views.dll`) at build/publish time. At runtime the view engine loads precompiled types — **no Roslyn compile on first request**; `.cshtml` may not be deployed to the server at all.
-
-- **Build/publish (precompiled):** Razor SDK generates C# from views → compiled into views assembly; errors surface at build time; faster startup and steady-state render.
-- **First request (precompiled):** View locator finds compiled view type — disk `.cshtml` optional unless configured to copy for editing.
-- **Runtime compilation (`AddRazorRuntimeCompilation`):** Original `.cshtml` on disk parsed/compiled when needed; file watcher recompiles on change — Development workflow, not Production default.
-- **Contrast:** Precompilation = immutable views in DLL; runtime compilation = views are source code at runtime.
-
-**Production takeaway:** Know which mode your pipeline uses — "change cshtml on server" (Q6) means runtime compilation; proper Release deploy means **redeploy DLL** to change views.
-
----
+Runtime compilation (`AddRazorRuntimeCompilation`) takes a different path: `.cshtml` files must exist on disk at the server, the Roslyn compiler is loaded into the process, and views are compiled on first access with a file watcher triggering recompile on save. This is the mechanism behind the Development hot-reload workflow and the Production misconfiguration in Q6. The contrast is: precompilation means views are immutable DLL artifacts changed only by redeploy; runtime compilation means views are source code that the running process can compile on demand from disk.
 
 ---
 
@@ -881,31 +787,14 @@ app.Run();
 <span>@price.ToString("C")</span>
 ```
 
----
+**Concepts**
+- N+1 I/O — 200 synchronous service calls per page render
+- Sync I/O on thread pool — blocks threads under concurrent requests
+- Partial per row with `@inject` service — hidden from controller profiling
+- Batch pricing API — resolve all prices in one call before rendering
 
-**Answer:**
+**Answer**
 
-**Answer:** The view triggers **O(n) synchronous service/DB calls** — one per row — via `Html.PartialAsync` rendering a partial that calls `GetTierPrice` inside `@{}`. Partials are fine for markup reuse but amplify N+1 when each invocation does I/O; async partial doesn't help if the service call is sync and repeated 200 times per request.
+The view triggers 200 synchronous `GetTierPrice` calls — one per row via `Html.PartialAsync` rendering a partial that calls the service in a `@{}` block. Awaiting `Html.PartialAsync` does not help when the service call inside is synchronous and blocking — it awaits the partial task but the service internally blocks a thread pool thread per call. At 200 rows under concurrent requests this multiplies to thousands of blocked threads and database connections, causing TTFB spikes and thread pool starvation.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | 200 × `GetTierPrice` per page | N+1 queries; thread pool blocked on sync I/O |
-| Architecture | Pricing lookup inside partial | Hidden from controller profiling; duplicated if row reused |
-| Razor | `@foreach` + partial per item with `@inject` service | Compiles but scales linearly with catalog size |
-| Caching | No batch API | Cache misses multiply latency |
-
-**Fix (priority order):**
-
-1. **Batch in controller/service** before render: `var prices = await _pricing.GetTierPricesAsync(productIds);` map into `ProductRowViewModel.Price`.
-2. View/partials display only: `@product.DisplayPrice` — zero service calls in `.cshtml`.
-3. Replace per-row partial with inline markup or single partial taking **precomputed** `ProductRowViewModel` if markup reuse needed.
-4. If pricing must stay dynamic, add **bulk endpoint + cache** (`IMemoryCache` keyed by product set hash); never sync DB in loop.
-5. Measure with MiniProfiler — confirm one query (or one cache round-trip) per page after fix.
-
-**Production takeaway:** Complex Razor performance issues are usually **N+1 I/O disguised as partial reuse** — fix data shape before micro-optimizing Razor syntax.
-
----
-
----
+The fix is to move pricing to the controller before rendering. The controller calls `var prices = await _pricing.GetTierPricesAsync(productIds);` — a single batch query or cache round-trip — and maps into `ProductRowViewModel.DisplayPrice` before `return View(model)`. The view becomes `@product.DisplayPrice` with no partial, no injected service, and zero pricing I/O during rendering. If markup reuse requires a partial, the partial accepts a precomputed `ProductRowViewModel` with the price already set. Adding MiniProfiler confirms one pricing query per page after the fix rather than N queries.

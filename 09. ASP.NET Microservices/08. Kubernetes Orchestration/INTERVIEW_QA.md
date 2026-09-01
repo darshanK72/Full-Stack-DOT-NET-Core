@@ -36,68 +36,72 @@
 
 ## Q1. What is Kubernetes, and what problems does it solve for running containerized microservices at scale?
 
-What is Helm, and why is it used instead of raw YAML manifests for production Kubernetes deployments?
+**Concepts**
+- Helm chart as versioned package of parameterized Kubernetes resource definitions
+- values.yaml and environment-specific override files
+- helm upgrade --install as idempotent CI/CD deploy command
+- helm rollback for Helm-tracked revision history
+- Kustomize as templating-free overlay alternative
 
-**Answer:** Helm is the package manager for Kubernetes. It bundles related Kubernetes resource definitions (Deployment, Service, ConfigMap, Ingress, etc.) into a reusable, versioned package called a chart, parameterized with a values file so the same chart can be deployed to different environments by overriding a small set of variables. Without Helm, teams maintain separate copies of nearly identical YAML files for each environment, which drifts and becomes inconsistent over time.
+**Answer**
 
-- A Helm chart contains Go-templated YAML files in a `templates/` directory, a `Chart.yaml` with metadata and version, and a `values.yaml` with default parameter values. Environment overrides are applied via `-f prod-values.yaml` at install time.
-- `helm upgrade --install <release> <chart>` is idempotent: it installs on first run and upgrades on subsequent runs, which makes it safe to run from a CI/CD pipeline on every push.
-- `helm rollback <release> <revision>` rolls the deployment back to a previous Helm release revision, which wraps `kubectl rollout undo` with full Helm history tracking.
-- Kustomize is a common alternative that uses overlays and patches without templating — it is built into `kubectl apply -k` and preferred when templating complexity is not needed. Many teams use both: Helm for packaging third-party software (cert-manager, nginx Ingress) and Kustomize for their own application configuration.
+Helm is the package manager for Kubernetes. It bundles related Kubernetes resource definitions — Deployment, Service, ConfigMap, Ingress — into a reusable, versioned package called a chart, parameterized with a values file so the same chart can be deployed to different environments by overriding a small set of variables. Without Helm, teams maintain separate copies of nearly identical YAML files for each environment, which drifts and becomes inconsistent over time. A Helm chart contains Go-templated YAML files in a `templates/` directory, a `Chart.yaml` with metadata and version, and a `values.yaml` with default parameter values; environment overrides are applied via `-f prod-values.yaml` at install time. `helm upgrade --install <release> <chart>` is idempotent — it installs on first run and upgrades on subsequent runs, making it safe to run from a CI/CD pipeline on every push. `helm rollback <release> <revision>` rolls the deployment back to a previous Helm release revision, wrapping `kubectl rollout undo` with full Helm history tracking. Kustomize is a common alternative that uses overlays and patches without templating — it is built into `kubectl apply -k` and preferred when templating complexity is not needed. Many teams use both: Helm for packaging third-party software like cert-manager and Nginx Ingress, and Kustomize for their own application configuration.
 
 ---
 
 ## Q2. What are the main components of the Kubernetes control plane, and what does each one do?
 
-How does a Kubernetes rolling deployment achieve zero-downtime updates, and what role does the readiness probe play?
+**Concepts**
+- maxUnavailable: 0 with maxSurge: 1 for zero-downtime rolling update
+- Readiness probe gating — rollout stalls rather than removes old pods when new pod fails
+- preStop lifecycle hook to drain endpoint references before SIGTERM
+- PodDisruptionBudget complementing rolling update during node drains
 
-**Answer:** A rolling update replaces old Pods with new ones incrementally, bounded by the `maxSurge` and `maxUnavailable` settings. Zero-downtime is achieved when `maxUnavailable` is set to zero and the readiness probe is correctly implemented, because Kubernetes only routes traffic to a new Pod after its readiness probe passes, and only terminates an old Pod after the new one is ready.
+**Answer**
 
-- With `maxUnavailable: 0` and `maxSurge: 1`, Kubernetes starts one new Pod, waits for its readiness probe to pass, then removes one old Pod — and so on until all replicas are updated. At no point does the number of ready Pods fall below the desired replica count.
-- If the new image fails its readiness probe (because the application has a startup bug), the rollout stalls and the old Pods remain running and receiving traffic. The rollout does not proceed to remove the old Pods, which is an automatic safety gate.
-- A `preStop` lifecycle hook that sleeps for a few seconds (e.g., 5–15 seconds) on old Pods before they receive SIGTERM gives the Service endpoint list time to propagate the Pod's removal, preventing connection errors from clients that still hold stale references to the old Pod IP.
-- PodDisruptionBudgets (PDBs) complement this by preventing more Pods than `maxUnavailable` allows from being voluntarily disrupted simultaneously during events like node drains.
+A rolling update replaces old Pods with new ones incrementally, bounded by the `maxSurge` and `maxUnavailable` settings. Zero-downtime is achieved when `maxUnavailable` is set to zero and the readiness probe is correctly implemented, because Kubernetes only routes traffic to a new Pod after its readiness probe passes and only terminates an old Pod after the new one is ready. With `maxUnavailable: 0` and `maxSurge: 1`, Kubernetes starts one new Pod, waits for its readiness probe to pass, then removes one old Pod — and so on until all replicas are updated, so at no point does the number of ready Pods fall below the desired replica count. If the new image fails its readiness probe because the application has a startup bug, the rollout stalls and the old Pods remain running and receiving traffic — the rollout does not proceed to remove old Pods, which is an automatic safety gate. A `preStop` lifecycle hook that sleeps for a few seconds on old Pods before they receive SIGTERM gives the Service endpoint list time to propagate the Pod's removal, preventing connection errors from clients that still hold stale references to the old Pod IP. PodDisruptionBudgets complement this by preventing more Pods than `maxUnavailable` allows from being voluntarily disrupted simultaneously during events like node drains.
 
 ---
 
 ## Q3. What runs on each worker node in a Kubernetes cluster?
 
-What is a PodDisruptionBudget, and why should production deployments define one?
+**Concepts**
+- PDB limiting voluntary disruptions during node drains and cluster upgrades
+- minAvailable vs maxUnavailable as two expression forms
+- Voluntary vs involuntary disruption distinction
+- PDB independence from rolling update maxUnavailable setting
 
-**Answer:** A PodDisruptionBudget (PDB) is a Kubernetes policy that limits the number of Pods belonging to a workload that can be voluntarily disrupted at the same time. Voluntary disruptions include node drains (for cluster upgrades, maintenance, or scaling down), evictions for resource pressure, and disruptions triggered by cluster autoscalers. Without a PDB, a cluster upgrade could evict all Pods of a service simultaneously, causing an outage.
+**Answer**
 
-- A PDB is expressed either as `minAvailable` (minimum number of Pods that must remain up) or `maxUnavailable` (maximum number that can be disrupted simultaneously). For a service with three replicas and `minAvailable: 2`, at most one Pod can be disrupted at a time.
-- PDBs only protect against voluntary disruptions — they cannot prevent a node from failing (involuntary). If a node crashes, Kubernetes reschedules the Pods regardless of the PDB.
-- A PDB of `minAvailable: 1` is a common baseline: it ensures the service stays online during node drains while still allowing the cluster to proceed with maintenance. Setting `minAvailable` equal to the replica count blocks all disruptions and will stall cluster upgrades indefinitely.
-- PDBs work in conjunction with rolling update settings but they are independent: rolling update `maxUnavailable` controls updates triggered by Deployment changes, while the PDB controls disruptions triggered externally by the cluster control plane.
+A PodDisruptionBudget (PDB) is a Kubernetes policy that limits the number of Pods belonging to a workload that can be voluntarily disrupted at the same time. Voluntary disruptions include node drains for cluster upgrades, maintenance, or scaling down, evictions for resource pressure, and disruptions triggered by cluster autoscalers. Without a PDB, a cluster upgrade could evict all Pods of a service simultaneously, causing an outage. A PDB is expressed either as `minAvailable` — the minimum number of Pods that must remain up — or `maxUnavailable` — the maximum number that can be disrupted simultaneously. For a service with three replicas and `minAvailable: 2`, at most one Pod can be disrupted at a time. PDBs only protect against voluntary disruptions — they cannot prevent a node from failing involuntarily. If a node crashes, Kubernetes reschedules the Pods regardless of the PDB. A PDB of `minAvailable: 1` is a common baseline: it ensures the service stays online during node drains while still allowing the cluster to proceed with maintenance. Setting `minAvailable` equal to the replica count blocks all disruptions and will stall cluster upgrades indefinitely. PDBs work in conjunction with rolling update settings but are independent: rolling update `maxUnavailable` controls updates triggered by Deployment changes, while the PDB controls disruptions triggered externally by the cluster control plane.
 
 ---
 
 ## Q4. What is kubectl, and how does it communicate with the cluster?
 
-What are resource requests and limits, and how do they affect .NET container behavior?
+**Concepts**
+- Resource request as scheduler placement guarantee
+- Memory limit OOMKill vs CPU limit throttling difference
+- CPU limit caution for .NET thread pool and GC behavior
+- DOTNET_GCConserveMemory for memory-constrained containers
 
-**Answer:** A resource request is the minimum CPU and memory the container is guaranteed to receive; the Kubernetes scheduler uses requests to decide which node can host a Pod. A resource limit is the maximum the container may consume; exceeding the memory limit causes the container to be killed (OOMKilled) and restarted, while exceeding the CPU limit results in throttling (slower execution, not a restart).
+**Answer**
 
-- For .NET applications, memory sizing must account for: the .NET runtime itself, the managed heap, native memory used by the GC and thread stack, and any third-party libraries that allocate native memory. A common starting point is 256 Mi request and 512 Mi limit for a small API, monitored and tuned from real load data.
-- CPU limits for .NET containers require care. The .NET thread pool sizes itself based on the number of available logical CPUs. An aggressive CPU limit (e.g., 250m, a quarter of a CPU) can starve the GC, cause thread pool starvation under load, and create latency spikes. Set CPU requests conservatively and limits generously, or omit the CPU limit if the cluster has sufficient capacity.
-- The environment variable `DOTNET_GCConserveMemory` (0–9) can reduce GC memory retention at the cost of more frequent GC cycles, which is useful in memory-constrained containers.
-- If a Pod is repeatedly OOMKilled, `kubectl describe pod <name>` shows `OOMKilled` in the last state, which confirms memory limits are too low rather than a memory leak.
+A resource request is the minimum CPU and memory the container is guaranteed to receive; the Kubernetes scheduler uses requests to decide which node can host a Pod. A resource limit is the maximum the container may consume — exceeding the memory limit causes the container to be killed (OOMKilled) and restarted, while exceeding the CPU limit results in throttling (slower execution, not a restart). For .NET applications, memory sizing must account for the .NET runtime itself, the managed heap, native memory used by the GC and thread stacks, and any third-party libraries that allocate native memory — a common starting point is 256 Mi request and 512 Mi limit for a small API, monitored and tuned from real load data. CPU limits for .NET containers require care because the .NET thread pool sizes itself based on the number of available logical CPUs. An aggressive CPU limit such as 250m can starve the GC, cause thread pool starvation under load, and create latency spikes, so I would set CPU requests conservatively and limits generously, or omit the CPU limit if the cluster has sufficient capacity. The environment variable `DOTNET_GCConserveMemory` (0–9) can reduce GC memory retention at the cost of more frequent GC cycles, which is useful in memory-constrained containers. If a Pod is repeatedly OOMKilled, `kubectl describe pod <name>` shows `OOMKilled` in the last state, confirming that memory limits are too low rather than pointing to a memory leak.
 
 ---
 
 ## Q5. What is a Kubernetes Namespace, and when would you use multiple namespaces in a single cluster?
 
-What is Horizontal Pod Autoscaling, and what metrics does it use by default?
+**Concepts**
+- HPA scaling based on CPU utilization as percentage of resource request
+- Metrics Server as required HPA dependency
+- KEDA for queue-depth and event-driven scaling in .NET microservices
+- Scale-up responsiveness vs scale-down cool-down trade-off
 
-**Answer:** Horizontal Pod Autoscaling (HPA) is a Kubernetes controller that automatically adjusts the number of Pod replicas in a Deployment or StatefulSet based on observed metrics. The HPA controller polls the Metrics API periodically and scales the replica count up or down within configured minimum and maximum bounds.
+**Answer**
 
-- By default, HPA scales based on average CPU utilization as a percentage of the CPU `request` defined in the Pod spec. The `request` must be set on the Pod for HPA to calculate utilization correctly — without it, HPA has no baseline to compute a percentage from.
-- HPA requires the Metrics Server add-on to be installed in the cluster; it provides CPU and memory metrics from kubelet data. Most managed Kubernetes offerings (AKS, EKS, GKE) include or easily enable the Metrics Server.
-- Custom and external metrics can drive HPA via adapters: for example, scaling based on the length of an Azure Service Bus or RabbitMQ queue using KEDA (Kubernetes Event-Driven Autoscaling). KEDA is a popular add-on in .NET microservice deployments because services often scale better on queue depth than on CPU utilization.
-- HPA reacts to sustained load, not spikes — it waits for the metric to exceed the threshold for a few polling cycles before scaling up, and has a longer cool-down before scaling down to avoid thrashing.
-
----
+Horizontal Pod Autoscaling (HPA) is a Kubernetes controller that automatically adjusts the number of Pod replicas in a Deployment or StatefulSet based on observed metrics. The HPA controller polls the Metrics API periodically and scales the replica count up or down within configured minimum and maximum bounds. By default, HPA scales based on average CPU utilization as a percentage of the CPU request defined in the Pod spec — the request must be set on the Pod for HPA to calculate utilization correctly, since without it HPA has no baseline to compute a percentage from. HPA requires the Metrics Server add-on to be installed in the cluster; it provides CPU and memory metrics from kubelet data, and most managed Kubernetes offerings include or easily enable it. Custom and external metrics can drive HPA via adapters — for example, scaling based on the length of an Azure Service Bus or RabbitMQ queue using KEDA (Kubernetes Event-Driven Autoscaling). KEDA is a popular add-on in .NET microservice deployments because services often scale better on queue depth than on CPU utilization. HPA reacts to sustained load rather than spikes — it waits for the metric to exceed the threshold for a few polling cycles before scaling up, and has a longer cool-down before scaling down to avoid thrashing.
 
 ---
 

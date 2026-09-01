@@ -35,61 +35,76 @@
 
 ## Q1. What is Azure App Service, and why is it a common target for hosting ASP.NET Core Web APIs?
 
-What is Azure App Service, and why is it a common target for hosting ASP.NET Core Web APIs?
+**Concepts**
+- PaaS vs IaaS hosting model
+- Managed OS and runtime lifecycle
+- App Service Plan compute tier and SKU
+- Built-in TLS, autoscaling, and deployment slots
+- First-class ASP.NET Core runtime support
 
-**Answer:** Azure App Service is a fully managed platform-as-a-service (PaaS) offering that runs web applications and HTTP APIs without you provisioning or patching virtual machines. Teams choose it for ASP.NET Core Web APIs because it handles the operating system, runtime hosting, scaling, HTTPS, and deployment slots while the application still runs as a standard published .NET assembly.
+**Answer**
 
-- App Service supports multiple language stacks, but ASP.NET Core is a first-class citizen: you publish a self-contained folder of binaries and configuration, and the platform loads the correct .NET runtime version for your target framework.
-- Built-in features such as custom domains, TLS certificates, autoscaling, deployment slots, and integration with Azure SQL, Key Vault, and Application Insights reduce operational work compared to running APIs on raw infrastructure-as-a-service (IaaS) virtual machines.
-- This module's `LocalServerWebApiApplication` project targets `net6.0` and is designed to deploy to an App Service named `apiapplication46310114` on a Standard (S1) plan, which is a typical pattern for training and small production APIs.
+Azure App Service is a PaaS offering that removes VM provisioning and OS patching from the picture — I publish a folder of compiled binaries and configuration, and the platform handles the rest. ASP.NET Core is a first-class stack: App Service loads the correct .NET runtime version matching the target framework, so deploying a `net6.0` assembly works without configuring a server. Built-in capabilities like managed TLS certificates, custom domains, autoscaling rules, deployment slots, and native integration with Azure SQL, Key Vault, and Application Insights make it faster to operate than raw IaaS VMs, because those concerns are absorbed by the platform rather than delegated to the team. This module's `LocalServerWebApiApplication` targets `net6.0` and deploys to an App Service named `apiapplication46310114` on a Standard S1 plan, which is a typical pattern for small production APIs.
 
 ---
 
 ## Q2. What is the relationship between an App Service Plan, an App Service app, and a resource group?
 
-What is the relationship between an App Service Plan, an App Service app, and a resource group?
+**Concepts**
+- Resource group as logical container for Azure resources
+- App Service Plan compute tier, region, and shared scaling
+- Web App as deployable unit within a plan
+- SKU feature gating (slots, scaling, price)
+- Cost and permission scope of a resource group
 
-**Answer:** A resource group is a logical container for related Azure resources in one subscription, an App Service Plan defines the compute tier and region where apps run, and each App Service app is an individual site or API hosted on exactly one plan. Multiple apps can share one plan to save cost, but they also share CPU, memory, and scaling limits.
+**Answer**
 
-- The `profile.arm.json` in this project creates resource group `rg-sprint`, an App Service Plan at Standard S1 tier, and the Web App `apiapplication46310114` with `httpsOnly: true` and a system-assigned managed identity.
-- The plan's SKU (for example S1) controls price, instance size, and features such as deployment slots; the Web App itself is the deployable unit that receives your published API files.
-- Keeping the API, its SQL database, storage account, and Event Grid topic in the same resource group (as this sprint project does) simplifies permissions, cost tracking, and cleanup, even though Azure allows resources in different groups.
+A resource group is a logical container that groups related Azure resources for billing, RBAC, and lifecycle management. An App Service Plan defines the compute tier, region, and scaling configuration — it is the actual infrastructure that runs apps. The App Service app (the Web App) is the deployable unit that receives published files and sits on exactly one plan; multiple apps can share a plan to reduce cost, but they also share CPU, memory, and scaling limits. The SKU controls what features are available: the S1 plan in this sprint project enables deployment slots, which the free and shared tiers do not. Keeping the API, SQL database, storage account, and Event Grid topic in the same resource group (`rg-sprint`) simplifies permissions and cost tracking, even though Azure does not require co-location.
 
 ---
 
 ## Q3. What does the `kind: "app"` setting on a Web App mean in Azure?
 
-What does the `kind: "app"` setting on a Web App mean in Azure?
+**Concepts**
+- App Service `kind` discriminator
+- Windows vs Linux hosting surface
+- Built-in .NET stack vs custom container
+- `CURRENT_STACK` metadata and runtime handler selection
+- Workload type disambiguation (functions vs web app)
 
-**Answer:** The `kind` property tells Azure what type of App Service workload the site is. `"app"` means a standard Web App for general HTTP workloads such as ASP.NET Core sites and REST APIs, as opposed to specialized kinds like `"functionapp"` for Azure Functions or `"linux,container"` for container-based hosting.
+**Answer**
 
-- This project's ARM template sets `"kind": "app"` on both the site resource and its properties, indicating a Windows-based App Service running the built-in .NET stack rather than a custom Docker image.
-- The site configuration also sets metadata `CURRENT_STACK` to `dotnetcore`, which tells the App Service platform which runtime handler to use when starting the process.
-- API Management, Azure Front Door, or Application Gateway can sit in front of any Web App regardless of `kind`; `"app"` only describes the hosting surface, not whether the workload is a browser UI or a JSON API.
+The `kind` property tells Azure what type of App Service workload the resource represents. `"app"` means a standard Windows-based Web App for general HTTP traffic — as opposed to `"functionapp"` for Azure Functions or `"linux,container"` for Docker-based hosting. This project's ARM template sets `"kind": "app"` on both the site resource and its properties, meaning the platform uses the built-in .NET runtime stack rather than a custom container image. The accompanying `CURRENT_STACK: dotnetcore` metadata tells the App Service runtime handler which managed runtime to load when starting the process; `"app"` alone does not communicate which language is in use.
 
 ---
 
 ## Q4. How does Azure App Service run an ASP.NET Core Web API — what runtime and web server are involved?
 
-How does Azure App Service run an ASP.NET Core Web API — what runtime and web server are involved?
+**Concepts**
+- Kestrel as the in-process HTTP server
+- Application Request Routing (ARR) as the platform front-end reverse proxy
+- TLS termination at the platform edge
+- `dotnet publish` output and `web.config` startup descriptor
+- `ASPNETCORE_URLS` or `PORT` injection by the platform
 
-**Answer:** Azure App Service starts your published ASP.NET Core application as a .NET process using the runtime version that matches your target framework, and the Kestrel web server inside your app handles HTTP requests forwarded by the App Service front-end (ARR — Application Request Routing). You do not configure IIS as the primary request handler for modern ASP.NET Core on App Service the way you did with .NET Framework.
+**Answer**
 
-- When the platform receives a request, the App Service front-end terminates TLS, applies routing rules, and forwards the request to your app's listening port; Kestrel processes the request through the ASP.NET Core middleware pipeline defined in `Program.cs`.
-- The `dotnet publish` output includes your DLL, dependencies, and `web.config` (on Windows) or startup command metadata that tells the host how to launch `dotnet LocalServerWebApiApplication.dll`.
-- Locally, `launchSettings.json` runs the same Kestrel process with URLs like `https://localhost:7127`; on Azure, the platform injects `PORT` or `ASPNETCORE_URLS` so Kestrel binds to the port App Service expects.
+App Service starts the published application as a .NET process using the runtime version matching the target framework, and Kestrel — the web server embedded in the ASP.NET Core host — handles HTTP requests forwarded by the App Service front-end (Application Request Routing). TLS is terminated at the ARR edge, so Kestrel receives plain HTTP internally, which is why `app.UseHttpsRedirection()` in `Program.cs` is supplementary rather than the primary HTTPS enforcement mechanism. The `dotnet publish` output on Windows includes a `web.config` that instructs the AspNetCoreModule to launch `dotnet LocalServerWebApiApplication.dll`; the platform then injects `ASPNETCORE_URLS` or `PORT` so Kestrel binds to the expected port, overriding the `https://localhost:7127` URL from `launchSettings.json`.
 
 ---
 
 ## Q5. What is the role of `AllowedHosts` in `appsettings.json` when the API is deployed to Azure?
 
-What is the role of `AllowedHosts` in `appsettings.json` when the API is deployed to Azure?
+**Concepts**
+- Host Filtering middleware and HTTP `Host` header validation
+- `AllowedHosts: "*"` — wildcard disabling strict filtering
+- Host-header injection and open-redirect attack surface
+- CORS vs host filtering — orthogonal concerns
+- Production tightening to named hostnames
 
-**Answer:** `AllowedHosts` is an ASP.NET Core security setting read by the Host Filtering middleware that defines which HTTP `Host` header values the application will accept. This project's `appsettings.json` sets it to `"*"`, which disables strict host filtering and allows any host name — convenient for development but usually tightened in production.
+**Answer**
 
-- When a request arrives, the middleware compares the incoming `Host` header against the allowed list; a mismatch returns HTTP 400 before your controllers run, which mitigates some host-header and open-redirect attacks.
-- On Azure App Service, clients typically reach the API via `https://apiapplication46310114.azurewebsites.net` or a custom domain; production configs often list those exact host names instead of `"*"`.
-- `AllowedHosts` is separate from Azure networking rules or CORS: it only validates the host name inside the HTTP request, while CORS (configured in this project's `Program.cs` with `AllowAnyOrigin`) controls browser cross-origin access.
+`AllowedHosts` is read by ASP.NET Core's Host Filtering middleware, which validates the incoming HTTP `Host` header against an allowed list and returns HTTP 400 before any controller code runs if the header does not match. This project's `appsettings.json` sets it to `"*"`, which disables that check entirely — useful for local development where the hostname varies, but a risk in production because it permits requests with arbitrary `Host` values that could enable open-redirect or cache-poisoning attacks. On Azure, clients reach the API via `https://apiapplication46310114.azurewebsites.net` or a custom domain, so production configuration should list those exact names rather than wildcarding. Host filtering is separate from CORS: CORS controls browser cross-origin access by inspecting the `Origin` header, while host filtering guards the `Host` header regardless of browser involvement.
 
 ---
 
@@ -99,73 +114,91 @@ What is the role of `AllowedHosts` in `appsettings.json` when the API is deploye
 
 ## Q6. What deployment options are available for ASP.NET Core Web APIs on Azure App Service?
 
-What deployment options are available for ASP.NET Core Web APIs on Azure App Service?
+**Concepts**
+- Zip Deploy via Kudu REST API or Azure CLI
+- Web Deploy (MSDeploy) incremental file sync
+- Git-based continuous deployment (GitHub, Azure DevOps, local Git)
+- Container deployment from a registry
+- CI/CD pipeline integration with `az webapp deploy`
 
-**Answer:** The main paths are Zip Deploy (uploading a compressed publish folder), Web Deploy / MSDeploy (incremental sync from Visual Studio or MSBuild), Git-based deployment (GitHub, Azure DevOps, local Git), container deployment, and continuous integration pipelines that call the Zip Deploy REST API or Azure CLI. All of them target the same App Service app but differ in tooling, speed, and whether files are synced incrementally or replaced as a unit.
+**Answer**
 
-- Zip Deploy is the default for Azure CLI (`az webapp deploy`), GitHub Actions, and many DevOps tasks because it is simple and works cross-platform.
-- Web Deploy is tightly integrated with Visual Studio publish profiles and supports incremental updates, but it is primarily a Windows-oriented workflow.
-- This project includes a Visual Studio publish profile named `apiapplication46310114 - Web Deploy` with linked service dependencies for SQL Server, reflecting the Web Deploy path from IDE to Azure.
+The main deployment paths are Zip Deploy, Web Deploy (MSDeploy), Git-based deployment, container deployment, and CI/CD pipelines calling the Zip Deploy REST API. All of them push artifacts to the same App Service app but differ in tooling, speed, and whether content is replaced atomically or synced incrementally. Zip Deploy dominates automated pipelines — the Azure CLI `az webapp deploy`, GitHub Actions `azure/webapps-deploy`, and Azure DevOps tasks all use it by default because it is cross-platform and straightforward. Web Deploy is tightly integrated with Visual Studio publish profiles and supports incremental syncs, which is why this project's publish profile is named `apiapplication46310114 - Web Deploy` and references linked SQL service dependencies. Git-based deployment is convenient for smaller teams but couples deployment to a version control push, making artifact traceability harder in mature pipelines.
 
 ---
 
 ## Q7. What is Zip Deploy, and how does it work for ASP.NET Core applications?
 
-What is Zip Deploy, and how does it work for ASP.NET Core applications?
+**Concepts**
+- Kudu deployment engine and extraction into `wwwroot`
+- Atomic content replacement vs incremental sync
+- `dotnet publish` as the prerequisite step
+- Run From Package as an alternative mount mode
+- Cross-platform compatibility (Linux build to Windows App Service)
 
-**Answer:** Zip Deploy uploads a `.zip` archive of your published application to App Service, where the Kudu deployment engine extracts it into the `wwwroot` folder (or mounts it when Run From Package is enabled) and restarts the site. For ASP.NET Core, you first run `dotnet publish -c Release`, zip the output folder, and push that archive to the deployment endpoint.
+**Answer**
 
-- Kudu runs deployment scripts and logs progress at `https://<app-name>.scm.azurewebsites.net`; failed extractions or missing `web.config` startup entries show up there.
-- Zip Deploy replaces the entire site content by default, which makes deployments predictable — the live site matches exactly what you published.
-- It does not require Visual Studio or MSDeploy agents, so the same zip artifact can be produced in a build pipeline on Linux and deployed to a Windows App Service.
+Zip Deploy uploads a `.zip` archive of the published application to App Service's Kudu deployment engine, which extracts it into the site's `wwwroot` folder and restarts the app. For ASP.NET Core, the prerequisite is `dotnet publish -c Release`, which produces the binary folder that gets zipped — App Service never runs `dotnet build` on source code. Because Zip Deploy replaces the entire site content on each deployment, the live app always reflects exactly what was published, eliminating drift from partial incremental updates. Kudu logs are available at `https://<app-name>.scm.azurewebsites.net` and show extraction progress and errors — a missing `web.config` or failed extraction will appear there. The zip can be built on Linux in CI and deployed to a Windows App Service without any agent compatibility issues, which gives Zip Deploy an advantage over MSDeploy in cross-platform pipelines.
 
 ---
 
 ## Q8. What is Web Deploy (MSDeploy), and when would you choose it over Zip Deploy?
 
-What is Web Deploy (MSDeploy), and when would you choose it over Zip Deploy?
+**Concepts**
+- MSDeploy incremental file synchronization
+- Visual Studio publish profile integration
+- MSBuild transform files and service dependency wiring
+- Web Deploy handler requirement on App Service
+- Platform and tooling constraints (Windows-oriented)
 
-**Answer:** Web Deploy is Microsoft's incremental deployment technology that synchronizes only changed files from a publish profile to App Service, and Visual Studio uses it when you right-click Publish to Azure. You might choose it when developers deploy frequently from Visual Studio and want faster incremental syncs, or when you rely on MSBuild publish profiles with transform files and service dependency wiring.
+**Answer**
 
-- The publish profile in this project (`apiapplication46310114 - Web Deploy`) connects Visual Studio to the target App Service and can provision linked Azure SQL resources through ARM templates under `Properties/ServiceDependencies/`.
-- Web Deploy depends on the Web Deploy handler being enabled on the App Service and is most natural on Windows development machines; cross-platform CI pipelines more often use Zip Deploy or `az webapp deploy`.
-- Zip Deploy is simpler to reproduce in automation and avoids MSDeploy versioning issues; Web Deploy shines for interactive Visual Studio workflows with connected services.
+Web Deploy uses MSDeploy to synchronize only changed files from a Visual Studio publish profile to App Service, rather than replacing the full site content as Zip Deploy does. I would choose it when developers are deploying frequently from Visual Studio and want faster incremental pushes, or when the workflow relies on MSBuild publish profiles with XML transform files and Visual Studio's connected services wiring — as this project does, where `apiapplication46310114 - Web Deploy.json` maps the SQL Server dependency and injects connection strings during publish. Web Deploy requires the Web Deploy handler to be enabled on the App Service instance and is most natural on Windows development machines; cross-platform CI pipelines more commonly use Zip Deploy or `az webapp deploy` because they avoid MSDeploy versioning and agent compatibility issues. Zip Deploy is the better default for automation; Web Deploy earns its keep in interactive Visual Studio workflows.
 
 ---
 
 ## Q9. What does `dotnet publish` produce, and how does that output relate to Azure deployment?
 
-What does `dotnet publish` produce, and how does that output relate to Azure deployment?
+**Concepts**
+- Publish output: application DLL, dependencies, config, and `web.config`
+- Release vs Debug configuration artifacts
+- `appsettings.Development.json` inclusion rules by configuration
+- Azure never runs `dotnet build` on source
+- Missing publish-folder content absent in production
 
-**Answer:** `dotnet publish` compiles the project in Release (or Debug) configuration and copies the application assembly, dependency DLLs, configuration files, and runtime assets into a single folder ready to run with `dotnet <AppName>.dll`. That publish folder — not the source code or intermediate `bin` build output — is what you zip or Web Deploy to Azure App Service.
+**Answer**
 
-- For this `net6.0` Web API project, publish output includes `LocalServerWebApiApplication.dll`, EF Core and Swashbuckle dependencies, `appsettings.json`, and a generated `web.config` that configures the AspNetCoreModule to launch the app on Windows App Service.
-- Development-only settings in `appsettings.Development.json` are included only when publishing with Development configuration; Release publish typically omits or overrides them.
-- Azure never runs `dotnet build` on your source; it only receives the published artifacts, so any missing file in the publish folder (migrations bundled as content, for example) will be absent in production.
+`dotnet publish` compiles the project and copies the application assembly, all dependency DLLs, configuration files, and runtime assets into a single folder ready to run with `dotnet <AppName>.dll`. That folder — not the source tree or intermediate `bin/` output — is what gets zipped or Web Deployed to Azure App Service. For this `net6.0` project, the publish output includes `LocalServerWebApiApplication.dll`, EF Core and Swashbuckle dependencies, `appsettings.json`, and a generated `web.config` that tells the AspNetCoreModule how to launch the process on Windows App Service. Release configuration omits `appsettings.Development.json` by convention, since the Development environment file is typically excluded from non-Development publish configurations. Because Azure receives only the published artifacts, anything missing from the publish folder — migration scripts bundled as content, for example — will simply be absent in production.
 
 ---
 
 ## Q10. How does publish-from-Visual Studio work using a publish profile and service dependencies?
 
-How does publish-from-Visual Studio work using a publish profile and service dependencies?
+**Concepts**
+- `.pubxml` publish profile as deployment descriptor
+- `serviceDependencies.json` dependency declaration
+- ARM template provisioning during first publish
+- `secretStore: AzureAppSettings` injection pattern
+- Web Deploy vs Zip Deploy from the IDE
 
-**Answer:** Visual Studio reads a publish profile (`.pubxml`) that names the target App Service, deployment method, and configuration, then builds, publishes, and pushes the output using Web Deploy or Zip Deploy while optionally provisioning connected Azure resources defined in `serviceDependencies.json` and ARM templates. Service dependencies map logical names like `mssql1` to connection string keys and Azure resource types.
+**Answer**
 
-- This project's base `serviceDependencies.json` declares an `mssql` dependency with `connectionId` `ConnectionStrings:DefaultConnectionString`, telling Visual Studio where to inject the SQL connection after provisioning.
-- The profile-specific file `serviceDependencies.apiapplication46310114 - Web Deploy.json` adds Azure Service Connector metadata: the SQL server `sprintdbserver46310114`, database `sprintdb46310114`, and `secretStore: AzureAppSettings` so the connection string lands in App Service configuration rather than source code.
-- ARM templates under `Properties/ServiceDependencies/apiapplication46310114 - Web Deploy/` describe the App Service Plan, Web App, and SQL resources Visual Studio can create or link during first publish.
+Visual Studio reads a `.pubxml` publish profile that names the target App Service, deployment method, configuration, and linked service dependencies, then builds the project, runs `dotnet publish`, and pushes the output to Azure using Web Deploy or Zip Deploy. Service dependencies are declared in `serviceDependencies.json` as logical names mapped to configuration keys — this project's base file names an `mssql` dependency with `connectionId: ConnectionStrings:DefaultConnectionString`, which tells Visual Studio where to wire the SQL connection string after provisioning. The profile-specific file `serviceDependencies.apiapplication46310114 - Web Deploy.json` adds Azure Service Connector metadata: the SQL server and database resource IDs, and `"secretStore": "AzureAppSettings"` so the connection string is injected into App Service configuration rather than written into source files. ARM templates under `Properties/ServiceDependencies/` describe the App Service Plan, Web App, and SQL resources that Visual Studio can create or link during first publish, making the full environment reproducible from the IDE.
 
 ---
 
 ## Q11. What is Run From Package (`WEBSITE_RUN_FROM_PACKAGE`), and why would you enable it?
 
-What is Run From Package (`WEBSITE_RUN_FROM_PACKAGE`), and why would you enable it?
+**Concepts**
+- Zip archive mounted as read-only filesystem instead of extraction
+- Atomic deployment without file extraction race conditions
+- Cold start performance for large applications
+- Runtime write restriction and implications for file output
+- Kudu blob storage for package persistence
 
-**Answer:** Run From Package is an App Service setting that mounts your deployment zip as a read-only filesystem instead of extracting files into `wwwroot`, so the site always runs from a known, immutable package. Teams enable it to get atomic deployments (the app switches to the new package in one step), faster cold starts on large apps, and reduced file-lock issues during deployment.
+**Answer**
 
-- When enabled, Kudu stores the zip in Azure Blob Storage linked to the site and sets an environment variable pointing to that package URL; failed deployments do not leave a half-extracted folder.
-- Local file writes at runtime fail because the package is read-only, which encourages storing uploads and logs in Azure Blob Storage — relevant for this API, which writes department JSON to blob storage via `DepartmentHelper`.
-- Zip Deploy and Run From Package work well together in CI/CD pipelines because the same artifact is both the build output and the runtime package.
+Run From Package is an App Service setting that mounts the deployment zip as a read-only filesystem rather than extracting files into `wwwroot`, so the app always runs from a fixed, immutable package. I would enable it because deployments become atomic — the app switches to the new package in one step with no window where the site is half-extracted — and cold start performance improves because the runtime maps files from the zip rather than scanning a directory tree. The zip is stored in Azure Blob Storage linked to the site, and failed deployments do not leave behind a partially written folder. The read-only constraint matters for runtime code: local file writes fail, which means features like this project's `DepartmentHelper` writing JSON files must target Azure Blob Storage rather than the local filesystem. Zip Deploy and Run From Package pair naturally in CI/CD because the same artifact from `dotnet publish` serves as both the build output and the runtime package.
 
 ---
 
@@ -175,73 +208,91 @@ What is Run From Package (`WEBSITE_RUN_FROM_PACKAGE`), and why would you enable 
 
 ## Q12. How do Azure App Service Application Settings map to ASP.NET Core configuration?
 
-How do Azure App Service Application Settings map to ASP.NET Core configuration?
+**Concepts**
+- App Service settings surfaced as environment variables at runtime
+- ASP.NET Core environment variable configuration provider
+- Double-underscore (`__`) as JSON key nesting separator
+- Configuration provider priority — environment variables override JSON files
+- `IConfiguration.GetConnectionString()` resolution order
 
-**Answer:** Application Settings and Connection Strings configured in the Azure portal are exposed to the running app as environment variables, and ASP.NET Core's default configuration providers read environment variables and override values from `appsettings.json`. A portal setting named `ConnectionStrings__DefaultConnectionString` maps to the nested JSON key `ConnectionStrings:DefaultConnectionString`.
+**Answer**
 
-- The configuration chain in `WebApplication.CreateBuilder(args)` loads `appsettings.json`, environment-specific JSON, then environment variables, so Azure-injected values win at runtime without rebuilding the app.
-- This project's `Program.cs` calls `builder.Configuration.GetConnectionString("DefaultConnectionString")` for EF Core; on Azure, that value should come from App Service Connection Strings, not from the local SQL Server entry in `appsettings.json`.
-- Non-connection settings such as `EventGridTopicEndpoint` or `Container` from this project's `appsettings.json` should likewise be moved to Application Settings in production so secrets are not deployed in the publish folder.
+Application Settings and Connection Strings in the Azure portal are surfaced to the running app as environment variables, and ASP.NET Core's default configuration system reads environment variables as a higher-priority provider than `appsettings.json`. The double-underscore acts as a nesting separator: a portal setting named `ConnectionStrings__DefaultConnectionString` maps to the nested key `ConnectionStrings:DefaultConnectionString` in `IConfiguration`, which is exactly what `builder.Configuration.GetConnectionString("DefaultConnectionString")` reads. The full provider chain in `WebApplication.CreateBuilder(args)` loads `appsettings.json`, then environment-specific JSON, then environment variables, so Azure-injected values win without rebuilding the app or changing code. Non-connection settings like `EventGridTopicEndpoint`, the storage container name, and the storage account key from this project's `appsettings.json` should be moved to Application Settings in production for the same reason — so secrets are not deployed as plain text in the publish folder.
 
 ---
 
 ## Q13. Why should production secrets and connection strings not remain in `appsettings.json` on Azure?
 
-Why should production secrets and connection strings not remain in `appsettings.json` on Azure?
+**Concepts**
+- Plain-text secrets in publish artifact accessible via file system
+- Git history as permanent secret exposure vector
+- Azure App Service Application Settings as secure injection point
+- Key Vault references for centralized secret management
+- Service Connector `secretStore: AzureAppSettings` pattern
 
-**Answer:** Files in the publish output are deployed as plain text alongside your DLLs, so anyone with deployment read access, a compromised build artifact, or a misconfigured directory listing could extract SQL passwords, storage account keys, or Event Grid access keys. Azure App Service Application Settings, Key Vault references, and managed identities exist precisely to keep secrets out of source control and published packages.
+**Answer**
 
-- This project's local `appsettings.json` contains a SQL connection string, storage account key, and Event Grid access key for sprint training — acceptable locally but must be replaced by portal settings or Key Vault before real production use.
-- Committing secrets to git creates a permanent exposure even after rotation, because history retains the old values.
-- Service Connector in this project uses `"secretStore": "AzureAppSettings"` to write the SQL connection string directly into App Service configuration during publish, which is the correct direction for deployment automation.
+Files in the publish output are deployed as plain text alongside DLLs, so anyone with deployment read access, a compromised build artifact, or a misconfigured directory listing can extract SQL passwords, storage account keys, or Event Grid access keys. This project's `appsettings.json` contains a SQL connection string, storage key, and Event Grid key for sprint training — acceptable in a local learning environment but wrong for any real deployment because the secrets travel through the build pipeline and land in the App Service file system. The git history problem is even more persistent: if a secret is committed, it remains readable forever even after rotation and deletion, since `git log -p` reveals past file contents. The right pattern is what this project's Service Connector configuration already describes: `"secretStore": "AzureAppSettings"` writes the connection string directly into App Service configuration during publish, keeping the secret out of source control and the publish folder entirely.
 
 ---
 
 ## Q14. What is the difference between Connection Strings and Application Settings in the Azure portal for App Service?
 
-What is the difference between Connection Strings and Application Settings in the Azure portal for App Service?
+**Concepts**
+- Connection Strings section with type hint (SQL Server, SQL Azure, Custom)
+- Application Settings as general key-value pairs with no type metadata
+- Environment variable naming conventions (`CUSTOMCONNSTR_`, `ConnectionStrings__`)
+- Legacy framework compatibility vs ASP.NET Core runtime behavior
+- Team convention vs runtime requirement distinction
 
-**Answer:** Both are stored as environment variables at runtime, but Connection Strings in the portal are a dedicated UI section that also records a type hint (SQL Server, SQL Azure, Custom, and others) for legacy frameworks and tooling. Application Settings are general key-value pairs with no type metadata.
+**Answer**
 
-- For ASP.NET Core, the practical difference is minimal because both surface as environment variables; EF Core and `IConfiguration` read either form when the naming convention matches.
-- Connection Strings in the portal are often duplicated as `CUSTOMCONNSTR_<name>` for older Azure APIs, while ASP.NET Core prefers `ConnectionStrings__<name>` — App Service sets both patterns for SQL-type entries.
-- Organizing database strings under Connection Strings and non-secret config under Application Settings is a team convention that improves clarity in the portal, not a runtime requirement for ASP.NET Core.
+Both Connection Strings and Application Settings in the Azure portal ultimately surface as environment variables inside the running app, so from ASP.NET Core's perspective the practical difference is minimal. The distinction is that Connection Strings carry a type hint (SQL Server, SQL Azure, MySQL, Custom) that legacy Azure tooling and older frameworks use for special handling — App Service sets both `CUSTOMCONNSTR_<name>` and `ConnectionStrings__<name>` environment variables for SQL-type entries, while Application Settings are injected as-is. For ASP.NET Core, `IConfiguration.GetConnectionString("DefaultConnectionString")` resolves the `ConnectionStrings__DefaultConnectionString` environment variable regardless of which portal section it came from. Organizing database strings under Connection Strings and non-secret config under Application Settings is a team convention that improves clarity in the portal, not a runtime requirement.
 
 ---
 
 ## Q15. What does the `ASPNETCORE_ENVIRONMENT` variable control when the API runs on Azure?
 
-What does the `ASPNETCORE_ENVIRONMENT` variable control when the API runs on Azure?
+**Concepts**
+- Environment name and environment-specific config file loading
+- Developer exception page gating on `IsDevelopment()`
+- `appsettings.Production.json` as production-specific override layer
+- Swagger conditional gating by environment
+- Default environment name (`Production`) on App Service
 
-**Answer:** `ASPNETCORE_ENVIRONMENT` selects which environment name ASP.NET Core uses to load optional configuration files and enable development-only behaviors. When set to `Production` on Azure, `appsettings.Production.json` loads if present, developer exception pages stay disabled, and Swagger might be gated off by convention — whereas `Development` enables richer errors and often Swagger UI.
+**Answer**
 
-- Locally, `launchSettings.json` sets `ASPNETCORE_ENVIRONMENT` to `Development` for both the Project and IIS Express profiles.
-- On Azure, the default is typically `Production` unless you override it in Application Settings; leaving it as Development in production exposes detailed error information to clients.
-- This project's `Program.cs` always calls `app.UseSwagger()` and `app.UseSwaggerUI()` without an environment check, so Swagger stays enabled in production unless you add a conditional guard.
+`ASPNETCORE_ENVIRONMENT` controls which environment name ASP.NET Core uses when loading optional configuration files and deciding whether development-only behaviors are active. When it is `Production` (the App Service default), `appsettings.Production.json` loads if present and `app.Environment.IsDevelopment()` returns false, so developer exception pages with stack traces stay off. When it is `Development`, richer error pages turn on — acceptable on a developer machine but dangerous on a public endpoint because detailed exceptions leak internal paths and schema details. This project's `Program.cs` calls `app.UseSwagger()` and `app.UseSwaggerUI()` unconditionally, which means Swagger UI stays active in production regardless of the environment name; gating those calls on `app.Environment.IsDevelopment()` would close that gap. Locally, `launchSettings.json` sets the variable to `Development`, but that file is never published to Azure.
 
 ---
 
 ## Q16. How does `launchSettings.json` differ from production configuration on Azure App Service?
 
-How does `launchSettings.json` differ from production configuration on Azure App Service?
+**Concepts**
+- `launchSettings.json` as dev-only tooling configuration, excluded from publish
+- Local Kestrel URL (`applicationUrl`) vs App Service-injected ports
+- IIS Express profile applicability (local only)
+- `ASPNETCORE_ENVIRONMENT` set locally vs in App Service Application Settings
+- Platform-injected `ASPNETCORE_URLS` or `PORT` overriding local URL config
 
-**Answer:** `launchSettings.json` is a local development-only file used by Visual Studio and `dotnet run` to set URLs, launch browser targets, and development environment variables; it is not published to Azure and has no effect on the deployed app. Production URLs, HTTPS ports, and environment name come from App Service platform settings and Application Settings instead.
+**Answer**
 
-- This file defines local URLs `https://localhost:7127` and `http://localhost:5034` and opens Swagger on launch — convenience for developers only.
-- Azure assigns the public URL `https://<app-name>.azurewebsites.net` and terminates TLS at the front-end; you do not configure `applicationUrl` in Azure through `launchSettings.json`.
-- IIS Express settings in the same file apply only when running under IIS Express on a Windows dev machine, not when the API runs on App Service with Kestrel behind ARR.
+`launchSettings.json` is a development-only file consumed by Visual Studio and `dotnet run` to configure launch URLs, browser launch targets, and local environment variables like `ASPNETCORE_ENVIRONMENT: Development`. It is not included in `dotnet publish` output and has zero effect on the deployed app — Azure App Service never reads it. The local URLs defined in this project (`https://localhost:7127` and `http://localhost:5034`) are meaningless on Azure, where the platform assigns the public `https://apiapplication46310114.azurewebsites.net` hostname and injects the internal port Kestrel should bind to via `ASPNETCORE_URLS` or `PORT`. The IIS Express launch profile applies only when running under IIS Express on a Windows developer machine; on App Service, Kestrel handles requests directly behind the ARR reverse proxy. Production environment configuration flows from App Service Application Settings, not from this file.
 
 ---
 
 ## Q17. What is Azure Service Connector (Service Linker), and how does it relate to `serviceDependencies.json` in this project?
 
-What is Azure Service Connector (Service Linker), and how does it relate to `serviceDependencies.json` in this project?
+**Concepts**
+- Service Connector as managed binding between App Service and backing services
+- `serviceDependencies.json` as Visual Studio representation of connections
+- `secretStore: AzureAppSettings` — connection string injected into portal settings
+- Base file vs publish-profile-specific dependency file distinction
+- Connection string injection without committing secrets to source
 
-**Answer:** Azure Service Connector (also called Service Linker) is an Azure service that creates secure connections between an App Service and backing services such as Azure SQL, storage, or Key Vault, and injects the resulting connection information into App Service configuration. Visual Studio represents those connections in `serviceDependencies.json` so publish workflows know which resources to link and which configuration keys to populate.
+**Answer**
 
-- The profile-specific dependency file references a Service Connector resource ID on site `apiapplication46310114` and maps it to `ConnectionStrings:DefaultConnectionString` for database `sprintdb46310114` on server `sprintdbserver46310114`.
-- `"secretStore": "AzureAppSettings"` means the connector writes the connection string into App Service settings rather than into the project file, aligning with the principle that secrets live in Azure configuration.
-- The base `serviceDependencies.json` without a publish profile only declares the dependency type (`mssql`) and connection ID, while the Web Deploy profile adds the full Azure resource paths for automated linking during Visual Studio publish.
+Azure Service Connector (formerly Service Linker) creates and manages secure connections between an App Service and backing services like Azure SQL, Storage, or Key Vault, and writes the resulting connection information into App Service configuration. Visual Studio represents these connections in `serviceDependencies.json` so publish workflows know which Azure resources to link and which configuration keys to populate — it is the IDE's view of what Service Connector does at the Azure API level. The base `serviceDependencies.json` in this project declares an `mssql` dependency type with `connectionId: ConnectionStrings:DefaultConnectionString`, while the publish-profile-specific file adds the full Azure resource paths: SQL server `sprintdbserver46310114`, database `sprintdb46310114`, and `"secretStore": "AzureAppSettings"`. That `secretStore` setting is the key detail — it means the SQL connection string is written directly into App Service settings during publish rather than into any source or config file, keeping the secret out of the repository.
 
 ---
 
@@ -251,49 +302,61 @@ What is Azure Service Connector (Service Linker), and how does it relate to `ser
 
 ## Q18. How does Entity Framework Core resolve the SQL Server connection string when this API runs on Azure App Service?
 
-How does Entity Framework Core resolve the SQL Server connection string when this API runs on Azure App Service?
+**Concepts**
+- `IConfiguration.GetConnectionString()` as the resolution entry point
+- Environment variable override priority over `appsettings.json`
+- `Trusted_Connection=True` unusable from App Service to on-premises SQL
+- Missing Azure override causing silent local value fallback
+- Service startup success vs first-query failure timing
 
-**Answer:** At startup, `Program.cs` registers `Trainingdb46310114Context` with `options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionString"))`, so EF Core reads whatever value the configuration system supplies for that key — local JSON in development and Azure-injected environment variables in production. No code change is required between environments as long as the key name stays consistent.
+**Answer**
 
-- Locally, `appsettings.json` points to `Server=INBLRVM26590142;Database=trainingdb46310114;Trusted_Connection=True`, which uses Windows integrated authentication against a local or network SQL instance.
-- On Azure, the same key must contain an Azure SQL connection string with SQL authentication or managed identity, typically injected by Service Connector or manual Connection String configuration in the portal.
-- If the Azure value is missing or still points to the local server name, EF Core fails at first database access with a connection error even though the app itself starts successfully.
+At startup, `Program.cs` registers the DbContext with `options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionString"))`, so EF Core reads whatever value the configuration system returns for that key — and because environment variables have higher priority than `appsettings.json`, the Azure-injected connection string from App Service configuration wins over the local SQL Server entry without any code change. Locally, `appsettings.json` points to `Server=INBLRVM26590142;Database=trainingdb46310114;Trusted_Connection=True`, which uses Windows integrated authentication against an on-premises SQL instance — that mechanism is unavailable from App Service, so the Azure value must supply SQL authentication credentials or a managed identity token instead, typically injected by Service Connector. The tricky part is that the app starts successfully even when the Azure override is missing, because Kestrel and EF Core's DI registration succeed without opening a database connection; the failure surfaces only on the first `DepartmentsController` request that triggers an EF Core query.
 
 ---
 
 ## Q19. What firewall and networking rules are typically required for Azure SQL Database when accessed from App Service?
 
-What firewall and networking rules are typically required for Azure SQL Database when accessed from App Service?
+**Concepts**
+- Azure SQL server-level firewall default deny-all
+- "Allow Azure services" rule vs explicit outbound IP allowlist
+- App Service outbound IP addresses and VNet integration
+- Private endpoint for network-isolated access
+- Firewall rejection vs credential failure distinction in error messages
 
-**Answer:** Azure SQL Database blocks all external connections by default until you allow the client's IP address or enable Azure services access. App Service apps almost always rely on the "Allow Azure services and resources to access this server" firewall rule (or a private endpoint in advanced setups) so the API can reach the database without exposing the server to the entire internet.
+**Answer**
 
-- A connection string with the correct password still fails if the SQL server firewall rejects the App Service outbound IP addresses, which is a common deployment gotcha.
-- For tighter security, teams replace the broad Azure services rule with a virtual network integration and private endpoint so traffic stays on the Microsoft backbone.
-- This project's SQL ARM template provisions server `sprintdbserver46310114` and database `sprintdb46310114`; after deployment you must confirm firewall rules allow the Web App's outbound IPs or use the Azure services exception.
+Azure SQL Database blocks all inbound connections by default, so the first networking requirement is enabling the "Allow Azure services and resources to access this server" firewall rule — or explicitly whitelisting the App Service's outbound IP addresses. The broad Azure-services rule is the fastest path and is sufficient for most non-regulated workloads, but it allows any Azure tenant's traffic, not just your own App Service. For tighter isolation, teams use VNet integration on the App Service and a private endpoint on the SQL server so traffic stays on the Microsoft backbone and the public SQL endpoint is disabled. A common deployment gotcha is having a correct password in the connection string but forgetting the firewall rule: the SQL server returns a connection timeout or login error that is easy to mistake for a credential problem. This project provisions server `sprintdbserver46310114` and database `sprintdb46310114` via ARM template, but firewall configuration is a post-provisioning step that must be confirmed before the API's EF Core queries will succeed.
 
 ---
 
 ## Q20. How are EF Core migrations applied to an Azure SQL database as part of deployment?
 
-How are EF Core migrations applied to an Azure SQL database as part of deployment?
+**Concepts**
+- `dotnet ef database update` as explicit migration execution step
+- Idempotent SQL scripts from `dotnet ef migrations script --idempotent`
+- `context.Database.Migrate()` at startup — race risk in multi-instance deployments
+- Migration job ordering relative to app code deployment
+- Migration files as code artifacts, not auto-applied transforms
 
-**Answer:** EF Core migrations are not applied automatically when you Zip Deploy or Web Deploy the API; you must run `dotnet ef database update` against the production connection string during deployment or execute generated SQL scripts in a controlled pipeline step. The migration files in this project (`Migrations/20230623093644_init.cs`) define schema changes but only take effect when explicitly applied to the target database.
+**Answer**
 
-- A typical CI/CD approach runs a migration job before or after app deployment using the production connection string stored as a pipeline secret, or uses idempotent SQL scripts generated with `dotnet ef migrations script`.
-- Applying migrations from the app at startup (`context.Database.Migrate()`) is possible but risky in multi-instance deployments because concurrent instances may race; many teams prefer pipeline-controlled migration.
-- The Azure SQL database name in service dependencies (`sprintdb46310114`) must already exist and be reachable before the API's first EF Core query; an empty database with migrations applied matches what the `DepartmentsController` expects.
+EF Core migrations are not applied automatically when the publish artifact reaches App Service — the migration files define schema changes but are just C# code until explicitly applied to a target database. The standard pipeline approach is running `dotnet ef database update --connection "<prod-conn-string>"` as a dedicated pipeline step before or after deployment, using the production connection string from a pipeline secret store. A safer alternative is generating idempotent SQL scripts with `dotnet ef migrations script --idempotent` and executing them against Azure SQL in a database migration job, since that script can be reviewed before it runs. Applying migrations at startup with `context.Database.Migrate()` works in single-instance setups but is risky when App Service scales to multiple instances because concurrent startup migrations can race and cause foreign-key or duplicate-column errors. The initial migration `20230623093644_init.cs` in this project must be applied to `sprintdb46310114` before the `DepartmentsController` endpoints can return data.
 
 ---
 
 ## Q21. What do the `Properties/ServiceDependencies/` ARM templates and publish profile represent in this project?
 
-What do the `Properties/ServiceDependencies/` ARM templates and publish profile represent in this project?
+**Concepts**
+- ARM templates as subscription-level infrastructure-as-code
+- App Service Plan and Web App provisioning via IDE workflow
+- SQL Server and database ARM resource definitions
+- `serviceDependencies.json` linking ARM resources to configuration keys
+- Infrastructure reproducibility from Visual Studio without Bicep or Terraform
 
-**Answer:** They are Visual Studio infrastructure-as-code artifacts that describe which Azure resources to create or link when publishing, so developers can provision an App Service Plan, Web App, and SQL database from the IDE without writing separate Bicep or Terraform by hand. The ARM JSON files are subscription-level deployment templates parameterized with resource group name, location, and resource names.
+**Answer**
 
-- `profile.arm.json` defines compute resources: resource group `rg-sprint`, Standard S1 App Service Plan, Web App `apiapplication46310114` with HTTPS-only and system-assigned identity, and `CURRENT_STACK` set to `dotnetcore`.
-- `mssql1.arm.json` defines SQL Server `sprintdbserver46310114` and Basic-tier database `sprintdb46310114` in the same resource group.
-- Together with `serviceDependencies.apiapplication46310114 - Web Deploy.json`, they document the full sprint environment this Web API deploys into and how Visual Studio wires the SQL connection string into App Service settings.
+The ARM JSON files under `Properties/ServiceDependencies/` are infrastructure-as-code templates that Visual Studio uses to provision the Azure resources this Web API depends on during first publish, so a developer with an empty subscription can recreate the full sprint environment from the IDE. `profile.arm.json` defines the compute resources: resource group `rg-sprint`, a Standard S1 App Service Plan, and Web App `apiapplication46310114` with HTTPS-only enabled and a system-assigned managed identity. `mssql1.arm.json` defines SQL Server `sprintdbserver46310114` and a Basic-tier database `sprintdb46310114` in the same resource group. Together with `serviceDependencies.apiapplication46310114 - Web Deploy.json`, these files document the complete sprint environment and tell Visual Studio how to wire the SQL connection string into App Service settings after provisioning — all without requiring a separate Bicep or Terraform authoring step.
 
 ---
 
@@ -303,49 +366,61 @@ What do the `Properties/ServiceDependencies/` ARM templates and publish profile 
 
 ## Q22. What are deployment slots in Azure App Service, and how do they support safer releases?
 
-What are deployment slots in Azure App Service, and how do they support safer releases?
+**Concepts**
+- Deployment slot as a separate app instance on the same App Service Plan
+- Slot-specific hostname for pre-production testing
+- Slot-specific Application Settings for environment isolation
+- Warm-up and health checks before swap
+- Standard tier (S1) minimum requirement for slots
 
-**Answer:** Deployment slots are separate instances of your app hosted on the same App Service Plan with their own host name (for example `staging-apiapplication46310114.azurewebsites.net`), configuration, and deployment history. You deploy and test a new build in a non-production slot before swapping it into the production slot, which reduces downtime and limits the blast radius of a bad release.
+**Answer**
 
-- Slots are available on Standard tier and above; this project's S1 plan supports them.
-- Each slot runs the same codebase structure but can hold different Application Settings marked as slot-specific, so you can point a staging slot at a test database while production uses the live database.
-- Warm-up requests and health checks can target the staging slot URL before swap, validating that EF Core connectivity and blob/Event Grid integration work in an Azure environment.
+Deployment slots are separate instances of the app hosted on the same App Service Plan, each with its own hostname (`staging-apiapplication46310114.azurewebsites.net`), deployment history, and configuration. I deploy and test a new release in the staging slot before swapping it into production, which gives near-zero-downtime promotion and a fast rollback — swapping again reverts the change in seconds. Each slot can hold different Application Settings flagged as slot-specific, so staging can point at a test database while production uses the live one, and those settings stay with the slot rather than traveling with the code during swap. Warm-up requests can validate EF Core connectivity, blob storage access, and Event Grid integration against the staging slot URL before the swap commits, catching configuration problems that would otherwise surface in production. This project's S1 plan supports slots, so adding a `staging` slot is the natural next step for safer releases.
 
 ---
 
 ## Q23. What is slot swapping, and which settings are swapped versus marked as slot-sticky?
 
-What is slot swapping, and which settings are swapped versus marked as slot-sticky?
+**Concepts**
+- Slot swap as atomic routing exchange between two slots
+- Sticky (deployment slot) settings staying bound to their slot
+- Non-sticky settings traveling with the application content during swap
+- Swap with preview for pre-swap warm-up
+- Auto-swap for hands-off continuous deployment promotion
 
-**Answer:** Slot swapping exchanges the running application and most configuration between two slots (typically staging and production) by updating internal routing, so what was staging becomes production almost instantly without redeploying files. Application Settings and connection strings can be marked "deployment slot setting" (sticky) so they stay with the slot and do not travel with the code during swap.
+**Answer**
 
-- Non-sticky settings swap with the application content, which is useful when configuration is embedded in app settings tied to a build; sticky settings remain in place so production connection strings never accidentally follow a staging build into the wrong database.
-- Swap can be configured with preview (warm up the incoming slot before final exchange) and auto-swap for hands-off promotion after a successful staging deployment.
-- After swap, the old production code sits in the staging slot, giving you a fast rollback path by swapping again if errors appear.
+Slot swapping exchanges the running application and most configuration between two slots — typically staging and production — by updating internal routing, so what was staging becomes production almost instantly without redeploying files. Application Settings and connection strings marked "deployment slot setting" stay bound to the slot they are defined on and do not travel with the code during swap, while non-sticky settings move with the application content. Sticky settings are the right choice for environment-specific secrets like production database connection strings, because a staging build should never accidentally connect to the production database after swap. Non-sticky settings suit configuration that is logically part of the application's behavior rather than its environment — feature flags or build-version metadata, for example. Swap with preview lets me warm up the incoming slot and run smoke tests before the final exchange commits; auto-swap can be configured to promote a slot to production automatically after a successful staging deployment, which suits pipelines where staging is always stable.
 
 ---
 
 ## Q24. How would you set up a basic CI/CD pipeline to build and deploy this Web API to Azure?
 
-How would you set up a basic CI/CD pipeline to build and deploy this Web API to Azure?
+**Concepts**
+- `dotnet publish -c Release` as the pipeline build step
+- Zip Deploy via Azure CLI or `azure/webapps-deploy` GitHub Action
+- Service principal or federated identity for authentication
+- Migration job as a pre-deploy pipeline step
+- Deployment to staging slot with promotion via swap
 
-**Answer:** A typical pipeline checks out source, restores NuGet packages, runs `dotnet publish -c Release -o ./publish`, optionally applies EF Core migrations with a secret connection string, then deploys the publish folder to App Service using Zip Deploy via Azure CLI, GitHub Actions (`azure/webapps-deploy`), or an Azure DevOps AzureRmWebAppDeployment task. Service principal or federated identity authentication replaces publishing credentials in automated flows.
+**Answer**
 
-- The build stage should target `net6.0` to match `LocalServerWebApiApplication.csproj` and produce a Release artifact stored in the pipeline for traceability.
-- The deploy stage sets App Service application settings (connection strings, Event Grid keys, storage keys) from a secret store rather than from committed `appsettings.json`.
-- For staging slots, deploy to the staging slot first, run smoke tests against `/swagger` or `/api/Departments`, then execute `az webapp deployment slot swap` to promote to production.
+The pipeline would follow four stages: restore, build/publish, migrate, deploy. I would run `dotnet restore` followed by `dotnet publish -c Release -o ./publish` targeting `net6.0`, produce a Release artifact stored in the pipeline, then run `dotnet ef migrations script --idempotent` against the Azure SQL connection string stored as a pipeline secret to apply any schema changes before the new code goes live. The deploy step uses `az webapp deploy --src-path ./publish.zip --type zip` or the `azure/webapps-deploy` GitHub Action, authenticating via a service principal or federated identity rather than publishing credentials. App Service Application Settings — connection strings, Event Grid keys, and the storage key — are injected from the pipeline's secret store rather than from `appsettings.json`, so the artifact contains no credentials. For safer releases, I would deploy to the staging slot first, run smoke tests against `/swagger` or a health endpoint, and then execute `az webapp deployment slot swap` to promote to production.
 
 ---
 
 ## Q25. What is the difference between a staging slot and a separate staging App Service in another resource group?
 
-What is the difference between a staging slot and a separate staging App Service in another resource group?
+**Concepts**
+- Slot sharing the App Service Plan compute vs independent App Service Plan
+- Swap speed and atomic promotion vs independent deployment workflow
+- Slot-sticky settings for environment isolation
+- Resource group boundary and VNet topology differences
+- Cost trade-off: shared plan vs separate plan
 
-**Answer:** A deployment slot shares the App Service Plan compute with the production slot, swaps traffic quickly, and is designed for same-app promotion workflows, while a separate staging App Service is a fully independent app with its own plan, settings, and URL that mimics production infrastructure at greater isolation and cost.
+**Answer**
 
-- Slots are cheaper and faster for blue-green style releases because they reuse plan capacity and support one-step swap; they are best when staging and production configurations are nearly identical aside from slot-sticky settings.
-- A separate App Service in another resource group suits long-lived integration environments, different scaling tiers, or testing network topology that slots cannot replicate.
-- This sprint project uses a single Web App name (`apiapplication46310114`); adding a `staging` slot would be the natural next step for safer deployments without provisioning an entirely new app.
+A deployment slot shares the App Service Plan with production, swaps traffic in seconds, and is designed for same-app blue-green releases — it is the right choice when staging and production configurations differ only in slot-sticky settings like the database connection string. A separate staging App Service in another resource group has its own plan, URL, scaling rules, and network configuration, which makes it suitable for long-lived integration environments, load testing at a different tier, or validating network topology changes that slots on a shared plan cannot replicate. Slots are cheaper because they reuse plan capacity and require no additional provisioning; a separate App Service adds another plan's cost. The trade-off is isolation: a slot on the same plan means a misbehaving staging deployment can starve production CPU or memory, while a separate App Service has fully independent compute. This sprint project currently uses a single Web App `apiapplication46310114`; adding a `staging` slot would be the minimal next step toward safer releases without the cost and complexity of a separate environment.
 
 ---
 
@@ -355,36 +430,45 @@ What is the difference between a staging slot and a separate staging App Service
 
 ## Q26. Why is `httpsOnly: true` on an App Service important, and how does it relate to middleware in `Program.cs`?
 
-Why is `httpsOnly: true` on an App Service important, and how does it relate to middleware in `Program.cs`?
+**Concepts**
+- Platform-level HTTPS enforcement at the ARR edge before app code runs
+- `app.UseHttpsRedirection()` as in-app fallback layer
+- TLS termination at App Service front-end (Kestrel receives plain HTTP internally)
+- `*.azurewebsites.net` managed TLS certificates
+- Defense in depth for data-in-transit protection
 
-**Answer:** Setting `httpsOnly: true` on the App Service resource rejects plain HTTP requests at the platform edge and redirects clients to HTTPS before traffic reaches your application. The `app.UseHttpsRedirection()` middleware in `Program.cs` adds a second layer inside the app by redirecting HTTP requests that somehow reach Kestrel, but platform-level HTTPS-only enforcement is the primary protection for public endpoints.
+**Answer**
 
-- This project's ARM template enables `httpsOnly: true` on `apiapplication46310114`, matching security baseline expectations for APIs that expose data over the internet.
-- TLS certificates for `*.azurewebsites.net` are managed by Azure; custom domains require you to bind your own or App Service-managed certificates.
-- HTTPS protects connection strings, Event Grid keys, and API payloads in transit; it does not replace the need to remove secrets from published configuration files.
+`httpsOnly: true` on the App Service resource rejects plain HTTP requests at the platform edge — before traffic reaches the application — and redirects clients to HTTPS. This is the primary enforcement mechanism because it applies regardless of what middleware the app has configured. `app.UseHttpsRedirection()` in `Program.cs` provides a second layer by redirecting HTTP requests that somehow reach Kestrel, but in practice on App Service, TLS is terminated by ARR and only forwarded requests arrive at the app, so the middleware's redirect rarely fires in production. The ARM template in this project enables `httpsOnly: true` on `apiapplication46310114`, and Azure manages the TLS certificate for `*.azurewebsites.net` automatically. HTTPS protects SQL connection strings, storage keys, and API payloads from interception in transit, but it does not address secrets stored in plain-text configuration files — those require App Service Application Settings or Key Vault.
 
 ---
 
 ## Q27. What production concerns arise when Swagger is enabled in a deployed API (as in this project's `Program.cs`)?
 
-What production concerns arise when Swagger is enabled in a deployed API (as in this project's `Program.cs`)?
+**Concepts**
+- Swagger UI as public API surface disclosure and reconnaissance surface
+- `IsDevelopment()` guard for conditional Swagger registration
+- Authorization middleware vs Swagger exposure — orthogonal concerns
+- IP restriction or Azure Front Door rule as alternative mitigation
+- Unconditional `UseSwagger()` in `Program.cs` — current gap in this project
 
-**Answer:** Swagger UI exposes your full API surface, request models, and try-it-out functionality to anyone who can reach the URL, which aids development but expands attack reconnaissance in production. This project's `Program.cs` registers `UseSwagger()` and `UseSwaggerUI()` unconditionally, so the interactive documentation is available on Azure unless blocked by networking or conditional compilation.
+**Answer**
 
-- Attackers can discover endpoints such as `POST /api/Departments` and experiment with payloads without reading source code.
-- Common mitigations include wrapping Swagger in `if (app.Environment.IsDevelopment())`, protecting it with authentication, restricting access by IP or Azure Front Door rule, or disabling it entirely in production builds.
-- OpenAPI metadata does not bypass authorization middleware — this project calls `UseAuthorization()` but does not configure authentication — so Swagger reveals routes that may still be unprotected if no auth is applied.
+Swagger UI renders the full API surface, request models, and example payloads in an interactive browser interface, which makes it valuable for development but expands the attack reconnaissance surface in production — anyone who can reach `https://apiapplication46310114.azurewebsites.net/swagger` can enumerate every endpoint and experiment with payloads without reading source code. This project's `Program.cs` registers `UseSwagger()` and `UseSwaggerUI()` unconditionally, so the documentation is live on Azure. The standard fix is wrapping those calls in `if (app.Environment.IsDevelopment())`, which gates Swagger on the environment name set in App Service Application Settings. A complementary option is restricting the `/swagger` path by IP address using App Service access restrictions or an Azure Front Door rule, so Swagger remains accessible to the development team without being public. Exposing Swagger does not bypass authorization middleware — `UseAuthorization()` is called in `Program.cs` — but since no authentication scheme is configured, the routes it reveals are effectively unprotected anyway.
 
 ---
 
 ## Q28. Gotcha: Why can a locally working API fail on Azure with database connection errors even when the connection string value looks correct?
 
-Gotcha: Why can a locally working API fail on Azure with database connection errors even when the connection string value looks correct?
+**Concepts**
+- `Trusted_Connection=True` unusable from App Service to on-premises SQL
+- Azure SQL firewall blocking App Service outbound IPs
+- App startup succeeding before first EF Core query failure
+- `ConnectionStrings__DefaultConnectionString` override verification in the portal
+- Kudu console and App Service logs for connectivity debugging
 
-**Answer:** The most frequent causes are Azure SQL firewall blocking App Service outbound IPs, a connection string still pointing at a local server name from `appsettings.json` instead of the Azure-injected override, or SQL authentication credentials that were never set in App Service Connection Strings. The app starts because Kestrel does not open the database at startup, but the first EF Core query in `DepartmentsController` fails.
+**Answer**
 
-- Local development uses `Trusted_Connection=True` against `INBLRVM26590142`, which cannot work on Azure App Service because integrated Windows authentication to an on-premises server is unavailable in the cloud environment.
-- Even with a valid Azure SQL password in the portal, missing "Allow Azure services" firewall rules produce timeout or login failures that look like bad credentials in logs.
-- Verify configuration at runtime by checking the App Service Configuration blade for `ConnectionStrings__DefaultConnectionString`, testing connectivity from the Kudu console or a staging slot, and confirming Service Connector completed linking for `sprintdb46310114`.
+The most common causes fall into three categories: wrong connection string content, wrong connection string delivery, and firewall rejection. The local `appsettings.json` uses `Trusted_Connection=True` against `INBLRVM26590142`, which is Windows integrated authentication to an on-premises SQL Server — that mechanism is unavailable from App Service, so even if the server were reachable, the connection would fail. The Azure-injected connection string must arrive via the App Service Connection Strings or Application Settings blade to override the JSON file value, and the most common mistake is the override never being set or using the wrong key name so `IConfiguration.GetConnectionString("DefaultConnectionString")` still reads the local value. Even with a valid Azure SQL password, if the SQL server firewall does not allow the App Service's outbound IPs or the Azure services exception, the connection is rejected before authentication — which surfaces as a timeout or login error that is easy to misread as a credential problem. The app starts cleanly in all these cases because Kestrel and EF Core's DI registration succeed without opening a database connection; the failure appears only when `DepartmentsController` executes the first EF Core query. I would verify by checking the Configuration blade for `ConnectionStrings__DefaultConnectionString`, confirming the SQL server firewall rule, and using the Kudu console to test TCP connectivity to the SQL endpoint.
 
 ---

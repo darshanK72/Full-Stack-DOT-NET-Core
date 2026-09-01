@@ -3,5138 +3,1893 @@
 
 ## Table of Contents
 
-- [01. Generics](#01-generics)
-  - [Q1. What are generics in C#? Why were they introduced?](#q1-what-are-generics-in-c-why-were-they-introduced)
-  - [Q2. What is the difference between generic and non-generic collections?](#q2-what-is-the-difference-between-generic-and-non-generic-collections)
-  - [Q3. Explain generic constraints in C# (`where` clause) with examples.](#q3-explain-generic-constraints-in-c-where-clause-with-examples)
-  - [Q4. Explain covariance and contravariance in generics (`in` and `out` keywords).](#q4-explain-covariance-and-contravariance-in-generics-in-and-out-keywords)
-  - [Q5. Can you use `where T : Enum` or `where T : unmanaged`? What problems do these solve?](#q5-can-you-use-where-t-enum-or-where-t-unmanaged-what-problems-do-these-solve)
-  - [Q6. What happens when you use `default(T)` on an unconstrained type parameter?](#q6-what-happens-when-you-use-defaultt-on-an-unconstrained-type-parameter)
-  - [Q7. Why can't you write `T value = null;` unless `T` is constrained to `class`?](#q7-why-cant-you-write-t-value-null-unless-t-is-constrained-to-class)
-  - [Q8. What is the difference between a generic class and a generic method?](#q8-what-is-the-difference-between-a-generic-class-and-a-generic-method)
-  - [Q9. What's the difference between reflection over an open generic type (`List<>`) and a closed generic type (`List<int>`)?](#q9-whats-the-difference-between-reflection-over-an-open-generic-type-list-and-a-closed-generic-type-listint)
-  - [Q10. Why does `typeof(List<int>) == typeof(List<string>)` return `false`, and how do you get the shared generic type definition?](#q10-why-does-typeoflistint-typeofliststring-return-false-and-how-do-you-get-the-shared-generic-type-definition)
-  - [Q11. What is type erasure vs reification — does C# retain generic type information at runtime?](#q11-what-is-type-erasure-vs-reification-does-c-retain-generic-type-information-at-runtime)
-  - [Q12. What constraints allow calling `new T()` — what does `where T : new()` enable?](#q12-what-constraints-allow-calling-new-t-what-does-where-t-new-enable)
-  - [Q13. What is the difference between `where T : class` and `where T : struct` constraints?](#q13-what-is-the-difference-between-where-t-class-and-where-t-struct-constraints)
-  - [Q14. What does `where T : notnull` mean for nullable reference type analysis?](#q14-what-does-where-t-notnull-mean-for-nullable-reference-type-analysis)
-  - [Q15. Why are generic value types separate closed types at runtime for static fields?](#q15-why-are-generic-value-types-separate-closed-types-at-runtime-for-static-fields)
-  - [Q16. What is covariance on `IEnumerable<out T>` — why can you assign `IEnumerable<string>` to `IEnumerable<object>`?](#q16-what-is-covariance-on-ienumerableout-t-why-can-you-assign-ienumerablestring-to-ienumerableobject)
-  - [Q17. What is contravariance on `Action<in T>` / `IComparer<in T>`?](#q17-what-is-contravariance-on-actionin-t-icomparerin-t)
-  - [Q18. Why is `List<T>` neither covariant nor contravariant on `T`?](#q18-why-is-listt-neither-covariant-nor-contravariant-on-t)
-  - [Q19. What is the difference between generic specialization performance for value types vs reference types?](#q19-what-is-the-difference-between-generic-specialization-performance-for-value-types-vs-reference-types)
-  - [Q20. Can you cast from `List<string>` to `List<object>` — what error or exception occurs?](#q20-can-you-cast-from-liststring-to-listobject-what-error-or-exception-occurs)
+**01. Generics** (Q1–Q20)
+- [Q1. What are generics in C#? Why were they introduced?](#q1-what-are-generics-in-c-why-were-they-introduced)
+- [Q2. What is the difference between generic and non-generic collections?](#q2-what-is-the-difference-between-generic-and-non-generic-collections)
+- [Q3. Explain generic constraints in C# (`where` clause) with examples.](#q3-explain-generic-constraints-in-c-where-clause-with-examples)
+- [Q4. Explain covariance and contravariance in generics (`in` and `out` keywords).](#q4-explain-covariance-and-contravariance-in-generics-in-and-out-keywords)
+- [Q5. Can you use `where T : Enum` or `where T : unmanaged`? What problems do these solve?](#q5-can-you-use-where-t--enum-or-where-t--unmanaged-what-problems-do-these-solve)
+- [Q6. What happens when you use `default(T)` on an unconstrained type parameter?](#q6-what-happens-when-you-use-defaultt-on-an-unconstrained-type-parameter)
+- [Q7. Why can't you write `T value = null;` unless `T` is constrained to `class`?](#q7-why-cant-you-write-t-value--null-unless-t-is-constrained-to-class)
+- [Q8. What is the difference between a generic class and a generic method?](#q8-what-is-the-difference-between-a-generic-class-and-a-generic-method)
+- [Q9. Reflection over an open generic type (`List<>`) vs a closed generic type (`List<int>`).](#q9-reflection-over-an-open-generic-type-list-vs-a-closed-generic-type-listint)
+- [Q10. Why does `typeof(List<int>) == typeof(List<string>)` return `false`?](#q10-why-does-typeoflistint--typeofliststring-return-false)
+- [Q11. Type erasure vs reification — does C# retain generic type information at runtime?](#q11-type-erasure-vs-reification--does-c-retain-generic-type-information-at-runtime)
+- [Q12. What does `where T : new()` enable?](#q12-what-does-where-t--new-enable)
+- [Q13. Difference between `where T : class` and `where T : struct`.](#q13-difference-between-where-t--class-and-where-t--struct)
+- [Q14. What does `where T : notnull` mean for nullable reference type analysis?](#q14-what-does-where-t--notnull-mean-for-nullable-reference-type-analysis)
+- [Q15. Why are generic value types separate closed types at runtime for static fields?](#q15-why-are-generic-value-types-separate-closed-types-at-runtime-for-static-fields)
+- [Q16. Covariance on `IEnumerable<out T>` — why can you assign `IEnumerable<string>` to `IEnumerable<object>`?](#q16-covariance-on-ienumerableout-t--why-can-you-assign-ienumerablestring-to-ienumerableobject)
+- [Q17. Contravariance on `Action<in T>` / `IComparer<in T>`.](#q17-contravariance-on-actionin-t--icomparerin-t)
+- [Q18. Why is `List<T>` neither covariant nor contravariant on `T`?](#q18-why-is-listt-neither-covariant-nor-contravariant-on-t)
+- [Q19. Generic specialization performance: value types vs reference types.](#q19-generic-specialization-performance-value-types-vs-reference-types)
+- [Q20. Can you cast from `List<string>` to `List<object>` — what error or exception occurs?](#q20-can-you-cast-from-liststring-to-listobject--what-error-or-exception-occurs)
 
-- [02. ArrayList](#02-arraylist)
-  - [Q1. What is the difference between `Array` and `ArrayList`?](#q1-what-is-the-difference-between-array-and-arraylist)
-  - [Q2. What is the difference between `List<T>` and `ArrayList`?](#q2-what-is-the-difference-between-listt-and-arraylist)
-  - [Q3. Why is `ArrayList` considered a legacy collection in modern C#?](#q3-why-is-arraylist-considered-a-legacy-collection-in-modern-c)
-  - [Q4. What boxing occurs when storing `int` values in an `ArrayList`?](#q4-what-boxing-occurs-when-storing-int-values-in-an-arraylist)
-  - [Q5. What is the performance cost of repeated boxing/unboxing in hot loops using `ArrayList`?](#q5-what-is-the-performance-cost-of-repeated-boxingunboxing-in-hot-loops-using-arraylist)
-  - [Q6. Can you store mixed types in an `ArrayList`, and what typing risks does that create?](#q6-can-you-store-mixed-types-in-an-arraylist-and-what-typing-risks-does-that-create)
-  - [Q7. What is the difference between `ArrayList.Capacity` and `Count`?](#q7-what-is-the-difference-between-arraylistcapacity-and-count)
-  - [Q8. When might you still encounter `ArrayList` in maintained legacy codebases?](#q8-when-might-you-still-encounter-arraylist-in-maintained-legacy-codebases)
-  - [Q9. What is the difference between `ArrayList` and `object[]`?](#q9-what-is-the-difference-between-arraylist-and-object)
-  - [Q10. What legacy non-generic collections (`Hashtable`, `Queue`, `Stack`) should you know for maintenance scenarios?](#q10-what-legacy-non-generic-collections-hashtable-queue-stack-should-you-know-for-maintenance-scenarios)
+**02. ArrayList** (Q21–Q30)
+- [Q21. Difference between `Array` and `ArrayList`.](#q21-difference-between-array-and-arraylist)
+- [Q22. Difference between `List<T>` and `ArrayList`.](#q22-difference-between-listt-and-arraylist)
+- [Q23. Why is `ArrayList` considered a legacy collection in modern C#?](#q23-why-is-arraylist-considered-a-legacy-collection-in-modern-c)
+- [Q24. What boxing occurs when storing `int` values in an `ArrayList`?](#q24-what-boxing-occurs-when-storing-int-values-in-an-arraylist)
+- [Q25. Performance cost of repeated boxing/unboxing in hot loops using `ArrayList`.](#q25-performance-cost-of-repeated-boxingunboxing-in-hot-loops-using-arraylist)
+- [Q26. Can you store mixed types in an `ArrayList`, and what typing risks does that create?](#q26-can-you-store-mixed-types-in-an-arraylist-and-what-typing-risks-does-that-create)
+- [Q27. Difference between `ArrayList.Capacity` and `Count`.](#q27-difference-between-arraylistcapacity-and-count)
+- [Q28. When might you still encounter `ArrayList` in maintained legacy codebases?](#q28-when-might-you-still-encounter-arraylist-in-maintained-legacy-codebases)
+- [Q29. Difference between `ArrayList` and `object[]`.](#q29-difference-between-arraylist-and-object)
+- [Q30. Legacy non-generic collections (`Hashtable`, `Queue`, `Stack`) for maintenance scenarios.](#q30-legacy-non-generic-collections-hashtable-queue-stack-for-maintenance-scenarios)
 
-- [03. List](#03-list)
-  - [Q1. Explain the internal working and performance of `List<T>` vs `LinkedList<T>`.](#q1-explain-the-internal-working-and-performance-of-listt-vs-linkedlistt)
-  - [Q2. What is `LinkedList<T>` and when should it be used?](#q2-what-is-linkedlistt-and-when-should-it-be-used)
-  - [Q3. What is the difference between `List<T>.Sort()` stability and `OrderBy()` stability?](#q3-what-is-the-difference-between-listtsort-stability-and-orderby-stability)
-  - [Q4. How does `List<T>` grow its internal buffer when capacity is exceeded?](#q4-how-does-listt-grow-its-internal-buffer-when-capacity-is-exceeded)
-  - [Q5. What is the amortized cost of `Add` on `List<T>` vs `Insert` at the beginning or middle?](#q5-what-is-the-amortized-cost-of-add-on-listt-vs-insert-at-the-beginning-or-middle)
-  - [Q6. What does `List<T>.AsReadOnly()` return, and can callers still mutate the underlying list?](#q6-what-does-listtasreadonly-return-and-can-callers-still-mutate-the-underlying-list)
-  - [Q7. What is the difference between `ConvertAll`, `ForEach`, and LINQ `Select` on a list?](#q7-what-is-the-difference-between-convertall-foreach-and-linq-select-on-a-list)
-  - [Q8. What do `ToArray`, `CopyTo`, and `GetRange` do — which allocate new arrays?](#q8-what-do-toarray-copyto-and-getrange-do-which-allocate-new-arrays)
-  - [Q9. When would you expose `List<T>` as a return type vs `IReadOnlyList<T>` or `IEnumerable<T>`?](#q9-when-would-you-expose-listt-as-a-return-type-vs-ireadonlylistt-or-ienumerablet)
-  - [Q10. What is the difference between `List<T>.Capacity` and `Count`?](#q10-what-is-the-difference-between-listtcapacity-and-count)
-  - [Q11. What happens if you mutate a list while iterating with `foreach`?](#q11-what-happens-if-you-mutate-a-list-while-iterating-with-foreach)
-  - [Q12. What is `TrimExcess`, and when is it useful?](#q12-what-is-trimexcess-and-when-is-it-useful)
-  - [Q13. What is binary search on a list (`BinarySearch`) — what precondition must the list satisfy?](#q13-what-is-binary-search-on-a-list-binarysearch-what-precondition-must-the-list-satisfy)
-  - [Q14. How does `List<T>` indexer access compare to `LinkedList<T>` (no indexer)?](#q14-how-does-listt-indexer-access-compare-to-linkedlistt-no-indexer)
-  - [Q15. What is `Comparison<T>` delegate, and how does it relate to `List<T>.Sort`?](#q15-what-is-comparisont-delegate-and-how-does-it-relate-to-listtsort)
+**03. List** (Q31–Q45)
+- [Q31. Internal working and performance of `List<T>` vs `LinkedList<T>`.](#q31-internal-working-and-performance-of-listt-vs-linkedlistt)
+- [Q32. What is `LinkedList<T>` and when should it be used?](#q32-what-is-linkedlistt-and-when-should-it-be-used)
+- [Q33. Difference between `List<T>.Sort()` stability and `OrderBy()` stability.](#q33-difference-between-listtsort-stability-and-orderby-stability)
+- [Q34. How does `List<T>` grow its internal buffer when capacity is exceeded?](#q34-how-does-listt-grow-its-internal-buffer-when-capacity-is-exceeded)
+- [Q35. Amortized cost of `Add` on `List<T>` vs `Insert` at the beginning or middle.](#q35-amortized-cost-of-add-on-listt-vs-insert-at-the-beginning-or-middle)
+- [Q36. What does `List<T>.AsReadOnly()` return, and can callers still mutate the underlying list?](#q36-what-does-listtasreadonly-return-and-can-callers-still-mutate-the-underlying-list)
+- [Q37. Difference between `ConvertAll`, `ForEach`, and LINQ `Select` on a list.](#q37-difference-between-convertall-foreach-and-linq-select-on-a-list)
+- [Q38. What do `ToArray`, `CopyTo`, and `GetRange` do — which allocate new arrays?](#q38-what-do-toarray-copyto-and-getrange-do--which-allocate-new-arrays)
+- [Q39. When to expose `List<T>` vs `IReadOnlyList<T>` or `IEnumerable<T>` as a return type.](#q39-when-to-expose-listt-vs-ireadonlylistt-or-ienumerablet-as-a-return-type)
+- [Q40. Difference between `List<T>.Capacity` and `Count`.](#q40-difference-between-listtcapacity-and-count)
+- [Q41. What happens if you mutate a list while iterating with `foreach`?](#q41-what-happens-if-you-mutate-a-list-while-iterating-with-foreach)
+- [Q42. What is `TrimExcess`, and when is it useful?](#q42-what-is-trimexcess-and-when-is-it-useful)
+- [Q43. Binary search on a list (`BinarySearch`) — what precondition must the list satisfy?](#q43-binary-search-on-a-list-binarysearch--what-precondition-must-the-list-satisfy)
+- [Q44. `List<T>` indexer access compared to `LinkedList<T>` (no indexer).](#q44-listt-indexer-access-compared-to-linkedlistt-no-indexer)
+- [Q45. What is `Comparison<T>` delegate, and how does it relate to `List<T>.Sort`?](#q45-what-is-comparisont-delegate-and-how-does-it-relate-to-listtsort)
 
-- [04. Dictionary](#04-dictionary)
-  - [Q1. What is the difference between `Dictionary<TKey, TValue>` and `Hashtable`?](#q1-what-is-the-difference-between-dictionarytkey-tvalue-and-hashtable)
-  - [Q2. Explain `IDictionary<TKey, TValue>` and `IReadOnlyDictionary<TKey, TValue>`.](#q2-explain-idictionarytkey-tvalue-and-ireadonlydictionarytkey-tvalue)
-  - [Q3. How does `Dictionary<TKey, TValue>` handle hashing and collisions?](#q3-how-does-dictionarytkey-tvalue-handle-hashing-and-collisions)
-  - [Q4. What is the difference between `Dictionary.Add` and the indexer when the key already exists?](#q4-what-is-the-difference-between-dictionaryadd-and-the-indexer-when-the-key-already-exists)
-  - [Q5. What is the difference between `ContainsKey`, `TryGetValue`, and the indexer for lookup?](#q5-what-is-the-difference-between-containskey-trygetvalue-and-the-indexer-for-lookup)
-  - [Q6. Why must keys be immutable (or stable) after insertion for correct hash table behavior?](#q6-why-must-keys-be-immutable-or-stable-after-insertion-for-correct-hash-table-behavior)
-  - [Q7. What exception is thrown when accessing a missing key via the indexer?](#q7-what-exception-is-thrown-when-accessing-a-missing-key-via-the-indexer)
-  - [Q8. Can `null` be used as a key when `TKey` is a reference type?](#q8-can-null-be-used-as-a-key-when-tkey-is-a-reference-type)
-  - [Q9. What is the average vs worst-case time complexity for lookup, insert, and remove?](#q9-what-is-the-average-vs-worst-case-time-complexity-for-lookup-insert-and-remove)
-  - [Q10. What is the hash code contract between `GetHashCode` and `Equals` for custom key types?](#q10-what-is-the-hash-code-contract-between-gethashcode-and-equals-for-custom-key-types)
-  - [Q11. What is `IEqualityComparer<TKey>`, and when do you pass a custom comparer to the constructor?](#q11-what-is-iequalitycomparertkey-and-when-do-you-pass-a-custom-comparer-to-the-constructor)
-  - [Q12. When would you choose `Dictionary` over `List` for lookups by id or SKU?](#q12-when-would-you-choose-dictionary-over-list-for-lookups-by-id-or-sku)
-  - [Q13. What happens internally when two keys hash to the same bucket?](#q13-what-happens-internally-when-two-keys-hash-to-the-same-bucket)
+**04. Dictionary** (Q46–Q58)
+- [Q46. Difference between `Dictionary<TKey, TValue>` and `Hashtable`.](#q46-difference-between-dictionarytkey-tvalue-and-hashtable)
+- [Q47. `IDictionary<TKey, TValue>` and `IReadOnlyDictionary<TKey, TValue>`.](#q47-idictionarytkey-tvalue-and-ireadonlydictionarytkey-tvalue)
+- [Q48. How does `Dictionary<TKey, TValue>` handle hashing and collisions?](#q48-how-does-dictionarytkey-tvalue-handle-hashing-and-collisions)
+- [Q49. Difference between `Dictionary.Add` and the indexer when the key already exists.](#q49-difference-between-dictionaryadd-and-the-indexer-when-the-key-already-exists)
+- [Q50. Difference between `ContainsKey`, `TryGetValue`, and the indexer for lookup.](#q50-difference-between-containskey-trygetvalue-and-the-indexer-for-lookup)
+- [Q51. Why must keys be immutable (or stable) after insertion?](#q51-why-must-keys-be-immutable-or-stable-after-insertion)
+- [Q52. What exception is thrown when accessing a missing key via the indexer?](#q52-what-exception-is-thrown-when-accessing-a-missing-key-via-the-indexer)
+- [Q53. Can `null` be used as a key when `TKey` is a reference type?](#q53-can-null-be-used-as-a-key-when-tkey-is-a-reference-type)
+- [Q54. Average vs worst-case time complexity for lookup, insert, and remove.](#q54-average-vs-worst-case-time-complexity-for-lookup-insert-and-remove)
+- [Q55. Hash code contract between `GetHashCode` and `Equals` for custom key types.](#q55-hash-code-contract-between-gethashcode-and-equals-for-custom-key-types)
+- [Q56. `IEqualityComparer<TKey>` — when do you pass a custom comparer to the constructor?](#q56-iequalitycomparertkey--when-do-you-pass-a-custom-comparer-to-the-constructor)
+- [Q57. When to choose `Dictionary` over `List` for lookups by id or SKU.](#q57-when-to-choose-dictionary-over-list-for-lookups-by-id-or-sku)
+- [Q58. What happens internally when two keys hash to the same bucket?](#q58-what-happens-internally-when-two-keys-hash-to-the-same-bucket)
 
-- [05. HashSet](#05-hashset)
-  - [Q1. Explain `HashSet<T>` and its use cases. How is it different from `List<T>`?](#q1-explain-hashsett-and-its-use-cases-how-is-it-different-from-listt)
-  - [Q2. What is the difference between `SortedSet<T>` and `HashSet<T>`?](#q2-what-is-the-difference-between-sortedsett-and-hashsett)
-  - [Q3. Why does `HashSet<T>` require correct `GetHashCode()`/`Equals()` for custom types?](#q3-why-does-hashsett-require-correct-gethashcodeequals-for-custom-types)
-  - [Q4. What set operations does `HashSet<T>` provide (`UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`)?](#q4-what-set-operations-does-hashsett-provide-unionwith-intersectwith-exceptwith-symmetricexceptwith)
-  - [Q5. What is the difference between `Add` returning `false` on duplicate vs `List.Add` behavior?](#q5-what-is-the-difference-between-add-returning-false-on-duplicate-vs-listadd-behavior)
-  - [Q6. How do you construct a `HashSet<T>` with custom equality (`IEqualityComparer<T>`)?](#q6-how-do-you-construct-a-hashsett-with-custom-equality-iequalitycomparert)
-  - [Q7. When would you use `HashSet<T>` for deduplication vs `Distinct()` in LINQ?](#q7-when-would-you-use-hashsett-for-deduplication-vs-distinct-in-linq)
-  - [Q8. What is the difference between set membership test in `HashSet` vs scanning a `List`?](#q8-what-is-the-difference-between-set-membership-test-in-hashset-vs-scanning-a-list)
-  - [Q9. What is `IsSubsetOf`, `IsSupersetOf`, and `Overlaps` used for?](#q9-what-is-issubsetof-issupersetof-and-overlaps-used-for)
-  - [Q10. Can you modify an element in a `HashSet` in place if it affects equality — what goes wrong?](#q10-can-you-modify-an-element-in-a-hashset-in-place-if-it-affects-equality-what-goes-wrong)
+**05. HashSet** (Q59–Q68)
+- [Q59. Explain `HashSet<T>` and its use cases. How is it different from `List<T>`?](#q59-explain-hashsett-and-its-use-cases-how-is-it-different-from-listt)
+- [Q60. Difference between `SortedSet<T>` and `HashSet<T>`.](#q60-difference-between-sortedsett-and-hashsett)
+- [Q61. Why does `HashSet<T>` require correct `GetHashCode()`/`Equals()` for custom types?](#q61-why-does-hashsett-require-correct-gethashcodeequals-for-custom-types)
+- [Q62. Set operations: `UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`.](#q62-set-operations-unionwith-intersectwith-exceptwith-symmetricexceptwith)
+- [Q63. `Add` returning `false` on duplicate vs `List.Add` behavior.](#q63-add-returning-false-on-duplicate-vs-listadd-behavior)
+- [Q64. Constructing `HashSet<T>` with custom equality (`IEqualityComparer<T>`).](#q64-constructing-hashsett-with-custom-equality-iequalitycomparert)
+- [Q65. `HashSet<T>` for deduplication vs `Distinct()` in LINQ.](#q65-hashsett-for-deduplication-vs-distinct-in-linq)
+- [Q66. Set membership test in `HashSet` vs scanning a `List`.](#q66-set-membership-test-in-hashset-vs-scanning-a-list)
+- [Q67. `IsSubsetOf`, `IsSupersetOf`, and `Overlaps`.](#q67-issubsetof-issupersetof-and-overlaps)
+- [Q68. Modifying an element in `HashSet` in place if it affects equality.](#q68-modifying-an-element-in-hashset-in-place-if-it-affects-equality)
 
-- [06. Queue and Stack](#06-queue-and-stack)
-  - [Q1. Explain `Queue<T>` and `Stack<T>` vs their non-generic counterparts.](#q1-explain-queuet-and-stackt-vs-their-non-generic-counterparts)
-  - [Q2. What is FIFO vs LIFO, and which collection maps to each?](#q2-what-is-fifo-vs-lifo-and-which-collection-maps-to-each)
-  - [Q3. What operations does `Queue<T>` expose (`Enqueue`, `Dequeue`, `Peek`, `TryDequeue`, `TryPeek`)?](#q3-what-operations-does-queuet-expose-enqueue-dequeue-peek-trydequeue-trypeek)
-  - [Q4. What operations does `Stack<T>` expose (`Push`, `Pop`, `Peek`, `TryPop`)?](#q4-what-operations-does-stackt-expose-push-pop-peek-trypop)
-  - [Q5. Why do `Queue` and `Stack` not support random access by index?](#q5-why-do-queue-and-stack-not-support-random-access-by-index)
-  - [Q6. How is `Queue<T>` used in breadth-first search (BFS) on a graph or grid?](#q6-how-is-queuet-used-in-breadth-first-search-bfs-on-a-graph-or-grid)
-  - [Q7. Why does BFS find shortest paths in unweighted graphs?](#q7-why-does-bfs-find-shortest-paths-in-unweighted-graphs)
-  - [Q8. What real-world workflows map naturally to a stack (undo/redo, call stack, DFS)?](#q8-what-real-world-workflows-map-naturally-to-a-stack-undoredo-call-stack-dfs)
-  - [Q9. What is the difference between non-generic `Queue`/`Stack` and generic versions regarding boxing?](#q9-what-is-the-difference-between-non-generic-queuestack-and-generic-versions-regarding-boxing)
-  - [Q10. When would you use `Queue<T>` over `List<T>` with remove-from-front patterns?](#q10-when-would-you-use-queuet-over-listt-with-remove-from-front-patterns)
+**06. Queue and Stack** (Q69–Q78)
+- [Q69. `Queue<T>` and `Stack<T>` vs their non-generic counterparts.](#q69-queuet-and-stackt-vs-their-non-generic-counterparts)
+- [Q70. FIFO vs LIFO, and which collection maps to each.](#q70-fifo-vs-lifo-and-which-collection-maps-to-each)
+- [Q71. Operations `Queue<T>` exposes.](#q71-operations-queuet-exposes)
+- [Q72. Operations `Stack<T>` exposes.](#q72-operations-stackt-exposes)
+- [Q73. Why `Queue` and `Stack` do not support random access by index.](#q73-why-queue-and-stack-do-not-support-random-access-by-index)
+- [Q74. `Queue<T>` in breadth-first search (BFS).](#q74-queuet-in-breadth-first-search-bfs)
+- [Q75. Why BFS finds shortest paths in unweighted graphs.](#q75-why-bfs-finds-shortest-paths-in-unweighted-graphs)
+- [Q76. Real-world workflows that map to a stack.](#q76-real-world-workflows-that-map-to-a-stack)
+- [Q77. Non-generic `Queue`/`Stack` vs generic versions regarding boxing.](#q77-non-generic-queuestack-vs-generic-versions-regarding-boxing)
+- [Q78. `Queue<T>` over `List<T>` with remove-from-front patterns.](#q78-queuet-over-listt-with-remove-from-front-patterns)
 
-- [07. SortedList & SortedDictionary](#07-sortedlist-sorteddictionary)
-  - [Q1. What is `SortedList<TKey, TValue>` and `SortedDictionary<TKey, TValue>`? When would you use each?](#q1-what-is-sortedlisttkey-tvalue-and-sorteddictionarytkey-tvalue-when-would-you-use-each)
-  - [Q2. What interface defines ordering for sorted collections (`IComparer<TKey>` vs `IEqualityComparer<TKey>`)?](#q2-what-interface-defines-ordering-for-sorted-collections-icomparertkey-vs-iequalitycomparertkey)
-  - [Q3. What is the difference between `SortedList` (array-backed) and `SortedDictionary` (tree-backed) performance?](#q3-what-is-the-difference-between-sortedlist-array-backed-and-sorteddictionary-tree-backed-performance)
-  - [Q4. When is `SortedList` preferred over `SortedDictionary` for memory or indexed access?](#q4-when-is-sortedlist-preferred-over-sorteddictionary-for-memory-or-indexed-access)
-  - [Q5. What is the cost of inserting out-of-order keys into a sorted collection?](#q5-what-is-the-cost-of-inserting-out-of-order-keys-into-a-sorted-collection)
-  - [Q6. Can you look up by index in `SortedList` — what does `Keys[index]` provide?](#q6-can-you-look-up-by-index-in-sortedlist-what-does-keysindex-provide)
-  - [Q7. What is the difference between `SortedSet<T>` and `SortedDictionary<TKey, TValue>`?](#q7-what-is-the-difference-between-sortedsett-and-sorteddictionarytkey-tvalue)
-  - [Q8. When would you choose `SortedDictionary` over sorting keys from a `Dictionary` at read time?](#q8-when-would-you-choose-sorteddictionary-over-sorting-keys-from-a-dictionary-at-read-time)
+**07. SortedList & SortedDictionary** (Q79–Q86)
+- [Q79. `SortedList<TKey, TValue>` and `SortedDictionary<TKey, TValue>` — when to use each.](#q79-sortedlisttkey-tvalue-and-sorteddictionarytkey-tvalue--when-to-use-each)
+- [Q80. Interface defining ordering: `IComparer<TKey>` vs `IEqualityComparer<TKey>`.](#q80-interface-defining-ordering-icomparertkey-vs-iequalitycomparertkey)
+- [Q81. `SortedList` (array-backed) vs `SortedDictionary` (tree-backed) performance.](#q81-sortedlist-array-backed-vs-sorteddictionary-tree-backed-performance)
+- [Q82. When `SortedList` is preferred over `SortedDictionary`.](#q82-when-sortedlist-is-preferred-over-sorteddictionary)
+- [Q83. Cost of inserting out-of-order keys into a sorted collection.](#q83-cost-of-inserting-out-of-order-keys-into-a-sorted-collection)
+- [Q84. Lookup by index in `SortedList` — what `Keys[index]` provides.](#q84-lookup-by-index-in-sortedlist--what-keysindex-provides)
+- [Q85. Difference between `SortedSet<T>` and `SortedDictionary<TKey, TValue>`.](#q85-difference-between-sortedsett-and-sorteddictionarytkey-tvalue)
+- [Q86. `SortedDictionary` vs sorting keys from a `Dictionary` at read time.](#q86-sorteddictionary-vs-sorting-keys-from-a-dictionary-at-read-time)
 
-- [08. IEnumerable & IEnumerator](#08-ienumerable-ienumerator)
-  - [Q1. What is the difference between `IEnumerable<T>` and `ICollection<T>`?](#q1-what-is-the-difference-between-ienumerablet-and-icollectiont)
-  - [Q2. What is the difference between `ICollection<T>` and `IList<T>`?](#q2-what-is-the-difference-between-icollectiont-and-ilistt)
-  - [Q3. What are `IReadOnlyList<T>` and `IReadOnlyCollection<T>`?](#q3-what-are-ireadonlylistt-and-ireadonlycollectiont)
-  - [Q4. What is the difference between `IEnumerator` and `IEnumerator<T>`?](#q4-what-is-the-difference-between-ienumerator-and-ienumeratort)
-  - [Q5. What is the `yield` keyword, and how do iterator methods relate to `IEnumerable<T>`?](#q5-what-is-the-yield-keyword-and-how-do-iterator-methods-relate-to-ienumerablet)
-  - [Q6. What is the difference between deferred execution and immediate execution for IEnumerable sequences?](#q6-what-is-the-difference-between-deferred-execution-and-immediate-execution-for-ienumerable-sequences)
-  - [Q7. What is the iterator pattern — what do `MoveNext`, `Current`, and `Reset` do?](#q7-what-is-the-iterator-pattern-what-do-movenext-current-and-reset-do)
-  - [Q8. What is `yield break` vs `return` in an iterator method?](#q8-what-is-yield-break-vs-return-in-an-iterator-method)
-  - [Q9. Why can multiple enumeration of the same `IEnumerable` from a LINQ query re-run the pipeline?](#q9-why-can-multiple-enumeration-of-the-same-ienumerable-from-a-linq-query-re-run-the-pipeline)
-  - [Q10. What is the difference between returning `IEnumerable<T>` from a method vs `List<T>`?](#q10-what-is-the-difference-between-returning-ienumerablet-from-a-method-vs-listt)
-  - [Q11. What happens if you modify a collection during `foreach` — how does the enumerator detect it?](#q11-what-happens-if-you-modify-a-collection-during-foreach-how-does-the-enumerator-detect-it)
-  - [Q12. What is covariance on `IEnumerable<out T>` — practical assignment examples?](#q12-what-is-covariance-on-ienumerableout-t-practical-assignment-examples)
-  - [Q13. What is the difference between `foreach` and manual `while (enumerator.MoveNext())`?](#q13-what-is-the-difference-between-foreach-and-manual-while-enumeratormovenext)
-  - [Q14. What is `ToList()` materialization, and when must you materialize before multiple passes?](#q14-what-is-tolist-materialization-and-when-must-you-materialize-before-multiple-passes)
-  - [Q15. What is the relationship between `IAsyncEnumerable<T>` and iterators (preview)?](#q15-what-is-the-relationship-between-iasyncenumerablet-and-iterators-preview)
-  - [Q16. **Modify while iterating** — Changing a collection during `foreach` throws `InvalidOperationException`.](#q16-modify-while-iterating-changing-a-collection-during-foreach-throws-invalidoperationexception)
-  - [Q17. **Mutable keys** — Changing equality-relevant state on a key after insertion causes silent lookup failures.](#q17-mutable-keys-changing-equality-relevant-state-on-a-key-after-insertion-causes-silent-lookup-failures)
-  - [Q18. **`IEnumerable<T>` covariant, `List<T>` not** — Covariance on mutable lists would break type safety.](#q18-ienumerablet-covariant-listt-not-covariance-on-mutable-lists-would-break-type-safety)
-  - [Q19. **Wrong collection for the job** — Frequent middle inserts on `List<T>` are O(n).](#q19-wrong-collection-for-the-job-frequent-middle-inserts-on-listt-are-on)
-  - [Q20. **Static fields on generic types** — Separate static slots per closed generic type.](#q20-static-fields-on-generic-types-separate-static-slots-per-closed-generic-type)
-  - [Q21. **Boxing in non-generic collections** — `ArrayList` boxes value types; `List<T>` avoids this.](#q21-boxing-in-non-generic-collections-arraylist-boxes-value-types-listt-avoids-this)
-  - [Q22. **Passing `List<T>` by value** — Reference is copied; contents still shared.](#q22-passing-listt-by-value-reference-is-copied-contents-still-shared)
-  - [Q23. **`Dictionary.Add` vs indexer on duplicate key** — `Add` throws; indexer overwrites silently.](#q23-dictionaryadd-vs-indexer-on-duplicate-key-add-throws-indexer-overwrites-silently)
-  - [Q24. **`AsReadOnly()` is a view** — Original list mutations remain visible through the wrapper.](#q24-asreadonly-is-a-view-original-list-mutations-remain-visible-through-the-wrapper)
-  - [Q25. **Assuming dictionary enumeration order** — Undefined; sort keys explicitly if order matters.](#q25-assuming-dictionary-enumeration-order-undefined-sort-keys-explicitly-if-order-matters)
-  - [Q26. **Multiple enumeration cost** — `yield`/LINQ re-executes work each pass; materialize when needed.](#q26-multiple-enumeration-cost-yieldlinq-re-executes-work-each-pass-materialize-when-needed)
-  - [Q27. **Wrong comparer on sorted types** — `SortedDictionary` uses `IComparer<TKey>`, not `IEqualityComparer<TKey>`.](#q27-wrong-comparer-on-sorted-types-sorteddictionary-uses-icomparertkey-not-iequalitycomparertkey)
-  - [Q28. **Poor `GetHashCode` distribution** — Constant hash codes degrade to O(n) buckets.](#q28-poor-gethashcode-distribution-constant-hash-codes-degrade-to-on-buckets)
-  - [Q29. **Queue `Contains` is O(n)** — Use a `HashSet` alongside if you need fast membership checks.](#q29-queue-contains-is-on-use-a-hashset-alongside-if-you-need-fast-membership-checks)
-  - [Q1. (R) A teammate adds a generic repository helper for warehouse stock rows. `dotnet build` fails. Review the constraint stack — what is wrong, and how do you fix it?](#q1-r-a-teammate-adds-a-generic-repository-helper-for-warehouse-stock-rows-dotnet-build-fails-review-the-constraint-stack-what-is-wrong-and-how-do-you-fix-it)
-  - [Q2. (R) A developer "fixes" a method that accepts any payload list by widening to `List<object>`. Review the assignment and call site:](#q2-r-a-developer-fixes-a-method-that-accepts-any-payload-list-by-widening-to-listobject-review-the-assignment-and-call-site)
-  - [Q3. (R) An API endpoint helper should return the larger of two comparable stock metrics without boxing value types. Review the call chain:](#q3-r-an-api-endpoint-helper-should-return-the-larger-of-two-comparable-stock-metrics-without-boxing-value-types-review-the-call-chain)
-  - [Q4. (M) A hot inventory path stores millions of pallet counts per hour. One service uses `List<object>` "for flexibility"; another uses `List<int>`. Review the read loop:](#q4-m-a-hot-inventory-path-stores-millions-of-pallet-counts-per-hour-one-service-uses-listobject-for-flexibility-another-uses-listint-review-the-read-loop)
-  - [Q5. (R) A factory method should default-construct inventory DTOs for an import pipeline. Review:](#q5-r-a-factory-method-should-default-construct-inventory-dtos-for-an-import-pipeline-review)
-  - [Q6. (R) A library author exposes typed domain exceptions via generics "so callers can catch exactly what they need." Review:](#q6-r-a-library-author-exposes-typed-domain-exceptions-via-generics-so-callers-can-catch-exactly-what-they-need-review)
-
-- [02. ArrayList](#02-arraylist-1)
-
-- [02. ArrayList](#02-arraylist-2)
-  - [Q1. (R) A legacy warehouse service stores pick lines in an `ArrayList`. After a refactor, production throws `InvalidCastException` during the nightly export. Review the code — what failed, and why did it compile?](#q1-r-a-legacy-warehouse-service-stores-pick-lines-in-an-arraylist-after-a-refactor-production-throws-invalidcastexception-during-the-nightly-export-review-the-code-what-failed-and-why-did-it-compile)
-  - [Q2. (R) A sensor-ingestion job stores telemetry in an `ArrayList` and unboxes on read. Under load, GC pressure spikes and one pod crashes intermittently. Review the hot path — what is wrong at the storage layer and on read?](#q2-r-a-sensor-ingestion-job-stores-telemetry-in-an-arraylist-and-unboxes-on-read-under-load-gc-pressure-spikes-and-one-pod-crashes-intermittently-review-the-hot-path-what-is-wrong-at-the-storage-layer-and-on-read)
-  - [Q3. (R) A catalog API still exposes `IList` for backward compatibility. New code assumes every element is a `Product`. Review this controller helper — what breaks at runtime, and what compile-time safety is missing?](#q3-r-a-catalog-api-still-exposes-ilist-for-backward-compatibility-new-code-assumes-every-element-is-a-product-review-this-controller-helper-what-breaks-at-runtime-and-what-compile-time-safety-is-missing)
-  - [Q4. (P) Your team is migrating a .NET Framework inventory module that uses `ArrayList` for product catalogs, `Hashtable` for SKU→bin lookup, and manual `(Product)` casts in every loop. What is your migration plan to modern generic collections, and what do you change first to stop runtime cast failures?](#q4-p-your-team-is-migrating-a-net-framework-inventory-module-that-uses-arraylist-for-product-catalogs-hashtable-for-skubin-lookup-and-manual-product-casts-in-every-loop-what-is-your-migration-plan-to-modern-generic-collections-and-what-do-you-change-first-to-stop-runtime-cast-failures)
-  - [Q5. (M) Two implementations compute the same warehouse capacity check. One uses `ArrayList`, one uses `List<int>`. A performance test shows the `ArrayList` version allocates more and runs slower on .NET 8. Explain the mechanism — what happens on each `Add` for value types, and why does `List<int>` avoid it?](#q5-m-two-implementations-compute-the-same-warehouse-capacity-check-one-uses-arraylist-one-uses-listint-a-performance-test-shows-the-arraylist-version-allocates-more-and-runs-slower-on-net-8-explain-the-mechanism-what-happens-on-each-add-for-value-types-and-why-does-listint-avoid-it)
-  - [Q6. (D) A monolith has 40 call sites passing `ArrayList` into methods typed as `IList`. Full rewrite to `List<T>` is blocked for two sprints. What incremental strategy reduces `InvalidCastException` risk without a big-bang change, and where do you draw the line on leaving `ArrayList` in place?](#q6-d-a-monolith-has-40-call-sites-passing-arraylist-into-methods-typed-as-ilist-full-rewrite-to-listt-is-blocked-for-two-sprints-what-incremental-strategy-reduces-invalidcastexception-risk-without-a-big-bang-change-and-where-do-you-draw-the-line-on-leaving-arraylist-in-place)
-
-- [03. List](#03-list-1)
-
-- [03. List](#03-list-2)
-  - [Q1. (R) A nightly import job loads 500,000 shipment SKUs into a `List<string>` by calling `Add` one at a time in a loop. Memory profiling shows repeated large allocations and GC pressure. Review the pattern below. What is happening internally, and how would you fix it?](#q1-r-a-nightly-import-job-loads-500000-shipment-skus-into-a-liststring-by-calling-add-one-at-a-time-in-a-loop-memory-profiling-shows-repeated-large-allocations-and-gc-pressure-review-the-pattern-below-what-is-happening-internally-and-how-would-you-fix-it)
-  - [Q2. (R) A warehouse service removes cancelled dock labels during iteration. In staging it throws intermittently. Review this method — what breaks, and what is the correct fix?](#q2-r-a-warehouse-service-removes-cancelled-dock-labels-during-iteration-in-staging-it-throws-intermittently-review-this-method-what-breaks-and-what-is-the-correct-fix)
-  - [Q3. (M) A shipment validator checks whether each incoming pallet's SKU already exists in a queue of 50,000 items by calling `IndexOf` inside a loop. What is the performance problem, and what structure would you use instead?](#q3-m-a-shipment-validator-checks-whether-each-incoming-pallets-sku-already-exists-in-a-queue-of-50000-items-by-calling-indexof-inside-a-loop-what-is-the-performance-problem-and-what-structure-would-you-use-instead)
-  - [Q4. (D) Two developers search a pallet-count list for the first value over 20. One uses `List.Find`; the other uses LINQ `FirstOrDefault`. When would you prefer each, and what subtle difference matters for value types?](#q4-d-two-developers-search-a-pallet-count-list-for-the-first-value-over-20-one-uses-listfind-the-other-uses-linq-firstordefault-when-would-you-prefer-each-and-what-subtle-difference-matters-for-value-types)
-  - [Q5. (R) A `ShipmentQueueService` exposes its internal lane list directly to API callers. Review the property and usage — what can go wrong in production, and how would you expose the data safely?](#q5-r-a-shipmentqueueservice-exposes-its-internal-lane-list-directly-to-api-callers-review-the-property-and-usage-what-can-go-wrong-in-production-and-how-would-you-expose-the-data-safely)
-  - [Q6. (P) A singleton background worker and several API threads share one static `List<ShipmentItem>` for the live shipment queue. Under load, counts become wrong and the process occasionally throws. Explain why `List<T>` is unsafe here and what pattern you would use instead.](#q6-p-a-singleton-background-worker-and-several-api-threads-share-one-static-listshipmentitem-for-the-live-shipment-queue-under-load-counts-become-wrong-and-the-process-occasionally-throws-explain-why-listt-is-unsafe-here-and-what-pattern-you-would-use-instead)
-
-- [04. Dictionary](#04-dictionary-1)
-
-- [04. Dictionary](#04-dictionary-2)
-  - [Q1. (R) A hot-path SKU lookup uses `ContainsKey` followed by the indexer. Review this warehouse catalog access. What is inefficient, and how would you improve it?](#q1-r-a-hot-path-sku-lookup-uses-containskey-followed-by-the-indexer-review-this-warehouse-catalog-access-what-is-inefficient-and-how-would-you-improve-it)
-  - [Q2. (R) A team uses a custom class as the dictionary key and mutates it after insert. Lookups start failing intermittently in production. Review this catalog code:](#q2-r-a-team-uses-a-custom-class-as-the-dictionary-key-and-mutates-it-after-insert-lookups-start-failing-intermittently-in-production-review-this-catalog-code)
-  - [Q3. (P) An ASP.NET Core API caches product details in a shared `Dictionary<string, Product>` field on a singleton service. Under load tests, responses are wrong and the process occasionally throws `InvalidOperationException`. Review the cache:](#q3-p-an-aspnet-core-api-caches-product-details-in-a-shared-dictionarystring-product-field-on-a-singleton-service-under-load-tests-responses-are-wrong-and-the-process-occasionally-throws-invalidoperationexception-review-the-cache)
-  - [Q4. (R) A REST endpoint maps query parameters directly into dictionary lookups without null checks. Review the handler:](#q4-r-a-rest-endpoint-maps-query-parameters-directly-into-dictionary-lookups-without-null-checks-review-the-handler)
-  - [Q5. (D) A microservice adds a static in-memory cache so repeated HTTP fetches are fast. After two weeks in production, pods hit OOM kills even though traffic is steady. Review the cache:](#q5-d-a-microservice-adds-a-static-in-memory-cache-so-repeated-http-fetches-are-fast-after-two-weeks-in-production-pods-hit-oom-kills-even-though-traffic-is-steady-review-the-cache)
-  - [Q6. (P) A developer avoids `ConcurrentDictionary` and hand-rolls lazy initialization with `TryGetValue`. Under load, the expensive factory runs twice for the same key. Review:](#q6-p-a-developer-avoids-concurrentdictionary-and-hand-rolls-lazy-initialization-with-trygetvalue-under-load-the-expensive-factory-runs-twice-for-the-same-key-review)
-
-- [05. HashSet](#05-hashset-1)
-
-- [05. HashSet](#05-hashset-2)
-  - [Q1. (R) A nightly tag-import job deduplicates article tags with `List<string>.Contains` before insert. Review the hot path:](#q1-r-a-nightly-tag-import-job-deduplicates-article-tags-with-liststringcontains-before-insert-review-the-hot-path)
-  - [Q2. (R) A newsletter service deduplicates subscribers by email but keeps seeing duplicate sends in logs. Review:](#q2-r-a-newsletter-service-deduplicates-subscribers-by-email-but-keeps-seeing-duplicate-sends-in-logs-review)
-  - [Q3. (R) After a profile-update feature ships, support reports "user already subscribed" errors even when lookup fails. Review:](#q3-r-after-a-profile-update-feature-ships-support-reports-user-already-subscribed-errors-even-when-lookup-fails-review)
-  - [Q4. (R) An editorial dashboard merges article tag sets for a "shared topics" widget. Case variants appear twice after deploy. Review:](#q4-r-an-editorial-dashboard-merges-article-tag-sets-for-a-shared-topics-widget-case-variants-appear-twice-after-deploy-review)
-  - [Q5. (R) A publish pipeline accidentally wipes an editor's working tag pool. Review the merge step:](#q5-r-a-publish-pipeline-accidentally-wipes-an-editors-working-tag-pool-review-the-merge-step)
-  - [Q6. (R) A custom comparer passes code review but `Remove` and `Contains` behave inconsistently. Review:](#q6-r-a-custom-comparer-passes-code-review-but-remove-and-contains-behave-inconsistently-review)
-
-- [06. Queue and Stack](#06-queue-and-stack-1)
-
-- [06. Queue and Stack](#06-queue-and-stack-2)
-  - [Q1. (R) A help-desk service was refactored from `Queue<SupportTicket>` to `Stack<SupportTicket>` "because stacks are faster." Review the handler loop. What ordering bug appears in production, and how do you fix it?](#q1-r-a-help-desk-service-was-refactored-from-queuesupportticket-to-stacksupportticket-because-stacks-are-faster-review-the-handler-loop-what-ordering-bug-appears-in-production-and-how-do-you-fix-it)
-  - [Q2. (R) A background worker drains a print queue when the upstream publisher is idle. Under load, the service logs unhandled `InvalidOperationException` and the host restarts. Review the consumer:](#q2-r-a-background-worker-drains-a-print-queue-when-the-upstream-publisher-is-idle-under-load-the-service-logs-unhandled-invalidoperationexception-and-the-host-restarts-review-the-consumer)
-  - [Q3. (P) Three ASP.NET Core request threads enqueue audit events; one background `IHostedService` dequeues them for batch upload. The team shares one `Queue<AuditEvent>` instance registered as a **Singleton**. Occasionally events disappear or `InvalidOperationException` appears under concurrent `Enqueue`/`Dequeue`. Explain why `Queue<T>` is unsafe here and what you would register instead.](#q3-p-three-aspnet-core-request-threads-enqueue-audit-events-one-background-ihostedservice-dequeues-them-for-batch-upload-the-team-shares-one-queueauditevent-instance-registered-as-a-singleton-occasionally-events-disappear-or-invalidoperationexception-appears-under-concurrent-enqueuedequeue-explain-why-queuet-is-unsafe-here-and-what-you-would-register-instead)
-  - [Q4. (M) A developer rewrites maze pathfinding from the chapter's BFS to recursive DFS. On large grids the process terminates with `StackOverflowException`. They propose "just use `Stack<T>` instead of recursion." Review both approaches:](#q4-m-a-developer-rewrites-maze-pathfinding-from-the-chapters-bfs-to-recursive-dfs-on-large-grids-the-process-terminates-with-stackoverflowexception-they-propose-just-use-stackt-instead-of-recursion-review-both-approaches)
-  - [Q5. (D) Your team must pick a frontier collection for two graph tasks on an unweighted social network: (A) find **shortest path** in friend hops from user A to user B, and (B) detect whether a **cycle** exists in a follow graph (direction matters). One engineer says "both are graph search — use `Stack<T>` for both." What would you choose for each task and why?](#q5-d-your-team-must-pick-a-frontier-collection-for-two-graph-tasks-on-an-unweighted-social-network-a-find-shortest-path-in-friend-hops-from-user-a-to-user-b-and-b-detect-whether-a-cycle-exists-in-a-follow-graph-direction-matters-one-engineer-says-both-are-graph-search-use-stackt-for-both-what-would-you-choose-for-each-task-and-why)
-  - [Q6. (R) A response editor copied from the chapter's `HelpDeskSession` mixes undo (`Stack<string>`) with ticket draining. Review this merge:](#q6-r-a-response-editor-copied-from-the-chapters-helpdesksession-mixes-undo-stackstring-with-ticket-draining-review-this-merge)
-
-- [07. SortedList & SortedDictionary](#07-sortedlist-sorteddictionary-1)
-
-- [07. SortedList & SortedDictionary](#07-sortedlist-sorteddictionary-2)
-  - [Q1. (R) A warehouse dashboard prints the lowest and highest SKU from a live price map. Review:](#q1-r-a-warehouse-dashboard-prints-the-lowest-and-highest-sku-from-a-live-price-map-review)
-  - [Q2. (R) An inventory sync service upserts pallet counts every few seconds. Review the hot path:](#q2-r-an-inventory-sync-service-upserts-pallet-counts-every-few-seconds-review-the-hot-path)
-  - [Q3. (D) You expose a `/regions/sales` JSON endpoint. Product wants keys returned alphabetically by region code. Two proposals:](#q3-d-you-expose-a-regionssales-json-endpoint-product-wants-keys-returned-alphabetically-by-region-code-two-proposals)
-  - [Q4. (R) A catalog search feature stores product tags in a case-insensitive sorted map. QA reports duplicate logical tags after a Turkish-locale server deploy. Review:](#q4-r-a-catalog-search-feature-stores-product-tags-in-a-case-insensitive-sorted-map-qa-reports-duplicate-logical-tags-after-a-turkish-locale-server-deploy-review)
-  - [Q5. (M) A pricing microservice benchmarks three shapes for a nightly job that inserts 50_000 random SKUs once, then performs 500_000 lookups:](#q5-m-a-pricing-microservice-benchmarks-three-shapes-for-a-nightly-job-that-inserts-50_000-random-skus-once-then-performs-500_000-lookups)
-  - [Q6. (R) A developer ports a `Dictionary` helper to sorted collections but copies the wrong comparer interface. Review:](#q6-r-a-developer-ports-a-dictionary-helper-to-sorted-collections-but-copies-the-wrong-comparer-interface-review)
-
-- [08. IEnumerable & IEnumerator](#08-ienumerable-ienumerator-1)
-
-- [08. IEnumerable & IEnumerator](#08-ienumerable-ienumerator-2)
-  - [Q1. (R) A warehouse API returns `IEnumerable<PickLine>` from a `yield return` filter. A report job calls `Count()` then `Sum()` on the same reference without materializing. Totals disagree with the pick ticket and logs show the database query ran twice. Review the service method and caller. What went wrong, and how do you fix it?](#q1-r-a-warehouse-api-returns-ienumerablepickline-from-a-yield-return-filter-a-report-job-calls-count-then-sum-on-the-same-reference-without-materializing-totals-disagree-with-the-pick-ticket-and-logs-show-the-database-query-ran-twice-review-the-service-method-and-caller-what-went-wrong-and-how-do-you-fix-it)
-  - [Q2. (R) A custom `IEnumerator<PickLine>` wraps a file reader. A developer copies the manual loop from a tutorial but drops the `using` block. Under load, temp files pile up on disk. Review the loop. What is missing, and what does `foreach` do differently?](#q2-r-a-custom-ienumeratorpickline-wraps-a-file-reader-a-developer-copies-the-manual-loop-from-a-tutorial-but-drops-the-using-block-under-load-temp-files-pile-up-on-disk-review-the-loop-what-is-missing-and-what-does-foreach-do-differently)
-  - [Q3. (R) A batch-picking screen tries to skip short lines by removing them while iterating. It crashes on the second line every time. Review the loop (same pattern as **Program.cs** Section 4g). What throws, why is it allowed, and what is the safe fix?](#q3-r-a-batch-picking-screen-tries-to-skip-short-lines-by-removing-them-while-iterating-it-crashes-on-the-second-line-every-time-review-the-loop-same-pattern-as-programcs-section-4g-what-throws-why-is-it-allowed-and-what-is-the-safe-fix)
-  - [Q4. (M) A developer builds a lazy LINQ pipeline over live pick lines, logs the count, then mutates the underlying list before a second `foreach`. Results differ between the two passes. Walk through what runs when and why the second pass can change.](#q4-m-a-developer-builds-a-lazy-linq-pipeline-over-live-pick-lines-logs-the-count-then-mutates-the-underlying-list-before-a-second-foreach-results-differ-between-the-two-passes-walk-through-what-runs-when-and-why-the-second-pass-can-change)
-  - [Q5. (M) An iterator method logs each SKU as it yields. A caller breaks out of `foreach` after the first match. Later code assumes every line was scanned. Review the iterator and caller. What does `yield return` guarantee about execution state, and when does work *not* run?](#q5-m-an-iterator-method-logs-each-sku-as-it-yields-a-caller-breaks-out-of-foreach-after-the-first-match-later-code-assumes-every-line-was-scanned-review-the-iterator-and-caller-what-does-yield-return-guarantee-about-execution-state-and-when-does-work-not-run)
-  - [Q6. (P) A code review flags `var lines = GetHeavyLines(...).ToList()` as "unnecessary allocation." The author argues it prevents double DB hits and stabilizes results if the ticket changes mid-request. When is `ToList()` (or `ToArray()`) the right production fix for `IEnumerable<T>`, and when is it waste?](#q6-p-a-code-review-flags-var-lines-getheavylinestolist-as-unnecessary-allocation-the-author-argues-it-prevents-double-db-hits-and-stabilizes-results-if-the-ticket-changes-mid-request-when-is-tolist-or-toarray-the-right-production-fix-for-ienumerablet-and-when-is-it-waste)
-  - [Q7. (R) Two developers iterate the same `PickBatch` concurrently — one with `foreach`, one with a stored `IEnumerator<PickLine>` from an earlier `GetEnumerator()` call. Intermittent duplicates and skipped SKUs appear. Review `PickBatch` (fresh enumerator per `GetEnumerator()`). What contract did the second developer violate, and how should multiple consumers walk the same batch?](#q7-r-two-developers-iterate-the-same-pickbatch-concurrently-one-with-foreach-one-with-a-stored-ienumeratorpickline-from-an-earlier-getenumerator-call-intermittent-duplicates-and-skipped-skus-appear-review-pickbatch-fresh-enumerator-per-getenumerator-what-contract-did-the-second-developer-violate-and-how-should-multiple-consumers-walk-the-same-batch)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+**08. IEnumerable & IEnumerator** (Q87–Q115)
+- [Q87. Difference between `IEnumerable<T>` and `ICollection<T>`.](#q87-difference-between-ienumerablet-and-icollectiont)
+- [Q88. Difference between `ICollection<T>` and `IList<T>`.](#q88-difference-between-icollectiont-and-ilistt)
+- [Q89. `IReadOnlyList<T>` and `IReadOnlyCollection<T>`.](#q89-ireadonlylistt-and-ireadonlycollectiont)
+- [Q90. Difference between `IEnumerator` and `IEnumerator<T>`.](#q90-difference-between-ienumerator-and-ienumeratort)
+- [Q91. The `yield` keyword and iterator methods.](#q91-the-yield-keyword-and-iterator-methods)
+- [Q92. Deferred execution vs immediate execution for IEnumerable sequences.](#q92-deferred-execution-vs-immediate-execution-for-ienumerable-sequences)
+- [Q93. Iterator pattern — `MoveNext`, `Current`, and `Reset`.](#q93-iterator-pattern--movenext-current-and-reset)
+- [Q94. `yield break` vs `return` in an iterator method.](#q94-yield-break-vs-return-in-an-iterator-method)
+- [Q95. Why multiple enumeration of the same `IEnumerable` re-runs the pipeline.](#q95-why-multiple-enumeration-of-the-same-ienumerable-re-runs-the-pipeline)
+- [Q96. Returning `IEnumerable<T>` vs `List<T>` from a method.](#q96-returning-ienumerablet-vs-listt-from-a-method)
+- [Q97. Modifying a collection during `foreach` — how the enumerator detects it.](#q97-modifying-a-collection-during-foreach--how-the-enumerator-detects-it)
+- [Q98. Covariance on `IEnumerable<out T>` — practical assignment examples.](#q98-covariance-on-ienumerableout-t--practical-assignment-examples)
+- [Q99. Difference between `foreach` and manual `while (enumerator.MoveNext())`.](#q99-difference-between-foreach-and-manual-while-enumeratormovenext)
+- [Q100. `ToList()` materialization — when to materialize before multiple passes.](#q100-tolist-materialization--when-to-materialize-before-multiple-passes)
+- [Q101. `IAsyncEnumerable<T>` and async iterators.](#q101-iasyncenumerablet-and-async-iterators)
+- [Q102. Gotcha: Modify while iterating.](#q102-gotcha-modify-while-iterating)
+- [Q103. Gotcha: Mutable keys.](#q103-gotcha-mutable-keys)
+- [Q104. Gotcha: `IEnumerable<T>` covariant, `List<T>` not.](#q104-gotcha-ienumerablet-covariant-listt-not)
+- [Q105. Gotcha: Wrong collection for the job.](#q105-gotcha-wrong-collection-for-the-job)
+- [Q106. Gotcha: Static fields on generic types.](#q106-gotcha-static-fields-on-generic-types)
+- [Q107. Gotcha: Boxing in non-generic collections.](#q107-gotcha-boxing-in-non-generic-collections)
+- [Q108. Gotcha: Passing `List<T>` by value.](#q108-gotcha-passing-listt-by-value)
+- [Q109. Gotcha: `Dictionary.Add` vs indexer on duplicate key.](#q109-gotcha-dictionaryadd-vs-indexer-on-duplicate-key)
+- [Q110. Gotcha: `AsReadOnly()` is a view.](#q110-gotcha-asreadonly-is-a-view)
+- [Q111. Gotcha: Assuming dictionary enumeration order.](#q111-gotcha-assuming-dictionary-enumeration-order)
+- [Q112. Gotcha: Multiple enumeration cost.](#q112-gotcha-multiple-enumeration-cost)
+- [Q113. Gotcha: Wrong comparer on sorted types.](#q113-gotcha-wrong-comparer-on-sorted-types)
+- [Q114. Gotcha: Poor `GetHashCode` distribution.](#q114-gotcha-poor-gethashcode-distribution)
+- [Q115. Gotcha: `Queue.Contains` is O(n).](#q115-gotcha-queuecontains-is-on)
 
 ---
 
 ### 01. Generics
 
-#### Q1. What are generics in C#? Why were they introduced?
+---
 
-(R) A teammate adds a generic repository helper for warehouse stock rows. `dotnet build` fails. Review the constraint stack — what is wrong, and how do you fix it?
+## Q1. What are generics in C#? Why were they introduced?
 
-**Answer:** `where T : struct, StockEntry, new()` is illegal — a type parameter cannot be both a non-nullable value type (`struct`) and a reference-type base class (`StockEntry`). The compiler rejects the constraint combination before any call site is evaluated.
+**Concepts**
+- type parameterization
+- compile-time type safety
+- boxing elimination for value types
+- CLR reification (per-construction JIT code)
+- code reuse without runtime casts
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `struct` + base class `StockEntry` on same `T` | CS0454 — mutually exclusive constraints; build blocked |
-| Design | `_cache` stores `StockEntry` but method returns `T` with value-type constraint | Even if it compiled, boxing/unified cache semantics would be wrong |
-| API misuse | `new T { Sku = sku }` assumes `T` is a reference type with mutable `Sku` | Value-type `T` could not inherit `StockEntry` anyway |
-
-**Fix (priority order):**
-
-1. Drop `struct` — use `where T : StockEntry, new()` if you truly need default-constructible inventory rows (`InventoryItem`, etc.).
-2. If value-type rows are required, do **not** inherit `StockEntry`; use a separate generic struct path (e.g., `Quantity<TUnit> where TUnit : struct`) or a shared interface instead of a class base.
-3. Type the cache as `Dictionary<string, T>` inside a generic class `StockRepository<T> where T : StockEntry, new()`, not a mixed `Dictionary<string, StockEntry>` with an inconsistent method signature.
-4. Align with this chapter's `DescribeStockEntry<T> where T : StockEntry` — base-class constraints apply to reference types in the inheritance hierarchy.
-
-**Production takeaway:** Constraint misuse is a compile-time gate — Karat tests whether you recognize that `class`/base-type and `struct` constraints exclude each other. See **Program.cs** Sections 7–9 — constraint combinations.
+Generics let you define classes, methods, interfaces, and delegates with type parameters that are filled in at the call site rather than at definition time, so `List<int>` and `List<string>` are distinct types derived from the same `List<T>` definition. They were introduced in C# 2.0 to eliminate two problems with the `object`-based collections that preceded them: runtime `InvalidCastException` from unchecked casts, and GC pressure from boxing every value type into a heap object on insertion. Since the CLR reifies generics — JIT-compiling separate native code for each distinct value-type substitution — `List<int>` stores unboxed integers directly in a typed array while the compiler rejects any `Add` call with the wrong type, which means both cast failures and unnecessary allocations disappear at no extra code cost.
 
 ---
 
-#### Q2. What is the difference between generic and non-generic collections?
+## Q2. What is the difference between generic and non-generic collections?
 
-(R) A developer "fixes" a method that accepts any payload list by widening to `List<object>`. Review the assignment and call site:
+**Concepts**
+- object-based non-generic storage
+- boxing and unboxing overhead
+- compile-time vs runtime type enforcement
+- ArrayList legacy
+- List<T> type safety
 
-**Answer:** `List<T>` is **invariant** — `List<string>` is not assignable to `List<object>` because that would allow adding non-strings through the wider reference. Covariance applies only on interfaces like `IEnumerable<out T>` for **read-only** projection, not on mutable lists.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `AuditSkus(warehouseSkus)` with `List<object>` parameter | CS1503 — cannot convert `List<string>` to `List<object>` |
-| Runtime | Cast `IEnumerable<object>` to `List<object>` and `Add(42)` | `InvalidCastException` — sequence is backed by `List<string>`, not `List<object>` |
-| Design | Treating covariance as "free widening" for mutable collections | Silent data corruption if the language allowed it — type safety violated |
-
-**Fix (priority order):**
-
-1. For read-only aggregation, accept `IEnumerable<string>` or `IReadOnlyList<string>` — precise, no widening needed.
-2. For heterogeneous payloads, use `List<object>` at the **source** (accept the boxing cost consciously) or a discriminated model (`List<StockPayload>` / union type).
-3. Use `IEnumerable<object> widened = warehouseSkus` only when consuming items — never cast back to a mutable `List<object>` to add elements.
-4. Remember: `IEnumerable<out T>` covariance lets you pass `IEnumerable<string>` where `IEnumerable<object>` is expected, but you still cannot mutate element types.
-
-**Production takeaway:** Confusing `List<T>` invariance with `IEnumerable<out T>` covariance is a common review failure — matches **Program.cs** Section 13 and Quick Reference variance rows.
+Non-generic collections like `ArrayList`, `Hashtable`, `Queue`, and `Stack` store every element as `object`, so value types are boxed on insert and require an explicit cast on read with no compiler protection against wrong-type insertions. Generic collections like `List<T>`, `Dictionary<TKey,TValue>`, and `HashSet<T>` parameterize the element type, which means mismatched `Add` calls fail at compile time and value types live unboxed in a typed backing array. This trade of heterogeneous flexibility for type safety and unboxed storage is almost always the right one because the added safety costs nothing at runtime and the unboxed storage actively improves GC throughput in value-type-heavy workloads.
 
 ---
 
-#### Q3. Explain generic constraints in C# (`where` clause) with examples.
+## Q3. Explain generic constraints in C# (`where` clause) with examples.
 
-(R) An API endpoint helper should return the larger of two comparable stock metrics without boxing value types. Review the call chain:
+**Concepts**
+- constraint kinds (struct, class, new(), base type, interface)
+- mutual exclusivity of struct and class/base-type constraints
+- compiler-enforced member availability
+- multiple constraints on one type parameter
+- newer constraints (notnull, Enum, unmanaged)
 
-**Answer:** Generic method inference requires a **single** type argument `T` that fits both parameters — `decimal` and `int` disagree, so the compiler cannot infer `T` (CS0411). Forcing `MaxOf<decimal>` then fails because `int` is not implicitly convertible to `decimal` at the call site (CS1503).
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `MaxOf(priceA, unitsB)` — mismatched argument types | CS0411 — type arguments cannot be inferred from the arguments |
-| Compile | `MaxOf<decimal>(priceA, unitsB)` | CS1503 — `int` cannot be passed where `decimal` expected |
-| Design | One generic `MaxOf<T>` used across unrelated metrics | API encourages comparing apples to units — domain error masked as generic error |
-
-**Fix (priority order):**
-
-1. Call with **homogeneous** types: `MaxOf(priceA, otherPrice)` or `MaxOf(unitsA, unitsB)`.
-2. If conversion is intentional, convert explicitly **before** the call: `MaxOf(priceA, (decimal)unitsB)` — documents that the comparison is cross-domain and may be wrong business-wise.
-3. Prefer domain methods (`MaxPrice`, `MaxUnits`) or `INumber<T>` (.NET 7+) helpers where numeric widening is well-defined.
-4. Do not rely on inference when types differ — specify intent at the call site or split overloads.
-
-**Production takeaway:** Inference failures often signal a design smell — Karat checks that you read CS0411/CS1503 as "one T for all parameters," not as a compiler bug. See **Program.cs** Section 8 — `Swap<T>` inference requires matching types.
+The `where T : constraint` clause tells the compiler which members are available on `T` and which substitutions are legal. The main forms are `where T : struct` (value types only, enables unboxed storage and rules out null), `where T : class` (reference types, allows `T value = null`), `where T : new()` (requires a public parameterless constructor so `new T()` is legal inside the body), `where T : SomeBase` (requires inheritance from a class or interface, enabling member access), and newer additions like `where T : notnull`, `where T : Enum`, and `where T : unmanaged`. Multiple constraints on one parameter are comma-separated — for example `where T : class, IComparable<T>, new()` — but `struct` and a class base are mutually exclusive since a struct cannot inherit a class, so combining them is a compile error.
 
 ---
 
-#### Q4. Explain covariance and contravariance in generics (`in` and `out` keywords).
+## Q4. Explain covariance and contravariance in generics (`in` and `out` keywords).
 
-(M) A hot inventory path stores millions of pallet counts per hour. One service uses `List<object>` "for flexibility"; another uses `List<int>`. Review the read loop:
+**Concepts**
+- covariance (out) — output positions only
+- contravariance (in) — input positions only
+- interface-only and delegate variance
+- IEnumerable<out T> covariance
+- Action<in T> contravariance
+- type safety rationale
 
-**Answer:** For each closed constructed type, the JIT specializes `List<T>.Add` and indexer access — `List<int>` stores unboxed ints in a `T[]` with no per-element heap boxing, while `List<object>` boxes every `int` on `Add` and unboxes on read, doubling heap traffic and cache pressure.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime / GC | Boxing 1M ints into `List<object>` | 1M heap allocations + GC pressure; slower hot loop |
-| Runtime | Unbox + cast in `legacySum` loop | Extra CPU per iteration vs direct `int` access |
-| JIT | Shared vs specialized code paths | `List<int>` gets efficient `int[]` storage; `List<object>` always handles references |
-| Design | "Flexibility" on a numeric hot path | Latency spikes under load; harder to reason about in profiling |
-
-**Fix (priority order):**
-
-1. Use `List<int>` (or `Span<int>`, `int[]`, `ImmutableArray<int>`) for homogeneous numeric streams — matches **LegacyCollectionProbe** vs `List<int>` in **Program.cs** Section 1.
-2. If mixed types are required, isolate boxing to boundaries (parse → strongly typed model) rather than the inner loop.
-3. Accept `List<object>` only at integration seams (legacy APIs, `ArrayList` interop) with explicit conversion at the edge.
-4. Profile with dotMemory / PerfView — boxed collections show as `System.Int32` allocations in GC heaps.
-
-**Production takeaway:** Generics exist partly to eliminate boxing on value-type collections — Layer 2 tests whether you connect language feature to production GC behavior, not just "compile-time safety."
+Covariance, marked with `out T` on an interface or delegate, means the type parameter may only appear in return/output positions, so `IEnumerable<string>` is assignable to `IEnumerable<object>` because every element you read out is a `string` which is safely treated as an `object`. Contravariance, marked with `in T`, restricts the type parameter to input positions, so `Action<object>` is assignable to `Action<string>` because a handler that accepts any object can certainly handle a string. Mutable generic classes like `List<T>` are invariant because the same `T` appears in both positions — allowing covariant assignment would let you call `Add(42)` through a `List<object>` reference that is really a `List<string>`, which would corrupt the backing array. Variance annotations are only valid on interfaces and delegates because the compiler can statically verify the in/out position rule there.
 
 ---
 
-#### Q5. Can you use `where T : Enum` or `where T : unmanaged`? What problems do these solve?
+## Q5. Can you use `where T : Enum` or `where T : unmanaged`? What problems do these solve?
 
-(R) A factory method should default-construct inventory DTOs for an import pipeline. Review:
+**Concepts**
+- Enum constraint (C# 7.3)
+- unmanaged constraint (C# 7.3)
+- boxing elimination for enum helpers
+- unsafe pointer operations
+- Span<T> with unmanaged types
 
-**Answer:** `CreateRow<ImportedLine>()` succeeds — records with a primary constructor still get a synthesized parameterless constructor for `new()` when not explicitly removed. `CreateRow<PalletTag>()` fails — `PalletTag` only declares `PalletTag(int zoneId)`, so it does not satisfy `where T : new()` (CS0310).
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `CreateRow<PalletTag>()` | CS0310 — `PalletTag` must have public parameterless constructor |
-| Design | `new()` constraint on a factory used for both records and custom structs | Call sites look uniform but only some types qualify |
-| Runtime / API | Mutating `row.Sku` on a record instance | Works here, but immutable record designs may prefer `with` instead of post-`new()` mutation |
-
-**Fix (priority order):**
-
-1. For `PalletTag`, add an explicit parameterless ctor **only if** default construction is valid: `public PalletTag() : this(0) { }` — or stop using `new()` for that type.
-2. Split factories: `CreateRecord<T>() where T : new()` for DTOs; dedicated `PalletTag CreateTag(int zoneId)` for parameterized structs.
-3. Prefer `Activator.CreateInstance<T>()` or DI-backed factories when construction needs parameters or injection — `new()` is for simple default graphs only.
-4. Validate at compile time with tests that call `CreateRow<T>()` for every supported import row type.
-
-**Production takeaway:** The `new()` constraint means "public parameterless constructor exists" — not "any struct" or "any record." See **Program.cs** `CreateDefault<T>() where T : new()` and Section 9a.
+`where T : Enum` lets you write generic helpers that work across all enum types without boxing — before this constraint, calling `HasFlag` or formatting an enum generically required accepting `object` or using reflection, both of which box the value on every call. `where T : unmanaged` restricts `T` to types with no managed references (primitives, pointers, and structs composed only of unmanaged fields), since that guarantee is required to take `&item`, use `sizeof(T)`, or construct `Span<T>` from a pointer without unsafe caveats. Both constraints were added in C# 7.3 and solve the problem of duplicating utility code for each concrete type or accepting unnecessary runtime cost when working with enum flags, bitwise masks, or low-level memory representations.
 
 ---
 
-#### Q6. What happens when you use `default(T)` on an unconstrained type parameter?
+## Q6. What happens when you use `default(T)` on an unconstrained type parameter?
 
-(R) A library author exposes typed domain exceptions via generics "so callers can catch exactly what they need." Review:
+**Concepts**
+- default value expression
+- null for reference types
+- zero-value for value types
+- unconstrained T ambiguity
+- default literal (C# 7.1)
 
-**Answer:** `throw new TException()` where `TException : Exception, new()` produces **parameterless** exceptions with no message, no inner exception, and no structured context — callers catch the right type but lose SKU, quantity, and stack context. Reusing the helper for `InvalidOperationException` by passing `0` to `EnsurePositive` is a semantic hack that obscures intent.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Generic exception factory anti-pattern | Empty exceptions — useless logs and support tickets |
-| Observability | `new TException()` only — no message/data | `_logger.LogWarning(ex, …)` has nothing actionable; APM groups by type only |
-| API contract | `EnsurePositive<InvalidOperationException>(0)` for unknown SKU | Wrong exception type and wrong guard — conflates validation with business rules |
-| Maintainability | Callers depend on **type** not **error shape** | Adding fields/codes requires new exception types instead of stable error codes |
-
-**Fix (priority order):**
-
-1. Throw **specific, constructed** exceptions: `throw new ArgumentOutOfRangeException(nameof(units), units, "Units must be positive.");`
-2. Replace generic throw helpers with domain exceptions (`UnknownSkuException`) or `Result`/validation types for expected failures.
-3. Use `ExceptionDispatchInfo` or `throw;` to preserve stack when rethrowing — never `throw new TException()` as a stand-in for wrapping.
-4. For libraries, document thrown types in XML docs; avoid letting consumers catch generic `TException` via your helper.
-
-```csharp
-if (units <= 0)
-{
-    throw new ArgumentOutOfRangeException(nameof(units), units, "Reserve quantity must be positive.");
-}
-
-if (!IsKnownSku(sku))
-{
-    throw new InvalidOperationException($"SKU '{sku}' is not in the catalog.");
-}
-```
-
-**Production takeaway:** Generics + `new()` on exceptions looks clever but fights .NET exception design — production code favors explicit throws with messages and structured error models. See foundation **Exception Handling** — `throw` vs `throw ex` for stack preservation when rethrowing.
+`default(T)` produces `null` when `T` is a reference type and the zero-value of the struct when `T` is a value type — `0` for `int`, `false` for `bool`, all fields zeroed for a struct. Since an unconstrained `T` could be either kind, the compiler allows `default(T)` as the universal way to produce a "nothing" value without knowing the concrete substitution, because both outcomes are valid initializations for their respective kinds. The default literal (C# 7.1) makes this more concise as just `default`, and `T? value = default` is the idiomatic way to represent an absent value for both constrained and unconstrained type parameters since `default` evaluates to `null` for reference types and zero-init for value types.
 
 ---
 
----
+## Q7. Why can't you write `T value = null;` unless `T` is constrained to `class`?
 
-#### Q7. Why can't you write `T value = null;` unless `T` is constrained to `class`?
+**Concepts**
+- null non-assignability to value types
+- class constraint enabling null
+- compiler static verification
+- T? syntax for unconstrained nullable
+- default as the universal zero
 
-_Answer not found._
+**Answer**
 
----
-
-#### Q8. What is the difference between a generic class and a generic method?
-
-_Answer not found._
-
----
-
-#### Q9. What's the difference between reflection over an open generic type (`List<>`) and a closed generic type (`List<int>`)?
-
-_Answer not found._
+`null` is only a valid value for reference types because value types are stored inline and have no null state — an `int`, `bool`, or any struct simply cannot hold null. An unconstrained `T` might resolve to `int` or another struct at the call site, so the compiler rejects `T value = null` to prevent an assignment that would be meaningless for value-type substitutions. Adding `where T : class` tells the compiler every substitution will be a reference type, making `null` legal. When you need an "absent" value for any `T` without constraining to class, write `T? value = default` — for reference types `default` is `null`, for value types it is the zero-initialized struct, which is safe for both.
 
 ---
 
-#### Q10. Why does `typeof(List<int>) == typeof(List<string>)` return `false`, and how do you get the shared generic type definition?
+## Q8. What is the difference between a generic class and a generic method?
 
-_Answer not found._
+**Concepts**
+- class-level type parameter
+- method-level type parameter
+- type argument inference at call site
+- scope and lifetime of T
+- additional type parameters on methods
 
----
+**Answer**
 
-#### Q11. What is type erasure vs reification — does C# retain generic type information at runtime?
-
-_Answer not found._
-
----
-
-#### Q12. What constraints allow calling `new T()` — what does `where T : new()` enable?
-
-_Answer not found._
+A generic class declares its type parameter at the class level, so every method and field in that class shares the same `T` and each instance is tied to one specific substitution like `List<int>` or `Repository<Product>`. A generic method declares its own type parameter independently of the class, enabling type-specific behavior on a non-generic class or introducing extra type parameters beyond what the class already has. The compiler infers a generic method's type argument from the call-site arguments when possible, so `Swap(a, b)` resolves without `Swap<int>(a, b)` when both arguments are `int`. The essential difference is scope: the class parameter is fixed for an instance's lifetime, while the method parameter resolves fresh per call and disappears after the call returns.
 
 ---
 
-#### Q13. What is the difference between `where T : class` and `where T : struct` constraints?
+## Q9. Reflection over an open generic type (`List<>`) vs a closed generic type (`List<int>`)
 
-_Answer not found._
+**Concepts**
+- open generic type definition
+- closed constructed type
+- MakeGenericType
+- IsGenericTypeDefinition
+- GetGenericArguments
 
----
+**Answer**
 
-#### Q14. What does `where T : notnull` mean for nullable reference type analysis?
-
-_Answer not found._
-
----
-
-#### Q15. Why are generic value types separate closed types at runtime for static fields?
-
-_Answer not found._
+`typeof(List<>)` is an open generic type definition — `IsGenericTypeDefinition` returns `true`, it has no concrete type argument, and you cannot create instances from it directly. Calling `MakeGenericType(typeof(int))` closes it, returning a `Type` object representing `List<int>`, from which you can call `Activator.CreateInstance`. `GetGenericArguments()` on the open type returns the unbound parameter `T`; the same call on `List<int>` returns `typeof(int)`. Open types are useful in DI containers, code generators, and serializers that need to register or reflect on generic patterns without knowing the concrete argument at registration time — you store `typeof(List<>)` and close it later with whatever element type the caller specifies.
 
 ---
 
-#### Q16. What is covariance on `IEnumerable<out T>` — why can you assign `IEnumerable<string>` to `IEnumerable<object>`?
+## Q10. Why does `typeof(List<int>) == typeof(List<string>)` return `false`?
 
-_Answer not found._
+**Concepts**
+- closed type identity per construction
+- Type object equality
+- GetGenericTypeDefinition
+- shared open type definition
+- per-value-type CLR specialization
 
----
+**Answer**
 
-#### Q17. What is contravariance on `Action<in T>` / `IComparer<in T>`?
-
-_Answer not found._
-
----
-
-#### Q18. Why is `List<T>` neither covariant nor contravariant on `T`?
-
-_Answer not found._
+`typeof(List<int>)` and `typeof(List<string>)` are different `Type` objects because the CLR creates a distinct type representation for each unique closed construction — they share the same generic definition but are separate types. For value-type substitutions the CLR also JIT-compiles separate machine code, reinforcing that they are genuinely different. Calling `typeof(List<int>).GetGenericTypeDefinition()` returns `typeof(List<>)`, and comparing the definitions of both: `typeof(List<int>).GetGenericTypeDefinition() == typeof(List<string>).GetGenericTypeDefinition()` returns `true` since both share the same open definition. This distinction matters when writing plugin loaders or serializers that need to recognize "any `List<>` of anything" versus "exactly `List<int>`".
 
 ---
 
-#### Q19. What is the difference between generic specialization performance for value types vs reference types?
+## Q11. Type erasure vs reification — does C# retain generic type information at runtime?
 
-_Answer not found._
+**Concepts**
+- Java type erasure
+- CLR reification
+- per-value-type JIT specialization
+- shared reference-type code
+- typeof(T) at runtime
+
+**Answer**
+
+Java erases generic type arguments at runtime — a `List<String>` and `List<Integer>` are both plain `List` at the bytecode level, so value types cannot be stored without boxing and you cannot ask a `List<String>` what type it holds. C# reifies generics: the CLR preserves all type arguments in metadata and JIT-compiles separate native code for each distinct value-type substitution, so `List<int>` and `List<double>` are genuinely different types with optimized int-array and double-array backing. Reference-type substitutions share a single compiled code body because all references are pointer-sized, but the type argument is still available at runtime through `typeof(T)`, `GetType()`, and reflection. This means writing `typeof(T) == typeof(int)` inside a generic method returns the correct answer, which is impossible in Java without extra metadata annotations.
 
 ---
 
-#### Q20. Can you cast from `List<string>` to `List<object>` — what error or exception occurs?
+## Q12. What does `where T : new()` enable?
 
-_Answer not found._
+**Concepts**
+- new() constraint
+- parameterless constructor requirement
+- Activator.CreateInstance alternative
+- struct implicit default constructor
+- factory and ORM use cases
+
+**Answer**
+
+`where T : new()` requires that `T` has a public parameterless constructor, which allows `new T()` inside the generic method or class body to create instances without knowing the concrete type. Every struct satisfies `new()` by definition since structs always have an implicit parameterless constructor; classes only satisfy it if they explicitly declare or inherit a public no-arg constructor. Records with a primary constructor still get a synthesized parameterless constructor unless they suppress it. The constraint is used in factory helpers, ORM row mappers, and default-construction utilities, though it is limited to parameterless creation — when construction needs arguments or DI, `Activator.CreateInstance<T>()` or a factory delegate parameter is more flexible.
+
+---
+
+## Q13. Difference between `where T : class` and `where T : struct`
+
+**Concepts**
+- class constraint — reference types, nullable, heap allocation
+- struct constraint — value types, non-nullable, inline storage
+- mutual exclusivity
+- assignment semantics
+- nullable class constraint (T : class?)
+
+**Answer**
+
+`where T : class` restricts `T` to reference types, meaning the substitution is heap-allocated, assignment copies the reference, and `T value = null` is legal. `where T : struct` restricts `T` to non-nullable value types, meaning the substitution is stored inline or on the stack, assignment copies the entire value, and null is not assignable. The two are mutually exclusive — a single type parameter cannot carry both — and you choose based on whether you need null-checking and identity semantics or boxing-free inline storage. With nullable reference types enabled, `where T : class?` extends the class constraint to include nullable reference types, letting `T` be `string?` as well as `string`.
+
+---
+
+## Q14. What does `where T : notnull` mean for nullable reference type analysis?
+
+**Concepts**
+- notnull constraint
+- nullable reference types (NRT)
+- nullable annotation context
+- compiler warning suppression
+- T? in unconstrained contexts
+
+**Answer**
+
+`where T : notnull` tells the nullable analyzer that the type argument must not be a nullable type — neither a nullable reference type (`string?`) nor a nullable value type (`int?`). Inside the method body the compiler allows using `T` without null-dereference warnings because no nullable substitution is valid. It is purely an annotation contract enforced by the analyzer, not a runtime restriction, so it does not affect boxing or execution. When nullable reference types are enabled, an unconstrained `T` can be substituted with `T?` in some contexts, so `notnull` is the way to express "this must be a non-null type parameter" without forcing `T` to be specifically a class or a struct.
+
+---
+
+## Q15. Why are generic value types separate closed types at runtime for static fields?
+
+**Concepts**
+- per-construction static field slots
+- CLR closed-type identity
+- value-type JIT specialization
+- reference-type code sharing
+- static field multiplication
+
+**Answer**
+
+For each unique value-type substitution of a generic type the CLR JIT-compiles separate native code and allocates a separate set of static fields, because `List<int>` and `List<double>` are genuinely distinct types with distinct memory layouts. This means `Cache<int>.Slot` and `Cache<double>.Slot` are different memory locations — incrementing one does not affect the other. Reference-type substitutions share a single compiled representation, so `Cache<string>.Slot` and `Cache<object>.Slot` happen to share the same static storage. The practical consequence is that a static counter or singleton inside a generic class multiplies by the number of distinct value-type arguments used, which can surprise developers who expect one shared global but get per-type isolation instead.
+
+---
+
+## Q16. Covariance on `IEnumerable<out T>` — why can you assign `IEnumerable<string>` to `IEnumerable<object>`?
+
+**Concepts**
+- out keyword on interface type parameter
+- read-only output position
+- type hierarchy widening
+- IEnumerable<out T> declaration
+- safety rationale
+
+**Answer**
+
+`IEnumerable<T>` is declared `IEnumerable<out T>` — the `out` keyword marks `T` as covariant, meaning a more derived type can stand in where a less derived type is expected. Assigning `IEnumerable<string>` to `IEnumerable<object>` is safe because you only ever read elements out of the sequence and every `string` is-a `object`, so no type invariant is violated. The `out` keyword enforces this safety by prohibiting `T` from appearing in any input position on the interface — if you could write through `IEnumerable<T>`, you could attempt to insert a non-string via the `IEnumerable<object>` reference, but since the interface has no write operations that constraint is met and covariance is sound.
+
+---
+
+## Q17. Contravariance on `Action<in T>` / `IComparer<in T>`
+
+**Concepts**
+- in keyword on delegate/interface
+- input-only position restriction
+- consumer widening
+- Action<in T> assignability
+- IComparer<in T> use
+
+**Answer**
+
+Contravariance, declared with `in T`, lets you substitute a more general type where a more specific one is expected, as long as the type parameter only appears in input (consumer) positions. An `Action<object>` — a callback that handles any object — can safely be assigned to an `Action<string>` variable because when the caller passes a `string`, the handler receives it as `object`, which is valid. Similarly, `IComparer<object>` can serve as `IComparer<string>` because a comparison method that orders objects certainly works on strings. The `in` keyword makes the compiler verify that `T` never appears in an output position on the interface or delegate, which is what makes the substitution sound — you can always use a more general consumer where a specific one is expected.
+
+---
+
+## Q18. Why is `List<T>` neither covariant nor contravariant on `T`?
+
+**Concepts**
+- invariance
+- T in both input and output positions
+- covariance unsoundness for mutable types
+- class type parameter restriction
+- IEnumerable<out T> workaround
+
+**Answer**
+
+`List<T>` is invariant because `T` appears in both output positions (the indexer getter, `ToArray`) and input positions (the indexer setter, `Add`, `Insert`). Variance requires `T` to appear exclusively in one kind of position, so `List<T>` cannot be declared covariant or contravariant. If it were covariant and `List<string>` were assignable to `List<object>`, you could call `Add(42)` through the `List<object>` reference, which would corrupt the `string[]` backing array. Generic class types are invariant by default in C#; variance declarations are only supported on interfaces and delegates where the compiler can verify the in/out position rule. To get covariant behavior from a list, cast to the covariant interface `IEnumerable<out T>` or `IReadOnlyList<out T>`.
+
+---
+
+## Q19. Generic specialization performance: value types vs reference types
+
+**Concepts**
+- per-value-type JIT machine code
+- shared reference-type code
+- unboxed value-type storage
+- pointer-width uniformity for references
+- cache locality benefit
+
+**Answer**
+
+The JIT compiles a distinct native code body for each unique value-type substitution of a generic method or type, so `List<int>.Add` operates directly on an `int[]` with integer-sized reads and no per-element heap allocation, while `List<double>.Add` gets its own code path for double-array manipulation. All reference-type substitutions share a single compiled method because every reference is pointer-sized, so `List<string>` and `List<Product>` reuse the same native code with pointer manipulation. The practical outcome is that generic value-type code achieves optimal unboxed performance with cache-friendly contiguous memory layout, while reference-type generics benefit from code sharing at the cost of not being able to make value-type-specific layout optimizations.
+
+---
+
+## Q20. Can you cast from `List<string>` to `List<object>` — what error or exception occurs?
+
+**Concepts**
+- List<T> invariance
+- InvalidCastException at runtime
+- explicit cast behavior
+- IEnumerable<object> as covariant workaround
+- compiler warning vs runtime failure
+
+**Answer**
+
+A direct cast `(List<object>)stringList` fails at runtime with `InvalidCastException` because `List<T>` is invariant — the runtime verifies that the object's actual type is compatible with `List<object>`, and a `List<string>` is not. Depending on how the cast is written, the compiler may or may not warn at compile time; an explicit cast always compiles but always throws at runtime for this particular pair. If you need to consume strings as objects you should cast to the covariant interface `IEnumerable<object>` instead, which succeeds because `IEnumerable<out T>` is covariant and `List<string>` implements `IEnumerable<string>`, which is assignable to `IEnumerable<object>`.
 
 ---
 
 ### 02. ArrayList
 
-#### Q1. What is the difference between `Array` and `ArrayList`?
+---
 
-(R) A legacy warehouse service stores pick lines in an `ArrayList`. After a refactor, production throws `InvalidCastException` during the nightly export. Review the code — what failed, and why did it compile?
+## Q21. Difference between `Array` and `ArrayList`
 
-```csharp
-ArrayList warehouseLines = LoadLinesFromDatabase(); // returns mixed legacy rows
+**Concepts**
+- fixed-length array
+- dynamically resizable ArrayList
+- typed vs object[] storage
+- boxing for value types in ArrayList
+- List<T> as modern replacement
 
-decimal totalValue = 0m;
-foreach (object entry in warehouseLines)
-{
-    Product product = (Product)entry;
-    totalValue += product.ProductPrice;
-}
-```
+**Answer**
 
-A teammate added this line to support rush SKUs before the export job runs:
-
-```csharp
-warehouseLines.Add("RUSH-PICK");
-```
-
-**Answer:** The export loop assumes every `ArrayList` element is a `Product`, but `Add("RUSH-PICK")` stores a `string` — the cast `(Product)entry` throws `InvalidCastException` at runtime because `ArrayList.Add` accepts any `object` with no compile-time type check.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Type safety | `ArrayList` allows heterogeneous `Add` | Wrong runtime type slips in; compile succeeds |
-| Runtime | `(Product)entry` on a `string` | `InvalidCastException` — nightly job fails |
-| Design | Mixed domain types in one bag | Same fragility as **Program.cs** Section 5 CRUD demo (`Add(250)` beside `Product`) |
-| Maintainability | Implicit contract "all items are Product" | No compiler enforcement; code review must catch bad `Add` |
-
-**Fix (priority order):**
-
-1. Remove the string from the product list — store rush flags on `Product` or use a separate collection.
-2. Migrate `warehouseLines` to `List<Product>` so `Add("RUSH-PICK")` fails at compile time.
-3. Short-term guard: use pattern matching (`entry is Product p`) and log/skip invalid rows instead of blind cast — stops the crash but hides data quality issues.
-4. Add an integration test that runs the export against a fixture mirroring legacy mixed data.
-
-**Production takeaway:** `ArrayList` defers type errors to production — Karat uses this to test whether you connect "it compiled" with "nothing checked the element type." See **Program.cs** Sections 2 and 7 — indexer and `foreach` return `object`.
+An `Array` has a fixed length set at creation and stores elements of a single declared type directly — `int[]` stores unboxed integers contiguously and the length cannot grow after allocation. `ArrayList` is a dynamically resizable collection that stores every element as `object`, automatically doubling its internal array when capacity is exceeded, so value types are boxed on insert and the collection can grow indefinitely. Both support indexed access, but `Array` gives compile-time type guarantees and avoids boxing for value types, while `ArrayList` trades those guarantees for dynamic resizing and heterogeneous storage. In modern C#, `List<T>` replaces both for most use cases because it combines `ArrayList`'s dynamic resizing with `Array`'s type safety and avoids boxing.
 
 ---
 
-#### Q2. What is the difference between `List<T>` and `ArrayList`?
+## Q22. Difference between `List<T>` and `ArrayList`
 
-(R) A sensor-ingestion job stores telemetry in an `ArrayList` and unboxes on read. Under load, GC pressure spikes and one pod crashes intermittently. Review the hot path — what is wrong at the storage layer and on read?
+**Concepts**
+- generic type safety
+- boxing elimination in List<T>
+- ArrayList object[] backing
+- compile-time rejection of wrong types
+- performance difference for value types
 
-```csharp
-ArrayList readings = new ArrayList(capacity: 10_000);
+**Answer**
 
-for (int i = 0; i < 10_000; i++)
-{
-    readings.Add(i); // sensor count snapshot
-}
-
-int peak = (long)readings[0]; // "fix" after a code review comment
-```
-
-**Answer:** Each `Add(i)` boxes the `int` onto the heap, creating 10,000 extra allocations and GC pressure; the read then uses `(long)` on a boxed `int`, which throws `InvalidCastException` because unboxing requires the exact original type — you cannot unbox a boxed `int` directly to `long`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Boxing every `int` on `Add` | Heap allocations, GC churn under load |
-| Runtime | `(long)readings[0]` unboxes boxed `int` as `long` | `InvalidCastException` — intermittent pod crash |
-| API misuse | `ArrayList` for homogeneous numeric telemetry | Wrong tool when all elements are `int` |
-| "Fix" regression | Widening cast on unbox | Confuses numeric widening with unboxing rules |
-
-**Fix (priority order):**
-
-1. Replace with `List<int>` — no boxing for value-type elements; indexer returns `int` directly.
-2. Correct read: `int peak = (int)readings[0]!` only if staying on `ArrayList`; prefer `List<int>` so no cast is needed.
-3. If values can exceed `int`, use `List<long>` from the start — store the wider type without boxing.
-4. Profile Gen0/Gen1 collections after migration to confirm allocation drop.
-
-**Production takeaway:** Boxing is invisible in small demos but measurable in hot loops — Karat pairs GC symptoms with the `Add(object)` signature. See **Program.cs** Section 9 — boxing on `Add(42)` and correct `(int)` unbox.
+`List<T>` stores elements in a typed `T[]` backing array so value types are never boxed and the compiler rejects `Add` calls with the wrong element type at compile time. `ArrayList` stores elements in an `object[]`, boxing every value type on insert and requiring an explicit cast on read — both are runtime operations with no compiler check. Adding 50,000 integers to an `ArrayList` creates 50,000 heap box objects that the GC must collect, while `List<int>` stores them directly in contiguous memory with zero extra allocations. Since `ArrayList` provides no safety or performance advantage over `List<T>` in any scenario on modern .NET, it is considered legacy and should not appear in new code.
 
 ---
 
-#### Q3. Why is `ArrayList` considered a legacy collection in modern C#?
+## Q23. Why is `ArrayList` considered a legacy collection in modern C#?
 
-(R) A catalog API still exposes `IList` for backward compatibility. New code assumes every element is a `Product`. Review this controller helper — what breaks at runtime, and what compile-time safety is missing?
+**Concepts**
+- pre-generics history (.NET 1.x)
+- List<T> as full replacement
+- no remaining advantage
+- migration target
+- .NET Framework maintenance context
 
-```csharp
-public decimal GetCatalogTotal(IList catalog)
-{
-    decimal total = 0m;
-    for (int i = 0; i < catalog.Count; i++)
-    {
-        total += ((Product)catalog[i]!).ProductPrice;
-    }
-    return total;
-}
+**Answer**
 
-// Caller from legacy batch job:
-IList legacyCatalog = new ArrayList
-{
-    new Product { ProductNo = 10, ProductName = "Scanner", ProductPrice = 89.50m },
-    250 // legacy quantity field stored inline before Product migration
-};
-GetCatalogTotal(legacyCatalog);
-```
-
-**Answer:** Index 1 holds a boxed `int` (250), not a `Product` — `((Product)catalog[i]!)` throws `InvalidCastException` on the second iteration. The method compiles because `IList` indexer returns `object?` and the cast is explicit; no compile-time guarantee exists that callers populated the list homogeneously.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Contract | `IList` accepts any element type | Callers can pass legacy mixed `ArrayList` |
-| Runtime | Cast `(Product)` on boxed `int` | API call fails mid-loop |
-| API design | Non-generic `IList` parameter | Hides intended element type from callers and reviewers |
-| Migration debt | Legacy row shape (`250` inline) coexists with `Product` | Data migration incomplete but new code assumes completion |
-
-**Fix (priority order):**
-
-1. Change signature to `IReadOnlyList<Product>` or `List<Product>` — mixed `Add` fails at compile time on the caller side when they migrate.
-2. Add a dedicated DTO mapper at the legacy boundary that converts raw rows to `Product` before calling business logic — never pass raw `ArrayList` into domain code.
-3. Interim: validate with `catalog[i] is Product` and throw a descriptive error listing index and runtime type.
-4. Deprecate `GetCatalogTotal(IList)` once batch jobs are updated; track call sites.
-
-**Production takeaway:** Programming against non-generic `IList`/`ICollection` was necessary pre-generics — modern code should not treat it as a typed list. See **Program.cs** Section 8 — `IList` polymorphism and Section 10 — catalog with manual casts.
+`ArrayList` predates generics, which were introduced in .NET 2.0, and was the only dynamic list available in .NET 1.x. Once `List<T>` shipped it became obsolete because `List<T>` is faster for value types (no boxing), safer for all types (compile-time checking), and equally convenient for everything else. There is no use case today where `ArrayList` outperforms or outclasses `List<T>`. The only reason to encounter `ArrayList` is maintaining .NET Framework code written before 2005, reading COM interop output, or working with legacy reflection APIs — all of which are migration targets rather than designs to emulate.
 
 ---
 
-#### Q4. What boxing occurs when storing `int` values in an `ArrayList`?
+## Q24. What boxing occurs when storing `int` values in an `ArrayList`?
 
-(P) Your team is migrating a .NET Framework inventory module that uses `ArrayList` for product catalogs, `Hashtable` for SKU→bin lookup, and manual `(Product)` casts in every loop. What is your migration plan to modern generic collections, and what do you change first to stop runtime cast failures?
+**Concepts**
+- boxing mechanism
+- heap allocation per value type
+- object[] backing array
+- GC pressure from box objects
+- unboxing on read
 
-**Answer:** Migrate at the boundaries first — replace internal storage with `List<Product>` and `Dictionary<string, string>` (or appropriate typed keys/values), then narrow public APIs from `IList`/`Hashtable` to generic interfaces so new code cannot inject wrong types; leave thin adapter shims for external callers until call sites are updated.
+**Answer**
 
-- **Phase 1 — stop the bleeding:** Identify hot paths throwing `InvalidCastException` (catalog totals, export loops). Convert those `ArrayList` instances to `List<Product>` at the point of creation; map legacy rows in one factory method rather than scattering casts.
-- **Phase 2 — keyed lookup:** Replace `Hashtable skuToBin` with `Dictionary<string, string>` — eliminates boxing on value types and `as`/cast on values. See **Program.cs** Section 12.
-- **Phase 3 — API surface:** Change method parameters from `IList` to `IReadOnlyList<Product>` or `IEnumerable<Product>`; keep obsolete overloads that copy into `List<Product>` with validation for remaining legacy callers.
-- **Phase 4 — satellite types:** Migrate `Stack`/`Queue`/`SortedList` usages to `Stack<T>`, `Queue<T>`, `SortedList<TKey,TValue>` as touched (Section 13 preview).
-- **Testing:** Characterization tests with production-like mixed `ArrayList` fixtures; assert migrated code either rejects bad rows or maps them explicitly — never silent cast.
-- **Do not big-bang** every file — migrate by vertical slice (catalog service end-to-end) so each PR is deployable.
-
-**Production takeaway:** Migration priority is runtime cast failures and public boundaries, not alphabetical file renames — Karat tests whether you know *where* generics buy safety first.
+Each call to `ArrayList.Add(someInt)` causes the runtime to allocate a small heap object, copy the integer value into it, and store a reference to that wrapper in the internal `object[]`. This is boxing — wrapping the value type in a reference-type shell so it can be stored as `object`. Reading the integer back requires unboxing: dereferencing the heap object and copying the integer out, combined with an explicit cast to confirm the stored type. For a collection of N integers, this boxing produces N heap allocations that the garbage collector must reclaim, generating Gen0 pressure proportional to the number of insertions. `List<int>` avoids this entirely by storing integers directly in an `int[]` with no wrapper objects.
 
 ---
 
-#### Q5. What is the performance cost of repeated boxing/unboxing in hot loops using `ArrayList`?
+## Q25. Performance cost of repeated boxing/unboxing in hot loops using `ArrayList`
 
-(M) Two implementations compute the same warehouse capacity check. One uses `ArrayList`, one uses `List<int>`. A performance test shows the `ArrayList` version allocates more and runs slower on .NET 8. Explain the mechanism — what happens on each `Add` for value types, and why does `List<int>` avoid it?
+**Concepts**
+- allocation rate in hot loops
+- Gen0 GC collection frequency
+- cache locality loss
+- CPU overhead of indirect access
+- benchmark magnitude
 
-**Answer:** `ArrayList.Add` takes `object`, so each `int` is boxed into a separate heap object stored in the internal `object[]`; `List<int>` stores ints directly in its `T[]` backing array with no boxing because the generic type parameter is known at compile time.
+**Answer**
 
-- **`ArrayList.Add(i)`:** `int` → boxed `object` (heap allocation + copy) → reference stored in `object[]`. 50,000 iterations ⇒ 50,000 box allocations plus array resizing copies.
-- **`List<int>.Add(i)`:** `int` written inline into `int[]` — same amortized growth strategy as `ArrayList`, but no per-element heap wrapper.
-- **Read path:** `ArrayList` indexer returns `object` → unbox cast; `List<int>` indexer returns `int` — fewer instructions, no unbox.
-- **GC:** Boxed objects are short-lived Gen0 garbage; high-frequency adds inflate collection frequency and cache pressure — matches the pod/GC story in Q2.
-- **Capacity hint:** Both honor initial capacity (`new ArrayList(50_000)` / `new List<int>(50_000)`) to reduce resize copies — boxing cost remains unique to `ArrayList` for value types.
-
-**Production takeaway:** Same Big-O for `Add`, different constant factors and allocation profile — Karat expects you to name boxing/unboxing, not just "generics are faster." See **Program.cs** Sections 4 and 11 — capacity behavior and `ArrayList` vs `List<T>` comparison table.
-
----
-
-#### Q6. Can you store mixed types in an `ArrayList`, and what typing risks does that create?
-
-(D) A monolith has 40 call sites passing `ArrayList` into methods typed as `IList`. Full rewrite to `List<T>` is blocked for two sprints. What incremental strategy reduces `InvalidCastException` risk without a big-bang change, and where do you draw the line on leaving `ArrayList` in place?
-
-**Answer:** Introduce typed wrappers and validated adapters at the edges — new code accepts `IReadOnlyList<T>`; legacy `ArrayList` flows through a single conversion layer that validates or maps elements — and freeze new `ArrayList` usage via analyzer or review rule while migrating call sites by module.
-
-- **Immediate guardrails:** Ban new `ArrayList`/`new ArrayList()` in product code (Roslyn analyzer or `.editorconfig` convention); allow only in the compatibility adapter project.
-- **Adapter pattern:** `static List<Product> ToProductList(IList legacy)` — foreach with `is Product` check; throw `InvalidOperationException` with index and type on first bad element (fail fast at boundary, not deep in business logic).
-- **Strangler order:** Migrate leaf utilities with no downstream `IList` exports first; then services; public API last — each sprint removes a cluster of call sites, not random files.
-- **Interface bridge:** Obsolete `void Process(IList items)` → add `Process(IReadOnlyList<Product> items)`; old overload converts via adapter and logs `[Obsolete]` warning to track remaining callers.
-- **Draw the line — keep `ArrayList` temporarily only:** inside isolated interop with external legacy binaries you cannot change, or serialized blobs you have not migrated yet — never in new domain logic.
-- **Do not** half-migrate by sprinkling `(Product)` casts — that preserves runtime risk; centralize casts once.
-
-**Production takeaway:** Incremental migration is about *typed boundaries* and *fail-fast validation*, not leaving 40 unchecked cast sites — Karat tests pragmatic legacy strategy, not "rewrite everything day one."
+Each box allocation in a hot loop adds a heap object of the value type size plus object overhead (typically 16–24 bytes), and the GC must scan and collect all of them. For a loop processing a million integers per second, boxing produces a million heap objects per second, filling Gen0 quickly and triggering frequent collections that pause throughput. The CPU cost compounds because boxed integers are scattered across the heap rather than stored contiguously, destroying the cache-line efficiency that sequential `int[]` access provides in `List<int>`. In benchmarks on .NET 8, `List<int>` for numeric hot loops typically runs several times faster than `ArrayList` with significantly lower memory allocation, which is why the boxing argument alone is sufficient to disqualify `ArrayList` for any value-type-heavy workload.
 
 ---
 
----
+## Q26. Can you store mixed types in an `ArrayList`, and what typing risks does that create?
 
-#### Q7. What is the difference between `ArrayList.Capacity` and `Count`?
+**Concepts**
+- heterogeneous object[] storage
+- implicit type contract violation
+- InvalidCastException at runtime
+- no compile-time rejection
+- is/as pattern to mitigate crashes
 
-_Answer not found._
+**Answer**
 
----
-
-#### Q8. When might you still encounter `ArrayList` in maintained legacy codebases?
-
-_Answer not found._
-
----
-
-#### Q9. What is the difference between `ArrayList` and `object[]`?
-
-_Answer not found._
+Yes, `ArrayList.Add` accepts any `object` so you can store strings, integers, custom objects, and nulls in the same collection with no restriction at any point. The typing risk is that any code reading elements must know or guess the type at each index, relying on documentation or an implicit convention rather than a compiler guarantee. A cast like `(Product)list[i]` compiles regardless of what was actually stored, so a teammate adding a string causes an `InvalidCastException` at runtime that only surfaces during the execution path that casts that index. Using `is` and `as` prevents crashes but adds branching overhead and hides the fact that the collection's type contract has already been violated at the insertion site.
 
 ---
 
-#### Q10. What legacy non-generic collections (`Hashtable`, `Queue`, `Stack`) should you know for maintenance scenarios?
+## Q27. Difference between `ArrayList.Capacity` and `Count`
 
-_Answer not found._
+**Concepts**
+- Count as logical element count
+- Capacity as backing array size
+- doubling growth strategy
+- pre-sizing for bulk inserts
+- TrimExcess after shrinking
+
+**Answer**
+
+`Count` is the number of elements actually stored and iterable, while `Capacity` is the size of the internal `object[]` backing array — the maximum elements it can hold before needing to resize. When `Count` reaches `Capacity` on an `Add`, `ArrayList` allocates a new array twice the current capacity, copies all existing elements, and discards the old array. Setting `Capacity` explicitly before bulk inserts avoids repeated resize-and-copy cycles; calling `TrimExcess()` after removing many elements reduces `Capacity` back down to `Count`, releasing the oversized backing array. The same `Capacity` / `Count` / `TrimExcess()` pattern applies identically to `List<T>`.
+
+---
+
+## Q28. When might you still encounter `ArrayList` in maintained legacy codebases?
+
+**Concepts**
+- .NET Framework 1.x code
+- COM interop wrappers
+- legacy serializers
+- ASP.NET Web Forms / System.Web
+- migration debt
+
+**Answer**
+
+`ArrayList` appears in pre-.NET 2.0 code that has never been modernized, particularly in enterprise systems from the mid-2000s that have received patches but not a full rewrite. COM interop wrappers generated from older type libraries sometimes surface `IList` or `ArrayList` at the boundary. Legacy XML and binary serializers used `ArrayList` as the default deserialized collection type, and configuration APIs like `System.Web.Configuration` and older ASP.NET Web Forms code used non-generic collections throughout. In all cases the right maintenance response is to understand and test the existing behavior, then migrate to `List<T>` when the blast radius of the change is acceptable.
+
+---
+
+## Q29. Difference between `ArrayList` and `object[]`
+
+**Concepts**
+- fixed-length array vs dynamic resizing
+- IList interface on ArrayList
+- direct element access parity
+- boxing cost equivalence
+- allocation overhead comparison
+
+**Answer**
+
+`object[]` is a fixed-length array whose size must be declared upfront; indexed access is O(1) and there is no wrapper overhead. `ArrayList` is a dynamically resizable wrapper around an `object[]` that doubles capacity automatically when full, implements `IList`, and provides `Add`, `Remove`, `Insert`, and `Sort` operations. Both store elements as `object` with the same boxing cost for value types. The practical choice comes down to whether you know the size upfront: if you do, `object[]` is simpler and slightly faster without the wrapper; if the size is unknown and grows at runtime, `ArrayList` handles resizing automatically. In modern code both are replaced by `List<T>`, which combines dynamic resizing with type safety.
+
+---
+
+## Q30. Legacy non-generic collections (`Hashtable`, `Queue`, `Stack`) for maintenance scenarios
+
+**Concepts**
+- Hashtable as Dictionary predecessor
+- non-generic Queue and Stack
+- System.Collections namespace
+- boxing for value type keys/values
+- generic replacements
+
+**Answer**
+
+`Hashtable` maps `object` keys to `object` values with no type parameters, boxing value-type keys and values and requiring explicit casts on read; it is replaced by `Dictionary<TKey,TValue>`. Non-generic `Queue` and `Stack` store `object` elements with FIFO and LIFO semantics respectively and are replaced by `Queue<T>` and `Stack<T>`. `SortedList` (non-generic) stores key-value pairs sorted by key in parallel `object[]` arrays, replaced by `SortedList<TKey,TValue>` and `SortedDictionary<TKey,TValue>`. For maintenance work the three most important facts are: `Hashtable` throws `ArgumentNullException` for null keys just as `Dictionary` does; cast errors from all of these manifest as `InvalidCastException` at runtime with no compile-time warning; and `Hashtable` is documented as thread-safe for one writer and multiple concurrent readers while `Dictionary` is not thread-safe for any concurrent access.
 
 ---
 
 ### 03. List
 
-#### Q1. Explain the internal working and performance of `List<T>` vs `LinkedList<T>`.
+---
 
-(R) A nightly import job loads 500,000 shipment SKUs into a `List<string>` by calling `Add` one at a time in a loop. Memory profiling shows repeated large allocations and GC pressure. Review the pattern below. What is happening internally, and how would you fix it?
+## Q31. Internal working and performance of `List<T>` vs `LinkedList<T>`
 
-```csharp
-public static List<string> LoadSkusFromFeed(IEnumerable<string> feedLines)
-{
-    var skus = new List<string>();
-    foreach (var line in feedLines)
-    {
-        skus.Add(line.Trim());
-    }
-    return skus;
-}
-```
+**Concepts**
+- contiguous T[] backing in List<T>
+- doubly-linked node heap objects in LinkedList<T>
+- O(1) indexed access vs O(n) traversal
+- O(n) insertion shift vs O(1) node insertion
+- cache locality advantage of List<T>
 
-**Answer:** Each time `Count` exceeds `Capacity`, `List<T>` allocates a new backing array (typically double the previous size), copies every existing element, and discards the old array — so repeated growth on a half-million-item load causes many intermediate large allocations and full copies before the final size is reached.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | No initial capacity hint | Repeated resize + copy: O(n) per growth step → O(n²) total copy work for n adds |
-| Memory | Discarded backing arrays until GC | GC pressure spikes during bulk import; LOH pressure for large string lists |
-| Operability | `Clear()` later keeps high `Capacity` | Memory retained after import if list is reused without `TrimExcess()` |
-
-**Fix (priority order):**
-
-1. Pre-size when count is known or estimable: `new List<string>(capacity: 500_000)` or `new List<string>(feedLines as ICollection<string> ?? feedLines.ToList())` when the source exposes count.
-2. Prefer `AddRange` over per-item `Add` when inserting a batch — one resize check for the whole range.
-3. After bulk deletes, call `TrimExcess()` if the list will stay small long-term to release unused backing array memory.
-4. For truly massive feeds, consider streaming processing instead of materializing everything into one list.
-
-```csharp
-public static List<string> LoadSkusFromFeed(IReadOnlyCollection<string> feedLines)
-{
-    var skus = new List<string>(feedLines.Count);
-    foreach (var line in feedLines)
-    {
-        skus.Add(line.Trim());
-    }
-    return skus;
-}
-```
-
-**Production takeaway:** `List<T>` growth is amortized O(1) per `Add`, but only if you avoid pathological resize storms — Karat tests whether you know `Capacity` doubles (0 → 4 → 8 → 16 …) and that pre-sizing is a one-line production win. See **Program.cs** Section 3 — Count / Capacity.
+`List<T>` stores elements in a contiguous `T[]` backing array, giving O(1) indexed access and cache-friendly sequential iteration, but O(n) insertions or removals at arbitrary positions because all subsequent elements must shift to fill or make the gap. `LinkedList<T>` stores each element in a `LinkedListNode<T>` that holds the value and pointers to the previous and next nodes, so inserting or removing at a known node is O(1) with no shifting, but reaching position N requires traversing N nodes from the head. The memory overhead of `LinkedList<T>` is substantial — each node is a separate heap object with two reference pointers — which increases GC pressure and destroys cache locality compared to the contiguous array of `List<T>`. For most workloads where random access and iteration dominate, `List<T>` is faster in practice despite its O(n) insertion cost; `LinkedList<T>` is only preferable when the dominant operation is inserting or removing at known interior positions with many such operations per second.
 
 ---
 
-#### Q2. What is `LinkedList<T>` and when should it be used?
+## Q32. What is `LinkedList<T>` and when should it be used?
 
-(R) A warehouse service removes cancelled dock labels during iteration. In staging it throws intermittently. Review this method — what breaks, and what is the correct fix?
+**Concepts**
+- doubly-linked list structure
+- LinkedListNode<T> heap object
+- O(1) node insertion and removal
+- O(n) indexed access
+- appropriate use cases
 
-```csharp
-public void PurgeCancelledLabels(List<string> dockLabels, HashSet<string> cancelled)
-{
-    foreach (string label in dockLabels)
-    {
-        if (cancelled.Contains(label))
-        {
-            dockLabels.Remove(label);
-        }
-    }
-}
-```
+**Answer**
 
-**Answer:** Modifying a `List<T>` while iterating it with `foreach` invalidates the enumerator — the runtime throws `InvalidOperationException` ("Collection was modified") as soon as `Remove` shifts elements and bumps the list's version.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Remove` inside `foreach` | `InvalidOperationException` — job fails mid-purge |
-| Correctness | Only first match removed per value anyway | Even if it didn't throw, partial removal + skipped items after shift |
-| API choice | `Remove(object)` scans from start each call | O(n²) for many cancellations on a large list |
-
-**Fix (priority order):**
-
-1. **Iterate backwards by index** when removing in-place: `for (int i = dockLabels.Count - 1; i >= 0; i--)` then `RemoveAt(i)` — backward removal avoids index skips.
-2. **Prefer `RemoveAll`** for predicate-based bulk delete: `dockLabels.RemoveAll(label => cancelled.Contains(label))` — single pass, no enumerator invalidation.
-3. **Rebuild** if most items are removed: `dockLabels.RemoveAll(...)` or filter to a new list and replace reference.
-4. Never call `Add`, `Insert`, `Remove`, `Clear`, or `Sort` on a collection during `foreach` on that same collection.
-
-```csharp
-public void PurgeCancelledLabels(List<string> dockLabels, HashSet<string> cancelled)
-{
-    dockLabels.RemoveAll(label => cancelled.Contains(label));
-}
-```
-
-**Production takeaway:** This is one of the most common collection bugs in production services — Karat embeds it in realistic warehouse code to see if you diagnose enumerator invalidation, not just "don't modify while looping." See **Program.cs** Section 2 — CRUD / RemoveAll.
+`LinkedList<T>` is a doubly-linked list where each element is wrapped in a `LinkedListNode<T>` referencing the previous and next nodes, so inserting or removing a node you already have a reference to is O(1) — no shifting required. Finding a node by value or position still requires linear traversal since there is no backing array. Use `LinkedList<T>` when the primary operations are inserting or removing elements at arbitrary known positions frequently, such as an LRU cache eviction list, a scheduler that promotes or demotes items between priority slots, or a token stream where tokens are inserted and removed during transformation. For collections where reads, appends, and iteration dominate, `List<T>` is the better choice because its cache-friendly memory layout makes sequential access and indexing significantly faster in practice.
 
 ---
 
-#### Q3. What is the difference between `List<T>.Sort()` stability and `OrderBy()` stability?
+## Q33. Difference between `List<T>.Sort()` stability and `OrderBy()` stability
 
-(M) A shipment validator checks whether each incoming pallet's SKU already exists in a queue of 50,000 items by calling `IndexOf` inside a loop. What is the performance problem, and what structure would you use instead?
+**Concepts**
+- unstable sort in List<T>.Sort (introspective sort)
+- stable sort in LINQ OrderBy (merge sort)
+- equal-element relative ordering
+- in-place vs new sequence
+- multi-key sort implications
 
-```csharp
-public bool AllSkusAlreadyQueued(List<ShipmentItem> queue, IEnumerable<ShipmentItem> incoming)
-{
-    foreach (var item in incoming)
-    {
-        if (queue.IndexOf(item) < 0)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-```
+**Answer**
 
-**Answer:** `IndexOf` performs a linear scan O(n) over the entire list for every incoming item, giving O(n × m) behavior — and because `ShipmentItem` uses reference equality by default, the check may not even match logically equal SKUs unless `Equals` is overridden.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | `IndexOf` in outer loop | 50k × incoming count comparisons — timeouts under peak load |
-| Correctness | Default reference equality on `ShipmentItem` | Two objects with same SKU may not compare equal — false negatives |
-| Design | List is ordered sequence, not lookup index | Wrong tool for membership-by-key checks |
-
-**Fix (priority order):**
-
-1. Build a **`HashSet<string>`** (or `Dictionary<string, ShipmentItem>`) of queued SKUs once — O(1) average lookup per incoming item.
-2. If order must be preserved **and** you need key lookup, maintain **both**: `List<ShipmentItem>` for order + `HashSet<string>` for membership (common production pattern).
-3. Override **`Equals`/`GetHashCode`** on `ShipmentItem` by SKU if set semantics should match domain identity — required for `IndexOf`/`Contains` to work by value.
-4. Use **`Exists(predicate)`** only for single checks — still O(n) per call; does not fix the nested-loop cost.
-
-```csharp
-public bool AllSkusAlreadyQueued(List<ShipmentItem> queue, IEnumerable<ShipmentItem> incoming)
-{
-    var queuedSkus = new HashSet<string>(queue.Select(q => q.Sku));
-    return incoming.All(item => queuedSkus.Contains(item.Sku));
-}
-```
-
-**Production takeaway:** `List<T>` search helpers (`IndexOf`, `Contains`, `Find`) are fine for small lists or rare checks — Karat uses scale (50k items) to force the jump to hash-based lookup. See **Program.cs** Section 12 — Dictionary preview vs List scan.
+`List<T>.Sort()` uses an introspective sort (a combination of quicksort, heapsort, and insertion sort) which is unstable, meaning equal elements may appear in any order relative to their original positions after sorting. `Enumerable.OrderBy()` uses a stable merge sort that preserves the relative order of elements that compare as equal, so if two `Product` records have the same price the one that appeared first in the original sequence still appears first after `OrderBy(p => p.Price)`. The practical choice is: use `Sort()` when the comparison produces a total ordering with no ties, since it sorts in place with slightly lower overhead; use `OrderBy().ThenBy()` for multi-key sorts or user-visible lists where equal elements need to maintain input order, since stability is observable there.
 
 ---
 
-#### Q4. How does `List<T>` grow its internal buffer when capacity is exceeded?
+## Q34. How does `List<T>` grow its internal buffer when capacity is exceeded?
 
-(D) Two developers search a pallet-count list for the first value over 20. One uses `List.Find`; the other uses LINQ `FirstOrDefault`. When would you prefer each, and what subtle difference matters for value types?
+**Concepts**
+- doubling growth strategy
+- amortized O(1) Add
+- backing array copy on resize
+- initial capacity hint
+- LOH pressure from large arrays
 
-```csharp
-List<int> palletCounts = GetPalletCounts();
+**Answer**
 
-int a = palletCounts.Find(n => n > 20);
-int b = palletCounts.FirstOrDefault(n => n > 20);
-```
-
-**Answer:** For `List<int>`, both scan from index 0 and stop at the first match — behavior is equivalent here — but `Find` avoids LINQ's iterator allocation and is the idiomatic in-place search on `List<T>`; the important trap is that both return **`default(T)`** when nothing matches (`0` for `int`, not "no result").
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Semantics | `default(int)` is `0` when no match | Cannot distinguish "found zero" from "not found" without `Exists` or nullable |
-| Performance | LINQ adds delegate + enumerator overhead | Negligible on small lists; matters in hot loops on large lists |
-| Consistency | Mixing styles across codebase | Team readability — pick one pattern per layer |
-
-**When to prefer each:**
-
-- **`List.Find` / `Exists` / `FindAll`:** Hot paths on materialized `List<T>` already in memory; mutating-list APIs (`FindAll` returns new list); no extra `using System.Linq`.
-- **LINQ (`FirstOrDefault`, `Where`, `Any`):** Composing over `IEnumerable<T>`, deferred pipelines, or when the source may not be a list — keeps query chains uniform.
-- **Neither alone for "maybe absent" value types:** Use `int? result = palletCounts.Cast<int?>().FirstOrDefault(n => n > 20)` or check `Exists` first, or return a tuple/bool+value.
-
-**Production takeaway:** Karat tests API semantics, not LINQ religion — `Find` vs `FirstOrDefault` on a `List<int>` is a wash for performance, but **`default(T)` ambiguity** on value types breaks business rules silently. See **Program.cs** Section 4 — Find / Exists.
+When `Count` equals `Capacity` and another element is added, `List<T>` allocates a new backing array of twice the current capacity (or 4 if capacity was 0), copies all existing elements into it, and releases the old array for GC. The doubling strategy ensures the amortized cost of N appends is O(N) — each element is copied on average once across all resizes. Without a capacity hint, a list that grows to 500,000 elements goes through roughly 17 resize-and-copy cycles, allocating and discarding arrays of size 4, 8, 16, up to the final size. Providing `new List<T>(expectedCount)` eliminates these intermediate allocations, which matters both for throughput and for avoiding Large Object Heap pressure when the intermediate arrays exceed the ~85KB LOH threshold.
 
 ---
 
-#### Q5. What is the amortized cost of `Add` on `List<T>` vs `Insert` at the beginning or middle?
+## Q35. Amortized cost of `Add` on `List<T>` vs `Insert` at the beginning or middle
 
-(R) A `ShipmentQueueService` exposes its internal lane list directly to API callers. Review the property and usage — what can go wrong in production, and how would you expose the data safely?
+**Concepts**
+- amortized O(1) tail append
+- O(n) element shift on Insert
+- O(n²) total cost for N front-insertions
+- queue-as-list anti-pattern
+- LinkedList or Queue as alternatives
 
-```csharp
-public class ShipmentQueueService
-{
-    private readonly List<string> _lanes = new() { "Lane-1", "Lane-2" };
+**Answer**
 
-    public List<string> Lanes => _lanes;
-
-    public void Reassign(string sku, string lane)
-    {
-        _lanes.Add(lane);
-    }
-}
-
-// Controller
-var lanes = _queueService.Lanes;
-lanes.Clear();
-lanes.Add("Hijacked-Lane");
-```
-
-**Answer:** Returning the live `List<string>` breaks encapsulation — any caller can mutate, clear, or replace elements in the service's internal state without going through `Reassign`, causing invariant violations and race conditions if the service is shared.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Public mutable collection escape | Callers bypass validation; `Clear()` wipes production lanes |
-| Encapsulation | `List<T>` exposes `Add`/`Remove`/`Sort` | Cannot audit or log changes; hard to evolve to new rules |
-| Concurrency | Shared list reference across requests | One request mutates while another reads — corrupt state under load |
-| API contract | Return type promises mutability | Consumers depend on side-effecting the service internals |
-
-**Fix (priority order):**
-
-1. Expose **`IReadOnlyList<string>`** backed by **`AsReadOnly()`** or return **`_lanes.ToArray()`** / **`[.. _lanes]`** snapshot when callers must not see live mutations.
-2. Prefer **`IReadOnlyList<string> Lanes => _lanes.AsReadOnly()`** for a live read-only view — note underlying list changes still appear (Section 8 behavior).
-3. For strict immutability from outside, return a **copy**: `return _lanes.ToList()` or `return (IReadOnlyList<string>)_lanes.ToArray()` — higher allocation, safest for public APIs.
-4. Route all mutations through **methods** on the service (`AddLane`, `RemoveLane`) that enforce rules and logging.
-
-```csharp
-public IReadOnlyList<string> Lanes => _lanes.AsReadOnly();
-
-public void AddLane(string lane)
-{
-    if (string.IsNullOrWhiteSpace(lane)) throw new ArgumentException(nameof(lane));
-    _lanes.Add(lane);
-}
-```
-
-**Production takeaway:** `AsReadOnly()` prevents mutation through the wrapper but not through leaked `List<T>` references — Karat stacks encapsulation + API surface design. See **Program.cs** Section 8 — AsReadOnly.
+`List<T>.Add` appends at the end — it writes to the next available slot and increments `Count` — with an amortized O(1) cost because resizes are infrequent on average. `Insert(0, item)` at the beginning is O(n) because every existing element must shift right by one position to make room; `Insert(middle, item)` shifts all elements from that index to the end. Using a list as a queue by repeatedly calling `Insert(0, ...)` for 50,000 elements is O(n²) total — a common performance pitfall. If frequent insertions at arbitrary positions are required, prefer `LinkedList<T>` for known-node O(1) insertions, or restructure the algorithm to append and then sort, or use a `Queue<T>` for the prepend-and-drain pattern.
 
 ---
 
-#### Q6. What does `List<T>.AsReadOnly()` return, and can callers still mutate the underlying list?
+## Q36. What does `List<T>.AsReadOnly()` return, and can callers still mutate the underlying list?
 
-(P) A singleton background worker and several API threads share one static `List<ShipmentItem>` for the live shipment queue. Under load, counts become wrong and the process occasionally throws. Explain why `List<T>` is unsafe here and what pattern you would use instead.
+**Concepts**
+- ReadOnlyCollection<T> wrapper
+- live view semantics
+- NotSupportedException on mutation attempt
+- underlying list still mutable
+- ToArray/ToList for true snapshot
 
-```csharp
-public static class ShipmentHub
-{
-    public static readonly List<ShipmentItem> LiveQueue = new();
+**Answer**
 
-    public static void Enqueue(ShipmentItem item) => LiveQueue.Add(item);
-
-    public static void ProcessNext()
-    {
-        if (LiveQueue.Count > 0)
-        {
-            var next = LiveQueue[0];
-            LiveQueue.RemoveAt(0);
-            Ship(next);
-        }
-    }
-}
-```
-
-**Answer:** `List<T>` is not thread-safe — concurrent `Add`, `RemoveAt`, and reads can corrupt internal array state, lose elements, throw `ArgumentOutOfRangeException`, or throw during enumeration because another thread resized or removed items mid-operation.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Unsynchronized `Add` + `RemoveAt` | Lost updates, torn reads, occasional exceptions |
-| Correctness | `Count > 0` then `[0]` is not atomic | Another thread can dequeue between check and index — race |
-| Architecture | Static mutable shared state | Cannot scale out across processes; hidden global coupling |
-| Observability | Intermittent failures under load | Passes locally; fails in production peak traffic |
-
-**Fix (priority order):**
-
-1. **`lock` around all queue operations** on a private list if you must share in-process state — simplest fix, limits throughput.
-2. Prefer **`ConcurrentQueue<ShipmentItem>`** or **`Channel<ShipmentItem>`** for producer/consumer patterns — designed for concurrent enqueue/dequeue.
-3. Remove **static mutable** queues from business logic — inject a **scoped or singleton service** with explicit thread-safe storage; use database/message broker for multi-instance deployments.
-4. Never expose the raw list publicly (see Q5) — wrap in a thread-safe API.
-
-```csharp
-private static readonly object Gate = new();
-private static readonly List<ShipmentItem> LiveQueue = new();
-
-public static void Enqueue(ShipmentItem item)
-{
-    lock (Gate) { LiveQueue.Add(item); }
-}
-
-public static bool TryDequeue(out ShipmentItem? item)
-{
-    lock (Gate)
-    {
-        if (LiveQueue.Count == 0) { item = null; return false; }
-        item = LiveQueue[0];
-        LiveQueue.RemoveAt(0);
-        return true;
-    }
-}
-```
-
-**Production takeaway:** `List<T>` documentation explicitly states it is not thread-safe — Karat pairs this with singleton/static patterns to test whether you reach for synchronization or the right concurrent collection. For new code, `Channel<T>` or `ConcurrentQueue<T>` beats hand-rolled locks on `List<T>`.
+`AsReadOnly()` returns a `ReadOnlyCollection<T>` that wraps the original list and throws `NotSupportedException` if a caller tries to call `Add`, `Remove`, or `Clear` through the wrapper. However it is a live view — changes to the underlying `List<T>` are immediately visible through the read-only wrapper because it holds a reference to the same backing array, not a copy. Exposing `_list.AsReadOnly()` as a property prevents external callers from mutating through the returned reference, but any code that still holds the original `List<T>` reference can still modify it and the wrapper reflects those changes. For a true snapshot that external mutation cannot affect, return `_list.ToArray()` or `_list.ToList()` — the copy is more expensive but independent.
 
 ---
 
-#### Q7. What is the difference between `ConvertAll`, `ForEach`, and LINQ `Select` on a list?
+## Q37. Difference between `ConvertAll`, `ForEach`, and LINQ `Select` on a list
 
-_Answer not found._
+**Concepts**
+- ConvertAll eager projection to new List
+- ForEach side-effect iteration (void)
+- LINQ Select deferred execution
+- eager vs lazy evaluation
+- allocation behavior
 
----
+**Answer**
 
-#### Q8. What do `ToArray`, `CopyTo`, and `GetRange` do — which allocate new arrays?
-
-_Answer not found._
-
----
-
-#### Q9. When would you expose `List<T>` as a return type vs `IReadOnlyList<T>` or `IEnumerable<T>`?
-
-_Answer not found._
+`List<T>.ConvertAll(converter)` eagerly produces a new `List<TOutput>` by applying the converter to every element, materializing immediately as a fresh list allocation. `List<T>.ForEach(action)` iterates the list and invokes the action for its side effects, returning nothing — it is a void loop, not a transformation. LINQ `Select(selector)` returns a lazy `IEnumerable<TResult>` that applies the selector only when enumerated, deferring execution until a terminal operation like `ToList()`, `Count()`, or `foreach` forces it. The practical choice: use `ConvertAll` when you want a `List<T>` result and the source is already a list; use `ForEach` for side effects where the loop body is brief; use `Select` when composing with other LINQ operators or when the result should stay lazy for a single-pass consumer.
 
 ---
 
-#### Q10. What is the difference between `List<T>.Capacity` and `Count`?
+## Q38. What do `ToArray`, `CopyTo`, and `GetRange` do — which allocate new arrays?
 
-_Answer not found._
+**Concepts**
+- ToArray always allocates new T[]
+- CopyTo writes to caller-provided array
+- GetRange returns new List<T> slice
+- allocation trade-offs
+- CollectionsMarshal.AsSpan zero-copy alternative
 
----
+**Answer**
 
-#### Q11. What happens if you mutate a list while iterating with `foreach`?
-
-_Answer not found._
-
----
-
-#### Q12. What is `TrimExcess`, and when is it useful?
-
-_Answer not found._
+`ToArray()` allocates and returns a new `T[]` containing all elements — always a fresh allocation sized to `Count`. `CopyTo(array, arrayIndex)` writes elements into a caller-provided array that must already be large enough; it does not allocate a new array but writes into the buffer you supply, making it useful when you already own the destination memory. `GetRange(index, count)` returns a new `List<T>` containing a shallow copy of the specified slice — another allocation. So `ToArray` and `GetRange` always allocate; `CopyTo` does not. In performance-sensitive paths that repeatedly need a span over the list's contents, `CollectionsMarshal.AsSpan(list)` provides a zero-copy `Span<T>` over the backing array, avoiding all three.
 
 ---
 
-#### Q13. What is binary search on a list (`BinarySearch`) — what precondition must the list satisfy?
+## Q39. When to expose `List<T>` vs `IReadOnlyList<T>` or `IEnumerable<T>` as a return type
 
-_Answer not found._
+**Concepts**
+- return type API surface design
+- IReadOnlyList<T> for indexed read-only result
+- IEnumerable<T> for lazy or single-pass results
+- List<T> when caller legitimately needs mutation
+- encapsulation of internal state
+
+**Answer**
+
+Returning `List<T>` exposes the full mutable API — callers can `Add`, `Remove`, `Sort`, and replace the contents — which breaks encapsulation if the list is also owned internally. Return `IReadOnlyList<T>` when the result is already materialized and callers need indexed access (`Count`, `[i]`) but should not mutate it; this is the correct default for service methods that return computed results. Return `IEnumerable<T>` when the result may be lazy, the caller only needs a single forward pass, or you want to retain freedom to change the underlying storage type without breaking callers. Return `List<T>` only when callers legitimately need to add to or sort the returned collection, such as a builder method that hands back a working list the caller is expected to populate further.
 
 ---
 
-#### Q14. How does `List<T>` indexer access compare to `LinkedList<T>` (no indexer)?
+## Q40. Difference between `List<T>.Capacity` and `Count`
 
-_Answer not found._
+**Concepts**
+- Count as logical element count
+- Capacity as physical backing array size
+- doubling on overflow
+- pre-sizing avoids resize storms
+- TrimExcess after shrinking
+
+**Answer**
+
+`Count` is the number of elements currently in the list — what you iterate and what indices 0 through `Count-1` address. `Capacity` is the size of the underlying backing array — the maximum elements it can hold before triggering a resize. When you add the element that would make `Count` exceed `Capacity`, the list doubles its capacity, copies all `Count` elements into the new array, and the old array becomes garbage. Setting `Capacity` before bulk inserts avoids these intermediate copies; after removing many elements, `TrimExcess()` sets `Capacity` to match `Count` (if they differ by more than 10%) to release the oversized array back to the heap.
 
 ---
 
-#### Q15. What is `Comparison<T>` delegate, and how does it relate to `List<T>.Sort`?
+## Q41. What happens if you mutate a list while iterating with `foreach`?
 
-_Answer not found._
+**Concepts**
+- version counter in List<T>
+- InvalidOperationException on structural change
+- enumerator validation on MoveNext
+- reverse for-loop workaround
+- RemoveAll as safe alternative
+
+**Answer**
+
+`List<T>` maintains an internal version counter that increments on any structural modification — `Add`, `Remove`, `Insert`, `Clear`, `Sort`. The enumerator captures the version at the start of `foreach` and checks it on every `MoveNext` call; if the version has changed, it throws `InvalidOperationException: "Collection was modified; enumeration operation may not execute."` This detection is intentional because allowing mutation mid-enumeration would cause skipped elements or infinite loops as indices shift. Safe alternatives are iterating a copy (`foreach (var x in list.ToList())`), using a reverse `for` loop with `RemoveAt(i)` for in-place removal, or using `list.RemoveAll(predicate)` for bulk removal in a single pass without any enumerator.
+
+---
+
+## Q42. What is `TrimExcess`, and when is it useful?
+
+**Concepts**
+- capacity shrinkage after element removal
+- memory reclamation
+- build-then-shrink pattern
+- reallocation cost trade-off
+- long-lived list optimization
+
+**Answer**
+
+`TrimExcess()` sets the list's `Capacity` to equal its `Count`, reallocating a smaller backing array and releasing the excess memory. It is useful after a build-and-shrink pattern — loading a large collection and then removing many elements — because without it a list that grew to 100,000 elements and had 90,000 removed still holds a 100,000-slot array. The trade-off is that `TrimExcess()` triggers an allocation and element copy, so it is only worthwhile when the shrunken list will live long enough that the memory savings justify the one-time copy cost. For short-lived local variables or collections that will be rebuilt shortly, calling `TrimExcess()` adds work without lasting benefit.
+
+---
+
+## Q43. Binary search on a list (`BinarySearch`) — what precondition must the list satisfy?
+
+**Concepts**
+- O(log n) search algorithm
+- sorted precondition
+- IComparable<T> default comparison
+- custom IComparer<T> overload
+- negative return on miss (bitwise complement)
+
+**Answer**
+
+`List<T>.BinarySearch(item)` performs an O(log n) search by repeatedly halving the search range and comparing the target to the midpoint element. The precondition is that the list must be sorted in the same order used by the comparison — if the list is unsorted, `BinarySearch` produces unreliable results and may miss elements that exist. It returns the zero-based index of the found element, or if not found the bitwise complement of the index where the element would be inserted (`~result` is a positive number usable for sorted insertions). You can pass a custom `IComparer<T>` to both `Sort` and `BinarySearch` to ensure both operations use the same ordering rule, which is essential for correctness.
+
+---
+
+## Q44. `List<T>` indexer access compared to `LinkedList<T>` (no indexer)
+
+**Concepts**
+- O(1) array indexer in List<T>
+- O(n) traversal in LinkedList<T>
+- cache locality of contiguous array
+- IList<T> interface provision
+- linked node pointer indirection
+
+**Answer**
+
+`List<T>[i]` is O(1) — a direct array element access at a known memory offset, and adjacent elements are contiguous in memory so a single cache miss often loads several subsequent elements into the cache line. `LinkedList<T>` has no indexer because finding the element at position i requires traversing from the head node through i `Next` pointer dereferences, which is O(n) and cache-hostile since each node is a separate heap object potentially scattered in memory. This is the decisive reason `List<T>` dominates for random-access patterns: the contiguous array layout makes both indexed and sequential access fast, while LinkedList causes a cache miss on every node hop. If you need index-by-position, `List<T>` is always the correct choice over `LinkedList<T>`.
+
+---
+
+## Q45. What is `Comparison<T>` delegate, and how does it relate to `List<T>.Sort`?
+
+**Concepts**
+- Comparison<T> delegate signature
+- Sort(Comparison<T>) overload
+- lambda sort expression
+- IComparer<T> alternative
+- when to prefer each
+
+**Answer**
+
+`Comparison<T>` is the delegate type `delegate int Comparison<T>(T x, T y)` — it takes two values and returns negative if x should come before y, zero if equal, and positive if x should come after y. `List<T>.Sort(Comparison<T>)` accepts this delegate directly, letting you write inline sort logic as a lambda without implementing a comparer class: `list.Sort((a, b) => a.Price.CompareTo(b.Price))`. The `IComparer<T>` overload is preferable when the comparison logic is reused across multiple call sites or needs to be injected and tested independently; the `Comparison<T>` lambda is preferable for one-off sorts at a specific call site where the intent is clear from the lambda body.
 
 ---
 
 ### 04. Dictionary
 
-#### Q1. What is the difference between `Dictionary<TKey, TValue>` and `Hashtable`?
+---
 
-(R) A hot-path SKU lookup uses `ContainsKey` followed by the indexer. Review this warehouse catalog access. What is inefficient, and how would you improve it?
+## Q46. Difference between `Dictionary<TKey, TValue>` and `Hashtable`
 
-**Answer:** The code performs two hash lookups — one in `ContainsKey` and one in the indexer — when a single `TryGetValue` call can retrieve the value in one pass. Under hot paths or large catalogs, the extra lookup adds avoidable cost and is harder to read than the idiomatic pattern.
+**Concepts**
+- generic type safety vs object storage
+- boxing elimination for value-type keys/values
+- thread-safety difference
+- null key behavior difference
+- API evolution
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Double hash lookup per hit | Unnecessary CPU on high-frequency SKU resolution |
-| Idiomatic C# | `ContainsKey` + indexer is a legacy pattern | Easy to miss in code review; signals unfamiliarity with BCL APIs |
-| Concurrency | Two separate reads on a shared dictionary (minor) | Theoretically inconsistent if another thread mutates between calls |
-
-**Fix (priority order):**
-
-1. Replace the pair with `TryGetValue` and branch on its `bool` result.
-2. Return the `out` variable directly when found; avoid a second access.
-3. Prefer `CollectionsMarshal.GetValueRefOrNullRef` only in measured hot paths — `TryGetValue` is the default fix.
-
-```csharp
-public Product? FindProduct(Dictionary<string, Product> catalog, string sku)
-{
-    return catalog.TryGetValue(sku, out Product? product) ? product : null;
-}
-```
-
-**Production takeaway:** Karat flags this as a micro-optimization with readability upside — it signals you know standard library APIs, not just that dictionaries exist. See **Program.cs** Section 5 — `TryGetValue` preferred over `ContainsKey` + indexer.
+`Hashtable` stores both keys and values as `object`, boxing value types and requiring explicit casts on read with no compile-time type checking. `Dictionary<TKey,TValue>` parameterizes both types, preventing wrong-type inserts at compile time and avoiding boxing for value-type keys and values like `Dictionary<int, decimal>`. Both use hash table internals with average O(1) lookup, insert, and delete. `Hashtable` is documented as thread-safe for one writer and multiple concurrent readers simultaneously, while `Dictionary<TKey,TValue>` is not thread-safe for any concurrent access. `Hashtable` allows null keys while `Dictionary` throws `ArgumentNullException` for null reference-type keys. For all new code, use `Dictionary<TKey,TValue>` or `ConcurrentDictionary<TKey,TValue>` for concurrent scenarios.
 
 ---
 
-#### Q2. Explain `IDictionary<TKey, TValue>` and `IReadOnlyDictionary<TKey, TValue>`.
+## Q47. `IDictionary<TKey, TValue>` and `IReadOnlyDictionary<TKey, TValue>`
 
-(R) A team uses a custom class as the dictionary key and mutates it after insert. Lookups start failing intermittently in production. Review this catalog code:
+**Concepts**
+- IDictionary<K,V> mutable interface
+- IReadOnlyDictionary<K,V> read-only interface
+- encapsulation via return type
+- implementation substitution
+- testing with dictionary literals
 
-**Answer:** `Dictionary` stores entries by the key's hash code at insert time. Mutating `key.Code` after insert leaves the entry in the wrong bucket — lookups with a new `SkuKey { Code = "WH-1001" }` hash to a different slot, so the product appears missing even though it is still in the table under a stale hash.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Mutable key changed after `catalog[key] = …` | `TryGetValue` / indexer miss; "orphaned" entries |
-| Hash contract | `GetHashCode`/`Equals` must be stable while key is in the map | Violated when `Code` property mutates |
-| Design | Reference-type key with public setter | Silent data loss in catalog lookups |
-
-**Fix (priority order):**
-
-1. Make key types **immutable** after construction — `init` or `readonly` properties, or use `record`/`readonly record struct` for value semantics.
-2. Never mutate a key object that is already in the dictionary; remove, create a new key, and re-insert if the identifier changes.
-3. For string SKUs, prefer `Dictionary<string, Product>` — `string` is immutable and already implements the hash contract correctly.
-4. If you must wrap identifiers, use `readonly record struct SkuKey(string Code)` or a sealed class with no setters.
-
-```csharp
-public readonly record struct SkuKey(string Code);
-
-var catalog = new Dictionary<SkuKey, Product>();
-catalog[new SkuKey("WH-1001")] = product;
-// To change SKU: remove old entry, insert with new SkuKey — do not mutate in place
-```
-
-**Production takeaway:** Hash-table collections assume keys do not change while inserted — Karat uses this to test the hash contract beyond "override GetHashCode." See **Program.cs** Section 1 — custom keys must override both methods and stay immutable after insert.
+`IDictionary<TKey,TValue>` is the mutable dictionary interface exposing `Add`, `Remove`, the read-write indexer, `ContainsKey`, `TryGetValue`, `Keys`, and `Values`. Accepting `IDictionary<TKey,TValue>` in a method parameter allows callers to pass `Dictionary`, `SortedDictionary`, or any custom implementation without coupling to a concrete type. `IReadOnlyDictionary<TKey,TValue>` exposes only read operations — read-only indexer, no `Add` or `Remove` — and is the correct return type for a service method that exposes a lookup map without permitting external mutation. Both interfaces enable swapping implementations in tests by passing a hand-filled dictionary in place of one backed by a real data source.
 
 ---
 
-#### Q3. How does `Dictionary<TKey, TValue>` handle hashing and collisions?
+## Q48. How does `Dictionary<TKey, TValue>` handle hashing and collisions?
 
-(P) An ASP.NET Core API caches product details in a shared `Dictionary<string, Product>` field on a singleton service. Under load tests, responses are wrong and the process occasionally throws `InvalidOperationException`. Review the cache:
+**Concepts**
+- GetHashCode bucket mapping
+- collision chaining in entry arrays
+- Equals comparison in bucket walk
+- load factor and rehashing
+- O(n) worst case with poor hash
 
-**Answer:** `Dictionary<TKey, TValue>` is not thread-safe. Concurrent reads and writes from multiple HTTP requests corrupt internal buckets, throw during enumeration, and allow two threads to both miss the cache and write different `Product` instances for the same SKU — undefined behavior under load.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Unsynchronized `_cache` mutations | `InvalidOperationException`, torn internal state |
-| Correctness | Check-then-add without locking | Duplicate DB loads; possible inconsistent cached values |
-| Lifetime | Singleton holds one shared dictionary for all requests | Every request shares the same unsynchronized structure |
-| Performance | `ContainsKey` + indexer (two lookups) | Extra cost on every cache access |
-
-**Fix (priority order):**
-
-1. Replace with `ConcurrentDictionary<string, Product>` and use `GetOrAdd` or `TryGetValue` for reads.
-2. If you must keep `Dictionary`, guard all access with a single lock (`lock (_cache) { … }`) — simpler but lower throughput than `ConcurrentDictionary`.
-3. Register the cache as **scoped** only when it is per-request scratch data — not for a cross-request product catalog; singleton + concurrent collection is the usual pattern for shared read-mostly caches.
-4. Consider `IMemoryCache` with size limits and expiration instead of a raw unbounded map (see Q5).
-
-```csharp
-private readonly ConcurrentDictionary<string, Product> _cache = new();
-
-public Product GetBySku(string sku) =>
-    _cache.GetOrAdd(sku, s => _repo.GetBySku(s));
-```
-
-**Production takeaway:** Passing local load tests with one thread hides dictionary thread-safety gaps — Karat expects you to name `ConcurrentDictionary` or explicit locking for shared mutable maps. See foundation **Dictionary** gotcha — not thread-safe for concurrent read/write.
+`Dictionary<TKey,TValue>` computes `GetHashCode()` on the key, maps the result to a bucket index via modulo arithmetic, and stores the entry in that bucket. When two keys hash to the same bucket (a collision), .NET's implementation uses a chained structure where entries in the same bucket are linked via a `next` field in the internal entries array — the bucket effectively heads a short linked list. On lookup the dictionary walks all entries in the matching bucket comparing keys with `Equals` until it finds a match or exhausts the chain. When the ratio of entries to buckets exceeds a load threshold, the dictionary rehashes by allocating a larger bucket array and redistributing all entries. A hash function that always returns the same value degrades all operations to O(n) because every entry lands in one chain.
 
 ---
 
-#### Q4. What is the difference between `Dictionary.Add` and the indexer when the key already exists?
+## Q49. Difference between `Dictionary.Add` and the indexer when the key already exists
 
-(R) A REST endpoint maps query parameters directly into dictionary lookups without null checks. Review the handler:
+**Concepts**
+- Add throws ArgumentException on duplicate
+- indexer silently overwrites on duplicate
+- upsert semantics
+- explicit duplicate detection
+- initialization vs update patterns
 
-**Answer:** When `sku` is omitted, it is `null`. `Dictionary<string, T>.ContainsKey(null)` throws `ArgumentNullException` before the `NotFound()` branch runs — the API returns 500 instead of 400/404. The same rule applies to `Add`, the indexer, and `TryGetValue` with a null reference-type key.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | Null key passed to `ContainsKey` | `ArgumentNullException` — 500 to client |
-| API contract | Missing query param not validated | Wrong status code; noisy error logs |
-| Input hygiene | Nullable `string? sku` used as dictionary key without guard | Any null path hits the same exception |
-
-**Fix (priority order):**
-
-1. Validate input first: `if (string.IsNullOrWhiteSpace(sku)) return BadRequest("sku is required");`
-2. Use `TryGetValue` for the lookup after validation — one lookup, no exception on missing key.
-3. Do not inject `Dictionary<string, Product>` directly into controllers — use a scoped service that owns catalog access and validation.
-4. Return `NotFound()` only after a validated, non-null key misses the catalog.
-
-```csharp
-[HttpGet("product")]
-public IActionResult GetProduct([FromQuery] string? sku, [FromServices] IProductCatalog catalog)
-{
-    if (string.IsNullOrWhiteSpace(sku))
-        return BadRequest("sku is required");
-
-    return catalog.TryGetProduct(sku, out Product? product)
-        ? Ok(product)
-        : NotFound();
-}
-```
-
-**Production takeaway:** Null keys are rejected at the API boundary of `Dictionary<string, …>` — Karat tests whether you validate before touching the collection. See **Program.cs** Section 7c — null key on `Add` throws `ArgumentNullException`.
+`Dictionary.Add(key, value)` throws `ArgumentException` if the key already exists, enforcing the invariant that each key appears at most once and failing loudly when that is violated. The indexer assignment `dict[key] = value` silently replaces the existing value if the key is present, or adds a new entry if it is absent — an "upsert" that never throws for duplicate keys. Use `Add` when a duplicate key is a programming error you want detected immediately; use the indexer when your intent is "set this key to this value regardless of whether it was set before". Mixing them inadvertently is a common source of bugs: `Add` in an initialization loop that can run twice causes exceptions, while the indexer in a uniqueness-critical log causes silent overwrites.
 
 ---
 
-#### Q5. What is the difference between `ContainsKey`, `TryGetValue`, and the indexer for lookup?
+## Q50. Difference between `ContainsKey`, `TryGetValue`, and the indexer for lookup
 
-(D) A microservice adds a static in-memory cache so repeated HTTP fetches are fast. After two weeks in production, pods hit OOM kills even though traffic is steady. Review the cache:
+**Concepts**
+- double hash lookup waste in ContainsKey + indexer
+- TryGetValue single atomic lookup
+- KeyNotFoundException from bare indexer
+- idiomatic C# lookup pattern
+- performance on hot paths
 
-**Answer:** A plain `Dictionary` with no eviction policy grows without bound — every distinct URL adds a full byte array that is never removed. Static lifetime means the cache survives for the process lifetime and is shared across all requests, so memory only increases as URL diversity grows.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | Unbounded key space (`url` strings) + large values (`byte[]`) | OOM kills; GC pressure |
-| Lifecycle | `static` cache never cleared | Memory not reclaimed until process restart |
-| Operations | No TTL, size cap, or LRU | Cannot reason about worst-case footprint |
-| Scale-out | Per-pod static cache | Duplicate memory across replicas; no shared invalidation |
-
-**Fix (priority order):**
-
-1. Replace with `IMemoryCache` (or `MemoryCache`) configured with `SizeLimit`, `CompactionPercentage`, and per-entry `Size` + `AbsoluteExpiration` / `SlidingExpiration`.
-2. For distributed deployments, use `IDistributedCache` (Redis) with explicit TTL instead of unbounded in-process storage.
-3. If a raw dictionary is unavoidable, implement LRU with a max entry count and max total bytes — evict oldest when limits are hit.
-4. Remove `static` — inject a singleton `IMemoryCache` via DI so tests can substitute and options can be configured per environment.
-
-```csharp
-// Program.cs — services
-builder.Services.AddMemoryCache(o =>
-{
-    o.SizeLimit = 10_000; // abstract "size units", set per entry
-});
-
-// Usage
-_cache.GetOrCreate(url, entry =>
-{
-    entry.Size = 1;
-    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
-    return Download(url);
-});
-```
-
-**Production takeaway:** `Dictionary` is a map, not a cache policy — Karat distinguishes "fast lookup" from "safe caching." Unbounded in-memory maps are a common postmortem root cause. See **Program.cs** WHY IT MATTERS — catalogs and caches appear everywhere; size and eviction are production requirements.
+`ContainsKey(key)` performs one hash lookup returning a bool; using the indexer `dict[key]` immediately after performs a second hash lookup to retrieve the value — two hash computations for what should be one operation. `TryGetValue(key, out value)` performs a single hash lookup and returns both the bool result and the value atomically, which is the idiomatic pattern for "get if present" in C#. The bare indexer `dict[key]` throws `KeyNotFoundException` when the key is absent, which is appropriate only when a missing key is a genuine invariant violation that should propagate as an unhandled exception. In any code path where key absence is an expected possibility, prefer `TryGetValue` over the double-lookup pattern.
 
 ---
 
-#### Q6. Why must keys be immutable (or stable) after insertion for correct hash table behavior?
+## Q51. Why must keys be immutable (or stable) after insertion?
 
-(P) A developer avoids `ConcurrentDictionary` and hand-rolls lazy initialization with `TryGetValue`. Under load, the expensive factory runs twice for the same key. Review:
+**Concepts**
+- hash code computed at insertion time
+- wrong-bucket orphaned entry
+- silent lookup failure after mutation
+- remove-reinsert pattern for key changes
+- readonly record struct as safe key
 
-**Answer:** Between `TryGetValue` returning false and `_catalog[sku] = product`, another thread can pass the same check and also call `_repo.LoadProduct(sku)` — classic check-then-act race. Both threads may insert; the last write wins, but you paid for duplicate DB work and may briefly expose inconsistent state.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Non-atomic check-then-add on `Dictionary` | Duplicate expensive loads under parallel requests |
-| Correctness | Two writers without synchronization | Undefined behavior on `Dictionary` itself (see Q3) |
-| Cost | Idempotent DB read assumed | Thundering herd on cold keys at startup or cache flush |
-
-**Fix (priority order):**
-
-1. Use `ConcurrentDictionary.GetOrAdd` so factory execution for a given key is coordinated by the collection.
-2. If the factory is very expensive, wrap with `Lazy<Product>` per key or use `GetOrAdd` with a factory that returns `Lazy<Product>` and then `.Value` once — avoids duplicate work when factory cost dominates.
-3. For single-threaded or scoped usage, plain `TryGetValue` + assign is fine — the bug is specifically shared mutable state under concurrency.
-4. Add metrics on cache misses and factory duration to detect duplicate load spikes in production.
-
-```csharp
-private readonly ConcurrentDictionary<string, Product> _catalog = new();
-
-public Product GetOrLoad(string sku) =>
-    _catalog.GetOrAdd(sku, s => _repo.LoadProduct(s));
-
-// Optional: defer heavy work until first read
-private readonly ConcurrentDictionary<string, Lazy<Product>> _catalog = new();
-
-public Product GetOrLoad(string sku) =>
-    _catalog.GetOrAdd(sku, s => new Lazy<Product>(() => _repo.LoadProduct(s))).Value;
-```
-
-**Production takeaway:** `GetOrAdd` is the production pattern for "compute once per key" in concurrent caches — Karat tests whether you recognize check-then-add as a race, not whether you memorized the method name. Pair with Q3: thread-safe type **and** atomic get-or-create semantics.
+When you insert a key, the dictionary computes `GetHashCode()` and places the entry in the bucket corresponding to that hash. If you later mutate a property that participates in `GetHashCode`, the key's hash value changes but the entry remains in the bucket keyed to the old hash, so any subsequent lookup using the new hash value goes to a different bucket and finds nothing — the entry is technically in the dictionary but permanently unreachable through normal lookup. This causes silent failures where `ContainsKey` returns false and `TryGetValue` returns nothing for a key that is present. The fix is to use immutable keys — `string`, `int`, `readonly record struct`, or sealed classes with constructor-only identity fields — and if a key must change, remove the entry before mutating, then re-insert with the new key value.
 
 ---
 
----
+## Q52. What exception is thrown when accessing a missing key via the indexer?
 
-#### Q7. What exception is thrown when accessing a missing key via the indexer?
+**Concepts**
+- KeyNotFoundException
+- indexer exception vs ArgumentException
+- TryGetValue as non-throwing alternative
+- exception-driven control flow cost
+- defensive coding pattern
 
-_Answer not found._
+**Answer**
 
----
-
-#### Q8. Can `null` be used as a key when `TKey` is a reference type?
-
-_Answer not found._
-
----
-
-#### Q9. What is the average vs worst-case time complexity for lookup, insert, and remove?
-
-_Answer not found._
+Accessing `dict[key]` when the key is not present throws `KeyNotFoundException` with a message indicating the key was not found. Unlike `ArgumentException` thrown by `Add` on a duplicate key, `KeyNotFoundException` signals that expected data was absent at runtime rather than a programming error — it often indicates a data synchronization issue, a stale reference, or a missing configuration entry. Because catching `KeyNotFoundException` for control flow is expensive and obscures intent, prefer `TryGetValue` when key absence is an expected possibility, and use the indexer without a catch only when a missing key represents a genuine invariant violation that should propagate as an unhandled exception.
 
 ---
 
-#### Q10. What is the hash code contract between `GetHashCode` and `Equals` for custom key types?
+## Q53. Can `null` be used as a key when `TKey` is a reference type?
 
-_Answer not found._
+**Concepts**
+- ArgumentNullException for null keys in Dictionary
+- Hashtable null key allowance
+- default equality comparer limitation
+- sentinel value workaround
+- custom IEqualityComparer for null handling
 
----
+**Answer**
 
-#### Q11. What is `IEqualityComparer<TKey>`, and when do you pass a custom comparer to the constructor?
-
-_Answer not found._
-
----
-
-#### Q12. When would you choose `Dictionary` over `List` for lookups by id or SKU?
-
-_Answer not found._
+`Dictionary<TKey,TValue>` throws `ArgumentNullException` when you pass null as a key to `Add`, the indexer, `ContainsKey`, `TryGetValue`, or `Remove` when `TKey` is a reference type, because null cannot have a meaningful hash code computed by the default equality comparer. `Hashtable` is the only built-in .NET map that accepts null as a key by special-casing it to a dedicated slot. If you genuinely need null-as-key semantics in a generic dictionary, one approach is to use a non-null sentinel value as a proxy for null (an empty string, a special static singleton). A custom `IEqualityComparer<TKey>` that explicitly handles null can also be passed to the dictionary constructor to enable null key support.
 
 ---
 
-#### Q13. What happens internally when two keys hash to the same bucket?
+## Q54. Average vs worst-case time complexity for lookup, insert, and remove
 
-_Answer not found._
+**Concepts**
+- average O(1) with good hash distribution
+- worst-case O(n) with constant hash
+- amortized rehash cost
+- load factor threshold
+- practical performance guarantee
+
+**Answer**
+
+With a good hash function that distributes keys evenly across buckets, lookup, insert, and remove are all O(1) average — the hash maps directly to a bucket with zero or very few collisions so the entry is found in a constant number of comparisons. The worst case for all three operations is O(n) when a poor hash function maps every key to the same bucket, degrading the dictionary to a linear scan of one long chain — a constant `GetHashCode` that always returns 0 produces this worst case. Rehashing when the load factor threshold is exceeded costs O(n) as a one-time operation but amortizes to O(1) per insertion across the sequence of insertions, similar to `List<T>.Add` amortized growth. The practical guarantee is effectively O(1) for `string` and primitive keys because their hash functions distribute well.
+
+---
+
+## Q55. Hash code contract between `GetHashCode` and `Equals` for custom key types
+
+**Concepts**
+- equal objects must produce equal hash codes
+- unequal objects may share hash codes (collision)
+- contract violation causes silent lookup failures
+- overriding both Equals and GetHashCode
+- record automatic consistent implementation
+
+**Answer**
+
+The contract requires that if `a.Equals(b)` is true then `a.GetHashCode() == b.GetHashCode()` must also be true — equal objects must hash to the same bucket so lookups can find them. The reverse is not required: two unequal objects can share the same hash code as a collision. Violating the forward direction causes the dictionary to look in the wrong bucket and never find a key even when it is present. The most common violation is overriding `Equals` to compare by field values but forgetting to override `GetHashCode`, which inherits reference-based hashing from `object` and produces different hash codes for two objects that `Equals` considers identical. Records automatically implement both methods consistently based on all primary constructor parameters, which is why they are the safest choice for value-equality key types.
+
+---
+
+## Q56. `IEqualityComparer<TKey>` — when do you pass a custom comparer to the constructor?
+
+**Concepts**
+- external equality definition
+- IEqualityComparer<T> interface
+- case-insensitive string keys
+- domain-specific identity
+- comparer injected for testing
+
+**Answer**
+
+`IEqualityComparer<TKey>` defines `Equals(x, y)` and `GetHashCode(x)` externally to the key type, letting you specify how equality and hashing work for dictionary lookup without modifying the key class. Pass one to the dictionary constructor when the default equality is wrong for your use case — case-insensitive string keys with `StringComparer.OrdinalIgnoreCase`, domain identity different from reference equality such as matching subscribers by email field regardless of object instance, or when the key type is from a library you cannot modify. The passed comparer is used for every `Add`, lookup, and remove operation throughout the dictionary's lifetime, so it must produce consistent results for the same key values.
+
+---
+
+## Q57. When to choose `Dictionary` over `List` for lookups by id or SKU
+
+**Concepts**
+- O(1) dictionary key lookup
+- O(n) list linear scan
+- memory overhead trade-off
+- key-based vs position-based access
+- dual data structure pattern
+
+**Answer**
+
+Use `Dictionary<TKey,TValue>` when the primary operation is looking up items by a key such as id, SKU, or username and you perform many lookups over the collection's lifetime. A `List<Product>` with 10,000 items requires scanning up to 10,000 elements to find one by SKU, while `Dictionary<string,Product>` finds it in O(1) average. The trade-off is that `Dictionary` uses more memory for hash buckets and entry metadata and has no natural ordering. Use `List<T>` when you primarily iterate all elements in sequence, need access by position index, or have a small enough collection that the overhead of building and maintaining a dictionary outweighs the scan cost. A common pattern is maintaining both: a `List<T>` for ordered iteration and a parallel `Dictionary<string,T>` for key-based lookup.
+
+---
+
+## Q58. What happens internally when two keys hash to the same bucket?
+
+**Concepts**
+- bucket chaining in entries array
+- next field linking colliding entries
+- Equals comparison in chain walk
+- rehashing on load factor threshold
+- O(n) worst case with all collisions
+
+**Answer**
+
+In .NET's `Dictionary<TKey,TValue>` implementation each bucket holds an index into an internal `entries` array. When two keys hash to the same bucket index, the second entry is linked to the first via a `next` field in the entries array — the bucket effectively heads a singly-linked chain stored inline within the entries array. On lookup the dictionary computes the hash, finds the bucket index, then walks the chain comparing each entry's key with `Equals` until a match is found or the chain is exhausted. With a good hash function chains stay length 0 or 1 almost always, preserving O(1) average lookup. When the number of entries exceeds the load factor threshold the dictionary rehashes to a larger bucket array, redistributing all entries and reducing average chain length back to near 1.
 
 ---
 
 ### 05. HashSet
 
-#### Q1. Explain `HashSet<T>` and its use cases. How is it different from `List<T>`?
+---
 
-(R) A nightly tag-import job deduplicates article tags with `List<string>.Contains` before insert. Review the hot path:
+## Q59. Explain `HashSet<T>` and its use cases. How is it different from `List<T>`?
 
-**Answer:** `List<T>.Contains` is **O(n)** per call, so importing *m* tags against *n* existing tags approaches **O(n × m)** — fine for unit tests with ten tags, catastrophic at 80k × 200k. Replace the backing store with `HashSet<string>` and the same `StringComparer` so `Add` and `Contains` are **O(1)** average.
+**Concepts**
+- O(1) average membership test
+- automatic duplicate rejection
+- unordered storage
+- ISet<T> interface
+- hash table backing
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Linear scan on every `Contains` | Import SLA missed; CPU spikes on large catalogs |
-| Scalability | List grows; each check walks all elements | Cost compounds as `_knownTags` grows through the run |
-| Collection choice | List chosen for uniqueness | Wrong tool — HashSet exists for exactly this pattern |
-
-**Fix (priority order):**
-
-1. Use `HashSet<string>` with `StringComparer.OrdinalIgnoreCase` as the backing store.
-2. Collapse register to a single `Add` — it returns `false` when the tag is already present.
-
-```csharp
-private readonly HashSet<string> _knownTags =
-    new(StringComparer.OrdinalIgnoreCase);
-
-public bool TryRegisterTag(string tag) => _knownTags.Add(tag);
-```
-
-**Production takeaway:** Karat pairs "works in tests" with hidden **O(n²)** membership — see **Program.cs** Section 9 (HashSet vs List). Always ask lookup frequency and collection size, not just correctness on small data.
+`HashSet<T>` is an unordered collection that stores unique elements using a hash table, giving O(1) average-case `Contains`, `Add`, and `Remove`. It differs from `List<T>` in three ways: duplicate elements are silently rejected (`Add` returns `false` rather than inserting), there is no guaranteed enumeration order, and there is no indexer for position-based access. Use `HashSet<T>` when the primary operations are membership testing ("is this SKU already processed?"), deduplicating a stream, or performing set algebra — all three rely on the O(1) hash lookup that `List<T>` cannot provide because `List.Contains` is O(n).
 
 ---
 
-#### Q2. What is the difference between `SortedSet<T>` and `HashSet<T>`?
+## Q60. Difference between `SortedSet<T>` and `HashSet<T>`
 
-(R) A newsletter service deduplicates subscribers by email but keeps seeing duplicate sends in logs. Review:
+**Concepts**
+- SortedSet red-black tree vs HashSet hash table
+- O(log n) vs O(1) operations
+- IComparer<T> vs IEqualityComparer<T>
+- sorted enumeration and range queries
+- Min/Max members
 
-**Answer:** `HashSet<Subscriber>` without a custom comparer uses **reference equality** for class types — two distinct `Subscriber` objects with the same email are different elements. Pass `SubscriberByEmailComparer` (or override `Equals`/`GetHashCode` on the type) so business identity drives uniqueness.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Default reference equality on reference type | Duplicate emails stored; duplicate emails sent |
-| API misuse | `HashSet` assumed to compare by field values | Silent data-quality bug — `Add` returns `true` twice |
-| Design | Equality rule not wired into collection | `Contains`/`Remove` also fail to find "same" subscriber |
-
-**Fix (priority order):**
-
-1. Construct with the chapter comparer: `new HashSet<Subscriber>(new SubscriberByEmailComparer())`.
-2. Alternatively, use `SubscriberIdentity`-style immutable type with `IEquatable<T>` + consistent `GetHashCode` on `Email`.
-
-```csharp
-private readonly HashSet<Subscriber> _subscribers =
-    new(new SubscriberByEmailComparer());
-```
-
-**Production takeaway:** Custom types in HashSet/Dictionary **never** dedupe by field values unless you supply equality — see **Program.cs** Section 6 vs Section 7.
+`HashSet<T>` stores elements in a hash table with no ordering guarantee, giving O(1) average add/remove/contains. `SortedSet<T>` stores elements in a red-black tree sorted by `IComparer<T>`, giving O(log n) for the same operations but with elements always in sorted order on enumeration. `SortedSet<T>` also exposes `Min`, `Max`, `GetViewBetween(low, high)`, and `Reverse()` which are impossible on an unordered set. Use `SortedSet<T>` when you need both uniqueness and sorted iteration or range queries; use `HashSet<T>` when only fast membership and deduplication matter and order is irrelevant.
 
 ---
 
-#### Q3. Why does `HashSet<T>` require correct `GetHashCode()`/`Equals()` for custom types?
+## Q61. Why does `HashSet<T>` require correct `GetHashCode()`/`Equals()` for custom types?
 
-(R) After a profile-update feature ships, support reports "user already subscribed" errors even when lookup fails. Review:
+**Concepts**
+- hash bucket placement by GetHashCode
+- Equals for collision resolution in bucket walk
+- silent failure on contract violation
+- equal objects must produce equal hash codes
+- overriding both methods together
 
-**Answer:** `GetHashCode` was computed from `Email` at `Add` time and placed the object in a bucket keyed to the old hash. Mutating `Email` afterward leaves the object in the **wrong bucket**, so `Contains` returns `false` even though the instance is still in the set — classic broken hash contract with mutable keys.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Mutable field participates in `GetHashCode` | Lookup/remove fail after in-place edit |
-| Hash contract | Hash at insert ≠ hash at lookup | Element orphaned inside set — `Count` includes it but `Contains` misses |
-| Design | Writable `Email` on set member type | Same rule as Dictionary keys — must be immutable for hashed collections |
-
-**Fix (priority order):**
-
-1. Make identity fields immutable (`init` or constructor-only), matching `SubscriberIdentity` in **Program.cs** Section 7.
-2. If email must change, **remove** old identity from the set and **add** a new object (or rebuild the set).
-3. Never mutate fields that feed `Equals`/`GetHashCode` while the instance lives inside a `HashSet` or `Dictionary`.
-
-```csharp
-public sealed class SubscriberProfile
-{
-    public string Email { get; }
-    public string Name { get; set; }
-
-    public SubscriberProfile(string email, string name)
-    {
-        Email = email;
-        Name = name;
-    }
-    // Equals/GetHashCode on Email only
-}
-```
-
-**Production takeaway:** Karat tests whether you treat HashSet elements like **Dictionary keys** — mutable hash inputs cause silent lookup failures, not exceptions.
+`HashSet<T>` places each element in a bucket determined by `GetHashCode()`, then uses `Equals` to distinguish elements within the same bucket. If two logically equal objects return different hash codes, the second one lands in a different bucket and `Contains` returns false even though a matching element exists — deduplication silently fails and both objects end up stored. The most common violation is overriding `Equals` to compare by field values without overriding `GetHashCode`, which inherits reference-based hashing from `object` and produces different hash codes for two instances that `Equals` considers identical. Records automatically implement both methods consistently, which is why they are the safest key/element types for hash-based collections.
 
 ---
 
-#### Q4. What set operations does `HashSet<T>` provide (`UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`)?
+## Q62. Set operations: `UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`
 
-(R) An editorial dashboard merges article tag sets for a "shared topics" widget. Case variants appear twice after deploy. Review:
+**Concepts**
+- mutating in-place semantics
+- UnionWith adds from other
+- IntersectWith keeps only common elements
+- ExceptWith removes what is in other
+- SymmetricExceptWith keeps only non-overlapping elements
 
-**Answer:** `HashSet<T>.Union` as a LINQ extension on `IEnumerable<T>` uses **default sequence equality** (`EqualityComparer<string>.Default` → **Ordinal**, case-sensitive), **not** the HashSet's internal `StringComparer.OrdinalIgnoreCase`. Re-wrapping in `new HashSet<string>(allTopics)` without a comparer keeps Ordinal semantics, so `"csharp"` and `"CSharp"` coexist as distinct entries.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | LINQ set ops ignore HashSet's comparer | Logical duplicates in UI and analytics |
-| API confusion | `Union` on HashSet still calls `Enumerable.Union` | Developer's comparer choice on construction does not flow to LINQ |
-| Data quality | Default `HashSet` ctor uses Ordinal | Case variants inflate counts and break deduped filters |
-
-**Fix (priority order):**
-
-1. Pass the same comparer when materializing: `new HashSet<string>(dotnetTags.Union(linqTags), StringComparer.OrdinalIgnoreCase)`.
-2. Or use mutating `UnionWith` on a **copy** if you need set instance semantics with the existing comparer.
-3. For intersection-only widgets, same rule: `new HashSet<string>(a.Intersect(b), comparer)`.
-
-```csharp
-var widgetTags = new HashSet<string>(
-    dotnetTags.Union(linqTags),
-    StringComparer.OrdinalIgnoreCase);
-```
-
-**Production takeaway:** LINQ `Union`/`Intersect`/`Except` are **comparer-agnostic** — see **Program.cs** Section 3. Always thread `IEqualityComparer<T>` through the final `HashSet` constructor.
+All four methods mutate the receiver in place. `UnionWith(other)` adds every element from `other` not already present. `IntersectWith(other)` removes elements not present in `other`, keeping only the intersection. `ExceptWith(other)` removes elements that appear in `other`, leaving the set difference. `SymmetricExceptWith(other)` removes elements present in both and adds elements present only in `other`, keeping non-overlapping elements from either side. Since all four modify the receiver, always operate on a copy when the original set must remain unchanged — use LINQ `Union`, `Intersect`, and `Except` for non-mutating equivalents, passing the result to a new `HashSet<T>` constructor with the correct comparer.
 
 ---
 
-#### Q5. What is the difference between `Add` returning `false` on duplicate vs `List.Add` behavior?
+## Q63. `Add` returning `false` on duplicate vs `List.Add` behavior
 
-(R) A publish pipeline accidentally wipes an editor's working tag pool. Review the merge step:
+**Concepts**
+- HashSet.Add return value as duplicate signal
+- List.Add unconditional append (void)
+- combined add-if-absent semantics
+- deduplication without pre-check
+- TryAdd pattern
 
-**Answer:** `IntersectWith` **mutates the caller** (`editorPool`) in place, keeping only elements also in `draftTags`. The developer needed a **non-mutating** preview — the chapter's LINQ `Intersect` (Section 3) or a copy-then-`IntersectWith` pattern (Section 4).
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `IntersectWith` vs intended read-only preview | `"csharp"` and `"security"` permanently removed from working pool |
-| API misuse | Confused mutating (`*With`) vs LINQ extension methods | Downstream `UnionWith` cannot restore deleted tags |
-| Operational | Shared `editorPool` referenced elsewhere | Other features see truncated set — data loss in session state |
-
-**Fix (priority order):**
-
-1. Non-mutating LINQ: `var preview = new HashSet<string>(editorPool.Intersect(draftTags), StringComparer.OrdinalIgnoreCase);`
-2. Or copy first: `var preview = new HashSet<string>(editorPool, comparer); preview.IntersectWith(draftTags);`
-3. Reserve `IntersectWith` for intentional in-place filtering when building a working set incrementally.
-
-```csharp
-var preview = new HashSet<string>(
-    editorPool.Intersect(draftTags),
-    StringComparer.OrdinalIgnoreCase);
-// editorPool unchanged: csharp, dotnet, security
-```
-
-**Production takeaway:** `*With` methods return `void` and modify **this** — Karat loves swapping them with LINQ equivalents. Read method names literally before calling on shared state.
+`HashSet<T>.Add(item)` returns `true` if the element was inserted and `false` if it already existed, making the return value a meaningful duplicate signal — the method serves as a combined "add if not present" in one call. `List<T>.Add(item)` always appends unconditionally and returns `void`; it has no concept of duplicates since a list allows the same value at multiple positions. This means using `HashSet<T>` for deduplication requires no separate `Contains` check before `Add`, which eliminates a double-lookup and makes the intent clear. For a `List<T>`, you must call `Contains` first, adding O(n) cost per insertion.
 
 ---
 
-#### Q6. How do you construct a `HashSet<T>` with custom equality (`IEqualityComparer<T>`)?
+## Q64. Constructing `HashSet<T>` with custom equality (`IEqualityComparer<T>`)
 
-(R) A custom comparer passes code review but `Remove` and `Contains` behave inconsistently. Review:
+**Concepts**
+- IEqualityComparer<T> constructor parameter
+- StringComparer built-in comparers
+- comparer governs all operations for lifetime
+- LINQ set ops require separate comparer pass-through
+- external equality without modifying key type
 
-**Answer:** `Equals` compares **Email** but `GetHashCode` hashes **Name** — violating the rule that equal objects must share the same hash code. The second subscriber lands in a different bucket, so `Contains`/`Remove` miss while duplicate `Add` behavior looks arbitrary.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `GetHashCode`/`Equals` inconsistency | Silent failures — worst kind of collection bug |
-| Hash contract | Equal-by-email objects can differ by hash | `Remove` returns false for objects that "should" match |
-| Code review | Comparer named `ByName` but equals on Email | Copy-paste defect easy to miss without contract tests |
-
-**Fix (priority order):**
-
-1. Derive hash from the **same fields** used in `Equals` — here, email case-insensitively.
-2. Add unit tests: if `Equals(a,b)` then `GetHashCode(a) == GetHashCode(b)`; round-trip `Add`/`Contains`/`Remove`.
-
-```csharp
-public int GetHashCode(Subscriber obj) =>
-    StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Email);
-```
-
-**Production takeaway:** HashSet and Dictionary failures from bad comparers **do not throw** — they return wrong `bool` results. Same contract as **Program.cs** Section 6 quick reference: *Equal objects → same hash code*.
+Pass an `IEqualityComparer<T>` to the `HashSet<T>` constructor: `new HashSet<string>(StringComparer.OrdinalIgnoreCase)` creates a case-insensitive set. The comparer governs all `Add`, `Contains`, and `Remove` operations for the lifetime of the set. When using LINQ set operators like `Union`, `Intersect`, or `Except` on the results of a `HashSet<T>` with a custom comparer, pass the same comparer to the final `HashSet<T>` constructor wrapping the result — LINQ accepts `IEqualityComparer<T>` as an optional parameter but the existing set's comparer does not flow through automatically.
 
 ---
 
-#### Q7. When would you use `HashSet<T>` for deduplication vs `Distinct()` in LINQ?
+## Q65. `HashSet<T>` for deduplication vs `Distinct()` in LINQ
 
-_Answer not found._
+**Concepts**
+- HashSet for explicit set ownership
+- Distinct for pipeline deduplication
+- materialized set for multi-pass use
+- comparer specification in both
+- incremental membership tracking
 
----
+**Answer**
 
-#### Q8. What is the difference between set membership test in `HashSet` vs scanning a `List`?
-
-_Answer not found._
-
----
-
-#### Q9. What is `IsSubsetOf`, `IsSupersetOf`, and `Overlaps` used for?
-
-_Answer not found._
+Use `HashSet<T>` when you need explicit ownership of a deduplicated collection that will be queried or mutated repeatedly, when elements arrive incrementally and each must be checked as it arrives, or when you need set algebra operations. Use LINQ `Distinct()` when deduplication is one step in a larger pipeline consumed once, since `Distinct` is deferred and composes naturally into a query chain. Both accept a custom comparer — `Distinct(comparer)` and `new HashSet<T>(sequence, comparer)` — but materializing into a `HashSet<T>` is the right choice when the deduplicated collection will be used as a lookup set later in the same request.
 
 ---
 
-#### Q10. Can you modify an element in a `HashSet` in place if it affects equality — what goes wrong?
+## Q66. Set membership test in `HashSet` vs scanning a `List`
 
-_Answer not found._
+**Concepts**
+- O(1) HashSet.Contains
+- O(n) List.Contains linear scan
+- nested loop O(n²) hazard
+- warm-up cost for HashSet construction
+- break-even point
+
+**Answer**
+
+`HashSet<T>.Contains(item)` is O(1) average — it computes the hash, finds the bucket, and walks a typically zero or one-element chain. `List<T>.Contains(item)` is O(n) — it scans every element from index 0 until it finds a match or exhausts the list. For a single lookup on a short list the difference is negligible, but for repeated membership tests in an outer loop checking each incoming item against a 50,000-element seen-set, the total cost is O(n²) for a list versus O(n) for a hash set. The break-even point is roughly 10–20 elements — below that a list's simple sequential scan is competitive because it avoids hash computation overhead.
+
+---
+
+## Q67. `IsSubsetOf`, `IsSupersetOf`, and `Overlaps`
+
+**Concepts**
+- IsSubsetOf checks every receiver element exists in other
+- IsSupersetOf checks every other element exists in receiver
+- Overlaps checks for any common element
+- ISet<T> interface methods
+- cheaper than full intersection for boolean result
+
+**Answer**
+
+`IsSubsetOf(other)` returns true when every element in the receiver also appears in `other` — useful for checking whether a required permission set is fully satisfied by a granted set. `IsSupersetOf(other)` returns true when the receiver contains every element of `other` — the inverse, useful for asserting that a full catalog covers a required subset. `Overlaps(other)` returns true when the two sets share at least one common element without computing the full intersection — cheaper than `IntersectWith` when you only need to know whether any overlap exists. All three are O(n) in the smaller set since they must verify each element, but avoid allocating a new set the way a full intersection would.
+
+---
+
+## Q68. Modifying an element in `HashSet` in place if it affects equality
+
+**Concepts**
+- in-place mutation of hashed element
+- wrong bucket after hash-affecting mutation
+- orphaned element (Count includes it, Contains misses it)
+- remove-modify-reinsert pattern
+- immutable identity fields
+
+**Answer**
+
+Mutating a property that participates in `GetHashCode` or `Equals` while the element is in a `HashSet<T>` leaves the element in the bucket corresponding to the old hash, so subsequent `Contains`, `Remove`, and set operations stop finding it. The element is still counted — `Count` includes it — but every hash-based operation looks in the new-hash bucket and finds nothing while the element sits unreachable in the old bucket. The correct pattern is to remove before mutating, apply the change, then re-add: `set.Remove(item); item.Field = newValue; set.Add(item)`. Better long-term is making identity fields immutable (`init` or readonly) so mutation that would break the hash contract is prevented at the type level.
 
 ---
 
 ### 06. Queue and Stack
 
-#### Q1. Explain `Queue<T>` and `Stack<T>` vs their non-generic counterparts.
+---
 
-(R) A help-desk service was refactored from `Queue<SupportTicket>` to `Stack<SupportTicket>` "because stacks are faster." Review the handler loop. What ordering bug appears in production, and how do you fix it?
+## Q69. `Queue<T>` and `Stack<T>` vs their non-generic counterparts
 
-**Answer:** `Stack<T>` is LIFO — the last ticket pushed is the first popped — so SLA fairness is inverted: newest tickets are resolved before older ones waiting longer. Ticket queues require FIFO semantics, which `Queue<T>` enforces at the type level.
+**Concepts**
+- generic type safety eliminates boxing
+- TryDequeue/TryPop safe non-throwing variants
+- non-generic Queue/Stack store object elements
+- compile-time type checking on Enqueue/Push
+- explicit cast required on non-generic read
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `Stack` + `Push`/`Pop` for arrival-order work | Newest-first processing — SLA breaches on oldest tickets |
-| Naming/API | Method still named `EnqueueTicket` but calls `Push` | Misleading API; code review misses semantic mismatch |
-| Design | Chose collection for perceived speed, not ordering rule | Wrong abstraction — `List<T>` with `Insert(0,…)` would be equally wrong |
-
-**Fix (priority order):**
-
-1. Restore `Queue<SupportTicket>` with `Enqueue` / `TryDequeue` (or `Dequeue` when empty is impossible by contract).
-2. Rename methods to match semantics: `EnqueueTicket` + `TryResolveNextTicket` as in **Program.cs** Section 4.
-3. If priority tiers are needed later, use `PriorityQueue<TElement, TPriority>` — not `Stack<T>`.
-4. Document ordering invariant in tests: enqueue A, B, C → resolve A, B, C.
-
-```csharp
-private readonly Queue<SupportTicket> _pending = new();
-
-public void EnqueueTicket(SupportTicket ticket) => _pending.Enqueue(ticket);
-
-public bool TryResolveNext(out SupportTicket ticket) => _pending.TryDequeue(out ticket);
-```
-
-**Production takeaway:** Karat tests whether you match collection type to business ordering — FIFO for fair queues, LIFO for undo/call-stack models. See **Program.cs** Section 1 — FIFO vs LIFO table.
+Generic `Queue<T>` and `Stack<T>` store elements in typed arrays, avoiding boxing for value types and providing compile-time type checking on `Enqueue`/`Push` and `Dequeue`/`Pop`. Non-generic `Queue` and `Stack` (in `System.Collections`) store `object` elements, boxing value types on every operation and returning `object` that requires an explicit cast on read. The generic versions also introduce the try-patterns absent from the non-generic API: `TryDequeue(out T)`, `TryPeek(out T)`, and `TryPop(out T)` return `bool` without throwing when the collection is empty, making consumer loops cleaner than the `Count > 0` + `Dequeue` pattern required with the non-generic types.
 
 ---
 
-#### Q2. What is FIFO vs LIFO, and which collection maps to each?
+## Q70. FIFO vs LIFO, and which collection maps to each
 
-(R) A background worker drains a print queue when the upstream publisher is idle. Under load, the service logs unhandled `InvalidOperationException` and the host restarts. Review the consumer:
+**Concepts**
+- FIFO — first-in, first-out ordering
+- LIFO — last-in, first-out ordering
+- Queue<T> implements FIFO
+- Stack<T> implements LIFO
+- ordering invariant determines use case
 
-```csharp
-public sealed class PrintWorker
-{
-    private readonly Queue<PrintJob> _jobs = new Queue<PrintJob>();
+**Answer**
 
-    public void Submit(PrintJob job) => _jobs.Enqueue(job);
-
-    public void Run(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            PrintJob job = _jobs.Dequeue();  // throws when queue empty
-            Print(job);
-        }
-    }
-}
-```
-
-What breaks, and how would you harden this for production idle periods?
-
-**Answer:** `Dequeue()` throws `InvalidOperationException` when the queue is empty — the tight loop calls it continuously during idle periods, crashing the worker instead of waiting for the next job.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Dequeue()` on empty queue | Unhandled exception → host restart / lost in-flight work |
-| Control flow | Busy loop with no back-off when empty | 100% CPU spin if switched to `Count` check without delay |
-| Concurrency | Plain `Queue<T>` if multiple producers (minor here) | Not thread-safe — separate from empty-queue bug but common in same services |
-
-**Fix (priority order):**
-
-1. Replace `Dequeue()` with `TryDequeue(out PrintJob? job)` — process only when `true`.
-2. When empty, await a signal (`Channel<PrintJob>`, `BlockingCollection<T>`, or `ManualResetEventSlim` + lock) instead of spinning.
-3. Optionally combine with `await Task.Delay(pollInterval, ct)` only if a simple poll model is acceptable — prefer event-driven dequeue.
-4. For multi-producer scenarios, use `ConcurrentQueue<T>` or a `Channel<T>` writer/reader pair.
-
-```csharp
-public async Task RunAsync(CancellationToken ct)
-{
-    while (!ct.IsCancellationRequested)
-    {
-        if (_jobs.TryDequeue(out PrintJob? job))
-        {
-            Print(job);
-            continue;
-        }
-
-        await Task.Delay(100, ct); // or await _signal.WaitAsync(ct);
-    }
-}
-```
-
-**Production takeaway:** Empty is an expected state for workers — `TryDequeue`/`TryPop` exist precisely to avoid exception-driven control flow. See **Program.cs** Section 2a — empty queue behavior.
+FIFO (first-in, first-out) means elements are processed in the order they were added — the first item enqueued is the first dequeued. `Queue<T>` implements FIFO with `Enqueue` adding to the tail and `Dequeue` removing from the head, naturally modeling task queues, message buffers, and any "serve in arrival order" scenario. LIFO (last-in, first-out) means the most recently added element is the first removed. `Stack<T>` implements LIFO with `Push` adding to the top and `Pop` removing from the top, naturally modeling undo history, call stacks, expression evaluation, and depth-first search frontiers.
 
 ---
 
-#### Q3. What operations does `Queue<T>` expose (`Enqueue`, `Dequeue`, `Peek`, `TryDequeue`, `TryPeek`)?
+## Q71. Operations `Queue<T>` exposes
 
-(P) Three ASP.NET Core request threads enqueue audit events; one background `IHostedService` dequeues them for batch upload. The team shares one `Queue<AuditEvent>` instance registered as a **Singleton**. Occasionally events disappear or `InvalidOperationException` appears under concurrent `Enqueue`/`Dequeue`. Explain why `Queue<T>` is unsafe here and what you would register instead.
+**Concepts**
+- Enqueue adds to tail
+- Dequeue removes from head (throws if empty)
+- Peek reads head without removing (throws if empty)
+- TryDequeue and TryPeek safe non-throwing variants
+- circular array amortized O(1) operations
 
-**Answer:** `Queue<T>` is not thread-safe — concurrent `Enqueue` and `Dequeue` from multiple threads corrupt internal state without external locking, causing lost items or exceptions. A singleton shared across request threads requires a concurrent collection or a `Channel<T>`.
+**Answer**
 
-- **`ConcurrentQueue<T>`:** Lock-free FIFO safe for multiple producers and consumers; `TryDequeue` for the background drainer. Good when you only need in-memory fan-in.
-- **`Channel<T>` (System.Threading.Channels):** Preferred in modern ASP.NET Core — bounded capacity for back-pressure, async `Reader.ReadAllAsync`, clean producer/consumer split in DI.
-- **`BlockingCollection<T>`:** Legacy pattern wrapping a concurrent queue with blocking take — workable but heavier than channels for new code.
-- **Do not** wrap `Queue<T>` in a singleton and synchronize ad hoc on every call without reviewing lock ordering — easy to deadlock with `Dequeue` inside `lock` while producers hold the same lock incorrectly.
-
-```csharp
-// Registration sketch
-builder.Services.AddSingleton(Channel.CreateBounded<AuditEvent>(
-    new BoundedChannelOptions(10_000) { FullMode = BoundedChannelFullMode.Wait }));
-builder.Services.AddHostedService<AuditBatchUploader>();
-```
-
-**Production takeaway:** FIFO ordering does not imply thread safety — choose `ConcurrentQueue<T>` or `Channel<T>` when a queue crosses thread boundaries. See **Program.cs** Section 2 — `Queue<T>` API assumes single-threaded mutation unless externally synchronized.
+`Enqueue(item)` adds an element to the tail. `Dequeue()` removes and returns the head element, throwing `InvalidOperationException` if the queue is empty. `Peek()` returns the head without removing it, also throwing if empty. `TryDequeue(out T result)` and `TryPeek(out T result)` are the non-throwing equivalents returning `false` when empty — these are correct for consumer loops where an empty queue is a normal operational state rather than an error. The underlying implementation uses a circular array that doubles when full, giving amortized O(1) for `Enqueue` and O(1) for `Dequeue` without element shifting.
 
 ---
 
-#### Q4. What operations does `Stack<T>` expose (`Push`, `Pop`, `Peek`, `TryPop`)?
+## Q72. Operations `Stack<T>` exposes
 
-(M) A developer rewrites maze pathfinding from the chapter's BFS to recursive DFS. On large grids the process terminates with `StackOverflowException`. They propose "just use `Stack<T>` instead of recursion." Review both approaches:
+**Concepts**
+- Push adds to top
+- Pop removes from top (throws if empty)
+- Peek reads top without removing (throws if empty)
+- TryPop safe non-throwing variant
+- array-backed with amortized O(1) Push/Pop
 
-```csharp
-// Original (chapter-style BFS) — works on large maze
-Queue<(int Row, int Col)> frontier = new();
-frontier.Enqueue(start);
-while (frontier.TryDequeue(out var current)) { /* expand neighbors */ }
+**Answer**
 
-// Rewrite — deep recursion on 2000×2000 grid
-void Dfs(int row, int col)
-{
-    if (visited[row, col]) return;
-    visited[row, col] = true;
-    foreach (var neighbor in GetNeighbors(row, col))
-        Dfs(neighbor.Row, neighbor.Col);  // one frame per depth level
-}
-```
-
-What actually causes the overflow, and when does an explicit `Stack<T>` fix it vs when recursion is acceptable?
-
-**Answer:** `StackOverflowException` comes from the **CLR call stack** — each recursive `Dfs` call consumes a stack frame (~1 MB default thread stack limit), not from `Stack<T>` heap storage. Replacing recursion with an explicit `Stack<(int,int)>` loop uses the heap for frontier cells, avoiding deep call stacks on large grids.
-
-- **Cause:** Depth-first recursion on a path thousands of cells long nests that many frames; the OS/thread stack overflows before the algorithm finishes.
-- **Explicit `Stack<T>` fix:** Push start cell; `while (stack.TryPop(out current))` expand neighbors and push unvisited — same LIFO DFS order, bounded by heap memory instead of call-stack depth.
-- **When recursion is fine:** Shallow trees (expression AST depth &lt; ~100), divide-and-conquer with logarithmic depth, or problems with guaranteed small branching depth.
-- **BFS vs DFS choice (related):** Chapter BFS with `Queue<T>` finds shortest paths in unweighted grids; DFS (recursive or `Stack<T>`) does not guarantee shortest path but uses less memory for some sparse graphs.
-- **Not a fix:** Switching BFS to `Stack<T>` without changing algorithm — that yields DFS traversal order and breaks shortest-path guarantees from **Program.cs** Section 5.
-
-**Production takeaway:** Karat distinguishes the **call stack** (recursion limit) from **`Stack<T>`** (heap collection) — iterative DFS with `Stack<T>` is the standard production pattern for deep graph search.
+`Push(item)` adds an element to the top of the stack. `Pop()` removes and returns the top element, throwing `InvalidOperationException` when empty. `Peek()` returns the top element without removing it, also throwing when empty. `TryPop(out T result)` is the non-throwing variant that returns `false` when empty, making it the correct choice for iterative algorithms where the stack naturally empties as the algorithm completes. The underlying implementation uses an array that doubles when full, giving amortized O(1) for both `Push` and `Pop`.
 
 ---
 
-#### Q5. Why do `Queue` and `Stack` not support random access by index?
+## Q73. Why `Queue` and `Stack` do not support random access by index
 
-(D) Your team must pick a frontier collection for two graph tasks on an unweighted social network: (A) find **shortest path** in friend hops from user A to user B, and (B) detect whether a **cycle** exists in a follow graph (direction matters). One engineer says "both are graph search — use `Stack<T>` for both." What would you choose for each task and why?
+**Concepts**
+- restricted end-access by design
+- semantic contract enforcement
+- indexer would expose middle elements
+- ordering invariant preserved
+- List<T> as alternative when random access needed
 
-**Answer:** Shortest hop count in an unweighted graph requires BFS with `Queue<T>` so nodes are discovered in non-decreasing distance from the start; cycle detection in a directed graph is typically DFS with `Stack<T>` (or recursion) and a recursion/recursion-stack coloring strategy — not the same frontier choice.
+**Answer**
 
-**Task A — shortest friend hops (unweighted):**
-
-- Use **`Queue<UserId>`** BFS — first time you dequeue B, you have minimum hop count.
-- `Stack<T>` DFS may find *a* path quickly but not the shortest — wrong for "degrees of separation" product features.
-
-**Task B — cycle in directed follow graph:**
-
-- Use **DFS** with **`Stack<UserId>`** (explicit or recursion) plus `visited` / `onStack` (three-color) state to detect back edges.
-- BFS with `Queue<T>` finds cycles in undirected graphs with parent tracking but directed cycle detection is awkward with BFS alone.
-
-| Task | Collection | Why |
-|---|---|---|
-| Shortest hops (unweighted) | `Queue<T>` — BFS | Layer-by-layer discovery = minimum edges |
-| Directed cycle detection | `Stack<T>` — DFS | Back edge to active stack frame signals cycle |
-
-- **Production note:** At web scale, graph logic moves to a graph DB or precomputed index — but the collection choice still signals correct algorithmic reasoning in code reviews and Karat screens.
-
-**Production takeaway:** Match FIFO vs LIFO to the **invariant** you need (shortest layer vs deep path/back-edge detection), not to "both are graphs." See **Program.cs** Quick Reference — BFS → `Queue<T>`, DFS → `Stack<T>` or recursion.
+`Queue<T>` and `Stack<T>` deliberately expose only end-access operations because their semantic contracts — FIFO and LIFO — are their defining value. Exposing an indexer would encourage using them as general-purpose lists, undermining the ordering guarantees that make them useful for their intended patterns. The underlying circular array and array implementations could technically support indexing, but doing so would allow callers to access or remove elements from the middle, which would break the queue or stack invariant. If you need both end-based semantics and random access, use `List<T>` with explicit discipline about which end is operated on.
 
 ---
 
-#### Q6. How is `Queue<T>` used in breadth-first search (BFS) on a graph or grid?
+## Q74. `Queue<T>` in breadth-first search (BFS)
 
-(R) A response editor copied from the chapter's `HelpDeskSession` mixes undo (`Stack<string>`) with ticket draining. Review this merge:
+**Concepts**
+- frontier queue for layer-by-layer expansion
+- enqueue start, dequeue-process-enqueue-neighbors loop
+- visited HashSet<T> to prevent re-processing
+- shortest path guarantee in unweighted graphs
+- FIFO ordering drives layer-by-layer traversal
 
-```csharp
-public sealed class AgentSession
-{
-    private readonly Queue<SupportTicket> _tickets = new();
-    private readonly Stack<string> _undo = new();
-    private readonly StringBuilder _draft = new();
+**Answer**
 
-    public void BeginResponse(SupportTicket ticket)
-    {
-        _draft.Clear();
-        _undo.Clear();                    // clears undo history
-        _tickets.Enqueue(ticket);         // re-queues active ticket to tail
-    }
-
-    public void ApplyEdit(Action<StringBuilder> edit)
-    {
-        _undo.Push(_draft.ToString());
-        edit(_draft);
-    }
-
-    public SupportTicket? TakeNextTicket()
-    {
-        return _tickets.Count > 0 ? _tickets.Dequeue() : null;
-    }
-}
-```
-
-The agent reports tickets jumping to the back of the line and undo lost mid-edit. What went wrong with collection choice and API usage?
-
-**Answer:** `BeginResponse` misuses both collections — it re-`Enqueue`s the ticket already being worked (sending it to the tail instead of keeping it as the active item) and clears the undo stack even when only the draft should reset. Tickets and undo stacks serve different lifecycles and must not be conflated in one "begin" method.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Queue misuse | `Enqueue(ticket)` on ticket already removed for editing | Ticket moves to back — others processed first |
-| Stack misuse | `_undo.Clear()` on every begin | Undo history wiped — agent cannot revert prior edits |
-| API design | `BeginResponse` accepts ticket param implying re-queue | Confuses "start draft text" with "return ticket to queue" |
-| Empty handling | `TakeNextTicket` uses ternary + `Dequeue` | Acceptable here, but inconsistent with chapter's `TryDequeue` pattern |
-
-**Fix (priority order):**
-
-1. Split responsibilities: `TryResolveNextTicket` dequeues once; `BeginResponse(string openingLine)` only clears draft + undo — **no** queue mutation (mirror **Program.cs** Section 4 `HelpDeskSession`).
-2. Do not pass the active ticket back into the queue until the response is sent or explicitly re-queued.
-3. Clear `_undo` only when starting a **new** response for a **new** ticket, not on every keystroke batch.
-4. Prefer `TryDequeue` over `Count` + `Dequeue` to avoid races if the session becomes multi-threaded.
-
-```csharp
-public void BeginResponse(string openingLine)
-{
-    _undo.Clear();
-    _draft.Clear();
-    _draft.Append(openingLine);
-}
-
-public bool TryResolveNextTicket(out SupportTicket ticket)
-    => _tickets.TryDequeue(out ticket);
-```
-
-**Production takeaway:** Queue and Stack often appear together in one workflow (tickets FIFO + undo LIFO) — Karat tests that you keep each collection's contract isolated. See **Program.cs** Section 4 — help-desk scenario wiring.
+BFS uses a `Queue<T>` as a frontier — enqueue the start node, then repeatedly dequeue the head node, process it, and enqueue all of its unvisited neighbors. Because `Queue<T>` is FIFO, all nodes at distance 1 from the start are processed before any node at distance 2, ensuring that the first time you reach a destination node you have found the shortest path in terms of edge count. The typical pattern pairs the queue with a `HashSet<T>` of visited nodes: before enqueuing a neighbor check `visited.Contains(neighbor)` and add to visited at the same time as enqueue to prevent processing the same node twice and entering cycles.
 
 ---
 
-#### Q7. Why does BFS find shortest paths in unweighted graphs?
+## Q75. Why BFS finds shortest paths in unweighted graphs
 
-_Answer not found._
+**Concepts**
+- layer-by-layer FIFO expansion
+- non-decreasing distance ordering
+- minimum edge count on first reach
+- unweighted edge assumption (all edges cost 1)
+- DFS comparison — no such guarantee
 
----
+**Answer**
 
-#### Q8. What real-world workflows map naturally to a stack (undo/redo, call stack, DFS)?
-
-_Answer not found._
-
----
-
-#### Q9. What is the difference between non-generic `Queue`/`Stack` and generic versions regarding boxing?
-
-_Answer not found._
+BFS explores nodes in non-decreasing order of their distance from the source because the queue's FIFO ordering means all nodes enqueued at step k (distance k edges) are dequeued before any node enqueued at step k+1. Since every edge has the same weight of 1 in an unweighted graph, processing nodes layer by layer means the first time you dequeue the destination node you have reached it via the minimum number of edges — any later path to that node would have been enqueued at a greater step. DFS has no such guarantee because it pursues one branch as deeply as possible before backtracking, potentially discovering a long path before a short one.
 
 ---
 
-#### Q10. When would you use `Queue<T>` over `List<T>` with remove-from-front patterns?
+## Q76. Real-world workflows that map to a stack
 
-_Answer not found._
+**Concepts**
+- undo/redo history (push on edit, pop to undo)
+- CLR call stack (push frame, pop on return)
+- depth-first search frontier
+- expression evaluation and bracket matching
+- backtracking algorithms
+
+**Answer**
+
+Undo/redo systems push state snapshots or command objects onto a `Stack<T>` on each edit; `Pop` retrieves the most recent state to restore, which is the LIFO property applied to editing history. The CLR call stack is itself a stack — each method invocation pushes a frame with local variables and the return address, and returning pops it, which is why deeply recursive algorithms overflow with `StackOverflowException`. Depth-first search uses an explicit `Stack<T>` as its frontier: push the start node, then repeatedly pop, process, and push unvisited neighbors — LIFO ensures you pursue one path deeply before exploring siblings. Other uses include expression parsing with operator-precedence (shunting-yard), bracket matching in syntax highlighters, and Sudoku solvers that backtrack to the last decision point.
+
+---
+
+## Q77. Non-generic `Queue`/`Stack` vs generic versions regarding boxing
+
+**Concepts**
+- non-generic object[] backing causes boxing
+- generic T[] backing avoids boxing for value types
+- cast required on non-generic read
+- allocation rate difference in hot loops
+- reference types unaffected
+
+**Answer**
+
+Non-generic `Queue` and `Stack` (in `System.Collections`) store elements in `object[]` backing arrays, so every `int`, `bool`, or other value type is boxed into a heap object on `Enqueue`/`Push` and unboxed (with an explicit cast) on `Dequeue`/`Pop`. Generic `Queue<T>` and `Stack<T>` store elements in `T[]` backing arrays so value-type elements are unboxed with no per-element heap allocation. For reference types the behavior is identical since references are stored directly in both cases. The boxing cost matters in high-frequency scenarios — a `Queue` processing a million integer events per second creates a million box objects per second, while `Queue<int>` creates none.
+
+---
+
+## Q78. `Queue<T>` over `List<T>` with remove-from-front patterns
+
+**Concepts**
+- O(1) Dequeue via circular array head advance
+- O(n) List.RemoveAt(0) due to element shifting
+- semantic clarity of Queue contract
+- producer-consumer pattern
+- performance scaling difference
+
+**Answer**
+
+`Queue<T>` uses a circular array so `Dequeue()` is O(1) — it just advances the head index without shifting elements. `List<T>.RemoveAt(0)` is O(n) because every remaining element must shift one position left to fill the gap at index 0. For any pattern that appends to the back and removes from the front, `Queue<T>` is dramatically faster at scale and communicates the FIFO intent clearly. Use `List<T>` only when you need random access by index, insertion in the middle, or other operations that `Queue<T>` does not expose — if the only operations are append-to-end and remove-from-front, `Queue<T>` is the correct tool for both performance and code clarity.
 
 ---
 
 ### 07. SortedList & SortedDictionary
 
-#### Q1. What is `SortedList<TKey, TValue>` and `SortedDictionary<TKey, TValue>`? When would you use each?
+---
 
-(R) A warehouse dashboard prints the lowest and highest SKU from a live price map. Review:
+## Q79. `SortedList<TKey,TValue>` vs `SortedDictionary<TKey,TValue>`
 
-**Answer:** `SortedDictionary<TKey,TValue>.Keys` is a read-only `ICollection<TKey>` with **no indexer** — only `SortedList` exposes `Keys[i]` and `Values[i]` for O(1) access by sorted rank. Keep `SortedDictionary` and walk `Keys` once (or track min/max while loading) rather than dropping to `Dictionary` and resorting on every request.
+**Concepts**
+- SortedList array-backed with O(1) rank access
+- SortedDictionary red-black tree O(log n) all ops
+- O(n) insert/delete for SortedList due to array shifting
+- no rank indexer on SortedDictionary
+- use case: static small map vs write-heavy sorted map
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `Keys[0]` on `SortedDictionary` | CS0021 — indexer not defined on Keys view |
-| API confusion | Assumed both sorted types support rank indexing | Wrong type chosen for dashboard endpoint |
-| Over-correction | Sort-on-read with `Dictionary` + LINQ | O(n log n) per page load when O(n) scan or `SortedList` index suffices |
-
-**Fix (priority order):**
-
-1. If random access by sorted rank is required (`Keys[0]`, `Values[i]`), use `SortedList<string, decimal>` — see **Program.cs** Section 3.
-2. If the map stays a `SortedDictionary`, iterate `Keys` once to capture first and last (Section 6 pattern) — O(n) but simple for 12k keys on a dashboard.
-3. Do **not** switch to `Dictionary` solely to fix the compile error when sorted iteration is a product requirement.
-
-```csharp
-string? lowest = null, highest = null;
-foreach (string sku in skuPrices.Keys)
-{
-    lowest ??= sku;
-    highest = sku;
-}
-```
-
-**Production takeaway:** Karat tests whether you know **index by rank** is `SortedList`-only — `SortedDictionary` gives sorted foreach and O(log n) key lookup, not `Keys[i]`.
+`SortedList<TKey,TValue>` uses two parallel arrays (keys[] and values[]) kept in sorted order, which gives O(1) access by sorted rank via `Keys[i]` and `Values[i]` and O(log n) lookup via binary search, but O(n) insert and delete because shifting elements is required. `SortedDictionary<TKey,TValue>` uses a red-black tree so insert, delete, and lookup are all O(log n) with no shifting, but the `Keys` property returns `ICollection<TKey>` with no indexer, meaning random access by rank is not available. Use `SortedList` for small mostly-static collections where indexed rank access matters; use `SortedDictionary` for write-heavy workloads where O(log n) insert/delete is preferred over O(n) shifting.
 
 ---
 
-#### Q2. What interface defines ordering for sorted collections (`IComparer<TKey>` vs `IEqualityComparer<TKey>`)?
+## Q80. `IComparer<TKey>` vs `IEqualityComparer<TKey>`
 
-(R) An inventory sync service upserts pallet counts every few seconds. Review the hot path:
+**Concepts**
+- IComparer<T> defines ordering (Compare returns int)
+- IEqualityComparer<T> defines hash-bucket equality
+- sorted collections require IComparer<T>
+- hash collections require IEqualityComparer<T>
+- StringComparer implements both interfaces
 
-**Answer:** `SortedList` insert and remove shift parallel key/value arrays — **O(n)** per upsert when the collection is full-sized. Frequent mixed inserts/updates on ~500 zones make array shifting dominate even though `TryGetValue` remains O(log n). Swap to `SortedDictionary<int, int>` for tree-backed O(log n) insert/remove while preserving sorted foreach.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | `SortedList.Add` / shift on new keys | Latency grows with zone count under steady churn |
-| Idiom | `ContainsKey` + indexer instead of one path | Extra O(log n) lookup; minor vs shifting cost |
-| Collection choice | `SortedList` for write-heavy sync | Wrong tool when entries churn — Section 8 guidance |
-
-**Fix (priority order):**
-
-1. Replace backing field with `SortedDictionary<int, int>`.
-2. Collapse upsert to indexer assignment — adds or updates in one call: `_countsByZone[zoneId] = palletCount`.
-3. Reserve `SortedList` for small, mostly static maps (config tables, reorder reports in **Program.cs** Section 11).
-
-```csharp
-private readonly SortedDictionary<int, int> _countsByZone = new();
-
-public void UpsertZoneCount(int zoneId, int palletCount) =>
-    _countsByZone[zoneId] = palletCount;
-```
-
-**Production takeaway:** "Lookups are fast" is a Karat trap — **insert/remove cost** separates `SortedList` from `SortedDictionary`. See **Program.cs** Section 9 — insert O(n) vs O(log n).
+`IComparer<T>` defines a total order by a `Compare(T x, T y)` method returning negative, zero, or positive, and is required by sorted collections (`SortedList`, `SortedDictionary`, `SortedSet`) to determine where to place and find elements. `IEqualityComparer<T>` defines hash bucket equality via `Equals(T x, T y)` and `GetHashCode(T obj)`, and is required by hash-based collections (`Dictionary`, `HashSet`). The two interfaces are not interchangeable — passing an `IEqualityComparer` to a sorted collection constructor causes a compile error because it provides no comparison for ordering. `StringComparer.OrdinalIgnoreCase` and similar built-in comparers happen to implement both interfaces, which is why they work with both collection types, but a custom comparer class must implement the correct interface for the collection being used.
 
 ---
 
-#### Q3. What is the difference between `SortedList` (array-backed) and `SortedDictionary` (tree-backed) performance?
+## Q81. SortedList array-backed vs SortedDictionary tree-backed performance
 
-(D) You expose a `/regions/sales` JSON endpoint. Product wants keys returned alphabetically by region code. Two proposals:
+**Concepts**
+- SortedList O(log n) lookup, O(n) insert/delete
+- SortedDictionary O(log n) lookup, insert, delete
+- array shifting cost on SortedList mutations
+- cache-friendly array iteration vs pointer-chased tree
+- per-node heap allocations in SortedDictionary
 
-**Answer:** For ~30 regions, hourly refresh, and read-heavy traffic, **`SortedDictionary<string, int>` (B)** is the better default: sorted order is built into the structure, foreach needs no extra sort, and n is tiny so O(log n) lookup cost is irrelevant. **`Dictionary` + `OrderBy` (A)** adds allocation and O(n log n) work on every response unless you cache the sorted projection — acceptable only if you already hold a `Dictionary` for O(1) hot lookups elsewhere and sort rarely.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance (A) | Sort 30 keys per request × 2k rpm | Avoidable CPU and GC from repeated `OrderBy` |
-| Correctness (B wrong use) | `SortedDictionary` for millions of writes | Tree rebalancing still O(log n) — fine here, bad at huge churn |
-| Design | Picking `Dictionary` "because it's faster" | Ignores that 30-key sort-on-read duplicates work the BCL already provides |
-
-**Decision:**
-
-| Factor | Prefer |
-|---|---|
-| Small n, sorted output every read | `SortedDictionary` |
-| Huge n, order irrelevant, rare sorted export | `Dictionary` + sort once when exporting |
-| Need `Keys[i]` by rank | `SortedList` (even smaller static maps) |
-| Fastest lookup, no order | Plain `Dictionary` — Section 1 |
-
-**Production takeaway:** Karat expects **size and access pattern** reasoning — 30 hourly regions is the sweet spot for sorted maps; see **Program.cs** Section 8 pick-list.
+`SortedList` binary-searches the key array for O(log n) lookup and rank access, but insert and delete must shift remaining elements, making both O(n). This means N random inserts into a `SortedList` of N elements total O(n²) work. `SortedDictionary` tree operations are O(log n) for lookup, insert, and delete with no shifting, so N insertions cost O(n log n) total. For sequential iteration, `SortedList`'s contiguous arrays benefit from CPU cache prefetch, while `SortedDictionary` traverses tree nodes scattered on the heap with pointer indirection. For small collections that are built once and read often, `SortedList` wins on memory layout and rank access. For frequently mutating collections, `SortedDictionary` wins on mutation cost.
 
 ---
 
-#### Q4. When is `SortedList` preferred over `SortedDictionary` for memory or indexed access?
+## Q82. When to prefer `SortedList` over `SortedDictionary`
 
-(R) A catalog search feature stores product tags in a case-insensitive sorted map. QA reports duplicate logical tags after a Turkish-locale server deploy. Review:
+**Concepts**
+- Keys[i] and Values[i] rank access
+- small mostly-static datasets
+- contiguous memory for cache efficiency
+- lower overhead than tree nodes
+- sorted export without extra allocation
 
-**Answer:** `StringComparer.CurrentCulture` uses locale-sensitive rules — casing and ordering can differ by server culture (Turkish **I/i** is the classic trap). For stable product-tag identity, use **`StringComparer.OrdinalIgnoreCase`** (chapter Section 7) so `"CSharp"` and `"csharp"` are the same key and indexer assignment updates rather than duplicates.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Culture-sensitive comparer on logical keys | Duplicate or missing keys when culture changes across environments |
-| Environment | Turkish locale vs en-US dev box | QA-only failures after regional deploy |
-| API | Indexer update assumes comparer treats keys as equal | Two entries when comparer says keys differ |
-
-**Fix (priority order):**
-
-1. Construct with `StringComparer.OrdinalIgnoreCase` — matches **Program.cs** `DemoCustomComparer`.
-2. Use `Add` only when you want duplicate detection to throw; use indexer when upserting counts.
-3. Reserve `CurrentCulture` for **display sort** (UI lists), not for canonical tag keys in services.
-
-```csharp
-var tagsByCount = new SortedDictionary<string, int>(
-    StringComparer.OrdinalIgnoreCase)
-{
-    ["dotnet"] = 12,
-    ["CSharp"] = 8,
-    ["LINQ"] = 5
-};
-
-tagsByCount["csharp"] = 99; // updates single "CSharp"/"csharp" entry
-```
-
-**Production takeaway:** Sorted collections sort by **`IComparer<TKey>`**, not culture by default — explicit `OrdinalIgnoreCase` avoids locale drift between dev and production. See foundation **Strings** — culture vs ordinal.
+`SortedList` is preferable when you need `Keys[i]` or `Values[i]` rank access — for example, finding the first or last key directly, or walking keys by position — since `SortedDictionary` exposes no such indexer. It is also preferable for small mostly-static collections (configuration tables, lookup maps built once at startup) where insertions are rare or sequential, because the contiguous parallel arrays are more memory-efficient than tree nodes and iteration is cache-friendly. When the dataset is large and frequently mutated with random inserts, `SortedDictionary` is the better choice to avoid O(n) shifting per insert.
 
 ---
 
-#### Q5. What is the cost of inserting out-of-order keys into a sorted collection?
+## Q83. Cost of inserting out-of-order keys into a sorted collection
 
-(M) A pricing microservice benchmarks three shapes for a nightly job that inserts 50_000 random SKUs once, then performs 500_000 lookups:
+**Concepts**
+- binary search locates insert position O(log n)
+- array shift after found position O(n)
+- N random inserts total O(n²) for SortedList
+- SortedDictionary N inserts total O(n log n)
+- pre-sorted input reduces shift cost
 
-**Answer:** `SortedList` backs keys and values with **parallel arrays**. Each insert finds the slot with binary search then **shifts** remaining elements — **O(n)** per insert, so 50_000 random inserts approach **O(n²)** total work. `Dictionary` averages **O(1)** insert; `SortedDictionary` uses a red-black tree at **O(log n)** per insert with no shifting — which is why `SortedList` dominates the load phase despite similar O(log n) lookup afterward.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Array shift on every `SortedList.Add` | Load phase orders of magnitude slower at 50k entries |
-| Benchmark misread | Blaming "sorted" generically | Wrong fix — might avoid all sorted types instead of swapping list vs tree |
-| Pattern | `ContainsKey` guard before every add | Extra lookup; still dwarfed by shift cost on `SortedList` |
-
-**Rule of thumb (Section 9):**
-
-| Need | Pick |
-|---|---|
-| Fastest lookup, order irrelevant | `Dictionary` |
-| Sorted keys + access by rank (`Keys[i]`) | `SortedList` — small / mostly static |
-| Sorted keys + frequent inserts/removes | `SortedDictionary` |
-| Membership only, no values | `HashSet` |
-
-**Production takeaway:** Karat pairs benchmark numbers with **mechanism** — array shift vs tree rebalance — not just "sorted is slower." Nightly bulk load + heavy lookup → `Dictionary` or `SortedDictionary`; `SortedList` only if you need index-by-rank on a small final map.
+Every insert into `SortedList` first binary-searches the key array in O(log n) to find the insertion position, then shifts all elements after that position one slot right, which is O(n). For N random inserts, the total is O(n²) which becomes visible once the collection has more than a few thousand entries. `SortedDictionary` tree rebalancing is O(log n) per insert, so N inserts cost O(n log n) total. If keys happen to arrive in sorted order, `SortedList` shifts zero or very few elements per insert, approaching O(n log n) in that special case, but random-order insertion eliminates that advantage. The practical consequence is that bulk loading a `SortedList` from an unsorted source is significantly slower than bulk loading a `SortedDictionary`.
 
 ---
 
-#### Q6. Can you look up by index in `SortedList` — what does `Keys[index]` provide?
+## Q84. `SortedList.Keys` vs `SortedDictionary.Keys` — indexer availability
 
-(R) A developer ports a `Dictionary` helper to sorted collections but copies the wrong comparer interface. Review:
+**Concepts**
+- SortedList.Keys returns IList<TKey> with O(1) indexer
+- SortedDictionary.Keys returns ICollection<TKey> without indexer
+- rank access only on SortedList
+- SortedDictionary requires iteration to find nth key
+- interface differences encode capability difference
 
-**Answer:** `SortedDictionary` and `SortedList` constructors take **`IComparer<TKey>`**, not **`IEqualityComparer<TKey>`**. The snippet fails at compile time (`SkuIgnoreCaseEquality` does not implement `IComparer<string>`). If coerced, the collection would still sort/compare by the wrong contract — hash-based equality does not define sort order. Pass `StringComparer.OrdinalIgnoreCase` (implements `IComparer<string>`) or a custom `IComparer<string>`.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `IEqualityComparer` passed to sorted ctor | CS1503 — type mismatch |
-| Conceptual | Confused hash equality with sort order | Dictionary/HashSet vs sorted maps — Section 7 comment |
-| Runtime (if bypassed) | Wrong or default ordering | Duplicate logical keys or unexpected sort sequence |
-
-**Fix (priority order):**
-
-1. Use built-in comparer: `new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase)`.
-2. For custom rules, implement **`IComparer<TKey>`** (like `ScoreDescendingComparer` in **Program.cs**), not `IEqualityComparer`.
-3. Keep `SkuIgnoreCaseEquality` for `Dictionary<string, T>` / `HashSet<string>` only.
-
-```csharp
-var reorderQty = new SortedDictionary<string, int>(
-    StringComparer.OrdinalIgnoreCase)
-{
-    ["ZEBRA-CLIP"] = 40,
-    ["ALPHA-PAD"] = 120
-};
-
-reorderQty["alpha-pad"] = 200; // updates existing key
-```
-
-**Production takeaway:** Karat stacks **interface confusion** with collection choice — `IEqualityComparer` for hash tables, `IComparer` for sorted types. See **Program.cs** QUICK REFERENCE — "Not IEqualityComparer."
+`SortedList<TKey,TValue>.Keys` returns an `IList<TKey>` view of the key array, which provides an O(1) indexer so you can write `list.Keys[0]` for the minimum or `list.Keys[list.Count - 1]` for the maximum in constant time. `SortedDictionary<TKey,TValue>.Keys` returns an `ICollection<TKey>` view which has no indexer — accessing the nth key requires iterating with `foreach` or materializing with `Keys.First()` (O(1) for min via tree traversal) but index-by-position is not directly supported. The type difference in the return is intentional and signals this structural difference: if your code requires `Keys[i]`, you must use `SortedList`.
 
 ---
 
-#### Q7. What is the difference between `SortedSet<T>` and `SortedDictionary<TKey, TValue>`?
+## Q85. `SortedSet<T>` vs `SortedDictionary<TKey,TValue>`
 
-_Answer not found._
+**Concepts**
+- SortedSet<T> keys only (implements ISet<T>)
+- SortedDictionary stores key-value pairs
+- SortedSet has set operations (Union, Intersect, GetViewBetween)
+- SortedDictionary has no set operations
+- both tree-backed O(log n)
+
+**Answer**
+
+`SortedSet<T>` stores only distinct keys in sorted order (red-black tree) and implements `ISet<T>`, providing set operations like `UnionWith`, `IntersectWith`, `ExceptWith`, and `GetViewBetween(min, max)` for range slices. It has no associated values. `SortedDictionary<TKey,TValue>` stores key-value pairs in sorted key order (also red-black tree) and does not implement `ISet<T>`, providing no set operations. Use `SortedSet<T>` when you need a sorted collection of distinct items with set algebra; use `SortedDictionary<TKey,TValue>` when each sorted key maps to a value.
 
 ---
 
-#### Q8. When would you choose `SortedDictionary` over sorting keys from a `Dictionary` at read time?
+## Q86. `SortedDictionary` vs `Dictionary` + sort at read time
 
-_Answer not found._
+**Concepts**
+- SortedDictionary O(log n) insert keeps order maintained incrementally
+- Dictionary + OrderBy O(n log n) on every sorted read
+- read-to-write ratio determines trade-off
+- caching sorted projection amortizes sort cost
+- SortedDictionary better for interleaved writes and sorted reads
+
+**Answer**
+
+`SortedDictionary` maintains sorted order incrementally as keys are inserted at O(log n) each, so any subsequent sorted iteration costs just O(n). `Dictionary` + `OrderBy` or `.Keys.Order()` pays O(n log n) on every sorted read, which is acceptable when sorted reads are infrequent relative to the total number of reads and writes. If the pattern is "write many, read sorted rarely," sorting once when exporting is fine and `Dictionary` has faster O(1) average lookup. If the pattern is "write incrementally and read sorted frequently," `SortedDictionary` avoids repeating O(n log n) sort cost on each read. A cached sorted projection from a `Dictionary` is a middle ground — sort once, cache the projection, invalidate on mutation — but adds cache-coherence complexity that `SortedDictionary` handles automatically.
 
 ---
 
 ### 08. IEnumerable & IEnumerator
 
-#### Q1. What is the difference between `IEnumerable<T>` and `ICollection<T>`?
-
-(R) A warehouse API returns `IEnumerable<PickLine>` from a `yield return` filter. A report job calls `Count()` then `Sum()` on the same reference without materializing. Totals disagree with the pick ticket and logs show the database query ran twice. Review the service method and caller. What went wrong, and how do you fix it?
-
-**Answer:** `IEnumerable<PickLine>` from a `yield return` method is lazy — each consumer (`Count`, then `Sum`) walks the sequence from scratch, re-running `_repository.LoadLines` and the filter. The two passes are independent enumerations, so side effects, timing, and even data can differ if the ticket changed between calls.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Multiple enumeration | `Count()` then `Sum()` on same lazy sequence | DB/repository work runs twice; metrics and billing double-charge I/O |
-| Correctness | No snapshot between passes | If lines change mid-report, count and sum can reflect different underlying data |
-| API contract | Returning bare `IEnumerable<T>` from I/O | Callers cannot tell whether re-enumeration is cheap or expensive |
-
-**Fix (priority order):**
-
-1. Materialize once at the boundary that owns I/O: `var heavy = _service.GetHeavyLines(...).ToList();` then `Count` / `Sum` on the list.
-2. Better API shape: return `IReadOnlyList<PickLine>` or `Task<IReadOnlyList<PickLine>>` from the service so multiple reads are explicit and cheap.
-3. If only one pass is needed, use a single loop or one LINQ aggregate (`Aggregate`, custom scan) instead of two terminal operators.
-4. Log/measure enumeration in reviews — treat `IEnumerable` from repositories as "run once unless documented otherwise."
-
-```csharp
-var heavy = _service.GetHeavyLines("PB-2201", 1.0m).ToList();
-int lineCount = heavy.Count;
-decimal totalKg = heavy.Sum(l => l.TotalWeightKg);
-```
-
-**Production takeaway:** Karat uses double enumeration to test whether you know `IEnumerable<T>` is a recipe, not a cached collection — matches **Program.cs** Section 5a (lazy until consumed) and Section 4h (each LINQ terminal op walks the sequence).
-
----
-
-#### Q2. What is the difference between `ICollection<T>` and `IList<T>`?
-
-(R) A custom `IEnumerator<PickLine>` wraps a file reader. A developer copies the manual loop from a tutorial but drops the `using` block. Under load, temp files pile up on disk. Review the loop. What is missing, and what does `foreach` do differently?
-
-**Answer:** `IEnumerator<T>` implements `IDisposable` when the concrete enumerator holds unmanaged or file handles. Without `using` or a `finally` that calls `Dispose`, early `break` leaves the `StreamReader` open — file locks and temp directory growth follow. `foreach` always emits a `try/finally` that disposes the enumerator.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Resource leak | No `Dispose()` on manual loop | Handles stay open until GC finalizer (if any) — unreliable |
-| Early exit | `break` skips implicit cleanup | Worse under exceptions or conditional exit — matches tutorial pitfall in Section 4b |
-| Pattern drift | Tutorial showed `using (IEnumerator<T> ...)` | Copy-paste without `using` loses the main safety net |
-
-**Fix (priority order):**
-
-1. Wrap manual iteration in `using`: `using IEnumerator<PickLine> walk = batch.GetEnumerator();` — same as **Program.cs** Section 4b.
-2. Prefer `foreach` when you do not need the raw enumerator — compiler-generated dispose in `finally`.
-3. If you must hold an enumerator across methods, implement `try/finally` with explicit `Dispose()` or use `await foreach` with `IAsyncEnumerable<T>` and `ConfigureAwait` patterns for async sources.
-4. Add analyzer/code-review rule: any `GetEnumerator()` manual loop requires `using` or documented wrapper.
-
-```csharp
-using (IEnumerator<PickLine> walk = batch.GetEnumerator())
-{
-    while (walk.MoveNext())
-    {
-        Process(walk.Current);
-        if (walk.Current.Sku.StartsWith("STOP"))
-            break;
-    }
-} // Dispose even on break
-```
-
-**Production takeaway:** `foreach` is not syntactic sugar only — it is the correct dispose pattern for `IEnumerator<T>`. See **Program.cs** Section 2a (compiler `finally` → `Dispose`) and Section 3a (`Dispose()` on enumerators wrapping files/DB readers).
-
----
-
-#### Q3. What are `IReadOnlyList<T>` and `IReadOnlyCollection<T>`?
-
-(R) A batch-picking screen tries to skip short lines by removing them while iterating. It crashes on the second line every time. Review the loop (same pattern as **Program.cs** Section 4g). What throws, why is it allowed, and what is the safe fix?
-
-**Answer:** `List<T>` tracks a version stamp for its enumerator. Adding or removing during `foreach` invalidates that enumerator and throws `InvalidOperationException` ("Collection was modified; enumeration operation may not execute.") — the runtime detects structural change, not logical intent.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Remove` inside `foreach` on same `List<T>` | Guaranteed `InvalidOperationException` after first mutation |
-| Logic | In-place filter while walking forward | Even if it did not throw, skipping indices would drop unchecked elements |
-| API misuse | Treating `foreach` like index-based `for` with `RemoveAt` | Common UI/service bug when "cleaning" collections live |
-
-**Fix (priority order):**
-
-1. Iterate a snapshot: `foreach (PickLine line in lines.ToList())` and mutate the original list — or build a new list of lines to remove.
-2. Reverse `for` loop with index if you must remove in place: `for (int i = lines.Count - 1; i >= 0; i--)`.
-3. Prefer `lines.RemoveAll(l => l.Quantity < 5)` then a second pass for `_picker.Assign`.
-4. Never add to a list you are actively `foreach`-ing on the same instance — same exception as remove.
-
-```csharp
-lines.RemoveAll(l => l.Quantity < 5);
-foreach (PickLine line in lines)
-    _picker.Assign(line);
-```
-
-**Production takeaway:** The pick-ticket demo in **Program.cs** Section 4g exists because this fails in production UI code daily — Karat expects you to name `InvalidOperationException` and choose snapshot or `RemoveAll`, not "it worked once in a small list."
-
----
-
-#### Q4. What is the difference between `IEnumerator` and `IEnumerator<T>`?
-
-(M) A developer builds a lazy LINQ pipeline over live pick lines, logs the count, then mutates the underlying list before a second `foreach`. Results differ between the two passes. Walk through what runs when and why the second pass can change.
-
-**Answer:** `Where` returns a deferred sequence — no filter runs until a terminal operation or `foreach` forces enumeration. The first `Count()` walks `pickList` at that moment; adding `RUSH-ADD` before the second `foreach` changes the source, so the second walk can include the new heavy line that was not counted in `previewCount`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Deferred execution | `heavy` stores query, not results | Developers think they captured "heavy lines at T0" — they captured a filter *recipe* |
-| Live backing collection | `pickList` mutated between enumerations | Count and foreach disagree; audit logs show inconsistent totals |
-| Mental model | LINQ chain looks like a new collection | No allocation until enumeration — easy to miss in code review |
-
-**Fix (priority order):**
-
-1. Materialize when you need a stable snapshot: `var heavy = pickList.Where(...).ToList();` before count and display.
-2. Mutate a copy if the pipeline must stay tied to original ticket: iterate `pickList.ToList()` for reporting.
-3. Document whether service methods return live views vs snapshots — return `IReadOnlyList<T>` when stable.
-4. Single enumeration when possible: one loop that counts and prints, or `ToList()` once at API boundary.
-
-**Production takeaway:** Deferred execution is a feature for composable LINQ, not a cache — production bugs appear when request handlers mutate shared lists between logging and processing. See **Program.cs** Section 5a and Section 4h preview.
-
----
-
-#### Q5. What is the `yield` keyword, and how do iterator methods relate to `IEnumerable<T>`?
-
-(M) An iterator method logs each SKU as it yields. A caller breaks out of `foreach` after the first match. Later code assumes every line was scanned. Review the iterator and caller. What does `yield return` guarantee about execution state, and when does work *not* run?
-
-**Answer:** A `yield return` method compiles to a state machine that runs only until the consumer asks for the next element via `MoveNext`. Breaking out of `foreach` stops calling `MoveNext`, so the iterator body after the last yielded item never runs — remaining source lines are not scanned and `_metrics.RecordScan` is not called for them.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Partial enumeration | `break` after first `yield` consumed | Iterator paused mid-method; trailing source elements skipped |
-| Side effects in iterator | `_metrics.RecordScan` inside yield path | Metrics under-count; ops dashboards lie when callers short-circuit |
-| Assumption | "Calling the method processed the ticket" | Method invocation alone does nothing — only enumeration drives work |
-
-**Fix (priority order):**
-
-1. Move metrics to the caller after full materialization if full scans are required: `var reps = FirstMatchPerAisle(pickList).ToList();` then record — or record in caller loop without `break` if policy needs all aisles.
-2. Split "dedupe yield" from "audit full ticket": one pass for metrics (`foreach` entire source), one lazy pass for shipping selection.
-3. Use `yield break` only to end iteration early by design — document that early consumer exit is supported.
-4. Avoid heavy side effects inside iterator bodies; prefer pure filters and explicit logging at materialization boundaries.
-
-**Production takeaway:** `yield return` pauses the method, not completes it — Karat tests whether you explain compiler-generated `IEnumerator` state vs eager methods. See **Program.cs** Section 5 (`yield return` state machine) and Section 5a (work on demand only).
-
----
-
-#### Q6. What is the difference between deferred execution and immediate execution for IEnumerable sequences?
-
-(P) A code review flags `var lines = GetHeavyLines(...).ToList()` as "unnecessary allocation." The author argues it prevents double DB hits and stabilizes results if the ticket changes mid-request. When is `ToList()` (or `ToArray()`) the right production fix for `IEnumerable<T>`, and when is it waste?
-
-**Answer:** Materialize when the sequence is expensive, non-idempotent, or tied to a live collection that may change before you finish multiple passes — or when you need count/index/random access. Skip `ToList()` when you have a single forward-only `foreach` over an in-memory collection and no shared mutation for the request lifetime.
-
-**When `ToList()` / `ToArray()` is right:**
-
-- Multiple terminal LINQ operations (`Count`, `Sum`, `Any`, then `foreach`) on the same deferred chain — Q1/Q4 pattern.
-- `IEnumerable<T>` from `yield return`, database, or network where re-enumeration repeats I/O.
-- Snapshot before parallel work, caching in a request scope, or passing to another thread — lists are safe snapshots; raw lazy sequences are not.
-- Stabilizing results when the underlying `List<T>` may be edited during the same ASP.NET request.
-
-**When it is waste:**
-
-- One `foreach` over `List<T>` or an array — already materialized; `.ToList()` copies for no benefit.
-- Known cheap sequences (small in-memory constants) where a second pass is still cheaper than allocation — measure, but default to clarity.
-- Infinite or very large streams where materialization blows memory — use single-pass streaming instead.
-
-**Production takeaway:** `ToList()` is not a micro-optimization debate — it documents "this is the snapshot boundary." Prefer returning `IReadOnlyList<T>` from services that already materialize so callers do not double-enumerate by accident. Aligns with **Program.cs** `HeavyLines` lazy filter vs **Section 4g** snapshot `new List<PickLine>(pickList)` before risky work.
-
----
-
-#### Q7. What is the iterator pattern — what do `MoveNext`, `Current`, and `Reset` do?
-
-(R) Two developers iterate the same `PickBatch` concurrently — one with `foreach`, one with a stored `IEnumerator<PickLine>` from an earlier `GetEnumerator()` call. Intermittent duplicates and skipped SKUs appear. Review `PickBatch` (fresh enumerator per `GetEnumerator()`). What contract did the second developer violate, and how should multiple consumers walk the same batch?
-
-**Answer:** Each call to `GetEnumerator()` returns an independent cursor (`PickBatchEnumerator` with its own `_index`). That is correct. The bug is sharing one `IEnumerator` instance across logical passes or threads while also starting another enumeration — two cursors on the same batch are fine in sequence, but concurrent or overlapping manual + `foreach` walks without coordination produce duplicate/skipped processing. `IEnumerator<T>` is not thread-safe and not meant to be shared as shared state.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Cursor sharing | Reusing one `IEnumerator` mid-stream while another walk runs | Double-processing or skipped elements depending on interleaving |
-| Threading | Concurrent `MoveNext` on same enumerator | Undefined behavior; not supported by BCL collections |
-| Design | Treating enumerator as batch-wide singleton | Violates forward-only, one-consumer-per-cursor model |
-
-**Fix (priority order):**
-
-1. One enumerator per pass — never share a single `IEnumerator<T>` between components; call `GetEnumerator()` again (or `foreach`) for each full walk — prefer fresh enumerator over `Reset()` per **Program.cs** Section 4c note.
-2. Do not advance a stored enumerator partially then also `foreach` the batch unless you explicitly want two independent views — document which cursor owns which lines.
-3. For parallel processing, materialize `batch.ToList()` or index into an array and partition by range — not shared `MoveNext`.
-4. Remove `Reset()` from new code paths; `PickBatchEnumerator.Reset()` exists for legacy only.
-
-```csharp
-// Two independent full passes — OK:
-foreach (PickLine line in batch) ProcessA(line);
-foreach (PickLine line in batch) ProcessB(line);
-
-// Not OK: one half-consumed manual cursor + another walk without clear ownership
-```
-
-**Production takeaway:** `IEnumerable<T>` is multi-enumerable; `IEnumerator<T>` is single forward cursor — Karat collapses the distinction. See **Program.cs** Section 2 (`GetEnumerator()` fresh per call) and Section 3 (`PickBatchEnumerator` instance state).
-
----
-
-#### Q8. What is `yield break` vs `return` in an iterator method?
-
-_Answer not found._
-
----
-
-#### Q9. Why can multiple enumeration of the same `IEnumerable` from a LINQ query re-run the pipeline?
-
-_Answer not found._
-
----
-
-#### Q10. What is the difference between returning `IEnumerable<T>` from a method vs `List<T>`?
-
-_Answer not found._
-
----
-
-#### Q11. What happens if you modify a collection during `foreach` — how does the enumerator detect it?
-
-_Answer not found._
-
----
-
-#### Q12. What is covariance on `IEnumerable<out T>` — practical assignment examples?
-
-_Answer not found._
-
----
-
-#### Q13. What is the difference between `foreach` and manual `while (enumerator.MoveNext())`?
-
-_Answer not found._
-
----
-
-#### Q14. What is `ToList()` materialization, and when must you materialize before multiple passes?
-
-_Answer not found._
-
----
-
-#### Q15. What is the relationship between `IAsyncEnumerable<T>` and iterators (preview)?
-
-_Answer not found._
-
----
-
-#### Q16. **Modify while iterating** — Changing a collection during `foreach` throws `InvalidOperationException`.
-
-_Answer not found._
-
----
-
-#### Q17. **Mutable keys** — Changing equality-relevant state on a key after insertion causes silent lookup failures.
-
-_Answer not found._
-
----
-
-#### Q18. **`IEnumerable<T>` covariant, `List<T>` not** — Covariance on mutable lists would break type safety.
-
-_Answer not found._
-
----
-
-#### Q19. **Wrong collection for the job** — Frequent middle inserts on `List<T>` are O(n).
-
-_Answer not found._
-
----
-
-#### Q20. **Static fields on generic types** — Separate static slots per closed generic type.
-
-_Answer not found._
-
----
-
-#### Q21. **Boxing in non-generic collections** — `ArrayList` boxes value types; `List<T>` avoids this.
-
-_Answer not found._
-
----
-
-#### Q22. **Passing `List<T>` by value** — Reference is copied; contents still shared.
-
-_Answer not found._
-
----
-
-#### Q23. **`Dictionary.Add` vs indexer on duplicate key** — `Add` throws; indexer overwrites silently.
-
-_Answer not found._
-
----
-
-#### Q24. **`AsReadOnly()` is a view** — Original list mutations remain visible through the wrapper.
-
-_Answer not found._
-
----
-
-#### Q25. **Assuming dictionary enumeration order** — Undefined; sort keys explicitly if order matters.
-
-_Answer not found._
-
----
-
-#### Q26. **Multiple enumeration cost** — `yield`/LINQ re-executes work each pass; materialize when needed.
-
-_Answer not found._
-
----
-
-#### Q27. **Wrong comparer on sorted types** — `SortedDictionary` uses `IComparer<TKey>`, not `IEqualityComparer<TKey>`.
-
-_Answer not found._
-
----
-
-#### Q28. **Poor `GetHashCode` distribution** — Constant hash codes degrade to O(n) buckets.
-
-_Answer not found._
-
----
-
-#### Q29. **Queue `Contains` is O(n)** — Use a `HashSet` alongside if you need fast membership checks.
-
-_Answer not found._
-
----
-
-## Scenario-Based Questions (Karat Format)
-
-#### Q1. (R) A teammate adds a generic repository helper for warehouse stock rows. `dotnet build` fails. Review the constraint stack — what is wrong, and how do you fix it?
-
-```csharp
-public static class StockRepository
-{
-    public static T LoadOrCreate<T>(string sku) where T : struct, StockEntry, new()
-    {
-        if (_cache.TryGetValue(sku, out T existing))
-        {
-            return existing;
-        }
-
-        T created = new T { Sku = sku };
-        _cache[sku] = created;
-        return created;
-    }
-
-    private static readonly Dictionary<string, StockEntry> _cache = new();
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** `where T : struct, StockEntry, new()` is illegal — a type parameter cannot be both a non-nullable value type (`struct`) and a reference-type base class (`StockEntry`). The compiler rejects the constraint combination before any call site is evaluated.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `struct` + base class `StockEntry` on same `T` | CS0454 — mutually exclusive constraints; build blocked |
-| Design | `_cache` stores `StockEntry` but method returns `T` with value-type constraint | Even if it compiled, boxing/unified cache semantics would be wrong |
-| API misuse | `new T { Sku = sku }` assumes `T` is a reference type with mutable `Sku` | Value-type `T` could not inherit `StockEntry` anyway |
-
-**Fix (priority order):**
-
-1. Drop `struct` — use `where T : StockEntry, new()` if you truly need default-constructible inventory rows (`InventoryItem`, etc.).
-2. If value-type rows are required, do **not** inherit `StockEntry`; use a separate generic struct path (e.g., `Quantity<TUnit> where TUnit : struct`) or a shared interface instead of a class base.
-3. Type the cache as `Dictionary<string, T>` inside a generic class `StockRepository<T> where T : StockEntry, new()`, not a mixed `Dictionary<string, StockEntry>` with an inconsistent method signature.
-4. Align with this chapter's `DescribeStockEntry<T> where T : StockEntry` — base-class constraints apply to reference types in the inheritance hierarchy.
-
-**Production takeaway:** Constraint misuse is a compile-time gate — Karat tests whether you recognize that `class`/base-type and `struct` constraints exclude each other. See **Program.cs** Sections 7–9 — constraint combinations.
-
----
-
----
-
-#### Q2. (R) A developer "fixes" a method that accepts any payload list by widening to `List<object>`. Review the assignment and call site:
-
-```csharp
-public static void AuditSkus(List<object> allSkus)
-{
-    foreach (object sku in allSkus)
-    {
-        Console.WriteLine(sku);
-    }
-}
-
-List<string> warehouseSkus = new() { "WH-4412", "WH-9901" };
-AuditSkus(warehouseSkus); // CS1503 — cannot convert List<string> to List<object>
-
-// Developer tries IEnumerable instead:
-IEnumerable<object> widened = warehouseSkus;
-foreach (object item in widened)
-{
-    var mutable = (List<object>)widened; // attempted cast at runtime
-    mutable.Add(42);
-}
-```
-
-What fails at compile time vs runtime, and what is the safe pattern for read-only aggregation?
-
----
-
-**Answer:**
-
-**Answer:** `List<T>` is **invariant** — `List<string>` is not assignable to `List<object>` because that would allow adding non-strings through the wider reference. Covariance applies only on interfaces like `IEnumerable<out T>` for **read-only** projection, not on mutable lists.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `AuditSkus(warehouseSkus)` with `List<object>` parameter | CS1503 — cannot convert `List<string>` to `List<object>` |
-| Runtime | Cast `IEnumerable<object>` to `List<object>` and `Add(42)` | `InvalidCastException` — sequence is backed by `List<string>`, not `List<object>` |
-| Design | Treating covariance as "free widening" for mutable collections | Silent data corruption if the language allowed it — type safety violated |
-
-**Fix (priority order):**
-
-1. For read-only aggregation, accept `IEnumerable<string>` or `IReadOnlyList<string>` — precise, no widening needed.
-2. For heterogeneous payloads, use `List<object>` at the **source** (accept the boxing cost consciously) or a discriminated model (`List<StockPayload>` / union type).
-3. Use `IEnumerable<object> widened = warehouseSkus` only when consuming items — never cast back to a mutable `List<object>` to add elements.
-4. Remember: `IEnumerable<out T>` covariance lets you pass `IEnumerable<string>` where `IEnumerable<object>` is expected, but you still cannot mutate element types.
-
-**Production takeaway:** Confusing `List<T>` invariance with `IEnumerable<out T>` covariance is a common review failure — matches **Program.cs** Section 13 and Quick Reference variance rows.
-
----
-
----
-
-#### Q3. (R) An API endpoint helper should return the larger of two comparable stock metrics without boxing value types. Review the call chain:
-
-```csharp
-public static T MaxOf<T>(T left, T right) where T : IComparable<T>
-{
-    return left.CompareTo(right) >= 0 ? left : right;
-}
-
-decimal priceA = 19.99m;
-int unitsB = 120;
-var winner = MaxOf(priceA, unitsB); // CS0411 — type arguments cannot be inferred
-
-// After "fix" — explicit type args:
-var forced = MaxOf<decimal>(priceA, unitsB); // CS1503 — int not convertible to decimal
-```
-
-What broke inference, why does the explicit fix still fail, and how would you design this helper for production?
-
----
-
-**Answer:**
-
-**Answer:** Generic method inference requires a **single** type argument `T` that fits both parameters — `decimal` and `int` disagree, so the compiler cannot infer `T` (CS0411). Forcing `MaxOf<decimal>` then fails because `int` is not implicitly convertible to `decimal` at the call site (CS1503).
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `MaxOf(priceA, unitsB)` — mismatched argument types | CS0411 — type arguments cannot be inferred from the arguments |
-| Compile | `MaxOf<decimal>(priceA, unitsB)` | CS1503 — `int` cannot be passed where `decimal` expected |
-| Design | One generic `MaxOf<T>` used across unrelated metrics | API encourages comparing apples to units — domain error masked as generic error |
-
-**Fix (priority order):**
-
-1. Call with **homogeneous** types: `MaxOf(priceA, otherPrice)` or `MaxOf(unitsA, unitsB)`.
-2. If conversion is intentional, convert explicitly **before** the call: `MaxOf(priceA, (decimal)unitsB)` — documents that the comparison is cross-domain and may be wrong business-wise.
-3. Prefer domain methods (`MaxPrice`, `MaxUnits`) or `INumber<T>` (.NET 7+) helpers where numeric widening is well-defined.
-4. Do not rely on inference when types differ — specify intent at the call site or split overloads.
-
-**Production takeaway:** Inference failures often signal a design smell — Karat checks that you read CS0411/CS1503 as "one T for all parameters," not as a compiler bug. See **Program.cs** Section 8 — `Swap<T>` inference requires matching types.
-
----
-
----
-
-#### Q4. (M) A hot inventory path stores millions of pallet counts per hour. One service uses `List<object>` "for flexibility"; another uses `List<int>`. Review the read loop:
-
-```csharp
-List<object> legacyCounts = new();
-for (int i = 0; i < 1_000_000; i++)
-{
-    legacyCounts.Add(i); // boxed int on every Add
-}
-
-int legacySum = 0;
-foreach (object boxed in legacyCounts)
-{
-    legacySum += (int)boxed; // unbox per iteration
-}
-
-List<int> genericCounts = new(capacity: 1_000_000);
-for (int i = 0; i < 1_000_000; i++)
-{
-    genericCounts.Add(i); // no boxing
-}
-
-int genericSum = genericCounts.Sum();
-```
-
-Under JIT/AOT, what does the runtime do differently for `List<int>` vs `List<object>`, and when would you still accept the legacy shape?
-
----
-
-**Answer:**
-
-**Answer:** For each closed constructed type, the JIT specializes `List<T>.Add` and indexer access — `List<int>` stores unboxed ints in a `T[]` with no per-element heap boxing, while `List<object>` boxes every `int` on `Add` and unboxes on read, doubling heap traffic and cache pressure.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime / GC | Boxing 1M ints into `List<object>` | 1M heap allocations + GC pressure; slower hot loop |
-| Runtime | Unbox + cast in `legacySum` loop | Extra CPU per iteration vs direct `int` access |
-| JIT | Shared vs specialized code paths | `List<int>` gets efficient `int[]` storage; `List<object>` always handles references |
-| Design | "Flexibility" on a numeric hot path | Latency spikes under load; harder to reason about in profiling |
-
-**Fix (priority order):**
-
-1. Use `List<int>` (or `Span<int>`, `int[]`, `ImmutableArray<int>`) for homogeneous numeric streams — matches **LegacyCollectionProbe** vs `List<int>` in **Program.cs** Section 1.
-2. If mixed types are required, isolate boxing to boundaries (parse → strongly typed model) rather than the inner loop.
-3. Accept `List<object>` only at integration seams (legacy APIs, `ArrayList` interop) with explicit conversion at the edge.
-4. Profile with dotMemory / PerfView — boxed collections show as `System.Int32` allocations in GC heaps.
-
-**Production takeaway:** Generics exist partly to eliminate boxing on value-type collections — Layer 2 tests whether you connect language feature to production GC behavior, not just "compile-time safety."
-
----
-
----
-
-#### Q5. (R) A factory method should default-construct inventory DTOs for an import pipeline. Review:
-
-```csharp
-public sealed record ImportedLine(string Sku, int Units);
-
-public static class ImportFactory
-{
-    public static T CreateRow<T>() where T : new()
-    {
-        return new T();
-    }
-}
-
-// Startup:
-var row = ImportFactory.CreateRow<ImportedLine>();
-row.Sku = "WH-4412";
-
-// Alternate path — value-type wrapper:
-public readonly struct PalletTag
-{
-    public PalletTag(int zoneId) => ZoneId = zoneId;
-    public int ZoneId { get; }
-}
-
-var tag = ImportFactory.CreateRow<PalletTag>();
-```
-
-What compiles, what fails, and how do you constrain factories correctly for records vs structs?
-
----
-
-**Answer:**
-
-**Answer:** `CreateRow<ImportedLine>()` succeeds — records with a primary constructor still get a synthesized parameterless constructor for `new()` when not explicitly removed. `CreateRow<PalletTag>()` fails — `PalletTag` only declares `PalletTag(int zoneId)`, so it does not satisfy `where T : new()` (CS0310).
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `CreateRow<PalletTag>()` | CS0310 — `PalletTag` must have public parameterless constructor |
-| Design | `new()` constraint on a factory used for both records and custom structs | Call sites look uniform but only some types qualify |
-| Runtime / API | Mutating `row.Sku` on a record instance | Works here, but immutable record designs may prefer `with` instead of post-`new()` mutation |
-
-**Fix (priority order):**
-
-1. For `PalletTag`, add an explicit parameterless ctor **only if** default construction is valid: `public PalletTag() : this(0) { }` — or stop using `new()` for that type.
-2. Split factories: `CreateRecord<T>() where T : new()` for DTOs; dedicated `PalletTag CreateTag(int zoneId)` for parameterized structs.
-3. Prefer `Activator.CreateInstance<T>()` or DI-backed factories when construction needs parameters or injection — `new()` is for simple default graphs only.
-4. Validate at compile time with tests that call `CreateRow<T>()` for every supported import row type.
-
-**Production takeaway:** The `new()` constraint means "public parameterless constructor exists" — not "any struct" or "any record." See **Program.cs** `CreateDefault<T>() where T : new()` and Section 9a.
-
----
-
----
-
-#### Q6. (R) A library author exposes typed domain exceptions via generics "so callers can catch exactly what they need." Review:
-
-```csharp
-public static class StockGuard
-{
-    public static void EnsurePositive<TException>(int units)
-        where TException : Exception, new()
-    {
-        if (units <= 0)
-        {
-            throw new TException();
-        }
-    }
-
-    public static void Reserve(string sku, int units)
-    {
-        EnsurePositive<ArgumentOutOfRangeException>(units);
-
-        if (!IsKnownSku(sku))
-        {
-            EnsurePositive<InvalidOperationException>(0); // reuses generic throw
-        }
-    }
-}
-
-// Consumer:
-try
-{
-    StockGuard.Reserve("WH-0000", -5);
-}
-catch (ArgumentOutOfRangeException ex)
-{
-    _logger.LogWarning(ex, "Bad quantity for {Sku}", sku);
-}
-catch (InvalidOperationException ex)
-{
-    _logger.LogError(ex, "Unknown SKU workflow failure");
-}
-```
-
-What is wrong with generic exception throwing, what breaks observability and API contracts, and what pattern replaces it?
-
----
-
----
-
-### 02. ArrayList
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/02. ArrayList`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** `throw new TException()` where `TException : Exception, new()` produces **parameterless** exceptions with no message, no inner exception, and no structured context — callers catch the right type but lose SKU, quantity, and stack context. Reusing the helper for `InvalidOperationException` by passing `0` to `EnsurePositive` is a semantic hack that obscures intent.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Generic exception factory anti-pattern | Empty exceptions — useless logs and support tickets |
-| Observability | `new TException()` only — no message/data | `_logger.LogWarning(ex, …)` has nothing actionable; APM groups by type only |
-| API contract | `EnsurePositive<InvalidOperationException>(0)` for unknown SKU | Wrong exception type and wrong guard — conflates validation with business rules |
-| Maintainability | Callers depend on **type** not **error shape** | Adding fields/codes requires new exception types instead of stable error codes |
-
-**Fix (priority order):**
-
-1. Throw **specific, constructed** exceptions: `throw new ArgumentOutOfRangeException(nameof(units), units, "Units must be positive.");`
-2. Replace generic throw helpers with domain exceptions (`UnknownSkuException`) or `Result`/validation types for expected failures.
-3. Use `ExceptionDispatchInfo` or `throw;` to preserve stack when rethrowing — never `throw new TException()` as a stand-in for wrapping.
-4. For libraries, document thrown types in XML docs; avoid letting consumers catch generic `TException` via your helper.
-
-```csharp
-if (units <= 0)
-{
-    throw new ArgumentOutOfRangeException(nameof(units), units, "Reserve quantity must be positive.");
-}
-
-if (!IsKnownSku(sku))
-{
-    throw new InvalidOperationException($"SKU '{sku}' is not in the catalog.");
-}
-```
-
-**Production takeaway:** Generics + `new()` on exceptions looks clever but fights .NET exception design — production code favors explicit throws with messages and structured error models. See foundation **Exception Handling** — `throw` vs `throw ex` for stack preservation when rethrowing.
-
----
-
----
-
-### 02. ArrayList
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/02. ArrayList`
-
----
-
----
-
-#### Q1. (R) A legacy warehouse service stores pick lines in an `ArrayList`. After a refactor, production throws `InvalidCastException` during the nightly export. Review the code — what failed, and why did it compile?
-
-```csharp
-ArrayList warehouseLines = LoadLinesFromDatabase(); // returns mixed legacy rows
-
-decimal totalValue = 0m;
-foreach (object entry in warehouseLines)
-{
-    Product product = (Product)entry;
-    totalValue += product.ProductPrice;
-}
-```
-
-A teammate added this line to support rush SKUs before the export job runs:
-
-```csharp
-warehouseLines.Add("RUSH-PICK");
-```
-
----
-
-**Answer:**
-
-```csharp
-ArrayList warehouseLines = LoadLinesFromDatabase(); // returns mixed legacy rows
-
-decimal totalValue = 0m;
-foreach (object entry in warehouseLines)
-{
-    Product product = (Product)entry;
-    totalValue += product.ProductPrice;
-}
-```
-
-A teammate added this line to support rush SKUs before the export job runs:
-
-```csharp
-warehouseLines.Add("RUSH-PICK");
-```
-
-**Answer:** The export loop assumes every `ArrayList` element is a `Product`, but `Add("RUSH-PICK")` stores a `string` — the cast `(Product)entry` throws `InvalidCastException` at runtime because `ArrayList.Add` accepts any `object` with no compile-time type check.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Type safety | `ArrayList` allows heterogeneous `Add` | Wrong runtime type slips in; compile succeeds |
-| Runtime | `(Product)entry` on a `string` | `InvalidCastException` — nightly job fails |
-| Design | Mixed domain types in one bag | Same fragility as **Program.cs** Section 5 CRUD demo (`Add(250)` beside `Product`) |
-| Maintainability | Implicit contract "all items are Product" | No compiler enforcement; code review must catch bad `Add` |
-
-**Fix (priority order):**
-
-1. Remove the string from the product list — store rush flags on `Product` or use a separate collection.
-2. Migrate `warehouseLines` to `List<Product>` so `Add("RUSH-PICK")` fails at compile time.
-3. Short-term guard: use pattern matching (`entry is Product p`) and log/skip invalid rows instead of blind cast — stops the crash but hides data quality issues.
-4. Add an integration test that runs the export against a fixture mirroring legacy mixed data.
-
-**Production takeaway:** `ArrayList` defers type errors to production — Karat uses this to test whether you connect "it compiled" with "nothing checked the element type." See **Program.cs** Sections 2 and 7 — indexer and `foreach` return `object`.
-
----
-
----
-
-#### Q2. (R) A sensor-ingestion job stores telemetry in an `ArrayList` and unboxes on read. Under load, GC pressure spikes and one pod crashes intermittently. Review the hot path — what is wrong at the storage layer and on read?
-
-```csharp
-ArrayList readings = new ArrayList(capacity: 10_000);
-
-for (int i = 0; i < 10_000; i++)
-{
-    readings.Add(i); // sensor count snapshot
-}
-
-int peak = (long)readings[0]; // "fix" after a code review comment
-```
-
----
-
-**Answer:**
-
-```csharp
-ArrayList readings = new ArrayList(capacity: 10_000);
-
-for (int i = 0; i < 10_000; i++)
-{
-    readings.Add(i); // sensor count snapshot
-}
-
-int peak = (long)readings[0]; // "fix" after a code review comment
-```
-
-**Answer:** Each `Add(i)` boxes the `int` onto the heap, creating 10,000 extra allocations and GC pressure; the read then uses `(long)` on a boxed `int`, which throws `InvalidCastException` because unboxing requires the exact original type — you cannot unbox a boxed `int` directly to `long`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Boxing every `int` on `Add` | Heap allocations, GC churn under load |
-| Runtime | `(long)readings[0]` unboxes boxed `int` as `long` | `InvalidCastException` — intermittent pod crash |
-| API misuse | `ArrayList` for homogeneous numeric telemetry | Wrong tool when all elements are `int` |
-| "Fix" regression | Widening cast on unbox | Confuses numeric widening with unboxing rules |
-
-**Fix (priority order):**
-
-1. Replace with `List<int>` — no boxing for value-type elements; indexer returns `int` directly.
-2. Correct read: `int peak = (int)readings[0]!` only if staying on `ArrayList`; prefer `List<int>` so no cast is needed.
-3. If values can exceed `int`, use `List<long>` from the start — store the wider type without boxing.
-4. Profile Gen0/Gen1 collections after migration to confirm allocation drop.
-
-**Production takeaway:** Boxing is invisible in small demos but measurable in hot loops — Karat pairs GC symptoms with the `Add(object)` signature. See **Program.cs** Section 9 — boxing on `Add(42)` and correct `(int)` unbox.
-
----
-
----
-
-#### Q3. (R) A catalog API still exposes `IList` for backward compatibility. New code assumes every element is a `Product`. Review this controller helper — what breaks at runtime, and what compile-time safety is missing?
-
-```csharp
-public decimal GetCatalogTotal(IList catalog)
-{
-    decimal total = 0m;
-    for (int i = 0; i < catalog.Count; i++)
-    {
-        total += ((Product)catalog[i]!).ProductPrice;
-    }
-    return total;
-}
-
-// Caller from legacy batch job:
-IList legacyCatalog = new ArrayList
-{
-    new Product { ProductNo = 10, ProductName = "Scanner", ProductPrice = 89.50m },
-    250 // legacy quantity field stored inline before Product migration
-};
-GetCatalogTotal(legacyCatalog);
-```
-
----
-
-**Answer:**
-
-```csharp
-public decimal GetCatalogTotal(IList catalog)
-{
-    decimal total = 0m;
-    for (int i = 0; i < catalog.Count; i++)
-    {
-        total += ((Product)catalog[i]!).ProductPrice;
-    }
-    return total;
-}
-
-// Caller from legacy batch job:
-IList legacyCatalog = new ArrayList
-{
-    new Product { ProductNo = 10, ProductName = "Scanner", ProductPrice = 89.50m },
-    250 // legacy quantity field stored inline before Product migration
-};
-GetCatalogTotal(legacyCatalog);
-```
-
-**Answer:** Index 1 holds a boxed `int` (250), not a `Product` — `((Product)catalog[i]!)` throws `InvalidCastException` on the second iteration. The method compiles because `IList` indexer returns `object?` and the cast is explicit; no compile-time guarantee exists that callers populated the list homogeneously.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Contract | `IList` accepts any element type | Callers can pass legacy mixed `ArrayList` |
-| Runtime | Cast `(Product)` on boxed `int` | API call fails mid-loop |
-| API design | Non-generic `IList` parameter | Hides intended element type from callers and reviewers |
-| Migration debt | Legacy row shape (`250` inline) coexists with `Product` | Data migration incomplete but new code assumes completion |
-
-**Fix (priority order):**
-
-1. Change signature to `IReadOnlyList<Product>` or `List<Product>` — mixed `Add` fails at compile time on the caller side when they migrate.
-2. Add a dedicated DTO mapper at the legacy boundary that converts raw rows to `Product` before calling business logic — never pass raw `ArrayList` into domain code.
-3. Interim: validate with `catalog[i] is Product` and throw a descriptive error listing index and runtime type.
-4. Deprecate `GetCatalogTotal(IList)` once batch jobs are updated; track call sites.
-
-**Production takeaway:** Programming against non-generic `IList`/`ICollection` was necessary pre-generics — modern code should not treat it as a typed list. See **Program.cs** Section 8 — `IList` polymorphism and Section 10 — catalog with manual casts.
-
----
-
----
-
-#### Q4. (P) Your team is migrating a .NET Framework inventory module that uses `ArrayList` for product catalogs, `Hashtable` for SKU→bin lookup, and manual `(Product)` casts in every loop. What is your migration plan to modern generic collections, and what do you change first to stop runtime cast failures?
-
----
-
-**Answer:**
-
-**Answer:** Migrate at the boundaries first — replace internal storage with `List<Product>` and `Dictionary<string, string>` (or appropriate typed keys/values), then narrow public APIs from `IList`/`Hashtable` to generic interfaces so new code cannot inject wrong types; leave thin adapter shims for external callers until call sites are updated.
-
-- **Phase 1 — stop the bleeding:** Identify hot paths throwing `InvalidCastException` (catalog totals, export loops). Convert those `ArrayList` instances to `List<Product>` at the point of creation; map legacy rows in one factory method rather than scattering casts.
-- **Phase 2 — keyed lookup:** Replace `Hashtable skuToBin` with `Dictionary<string, string>` — eliminates boxing on value types and `as`/cast on values. See **Program.cs** Section 12.
-- **Phase 3 — API surface:** Change method parameters from `IList` to `IReadOnlyList<Product>` or `IEnumerable<Product>`; keep obsolete overloads that copy into `List<Product>` with validation for remaining legacy callers.
-- **Phase 4 — satellite types:** Migrate `Stack`/`Queue`/`SortedList` usages to `Stack<T>`, `Queue<T>`, `SortedList<TKey,TValue>` as touched (Section 13 preview).
-- **Testing:** Characterization tests with production-like mixed `ArrayList` fixtures; assert migrated code either rejects bad rows or maps them explicitly — never silent cast.
-- **Do not big-bang** every file — migrate by vertical slice (catalog service end-to-end) so each PR is deployable.
-
-**Production takeaway:** Migration priority is runtime cast failures and public boundaries, not alphabetical file renames — Karat tests whether you know *where* generics buy safety first.
-
----
-
----
-
-#### Q5. (M) Two implementations compute the same warehouse capacity check. One uses `ArrayList`, one uses `List<int>`. A performance test shows the `ArrayList` version allocates more and runs slower on .NET 8. Explain the mechanism — what happens on each `Add` for value types, and why does `List<int>` avoid it?
-
-```csharp
-// Version A — legacy
-ArrayList slots = new ArrayList(50_000);
-for (int i = 0; i < 50_000; i++)
-    slots.Add(i);
-
-// Version B — migrated
-List<int> slots = new List<int>(50_000);
-for (int i = 0; i < 50_000; i++)
-    slots.Add(i);
-```
-
----
-
-**Answer:**
-
-**Answer:** `ArrayList.Add` takes `object`, so each `int` is boxed into a separate heap object stored in the internal `object[]`; `List<int>` stores ints directly in its `T[]` backing array with no boxing because the generic type parameter is known at compile time.
-
-- **`ArrayList.Add(i)`:** `int` → boxed `object` (heap allocation + copy) → reference stored in `object[]`. 50,000 iterations ⇒ 50,000 box allocations plus array resizing copies.
-- **`List<int>.Add(i)`:** `int` written inline into `int[]` — same amortized growth strategy as `ArrayList`, but no per-element heap wrapper.
-- **Read path:** `ArrayList` indexer returns `object` → unbox cast; `List<int>` indexer returns `int` — fewer instructions, no unbox.
-- **GC:** Boxed objects are short-lived Gen0 garbage; high-frequency adds inflate collection frequency and cache pressure — matches the pod/GC story in Q2.
-- **Capacity hint:** Both honor initial capacity (`new ArrayList(50_000)` / `new List<int>(50_000)`) to reduce resize copies — boxing cost remains unique to `ArrayList` for value types.
-
-**Production takeaway:** Same Big-O for `Add`, different constant factors and allocation profile — Karat expects you to name boxing/unboxing, not just "generics are faster." See **Program.cs** Sections 4 and 11 — capacity behavior and `ArrayList` vs `List<T>` comparison table.
-
----
-
----
-
-#### Q6. (D) A monolith has 40 call sites passing `ArrayList` into methods typed as `IList`. Full rewrite to `List<T>` is blocked for two sprints. What incremental strategy reduces `InvalidCastException` risk without a big-bang change, and where do you draw the line on leaving `ArrayList` in place?
-
----
-
----
-
-### 03. List
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/03. List`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** Introduce typed wrappers and validated adapters at the edges — new code accepts `IReadOnlyList<T>`; legacy `ArrayList` flows through a single conversion layer that validates or maps elements — and freeze new `ArrayList` usage via analyzer or review rule while migrating call sites by module.
-
-- **Immediate guardrails:** Ban new `ArrayList`/`new ArrayList()` in product code (Roslyn analyzer or `.editorconfig` convention); allow only in the compatibility adapter project.
-- **Adapter pattern:** `static List<Product> ToProductList(IList legacy)` — foreach with `is Product` check; throw `InvalidOperationException` with index and type on first bad element (fail fast at boundary, not deep in business logic).
-- **Strangler order:** Migrate leaf utilities with no downstream `IList` exports first; then services; public API last — each sprint removes a cluster of call sites, not random files.
-- **Interface bridge:** Obsolete `void Process(IList items)` → add `Process(IReadOnlyList<Product> items)`; old overload converts via adapter and logs `[Obsolete]` warning to track remaining callers.
-- **Draw the line — keep `ArrayList` temporarily only:** inside isolated interop with external legacy binaries you cannot change, or serialized blobs you have not migrated yet — never in new domain logic.
-- **Do not** half-migrate by sprinkling `(Product)` casts — that preserves runtime risk; centralize casts once.
-
-**Production takeaway:** Incremental migration is about *typed boundaries* and *fail-fast validation*, not leaving 40 unchecked cast sites — Karat tests pragmatic legacy strategy, not "rewrite everything day one."
-
----
-
----
-
-### 03. List
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/03. List`
-
----
-
----
-
-#### Q1. (R) A nightly import job loads 500,000 shipment SKUs into a `List<string>` by calling `Add` one at a time in a loop. Memory profiling shows repeated large allocations and GC pressure. Review the pattern below. What is happening internally, and how would you fix it?
-
-```csharp
-public static List<string> LoadSkusFromFeed(IEnumerable<string> feedLines)
-{
-    var skus = new List<string>();
-    foreach (var line in feedLines)
-    {
-        skus.Add(line.Trim());
-    }
-    return skus;
-}
-```
-
----
-
-**Answer:**
-
-```csharp
-public static List<string> LoadSkusFromFeed(IEnumerable<string> feedLines)
-{
-    var skus = new List<string>();
-    foreach (var line in feedLines)
-    {
-        skus.Add(line.Trim());
-    }
-    return skus;
-}
-```
-
-**Answer:** Each time `Count` exceeds `Capacity`, `List<T>` allocates a new backing array (typically double the previous size), copies every existing element, and discards the old array — so repeated growth on a half-million-item load causes many intermediate large allocations and full copies before the final size is reached.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | No initial capacity hint | Repeated resize + copy: O(n) per growth step → O(n²) total copy work for n adds |
-| Memory | Discarded backing arrays until GC | GC pressure spikes during bulk import; LOH pressure for large string lists |
-| Operability | `Clear()` later keeps high `Capacity` | Memory retained after import if list is reused without `TrimExcess()` |
-
-**Fix (priority order):**
-
-1. Pre-size when count is known or estimable: `new List<string>(capacity: 500_000)` or `new List<string>(feedLines as ICollection<string> ?? feedLines.ToList())` when the source exposes count.
-2. Prefer `AddRange` over per-item `Add` when inserting a batch — one resize check for the whole range.
-3. After bulk deletes, call `TrimExcess()` if the list will stay small long-term to release unused backing array memory.
-4. For truly massive feeds, consider streaming processing instead of materializing everything into one list.
-
-```csharp
-public static List<string> LoadSkusFromFeed(IReadOnlyCollection<string> feedLines)
-{
-    var skus = new List<string>(feedLines.Count);
-    foreach (var line in feedLines)
-    {
-        skus.Add(line.Trim());
-    }
-    return skus;
-}
-```
-
-**Production takeaway:** `List<T>` growth is amortized O(1) per `Add`, but only if you avoid pathological resize storms — Karat tests whether you know `Capacity` doubles (0 → 4 → 8 → 16 …) and that pre-sizing is a one-line production win. See **Program.cs** Section 3 — Count / Capacity.
-
----
-
----
-
-#### Q2. (R) A warehouse service removes cancelled dock labels during iteration. In staging it throws intermittently. Review this method — what breaks, and what is the correct fix?
-
-```csharp
-public void PurgeCancelledLabels(List<string> dockLabels, HashSet<string> cancelled)
-{
-    foreach (string label in dockLabels)
-    {
-        if (cancelled.Contains(label))
-        {
-            dockLabels.Remove(label);
-        }
-    }
-}
-```
-
----
-
-**Answer:**
-
-```csharp
-public void PurgeCancelledLabels(List<string> dockLabels, HashSet<string> cancelled)
-{
-    foreach (string label in dockLabels)
-    {
-        if (cancelled.Contains(label))
-        {
-            dockLabels.Remove(label);
-        }
-    }
-}
-```
-
-**Answer:** Modifying a `List<T>` while iterating it with `foreach` invalidates the enumerator — the runtime throws `InvalidOperationException` ("Collection was modified") as soon as `Remove` shifts elements and bumps the list's version.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Remove` inside `foreach` | `InvalidOperationException` — job fails mid-purge |
-| Correctness | Only first match removed per value anyway | Even if it didn't throw, partial removal + skipped items after shift |
-| API choice | `Remove(object)` scans from start each call | O(n²) for many cancellations on a large list |
-
-**Fix (priority order):**
-
-1. **Iterate backwards by index** when removing in-place: `for (int i = dockLabels.Count - 1; i >= 0; i--)` then `RemoveAt(i)` — backward removal avoids index skips.
-2. **Prefer `RemoveAll`** for predicate-based bulk delete: `dockLabels.RemoveAll(label => cancelled.Contains(label))` — single pass, no enumerator invalidation.
-3. **Rebuild** if most items are removed: `dockLabels.RemoveAll(...)` or filter to a new list and replace reference.
-4. Never call `Add`, `Insert`, `Remove`, `Clear`, or `Sort` on a collection during `foreach` on that same collection.
-
-```csharp
-public void PurgeCancelledLabels(List<string> dockLabels, HashSet<string> cancelled)
-{
-    dockLabels.RemoveAll(label => cancelled.Contains(label));
-}
-```
-
-**Production takeaway:** This is one of the most common collection bugs in production services — Karat embeds it in realistic warehouse code to see if you diagnose enumerator invalidation, not just "don't modify while looping." See **Program.cs** Section 2 — CRUD / RemoveAll.
-
----
-
----
-
-#### Q3. (M) A shipment validator checks whether each incoming pallet's SKU already exists in a queue of 50,000 items by calling `IndexOf` inside a loop. What is the performance problem, and what structure would you use instead?
-
-```csharp
-public bool AllSkusAlreadyQueued(List<ShipmentItem> queue, IEnumerable<ShipmentItem> incoming)
-{
-    foreach (var item in incoming)
-    {
-        if (queue.IndexOf(item) < 0)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-```
-
-*(Assume `ShipmentItem` does not override `Equals` / `GetHashCode`.)*
-
----
-
-**Answer:**
-
-```csharp
-public bool AllSkusAlreadyQueued(List<ShipmentItem> queue, IEnumerable<ShipmentItem> incoming)
-{
-    foreach (var item in incoming)
-    {
-        if (queue.IndexOf(item) < 0)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-```
-
-**Answer:** `IndexOf` performs a linear scan O(n) over the entire list for every incoming item, giving O(n × m) behavior — and because `ShipmentItem` uses reference equality by default, the check may not even match logically equal SKUs unless `Equals` is overridden.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | `IndexOf` in outer loop | 50k × incoming count comparisons — timeouts under peak load |
-| Correctness | Default reference equality on `ShipmentItem` | Two objects with same SKU may not compare equal — false negatives |
-| Design | List is ordered sequence, not lookup index | Wrong tool for membership-by-key checks |
-
-**Fix (priority order):**
-
-1. Build a **`HashSet<string>`** (or `Dictionary<string, ShipmentItem>`) of queued SKUs once — O(1) average lookup per incoming item.
-2. If order must be preserved **and** you need key lookup, maintain **both**: `List<ShipmentItem>` for order + `HashSet<string>` for membership (common production pattern).
-3. Override **`Equals`/`GetHashCode`** on `ShipmentItem` by SKU if set semantics should match domain identity — required for `IndexOf`/`Contains` to work by value.
-4. Use **`Exists(predicate)`** only for single checks — still O(n) per call; does not fix the nested-loop cost.
-
-```csharp
-public bool AllSkusAlreadyQueued(List<ShipmentItem> queue, IEnumerable<ShipmentItem> incoming)
-{
-    var queuedSkus = new HashSet<string>(queue.Select(q => q.Sku));
-    return incoming.All(item => queuedSkus.Contains(item.Sku));
-}
-```
-
-**Production takeaway:** `List<T>` search helpers (`IndexOf`, `Contains`, `Find`) are fine for small lists or rare checks — Karat uses scale (50k items) to force the jump to hash-based lookup. See **Program.cs** Section 12 — Dictionary preview vs List scan.
-
----
-
----
-
-#### Q4. (D) Two developers search a pallet-count list for the first value over 20. One uses `List.Find`; the other uses LINQ `FirstOrDefault`. When would you prefer each, and what subtle difference matters for value types?
-
-```csharp
-List<int> palletCounts = GetPalletCounts();
-
-int a = palletCounts.Find(n => n > 20);
-int b = palletCounts.FirstOrDefault(n => n > 20);
-```
-
----
-
-**Answer:**
-
-```csharp
-List<int> palletCounts = GetPalletCounts();
-
-int a = palletCounts.Find(n => n > 20);
-int b = palletCounts.FirstOrDefault(n => n > 20);
-```
-
-**Answer:** For `List<int>`, both scan from index 0 and stop at the first match — behavior is equivalent here — but `Find` avoids LINQ's iterator allocation and is the idiomatic in-place search on `List<T>`; the important trap is that both return **`default(T)`** when nothing matches (`0` for `int`, not "no result").
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Semantics | `default(int)` is `0` when no match | Cannot distinguish "found zero" from "not found" without `Exists` or nullable |
-| Performance | LINQ adds delegate + enumerator overhead | Negligible on small lists; matters in hot loops on large lists |
-| Consistency | Mixing styles across codebase | Team readability — pick one pattern per layer |
-
-**When to prefer each:**
-
-- **`List.Find` / `Exists` / `FindAll`:** Hot paths on materialized `List<T>` already in memory; mutating-list APIs (`FindAll` returns new list); no extra `using System.Linq`.
-- **LINQ (`FirstOrDefault`, `Where`, `Any`):** Composing over `IEnumerable<T>`, deferred pipelines, or when the source may not be a list — keeps query chains uniform.
-- **Neither alone for "maybe absent" value types:** Use `int? result = palletCounts.Cast<int?>().FirstOrDefault(n => n > 20)` or check `Exists` first, or return a tuple/bool+value.
-
-**Production takeaway:** Karat tests API semantics, not LINQ religion — `Find` vs `FirstOrDefault` on a `List<int>` is a wash for performance, but **`default(T)` ambiguity** on value types breaks business rules silently. See **Program.cs** Section 4 — Find / Exists.
-
----
-
----
-
-#### Q5. (R) A `ShipmentQueueService` exposes its internal lane list directly to API callers. Review the property and usage — what can go wrong in production, and how would you expose the data safely?
-
-```csharp
-public class ShipmentQueueService
-{
-    private readonly List<string> _lanes = new() { "Lane-1", "Lane-2" };
-
-    public List<string> Lanes => _lanes;
-
-    public void Reassign(string sku, string lane)
-    {
-        _lanes.Add(lane);
-    }
-}
-
-// Controller
-var lanes = _queueService.Lanes;
-lanes.Clear();
-lanes.Add("Hijacked-Lane");
-```
-
----
-
-**Answer:**
-
-```csharp
-public class ShipmentQueueService
-{
-    private readonly List<string> _lanes = new() { "Lane-1", "Lane-2" };
-
-    public List<string> Lanes => _lanes;
-
-    public void Reassign(string sku, string lane)
-    {
-        _lanes.Add(lane);
-    }
-}
-
-// Controller
-var lanes = _queueService.Lanes;
-lanes.Clear();
-lanes.Add("Hijacked-Lane");
-```
-
-**Answer:** Returning the live `List<string>` breaks encapsulation — any caller can mutate, clear, or replace elements in the service's internal state without going through `Reassign`, causing invariant violations and race conditions if the service is shared.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Public mutable collection escape | Callers bypass validation; `Clear()` wipes production lanes |
-| Encapsulation | `List<T>` exposes `Add`/`Remove`/`Sort` | Cannot audit or log changes; hard to evolve to new rules |
-| Concurrency | Shared list reference across requests | One request mutates while another reads — corrupt state under load |
-| API contract | Return type promises mutability | Consumers depend on side-effecting the service internals |
-
-**Fix (priority order):**
-
-1. Expose **`IReadOnlyList<string>`** backed by **`AsReadOnly()`** or return **`_lanes.ToArray()`** / **`[.. _lanes]`** snapshot when callers must not see live mutations.
-2. Prefer **`IReadOnlyList<string> Lanes => _lanes.AsReadOnly()`** for a live read-only view — note underlying list changes still appear (Section 8 behavior).
-3. For strict immutability from outside, return a **copy**: `return _lanes.ToList()` or `return (IReadOnlyList<string>)_lanes.ToArray()` — higher allocation, safest for public APIs.
-4. Route all mutations through **methods** on the service (`AddLane`, `RemoveLane`) that enforce rules and logging.
-
-```csharp
-public IReadOnlyList<string> Lanes => _lanes.AsReadOnly();
-
-public void AddLane(string lane)
-{
-    if (string.IsNullOrWhiteSpace(lane)) throw new ArgumentException(nameof(lane));
-    _lanes.Add(lane);
-}
-```
-
-**Production takeaway:** `AsReadOnly()` prevents mutation through the wrapper but not through leaked `List<T>` references — Karat stacks encapsulation + API surface design. See **Program.cs** Section 8 — AsReadOnly.
-
----
-
----
-
-#### Q6. (P) A singleton background worker and several API threads share one static `List<ShipmentItem>` for the live shipment queue. Under load, counts become wrong and the process occasionally throws. Explain why `List<T>` is unsafe here and what pattern you would use instead.
-
-```csharp
-public static class ShipmentHub
-{
-    public static readonly List<ShipmentItem> LiveQueue = new();
-
-    public static void Enqueue(ShipmentItem item) => LiveQueue.Add(item);
-
-    public static void ProcessNext()
-    {
-        if (LiveQueue.Count > 0)
-        {
-            var next = LiveQueue[0];
-            LiveQueue.RemoveAt(0);
-            Ship(next);
-        }
-    }
-}
-```
-
----
-
-### 04. Dictionary
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/04. Dictionary`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-public static class ShipmentHub
-{
-    public static readonly List<ShipmentItem> LiveQueue = new();
-
-    public static void Enqueue(ShipmentItem item) => LiveQueue.Add(item);
-
-    public static void ProcessNext()
-    {
-        if (LiveQueue.Count > 0)
-        {
-            var next = LiveQueue[0];
-            LiveQueue.RemoveAt(0);
-            Ship(next);
-        }
-    }
-}
-```
-
-**Answer:** `List<T>` is not thread-safe — concurrent `Add`, `RemoveAt`, and reads can corrupt internal array state, lose elements, throw `ArgumentOutOfRangeException`, or throw during enumeration because another thread resized or removed items mid-operation.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Unsynchronized `Add` + `RemoveAt` | Lost updates, torn reads, occasional exceptions |
-| Correctness | `Count > 0` then `[0]` is not atomic | Another thread can dequeue between check and index — race |
-| Architecture | Static mutable shared state | Cannot scale out across processes; hidden global coupling |
-| Observability | Intermittent failures under load | Passes locally; fails in production peak traffic |
-
-**Fix (priority order):**
-
-1. **`lock` around all queue operations** on a private list if you must share in-process state — simplest fix, limits throughput.
-2. Prefer **`ConcurrentQueue<ShipmentItem>`** or **`Channel<ShipmentItem>`** for producer/consumer patterns — designed for concurrent enqueue/dequeue.
-3. Remove **static mutable** queues from business logic — inject a **scoped or singleton service** with explicit thread-safe storage; use database/message broker for multi-instance deployments.
-4. Never expose the raw list publicly (see Q5) — wrap in a thread-safe API.
-
-```csharp
-private static readonly object Gate = new();
-private static readonly List<ShipmentItem> LiveQueue = new();
-
-public static void Enqueue(ShipmentItem item)
-{
-    lock (Gate) { LiveQueue.Add(item); }
-}
-
-public static bool TryDequeue(out ShipmentItem? item)
-{
-    lock (Gate)
-    {
-        if (LiveQueue.Count == 0) { item = null; return false; }
-        item = LiveQueue[0];
-        LiveQueue.RemoveAt(0);
-        return true;
-    }
-}
-```
-
-**Production takeaway:** `List<T>` documentation explicitly states it is not thread-safe — Karat pairs this with singleton/static patterns to test whether you reach for synchronization or the right concurrent collection. For new code, `Channel<T>` or `ConcurrentQueue<T>` beats hand-rolled locks on `List<T>`.
-
----
-
-### 04. Dictionary
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/04. Dictionary`
-
----
-
----
-
-#### Q1. (R) A hot-path SKU lookup uses `ContainsKey` followed by the indexer. Review this warehouse catalog access. What is inefficient, and how would you improve it?
-
-```csharp
-public Product? FindProduct(Dictionary<string, Product> catalog, string sku)
-{
-    if (catalog.ContainsKey(sku))
-    {
-        return catalog[sku];
-    }
-    return null;
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** The code performs two hash lookups — one in `ContainsKey` and one in the indexer — when a single `TryGetValue` call can retrieve the value in one pass. Under hot paths or large catalogs, the extra lookup adds avoidable cost and is harder to read than the idiomatic pattern.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Double hash lookup per hit | Unnecessary CPU on high-frequency SKU resolution |
-| Idiomatic C# | `ContainsKey` + indexer is a legacy pattern | Easy to miss in code review; signals unfamiliarity with BCL APIs |
-| Concurrency | Two separate reads on a shared dictionary (minor) | Theoretically inconsistent if another thread mutates between calls |
-
-**Fix (priority order):**
-
-1. Replace the pair with `TryGetValue` and branch on its `bool` result.
-2. Return the `out` variable directly when found; avoid a second access.
-3. Prefer `CollectionsMarshal.GetValueRefOrNullRef` only in measured hot paths — `TryGetValue` is the default fix.
-
-```csharp
-public Product? FindProduct(Dictionary<string, Product> catalog, string sku)
-{
-    return catalog.TryGetValue(sku, out Product? product) ? product : null;
-}
-```
-
-**Production takeaway:** Karat flags this as a micro-optimization with readability upside — it signals you know standard library APIs, not just that dictionaries exist. See **Program.cs** Section 5 — `TryGetValue` preferred over `ContainsKey` + indexer.
-
----
-
----
-
-#### Q2. (R) A team uses a custom class as the dictionary key and mutates it after insert. Lookups start failing intermittently in production. Review this catalog code:
-
-```csharp
-public sealed class SkuKey
-{
-    public string Code { get; set; } = string.Empty;
-
-    public override int GetHashCode() => Code.GetHashCode(StringComparison.Ordinal);
-    public override bool Equals(object? obj) =>
-        obj is SkuKey other && Code == other.Code;
-}
-
-var catalog = new Dictionary<SkuKey, Product>();
-var key = new SkuKey { Code = "WH-1001" };
-catalog[key] = new Product { Sku = "WH-1001", Name = "Steel bracket", UnitPrice = 12.50m };
-
-// Later, a pricing job "normalizes" the key object in place:
-key.Code = "WH-1001-NORM";
-
-// Another request:
-var lookupKey = new SkuKey { Code = "WH-1001" };
-catalog.TryGetValue(lookupKey, out Product? found); // found is null — product "vanished"
-```
-
-What broke, and how should keys be designed for `Dictionary<TKey, TValue>`?
-
----
-
-**Answer:**
-
-**Answer:** `Dictionary` stores entries by the key's hash code at insert time. Mutating `key.Code` after insert leaves the entry in the wrong bucket — lookups with a new `SkuKey { Code = "WH-1001" }` hash to a different slot, so the product appears missing even though it is still in the table under a stale hash.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Mutable key changed after `catalog[key] = …` | `TryGetValue` / indexer miss; "orphaned" entries |
-| Hash contract | `GetHashCode`/`Equals` must be stable while key is in the map | Violated when `Code` property mutates |
-| Design | Reference-type key with public setter | Silent data loss in catalog lookups |
-
-**Fix (priority order):**
-
-1. Make key types **immutable** after construction — `init` or `readonly` properties, or use `record`/`readonly record struct` for value semantics.
-2. Never mutate a key object that is already in the dictionary; remove, create a new key, and re-insert if the identifier changes.
-3. For string SKUs, prefer `Dictionary<string, Product>` — `string` is immutable and already implements the hash contract correctly.
-4. If you must wrap identifiers, use `readonly record struct SkuKey(string Code)` or a sealed class with no setters.
-
-```csharp
-public readonly record struct SkuKey(string Code);
-
-var catalog = new Dictionary<SkuKey, Product>();
-catalog[new SkuKey("WH-1001")] = product;
-// To change SKU: remove old entry, insert with new SkuKey — do not mutate in place
-```
-
-**Production takeaway:** Hash-table collections assume keys do not change while inserted — Karat uses this to test the hash contract beyond "override GetHashCode." See **Program.cs** Section 1 — custom keys must override both methods and stay immutable after insert.
-
----
-
----
-
-#### Q3. (P) An ASP.NET Core API caches product details in a shared `Dictionary<string, Product>` field on a singleton service. Under load tests, responses are wrong and the process occasionally throws `InvalidOperationException`. Review the cache:
-
-```csharp
-public sealed class ProductCatalogService
-{
-    private readonly Dictionary<string, Product> _cache = new();
-    private readonly IProductRepository _repo;
-
-    public Product GetBySku(string sku)
-    {
-        if (!_cache.ContainsKey(sku))
-        {
-            Product loaded = _repo.GetBySku(sku); // DB call
-            _cache[sku] = loaded;
-        }
-        return _cache[sku];
-    }
-}
-```
-
-What fails in production under concurrent requests, and what type/pattern replaces this?
-
----
-
-**Answer:**
-
-**Answer:** `Dictionary<TKey, TValue>` is not thread-safe. Concurrent reads and writes from multiple HTTP requests corrupt internal buckets, throw during enumeration, and allow two threads to both miss the cache and write different `Product` instances for the same SKU — undefined behavior under load.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Unsynchronized `_cache` mutations | `InvalidOperationException`, torn internal state |
-| Correctness | Check-then-add without locking | Duplicate DB loads; possible inconsistent cached values |
-| Lifetime | Singleton holds one shared dictionary for all requests | Every request shares the same unsynchronized structure |
-| Performance | `ContainsKey` + indexer (two lookups) | Extra cost on every cache access |
-
-**Fix (priority order):**
-
-1. Replace with `ConcurrentDictionary<string, Product>` and use `GetOrAdd` or `TryGetValue` for reads.
-2. If you must keep `Dictionary`, guard all access with a single lock (`lock (_cache) { … }`) — simpler but lower throughput than `ConcurrentDictionary`.
-3. Register the cache as **scoped** only when it is per-request scratch data — not for a cross-request product catalog; singleton + concurrent collection is the usual pattern for shared read-mostly caches.
-4. Consider `IMemoryCache` with size limits and expiration instead of a raw unbounded map (see Q5).
-
-```csharp
-private readonly ConcurrentDictionary<string, Product> _cache = new();
-
-public Product GetBySku(string sku) =>
-    _cache.GetOrAdd(sku, s => _repo.GetBySku(s));
-```
-
-**Production takeaway:** Passing local load tests with one thread hides dictionary thread-safety gaps — Karat expects you to name `ConcurrentDictionary` or explicit locking for shared mutable maps. See foundation **Dictionary** gotcha — not thread-safe for concurrent read/write.
-
----
-
----
-
-#### Q4. (R) A REST endpoint maps query parameters directly into dictionary lookups without null checks. Review the handler:
-
-```csharp
-[HttpGet("product")]
-public IActionResult GetProduct([FromQuery] string? sku, [FromServices] Dictionary<string, Product> catalog)
-{
-    if (catalog.ContainsKey(sku))
-    {
-        return Ok(catalog[sku]);
-    }
-    return NotFound();
-}
-```
-
-The client calls `/product` with no `sku` parameter. What exception is thrown and where, and how do you harden this lookup?
-
----
-
-**Answer:**
-
-**Answer:** When `sku` is omitted, it is `null`. `Dictionary<string, T>.ContainsKey(null)` throws `ArgumentNullException` before the `NotFound()` branch runs — the API returns 500 instead of 400/404. The same rule applies to `Add`, the indexer, and `TryGetValue` with a null reference-type key.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | Null key passed to `ContainsKey` | `ArgumentNullException` — 500 to client |
-| API contract | Missing query param not validated | Wrong status code; noisy error logs |
-| Input hygiene | Nullable `string? sku` used as dictionary key without guard | Any null path hits the same exception |
-
-**Fix (priority order):**
-
-1. Validate input first: `if (string.IsNullOrWhiteSpace(sku)) return BadRequest("sku is required");`
-2. Use `TryGetValue` for the lookup after validation — one lookup, no exception on missing key.
-3. Do not inject `Dictionary<string, Product>` directly into controllers — use a scoped service that owns catalog access and validation.
-4. Return `NotFound()` only after a validated, non-null key misses the catalog.
-
-```csharp
-[HttpGet("product")]
-public IActionResult GetProduct([FromQuery] string? sku, [FromServices] IProductCatalog catalog)
-{
-    if (string.IsNullOrWhiteSpace(sku))
-        return BadRequest("sku is required");
-
-    return catalog.TryGetProduct(sku, out Product? product)
-        ? Ok(product)
-        : NotFound();
-}
-```
-
-**Production takeaway:** Null keys are rejected at the API boundary of `Dictionary<string, …>` — Karat tests whether you validate before touching the collection. See **Program.cs** Section 7c — null key on `Add` throws `ArgumentNullException`.
-
----
-
----
-
-#### Q5. (D) A microservice adds a static in-memory cache so repeated HTTP fetches are fast. After two weeks in production, pods hit OOM kills even though traffic is steady. Review the cache:
-
-```csharp
-public static class RemoteAssetCache
-{
-    private static readonly Dictionary<string, byte[]> _cache = new();
-
-    public static byte[] GetAsset(string url)
-    {
-        if (!_cache.TryGetValue(url, out byte[]? bytes))
-        {
-            bytes = Download(url); // can be megabytes per entry
-            _cache[url] = bytes;
-        }
-        return bytes;
-    }
-
-    private static byte[] Download(string url) { /* HttpClient GET */ return Array.Empty<byte>(); }
-}
-```
-
-What design problem does this introduce at scale, and what would you use instead of an unbounded `Dictionary`?
-
----
-
-**Answer:**
-
-**Answer:** A plain `Dictionary` with no eviction policy grows without bound — every distinct URL adds a full byte array that is never removed. Static lifetime means the cache survives for the process lifetime and is shared across all requests, so memory only increases as URL diversity grows.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | Unbounded key space (`url` strings) + large values (`byte[]`) | OOM kills; GC pressure |
-| Lifecycle | `static` cache never cleared | Memory not reclaimed until process restart |
-| Operations | No TTL, size cap, or LRU | Cannot reason about worst-case footprint |
-| Scale-out | Per-pod static cache | Duplicate memory across replicas; no shared invalidation |
-
-**Fix (priority order):**
-
-1. Replace with `IMemoryCache` (or `MemoryCache`) configured with `SizeLimit`, `CompactionPercentage`, and per-entry `Size` + `AbsoluteExpiration` / `SlidingExpiration`.
-2. For distributed deployments, use `IDistributedCache` (Redis) with explicit TTL instead of unbounded in-process storage.
-3. If a raw dictionary is unavoidable, implement LRU with a max entry count and max total bytes — evict oldest when limits are hit.
-4. Remove `static` — inject a singleton `IMemoryCache` via DI so tests can substitute and options can be configured per environment.
-
-```csharp
-// Program.cs — services
-builder.Services.AddMemoryCache(o =>
-{
-    o.SizeLimit = 10_000; // abstract "size units", set per entry
-});
-
-// Usage
-_cache.GetOrCreate(url, entry =>
-{
-    entry.Size = 1;
-    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
-    return Download(url);
-});
-```
-
-**Production takeaway:** `Dictionary` is a map, not a cache policy — Karat distinguishes "fast lookup" from "safe caching." Unbounded in-memory maps are a common postmortem root cause. See **Program.cs** WHY IT MATTERS — catalogs and caches appear everywhere; size and eviction are production requirements.
-
----
-
----
-
-#### Q6. (P) A developer avoids `ConcurrentDictionary` and hand-rolls lazy initialization with `TryGetValue`. Under load, the expensive factory runs twice for the same key. Review:
-
-```csharp
-private readonly Dictionary<string, Product> _catalog = new();
-
-public Product GetOrLoad(string sku)
-{
-    if (!_catalog.TryGetValue(sku, out Product? product))
-    {
-        product = _repo.LoadProduct(sku); // slow DB + mapping
-        _catalog[sku] = product;
-    }
-    return product;
-}
-```
-
-What race exists when multiple threads call `GetOrLoad` for the same missing SKU, and how does `ConcurrentDictionary.GetOrAdd` (or alternatives) fix it?
-
----
-
-### 05. HashSet
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/05. HashSet`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** Between `TryGetValue` returning false and `_catalog[sku] = product`, another thread can pass the same check and also call `_repo.LoadProduct(sku)` — classic check-then-act race. Both threads may insert; the last write wins, but you paid for duplicate DB work and may briefly expose inconsistent state.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Non-atomic check-then-add on `Dictionary` | Duplicate expensive loads under parallel requests |
-| Correctness | Two writers without synchronization | Undefined behavior on `Dictionary` itself (see Q3) |
-| Cost | Idempotent DB read assumed | Thundering herd on cold keys at startup or cache flush |
-
-**Fix (priority order):**
-
-1. Use `ConcurrentDictionary.GetOrAdd` so factory execution for a given key is coordinated by the collection.
-2. If the factory is very expensive, wrap with `Lazy<Product>` per key or use `GetOrAdd` with a factory that returns `Lazy<Product>` and then `.Value` once — avoids duplicate work when factory cost dominates.
-3. For single-threaded or scoped usage, plain `TryGetValue` + assign is fine — the bug is specifically shared mutable state under concurrency.
-4. Add metrics on cache misses and factory duration to detect duplicate load spikes in production.
-
-```csharp
-private readonly ConcurrentDictionary<string, Product> _catalog = new();
-
-public Product GetOrLoad(string sku) =>
-    _catalog.GetOrAdd(sku, s => _repo.LoadProduct(s));
-
-// Optional: defer heavy work until first read
-private readonly ConcurrentDictionary<string, Lazy<Product>> _catalog = new();
-
-public Product GetOrLoad(string sku) =>
-    _catalog.GetOrAdd(sku, s => new Lazy<Product>(() => _repo.LoadProduct(s))).Value;
-```
-
-**Production takeaway:** `GetOrAdd` is the production pattern for "compute once per key" in concurrent caches — Karat tests whether you recognize check-then-add as a race, not whether you memorized the method name. Pair with Q3: thread-safe type **and** atomic get-or-create semantics.
-
----
-
----
-
-### 05. HashSet
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/05. HashSet`
-
----
-
----
-
-#### Q1. (R) A nightly tag-import job deduplicates article tags with `List<string>.Contains` before insert. Review the hot path:
-
-```csharp
-public sealed class TagImportService
-{
-    private readonly List<string> _knownTags = new();
-
-    public bool TryRegisterTag(string tag)
-    {
-        if (_knownTags.Contains(tag, StringComparer.OrdinalIgnoreCase))
-            return false;
-
-        _knownTags.Add(tag);
-        return true;
-    }
-}
-
-// Startup loads 80_000 existing tags, then imports 200_000 candidate tags one-by-one.
-```
-
-The job passes unit tests (10 tags) but misses its SLA in staging. What is wrong with this design, and what collection change fixes average lookup cost?
-
----
-
-**Answer:**
-
-**Answer:** `List<T>.Contains` is **O(n)** per call, so importing *m* tags against *n* existing tags approaches **O(n × m)** — fine for unit tests with ten tags, catastrophic at 80k × 200k. Replace the backing store with `HashSet<string>` and the same `StringComparer` so `Add` and `Contains` are **O(1)** average.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Linear scan on every `Contains` | Import SLA missed; CPU spikes on large catalogs |
-| Scalability | List grows; each check walks all elements | Cost compounds as `_knownTags` grows through the run |
-| Collection choice | List chosen for uniqueness | Wrong tool — HashSet exists for exactly this pattern |
-
-**Fix (priority order):**
-
-1. Use `HashSet<string>` with `StringComparer.OrdinalIgnoreCase` as the backing store.
-2. Collapse register to a single `Add` — it returns `false` when the tag is already present.
-
-```csharp
-private readonly HashSet<string> _knownTags =
-    new(StringComparer.OrdinalIgnoreCase);
-
-public bool TryRegisterTag(string tag) => _knownTags.Add(tag);
-```
-
-**Production takeaway:** Karat pairs "works in tests" with hidden **O(n²)** membership — see **Program.cs** Section 9 (HashSet vs List). Always ask lookup frequency and collection size, not just correctness on small data.
-
----
-
----
-
-#### Q2. (R) A newsletter service deduplicates subscribers by email but keeps seeing duplicate sends in logs. Review:
-
-```csharp
-public sealed class NewsletterService
-{
-    private readonly HashSet<Subscriber> _subscribers = new();
-
-    public bool AddSubscriber(Subscriber sub) => _subscribers.Add(sub);
-
-    public bool IsSubscribed(Subscriber sub) => _subscribers.Contains(sub);
-}
-
-// Two calls with different Subscriber instances, same email:
-AddSubscriber(new Subscriber("Alex", "alex@example.com"));   // true
-AddSubscriber(new Subscriber("Alex K.", "alex@example.com")); // true — unexpected
-```
-
-What breaks uniqueness here, and how do you align with the `SubscriberByEmailComparer` pattern from this chapter?
-
----
-
-**Answer:**
-
-**Answer:** `HashSet<Subscriber>` without a custom comparer uses **reference equality** for class types — two distinct `Subscriber` objects with the same email are different elements. Pass `SubscriberByEmailComparer` (or override `Equals`/`GetHashCode` on the type) so business identity drives uniqueness.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Default reference equality on reference type | Duplicate emails stored; duplicate emails sent |
-| API misuse | `HashSet` assumed to compare by field values | Silent data-quality bug — `Add` returns `true` twice |
-| Design | Equality rule not wired into collection | `Contains`/`Remove` also fail to find "same" subscriber |
-
-**Fix (priority order):**
-
-1. Construct with the chapter comparer: `new HashSet<Subscriber>(new SubscriberByEmailComparer())`.
-2. Alternatively, use `SubscriberIdentity`-style immutable type with `IEquatable<T>` + consistent `GetHashCode` on `Email`.
-
-```csharp
-private readonly HashSet<Subscriber> _subscribers =
-    new(new SubscriberByEmailComparer());
-```
-
-**Production takeaway:** Custom types in HashSet/Dictionary **never** dedupe by field values unless you supply equality — see **Program.cs** Section 6 vs Section 7.
-
----
-
----
-
-#### Q3. (R) After a profile-update feature ships, support reports "user already subscribed" errors even when lookup fails. Review:
-
-```csharp
-public class SubscriberProfile
-{
-    public string Email { get; set; }  // mutable — used in GetHashCode/Equals
-    public string Name { get; set; }
-
-    public override bool Equals(object? obj) =>
-        obj is SubscriberProfile other &&
-        string.Equals(Email, other.Email, StringComparison.OrdinalIgnoreCase);
-
-    public override int GetHashCode() =>
-        StringComparer.OrdinalIgnoreCase.GetHashCode(Email);
-}
-
-var set = new HashSet<SubscriberProfile>();
-var user = new SubscriberProfile { Email = "alex@example.com", Name = "Alex" };
-set.Add(user);
-
-user.Email = "alex.k@example.com";  // user corrected typo after Add
-
-bool found = set.Contains(user);  // false — user still "in" set but unreachable
-```
-
-What went wrong with mutability and the hash contract, and how do you fix the type for set membership?
-
----
-
-**Answer:**
-
-**Answer:** `GetHashCode` was computed from `Email` at `Add` time and placed the object in a bucket keyed to the old hash. Mutating `Email` afterward leaves the object in the **wrong bucket**, so `Contains` returns `false` even though the instance is still in the set — classic broken hash contract with mutable keys.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Mutable field participates in `GetHashCode` | Lookup/remove fail after in-place edit |
-| Hash contract | Hash at insert ≠ hash at lookup | Element orphaned inside set — `Count` includes it but `Contains` misses |
-| Design | Writable `Email` on set member type | Same rule as Dictionary keys — must be immutable for hashed collections |
-
-**Fix (priority order):**
-
-1. Make identity fields immutable (`init` or constructor-only), matching `SubscriberIdentity` in **Program.cs** Section 7.
-2. If email must change, **remove** old identity from the set and **add** a new object (or rebuild the set).
-3. Never mutate fields that feed `Equals`/`GetHashCode` while the instance lives inside a `HashSet` or `Dictionary`.
-
-```csharp
-public sealed class SubscriberProfile
-{
-    public string Email { get; }
-    public string Name { get; set; }
-
-    public SubscriberProfile(string email, string name)
-    {
-        Email = email;
-        Name = name;
-    }
-    // Equals/GetHashCode on Email only
-}
-```
-
-**Production takeaway:** Karat tests whether you treat HashSet elements like **Dictionary keys** — mutable hash inputs cause silent lookup failures, not exceptions.
-
----
-
----
-
-#### Q4. (R) An editorial dashboard merges article tag sets for a "shared topics" widget. Case variants appear twice after deploy. Review:
-
-```csharp
-var dotnetTags = new HashSet<string>(_dotnetArticle.Tags, StringComparer.OrdinalIgnoreCase);
-var linqTags = new HashSet<string>(_linqArticle.Tags, StringComparer.OrdinalIgnoreCase);
-
-// Developer assumes LINQ Union inherits the HashSet comparer:
-IEnumerable<string> allTopics = dotnetTags.Union(linqTags);
-
-var widgetTags = new HashSet<string>(allTopics);  // default Ordinal comparer
-Console.WriteLine(widgetTags.Count);              // "csharp" and "CSharp" both present
-```
-
-What comparer mismatch caused duplicate logical tags, and how do you build the union with consistent equality end-to-end?
-
----
-
-**Answer:**
-
-**Answer:** `HashSet<T>.Union` as a LINQ extension on `IEnumerable<T>` uses **default sequence equality** (`EqualityComparer<string>.Default` → **Ordinal**, case-sensitive), **not** the HashSet's internal `StringComparer.OrdinalIgnoreCase`. Re-wrapping in `new HashSet<string>(allTopics)` without a comparer keeps Ordinal semantics, so `"csharp"` and `"CSharp"` coexist as distinct entries.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | LINQ set ops ignore HashSet's comparer | Logical duplicates in UI and analytics |
-| API confusion | `Union` on HashSet still calls `Enumerable.Union` | Developer's comparer choice on construction does not flow to LINQ |
-| Data quality | Default `HashSet` ctor uses Ordinal | Case variants inflate counts and break deduped filters |
-
-**Fix (priority order):**
-
-1. Pass the same comparer when materializing: `new HashSet<string>(dotnetTags.Union(linqTags), StringComparer.OrdinalIgnoreCase)`.
-2. Or use mutating `UnionWith` on a **copy** if you need set instance semantics with the existing comparer.
-3. For intersection-only widgets, same rule: `new HashSet<string>(a.Intersect(b), comparer)`.
-
-```csharp
-var widgetTags = new HashSet<string>(
-    dotnetTags.Union(linqTags),
-    StringComparer.OrdinalIgnoreCase);
-```
-
-**Production takeaway:** LINQ `Union`/`Intersect`/`Except` are **comparer-agnostic** — see **Program.cs** Section 3. Always thread `IEqualityComparer<T>` through the final `HashSet` constructor.
-
----
-
----
-
-#### Q5. (R) A publish pipeline accidentally wipes an editor's working tag pool. Review the merge step:
-
-```csharp
-HashSet<string> editorPool = new(StringComparer.OrdinalIgnoreCase)
-{
-    "csharp", "dotnet", "security"
-};
-
-HashSet<string> draftTags = new(StringComparer.OrdinalIgnoreCase)
-{
-    "dotnet", "api", "draft"
-};
-
-// Intent: preview tags common to BOTH pools without changing editorPool
-editorPool.IntersectWith(draftTags);
-
-Console.WriteLine(string.Join(", ", editorPool)); // only "dotnet" — pool mutated
-// Later: editorPool.UnionWith(blockedList) no longer restores "csharp", "security"
-```
-
-The developer meant a non-mutating preview. What API mistake was made, and show the safe pattern that leaves `editorPool` unchanged?
-
----
-
-**Answer:**
-
-**Answer:** `IntersectWith` **mutates the caller** (`editorPool`) in place, keeping only elements also in `draftTags`. The developer needed a **non-mutating** preview — the chapter's LINQ `Intersect` (Section 3) or a copy-then-`IntersectWith` pattern (Section 4).
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `IntersectWith` vs intended read-only preview | `"csharp"` and `"security"` permanently removed from working pool |
-| API misuse | Confused mutating (`*With`) vs LINQ extension methods | Downstream `UnionWith` cannot restore deleted tags |
-| Operational | Shared `editorPool` referenced elsewhere | Other features see truncated set — data loss in session state |
-
-**Fix (priority order):**
-
-1. Non-mutating LINQ: `var preview = new HashSet<string>(editorPool.Intersect(draftTags), StringComparer.OrdinalIgnoreCase);`
-2. Or copy first: `var preview = new HashSet<string>(editorPool, comparer); preview.IntersectWith(draftTags);`
-3. Reserve `IntersectWith` for intentional in-place filtering when building a working set incrementally.
-
-```csharp
-var preview = new HashSet<string>(
-    editorPool.Intersect(draftTags),
-    StringComparer.OrdinalIgnoreCase);
-// editorPool unchanged: csharp, dotnet, security
-```
-
-**Production takeaway:** `*With` methods return `void` and modify **this** — Karat loves swapping them with LINQ equivalents. Read method names literally before calling on shared state.
-
----
-
----
-
-#### Q6. (R) A custom comparer passes code review but `Remove` and `Contains` behave inconsistently. Review:
-
-```csharp
-public sealed class SubscriberByNameComparer : IEqualityComparer<Subscriber>
-{
-    public bool Equals(Subscriber? x, Subscriber? y)
-    {
-        if (ReferenceEquals(x, y)) return true;
-        if (x is null || y is null) return false;
-        return string.Equals(x.Email, y.Email, StringComparison.OrdinalIgnoreCase);
-    }
-
-    public int GetHashCode(Subscriber obj) =>
-        obj.Name.GetHashCode(StringComparison.Ordinal);  // hashes Name, not Email
-}
-
-var set = new HashSet<Subscriber>(new SubscriberByNameComparer());
-var a = new Subscriber("Alex", "alex@example.com");
-set.Add(a);
-set.Contains(new Subscriber("Alex K.", "alex@example.com")); // sometimes false
-set.Remove(new Subscriber("Alex K.", "alex@example.com"));    // sometimes false while Add returned false on duplicate
-```
-
-What contract violation breaks `HashSet<T>`, and what is the corrected comparer implementation?
-
----
-
-### 06. Queue and Stack
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/06. Queue and Stack`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** `Equals` compares **Email** but `GetHashCode` hashes **Name** — violating the rule that equal objects must share the same hash code. The second subscriber lands in a different bucket, so `Contains`/`Remove` miss while duplicate `Add` behavior looks arbitrary.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `GetHashCode`/`Equals` inconsistency | Silent failures — worst kind of collection bug |
-| Hash contract | Equal-by-email objects can differ by hash | `Remove` returns false for objects that "should" match |
-| Code review | Comparer named `ByName` but equals on Email | Copy-paste defect easy to miss without contract tests |
-
-**Fix (priority order):**
-
-1. Derive hash from the **same fields** used in `Equals` — here, email case-insensitively.
-2. Add unit tests: if `Equals(a,b)` then `GetHashCode(a) == GetHashCode(b)`; round-trip `Add`/`Contains`/`Remove`.
-
-```csharp
-public int GetHashCode(Subscriber obj) =>
-    StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Email);
-```
-
-**Production takeaway:** HashSet and Dictionary failures from bad comparers **do not throw** — they return wrong `bool` results. Same contract as **Program.cs** Section 6 quick reference: *Equal objects → same hash code*.
-
----
-
-### 06. Queue and Stack
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/06. Queue and Stack`
-
 ---
 
----
-
-#### Q1. (R) A help-desk service was refactored from `Queue<SupportTicket>` to `Stack<SupportTicket>` "because stacks are faster." Review the handler loop. What ordering bug appears in production, and how do you fix it?
-
-```csharp
-public sealed class TicketProcessor
-{
-    private readonly Stack<SupportTicket> _pending = new Stack<SupportTicket>();
-
-    public void EnqueueTicket(SupportTicket ticket) => _pending.Push(ticket);
-
-    public void ProcessAll()
-    {
-        while (_pending.Count > 0)
-        {
-            SupportTicket next = _pending.Pop();
-            Resolve(next);
-        }
-    }
-
-    private void Resolve(SupportTicket ticket) { /* SLA tracking */ }
-}
-
-// Arrival order: #1001 (9:00), #1002 (9:05), #1003 (9:10)
-// ProcessAll resolves: #1003, #1002, #1001
-```
-
----
-
-**Answer:**
-
-**Answer:** `Stack<T>` is LIFO — the last ticket pushed is the first popped — so SLA fairness is inverted: newest tickets are resolved before older ones waiting longer. Ticket queues require FIFO semantics, which `Queue<T>` enforces at the type level.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `Stack` + `Push`/`Pop` for arrival-order work | Newest-first processing — SLA breaches on oldest tickets |
-| Naming/API | Method still named `EnqueueTicket` but calls `Push` | Misleading API; code review misses semantic mismatch |
-| Design | Chose collection for perceived speed, not ordering rule | Wrong abstraction — `List<T>` with `Insert(0,…)` would be equally wrong |
-
-**Fix (priority order):**
-
-1. Restore `Queue<SupportTicket>` with `Enqueue` / `TryDequeue` (or `Dequeue` when empty is impossible by contract).
-2. Rename methods to match semantics: `EnqueueTicket` + `TryResolveNextTicket` as in **Program.cs** Section 4.
-3. If priority tiers are needed later, use `PriorityQueue<TElement, TPriority>` — not `Stack<T>`.
-4. Document ordering invariant in tests: enqueue A, B, C → resolve A, B, C.
-
-```csharp
-private readonly Queue<SupportTicket> _pending = new();
+## Q87. `IEnumerable<T>` vs `ICollection<T>`
 
-public void EnqueueTicket(SupportTicket ticket) => _pending.Enqueue(ticket);
+**Concepts**
+- IEnumerable<T> — GetEnumerator only, forward-only, lazy
+- ICollection<T> extends IEnumerable<T> with Count, Add, Remove, Contains
+- IEnumerable<T> does not expose Count
+- lazy vs in-memory distinction
+- interface hierarchy
 
-public bool TryResolveNext(out SupportTicket ticket) => _pending.TryDequeue(out ticket);
-```
+**Answer**
 
-**Production takeaway:** Karat tests whether you match collection type to business ordering — FIFO for fair queues, LIFO for undo/call-stack models. See **Program.cs** Section 1 — FIFO vs LIFO table.
+`IEnumerable<T>` has one method — `GetEnumerator()` — enabling forward-only sequential enumeration with no count and no mutation. It makes no promise about how many elements exist or whether another call to `GetEnumerator()` repeats work. `ICollection<T>` extends `IEnumerable<T>` and adds `Count`, `Add(T)`, `Remove(T)`, `Contains(T)`, and `CopyTo(T[],int)`, which means it is always in-memory and finite. The practical consequence is that a method returning `IEnumerable<T>` may be lazy (yield, LINQ), while one returning `ICollection<T>` guarantees `Count` is available in O(1) and mutation is possible.
 
 ---
 
----
-
-#### Q2. (R) A background worker drains a print queue when the upstream publisher is idle. Under load, the service logs unhandled `InvalidOperationException` and the host restarts. Review the consumer:
-
-```csharp
-public sealed class PrintWorker
-{
-    private readonly Queue<PrintJob> _jobs = new Queue<PrintJob>();
-
-    public void Submit(PrintJob job) => _jobs.Enqueue(job);
-
-    public void Run(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            PrintJob job = _jobs.Dequeue();  // throws when queue empty
-            Print(job);
-        }
-    }
-}
-```
-
-What breaks, and how would you harden this for production idle periods?
-
----
+## Q88. `ICollection<T>` vs `IList<T>`
 
-**Answer:**
-
-```csharp
-public sealed class PrintWorker
-{
-    private readonly Queue<PrintJob> _jobs = new Queue<PrintJob>();
-
-    public void Submit(PrintJob job) => _jobs.Enqueue(job);
-
-    public void Run(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            PrintJob job = _jobs.Dequeue();  // throws when queue empty
-            Print(job);
-        }
-    }
-}
-```
-
-What breaks, and how would you harden this for production idle periods?
-
-**Answer:** `Dequeue()` throws `InvalidOperationException` when the queue is empty — the tight loop calls it continuously during idle periods, crashing the worker instead of waiting for the next job.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Dequeue()` on empty queue | Unhandled exception → host restart / lost in-flight work |
-| Control flow | Busy loop with no back-off when empty | 100% CPU spin if switched to `Count` check without delay |
-| Concurrency | Plain `Queue<T>` if multiple producers (minor here) | Not thread-safe — separate from empty-queue bug but common in same services |
-
-**Fix (priority order):**
-
-1. Replace `Dequeue()` with `TryDequeue(out PrintJob? job)` — process only when `true`.
-2. When empty, await a signal (`Channel<PrintJob>`, `BlockingCollection<T>`, or `ManualResetEventSlim` + lock) instead of spinning.
-3. Optionally combine with `await Task.Delay(pollInterval, ct)` only if a simple poll model is acceptable — prefer event-driven dequeue.
-4. For multi-producer scenarios, use `ConcurrentQueue<T>` or a `Channel<T>` writer/reader pair.
-
-```csharp
-public async Task RunAsync(CancellationToken ct)
-{
-    while (!ct.IsCancellationRequested)
-    {
-        if (_jobs.TryDequeue(out PrintJob? job))
-        {
-            Print(job);
-            continue;
-        }
-
-        await Task.Delay(100, ct); // or await _signal.WaitAsync(ct);
-    }
-}
-```
-
-**Production takeaway:** Empty is an expected state for workers — `TryDequeue`/`TryPop` exist precisely to avoid exception-driven control flow. See **Program.cs** Section 2a — empty queue behavior.
+**Concepts**
+- ICollection<T> — no indexer, no positional operations
+- IList<T> adds indexer, Insert(int,T), RemoveAt(int), IndexOf(T)
+- positional access is the distinguishing capability
+- array implements IList<T>
+- choosing return type by capability
 
----
-
----
+**Answer**
 
-#### Q3. (P) Three ASP.NET Core request threads enqueue audit events; one background `IHostedService` dequeues them for batch upload. The team shares one `Queue<AuditEvent>` instance registered as a **Singleton**. Occasionally events disappear or `InvalidOperationException` appears under concurrent `Enqueue`/`Dequeue`. Explain why `Queue<T>` is unsafe here and what you would register instead.
+`ICollection<T>` provides count and unordered mutation (add/remove by value) but no indexer or positional operations. `IList<T>` extends `ICollection<T>` by adding an `int`-indexed getter/setter (`this[int]`), `Insert(int,T)`, `RemoveAt(int)`, and `IndexOf(T)`, enabling positional access and O(1) random read when the backing type is an array or `List<T>`. Use `ICollection<T>` as a return type when callers need mutation but not random access; use `IList<T>` when callers need to read or write by index.
 
 ---
-
-**Answer:**
 
-**Answer:** `Queue<T>` is not thread-safe — concurrent `Enqueue` and `Dequeue` from multiple threads corrupt internal state without external locking, causing lost items or exceptions. A singleton shared across request threads requires a concurrent collection or a `Channel<T>`.
+## Q89. `IReadOnlyList<T>` and `IReadOnlyCollection<T>`
 
-- **`ConcurrentQueue<T>`:** Lock-free FIFO safe for multiple producers and consumers; `TryDequeue` for the background drainer. Good when you only need in-memory fan-in.
-- **`Channel<T>` (System.Threading.Channels):** Preferred in modern ASP.NET Core — bounded capacity for back-pressure, async `Reader.ReadAllAsync`, clean producer/consumer split in DI.
-- **`BlockingCollection<T>`:** Legacy pattern wrapping a concurrent queue with blocking take — workable but heavier than channels for new code.
-- **Do not** wrap `Queue<T>` in a singleton and synchronize ad hoc on every call without reviewing lock ordering — easy to deadlock with `Dequeue` inside `lock` while producers hold the same lock incorrectly.
-
-```csharp
-// Registration sketch
-builder.Services.AddSingleton(Channel.CreateBounded<AuditEvent>(
-    new BoundedChannelOptions(10_000) { FullMode = BoundedChannelFullMode.Wait }));
-builder.Services.AddHostedService<AuditBatchUploader>();
-```
-
-**Production takeaway:** FIFO ordering does not imply thread safety — choose `ConcurrentQueue<T>` or `Channel<T>` when a queue crosses thread boundaries. See **Program.cs** Section 2 — `Queue<T>` API assumes single-threaded mutation unless externally synchronized.
-
----
+**Concepts**
+- IReadOnlyList<T> — read-only indexer plus Count, covariant
+- IReadOnlyCollection<T> — Count only, covariant
+- covariance enables IReadOnlyList<string> to IReadOnlyList<object>
+- signals materialized read-only result to callers
+- no Add/Remove mutation through interface
 
----
+**Answer**
 
-#### Q4. (M) A developer rewrites maze pathfinding from the chapter's BFS to recursive DFS. On large grids the process terminates with `StackOverflowException`. They propose "just use `Stack<T>` instead of recursion." Review both approaches:
-
-```csharp
-// Original (chapter-style BFS) — works on large maze
-Queue<(int Row, int Col)> frontier = new();
-frontier.Enqueue(start);
-while (frontier.TryDequeue(out var current)) { /* expand neighbors */ }
-
-// Rewrite — deep recursion on 2000×2000 grid
-void Dfs(int row, int col)
-{
-    if (visited[row, col]) return;
-    visited[row, col] = true;
-    foreach (var neighbor in GetNeighbors(row, col))
-        Dfs(neighbor.Row, neighbor.Col);  // one frame per depth level
-}
-```
-
-What actually causes the overflow, and when does an explicit `Stack<T>` fix it vs when recursion is acceptable?
+`IReadOnlyCollection<T>` adds `Count` to `IEnumerable<T>` and is covariant (`out T`), meaning `IReadOnlyCollection<string>` is assignable to `IReadOnlyCollection<object>`. `IReadOnlyList<T>` extends it with a read-only indexer (`this[int]`) and is also covariant, so `IReadOnlyList<string>` is assignable to `IReadOnlyList<object>`. These are the correct return types for service methods that return a fully materialized snapshot the caller should not mutate — they communicate that the result is in-memory and indexed without exposing mutation methods. `List<T>.AsReadOnly()` returns `IReadOnlyList<T>` as a view over the list.
 
 ---
-
-**Answer:**
-
-```csharp
-// Original (chapter-style BFS) — works on large maze
-Queue<(int Row, int Col)> frontier = new();
-frontier.Enqueue(start);
-while (frontier.TryDequeue(out var current)) { /* expand neighbors */ }
-
-// Rewrite — deep recursion on 2000×2000 grid
-void Dfs(int row, int col)
-{
-    if (visited[row, col]) return;
-    visited[row, col] = true;
-    foreach (var neighbor in GetNeighbors(row, col))
-        Dfs(neighbor.Row, neighbor.Col);  // one frame per depth level
-}
-```
 
-What actually causes the overflow, and when does an explicit `Stack<T>` fix it vs when recursion is acceptable?
+## Q90. `IEnumerator` vs `IEnumerator<T>`
 
-**Answer:** `StackOverflowException` comes from the **CLR call stack** — each recursive `Dfs` call consumes a stack frame (~1 MB default thread stack limit), not from `Stack<T>` heap storage. Replacing recursion with an explicit `Stack<(int,int)>` loop uses the heap for frontier cells, avoiding deep call stacks on large grids.
-
-- **Cause:** Depth-first recursion on a path thousands of cells long nests that many frames; the OS/thread stack overflows before the algorithm finishes.
-- **Explicit `Stack<T>` fix:** Push start cell; `while (stack.TryPop(out current))` expand neighbors and push unvisited — same LIFO DFS order, bounded by heap memory instead of call-stack depth.
-- **When recursion is fine:** Shallow trees (expression AST depth &lt; ~100), divide-and-conquer with logarithmic depth, or problems with guaranteed small branching depth.
-- **BFS vs DFS choice (related):** Chapter BFS with `Queue<T>` finds shortest paths in unweighted grids; DFS (recursive or `Stack<T>`) does not guarantee shortest path but uses less memory for some sparse graphs.
-- **Not a fix:** Switching BFS to `Stack<T>` without changing algorithm — that yields DFS traversal order and breaks shortest-path guarantees from **Program.cs** Section 5.
-
-**Production takeaway:** Karat distinguishes the **call stack** (recursion limit) from **`Stack<T>`** (heap collection) — iterative DFS with `Stack<T>` is the standard production pattern for deep graph search.
-
----
+**Concepts**
+- IEnumerator.Current returns object (boxing for value types)
+- IEnumerator<T>.Current returns T (typed, no boxing)
+- IEnumerator<T> extends IDisposable
+- foreach emits try/finally Dispose call
+- non-generic interface legacy from .NET 1.0
 
----
+**Answer**
 
-#### Q5. (D) Your team must pick a frontier collection for two graph tasks on an unweighted social network: (A) find **shortest path** in friend hops from user A to user B, and (B) detect whether a **cycle** exists in a follow graph (direction matters). One engineer says "both are graph search — use `Stack<T>` for both." What would you choose for each task and why?
+Non-generic `IEnumerator` has `Current` as `object`, requiring a cast and boxing any value-type elements. Generic `IEnumerator<T>` has a typed `Current` property returning `T` directly, eliminating the cast and boxing overhead. More importantly, `IEnumerator<T>` extends `IDisposable`, so `foreach` always emits a `try/finally` that calls `Dispose()` on the enumerator when iteration completes or exits early via `break` or exception. Non-generic `IEnumerator` does not extend `IDisposable`, so compiler-generated code checks whether the enumerator implements `IDisposable` at runtime and conditionally disposes it, but the clean pattern relies on `IEnumerator<T>`.
 
 ---
-
-**Answer:**
-
-**Answer:** Shortest hop count in an unweighted graph requires BFS with `Queue<T>` so nodes are discovered in non-decreasing distance from the start; cycle detection in a directed graph is typically DFS with `Stack<T>` (or recursion) and a recursion/recursion-stack coloring strategy — not the same frontier choice.
-
-**Task A — shortest friend hops (unweighted):**
-
-- Use **`Queue<UserId>`** BFS — first time you dequeue B, you have minimum hop count.
-- `Stack<T>` DFS may find *a* path quickly but not the shortest — wrong for "degrees of separation" product features.
-
-**Task B — cycle in directed follow graph:**
-
-- Use **DFS** with **`Stack<UserId>`** (explicit or recursion) plus `visited` / `onStack` (three-color) state to detect back edges.
-- BFS with `Queue<T>` finds cycles in undirected graphs with parent tracking but directed cycle detection is awkward with BFS alone.
-
-| Task | Collection | Why |
-|---|---|---|
-| Shortest hops (unweighted) | `Queue<T>` — BFS | Layer-by-layer discovery = minimum edges |
-| Directed cycle detection | `Stack<T>` — DFS | Back edge to active stack frame signals cycle |
 
-- **Production note:** At web scale, graph logic moves to a graph DB or precomputed index — but the collection choice still signals correct algorithmic reasoning in code reviews and Karat screens.
+## Q91. The `yield` keyword and how iterator methods relate to `IEnumerable<T>`
 
-**Production takeaway:** Match FIFO vs LIFO to the **invariant** you need (shortest layer vs deep path/back-edge detection), not to "both are graphs." See **Program.cs** Quick Reference — BFS → `Queue<T>`, DFS → `Stack<T>` or recursion.
+**Concepts**
+- yield return turns method into state machine
+- compiler generates IEnumerable<T>/IEnumerator<T> state machine class
+- lazy — body runs only when MoveNext is called
+- each foreach call gets a fresh state machine instance
+- yield break terminates the sequence
 
----
-
----
+**Answer**
 
-#### Q6. (R) A response editor copied from the chapter's `HelpDeskSession` mixes undo (`Stack<string>`) with ticket draining. Review this merge:
-
-```csharp
-public sealed class AgentSession
-{
-    private readonly Queue<SupportTicket> _tickets = new();
-    private readonly Stack<string> _undo = new();
-    private readonly StringBuilder _draft = new();
-
-    public void BeginResponse(SupportTicket ticket)
-    {
-        _draft.Clear();
-        _undo.Clear();                    // clears undo history
-        _tickets.Enqueue(ticket);         // re-queues active ticket to tail
-    }
-
-    public void ApplyEdit(Action<StringBuilder> edit)
-    {
-        _undo.Push(_draft.ToString());
-        edit(_draft);
-    }
-
-    public SupportTicket? TakeNextTicket()
-    {
-        return _tickets.Count > 0 ? _tickets.Dequeue() : null;
-    }
-}
-```
-
-The agent reports tickets jumping to the back of the line and undo lost mid-edit. What went wrong with collection choice and API usage?
+A method that returns `IEnumerable<T>` or `IEnumerator<T>` and contains a `yield return` statement is an iterator method. The compiler transforms it into a state machine class that implements both `IEnumerable<T>` and `IEnumerator<T>`. When a caller calls `GetEnumerator()` (directly or via `foreach`), they receive an instance of that state machine with position reset to before the first element. Each call to `MoveNext()` runs the method body from where it last yielded until it hits the next `yield return`, which sets `Current` and suspends execution. This means the method body runs lazily — only as fast as the consumer calls `MoveNext()` — and calling the method itself does not execute any of the body.
 
 ---
-
-### 07. SortedList & SortedDictionary
 
-# Karat — Interview Questions
+## Q92. Deferred execution vs immediate execution
 
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/07. SortedList & SortedDictionary`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
+**Concepts**
+- Where/Select/Skip/Take — lazy IEnumerable<T> operators
+- ToList/ToArray/Count/Sum/First — immediate operators
+- deferred stores recipe not results
+- immediate forces full enumeration
+- side effects in deferred pipelines run at consumption time
 
----
+**Answer**
 
-**Answer:**
-
-```csharp
-public sealed class AgentSession
-{
-    private readonly Queue<SupportTicket> _tickets = new();
-    private readonly Stack<string> _undo = new();
-    private readonly StringBuilder _draft = new();
-
-    public void BeginResponse(SupportTicket ticket)
-    {
-        _draft.Clear();
-        _undo.Clear();                    // clears undo history
-        _tickets.Enqueue(ticket);         // re-queues active ticket to tail
-    }
-
-    public void ApplyEdit(Action<StringBuilder> edit)
-    {
-        _undo.Push(_draft.ToString());
-        edit(_draft);
-    }
-
-    public SupportTicket? TakeNextTicket()
-    {
-        return _tickets.Count > 0 ? _tickets.Dequeue() : null;
-    }
-}
-```
-
-The agent reports tickets jumping to the back of the line and undo lost mid-edit. What went wrong with collection choice and API usage?
-
-**Answer:** `BeginResponse` misuses both collections — it re-`Enqueue`s the ticket already being worked (sending it to the tail instead of keeping it as the active item) and clears the undo stack even when only the draft should reset. Tickets and undo stacks serve different lifecycles and must not be conflated in one "begin" method.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Queue misuse | `Enqueue(ticket)` on ticket already removed for editing | Ticket moves to back — others processed first |
-| Stack misuse | `_undo.Clear()` on every begin | Undo history wiped — agent cannot revert prior edits |
-| API design | `BeginResponse` accepts ticket param implying re-queue | Confuses "start draft text" with "return ticket to queue" |
-| Empty handling | `TakeNextTicket` uses ternary + `Dequeue` | Acceptable here, but inconsistent with chapter's `TryDequeue` pattern |
-
-**Fix (priority order):**
-
-1. Split responsibilities: `TryResolveNextTicket` dequeues once; `BeginResponse(string openingLine)` only clears draft + undo — **no** queue mutation (mirror **Program.cs** Section 4 `HelpDeskSession`).
-2. Do not pass the active ticket back into the queue until the response is sent or explicitly re-queued.
-3. Clear `_undo` only when starting a **new** response for a **new** ticket, not on every keystroke batch.
-4. Prefer `TryDequeue` over `Count` + `Dequeue` to avoid races if the session becomes multi-threaded.
-
-```csharp
-public void BeginResponse(string openingLine)
-{
-    _undo.Clear();
-    _draft.Clear();
-    _draft.Append(openingLine);
-}
-
-public bool TryResolveNextTicket(out SupportTicket ticket)
-    => _tickets.TryDequeue(out ticket);
-```
-
-**Production takeaway:** Queue and Stack often appear together in one workflow (tickets FIFO + undo LIFO) — Karat tests that you keep each collection's contract isolated. See **Program.cs** Section 4 — help-desk scenario wiring.
+LINQ operators like `Where`, `Select`, `Skip`, `Take`, `OrderBy`, and `GroupBy` return a new lazy `IEnumerable<T>` that stores the operation as a description of what to do, not the results. Nothing runs until a terminal operator or `foreach` forces enumeration. Operators like `ToList()`, `ToArray()`, `Count()`, `Sum()`, `First()`, and `Any()` are immediate — they trigger full enumeration and return a concrete value or collection. The practical consequence is that a `Where(predicate)` chain applied to a database-backed source runs the query on every enumeration; materializing with `ToList()` runs it once and stores the snapshot for safe multiple reads.
 
 ---
-
-### 07. SortedList & SortedDictionary
 
-# Karat — Interview Answers
+## Q93. The iterator pattern — `MoveNext`, `Current`, and `Reset`
 
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
+**Concepts**
+- MoveNext advances and returns bool
+- Current exposes element at current position
+- Reset optional — compiler iterators throw NotSupportedException
+- before-first and after-last sentinel positions
+- enumerator is stateful and not thread-safe
 
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/07. SortedList & SortedDictionary`
+**Answer**
 
----
+`MoveNext()` advances the enumerator to the next element and returns `true` if a next element exists, `false` if the sequence is exhausted. Calling `Current` before the first `MoveNext()` or after `MoveNext()` returns `false` is undefined behavior (typically throws or returns a default). `Reset()` is defined on the interface but compiler-generated iterators (state machines from `yield return`) throw `NotSupportedException` on `Reset()` — the method was kept for COM interop compatibility but is effectively obsolete. `foreach` never calls `Reset()`; it calls `GetEnumerator()` to obtain a fresh enumerator for each iteration.
 
 ---
-
-#### Q1. (R) A warehouse dashboard prints the lowest and highest SKU from a live price map. Review:
 
-```csharp
-SortedDictionary<string, decimal> skuPrices = LoadAllSkuPrices(); // ~12_000 entries
+## Q94. `yield break` vs `return` in an iterator method
 
-string lowestSku = skuPrices.Keys[0];
-string highestSku = skuPrices.Keys[skuPrices.Count - 1];
+**Concepts**
+- yield break causes MoveNext to return false
+- return is not valid in iterator body
+- yield break used for conditional early termination
+- caller sees end of sequence
+- state machine transitions to finished state
 
-Console.WriteLine($"Range: {lowestSku} … {highestSku}");
-```
+**Answer**
 
-Build fails. A teammate suggests switching to `Dictionary<string, decimal>` and sorting keys with LINQ on every page load. What is wrong with the original code, and what is the better fix that keeps sorted key order?
+In an iterator method, `return` without a value is a compile error — the only valid exit keyword is `yield break`. When the state machine executes `yield break`, the next call to `MoveNext()` returns `false`, signaling the consumer that the sequence is exhausted. `yield break` is used for conditional early termination — for example, if a guard condition fails, the method exits with `yield break` rather than yielding any element and the consumer's `foreach` ends naturally without receiving anything. This is equivalent to a method that produces zero elements from that point onward.
 
 ---
 
-**Answer:**
+## Q95. Why multiple enumeration of the same LINQ `IEnumerable` re-runs the pipeline
 
-**Answer:** `SortedDictionary<TKey,TValue>.Keys` is a read-only `ICollection<TKey>` with **no indexer** — only `SortedList` exposes `Keys[i]` and `Values[i]` for O(1) access by sorted rank. Keep `SortedDictionary` and walk `Keys` once (or track min/max while loading) rather than dropping to `Dictionary` and resorting on every request.
+**Concepts**
+- IEnumerable<T> stores recipe not results
+- each GetEnumerator creates new state machine instance
+- re-enumeration re-executes all deferred operators
+- I/O-backed source repeats query on each pass
+- ToList materializes for safe multiple reads
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `Keys[0]` on `SortedDictionary` | CS0021 — indexer not defined on Keys view |
-| API confusion | Assumed both sorted types support rank indexing | Wrong type chosen for dashboard endpoint |
-| Over-correction | Sort-on-read with `Dictionary` + LINQ | O(n log n) per page load when O(n) scan or `SortedList` index suffices |
+A LINQ chain like `source.Where(x => x.Active).Select(x => x.Name)` stores a chain of operator objects — each holding a reference to the previous operator and its lambda. There is no backing collection. Every time `foreach` (or any terminal operator) calls `GetEnumerator()`, it creates a fresh state machine instance at position zero and walks the source from the beginning, re-executing every predicate and projection for every element. If the source is a database query, a file read, or any non-idempotent `yield return` method, that work repeats. Calling `ToList()` forces enumeration once and returns a `List<T>` whose `GetEnumerator()` always reads the same in-memory data.
 
-**Fix (priority order):**
-
-1. If random access by sorted rank is required (`Keys[0]`, `Values[i]`), use `SortedList<string, decimal>` — see **Program.cs** Section 3.
-2. If the map stays a `SortedDictionary`, iterate `Keys` once to capture first and last (Section 6 pattern) — O(n) but simple for 12k keys on a dashboard.
-3. Do **not** switch to `Dictionary` solely to fix the compile error when sorted iteration is a product requirement.
-
-```csharp
-string? lowest = null, highest = null;
-foreach (string sku in skuPrices.Keys)
-{
-    lowest ??= sku;
-    highest = sku;
-}
-```
-
-**Production takeaway:** Karat tests whether you know **index by rank** is `SortedList`-only — `SortedDictionary` gives sorted foreach and O(log n) key lookup, not `Keys[i]`.
-
 ---
 
----
-
-#### Q2. (R) An inventory sync service upserts pallet counts every few seconds. Review the hot path:
+## Q96. Returning `IEnumerable<T>` vs `List<T>` from a method
 
-```csharp
-public sealed class PalletSyncService
-{
-    private readonly SortedList<int, int> _countsByZone = new(capacity: 500);
+**Concepts**
+- IEnumerable<T> hides whether result is lazy or materialized
+- List<T> signals materialized mutable result
+- IReadOnlyList<T> signals materialized read-only indexed result
+- return type communicates capability to caller
+- multiple enumeration risk with IEnumerable<T> return
 
-    public void UpsertZoneCount(int zoneId, int palletCount)
-    {
-        if (_countsByZone.ContainsKey(zoneId))
-            _countsByZone[zoneId] = palletCount;
-        else
-            _countsByZone.Add(zoneId, palletCount);
-    }
-}
+**Answer**
 
-// Startup loads 500 zones; sync runs 40 upserts/sec with mixed new and existing zone IDs.
-```
+Returning `IEnumerable<T>` allows the implementation to be lazy or materialized but hides that distinction from callers, who may accidentally enumerate multiple times and pay O(n) work per pass or hit I/O twice. Returning `List<T>` signals that the result is already materialized and mutable, but exposes mutation methods the caller should not use. Returning `IReadOnlyList<T>` is the best default for a materialized result: it signals that the data is in-memory (callers can safely count and index), prevents mutation through the interface, and is covariant for assignment compatibility. Reserve `IEnumerable<T>` return types for genuinely lazy streaming pipelines where materialization would waste memory.
 
-Latency spikes after deploy though lookups are fast. What collection cost dominates here, and what type swap fixes churn without losing sorted iteration?
-
 ---
-
-**Answer:**
 
-**Answer:** `SortedList` insert and remove shift parallel key/value arrays — **O(n)** per upsert when the collection is full-sized. Frequent mixed inserts/updates on ~500 zones make array shifting dominate even though `TryGetValue` remains O(log n). Swap to `SortedDictionary<int, int>` for tree-backed O(log n) insert/remove while preserving sorted foreach.
+## Q97. Modifying a collection during `foreach` — how the enumerator detects it
 
-**Issues:**
+**Concepts**
+- List<T> internal _version counter
+- enumerator captures _version at GetEnumerator time
+- MoveNext compares current _version to captured version
+- throws InvalidOperationException on mismatch
+- structural change (add/remove) increments _version
 
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | `SortedList.Add` / shift on new keys | Latency grows with zone count under steady churn |
-| Idiom | `ContainsKey` + indexer instead of one path | Extra O(log n) lookup; minor vs shifting cost |
-| Collection choice | `SortedList` for write-heavy sync | Wrong tool when entries churn — Section 8 guidance |
+**Answer**
 
-**Fix (priority order):**
+`List<T>` maintains a private `_version` counter that increments on every structural change — `Add`, `Remove`, `Insert`, `RemoveAt`, `Clear`, and the indexer setter. When `GetEnumerator()` is called, the returned enumerator captures the current `_version` value. Each call to `MoveNext()` compares the current list `_version` to the captured value; if they differ, it throws `InvalidOperationException` with the message "Collection was modified; enumeration operation may not execute." This detection is best-effort — it catches any structural modification but cannot guarantee detection of all concurrent modifications in multi-threaded scenarios without locking.
 
-1. Replace backing field with `SortedDictionary<int, int>`.
-2. Collapse upsert to indexer assignment — adds or updates in one call: `_countsByZone[zoneId] = palletCount`.
-3. Reserve `SortedList` for small, mostly static maps (config tables, reorder reports in **Program.cs** Section 11).
-
-```csharp
-private readonly SortedDictionary<int, int> _countsByZone = new();
-
-public void UpsertZoneCount(int zoneId, int palletCount) =>
-    _countsByZone[zoneId] = palletCount;
-```
-
-**Production takeaway:** "Lookups are fast" is a Karat trap — **insert/remove cost** separates `SortedList` from `SortedDictionary`. See **Program.cs** Section 9 — insert O(n) vs O(log n).
-
 ---
 
----
-
-#### Q3. (D) You expose a `/regions/sales` JSON endpoint. Product wants keys returned alphabetically by region code. Two proposals:
+## Q98. Covariance on `IEnumerable<out T>`
 
-**A.** `Dictionary<string, int>` — load from SQL, then `OrderBy(k => k.Key).ToDictionary()` before serialize.
+**Concepts**
+- out T variance annotation enables covariance
+- IEnumerable<string> assignable to IEnumerable<object>
+- works because IEnumerable<T> is read-only (out direction only)
+- List<T> is not covariant (IList<T> is invariant)
+- practical use: return base type or interface
 
-**B.** `SortedDictionary<string, int>` — insert as rows stream in; foreach already ascending.
+**Answer**
 
-The map holds ~30 regions, refreshes once per hour, and serves ~2k requests/min with read-heavy traffic. Which backing store do you pick, and what breaks if you choose wrong?
+`IEnumerable<T>` is declared as `IEnumerable<out T>` — the `out` variance annotation means `T` only flows out of the interface (through `Current`), never in. This makes it covariant: `IEnumerable<string>` is assignable to `IEnumerable<object>` because reading a string where an object is expected is safe. Practical examples include passing `IEnumerable<SqlCommand>` where `IEnumerable<IDbCommand>` is expected, or a `List<string>` (which implements `IEnumerable<string>`) to a method taking `IEnumerable<object>`. `IList<T>` is invariant because it both reads and writes `T` — allowing `IList<string>` as `IList<object>` would let callers insert an `int` into a string list, breaking type safety.
 
 ---
-
-**Answer:**
-
-**Answer:** For ~30 regions, hourly refresh, and read-heavy traffic, **`SortedDictionary<string, int>` (B)** is the better default: sorted order is built into the structure, foreach needs no extra sort, and n is tiny so O(log n) lookup cost is irrelevant. **`Dictionary` + `OrderBy` (A)** adds allocation and O(n log n) work on every response unless you cache the sorted projection — acceptable only if you already hold a `Dictionary` for O(1) hot lookups elsewhere and sort rarely.
 
-**Issues:**
+## Q99. `foreach` vs manual `while (enumerator.MoveNext())`
 
-| Category | Problem | Impact |
-|---|---|---|
-| Performance (A) | Sort 30 keys per request × 2k rpm | Avoidable CPU and GC from repeated `OrderBy` |
-| Correctness (B wrong use) | `SortedDictionary` for millions of writes | Tree rebalancing still O(log n) — fine here, bad at huge churn |
-| Design | Picking `Dictionary` "because it's faster" | Ignores that 30-key sort-on-read duplicates work the BCL already provides |
+**Concepts**
+- foreach generates try/finally with Dispose
+- manual while loop misses Dispose on early exit
+- foreach emits checked IDisposable cast
+- resource leak on break/exception without using
+- foreach preferred for correctness
 
-**Decision:**
+**Answer**
 
-| Factor | Prefer |
-|---|---|
-| Small n, sorted output every read | `SortedDictionary` |
-| Huge n, order irrelevant, rare sorted export | `Dictionary` + sort once when exporting |
-| Need `Keys[i]` by rank | `SortedList` (even smaller static maps) |
-| Fastest lookup, no order | Plain `Dictionary` — Section 1 |
+`foreach` compiles to a `try/finally` block that calls `Dispose()` on the enumerator in the `finally` clause, ensuring cleanup even when the loop exits via `break`, `return`, or an exception. A manual `while (enumerator.MoveNext())` loop without a `using` or explicit `try/finally` skips `Dispose()` on early exit, leaking any resources held by the enumerator — file handles, database cursors, pooled connections. The correct manual equivalent is `using var e = source.GetEnumerator(); while (e.MoveNext()) { ... }`. Use `foreach` by default; only use the manual pattern when you need to access the enumerator across multiple scopes or interleave two enumerators.
 
-**Production takeaway:** Karat expects **size and access pattern** reasoning — 30 hourly regions is the sweet spot for sorted maps; see **Program.cs** Section 8 pick-list.
-
----
-
 ---
-
-#### Q4. (R) A catalog search feature stores product tags in a case-insensitive sorted map. QA reports duplicate logical tags after a Turkish-locale server deploy. Review:
 
-```csharp
-var tagsByCount = new SortedDictionary<string, int>(
-    StringComparer.CurrentCulture)
-{
-    ["dotnet"] = 12,
-    ["CSharp"] = 8,
-    ["LINQ"] = 5
-};
+## Q100. `ToList()` materialization — when to materialize before multiple passes
 
-tagsByCount["csharp"] = 99; // developer expects this to update "CSharp"
+**Concepts**
+- single terminal operator needs no materialization
+- multiple terminal operators on deferred source require materialization
+- I/O-backed or non-idempotent source must be materialized
+- snapshot before mutation or parallel work
+- already-materialized sources need no extra ToList
 
-foreach (var tag in tagsByCount)
-    Console.WriteLine($"{tag.Key} → {tag.Value}");
-```
+**Answer**
 
-What comparer behavior caused the surprise, and what comparer + API pattern matches the chapter's `StringComparer.OrdinalIgnoreCase` demo?
+Materialize with `ToList()` or `ToArray()` when you will enumerate the sequence more than once (`Count()` followed by `foreach`, or two separate `foreach` loops), when the source is I/O-backed (database query, file reader) and re-enumeration would repeat the I/O, when you need a stable snapshot before the underlying collection can be mutated by concurrent code, or before handing the sequence to parallel work that runs multiple threads simultaneously. Skip materialization when you have a single `foreach` over an in-memory source (it copies without benefit), when the sequence is infinite or very large and materialization would exhaust memory, or when the source is already a `List<T>` or array (materialized).
 
 ---
-
-**Answer:**
-
-**Answer:** `StringComparer.CurrentCulture` uses locale-sensitive rules — casing and ordering can differ by server culture (Turkish **I/i** is the classic trap). For stable product-tag identity, use **`StringComparer.OrdinalIgnoreCase`** (chapter Section 7) so `"CSharp"` and `"csharp"` are the same key and indexer assignment updates rather than duplicates.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Culture-sensitive comparer on logical keys | Duplicate or missing keys when culture changes across environments |
-| Environment | Turkish locale vs en-US dev box | QA-only failures after regional deploy |
-| API | Indexer update assumes comparer treats keys as equal | Two entries when comparer says keys differ |
 
-**Fix (priority order):**
+## Q101. `IAsyncEnumerable<T>` and async iterators
 
-1. Construct with `StringComparer.OrdinalIgnoreCase` — matches **Program.cs** `DemoCustomComparer`.
-2. Use `Add` only when you want duplicate detection to throw; use indexer when upserting counts.
-3. Reserve `CurrentCulture` for **display sort** (UI lists), not for canonical tag keys in services.
+**Concepts**
+- IAsyncEnumerable<T> for async streaming
+- await foreach consumes it
+- async iterator method: async + IAsyncEnumerable<T> return + yield return
+- MoveNextAsync returns ValueTask<bool>
+- ConfigureAwait on await foreach
 
-```csharp
-var tagsByCount = new SortedDictionary<string, int>(
-    StringComparer.OrdinalIgnoreCase)
-{
-    ["dotnet"] = 12,
-    ["CSharp"] = 8,
-    ["LINQ"] = 5
-};
+**Answer**
 
-tagsByCount["csharp"] = 99; // updates single "CSharp"/"csharp" entry
-```
+`IAsyncEnumerable<T>` is the async counterpart of `IEnumerable<T>`, enabling a producer to `yield return` elements asynchronously — for example, streaming rows from a database one page at a time without buffering all results. An async iterator method is marked `async`, returns `IAsyncEnumerable<T>`, and uses `yield return` to produce elements, which may each be preceded by `await` calls. Consumers use `await foreach (var item in source)` which internally calls `MoveNextAsync()` returning `ValueTask<bool>` and awaits each advancement. To configure the synchronization context, use `await foreach (var item in source.ConfigureAwait(false))`. This pattern is ideal for paginated API responses, streaming database reads with `IAsyncEnumerable<T>` from EF Core's `AsAsyncEnumerable()`, and any scenario where pulling each element has I/O cost.
 
-**Production takeaway:** Sorted collections sort by **`IComparer<TKey>`**, not culture by default — explicit `OrdinalIgnoreCase` avoids locale drift between dev and production. See foundation **Strings** — culture vs ordinal.
-
----
-
 ---
-
-#### Q5. (M) A pricing microservice benchmarks three shapes for a nightly job that inserts 50_000 random SKUs once, then performs 500_000 lookups:
 
-```csharp
-var hash = new Dictionary<int, decimal>(50_000);
-var sortedList = new SortedList<int, decimal>(50_000);
-var sortedDict = new SortedDictionary<int, decimal>();
+## Q102. Modifying a collection during `foreach`
 
-for (int i = 0; i < 50_000; i++)
-{
-    int key = Random.Shared.Next(100_000);
-    hash.TryAdd(key, 1.99m);
-    if (!sortedList.ContainsKey(key)) sortedList.Add(key, 1.99m);
-    if (!sortedDict.ContainsKey(key)) sortedDict.Add(key, 1.99m);
-}
+**Concepts**
+- _version counter invalidation
+- InvalidOperationException on structural change
+- snapshot via ToList to allow safe mutation
+- reverse-index for loop as alternative
+- RemoveAll for filtering in place
 
-// Then 500_000 TryGetValue / Contains loops on each collection...
-```
+**Answer**
 
-`SortedList` dominates wall-clock time during the load phase. Explain **why** insert is asymptotically worse than the other two, and state the rule of thumb from this chapter for pick-list vs tree-backed sorted maps.
+Changing a `List<T>` (or most BCL collections) structurally during a `foreach` throws `InvalidOperationException` because the enumerator detects the version counter mismatch. The clean fix is to iterate a snapshot: `foreach (var item in list.ToList())` lets you mutate `list` freely inside the loop because the enumerator walks the copy. For removal-only patterns, `list.RemoveAll(predicate)` is the most efficient single-pass alternative. For general mutation using an index, a reverse `for (int i = list.Count - 1; i >= 0; i--)` loop is safe because removing at or above the current index does not shift items that have not been visited yet.
 
 ---
-
-**Answer:**
-
-**Answer:** `SortedList` backs keys and values with **parallel arrays**. Each insert finds the slot with binary search then **shifts** remaining elements — **O(n)** per insert, so 50_000 random inserts approach **O(n²)** total work. `Dictionary` averages **O(1)** insert; `SortedDictionary` uses a red-black tree at **O(log n)** per insert with no shifting — which is why `SortedList` dominates the load phase despite similar O(log n) lookup afterward.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Performance | Array shift on every `SortedList.Add` | Load phase orders of magnitude slower at 50k entries |
-| Benchmark misread | Blaming "sorted" generically | Wrong fix — might avoid all sorted types instead of swapping list vs tree |
-| Pattern | `ContainsKey` guard before every add | Extra lookup; still dwarfed by shift cost on `SortedList` |
 
-**Rule of thumb (Section 9):**
+## Q103. Mutable keys in hash collections
 
-| Need | Pick |
-|---|---|
-| Fastest lookup, order irrelevant | `Dictionary` |
-| Sorted keys + access by rank (`Keys[i]`) | `SortedList` — small / mostly static |
-| Sorted keys + frequent inserts/removes | `SortedDictionary` |
-| Membership only, no values | `HashSet` |
+**Concepts**
+- Dictionary lookup by GetHashCode then Equals
+- mutable key changes hash after insertion
+- lookup finds wrong bucket — key appears lost
+- value types as keys are safe (copied)
+- strings and records as keys are naturally immutable
 
-**Production takeaway:** Karat pairs benchmark numbers with **mechanism** — array shift vs tree rebalance — not just "sorted is slower." Nightly bulk load + heavy lookup → `Dictionary` or `SortedDictionary`; `SortedList` only if you need index-by-rank on a small final map.
+**Answer**
 
----
+`Dictionary<TKey,TValue>` computes `GetHashCode` when a key is inserted to determine which hash bucket to place the entry in. If the key is a mutable reference type and its equality-relevant state changes after insertion, the next lookup recomputes a different hash code, lands in a different bucket, finds nothing, and reports the key as missing — the entry is stranded in the old bucket. The dictionary is not corrupted but the entry is effectively inaccessible until a full bucket scan (which `ContainsKey` does not do). The fix is to use immutable or naturally-immutable types as keys: strings, value-type structs copied by value at insert, or records with value equality based on constructor arguments.
 
 ---
-
-#### Q6. (R) A developer ports a `Dictionary` helper to sorted collections but copies the wrong comparer interface. Review:
-
-```csharp
-public sealed class SkuIgnoreCaseEquality : IEqualityComparer<string>
-{
-    public bool Equals(string? x, string? y) =>
-        string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
-
-    public int GetHashCode(string obj) =>
-        StringComparer.OrdinalIgnoreCase.GetHashCode(obj);
-}
 
-var reorderQty = new SortedDictionary<string, int>(new SkuIgnoreCaseEquality())
-{
-    ["ZEBRA-CLIP"] = 40,
-    ["ALPHA-PAD"] = 120
-};
-
-reorderQty["alpha-pad"] = 200;
-```
-
-What fails at compile time, what would fail at runtime if they forced it to compile, and how do you wire case-insensitive **sort order** correctly for `SortedList` / `SortedDictionary`?
-
----
+## Q104. `IEnumerable<T>` is covariant but `List<T>` is not
 
-### 08. IEnumerable & IEnumerator
+**Concepts**
+- IEnumerable<out T> covariance — read-only justified
+- IList<T> invariant — write operations break covariance
+- assigning List<string> to IEnumerable<object> is valid
+- assigning List<string> to List<object> is compile error
+- why mutable covariance is unsound
 
-# Karat — Interview Questions
+**Answer**
 
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/08. IEnumerable & IEnumerator`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
+`IEnumerable<out T>` is covariant because the interface only produces `T` values (via `Current`) and never consumes them, so a `string` produced where `object` is expected is always safe. `IList<T>` and `List<T>` are invariant because they also accept `T` via `Add(T)` and the indexer setter — if `List<string>` were assignable to `List<object>`, a caller could insert an `int` into what is actually a `string` list, breaking type safety at runtime. The runtime enforces this: `(List<object>)(object)new List<string>()` compiles but throws `InvalidCastException` at runtime. The correct approach is to expose `IEnumerable<object>` or `IReadOnlyList<object>` when covariant read-only access is needed.
 
 ---
 
-**Answer:**
+## Q105. Wrong collection for the job
 
-**Answer:** `SortedDictionary` and `SortedList` constructors take **`IComparer<TKey>`**, not **`IEqualityComparer<TKey>`**. The snippet fails at compile time (`SkuIgnoreCaseEquality` does not implement `IComparer<string>`). If coerced, the collection would still sort/compare by the wrong contract — hash-based equality does not define sort order. Pass `StringComparer.OrdinalIgnoreCase` (implements `IComparer<string>`) or a custom `IComparer<string>`.
+**Concepts**
+- List<T> O(n) for middle insert/remove
+- LinkedList<T> O(1) for middle insert when node known
+- Dictionary<TKey,TValue> O(1) lookup vs List O(n) search
+- HashSet<T> for membership testing
+- choosing collection by access pattern
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `IEqualityComparer` passed to sorted ctor | CS1503 — type mismatch |
-| Conceptual | Confused hash equality with sort order | Dictionary/HashSet vs sorted maps — Section 7 comment |
-| Runtime (if bypassed) | Wrong or default ordering | Duplicate logical keys or unexpected sort sequence |
+Choosing the wrong collection for the dominant operation is a common performance trap. `List<T>.Insert(0, item)` and `List<T>.RemoveAt(0)` are O(n) because all elements shift; use `LinkedList<T>` or `Queue<T>` for front-insertion or front-removal patterns. `List<T>.Contains(x)` is O(n) linear scan; use `HashSet<T>` for O(1) membership testing. Looking up values by key in a `List<T>` with `First(x => x.Id == id)` is O(n); use `Dictionary<int,T>` for O(1) lookup. The principle is: identify the dominant operation (lookup, insertion, deletion, iteration, membership), then pick the collection whose asymptotic cost for that operation matches the performance requirement.
 
-**Fix (priority order):**
-
-1. Use built-in comparer: `new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase)`.
-2. For custom rules, implement **`IComparer<TKey>`** (like `ScoreDescendingComparer` in **Program.cs**), not `IEqualityComparer`.
-3. Keep `SkuIgnoreCaseEquality` for `Dictionary<string, T>` / `HashSet<string>` only.
-
-```csharp
-var reorderQty = new SortedDictionary<string, int>(
-    StringComparer.OrdinalIgnoreCase)
-{
-    ["ZEBRA-CLIP"] = 40,
-    ["ALPHA-PAD"] = 120
-};
-
-reorderQty["alpha-pad"] = 200; // updates existing key
-```
-
-**Production takeaway:** Karat stacks **interface confusion** with collection choice — `IEqualityComparer` for hash tables, `IComparer` for sorted types. See **Program.cs** QUICK REFERENCE — "Not IEqualityComparer."
-
 ---
-
-### 08. IEnumerable & IEnumerator
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
 
-> **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/08. IEnumerable & IEnumerator`
+## Q106. Static fields on generic types
 
----
+**Concepts**
+- separate static slot per closed generic type
+- Cache<int>.Instance != Cache<string>.Instance
+- CLR creates separate type per type argument
+- intended isolation is correct but surprising
+- runtime cost of many closed generic types
 
----
+**Answer**
 
-#### Q1. (R) A warehouse API returns `IEnumerable<PickLine>` from a `yield return` filter. A report job calls `Count()` then `Sum()` on the same reference without materializing. Totals disagree with the pick ticket and logs show the database query ran twice. Review the service method and caller. What went wrong, and how do you fix it?
-
-```csharp
-public IEnumerable<PickLine> GetHeavyLines(string ticketId, decimal minKg)
-{
-    foreach (PickLine line in _repository.LoadLines(ticketId)) // hits DB per enumeration
-    {
-        if (line.TotalWeightKg >= minKg)
-            yield return line;
-    }
-}
-
-// ReportJob:
-var heavy = _service.GetHeavyLines("PB-2201", 1.0m);
-int lineCount = heavy.Count();
-decimal totalKg = heavy.Sum(l => l.TotalWeightKg);
-_logger.LogInformation("Heavy lines: {Count}, total kg: {Total}", lineCount, totalKg);
-```
+Every closed generic type — `Cache<int>`, `Cache<string>`, `Cache<DateTime>` — is a distinct type in the CLR, each with its own set of static fields. A static field on `class Cache<T>` is not shared across all `T`; `Cache<int>.Count` and `Cache<string>.Count` are entirely separate storage locations. This is usually the intended behavior (per-type caches) but is surprising when developers expect one shared counter or singleton across all instantiations. The flip side is that code with a large number of distinct type arguments can create many closed generic type objects in the process. If genuinely shared state is needed, move it to a non-generic wrapper class that the generic type references.
 
 ---
-
-**Answer:**
-
-**Answer:** `IEnumerable<PickLine>` from a `yield return` method is lazy — each consumer (`Count`, then `Sum`) walks the sequence from scratch, re-running `_repository.LoadLines` and the filter. The two passes are independent enumerations, so side effects, timing, and even data can differ if the ticket changed between calls.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Multiple enumeration | `Count()` then `Sum()` on same lazy sequence | DB/repository work runs twice; metrics and billing double-charge I/O |
-| Correctness | No snapshot between passes | If lines change mid-report, count and sum can reflect different underlying data |
-| API contract | Returning bare `IEnumerable<T>` from I/O | Callers cannot tell whether re-enumeration is cheap or expensive |
-
-**Fix (priority order):**
-
-1. Materialize once at the boundary that owns I/O: `var heavy = _service.GetHeavyLines(...).ToList();` then `Count` / `Sum` on the list.
-2. Better API shape: return `IReadOnlyList<PickLine>` or `Task<IReadOnlyList<PickLine>>` from the service so multiple reads are explicit and cheap.
-3. If only one pass is needed, use a single loop or one LINQ aggregate (`Aggregate`, custom scan) instead of two terminal operators.
-4. Log/measure enumeration in reviews — treat `IEnumerable` from repositories as "run once unless documented otherwise."
 
-```csharp
-var heavy = _service.GetHeavyLines("PB-2201", 1.0m).ToList();
-int lineCount = heavy.Count;
-decimal totalKg = heavy.Sum(l => l.TotalWeightKg);
-```
+## Q107. Boxing in non-generic collections
 
-**Production takeaway:** Karat uses double enumeration to test whether you know `IEnumerable<T>` is a recipe, not a cached collection — matches **Program.cs** Section 5a (lazy until consumed) and Section 4h (each LINQ terminal op walks the sequence).
+**Concepts**
+- ArrayList stores object[]
+- every value type Enqueue/Add causes boxing
+- every read from non-generic collection requires cast
+- List<T>/Queue<T>/Stack<T> store T[] — no boxing for value types
+- GC pressure from box objects in hot paths
 
----
-
----
+**Answer**
 
-#### Q2. (R) A custom `IEnumerator<PickLine>` wraps a file reader. A developer copies the manual loop from a tutorial but drops the `using` block. Under load, temp files pile up on disk. Review the loop. What is missing, and what does `foreach` do differently?
-
-```csharp
-public sealed class PickLineFileEnumerator : IEnumerator<PickLine>
-{
-    private readonly StreamReader _reader;
-    private PickLine? _current;
-
-    public PickLineFileEnumerator(string path)
-    {
-        _reader = new StreamReader(path);
-    }
-
-    public PickLine Current => _current!;
-    public bool MoveNext() { /* read next line into _current */ return _current != null; }
-    public void Dispose() => _reader.Dispose();
-}
-
-// Caller:
-IEnumerator<PickLine> walk = batch.GetEnumerator();
-while (walk.MoveNext())
-{
-    Process(walk.Current);
-    if (walk.Current.Sku.StartsWith("STOP"))
-        break; // exit early on first bad aisle
-}
-// walk goes out of scope here — no Dispose call
-```
+`ArrayList`, non-generic `Queue`, and non-generic `Stack` store `object[]` backing arrays, so every `int`, `bool`, `struct`, or other value type inserted is boxed into a heap-allocated wrapper object, and every read requires an explicit cast plus unboxing. In a hot path that processes millions of values, this creates millions of short-lived box objects per second, increasing garbage collection pressure. Generic `List<int>`, `Queue<int>`, and `Stack<int>` store `int[]` directly — no boxing, no cast, no extra heap objects. The non-generic collections exist only for backward compatibility with .NET 1.x code and should not be used in new code.
 
 ---
-
-**Answer:**
 
-**Answer:** `IEnumerator<T>` implements `IDisposable` when the concrete enumerator holds unmanaged or file handles. Without `using` or a `finally` that calls `Dispose`, early `break` leaves the `StreamReader` open — file locks and temp directory growth follow. `foreach` always emits a `try/finally` that disposes the enumerator.
+## Q108. Passing `List<T>` by value
 
-**Issues:**
+**Concepts**
+- reference type — variable holds reference, not copy
+- passing by value copies the reference not the list
+- both caller and callee see the same List<T> contents
+- Add/Remove inside method mutates caller's list
+- ToList() or AsReadOnly() to snapshot/protect
 
-| Category | Problem | Impact |
-|---|---|---|
-| Resource leak | No `Dispose()` on manual loop | Handles stay open until GC finalizer (if any) — unreliable |
-| Early exit | `break` skips implicit cleanup | Worse under exceptions or conditional exit — matches tutorial pitfall in Section 4b |
-| Pattern drift | Tutorial showed `using (IEnumerator<T> ...)` | Copy-paste without `using` loses the main safety net |
+**Answer**
 
-**Fix (priority order):**
+`List<T>` is a reference type, so passing it to a method by value copies the reference — both the caller and the callee hold a reference to the same heap object. Any structural mutation inside the method (`Add`, `Remove`, `Clear`) is visible to the caller through their reference. This is surprising to developers who think "by value" means a copy. To pass a snapshot that the method cannot affect, call `new List<T>(original)` or `original.ToList()` before passing. To pass a read-only view, pass `original.AsReadOnly()` or use `IReadOnlyList<T>` as the parameter type to signal read-only intent.
 
-1. Wrap manual iteration in `using`: `using IEnumerator<PickLine> walk = batch.GetEnumerator();` — same as **Program.cs** Section 4b.
-2. Prefer `foreach` when you do not need the raw enumerator — compiler-generated dispose in `finally`.
-3. If you must hold an enumerator across methods, implement `try/finally` with explicit `Dispose()` or use `await foreach` with `IAsyncEnumerable<T>` and `ConfigureAwait` patterns for async sources.
-4. Add analyzer/code-review rule: any `GetEnumerator()` manual loop requires `using` or documented wrapper.
-
-```csharp
-using (IEnumerator<PickLine> walk = batch.GetEnumerator())
-{
-    while (walk.MoveNext())
-    {
-        Process(walk.Current);
-        if (walk.Current.Sku.StartsWith("STOP"))
-            break;
-    }
-} // Dispose even on break
-```
-
-**Production takeaway:** `foreach` is not syntactic sugar only — it is the correct dispose pattern for `IEnumerator<T>`. See **Program.cs** Section 2a (compiler `finally` → `Dispose`) and Section 3a (`Dispose()` on enumerators wrapping files/DB readers).
-
 ---
 
----
+## Q109. `Dictionary.Add` vs indexer on duplicate key
 
-#### Q3. (R) A batch-picking screen tries to skip short lines by removing them while iterating. It crashes on the second line every time. Review the loop (same pattern as **Program.cs** Section 4g). What throws, why is it allowed, and what is the safe fix?
+**Concepts**
+- Add throws ArgumentException on duplicate key
+- indexer overwrites silently on duplicate key
+- TryAdd returns bool, no throw
+- choosing Add for uniqueness assertion
+- choosing indexer for upsert semantics
 
-```csharp
-List<PickLine> lines = _ticket.Lines.ToList();
+**Answer**
 
-foreach (PickLine line in lines)
-{
-    if (line.Quantity < 5)
-        lines.Remove(line); // shrink list during foreach
-    else
-        _picker.Assign(line);
-}
-```
+`Dictionary<TKey,TValue>.Add(key, value)` throws `ArgumentException` if the key already exists, making it suitable when inserting a duplicate is a bug and you want an exception rather than silent data loss. The indexer `dict[key] = value` inserts if the key is absent or overwrites the existing value silently if the key exists, making it correct for upsert semantics. `TryAdd(key, value)` returns `false` without throwing when the key exists, which is useful for concurrent-friendly patterns or when a missed insert is a normal non-error state. Choosing between them depends on whether a duplicate is an error (use `Add`), expected (use indexer), or a conditional no-op (use `TryAdd`).
 
 ---
 
-**Answer:**
+## Q110. `AsReadOnly()` is a view, not a copy
 
-**Answer:** `List<T>` tracks a version stamp for its enumerator. Adding or removing during `foreach` invalidates that enumerator and throws `InvalidOperationException` ("Collection was modified; enumeration operation may not execute.") — the runtime detects structural change, not logical intent.
+**Concepts**
+- AsReadOnly returns ReadOnlyCollection<T> wrapper
+- mutations to original list visible through wrapper
+- no snapshot — same underlying array
+- ReadOnlyCollection<T> does not prevent caller mutation of original
+- ToList() or ImmutableList<T> for true isolation
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Remove` inside `foreach` on same `List<T>` | Guaranteed `InvalidOperationException` after first mutation |
-| Logic | In-place filter while walking forward | Even if it did not throw, skipping indices would drop unchecked elements |
-| API misuse | Treating `foreach` like index-based `for` with `RemoveAt` | Common UI/service bug when "cleaning" collections live |
+`List<T>.AsReadOnly()` returns a `ReadOnlyCollection<T>` that wraps the original list by reference, not by copy. If the original list is mutated after `AsReadOnly()` is called, the read-only wrapper immediately reflects those changes — `Count` grows, elements shift. The wrapper only prevents mutation through its own interface (no `Add`, `Remove`, or indexer setter), but the original reference is still available and mutable. To give a consumer a truly isolated snapshot, use `new List<T>(original)` or `original.ToList()` before wrapping, or use `ImmutableList<T>.ToImmutableList()` which creates a fully immutable persistent structure.
 
-**Fix (priority order):**
-
-1. Iterate a snapshot: `foreach (PickLine line in lines.ToList())` and mutate the original list — or build a new list of lines to remove.
-2. Reverse `for` loop with index if you must remove in place: `for (int i = lines.Count - 1; i >= 0; i--)`.
-3. Prefer `lines.RemoveAll(l => l.Quantity < 5)` then a second pass for `_picker.Assign`.
-4. Never add to a list you are actively `foreach`-ing on the same instance — same exception as remove.
-
-```csharp
-lines.RemoveAll(l => l.Quantity < 5);
-foreach (PickLine line in lines)
-    _picker.Assign(line);
-```
-
-**Production takeaway:** The pick-ticket demo in **Program.cs** Section 4g exists because this fails in production UI code daily — Karat expects you to name `InvalidOperationException` and choose snapshot or `RemoveAll`, not "it worked once in a small list."
-
 ---
-
----
-
-#### Q4. (M) A developer builds a lazy LINQ pipeline over live pick lines, logs the count, then mutates the underlying list before a second `foreach`. Results differ between the two passes. Walk through what runs when and why the second pass can change.
-
-```csharp
-List<PickLine> pickList = LoadOpenTicket("PB-2201");
 
-IEnumerable<PickLine> heavy = pickList
-    .Where(l => l.TotalWeightKg >= 1.0m); // deferred — no filter yet
+## Q111. Assuming dictionary enumeration order
 
-int previewCount = heavy.Count(); // first full enumeration
+**Concepts**
+- Dictionary<TKey,TValue> enumeration order undefined
+- insertion order not guaranteed
+- order depends on hash codes and bucket layout
+- .NET runtime may change order across versions
+- SortedDictionary or OrderBy for deterministic order
 
-pickList.Add(new PickLine("RUSH-ADD", 1, 2.5m)); // mutates source between passes
+**Answer**
 
-foreach (PickLine line in heavy) // second enumeration — different sequence
-{
-    Console.WriteLine(line.Sku);
-}
-```
+`Dictionary<TKey,TValue>` does not guarantee any enumeration order — iterating `Keys`, `Values`, or entries yields items in an internal hash-bucket-dependent order that may differ between runs, CLR versions, or after resize operations. Code that relies on the first enumerated key being the most-recently inserted key, or on keys appearing in alphabetical order, will produce inconsistent results. For sorted enumeration use `SortedDictionary<TKey,TValue>` or explicitly sort: `dict.Keys.Order()` (LINQ). For insertion-order preservation, `LinkedList<T>` or maintaining a separate `List<TKey>` alongside the dictionary is the correct approach; `OrderedDictionary` from `System.Collections.Specialized` preserves insertion order but is non-generic.
 
-What surprises a developer who assumes `heavy` is a snapshot?
-
 ---
-
-**Answer:**
-
-**Answer:** `Where` returns a deferred sequence — no filter runs until a terminal operation or `foreach` forces enumeration. The first `Count()` walks `pickList` at that moment; adding `RUSH-ADD` before the second `foreach` changes the source, so the second walk can include the new heavy line that was not counted in `previewCount`.
-
-**Issues:**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Deferred execution | `heavy` stores query, not results | Developers think they captured "heavy lines at T0" — they captured a filter *recipe* |
-| Live backing collection | `pickList` mutated between enumerations | Count and foreach disagree; audit logs show inconsistent totals |
-| Mental model | LINQ chain looks like a new collection | No allocation until enumeration — easy to miss in code review |
+## Q112. Multiple enumeration cost
 
-**Fix (priority order):**
-
-1. Materialize when you need a stable snapshot: `var heavy = pickList.Where(...).ToList();` before count and display.
-2. Mutate a copy if the pipeline must stay tied to original ticket: iterate `pickList.ToList()` for reporting.
-3. Document whether service methods return live views vs snapshots — return `IReadOnlyList<T>` when stable.
-4. Single enumeration when possible: one loop that counts and prints, or `ToList()` once at API boundary.
-
-**Production takeaway:** Deferred execution is a feature for composable LINQ, not a cache — production bugs appear when request handlers mutate shared lists between logging and processing. See **Program.cs** Section 5a and Section 4h preview.
-
----
+**Concepts**
+- deferred IEnumerable<T> re-executes on each enumeration
+- I/O-backed source repeats query per enumeration
+- count then foreach on same lazy sequence = two passes
+- ToList materializes once
+- IReadOnlyList<T> return signals safe multiple reads
 
----
+**Answer**
 
-#### Q5. (M) An iterator method logs each SKU as it yields. A caller breaks out of `foreach` after the first match. Later code assumes every line was scanned. Review the iterator and caller. What does `yield return` guarantee about execution state, and when does work *not* run?
-
-```csharp
-private static IEnumerable<PickLine> FirstMatchPerAisle(IEnumerable<PickLine> source)
-{
-    var seenAisles = new HashSet<string>();
-
-    foreach (PickLine line in source)
-    {
-        string aisle = line.Sku[..1];
-        if (seenAisles.Add(aisle))
-        {
-            _metrics.RecordScan(line.Sku); // side effect on each yield
-            yield return line;
-        }
-    }
-}
-
-// Caller:
-foreach (PickLine line in FirstMatchPerAisle(pickList))
-{
-    Ship(line);
-    break; // stop after first aisle representative
-}
-// Ops dashboard shows 1 scan; warehouse expected full ticket walk
-```
+Every terminal operator and `foreach` on a deferred `IEnumerable<T>` calls `GetEnumerator()` and walks the source from scratch. Calling `Count()` followed by `foreach` on the same lazy sequence performs two full enumerations — doubling I/O, doubling compute, and potentially returning inconsistent results if the source changes between the two passes. The fix is to materialize once: `var list = source.ToList()` then use `list.Count` and iterate `list` as many times as needed. Returning `IReadOnlyList<T>` from service methods signals that the result is already materialized and safe for multiple reads without hidden cost.
 
 ---
-
-**Answer:**
-
-**Answer:** A `yield return` method compiles to a state machine that runs only until the consumer asks for the next element via `MoveNext`. Breaking out of `foreach` stops calling `MoveNext`, so the iterator body after the last yielded item never runs — remaining source lines are not scanned and `_metrics.RecordScan` is not called for them.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Partial enumeration | `break` after first `yield` consumed | Iterator paused mid-method; trailing source elements skipped |
-| Side effects in iterator | `_metrics.RecordScan` inside yield path | Metrics under-count; ops dashboards lie when callers short-circuit |
-| Assumption | "Calling the method processed the ticket" | Method invocation alone does nothing — only enumeration drives work |
-
-**Fix (priority order):**
-
-1. Move metrics to the caller after full materialization if full scans are required: `var reps = FirstMatchPerAisle(pickList).ToList();` then record — or record in caller loop without `break` if policy needs all aisles.
-2. Split "dedupe yield" from "audit full ticket": one pass for metrics (`foreach` entire source), one lazy pass for shipping selection.
-3. Use `yield break` only to end iteration early by design — document that early consumer exit is supported.
-4. Avoid heavy side effects inside iterator bodies; prefer pure filters and explicit logging at materialization boundaries.
-
-**Production takeaway:** `yield return` pauses the method, not completes it — Karat tests whether you explain compiler-generated `IEnumerator` state vs eager methods. See **Program.cs** Section 5 (`yield return` state machine) and Section 5a (work on demand only).
 
----
+## Q113. Wrong comparer on sorted types
 
----
+**Concepts**
+- SortedDictionary/SortedList require IComparer<TKey>
+- IEqualityComparer<TKey> is for hash collections only
+- passing wrong interface causes compile error
+- StringComparer implements both
+- custom sort rules need IComparer<T> implementation
 
-#### Q6. (P) A code review flags `var lines = GetHeavyLines(...).ToList()` as "unnecessary allocation." The author argues it prevents double DB hits and stabilizes results if the ticket changes mid-request. When is `ToList()` (or `ToArray()`) the right production fix for `IEnumerable<T>`, and when is it waste?
+**Answer**
 
-Consider: single `foreach`, multiple LINQ passes, `IEnumerable<T>` returned from repositories, and ASP.NET request-scoped mutation of shared lists.
+`SortedDictionary<TKey,TValue>` and `SortedList<TKey,TValue>` constructors accept an `IComparer<TKey>` to define ordering. Passing an `IEqualityComparer<TKey>` (which `Dictionary` and `HashSet` use) causes a compile error because the interfaces are unrelated. A common mistake is extracting a custom equality comparer from a `Dictionary` and passing it to a `SortedDictionary` constructor — the two interfaces serve different purposes and are not interchangeable. `StringComparer.OrdinalIgnoreCase` and similar built-in comparers implement both interfaces and work with both collection types. A custom ordering rule requires implementing `IComparer<T>` with a `Compare(T x, T y)` method, not `IEqualityComparer<T>`.
 
 ---
-
-**Answer:**
-
-**Answer:** Materialize when the sequence is expensive, non-idempotent, or tied to a live collection that may change before you finish multiple passes — or when you need count/index/random access. Skip `ToList()` when you have a single forward-only `foreach` over an in-memory collection and no shared mutation for the request lifetime.
 
-**When `ToList()` / `ToArray()` is right:**
+## Q114. Poor `GetHashCode` distribution
 
-- Multiple terminal LINQ operations (`Count`, `Sum`, `Any`, then `foreach`) on the same deferred chain — Q1/Q4 pattern.
-- `IEnumerable<T>` from `yield return`, database, or network where re-enumeration repeats I/O.
-- Snapshot before parallel work, caching in a request scope, or passing to another thread — lists are safe snapshots; raw lazy sequences are not.
-- Stabilizing results when the underlying `List<T>` may be edited during the same ASP.NET request.
+**Concepts**
+- all keys map to same bucket when hash is constant
+- O(n) bucket scan on lookup instead of O(1)
+- GetHashCode must distribute across int range
+- must be consistent with Equals
+- XOR of field hash codes as common pattern
 
-**When it is waste:**
+**Answer**
 
-- One `foreach` over `List<T>` or an array — already materialized; `.ToList()` copies for no benefit.
-- Known cheap sequences (small in-memory constants) where a second pass is still cheaper than allocation — measure, but default to clarity.
-- Infinite or very large streams where materialization blows memory — use single-pass streaming instead.
+`Dictionary<TKey,TValue>` and `HashSet<T>` distribute entries across buckets by `GetHashCode() % bucketCount`. If a custom `GetHashCode` returns the same constant for all instances — for example, `return 42;` — every key lands in the same bucket, turning the hash table into a linear-search list with O(n) lookup. A well-distributed `GetHashCode` uses all distinguishing fields: typically XOR or combine their individual hash codes. The contract requires that two equal objects (as defined by `Equals`) must return the same hash code, but unequal objects should ideally return different hash codes. In modern .NET, `HashCode.Combine(field1, field2, ...)` provides a correct and well-distributed implementation.
 
-**Production takeaway:** `ToList()` is not a micro-optimization debate — it documents "this is the snapshot boundary." Prefer returning `IReadOnlyList<T>` from services that already materialize so callers do not double-enumerate by accident. Aligns with **Program.cs** `HeavyLines` lazy filter vs **Section 4g** snapshot `new List<PickLine>(pickList)` before risky work.
-
----
-
 ---
-
-#### Q7. (R) Two developers iterate the same `PickBatch` concurrently — one with `foreach`, one with a stored `IEnumerator<PickLine>` from an earlier `GetEnumerator()` call. Intermittent duplicates and skipped SKUs appear. Review `PickBatch` (fresh enumerator per `GetEnumerator()`). What contract did the second developer violate, and how should multiple consumers walk the same batch?
-
-```csharp
-PickBatch batch = new PickBatch(/* lines */);
-
-IEnumerator<PickLine> manual = batch.GetEnumerator();
-manual.MoveNext(); // advanced once manually
-
-foreach (PickLine line in batch) // second cursor — OK alone
-{
-    Process(line);
-}
-
-while (manual.MoveNext()) // first cursor still mid-stream
-{
-    Process(manual.Current); // overlaps with foreach timing in other threads
-}
-```
-
-**Answer:**
-
-**Answer:** Each call to `GetEnumerator()` returns an independent cursor (`PickBatchEnumerator` with its own `_index`). That is correct. The bug is sharing one `IEnumerator` instance across logical passes or threads while also starting another enumeration — two cursors on the same batch are fine in sequence, but concurrent or overlapping manual + `foreach` walks without coordination produce duplicate/skipped processing. `IEnumerator<T>` is not thread-safe and not meant to be shared as shared state.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Cursor sharing | Reusing one `IEnumerator` mid-stream while another walk runs | Double-processing or skipped elements depending on interleaving |
-| Threading | Concurrent `MoveNext` on same enumerator | Undefined behavior; not supported by BCL collections |
-| Design | Treating enumerator as batch-wide singleton | Violates forward-only, one-consumer-per-cursor model |
-
-**Fix (priority order):**
 
-1. One enumerator per pass — never share a single `IEnumerator<T>` between components; call `GetEnumerator()` again (or `foreach`) for each full walk — prefer fresh enumerator over `Reset()` per **Program.cs** Section 4c note.
-2. Do not advance a stored enumerator partially then also `foreach` the batch unless you explicitly want two independent views — document which cursor owns which lines.
-3. For parallel processing, materialize `batch.ToList()` or index into an array and partition by range — not shared `MoveNext`.
-4. Remove `Reset()` from new code paths; `PickBatchEnumerator.Reset()` exists for legacy only.
+## Q115. `Queue.Contains` is O(n)
 
-```csharp
-// Two independent full passes — OK:
-foreach (PickLine line in batch) ProcessA(line);
-foreach (PickLine line in batch) ProcessB(line);
+**Concepts**
+- Queue<T> has no hash index
+- Contains performs linear scan of all elements
+- O(n) per membership check
+- maintain parallel HashSet<T> for O(1) membership
+- composite structure: queue for ordering, set for deduplication
 
-// Not OK: one half-consumed manual cursor + another walk without clear ownership
-```
+**Answer**
 
-**Production takeaway:** `IEnumerable<T>` is multi-enumerable; `IEnumerator<T>` is single forward cursor — Karat collapses the distinction. See **Program.cs** Section 2 (`GetEnumerator()` fresh per call) and Section 3 (`PickBatchEnumerator` instance state).
+`Queue<T>.Contains(item)` performs a linear scan of the circular backing array — it is O(n) because the queue has no hash index. For workloads that need both FIFO ordering and fast membership testing — for example, a BFS visited-check or a deduplicating message buffer — maintain a `HashSet<T>` alongside the queue. When enqueuing, check `set.Contains(item)` first (O(1)); if absent, `queue.Enqueue(item)` and `set.Add(item)`. On dequeue, `queue.Dequeue()` and optionally `set.Remove(item)` if membership should expire when the item is processed. This composite keeps both operations at O(1) amortized at the cost of double memory for the keys.
 
 ---

@@ -26,414 +26,488 @@
 
 ## Q1. What is a layout in ASP.NET Core MVC?
 
-What is a layout in ASP.NET Core MVC?
+**Concepts**
+- Shared page shell containing HTML structure and site chrome
+- `@RenderBody()` as the child view content injection point
+- `_ViewStart.cshtml` for automatic layout assignment
+- Named `@section` blocks for per-page slot injection
+- `Layout = null` opt-out for standalone pages
 
-**Answer:** A layout is a Razor view that defines the shared page shell — HTML document structure, navigation, CSS/JS references, and footer — while individual views supply only their page-specific content. Layouts eliminate duplicating chrome across every `.cshtml` file and keep site-wide markup in one place.
+**Answer**
 
-- Layouts live typically in `Views/Shared/` (e.g., `_Layout.cshtml`) and are applied via `_ViewStart.cshtml` or a per-view `Layout` property.
-- The layout calls `@RenderBody()` where the child view's markup is injected during rendering.
-- Child views can optionally define named `@section` blocks that the layout renders at specific positions (e.g., scripts at the bottom).
-- A view can opt out with `Layout = null` for standalone pages such as login or print views.
+The reason layouts exist is to eliminate duplicating HTML document structure, navigation, CSS/JS references, and footer markup across every `.cshtml` file — the layout owns the shared chrome while individual views supply only their page-specific content. Layouts typically live in `Views/Shared/` as `_Layout.cshtml` and are applied either through `_ViewStart.cshtml` (which sets `Layout = "_Layout"` for all views in the folder tree) or by a per-view `Layout` property. The layout calls `@RenderBody()` at the spot where the child view's markup should appear, and child views can additionally push named `@section` blocks to predetermined positions such as a scripts slot at the bottom of `<body>`. When a page like a login or print view should render without any shared chrome, setting `Layout = null` at the top of that view opts it out entirely.
 
 ---
 
 ## Q2. What does `@RenderBody()` do in a layout?
 
-What does `@RenderBody()` do in a layout?
+**Concepts**
+- Primary content channel for the view pipeline
+- Body vs section content routing
+- Single-call constraint per layout
+- Nested layout `@RenderBody()` chaining
+- Silent blank page when `@RenderBody()` is missing
 
-**Answer:** `@RenderBody()` is the placeholder in a layout where the rendering engine inserts the content of the currently executing view. Without it, the child view's markup is discarded and the page appears blank even though compilation succeeds.
+**Answer**
 
-- It is called exactly once per layout — the primary content channel for the view pipeline.
-- Content placed outside `@section` blocks in the child view is captured into the body; section content is routed separately.
-- Nested layouts each have their own `@RenderBody()` — the inner layout's body receives the page view, and the outer layout's body receives the fully rendered inner layout output.
-- Missing `@RenderBody()` is a common silent bug: the layout renders headers/footers but no main content.
+`@RenderBody()` is the placeholder in a layout where the rendering engine inserts everything the child view wrote outside of `@section` blocks — it is the primary content channel between a view and its layout. The call must appear exactly once per layout file; content placed outside sections in the child view is captured into the body stream, while section content is routed separately and consumed by the matching `@RenderSection` call. In nested layouts each level has its own `@RenderBody()`, so the page view fills the inner layout's body and the inner layout's rendered output fills the outer layout's body, building the page inside-out. The most common silent bug is omitting `@RenderBody()` from a new layout — the headers and footers render but the main content disappears with no exception and no hint in the logs.
 
 ---
 
 ## Q3. What is a section in Razor (`@section`)?
 
-What is a section in Razor (`@section`)?
+**Concepts**
+- Named content block defined in a child view
+- Deferred capture and render at layout call site
+- `@RenderSection("Name")` consuming the captured block
+- Section content excluded from `@RenderBody()` stream
+- Multiple distinct sections per view
 
-**Answer:** A section is a named content block defined in a child view with `@section SectionName { ... }` and rendered in the layout with `@RenderSection("SectionName")`. Sections let pages inject optional or required fragments — such as page-specific CSS, scripts, or a hero banner — into predetermined layout slots.
+**Answer**
 
-- Sections are declared in the view, not the layout; the layout decides where and whether to render them.
-- Common pattern: `@section Scripts { <script src="~/js/page.js"></script> }` rendered at the bottom of `_Layout.cshtml`.
-- Section content is captured during view execution and deferred until the layout reaches the matching `@RenderSection` call.
-- Unlike `@RenderBody()`, a view can define multiple sections with different names.
+A section is a named content block defined in a child view with `@section SectionName { ... }` and consumed in the layout with `@RenderSection("SectionName")`. The key mechanism is deferred capture: Razor captures the section block during view execution and holds it until the layout reaches the matching `@RenderSection` call, which means page-specific scripts declared in the view can end up rendered at the bottom of `<body>` in the layout where they belong. Unlike `@RenderBody()`, a view can define multiple sections with different names, so a page might define both a `Scripts` section and a `Styles` section for different layout slots. Content inside a section is excluded from the body stream, which is why mixing section and non-section content in a view produces predictable placement without collisions.
 
 ---
 
 ## Q4. What is the difference between `@RenderSection("Scripts", required: true)` and `required: false`?
 
-What is the difference between `@RenderSection("Scripts", required: true)` and `required: false`?
+**Concepts**
+- `required: true` as a mandatory layout contract
+- `required: false` for optional sections with silent skip
+- `InvalidOperationException` on missing required section
+- `IsSectionDefined()` for conditional output without crashing
+- Mixed required policies causing inconsistent page behavior
 
-**Answer:** The `required` parameter controls whether the layout throws at render time when a view omits that section. `required: true` enforces a contract — every view using the layout must define the section (even if empty); `required: false` silently skips rendering when the section is undefined.
+**Answer**
 
-- `required: true` throws `InvalidOperationException` if the view does not contain `@section Scripts { ... }` — useful when every page must participate in a shared script pipeline.
-- `required: false` is appropriate for optional analytics, SEO meta tags, or page-specific styles that only some views need.
-- Use `IsSectionDefined("Scripts")` in the layout to conditionally wrap optional section output without relying on exceptions.
-- Mixed policies across a site cause inconsistent behavior: some pages crash, others silently omit scripts.
+The `required` parameter determines whether the layout enforces that every consuming view defines the section. `required: true` means the layout and view have a hard contract — any view that omits `@section Scripts { ... }` throws `InvalidOperationException` at render time, producing a 500 response. This is appropriate when every page must participate in a shared pipeline such as injecting core scripts. `required: false` silently skips rendering when the section is absent, which suits optional slots like analytics snippets or per-page hero banners where only some views need to contribute. Rather than relying on the exception to surface omissions, I prefer using `IsSectionDefined("Scripts")` in the layout to wrap optional section output with fallback defaults, since `required: false` can silently drop content that developers assume will always appear.
 
 ---
 
 ## Q5. What is `_ViewStart.cshtml` and how does it apply layouts?
 
-What is `_ViewStart.cshtml` and how does it apply layouts?
+**Concepts**
+- Pre-view execution for shared property initialization
+- Closest-folder-wins cascade order
+- Root `Views/_ViewStart.cshtml` as default for all views
+- Subfolder override for area or section-specific layouts
+- `_ViewStart` as a non-rendered configuration file
 
-**Answer:** `_ViewStart.cshtml` runs before every view in its folder and subfolders, setting shared view properties — most commonly `Layout = "_Layout"`. It centralizes layout assignment so individual views do not repeat the same `Layout` line.
+**Answer**
 
-- The file executes in order from the view's folder upward; the closest `_ViewStart.cshtml` to the view wins for properties it sets.
-- Root `Views/_ViewStart.cshtml` applies a default layout to all views unless a subfolder overrides it.
-- A child folder's `_ViewStart.cshtml` can set `Layout = null` or a different layout name, affecting only views under that path.
-- `_ViewStart` runs at compile/render time — it is not a view users see; it configures the view execution context.
+`_ViewStart.cshtml` runs before every view in its folder and subfolders, making it the right place to set shared view properties like `Layout = "_Layout"`. The cascade works closest-folder-first: if `Views/Home/_ViewStart.cshtml` exists, it runs before root `Views/_ViewStart.cshtml` for Home views, so a subfolder can set a different layout or `Layout = null` without affecting the rest of the app. Root `Views/_ViewStart.cshtml` establishes the default for all views that do not have a more specific override. Because `_ViewStart` executes at render time rather than compile time, a missing or mismatch only surfaces when those views are actually requested — so smoke-testing every subfolder after adding a new `_ViewStart` file is worth the effort.
 
 ---
 
 ## Q6. What is the difference between a layout and a partial view?
 
-What is the difference between a layout and a partial view?
+**Concepts**
+- Layout as outer page template with `@RenderBody()`
+- Partial view as reusable inline rendering fragment
+- Automatic layout application via `_ViewStart` vs explicit partial invocation
+- Single layout per page vs multiple partials
+- Section forwarding in layouts vs inline partial output
 
-**Answer:** A layout wraps an entire page and defines the outer document structure with `@RenderBody()` and sections; a partial view is a reusable Razor fragment rendered inside a parent view or layout. Layouts establish the page template; partials compose smaller UI pieces within that template.
+**Answer**
 
-- Layouts are applied automatically via `_ViewStart` or the `Layout` property; partials are invoked explicitly with `<partial>` or `Html.PartialAsync`.
-- A page has one layout (or none); it can include many partials (`_ValidationScriptsPartial`, `_LoginPartial`).
-- Layouts participate in the view-start pipeline and section forwarding; partials inherit the parent's `ViewData`/`ViewBag` unless given an explicit model.
-- Partials do not replace `@RenderBody()` — they render inline wherever invoked.
+The key distinction is that a layout wraps the entire page and defines the outer document structure — it contains `@RenderBody()` where the current view's content appears — while a partial view is a reusable Razor fragment rendered inline wherever it is invoked. A page has exactly one layout (or none) applied automatically through `_ViewStart`, but it can include many partials (`_ValidationScriptsPartial`, `_LoginPartial`) explicitly using `<partial>` or `Html.PartialAsync`. Layouts participate in the view-start pipeline and section capture; partials inherit the parent's `ViewData`/`ViewBag` by default unless given an explicit model. I think of layouts as templates that pull in the view, and partials as components the view pushes into its own markup.
 
 ---
 
 ## Q7. How do nested layouts work?
 
-How do nested layouts work?
+**Concepts**
+- Inside-out layout chaining
+- Intermediate layout's `Layout` property pointing to parent
+- Each level requiring its own `@RenderBody()` call
+- Section forwarding across intermediate levels
+- Missing section forwarder as a common silent bug
 
-**Answer:** Nested layouts chain by setting `Layout = "_ParentLayout"` in an intermediate layout file. The innermost view fills the inner layout's `@RenderBody()`, and the rendered inner layout output fills the outer layout's `@RenderBody()` — building the page inside-out.
+**Answer**
 
-- Example: `_AdminLayout.cshtml` sets `Layout = "_Layout"` and provides admin sidebar chrome around `@RenderBody()`.
-- Each layout level must call `@RenderBody()` once; only the outermost layout typically contains `<html>` and `<head>`.
-- Sections do not automatically bubble up — intermediate layouts must forward them with `@section Scripts { @RenderSection("Scripts", required: false) }`.
-- Missing section forwarding in a middle layout is a common cause of scripts defined in a page never reaching the root layout.
+Nested layouts chain by setting `Layout = "_ParentLayout"` inside an intermediate layout file. The rendering order is inside-out: the innermost view fills the intermediate layout's `@RenderBody()`, the rendered intermediate layout then fills the outer layout's `@RenderBody()`, so the outer layout ultimately holds the complete composed page. A common real-world pattern is `_AdminLayout.cshtml` setting `Layout = "_Layout"` so the admin section gets a sidebar around its pages while still sharing the root site chrome. The part most developers miss is section forwarding — sections defined in the page view do not automatically bubble through the chain. Every intermediate layout must explicitly forward them with `@section Scripts { @RenderSection("Scripts", required: false) }`, otherwise scripts declared in a page never reach the root layout's script slot and are silently discarded.
 
 ---
 
 ## Q8. How are `@section` definitions passed from a view to a layout?
 
-How are `@section` definitions passed from a view to a layout?
+**Concepts**
+- Section capture during view execution
+- Name-based matching between `@section` and `@RenderSection`
+- Multi-level forwarding requirement in nested layouts
+- Section content excluded from body stream
+- Section executing in the defining view's scope
 
-**Answer:** When a view defines `@section Scripts { ... }`, Razor captures that block during view execution and stores it until the active layout calls `@RenderSection("Scripts")`. The layout then renders the captured content at that call site — typically after shared scripts so page-specific code runs last.
+**Answer**
 
-- Section matching is by name — the string in `@section` must match the argument to `@RenderSection`.
-- If multiple layout levels exist, each intermediate layout must explicitly forward sections to the parent layout.
-- Content outside any section becomes part of `@RenderBody()`; section content is excluded from the body stream.
-- Sections execute in the context of the defining view, so they can reference the view's `@model` and local variables.
+When a view defines `@section Scripts { ... }`, Razor captures that block during view execution and stores it indexed by name. The active layout then renders the captured content when it calls `@RenderSection("Scripts")` — the match is purely by name, so the string in `@section` must match the argument to `@RenderSection` exactly. Since sections execute in the context of the defining view, they can reference the view's `@model` and local variables. Content outside any section goes into the body stream; section content is held separately, so the layout controls where each type of content appears on the page. In a nested layout chain, each intermediate layout must explicitly forward sections to the parent, because capture and render happen per layout level rather than globally through the entire chain.
 
 ---
 
 ## Q9. Can a view define the same section name twice? What happens?
 
-Can a view define the same section name twice? What happens?
+**Concepts**
+- Single section name per view file rule
+- Compile-time duplicate section error
+- Merging script blocks into one section
+- Partial invocation as an alternative for multiple inclusion points
 
-**Answer:** No — Razor allows each section name only once per view. Defining `@section Scripts` twice in the same view causes a compile-time error; sections do not merge like duplicate HTML tags.
+**Answer**
 
-- The compiler reports a duplicate section definition before the app runs.
-- To combine script blocks, merge them into a single `@section Scripts { ... }` or extract shared scripts into a partial invoked inside one section.
-- This strict rule differs from calling `Html.PartialAsync` multiple times, which is allowed.
-- Nested layouts may each define forwarding sections — the restriction applies per view file, not per layout chain.
+No — Razor permits each section name only once per view file, and defining `@section Scripts` twice in the same view is a compile-time error, not a runtime merge. This is intentional: sections are named slots with a clear one-to-one relationship between definition and consumption, unlike HTML tags which browsers merge silently. The fix is to combine both script references into a single `@section Scripts { ... }` block, or to extract shared scripts into a partial and invoke that partial inside one section. The restriction applies per view file rather than per layout chain, so intermediate layouts may each define their own forwarding section — what is forbidden is two `@section Scripts` declarations inside the same `.cshtml` file.
 
 ---
 
 ## Q10. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
 
-What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
+**Concepts**
+- `<partial>` tag helper as the recommended approach in new code
+- `Html.PartialAsync` returning `IHtmlContent` requiring `@await`
+- Both rendering asynchronously without a controller
+- Dynamic partial name selection favoring `Html.PartialAsync`
 
-**Answer:** Both render a partial view asynchronously, but the `<partial>` tag helper is the recommended ASP.NET Core 8 approach — cleaner syntax, full DI integration, and consistent with other tag helpers. `Html.PartialAsync` is the older HTML helper API; functionally similar for simple cases.
+**Answer**
 
-- `<partial name="_MyPartial" model="Model.Items" />` avoids `@await` in many contexts and reads clearly in markup.
-- `Html.PartialAsync` returns `IHtmlContent` and requires `@await` — it remains valid for dynamic partial names computed at runtime.
-- Both pass an optional model and `ViewDataDictionary`; neither runs a controller — they only render existing Razor.
-- Prefer `<partial>` in new code; use `PartialAsync` when the partial name is built programmatically in C# code within the view.
+Both render a partial view asynchronously, but `<partial name="_MyPartial" model="Model.Items" />` is the cleaner, preferred syntax for ASP.NET Core because it reads naturally in HTML markup and integrates with IntelliSense without needing `@await` inline. `Html.PartialAsync` returns `IHtmlContent` and requires `@await` — it remains the better choice when the partial name is computed at runtime in C# code within the view, since the tag helper expects a literal or simple expression for the name attribute. Functionally both approaches are equivalent: neither runs a controller action, both accept an optional model and `ViewDataDictionary`, and both use the same view location discovery rules. In new code I default to `<partial>` and reach for `PartialAsync` only when I need to programmatically build the name string.
 
 ---
 
 ## Q11. How does Razor locate partial views?
 
-How does Razor locate partial views?
+**Concepts**
+- Controller-specific folder searched first
+- `Views/Shared/` as the fallback location
+- First-match resolution order
+- Explicit path bypassing ambiguous discovery
+- Calling view's context driving the resolution
 
-**Answer:** Razor searches a defined set of locations relative to the calling view, starting with the current controller's view folder, then `Views/Shared/`, using the partial name (with or without leading underscore). The first matching file wins.
+**Answer**
 
-- For a partial named `_ProductTile`, search paths include `Views/{Controller}/_ProductTile.cshtml` and `Views/Shared/_ProductTile.cshtml`.
-- Explicit paths such as `~/Views/Shared/_ProductTile.cshtml` skip ambiguous discovery.
-- Partial resolution is based on the **calling view's** context, not the layout's location.
-- A partial in `Views/Shared/` with the same name as one in an Area can cause unexpected binding — use distinct names or fully qualified paths.
+Razor searches a defined set of locations relative to the calling view's context, not the layout's location. For a partial named `_ProductTile` called from `HomeController`, the engine checks `Views/Home/_ProductTile.cshtml` first, then `Views/Shared/_ProductTile.cshtml`, and the first match wins. Using explicit paths like `~/Views/Shared/_ProductTile.cshtml` skips discovery entirely and guarantees the correct file regardless of ambiguity. The part that surprises developers is that the calling view's controller context drives resolution, so a partial rendered from a layout is resolved against the current page's controller, not the layout's folder. A partial in `Views/Shared/` with the same name as one under an Area can cause unexpected binding — use distinct names or fully qualified paths when names might collide.
 
 ---
 
 ## Q12. How does partial view resolution differ in Areas?
 
-How does partial view resolution differ in Areas?
+**Concepts**
+- Area-expanded search path prepended to the resolution order
+- `Areas/{AreaName}/Views/{Controller}/` and `Areas/{AreaName}/Views/Shared/` added first
+- Application `Views/Shared/` remaining in the fallback chain
+- Root Shared potentially shadowing Area-local partials on name collision
+- Explicit Area path for guaranteed resolution
 
-**Answer:** Area views add area-specific search paths via the area view location expander. Partials invoked from an Area view are searched under `Areas/{AreaName}/Views/{Controller}/`, then `Areas/{AreaName}/Views/Shared/`, then application `Views/Shared/`.
+**Answer**
 
-- Area isolation is not absolute — root `Views/Shared/` remains in the search order and can shadow Area intent if names collide.
-- Use `~/Areas/Billing/Views/Shared/_LineItems.cshtml` when you must guarantee the Area version.
-- Layout resolution in Areas follows a similar expanded path — Area `_ViewStart` controls which layout file is selected.
-- View Components use separate discovery via `[AreaViewLocationFormats]` and are often clearer for Area-specific widgets with data loading.
+Area views extend the standard resolution order by prepending area-specific paths: for a partial called from `Areas/Billing/Views/Invoices/`, the engine searches `Areas/Billing/Views/Invoices/`, then `Areas/Billing/Views/Shared/`, and finally application `Views/Shared/`. The critical point is that Area isolation is not absolute — root `Views/Shared/` remains in the chain and can shadow an Area-specific partial when both have the same name, which causes the wrong version to render silently. The reliable fix is to use an explicit path like `~/Areas/Billing/Views/Shared/_LineItems.cshtml` so resolution does not depend on folder ordering. Area layouts follow the same expanded path, which is why Area `_ViewStart` must set an explicit layout path rather than relying on a short name to pick up the Area-local version.
 
 ---
 
 ## Q13. What is the difference between `@RenderSection` and `@await Html.PartialAsync`?
 
-What is the difference between `@RenderSection` and `@await Html.PartialAsync`?
+**Concepts**
+- `@RenderSection` rendering content defined by the child view
+- `Html.PartialAsync` rendering a standalone Razor file
+- Top-down layout contract vs horizontal fragment composition
+- Section optional/required flag vs partial always rendering when called
+- Explicit model parameter for partials vs inherited scope for sections
 
-**Answer:** `@RenderSection` renders content **defined by the child view** into a layout slot — a top-down contract between view and layout. `Html.PartialAsync` renders a **separate Razor file** inline — a horizontal composition of reusable fragments, independent of the layout section pipeline.
+**Answer**
 
-- Sections are declared in the page view and consumed by the layout; partials are standalone files invoked from any view or layout.
-- Sections support the optional/required flag; partials always render when called (or throw if not found).
-- Partials accept an explicit model parameter; sections inherit the defining view's scope.
-- Use sections for page-specific scripts/styles destined for layout placeholders; use partials for shared UI fragments used across many pages.
+The fundamental difference is direction: `@RenderSection` is a top-down contract where the child view declares content and the layout consumes it, while `Html.PartialAsync` is a horizontal composition where any view or layout pulls in a standalone reusable file. Sections are declared in the page view and consumed by the layout; the layout controls placement and enforcement via the `required` flag. Partials are independent `.cshtml` files invoked explicitly and always render when called, though they throw `InvalidOperationException` if not found. Partials accept an explicit model parameter and can be strongly typed, while sections execute in the defining view's scope and share its model. I use sections for page-specific scripts and styles destined for layout slots, and partials for shared UI fragments like `_ValidationSummary` or product tiles that appear across many pages.
 
 ---
 
 ## Q14. Why pass a strongly typed model to a partial instead of `ViewBag`?
 
-Why pass a strongly typed model to a partial instead of `ViewBag`?
+**Concepts**
+- `@model` declaration providing compile-time property checking
+- `ViewBag` as an untyped dynamic dictionary
+- Explicit data contract for partial dependencies
+- Refactoring safety with strong types
+- Test isolation with plain POCO construction
 
-**Answer:** A strongly typed model gives compile-time checking, IntelliSense, and explicit data contracts — the partial declares `@model MyType` and receives only what it needs. `ViewBag` is dynamic, untyped, and invisible to refactoring tools, making partials fragile and hard to test.
+**Answer**
 
-- `model="Model.Lines"` documents exactly what the partial requires without relying on magic string keys.
-- Strong typing prevents null-reference and typo errors that `ViewBag.Orders` hides until runtime.
-- Unit tests and view components can construct the model directly; `ViewBag` requires dictionary setup.
-- Reserve `ViewBag`/`ViewData` for rare layout-level messages — not for structured data passed to partials.
+Passing a strongly typed model — `model="Model.Lines"` with the partial declaring `@model IEnumerable<LineItemViewModel>` — documents exactly what data the partial needs and makes the contract visible at compile time. Any property access on `Model.Items` catches typos at build time rather than throwing at runtime. `ViewBag` is dynamic and invisible to refactoring tools: renaming a property or key anywhere in the codebase will not update the string used in `ViewBag.Orders`, so breakage only appears when the page renders. Strong typing also makes the partial independently testable — a unit test can construct the model directly and verify rendering logic without needing to populate a `ViewData` dictionary. I reserve `ViewBag` for rare layout-level notifications like flash message strings, not for structured data flowing into partials.
 
 ---
 
 ## Q15. How does a child view override the layout assigned in `_ViewStart`?
 
-How does a child view override the layout assigned in `_ViewStart`?
+**Concepts**
+- Per-view `Layout` property taking precedence over `_ViewStart`
+- `Layout = null` for standalone pages without any layout
+- `_ViewStart` still running but its assignment being replaced
+- Fully qualified path for explicit alternate layout
 
-**Answer:** A view overrides `_ViewStart` by setting the `Layout` property at the top of the `.cshtml` file — for example `@{ Layout = "_PrintLayout"; }` or `@{ Layout = null; }`. The view-level assignment takes precedence over `_ViewStart` for that view only.
+**Answer**
 
-- Override syntax: `@{ Layout = "~/Views/Shared/_AdminLayout.cshtml"; }` using a fully qualified path when needed.
-- `Layout = null` renders the view as a standalone HTML page without any layout wrapper.
-- `_ViewStart` still runs first; the view's own `Layout` assignment replaces the value `_ViewStart` set.
-- Per-action layout selection can also be done in the controller with `return View("Name", "_LayoutName")` overloads.
+A view overrides `_ViewStart` by setting the `Layout` property in a `@{ }` block at the top of the `.cshtml` file — for example `@{ Layout = "_PrintLayout"; }` or `@{ Layout = null; }`. The view-level assignment replaces whatever value `_ViewStart` set because `_ViewStart` still executes first, but the view's own block runs afterward and wins. Setting `Layout = null` renders the view as a standalone HTML page with no wrapper, which is the right choice for login, print, or embedded-widget pages. When the alternate layout lives in a non-default location, a fully qualified path like `~/Views/Shared/_AdminLayout.cshtml` avoids ambiguous resolution. Controllers can also select a layout via response headers or action-specific view calls, but I treat the view's own `@{ Layout = ... }` as the cleanest approach since it keeps the layout decision visible at the top of the file.
 
 ---
 
 ## Q16. What happens if a required section is not defined in a view?
 
-What happens if a required section is not defined in a view?
+**Concepts**
+- `InvalidOperationException` thrown at render time
+- Error identifying missing section name and layout file
+- Empty section block satisfying the required contract
+- `IsSectionDefined` as an alternative to required enforcement
 
-**Answer:** When the layout calls `@RenderSection("Scripts", required: true)` and the view omits `@section Scripts`, Razor throws `InvalidOperationException` at render time — the page fails with a 500 error. This is intentional enforcement of a layout contract.
+**Answer**
 
-- The error identifies the missing section name and the layout file — it only appears when that view is rendered, not at build time.
-- Fix by adding `@section Scripts { }` (even empty) or changing the layout to `required: false` if the section is truly optional.
-- Smoke-testing every view against its layout prevents production surprises when a new layout adds a required section.
-- Alternatively, provide default scripts in the layout and use `IsSectionDefined` to append page-specific scripts optionally.
+When the layout calls `@RenderSection("Scripts", required: true)` and the rendering view omits `@section Scripts`, Razor throws `InvalidOperationException` at render time, producing a 500 error for that page. The error message identifies the missing section name and the layout file so the cause is findable, but it only surfaces when that specific view is rendered — not at build time and not when other views are requested. The fix is to add an empty `@section Scripts { }` to the view if the layout contract is correct, or to change the layout's `required: true` to `required: false` if the section is genuinely optional for some pages. A better approach is to use `IsSectionDefined("Scripts")` in the layout and inject a default script block when the section is absent, so pages that do not declare the section still get the shared baseline scripts.
 
 ---
 
 ## Q17. What is the `Shared` folder under `Views` used for?
 
-What is the `Shared` folder under `Views` used for?
+**Concepts**
+- Cross-controller shared views and layouts
+- Fallback location in Razor's view resolution order
+- Editor and display templates under `Shared/EditorTemplates/`
+- `_ViewImports.cshtml` and `_ViewStart.cshtml` placement
+- Area-specific `Shared` folder for area-scoped reuse
 
-**Answer:** `Views/Shared/` holds views shared across controllers — layouts (`_Layout.cshtml`), partials (`_ValidationScriptsPartial.cshtml`), error pages, and editor templates. Razor searches here when a view or partial is not found in the controller-specific folder.
+**Answer**
 
-- Layout files, `_ViewImports.cshtml`, and `_ViewStart.cshtml` commonly live in or apply to Shared.
-- Partials used by multiple controllers belong in Shared to avoid duplication under each controller folder.
-- Editor templates and display templates for `Html.EditorFor`/`DisplayFor` also reside under `Shared/EditorTemplates/` and `Shared/DisplayTemplates/`.
-- Area-specific shared views go in `Areas/{AreaName}/Views/Shared/` for Area-scoped reuse.
+`Views/Shared/` is the fallback search location Razor checks when a view or partial is not found in the controller-specific folder, making it the home for everything that needs to be accessible across controllers. Layout files (`_Layout.cshtml`), shared partials (`_ValidationScriptsPartial.cshtml`, `_LoginPartial.cshtml`), and error pages all live here so they are discoverable regardless of which controller triggers them. Editor templates and display templates for `Html.EditorFor`/`DisplayFor` also reside under `Shared/EditorTemplates/` and `Shared/DisplayTemplates/` respectively. For Area views, `Areas/{AreaName}/Views/Shared/` provides area-scoped reuse so area-specific layouts and partials do not pollute the root Shared folder or create name collisions with application-wide files.
 
 ---
 
 ## Q18. How does `_ViewStart` layout resolution work in Areas?
 
-How does `_ViewStart` layout resolution work in Areas?
+**Concepts**
+- `Areas/{AreaName}/Views/_ViewStart.cshtml` running first for area views
+- Fallback to root `Views/_ViewStart.cshtml` when area file is absent
+- Area-expanded layout resolution including `Areas/{AreaName}/Views/Shared/`
+- Fully qualified layout path for guaranteed area-local selection
+- Application-root-relative `~/` syntax for asset paths in area layouts
 
-**Answer:** Area views run `Areas/{AreaName}/Views/_ViewStart.cshtml` first, then fall back to root `Views/_ViewStart.cshtml` if the Area file does not exist or does not set all properties. Layout name resolution uses area-expanded paths — `_Layout` may resolve to `Areas/Admin/Views/Shared/_Layout.cshtml` before root Shared.
+**Answer**
 
-- Set Area `_ViewStart` explicitly: `Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml"` to avoid accidentally picking the root site layout.
-- An unused `Areas/Admin/Views/Shared/_Layout.cshtml` has no effect until `_ViewStart` references it.
-- Asset paths in Area layouts should use `~/` application-root syntax — not relative `../css/admin.css` — to avoid 404s when the wrong layout renders.
-- Nested `_ViewStart` files inside `Areas/Admin/Views/Dashboard/` can further override layout for that subfolder only.
-
----
+Area views run the closest `_ViewStart.cshtml` first — `Areas/{AreaName}/Views/_ViewStart.cshtml` — and fall back to the root `Views/_ViewStart.cshtml` if the area file does not exist. When the area `_ViewStart` sets `Layout = "_Layout"`, the name is resolved through area-expanded paths: the engine checks `Areas/Admin/Views/Shared/_Layout.cshtml` before root `Views/Shared/_Layout.cshtml`, so the area-local version should win if it exists. The problem is that using a short name like `"_Layout"` depends on that resolution order being correct, which is fragile — a naming collision or missing area file causes the root site layout to load silently. I always set the area `_ViewStart` with a fully qualified path, `Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml"`, to make the intent explicit. Asset paths in area layouts should also use `~/` application-root syntax rather than relative paths like `../css/admin.css`, since relative paths break the moment a different layout is selected.
 
 ---
 
 ## Gotchas — ASP.NET Core MVC (Interview Traps)
 
+---
+
 #### Gotcha 1. Business logic in Razor views
 
-**Answer:** Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently.
+**Concepts**
+- Business logic bypassing unit tests in views
+- Authorization placement in filters vs Razor
+- Service-layer calculations vs view-layer duplication
+- Presentation formatting as the boundary of view responsibility
 
-- Views should render data the controller or ViewModel already prepared.
-- Authorization belongs in filters, policies, or controller/service checks before the view executes.
-- Calculations in Razor cannot be tested independently and often diverge from API or batch logic.
-- Keep Razor limited to presentation formatting — not business decisions.
+**Answer**
+
+The problem with placing pricing, discount calculations, or authorization checks in `.cshtml` files is that Razor views cannot be meaningfully unit-tested in isolation, which means that business rule changes require verifying behavior through full integration tests or manual browser checks. Business logic in views also tends to diverge from the same logic in API endpoints or batch jobs, since the duplication is invisible and there is no shared test suite enforcing consistency. Authorization in particular belongs in filters, policies, or controller/service checks that run before the view even executes — a view that shows or hides UI based on role checks is not a substitute for server-enforced authorization. I treat Razor as a presentation layer responsible only for formatting data the controller or ViewModel already prepared, nothing more.
 
 ---
 
 #### Gotcha 2. EF entities passed directly to views
 
-**Answer:** Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema.
+**Concepts**
+- Lazy-loaded navigation triggering N+1 queries in views
+- Mass assignment surface from entity properties
+- Schema coupling between UI and database
+- ViewModel whitelisting as the correct defense
 
-- Lazy-loaded navigations can trigger unexpected queries during rendering.
-- Mass assignment can update properties the user should not control (e.g., `IsAdmin`).
-- Use dedicated ViewModels with only the fields the view needs.
-- Map between entities and ViewModels in the controller or a mapping service.
+**Answer**
+
+Passing EF Core entities directly to Razor views creates several compounding problems. Lazy-loaded navigation properties can trigger unintended database queries during rendering — a loop over `Order.LineItems` in a partial can fire one query per order if the navigations were not eagerly loaded, causing N+1 performance issues that are invisible until load testing. On POST, binding an entity directly exposes every property to mass assignment: even if the form only renders `Name` and `Email`, an attacker can add `IsAdmin=true` to the request body and it will bind. Entities also carry schema-specific fields like `RowVersion`, `InternalMarginPercent`, and FK ids that should never appear in HTML. The fix is to define ViewModels that expose only the fields the view needs and map between entities and ViewModels in the controller or a mapping service.
 
 ---
 
 #### Gotcha 3. `[FromBody]` on HTML form POST
 
-**Answer:** Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values.
+**Concepts**
+- HTML form submitting `application/x-www-form-urlencoded`
+- `[FromBody]` expecting JSON via input formatter
+- Silent binding failure leaving model at defaults
+- `FormData` following form binding rules, not JSON path
 
-- Remove `[FromBody]` for conventional form POSTs and let model binding read form fields.
-- Use `[FromBody]` only when the client sends JSON with the correct Content-Type.
-- Silent binding failure is a common source of "my POST action receives null model" bugs.
-- AJAX forms using `FormData` follow the same form binding rules as full-page forms.
+**Answer**
+
+Standard browser forms submit `application/x-www-form-urlencoded` or `multipart/form-data` — they do not send JSON bodies. When an action parameter is decorated with `[FromBody]`, the model binder uses the JSON input formatter, finds no JSON in the request body, and leaves every property at its default value. The action runs with an apparently valid but empty model, so inserts save empty strings and zeroes with no error. The trap is that `ModelState` may appear clean since no conversion failure occurred — properties just stayed at defaults. The fix is to remove `[FromBody]` for conventional MVC form POSTs and allow the default form value provider to bind from the encoded body. `[FromBody]` belongs only on AJAX or API endpoints where the client explicitly sets `Content-Type: application/json` and sends a JSON payload.
 
 ---
 
 #### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
 
-**Answer:** Client-side validation is bypassable — attackers POST directly without browser scripts. Server-side validation is mandatory before any persist, redirect, or side effect.
+**Concepts**
+- Client validation as bypassable UX convenience
+- Server-side `ModelState.IsValid` as the mandatory security gate
+- Direct POST bypassing browser JavaScript
+- Remote validation not enforced on the server during POST
 
-- Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent.
-- Client validation improves UX for legitimate users only.
-- Remote validation and unobtrusive rules are not security boundaries.
-- Treat missing server validation as a security defect regardless of client script presence.
+**Answer**
+
+Client-side validation runs only in the browser and can be stripped out entirely by disabling JavaScript, using curl, Postman, or any HTTP client that never loads the page. An attacker submitting an invalid email, a negative price, or a missing required field directly to the action endpoint will succeed if the server does not check `ModelState.IsValid` before persisting. MVC controllers do not automatically return 400 on invalid models the way `[ApiController]` does, so the guard must be explicit. I always gate POST actions with `if (!ModelState.IsValid) return View(model);` before any service call or database write. Remote validation attributes (`[Remote]`) are particularly deceptive — they fire an AJAX check on the client but are never invoked during server-side POST processing, so uniqueness constraints and availability checks must be re-enforced on the server.
 
 ---
 
 #### Gotcha 5. `return View()` after successful POST
 
-**Answer:** Returning the same view after a successful POST causes duplicate submission when the user refreshes the page — the browser resubmits the POST body.
+**Concepts**
+- Duplicate submission on browser refresh after POST response
+- Post-Redirect-Get pattern separating mutation from display
+- `TempData` for flash messages surviving the redirect
+- AJAX idempotency as the equivalent concern
 
-- Use Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create/update.
-- PRG separates the mutation (POST) from the display (GET).
-- Flash success messages via TempData on the redirect target.
-- AJAX partial POSTs have a similar concern — disable submit during request or use idempotent server logic.
+**Answer**
+
+Returning the same view directly after a successful POST leaves the browser on a POST URL, so pressing refresh resubmits the same form data — creating duplicate orders, double charges, or repeated inserts. The browser's built-in "Confirm Form Resubmission" dialog warns users but does not prevent the problem on automated retries or programmatic submissions. The correct pattern is Post-Redirect-Get: after a successful mutation, `return RedirectToAction(nameof(Index))` sends a 302 response and the browser follows with a GET request, making the final URL safe to refresh. Success messages should travel via `TempData` to the redirect target since they cannot survive the redirect in `ViewData`. For AJAX partial POSTs the same concern applies — I disable the submit button during the request or implement idempotency server-side so duplicate submissions produce the same safe result.
 
 ---
 
 #### Gotcha 6. `ModelState` after redirect
 
-**Answer:** `ModelState` is request-scoped and does not survive `RedirectToAction`. Validation errors are lost unless rehydrated through TempData, a second validation pass on GET, or by redisplaying the form without redirect on failure only.
+**Concepts**
+- `ModelState` as request-scoped state
+- Validation errors lost on `RedirectToAction`
+- `return View(model)` on failure vs redirect on success
+- `TempData` serialization for errors that must survive redirect
 
-- Common pattern: redirect only on success; on validation failure return `View(model)` with errors inline.
-- To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache.
-- Do not assume errors automatically follow the user after redirect.
-- AJAX partial forms avoid redirect and can return the form partial with `ModelState` errors directly.
+**Answer**
+
+`ModelState` is scoped to the current HTTP request and is discarded when the response is sent, which means validation errors do not survive a `RedirectToAction`. A common bug is redirecting on both success and failure: the redirect GET action sees an empty `ModelState`, renders a clean form, and the user has no idea what went wrong. The standard pattern is to redirect only on success and return `View(model)` on validation failure — this keeps errors visible inline without any special plumbing. When a redirect on failure is genuinely required (such as PRG with a pre-populated form), errors can be serialized to `TempData` as a dictionary and re-added to `ModelState` on the GET action, but this is complex enough that I treat it as a last resort and prefer the simpler return-on-failure approach.
 
 ---
 
 #### Gotcha 7. TempData read twice in layout and view
 
-**Answer:** TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless you use `Peek()` or `Keep()`.
+**Concepts**
+- `TempData` consumed on first read by default
+- `Peek()` for non-consuming reads
+- `Keep()` to retain after consuming
+- Single consumption point pattern
 
-- Use `TempData.Peek("Message")` in the layout to read without consuming.
-- Or call `TempData.Keep("Message")` after the layout read so the view can read it too.
-- Prefer a single consumption point — typically the layout or a dedicated partial, not both.
-- Cookie-based TempData has size limits; avoid storing large payloads.
+**Answer**
+
+TempData is designed to survive exactly one request after being set, but within a single request it is consumed on the first read — so if the layout reads a flash message to display a banner and the view also reads the same key to conditionally show an icon, the view sees `null`. The fix is to use `TempData.Peek("Message")` in whichever component reads first, since `Peek` returns the value without marking it consumed. Alternatively, call `TempData.Keep("Message")` after the first read to keep it available for the remainder of the request. The cleanest approach is to have a single consumption point — typically a dedicated layout partial that reads and renders the flash message — and keep views from trying to access the same key independently. Cookie-based `TempData` also has a size limit around 4 KB, so avoid stuffing large object graphs or lists into it.
 
 ---
 
 #### Gotcha 8. Missing `[Area]` attribute on area controllers
 
-**Answer:** Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong conventional route.
+**Concepts**
+- `[Area("AreaName")]` required for area route discovery
+- `{area:exists}` constraint in area route registration
+- Area-less controller treated as a root controller
+- Route registration order mattering for specificity
 
-- Every area controller must declare `[Area("AreaName")]` matching its folder.
-- Area routing is registered separately in `Program.cs` with the `{area:exists}` constraint.
-- Without the attribute, MVC treats the controller as a root controller.
-- Verify area registration order — specific area routes before catch-all default routes.
+**Answer**
+
+Controllers placed under `Areas/Admin/Controllers/` are not automatically associated with the Admin area — they require an explicit `[Area("Admin")]` attribute to be matched by the area route. Without the attribute, MVC treats the controller as an ordinary root controller, so requests to `/admin/dashboard` either 404 or accidentally match a catch-all route. Area routing is registered separately in `Program.cs` using `MapControllerRoute` with a `{area:exists}` constraint, and this route must be registered before the default catch-all route so area paths take priority. Forgetting the attribute while the route is registered produces confusing behavior where the area URL patterns exist in the route table but the controllers are never matched by them.
 
 ---
 
 #### Gotcha 9. Link generation without `asp-area`
 
-**Answer:** Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment.
+**Concepts**
+- Tag Helper ambient area context for URL generation
+- `asp-area` required for cross-area link generation
+- Area links 404 or hitting wrong controller without it
+- `Url.Action` area route values requirement
 
-- From within an area, omitting `asp-area` keeps links inside the current area — sometimes incorrectly.
-- Cross-area links require both `asp-area` and `asp-controller` (and `asp-action`).
-- Wrong URLs produce 404 or hit unintended controllers.
-- Same rule applies to `Url.Action` — pass `new { area = "Admin" }` in route values.
+**Answer**
+
+Tag Helpers use the current request's route data as ambient values when generating URLs, which means they inherit the current area context automatically. From within the Admin area, omitting `asp-area` on a link to `AccountController` generates a URL in the Admin area segment, likely 404-ing because there is no `AccountController` in Admin. Crossing area boundaries requires explicitly setting `asp-area="Admin"` on the tag helper — omitting it generates a URL without the area segment when the current request is not in an area, or uses the wrong area when it is. The same rule applies to `Url.Action` calls: always pass `new { area = "Admin" }` in the route values dictionary when targeting an area controller from outside that area. Links from root views to area controllers and from one area to another both require `asp-area` to be explicit.
 
 ---
 
 #### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
 
-**Answer:** A missing unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value — not null or empty.
+**Concepts**
+- Unchecked checkbox posting nothing vs posting `false`
+- Non-nullable `bool` binding empty field to `false`
+- `[Required]` not distinguishing `false` from absent
+- `bool?` with `[Required]` for true-or-null consent
+- `[Range(typeof(bool), "true", "true")]` for must-be-true validation
 
-- Use `bool?` with `[Required]` to require an explicit true selection for consent checkboxes.
-- Or use the hidden-field pattern: hidden input `false` plus checkbox `true` so unchecked still posts `false` deliberately.
-- Server-side, verify explicit consent with a dedicated check rather than relying on `[Required]` alone.
-- This applies to both full-page forms and AJAX form posts.
+**Answer**
+
+HTML checkboxes only submit their value when checked — an unchecked checkbox does not appear in the POST body at all. When the model property is non-nullable `bool`, the model binder sets missing fields to `false`, which is a perfectly valid non-null value, so `[Required]` passes without complaint. This means a required consent checkbox with `bool AcceptedTerms` can be submitted unchecked and validation will not catch it. The fix is to use `bool?` with `[Required]`, so an unchecked (absent) field binds to `null` and fails the required check, while an explicitly checked field binds to `true` and passes. For legal consent that must be positively affirmed, I also add `[Range(typeof(bool), "true", "true")]` or a custom attribute to reject `false` explicitly, since `bool?` with `[Required]` only distinguishes null from non-null.
 
 ---
 
 #### Gotcha 11. Collection binding with gap indices
 
-**Answer:** Deleting a row from a dynamic form leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment — index 1 is missing and subsequent items may bind incorrectly or truncate.
+**Concepts**
+- Contiguous-zero-based index requirement for collection binding
+- Phantom null entries inserted at missing indices
+- Client-side re-indexing after row deletion
+- Server-side empty-row filtering as defense
 
-- Reindex client-side after row deletion so indices are contiguous starting at zero.
-- Or implement a custom `IModelBinder` that tolerates non-contiguous indices.
-- Partial views rendering collection editors must maintain consistent index naming.
-- Test add/delete row scenarios explicitly in complex form POSTs.
+**Answer**
+
+Collection binding relies on contiguous indices starting at zero: `Lines[0]`, `Lines[1]`, `Lines[2]`. When a user deletes a middle row in the UI and the remaining rows keep their original indices — say `Lines[0]` and `Lines[2]` — the binder inserts a default/null entry at index 1 and places the actual data at index 2. Server logic that iterates `model.Lines` without filtering then processes a phantom empty line, potentially saving a blank order line or misaligning SKUs with quantities. The fix is to re-index rows in JavaScript immediately after any deletion so the submitted names are always gap-free. As a server-side safety net, filtering `model.Lines.Where(l => !string.IsNullOrEmpty(l.Sku))` before processing discards empty phantom rows even if the client-side re-indexing is buggy.
 
 ---
 
 #### Gotcha 12. `@Html.Raw` with user content
 
-**Answer:** Default Razor encoding prevents XSS by HTML-encoding output. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side.
+**Concepts**
+- Razor auto HTML-encoding as the default XSS defense
+- `@Html.Raw` bypassing encoding entirely
+- Trusted HTML sanitizer library for rich content
+- Content-Security-Policy as defense-in-depth, not a replacement
 
-- Encode first, then apply safe formatting — never wrap raw user input in HTML.
-- AJAX-loaded partials injected via `innerHTML` execute injected script the same as full pages.
-- Prefer `@Model.UserComment` (auto-encoded) or sanitize with a trusted HTML sanitizer library.
-- Content-Security-Policy limits blast radius but does not replace encoding.
+**Answer**
+
+Razor's default `@model.Property` output HTML-encodes the value, turning `<script>alert(1)</script>` into harmless entity-encoded text. `@Html.Raw(model.UserComment)` bypasses that encoding entirely and injects the string verbatim into the page, so attacker-supplied JavaScript executes in every viewer's browser. This is one of the most common XSS vectors in MVC applications. If rich HTML content from users must be rendered, the only safe approach is to sanitize it server-side with a trusted library (HtmlSanitizer) that allows a controlled whitelist of tags and attributes before it ever touches `@Html.Raw`. Content-Security-Policy headers limit the blast radius when XSS does occur but are not a substitute for encoding — a policy without `'unsafe-inline'` still leaves DOM-based XSS paths open.
 
 ---
 
 #### Gotcha 13. AJAX POST without antiforgery token
 
-**Answer:** Form tag helpers emit antiforgery tokens automatically, but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` header or `__RequestVerificationToken` form field or POSTs fail with 400 antiforgery errors.
+**Concepts**
+- Form Tag Helper automatic antiforgery token injection
+- Manual `RequestVerificationToken` header or field for AJAX
+- `[AutoValidateAntiforgeryToken]` validating all unsafe methods
+- Same-origin cookie sent automatically vs header requiring manual setup
 
-- Read the hidden field value from the page and include it on every mutating AJAX request.
-- Same-origin requests send the antiforgery cookie automatically.
-- `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe methods — missing tokens fail before the action runs.
-- Do not disable antiforgery on MVC cookie-auth endpoints to "fix" AJAX — add the token instead.
+**Answer**
+
+The Form Tag Helper automatically injects a hidden `__RequestVerificationToken` input when rendering a POST form, so full-page form submissions include the token without any developer action. AJAX requests made with `fetch` or jQuery do not go through the Form Tag Helper, so they must manually read the token value from the hidden field on the page and include it either as a form field or in a custom request header. Forgetting this produces a 400 `Bad Request` with an antiforgery validation failure message that can look like a generic server error. `[AutoValidateAntiforgeryToken]` on the controller class validates all unsafe HTTP methods automatically, so every AJAX POST, PUT, and DELETE to that controller requires the token. The fix is never to disable antiforgery validation to "fix" AJAX — add the token to the request instead.
 
 ---
 
 #### Gotcha 14. Injecting Hub into MVC controller
 
-**Answer:** Hubs are not registered in DI for direct injection into controllers. Use `IHubContext<THub>` to broadcast messages from controllers, services, or background jobs.
+**Concepts**
+- Hub not registered in DI for direct injection
+- `IHubContext<THub>` as the singleton proxy for external broadcasting
+- Connection context required for hub method execution
+- Thin hub pattern with business logic in services
 
-- Injecting a concrete `Hub` fails activation or produces an instance without connection context.
-- `IHubContext<T>` is a singleton proxy registered by `AddSignalR()`.
-- Pair with Redis backplane or Azure SignalR for multi-instance fan-out.
-- Keep hubs thin; business logic stays in scoped or transient services.
+**Answer**
+
+SignalR `Hub` subclasses are not registered in the DI container as injectable services — they are instantiated per connection by the SignalR infrastructure, which means injecting a concrete `Hub` into a controller constructor either fails at activation or produces an instance with no valid connection context. The correct approach is to inject `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()` that allows sending messages to connected clients from anywhere outside the hub — controllers, background services, or domain event handlers. The hub class itself should be kept thin, delegating business logic to scoped or transient services that can be injected normally. For multi-instance deployments, the `IHubContext` must be paired with a Redis backplane or Azure SignalR Service so the broadcast reaches clients connected to other instances.
 
 ---
 
 #### Gotcha 15. SignalR scale-out without backplane
 
-**Answer:** Sticky sessions alone do not fan-out events across server instances. Multi-node deployments need a Redis backplane or Azure SignalR Service so messages sent from any instance reach clients on all instances.
+**Concepts**
+- Sticky sessions routing connections but not cross-instance messages
+- Redis backplane for multi-node fan-out
+- Instance-local connection IDs and group membership
+- `AddStackExchangeRedis` or `AddAzureSignalR` for scale-out
 
-- Controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users connected to instance B without a backplane.
-- Sticky sessions route connections but do not route cross-instance messages.
-- Group membership and connection IDs are local to each instance.
-- Register `AddStackExchangeRedis` or `AddAzureSignalR` when scaling beyond a single node.
+**Answer**
 
----
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+Sticky sessions ensure a client always reconnects to the same server instance, but they do not solve the fan-out problem. When a controller on instance A calls `IHubContext.Clients.User(id).SendAsync(...)`, that message is dispatched only to clients connected to instance A — users on instance B, C, and D never see it. This creates inconsistent real-time behavior under load that is nearly impossible to reproduce in single-server development. Connection IDs and group memberships are also stored locally per instance, so `Groups.AddToGroupAsync` on one node does not make the client a member on others. The fix is to register a shared backplane — `AddStackExchangeRedis(connectionString)` or `AddAzureSignalR(connectionString)` — so every instance publishes and subscribes to the same message bus and all clients receive every broadcast.
 
 ---
 
 ## Scenario-Based Questions (Karat Format)
+
+---
 
 #### Q1. (R) Review this view setup. The About page renders raw HTML with no site navigation, CSS, or footer — Home/Index and Contact look correct.
 
@@ -462,29 +536,17 @@ How does `_ViewStart` layout resolution work in Areas?
 
 `Views/Shared/_Layout.cshtml` exists and references `~/css/site.css`.
 
----
+**Concepts**
+- Closest-folder `_ViewStart` winning over root
+- `Layout = null` stripping all layout chrome from every sibling view
+- Experimental `_ViewStart` files left in source control
+- Folder-scoped cascade affecting all controllers under the path
 
-**Answer:**
+**Answer**
 
-**Answer:** A nested `Views/Home/_ViewStart.cshtml` sets `Layout = null`, which overrides the root `_ViewStart` for every view under `Views/Home/` — About inherits that null layout and renders without `_Layout.cshtml` even though other folders still use the root default.
+The bug is the `_ViewStart.cshtml` cascade: the engine runs the closest folder's `_ViewStart` first, so `Views/Home/_ViewStart.cshtml` sets `Layout = null` before the root file ever executes. Every view under `Views/Home/` — About, Index, and Contact — inherits that null layout, which is why About renders as bare HTML with no navigation or CSS, even though the root `_ViewStart` is correctly configured. Other controllers are unaffected because their views fall back to the root file directly.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| View pipeline | Child `_ViewStart` sets `Layout = null` | All Home views skip layout — missing chrome and CSS |
-| Cascade | `_ViewStart` runs closest-folder-first | Easy to miss during code review — only Home folder affected |
-| Maintainability | "Experiment" file left in repo | Intermittent layout bugs by folder path |
-
-**Fix (priority order):**
-
-1. Remove `Views/Home/_ViewStart.cshtml` or change it to `Layout = "_Layout"` if Home needs the same chrome.
-2. If Home truly needs a different layout, set `Layout = "_HomeLayout"` explicitly — not `null` — and ensure that layout exists in `Views/Shared/`.
-3. Document `_ViewStart` cascade in team conventions: only one root `_ViewStart` unless a subfolder deliberately overrides.
-
-**Production takeaway:** `_Layout not applied` is often a `_ViewStart` cascade bug, not a missing layout file — Karat tests whether you trace the view start chain before blaming the view itself.
-
----
+The fix is to delete `Views/Home/_ViewStart.cshtml` entirely if it was left over from an experiment, since the root `Layout = "_Layout"` is correct for all Home views. If the Home section genuinely needs a different layout, set `Layout = "_HomeLayout"` explicitly with the correct layout name rather than `null`, and ensure that file exists in `Views/Shared/`. The team should also document that subfolder `_ViewStart` files are intentional overrides — an undiscovered `Layout = null` sitting in a subfolder is a silent chrome-stripping bug that only surfaces when that specific controller's views are tested.
 
 ---
 
@@ -519,48 +581,34 @@ How does `_ViewStart` layout resolution work in Areas?
 
 `Views/Checkout/Payment.cshtml` defines `@section Scripts { ... }` but Confirm does not.
 
----
+**Concepts**
+- `required: true` throwing `InvalidOperationException` for missing section
+- `required: false` silently omitting analytics with no signal
+- Inconsistent required flags producing mixed failure modes
+- `IsSectionDefined` with default fallback as safer optional pattern
 
-**Answer:**
+**Answer**
 
-**Answer:** `@RenderSection("Scripts", required: true)` throws `InvalidOperationException` when Confirm.cshtml omits the section, while `required: false` on HeadScripts silently skips analytics with no error — the `required` flag is the trap.
+There are two independent issues here, both caused by the `required` flag. The `Scripts` section is `required: true`, so `Confirm.cshtml`, which omits `@section Scripts`, throws `InvalidOperationException` at render time and returns a 500. This is a hard crash that becomes visible immediately once the new checkout step is added. The `HeadScripts` section is `required: false`, so pages that omit it silently render without analytics or SEO tags — no exception, no warning, content simply disappears, which is a far more dangerous failure mode in production because it never triggers an alert.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Scripts` section marked `required: true` | Confirm page crashes when section undefined |
-| Silent omission | `HeadScripts` is `required: false` | Missing analytics/SEO tags with no exception |
-| Consistency | Mixed required flags across checkout flow | Some steps fail loudly, others fail quietly |
-
-**Fix (priority order):**
-
-1. Decide contract: if every page needs footer scripts, keep `required: true` and add `@section Scripts { }` (even empty) to every view — or default scripts in layout and use `required: false` with `@if (IsSectionDefined("Scripts"))`.
-2. For optional HeadScripts, use `required: false` but document which pages must define it; consider a shared partial `_AnalyticsScripts.cshtml` included from layout instead of a section.
-3. Add integration/smoke tests that hit every checkout view — section errors only appear at render time.
-
-**Production takeaway:** `required: false` is not "optional convenience" in prod — it means content can vanish with zero signal; `required: true` means one forgotten section takes down a page.
-
----
+The right fix depends on the intended contract. If every checkout page must inject footer scripts, keep `required: true` and add `@section Scripts { }` (even empty) to every view — or better, move shared scripts directly into the layout and use `required: false` with `IsSectionDefined("Scripts")` to append page-specific additions. For `HeadScripts`, use `required: false` but make the analytics content a first-class partial inside the layout rather than relying on a section contract, so it is always present unless explicitly suppressed. The broader lesson is that `required: false` is not "optional convenience" in production — it means content vanishes with zero signal, while `required: true` means a single forgotten section crashes a page.
 
 ---
 
 #### Q3. (D) A product dashboard needs a reusable "Recent Orders" panel on three pages. It runs a scoped repository query, shows a loading skeleton, and must be unit-testable without spinning up the full layout pipeline. The team proposes `@await Html.PartialAsync("_RecentOrders")` with data stuffed into `ViewBag.Orders`. What would you choose instead, and why?
 
----
+**Concepts**
+- View Component with async `InvokeAsync` and DI support
+- Partial view as a static rendering fragment with no invocation lifecycle
+- `ViewBag` as untyped, non-refactor-safe data channel
+- View Component as independently testable class
+- `<vc:recent-orders>` tag syntax vs `Component.InvokeAsync`
 
-**Answer:**
+**Answer**
 
-**Answer:** Use a **View Component** (`RecentOrdersViewComponent` + `InvokeAsync`) — partials are synchronous rendering fragments with no invocation lifecycle, while view components support async data loading, explicit parameters, DI, and isolated testing.
+I would use a View Component — `RecentOrdersViewComponent` with an async `InvokeAsync(int count)` method — because partials are purely rendering fragments with no invocation lifecycle, no constructor injection, and no way to run their own async queries. A partial with `ViewBag.Orders` means every calling controller must remember to populate that key before rendering, the data contract is invisible to refactoring tools, and the logic cannot be tested without exercising the full controller and layout pipeline.
 
-- **Partial** fits static markup or data the parent view already fetched; `ViewBag` is untyped, not refactor-safe, and hides dependencies.
-- **View Component** injects `IOrderRepository`, runs `InvokeAsync(int count)` async, returns a strongly typed view (`Default.cshtml`), and can be invoked via `<vc:recent-orders count="5" />` or `@await Component.InvokeAsync(...)`.
-- Unit-test the component class directly; no layout or full Razor page required.
-- Reserve partials for small, parent-supplied fragments (`_ValidationScriptsPartial`); use view components when the widget owns its query or state.
-
-**Production takeaway:** Karat uses partial-vs-component to test whether you reach for the right reuse primitive — partials render; view components **execute**.
-
----
+The View Component injects `IOrderRepository` through its constructor, fetches recent orders in `InvokeAsync`, and returns `View(results)` pointing at `~/Views/Shared/Components/RecentOrders/Default.cshtml`. The unit test constructs the component directly, passes a mock repository, calls `InvokeAsync`, and asserts on the returned `ViewViewComponentResult` without any layout or HTTP context. The three dashboard pages invoke it with `<vc:recent-orders count="5" />` or `@await Component.InvokeAsync("RecentOrders", new { count = 5 })` — no `ViewBag` plumbing required. I reserve partials for small, parent-supplied rendering fragments where the data is already available; I use View Components when the widget owns its own data loading or has meaningful state.
 
 ---
 
@@ -600,23 +648,17 @@ How does `_ViewStart` layout resolution work in Areas?
 }
 ```
 
----
+**Concepts**
+- Inside-out rendering order: page fills inner layout, inner fills outer
+- Explicit section forwarding at every intermediate layout level
+- Sections not auto-bubbling through the layout chain
+- `@section Scripts { @RenderSection("Scripts", required: false) }` as the forwarder pattern
 
-**Answer:**
+**Answer**
 
-**Answer:** Razor builds an inside-out chain: Index content fills `_AdminLayout`'s `@RenderBody()`, then `_AdminLayout`'s output (including forwarded sections) fills `_Layout`'s `@RenderBody()` — child `@section Scripts` is captured once and forwarded by the inner layout's `@section Scripts { @RenderSection("Scripts", required: false) }`.
+Razor builds the page inside-out. First, `Index.cshtml` executes: its body markup (`<h1>Reports</h1>`) is captured as the body stream and its `@section Scripts` block (the reports.js script tag) is captured by name. Second, `_AdminLayout.cshtml` executes: its `@RenderBody()` is replaced by the body stream from Index, producing the sidebar-plus-main structure. The `@section Scripts { @RenderSection("Scripts", required: false) }` block in `_AdminLayout` is the critical forwarder — it captures the scripts section from `_AdminLayout`'s own context (which contains the forwarded Index scripts) and re-registers it as a section for the outer layout. Third, `_Layout.cshtml` executes: its `@RenderBody()` receives the fully rendered admin shell (sidebar + main content), and its `@RenderSection("Scripts", required: false)` at the bottom outputs the forwarded scripts once.
 
-Execution order:
-
-1. **Index.cshtml** — defines page markup and `@section Scripts { reports.js }`.
-2. **`_AdminLayout.cshtml`** — `Layout = "_Layout"`; its `@RenderBody()` is replaced by Index body; its `@section Scripts` block **forwards** the child Scripts section upward (required pattern for nested layouts).
-3. **`_Layout.cshtml`** — `@RenderBody()` receives the fully rendered admin shell (sidebar + main); `@RenderSection("Scripts")` at the bottom outputs the forwarded scripts once.
-
-If `_AdminLayout` omits the `@section Scripts { @RenderSection(...) }` forwarder, scripts defined in Index never reach `_Layout` — a common nested-layout bug. Sections are **not** automatically bubbled through intermediate layouts.
-
-**Production takeaway:** Nested layouts require explicit section forwarding in every intermediate layout — one missing `@RenderSection` bridge drops scripts or styles silently.
-
----
+If `_AdminLayout` omitted the `@section Scripts { @RenderSection(...) }` forwarder, the scripts defined in Index would be consumed at the `_AdminLayout` level and never reach `_Layout`. That is the most common nested layout bug: scripts or styles declared in a deep page simply vanish because an intermediate layout absorbed them without forwarding. Sections do not automatically propagate through the chain — every intermediate layout must explicitly forward each named section it does not consume itself.
 
 ---
 
@@ -638,22 +680,17 @@ If `_AdminLayout` omits the `@section Scripts { @RenderSection(...) }` forwarder
 }
 ```
 
----
+**Concepts**
+- Single section name per view compile-time rule
+- No merge semantics for duplicate sections
+- Merging into one block as the required fix
+- Partial extraction for reusable script groups
 
-**Answer:**
+**Answer**
 
-**Answer:** Razor allows each section name **once per view** — two `@section Scripts` blocks do not merge; the compiler reports a duplicate section definition error at build time.
+Razor allows each section name exactly once per view file — two `@section Scripts` blocks do not merge, stack, or concatenate. The compiler reports a duplicate section definition error at build time, which is intentional: sections have a strict one-definition-per-view contract so the layout always knows exactly what content it will render. The developer's assumption that sections accumulate like HTML script tags is incorrect.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `@section Scripts` defined twice in same view | Build fails — no merge semantics |
-| Design | Assumption that sections accumulate like `@Html.Partial` calls | Blocks deployment until consolidated |
-
-**Fix (priority order):**
-
-1. Merge into one section:
+The fix is to merge both script references into a single `@section Scripts` block:
 
 ```cshtml
 @section Scripts {
@@ -662,12 +699,7 @@ If `_AdminLayout` omits the `@section Scripts { @RenderSection(...) }` forwarder
 }
 ```
 
-2. Or extract shared scripts to a partial `_ProductEditScripts.cshtml` and invoke once inside a single section.
-3. For nested layouts, forward with one `@RenderSection` per layout level — still one definition per **view**, not per layout file.
-
-**Production takeaway:** "Section defined twice" fails at compile time — unlike HTML `<script>` tags, Razor sections have strict single-definition rules.
-
----
+If the validation scripts are shared across many edit views, extracting them into `_ValidationScriptsPartial.cshtml` and invoking `<partial name="_ValidationScriptsPartial" />` inside one section keeps the edit-specific script separate from the reusable validation setup without needing two section declarations.
 
 ---
 
@@ -691,31 +723,17 @@ Project also has:
 
 Developer expected Area-local partial to win automatically.
 
----
+**Concepts**
+- Area view location expander extending but not replacing the search order
+- Root `Views/Shared/` shadowing Area-local partial on name collision
+- Explicit path as the reliable Area isolation technique
+- Partial name collision between Area and root Shared
 
-**Answer:**
+**Answer**
 
-**Answer:** `<partial name="_LineItems" />` resolves from the **calling view's** search paths — for an Area view, discovery order includes `Areas/Billing/Views/Shared/`, then `Areas/Billing/Views/Invoices/`, then **application** `Views/Shared/` — if the wrong file wins or the stub in root Shared matches first in some configurations, you get empty/wrong markup; explicit paths avoid ambiguity.
+The resolution order for a partial named `_LineItems` called from `Areas/Billing/Views/Invoices/Details.cshtml` includes `Areas/Billing/Views/Shared/` before `Views/Shared/`, so the Area version should win in principle. The problem is that partial resolution is sensitive to the exact configuration of the view location expander, and when both a generic stub in root `Views/Shared/` and a billing-specific version in `Areas/Billing/Views/Shared/` exist with the same name, the actual resolution winner can depend on registration order or whether the expander is correctly set up. The generic stub has `@model IEnumerable<LineItem>` while the Area version expects `IEnumerable<OrderLine>` or a similar billing type — if the wrong file wins, the model type mismatch renders nothing or produces a runtime error.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Resolution | Implicit partial name without path | May bind to `Views/Shared/_LineItems.cshtml` stub instead of Area version |
-| Areas | Area view location expander adds paths but order matters | Billing-specific partial ignored — empty or generic output |
-| Model | Partial receives `model="Model.Lines"` | If wrong partial `@model` type differs, binding may render nothing |
-
-**Fix (priority order):**
-
-1. Use explicit path: `<partial name="~/Areas/Billing/Views/Shared/_LineItems.cshtml" model="Model.Lines" />`.
-2. Or rename Area partial to `_BillingLineItems.cshtml` to avoid name collision with root Shared.
-3. Prefer view components for Area-specific widgets — `View()` discovery uses `[AreaViewLocationFormats]`.
-
-Partial search order (simplified): current view folder → `{Area}/Views/Shared` → `Views/Shared`. Same name in root Shared can shadow Area intent when developers assume Area isolation is automatic.
-
-**Production takeaway:** Partial path resolution is view-context-relative — Area pages do not magically ignore root `Views/Shared` duplicates with the same name.
-
----
+The reliable fix is to use an explicit path: `<partial name="~/Areas/Billing/Views/Shared/_LineItems.cshtml" model="Model.Lines" />`. This bypasses discovery entirely and guarantees the billing-specific markup renders. Alternatively, rename the Area partial to `_BillingLineItems.cshtml` to eliminate the name collision and make the intent obvious. For Area-specific widgets that load their own data, a View Component with `[AreaViewLocationFormats]` provides stronger isolation than partial name-based discovery.
 
 ---
 
@@ -740,27 +758,18 @@ Partial search order (simplified): current view folder → `{Area}/Views/Shared`
 
 Root `Views/Shared/_Layout.cshtml` links `~/css/site.css`. Admin layout links `~/css/admin.css` and includes `_AdminNav`.
 
----
+**Concepts**
+- Short layout name resolved through area-expanded paths
+- `Areas/Admin/Views/Shared/_Layout.cshtml` searched before root
+- Fully qualified path as the reliable fix for Area layouts
+- Application-root `~/` syntax for asset paths in layouts
+- Unused area layout file until `_ViewStart` points to it
 
-**Answer:**
+**Answer**
 
-**Answer:** `Areas/Admin/Views/_ViewStart.cshtml` sets `Layout = "_Layout"`, which resolves via view location expanders to **`Views/Shared/_Layout.cshtml`** (root) — the Area-local `_Layout.cshtml` is never selected unless you use a distinct name or fully qualified path.
+The resolution path for `Areas/Admin/Views/Dashboard/Index.cshtml` works like this: `Areas/Admin/Views/_ViewStart.cshtml` sets `Layout = "_Layout"`, and the view location expander searches for that name first in `Areas/Admin/Views/Shared/` and then in `Views/Shared/`. If `Areas/Admin/Views/Shared/_Layout.cshtml` exists and is found first, it should win — but in practice, if the root layout loads instead, it is likely a configuration issue with the expander or the area layout file having a different name than expected.
 
-Resolution path for `Areas/Admin/Views/Dashboard/Index.cshtml`:
-
-1. Run `Areas/Admin/Views/_ViewStart.cshtml` → `Layout = "_Layout"`.
-2. Razor searches layout locations: `Areas/Admin/Views/Shared/_Layout.cshtml`, then `Views/Shared/_Layout.cshtml` — **first match wins**; if both exist, Area Shared should win, but identical names with wrong content or a typo in Area file causes root to match.
-3. Root layout references `~/css/site.css`; admin assets in Area layout use paths that 404 when root layout renders.
-
-Fixes:
-
-- Set Area `_ViewStart` to `Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml"` or rename to `_AdminLayout` and reference explicitly.
-- Use `~/css/admin.css` (application-root-relative) — never `../css/admin.css` in layouts.
-- Verify `AddMvc()` / `AddControllersWithViews()` registers Area route `{area:exists}/...`.
-
-**Production takeaway:** Layout in Areas requires explicit Area `_ViewStart` — an unused `Areas/Admin/Views/Shared/_Layout.cshtml` does nothing until the cascade points to it.
-
----
+The most common cause is that the area layout exists but `_ViewStart` uses the short name `"_Layout"` while the root layout has the same short name and wins in some configurations. The fix is to set the area `_ViewStart` to an explicit path: `Layout = "~/Areas/Admin/Views/Shared/_Layout.cshtml"`. This removes all ambiguity and guarantees the admin-specific layout is selected. The `../css/admin.css` relative path in the layout also needs to change to `~/css/admin.css` — relative paths break the moment a different layout is used or the request URL depth changes, while `~/` is always application-root relative regardless of route structure.
 
 ---
 
@@ -788,21 +797,18 @@ Fixes:
 <div class="tile">@Model.Name — @rating.Stars stars</div>
 ```
 
----
+**Concepts**
+- N+1 query pattern at the view layer
+- `@inject` in partials executing per invocation inside a loop
+- Batch data loading upstream in the controller
+- Partial as a dumb rendering fragment after upstream enrichment
+- Connection pool pressure and latency under concurrent load
 
-**Answer:**
+**Answer**
 
-**Answer:** Forty async partials each hit the database independently — classic **N+1 at the view layer** — causing latency spikes, connection-pool pressure, and thread churn; partials have no batching and duplicate DI work per invocation.
+Forty async partials each making an independent `GetRatingAsync` database call is a classic N+1 at the view layer. Under load this means every page request fires 40 queries, so 100 concurrent users generate 4,000 concurrent queries — well beyond typical connection pool limits, producing pool exhaustion, queuing delays, and p95 latency that scales linearly with tile count. The `@inject` + `GetRatingAsync` pattern makes this easy to miss in development where the catalog has 5 products and queries hit local SQL.
 
-- **Symptom under load:** p95 page time scales with tile count; DB QPS = tiles × concurrent users.
-- **Fix (priority):** Controller or view-model builder loads all ratings in **one query** (`GetRatingsAsync(productIds)`) and maps into `ProductSummary.Rating` before the view runs — partial becomes dumb markup only.
-- **Alternative:** View Component with batched fetch keyed by ids on first invoke (still prefer controller/service layer batching).
-- **Partial reuse kept:** `_ProductTile.cshtml` still renders `@Model.Stars` — data fetched upstream.
-- Avoid `@inject` + async DB in partials for list items; cache ratings at service layer if hot path.
-
-**Production takeaway:** Performance of many partials is not about Razor compilation — it is about **data access inside each partial**; Karat tests moving queries out of the view tree.
-
----
+The fix is to move all data loading to the controller. The catalog action should call `GetRatingsAsync(productIds)` once, receiving all ratings in a single query, then populate `ProductSummary.Rating` before the view runs. The `_ProductTile.cshtml` partial then simply renders `@Model.Rating.Stars` with no service injection and no async operations. The partial stays reusable — it still renders a tile from a `ProductSummary` — but it becomes a dumb rendering fragment rather than a data-loading component. If ratings are hot-path data, caching them at the service layer with a short TTL eliminates the per-request database cost entirely.
 
 ---
 
@@ -839,23 +845,17 @@ Fixes:
 <p>Sign up today.</p>
 ```
 
----
+**Concepts**
+- `@RenderBody()` absence silently discarding primary view content
+- View markup outside sections routed to body stream only
+- Layout compiling and serving without error despite missing `@RenderBody()`
+- Smoke-testing new layouts with non-section body content
 
-**Answer:**
+**Answer**
 
-**Answer:** `_MarketingLayout.cshtml` never calls `@RenderBody()`, so view content (including the `<p>Sign up today.</p>` outside sections) is discarded — only partials and optional sections render, producing an nearly empty page with no error.
+The layout is missing `@RenderBody()`, which means the primary content stream — everything the view writes outside of named sections — is silently discarded. The `<p>Sign up today.</p>` text in `Index.cshtml` is captured as the body stream during view execution, but the layout has nowhere to render it, so it disappears. The `@section Hero` block does render because it is consumed by `@RenderSection("Hero", required: false)`, but anything outside sections is lost. No exception is thrown because the layout is syntactically valid Razor — `@RenderBody()` is only required if you want body content to appear.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Layout contract | Missing `@RenderBody()` | Primary view markup never appears — blank main content |
-| Sections only | Content outside `@section` blocks ignored | Body text in Index lost unless inside a section |
-| Debugging | No exception — valid Razor | Silent functional bug, hard to spot in QA |
-
-**Fix (priority order):**
-
-1. Add `@RenderBody()` where main content belongs (between header and footer):
+The fix is to add `@RenderBody()` between the header partial and the footer partial:
 
 ```cshtml
 @await Html.PartialAsync("_MarketingHeader")
@@ -864,11 +864,4 @@ Fixes:
 @await Html.PartialAsync("_MarketingFooter")
 ```
 
-2. Move inline page copy into `@RenderBody()` placement or into a `@section Hero` / main section intentionally.
-3. Smoke-test new layouts with minimal view containing non-section content to verify body renders.
-
-**Production takeaway:** Missing `@RenderBody()` is the layout equivalent of a controller action that never returns the model — compile succeeds, output is wrong.
-
----
-
----
+Any new layout should be smoke-tested immediately with a minimal view that contains non-section body text so the blank-page symptom surfaces before other views are built on top of it.

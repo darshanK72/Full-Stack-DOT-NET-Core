@@ -26,237 +26,256 @@
 
 ## Q1. What is client-side validation in ASP.NET Core MVC?
 
-What is client-side validation in ASP.NET Core MVC?
+**Concepts**
+- jQuery Validate + unobtrusive adapter layer
+- `data-val-*` attributes as metadata on input elements
+- Data Annotations as single source for both server and client rules
+- Client validation as UX feedback, not a security boundary
+- `ClientValidationEnabled` flag controlling attribute emission
 
-**Answer:** Client-side validation runs validation rules in the browser before or during form submission, providing immediate feedback without a full round-trip. In ASP.NET Core 8 MVC it is built on jQuery Validate plus the unobtrusive adapter layer reading `data-val-*` attributes emitted by tag helpers.
+**Answer**
 
-- It mirrors server-side Data Annotations for UX — faster feedback on required fields, ranges, lengths, and patterns.
-- It does not replace server validation; attackers can bypass browser scripts entirely.
-- Enabled by including validation scripts and using tag helpers (`asp-for`, `asp-validation-for`) on forms.
-- Can be toggled per request via `ViewContext.ClientValidationEnabled`.
+Client-side validation runs in the browser before or during form submission, providing immediate feedback without a server round-trip. In ASP.NET Core MVC it works through jQuery Validate reading `data-val-*` attributes that tag helpers emit from Data Annotations. The unobtrusive layer means no inline JavaScript — rules live as HTML metadata, so views stay free of hand-written validation code for standard annotation rules. Since validation only runs when a browser executes scripts correctly, it mirrors server rules purely for UX, which means it never replaces the server-side `ModelState` check that actually enforces correctness.
 
 ---
 
 ## Q2. What is unobtrusive validation?
 
-What is unobtrusive validation?
+**Concepts**
+- `data-val-*` HTML attributes storing rule metadata separate from JavaScript
+- `jquery.validate.unobtrusive.js` DOM parsing at page load
+- Tag helper / `IHtmlGenerator` as attribute emitter at render time
+- Manual `parse()` call required after AJAX partial updates
+- Custom `ValidationAttribute` requiring explicit client adapters
 
-**Answer:** Unobtrusive validation separates validation rules from JavaScript code by storing them as HTML `data-val-*` attributes on form fields. `jquery.validate.unobtrusive.js` reads those attributes at page load and configures jQuery Validate without inline script blocks.
+**Answer**
 
-- Tag helpers generate attributes from model metadata and Data Annotations at render time.
-- Keeps views free of hand-written validation JavaScript for standard annotation rules.
-- Custom validation attributes require explicit client adapters to participate in unobtrusive validation.
-- After AJAX partial swaps, call `$.validator.unobtrusive.parse()` on the new form container.
+Unobtrusive validation separates validation rules from JavaScript code by storing them as `data-val-*` attributes on form fields at render time. `jquery.validate.unobtrusive.js` reads those attributes when the page loads and configures jQuery Validate without inline script blocks, so views stay free of hand-written validation JavaScript for standard annotation rules. The trade-off is that custom `ValidationAttribute` subclasses need explicit client adapters, since the framework only knows how to translate built-in annotations. After AJAX partial updates that replace form HTML, I call `$.validator.unobtrusive.parse()` on the new container so rules wire up again on the fresh DOM.
 
 ---
 
 ## Q3. What scripts are required for unobtrusive client validation?
 
-What scripts are required for unobtrusive client validation?
+**Concepts**
+- Dependency order: jQuery → `jquery.validate` → `jquery.validate.unobtrusive`
+- `wwwroot/lib` convention for LibMan/npm packages
+- Missing unobtrusive bridge as common silent failure cause
 
-**Answer:** Load jQuery, then `jquery.validate.min.js`, then `jquery.validate.unobtrusive.min.js` in that order. All three are required — loading only jQuery Validate leaves `data-val-*` attributes inert.
+**Answer**
 
-- jQuery must load before the validation scripts.
-- Scripts typically live in `wwwroot/lib/jquery-validation` and `wwwroot/lib/jquery-validation-unobtrusive`.
-- ASP.NET Core 8 project templates reference these via LibMan or npm and bundle them in layout or a partial.
-- Missing the unobtrusive bridge is a common cause of "validation attributes present but nothing happens."
+The stack requires three scripts loaded in exact order: jQuery, then `jquery.validate.min.js`, then `jquery.validate.unobtrusive.min.js`. Loading only jQuery Validate leaves `data-val-*` attributes inert because the bridge that reads them and registers rules with jQuery Validate is missing. Scripts typically live under `wwwroot/lib` and are referenced via the layout or a scripts partial. The most common cause of "validation attributes present but nothing happens" is including jQuery Validate but omitting the unobtrusive adapter file.
 
 ---
 
 ## Q4. What is `_ValidationScriptsPartial`?
 
-What is `_ValidationScriptsPartial`?
+**Concepts**
+- Shared Razor partial centralizing validation script references
+- `@section Scripts` placement for page-selective loading
+- No substitute for tag-helper `data-val-*` emission on form fields
 
-**Answer:** `_ValidationScriptsPartial` is a shared Razor partial that references the jQuery Validate and jQuery Validate Unobtrusive script files. Views include it in the `@section Scripts` block only on pages that need client validation.
+**Answer**
 
-- Keeps validation script references in one place instead of duplicating paths across every form view.
-- Should be rendered after jQuery and before any page-specific scripts that depend on validation.
-- Can be conditionally included when `ViewContext.ClientValidationEnabled` is true.
-- Does not enable validation by itself — tag helpers must emit `data-val-*` attributes on form fields.
+`_ValidationScriptsPartial` is a Razor partial that holds the jQuery Validate and jQuery Validate Unobtrusive script references in one place, so I include it in `@section Scripts` only on views that need client validation rather than duplicating paths across every form view. It renders after jQuery in the layout and before any page-specific scripts that depend on validation. Including this partial does not enable validation on its own — tag helpers still need to emit `data-val-*` attributes on form fields.
 
 ---
 
 ## Q5. What are `data-val-*` attributes and how are they generated?
 
-What are `data-val-*` attributes and how are they generated?
+**Concepts**
+- `IHtmlGenerator` generating attributes from `ModelMetadata` and Data Annotations
+- Standard examples: `data-val-required`, `data-val-range`, `data-val-regex`
+- Hand-written HTML lacking attributes meaning no client validation
+- `ClientValidationEnabled = false` suppressing emission
+- `IClientModelValidator` required for custom attribute hooks
 
-**Answer:** `data-val-*` attributes are HTML metadata on input elements that describe client validation rules. Tag helpers use `IHtmlGenerator` and `ModelMetadata` to emit them from Data Annotations and validator metadata at render time.
+**Answer**
 
-- Examples: `data-val="true"`, `data-val-required`, `data-val-required-message`, `data-val-range`, `data-val-regex`.
-- Hand-written `<input name="Email">` without tag helpers carries no `data-val-*` — client validation will not run.
-- `ViewContext.ClientValidationEnabled = false` suppresses attribute generation even with tag helpers.
-- Custom attributes need `IClientModelValidator` adapters to emit corresponding `data-val-*` hooks.
+`data-val-*` attributes are HTML metadata on input elements describing client validation rules. Tag helpers use `IHtmlGenerator` and `ModelMetadata` to emit them from Data Annotations at render time — for example, `[Required]` produces `data-val="true"` and `data-val-required`, while `[Range]` produces `data-val-range` with min and max values. Hand-written `<input>` elements without `asp-for` carry none of these attributes, so jQuery Validate has no rules to register. Setting `ViewContext.ClientValidationEnabled = false` suppresses emission even when tag helpers are present, and custom attributes need `IClientModelValidator` adapters to add their own corresponding hooks.
 
 ---
 
 ## Q6. What is the relationship between Data Annotations and client-side validation?
 
-What is the relationship between Data Annotations and client-side validation?
+**Concepts**
+- Single declarative annotation source driving both server and client rules
+- Standard annotation-to-unobtrusive adapter mappings built into the framework
+- Custom `ValidationAttribute` requiring explicit client adapters
+- ViewModels as annotation host rather than EF entities
 
-**Answer:** Data Annotations on ViewModels define server-side validation rules and, when client validation is enabled, drive the `data-val-*` attributes that unobtrusive JavaScript consumes. The annotation is the single declarative source; the client rule is a best-effort mirror.
+**Answer**
 
-- Standard annotations (`[Required]`, `[StringLength]`, `[Range]`, `[EmailAddress]`) map automatically to unobtrusive adapters.
-- Custom `ValidationAttribute` subclasses require explicit client adapters — annotations alone do not generate client rules.
-- Server `ModelState` validation always runs from the same metadata regardless of client script presence.
-- Place annotations on ViewModels, not EF entities shared across persistence and UI concerns.
+Data Annotations on ViewModels define server-side validation rules and, when client validation is enabled, drive the `data-val-*` attributes that unobtrusive JavaScript consumes. The annotation is a single declarative source — the client rule is a best-effort mirror, which is why custom `ValidationAttribute` subclasses require explicit client adapters. Without one, the custom attribute enforces server-side only. Standard annotations like `[Required]`, `[StringLength]`, `[Range]`, and `[EmailAddress]` map automatically to built-in unobtrusive adapters. I annotate ViewModels rather than EF entities because the persistence layer should stay decoupled from UI validation concerns.
 
 ---
 
 ## Q7. Why is client-side validation not sufficient for security?
 
-Why is client-side validation not sufficient for security?
+**Concepts**
+- Client JavaScript executing entirely in the attacker's browser
+- Direct HTTP POST bypassing browser scripts
+- `ModelState.IsValid` as the only enforcement gate before persistence
+- `[Remote]` validation also bypassable and subject to race conditions
 
-**Answer:** Client-side validation executes entirely in the attacker's browser and can be disabled, modified, or bypassed by posting directly with curl, Postman, or custom HTTP clients. Only server-side `ModelState` validation before persistence enforces rules.
+**Answer**
 
-- Never skip `ModelState.IsValid` because "the browser validates."
-- Remote validation (`[Remote]`) is also bypassable and subject to async race conditions.
-- Client validation improves UX for legitimate users; server validation provides the security boundary.
-- API endpoints and SPA clients have no unobtrusive layer at all — server checks are the only enforcement.
+Client-side validation executes in the attacker's browser and can be disabled, modified, or completely bypassed by posting directly with curl, Postman, or a custom HTTP client. Since the server has no way to know whether a request came through a browser with scripts enabled, the only enforcement boundary is server-side `ModelState` validation before any persistence, redirect, or side effect. Client validation improves UX for legitimate users, but treating it as a security control creates a false sense of safety. `[Remote]` validation is equally bypassable and subject to async race conditions, so the POST action must always re-validate the same rule regardless.
 
 ---
 
 ## Q8. What is `jquery.validate.unobtrusive.js` responsible for?
 
-What is `jquery.validate.unobtrusive.js` responsible for?
+**Concepts**
+- DOM parsing at page load for `data-val-*` attributes
+- Rule object creation and jQuery Validate wiring
+- Built-in adapter mappings: `required`, `range`, `regex`, `remote`
+- Custom adapter registration via `$.validator.unobtrusive.adapters.add`
+- Manual `parse()` for AJAX-loaded form fragments
 
-**Answer:** It bridges MVC-generated `data-val-*` attributes to jQuery Validate by parsing the DOM, creating rule objects, and attaching validators to forms. It also provides adapters for standard and custom validation attributes.
+**Answer**
 
-- Runs at page load (or after manual `parse()` calls) to wire rules without inline scripts.
-- Maps annotation metadata to jQuery Validate methods (`required`, `range`, `regex`, `remote`).
-- Supports adding custom adapters via `$.validator.unobtrusive.adapters.add` for custom business rules.
-- Without this file, `data-val-*` attributes are present but no rules are registered.
+`jquery.validate.unobtrusive.js` bridges MVC-generated `data-val-*` attributes to jQuery Validate by parsing the DOM, creating rule objects, and attaching validators to forms. It maps annotation metadata to jQuery Validate methods — `required`, `range`, `regex`, `remote` — without any inline scripts. Without this file, `data-val-*` attributes are present but no rules are ever registered. For custom business rules I add adapters via `$.validator.unobtrusive.adapters.add`, and for AJAX-loaded form fragments I call `$.validator.unobtrusive.parse()` on the container after the new HTML lands.
 
 ---
 
 ## Q9. What is `asp-validation-for` used for?
 
-What is `asp-validation-for` used for?
+**Concepts**
+- `<span>` tag helper for field-level error message display
+- `data-valmsg-for` attribute wiring to jQuery Validate message placement
+- CSS class toggling between `field-validation-valid` and `field-validation-error`
+- Required for per-field errors when using `asp-validation-summary="ModelOnly"`
 
-**Answer:** `asp-validation-for` is a tag helper that renders a `<span>` element for displaying field-level validation messages for a specific model property. It generates `data-valmsg-for` attributes wired to jQuery Validate message placement.
+**Answer**
 
-- Shows both client-side and server-side errors for the named property after POST.
-- Typically placed adjacent to the corresponding `asp-for` input in the form.
-- CSS classes toggle between `field-validation-valid` and `field-validation-error` based on state.
-- Required for visible per-field errors when using `asp-validation-summary="ModelOnly"`.
+`asp-validation-for` renders a `<span>` for displaying validation messages for a specific model property, generating `data-valmsg-for` wired to jQuery Validate's message placement mechanism. It shows both client-side and server-side errors for the named property — when the form POSTs and returns with `ModelState` errors, this span displays the error text alongside the field. CSS classes toggle between `field-validation-valid` and `field-validation-error` based on state. It is required for visible per-field errors when the validation summary uses `"ModelOnly"`, since that mode only shows model-level errors in the summary.
 
 ---
 
 ## Q10. What is the difference between `asp-validation-summary="All"` and `"ModelOnly"`?
 
-What is the difference between `asp-validation-summary="All"` and `"ModelOnly"`?
+**Concepts**
+- `"All"` rendering both property-level and model-level errors
+- `"ModelOnly"` rendering only errors added via `ModelState.AddModelError(string.Empty, ...)`
+- `"None"` suppressing the summary entirely
+- Mismatched mode leaving property errors invisible to the user
 
-**Answer:** `"All"` renders property-level and model-level errors in the summary list. `"ModelOnly"` renders only model-level errors added with `ModelState.AddModelError(string.Empty, message)` — property errors appear only in adjacent `asp-validation-for` spans.
+**Answer**
 
-- Use `"All"` for a single error banner listing all failures at the top of the form.
-- Use `"ModelOnly"` when every field has its own `asp-validation-for` span and the summary is for cross-field or business-rule errors only.
-- `"None"` suppresses the summary entirely.
-- Choosing `"ModelOnly"` with no per-field spans leaves users seeing an empty summary when only property rules fail.
+`"All"` renders both property-level annotation failures and model-level errors in the summary list, so every failure appears in one place at the top of the form. `"ModelOnly"` renders only errors added explicitly with `ModelState.AddModelError(string.Empty, message)` — property errors appear only in adjacent `asp-validation-for` spans. I use `"All"` when I want a single error banner listing all failures, and `"ModelOnly"` when each field has its own span and the summary is reserved for cross-field or business-rule errors. Choosing `"ModelOnly"` without per-field spans leaves users seeing an empty summary when only property annotation rules fail.
 
 ---
 
 ## Q11. How does `[Remote]` validation work on the client?
 
-How does `[Remote]` validation work on the client?
+**Concepts**
+- jQuery Validate `remote` rule sending asynchronous AJAX request
+- Server action returning `true` or string error message as JSON
+- Async race condition on fast form submission before response returns
+- Re-validation required in the POST action regardless
 
-**Answer:** `[Remote]` generates a jQuery Validate `remote` rule that sends an AJAX GET or POST to a specified action to check field validity asynchronously — for example, username availability. The server action returns `true` (valid) or `false` (invalid) as JSON.
+**Answer**
 
-- Provides immediate UX feedback without a full form POST.
-- The remote call is asynchronous — the form may submit before the remote response completes.
-- Always re-validate the same rule in the POST action or service; treat `[Remote]` as a hint only.
-- Disable submit or show pending state while remote validation is in flight to reduce race conditions.
+`[Remote]` generates a jQuery Validate `remote` rule that sends an AJAX request to a specified action to check field validity asynchronously — the classic example is username availability. The server action returns `true` for valid or a string error message for invalid as JSON. The call is asynchronous, which means a user who fills the field and submits quickly can submit the form before the remote response returns, so the form may POST while the check is still in flight. I always re-validate the same rule in the POST action or service layer and treat `[Remote]` as UX feedback only, never as enforcement.
 
 ---
 
 ## Q12. What is a client validation adapter for custom `ValidationAttribute`s?
 
-What is a client validation adapter for custom `ValidationAttribute`s?
+**Concepts**
+- `IClientModelValidator.AddValidation` emitting `data-val-*` attributes
+- `ClientModelValidatorProvider` registration in DI
+- Matching jQuery Validate custom method reading emitted attributes
+- Server `ValidationAttribute` as authoritative rule; adapter mirrors it for UX
 
-**Answer:** A client validation adapter implements `IClientModelValidator` and translates a custom server-side `ValidationAttribute` into `data-val-*` attributes plus optional jQuery Validate custom method registration. Without it, custom attributes validate server-side only.
+**Answer**
 
-- Implement `AddValidation(ClientModelValidationContext context)` to emit attributes like `data-val-mustbefuturedate`.
-- Register the adapter via `ClientModelValidatorProvider` in `AddControllersWithViews` options.
-- Add a matching jQuery Validate custom method or unobtrusive adapter that reads the emitted attributes.
-- The server `ValidationAttribute` remains the authoritative rule; the client adapter mirrors it for UX.
+A client validation adapter implements `IClientModelValidator` and translates a custom server-side `ValidationAttribute` into `data-val-*` attributes that unobtrusive JavaScript can read. The `AddValidation(ClientModelValidationContext context)` method emits attributes like `data-val-mustbefuturedate`, and a matching jQuery Validate custom method or unobtrusive adapter reads those attributes and registers the client rule. Without this adapter, the custom attribute enforces server-side only. The server `ValidationAttribute` remains authoritative — the client adapter mirrors it for UX — and I register the adapter through `ClientModelValidatorProvider` in the `AddControllersWithViews` options.
 
 ---
 
 ## Q13. What is `ClientValidationEnabled` on `ViewContext`?
 
-What is `ClientValidationEnabled` on `ViewContext`?
+**Concepts**
+- Boolean flag controlling `data-val-*` attribute emission at render time
+- `_ViewImports.cshtml` as common per-app configuration point
+- No effect on server-side `ModelState` validation on POST
+- Environment-based disabling for Production without breaking validation correctness
 
-**Answer:** `ClientValidationEnabled` is a boolean flag on `ViewContext` that controls whether tag helpers emit `data-val-*` attributes during view rendering. When false, inputs render without client validation metadata.
+**Answer**
 
-- Set it in `_ViewImports.cshtml` or individual views — commonly tied to environment (enabled in Development, optionally disabled in Production).
-- Disabling it does not affect server-side `ModelState` validation on POST.
-- When false, including `_ValidationScriptsPartial` wastes bandwidth but causes no harm.
-- Useful for reducing script payload or avoiding stale client rules during server-side debugging.
+`ClientValidationEnabled` is a boolean on `ViewContext` that controls whether tag helpers emit `data-val-*` attributes during view rendering. When `false`, inputs render without client validation metadata, so no scripts have rules to attach. I commonly set this in `_ViewImports.cshtml` or individual views, often tied to environment so it is enabled in Development for faster feedback and disabled in Production to reduce script overhead or avoid stale client rules during debugging. Disabling it has no effect on server-side `ModelState` validation, which always runs on POST regardless.
 
 ---
 
 ## Q14. Why does hand-written HTML input lose client-side validation?
 
-Why does hand-written HTML input lose client-side validation?
+**Concepts**
+- `IHtmlGenerator` as render-time metadata-driven attribute emitter
+- `asp-for` tag helper as the trigger for `data-val-*` emission
+- Hand-written `<input>` carrying no attributes = no client rules
+- `data-valmsg-for` wiring also broken without tag helpers
 
-**Answer:** Plain HTML inputs without tag helpers do not receive `data-val-*` attributes because unobtrusive validation is metadata-driven at render time via `IHtmlGenerator`. Without those attributes, jQuery unobtrusive has no rules to attach.
+**Answer**
 
-- `<input name="Quantity" type="number" />` binds on POST but validates only server-side if the action checks `ModelState`.
-- Use `asp-for="Quantity"` instead of raw HTML, or manually add every required `data-val-*` attribute (error-prone).
-- `asp-validation-for` spans also require tag helpers to generate correct `data-valmsg-for` wiring.
-- Replacing tag helpers with custom markup is a frequent cause of "server validates but client does not."
+Plain HTML inputs without `asp-for` do not receive `data-val-*` attributes because the unobtrusive layer is entirely metadata-driven at render time via `IHtmlGenerator`. Without those attributes, jQuery Validate has no rules to register, so client validation silently disappears while server-side `ModelState` continues to work on POST. Using `asp-for="Quantity"` instead of a raw `<input>` is the correct fix; manually adding every required `data-val-*` attribute is error-prone. `asp-validation-for` spans also need tag helpers to generate correct `data-valmsg-for` wiring, so custom markup breaks both the input and the error display.
 
 ---
 
 ## Q15. How do you localize jQuery Validate error messages?
 
-How do you localize jQuery Validate error messages?
+**Concepts**
+- `.resx` files / `IValidationMetadataProvider` affecting `data-val-*-message` on rendered fields
+- jQuery Validate built-in method messages remaining English by default
+- Localized `messages_xx.min.js` file overriding built-in method messages
+- `$.validator.messages` override as inline alternative
+- `RequestLocalization` culture alignment with loaded messages script
 
-**Answer:** Server-side localization via `.resx` files or `IValidationMetadataProvider` affects `ModelState` messages and optionally `data-val-*-message` on rendered fields. jQuery Validate's built-in method messages (email, number, date) remain English unless you load a localized messages file or override `$.validator.messages`.
+**Answer**
 
-- Inspect rendered HTML — if `data-val-required-message` is French, unobtrusive uses it for annotation-backed rules.
-- Load `messages_fr.min.js` after `jquery.validate.min.js` and before unobtrusive parses the form.
-- Or call `$.extend($.validator.messages, { required: "...", email: "..." })` in a script block.
-- Align `RequestLocalization` culture with the validation messages script loaded for the current culture.
+Server-side localization via `.resx` files or `IValidationMetadataProvider` affects `ModelState` messages and, importantly, the `data-val-*-message` attributes rendered on form fields — so annotation-backed rules like `[Required]` show the localized message through the unobtrusive layer. But jQuery Validate's built-in method messages for `email`, `number`, and `date` remain English because they come from the library, not from server metadata. To fix those I load a localized messages file like `messages_fr.min.js` after `jquery.validate.min.js` and before the unobtrusive script parses the form, or I call `$.extend($.validator.messages, { required: "..." })`. I align `RequestLocalization` culture with the messages script loaded for the current request so both paths produce matching language.
 
 ---
 
 ## Q16. Why must server actions still check `ModelState.IsValid` when client validation is enabled?
 
-Why must server actions still check `ModelState.IsValid` when client validation is enabled?
+**Concepts**
+- Client validation as optional UX only for legitimate browser users
+- Direct HTTP POST bypassing browser scripts entirely
+- `ModelState.IsValid` as mandatory enforcement gate
+- Shared ViewModel annotations enforcing same rules on both paths
 
-**Answer:** Client validation is optional UX that runs only when browsers execute your scripts correctly. Any HTTP client can POST invalid or malicious payloads directly to the action, bypassing all client rules.
+**Answer**
 
-- `ModelState.IsValid` is the enforcement gate before persistence, redirects, or side effects.
-- Client and server validation should share the same ViewModel annotations but serve different roles.
-- Failing to check `ModelState` while client validation is enabled creates a false sense of security.
-- Return `View(model)` or appropriate error responses when server validation fails.
+Client validation only runs when browsers execute scripts correctly, which means any HTTP client can POST invalid or malicious payloads directly to the action, bypassing all client rules. `ModelState.IsValid` is the enforcement gate before persistence, redirects, or side effects — skipping it while relying on client validation creates a security defect. Client and server validation share the same ViewModel annotations but serve different roles: client-side for immediate UX feedback, server-side for correctness. On validation failure I return `View(model)` so the user sees the errors with the form repopulated.
 
 ---
 
 ## Q17. Why doesn't client validation fire when using a button click handler instead of form submit?
 
-Why doesn't client validation fire when using a button click handler instead of form submit?
+**Concepts**
+- jQuery unobtrusive validation intercepting the form `submit` event
+- `type="button"` bypassing the submit event entirely
+- `$form.valid()` as explicit check required before AJAX send
+- `type="submit"` with `preventDefault` as the safer alternative
 
-**Answer:** jQuery unobtrusive validation intercepts the form `submit` event. A `type="button"` click handler that calls `fetch` or `$.post` directly bypasses the validator unless it explicitly calls `$form.valid()` and aborts when validation fails.
+**Answer**
 
-- Guard custom AJAX: `if (!$('#form').valid()) return;` before sending the request.
-- Or use `type="submit"` and prevent default in a submit handler: `e.preventDefault(); if ($(this).valid()) { ... }`.
-- This pattern is common in AJAX partial-form saves where developers avoid full page POST.
-- Server-side validation in the action remains mandatory regardless of client guard.
+jQuery unobtrusive validation intercepts the form `submit` event, so a `type="button"` click handler that calls `fetch` or `$.post` directly bypasses the validator entirely. The fix is to call `$('#form').valid()` before sending the request and abort if it returns `false`. Using `type="submit"` and preventing the default in a submit handler gives the validator a chance to run first. This pattern comes up frequently in AJAX partial-form saves where developers want to avoid a full page POST, and server-side validation remains mandatory regardless of the client guard.
 
 ---
 
 ## Q18. What is the difference between MVC unobtrusive validation and SPA/API validation?
 
-What is the difference between MVC unobtrusive validation and SPA/API validation?
+**Concepts**
+- Unobtrusive validation specific to Razor-rendered HTML forms with jQuery scripts
+- `[ApiController]` automatic 400 `ValidationProblemDetails` for API paths
+- SPA libraries (Zod, React Hook Form) as separate client rule implementations
+- Shared ViewModel annotations enforcing server rules on both pipelines independently
 
-**Answer:** MVC unobtrusive validation applies to Razor-rendered HTML forms with jQuery Validate scripts. SPA/API validation runs server-side via `[ApiController]` automatic 400 responses, FluentValidation, or explicit `ModelState` checks — the browser SPA must implement its own client rules separately.
+**Answer**
 
-- Shared ViewModel annotations enforce server rules on both paths if each pipeline validates, but unobtrusive scripts never run for JSON API consumers.
-- `[ApiController]` returns `ValidationProblemDetails` (400) when model binding/validation fails.
-- SPAs typically use libraries like Zod or React Hook Form for UX — duplicated rules, not a substitute for server checks.
-- Do not assume annotations on a shared DTO automatically protect every host entry point.
-
----
+MVC unobtrusive validation applies only to Razor-rendered HTML forms with jQuery Validate scripts — JSON API consumers never run those scripts. For SPA and API paths, server validation runs via `[ApiController]` automatic 400 responses or explicit `ModelState` checks, and the browser SPA must implement its own client-side rules separately using libraries like Zod or React Hook Form. Shared ViewModel annotations enforce the same server rules across both pipelines if each pipeline validates, but unobtrusive scripts have no effect on JSON API consumers. I don't assume that annotations on a shared DTO automatically protect every host entry point.
 
 ---
 
@@ -264,172 +283,209 @@ What is the difference between MVC unobtrusive validation and SPA/API validation
 
 #### Gotcha 1. Business logic in Razor views
 
-**Answer:** Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently.
+**Concepts**
+- Views as presentation-only layer
+- Business rules in Razor bypassing unit tests
+- Authorization belonging to filters and policies
+- Service layer as owner of calculations and decisions
 
-- Views should render data the controller or ViewModel already prepared.
-- Authorization belongs in filters, policies, or controller/service checks before the view executes.
-- Calculations in Razor cannot be tested independently and often diverge from API or batch logic.
-- Keep Razor limited to presentation formatting — not business decisions.
+**Answer**
+
+Placing pricing, discount, or business rules in `.cshtml` files means that logic cannot be unit tested, often duplicates the service layer, and diverges from API or batch behavior over time. Views should only render data the controller or ViewModel already computed. Authorization belongs in filters, policies, or controller checks before the view executes, not in conditional Razor blocks. I keep Razor limited to presentation formatting — any calculation or decision that affects correctness lives in services.
 
 ---
 
 #### Gotcha 2. EF entities passed directly to views
 
-**Answer:** Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema.
+**Concepts**
+- Navigation property lazy-load triggering unexpected queries during rendering
+- Over-posting via mass assignment on POST action binding
+- Dedicated ViewModels as UI-contract decoupling layer
+- Controller or mapping service as entity-to-ViewModel boundary
 
-- Lazy-loaded navigations can trigger unexpected queries during rendering.
-- Mass assignment can update properties the user should not control (e.g., `IsAdmin`).
-- Use dedicated ViewModels with only the fields the view needs.
-- Map between entities and ViewModels in the controller or a mapping service.
+**Answer**
+
+Binding and displaying EF Core entities exposes navigation properties that trigger unexpected lazy queries during rendering and enables mass assignment of properties users should not control — like `IsAdmin` — on POST. The fix is a dedicated ViewModel with only the fields the view needs, mapped in the controller or a mapping service before passing to the view or reading from the form.
 
 ---
 
 #### Gotcha 3. `[FromBody]` on HTML form POST
 
-**Answer:** Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values.
+**Concepts**
+- `application/x-www-form-urlencoded` vs JSON `Content-Type` mismatch
+- `[FromBody]` using JSON input formatter, leaving model at defaults on mismatch
+- Silent binding failure producing no exception
+- `FormData` following form binding rules, not JSON binding
 
-- Remove `[FromBody]` for conventional form POSTs and let model binding read form fields.
-- Use `[FromBody]` only when the client sends JSON with the correct Content-Type.
-- Silent binding failure is a common source of "my POST action receives null model" bugs.
-- AJAX forms using `FormData` follow the same form binding rules as full-page forms.
+**Answer**
+
+Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model at default values when the content type doesn't match, so the action runs with empty or zero fields without any error or exception. I remove `[FromBody]` for conventional form POSTs and let model binding read form fields. This is a common cause of "my POST action receives null model" bugs that are hard to spot because the action itself returns successfully.
 
 ---
 
 #### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
 
-**Answer:** Client-side validation is bypassable — attackers POST directly without browser scripts. Server-side validation is mandatory before any persist, redirect, or side effect.
+**Concepts**
+- Client validation bypassable by any HTTP client
+- `ModelState.IsValid` as mandatory server enforcement gate
+- `[Remote]` and unobtrusive rules not being security boundaries
+- Missing server check as a security defect
 
-- Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent.
-- Client validation improves UX for legitimate users only.
-- Remote validation and unobtrusive rules are not security boundaries.
-- Treat missing server validation as a security defect regardless of client script presence.
+**Answer**
+
+Client-side validation is bypassable — attackers POST directly without running browser scripts. Server-side validation is mandatory before any persist, redirect, or side effect. I always gate POST actions with `if (!ModelState.IsValid) return View(model);`. Remote validation and unobtrusive rules are not security boundaries, so I treat missing server validation as a security defect regardless of what client scripts are present.
 
 ---
 
 #### Gotcha 5. `return View()` after successful POST
 
-**Answer:** Returning the same view after a successful POST causes duplicate submission when the user refreshes the page — the browser resubmits the POST body.
+**Concepts**
+- Duplicate submission on browser refresh of a POST response
+- Post-Redirect-Get (PRG) pattern separating mutation from display
+- `TempData` for flash messages across redirect
+- AJAX partial POSTs needing idempotent logic or disabled submit during request
 
-- Use Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create/update.
-- PRG separates the mutation (POST) from the display (GET).
-- Flash success messages via TempData on the redirect target.
-- AJAX partial POSTs have a similar concern — disable submit during request or use idempotent server logic.
+**Answer**
+
+Returning the same view after a successful POST means the browser resubmits the POST body when the user refreshes. The fix is Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create or update, separating the mutation from the display. Flash success messages go via `TempData` on the redirect target. AJAX partial POSTs have a similar concern — I disable the submit button during the request or use idempotent server logic.
 
 ---
 
 #### Gotcha 6. `ModelState` after redirect
 
-**Answer:** `ModelState` is request-scoped and does not survive `RedirectToAction`. Validation errors are lost unless rehydrated through TempData, a second validation pass on GET, or by redisplaying the form without redirect on failure only.
+**Concepts**
+- `ModelState` as request-scoped, not surviving `RedirectToAction`
+- Return `View(model)` on failure, redirect only on success pattern
+- `TempData` serialization as escape hatch for redirect-on-failure
 
-- Common pattern: redirect only on success; on validation failure return `View(model)` with errors inline.
-- To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache.
-- Do not assume errors automatically follow the user after redirect.
-- AJAX partial forms avoid redirect and can return the form partial with `ModelState` errors directly.
+**Answer**
+
+`ModelState` is request-scoped and does not survive `RedirectToAction` — validation errors are lost unless I redisplay the form without redirecting on failure. The standard pattern is: redirect only on success; on validation failure return `View(model)` with errors displayed inline. To survive a redirect on failure, I serialize errors to `TempData`, but the simpler and more common approach avoids that entirely by never redirecting when validation fails.
 
 ---
 
 #### Gotcha 7. TempData read twice in layout and view
 
-**Answer:** TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless you use `Peek()` or `Keep()`.
+**Concepts**
+- `TempData` consumed on first read by default
+- `Peek()` reading without consuming
+- `Keep()` retaining after first read for a second consumer
+- Single consumption point as simpler alternative
+- Cookie-based TempData size limits
 
-- Use `TempData.Peek("Message")` in the layout to read without consuming.
-- Or call `TempData.Keep("Message")` after the layout read so the view can read it too.
-- Prefer a single consumption point — typically the layout or a dedicated partial, not both.
-- Cookie-based TempData has size limits; avoid storing large payloads.
+**Answer**
+
+`TempData` is consumed on the first read by default, so if the layout reads a flash message to display it, the view sees nothing. I use `TempData.Peek("Message")` in the layout to read without consuming, or call `TempData.Keep("Message")` after the layout reads so the view can also read it. The simpler approach is a single consumption point — either the layout or a dedicated partial, not both. Cookie-based `TempData` has size limits, so I avoid storing large payloads.
 
 ---
 
 #### Gotcha 8. Missing `[Area]` attribute on area controllers
 
-**Answer:** Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong conventional route.
+**Concepts**
+- `[Area("AreaName")]` required for area route discovery
+- Area routing registered separately with `{area:exists}` constraint
+- Controller treated as root controller without the attribute
 
-- Every area controller must declare `[Area("AreaName")]` matching its folder.
-- Area routing is registered separately in `Program.cs` with the `{area:exists}` constraint.
-- Without the attribute, MVC treats the controller as a root controller.
-- Verify area registration order — specific area routes before catch-all default routes.
+**Answer**
+
+Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route — they return 404 or match the wrong conventional route. Every area controller must declare `[Area("AreaName")]` matching its folder, and area routing is registered separately in `Program.cs` with the `{area:exists}` constraint. I verify area registration order so specific area routes come before catch-all default routes.
 
 ---
 
 #### Gotcha 9. Link generation without `asp-area`
 
-**Answer:** Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment.
+**Concepts**
+- Tag helpers defaulting to current area context when generating URLs
+- `asp-area` required for cross-area links
+- `Url.Action` requiring `area` in route values object
 
-- From within an area, omitting `asp-area` keeps links inside the current area — sometimes incorrectly.
-- Cross-area links require both `asp-area` and `asp-controller` (and `asp-action`).
-- Wrong URLs produce 404 or hit unintended controllers.
-- Same rule applies to `Url.Action` — pass `new { area = "Admin" }` in route values.
+**Answer**
+
+Tag helpers default to the current area context when generating URLs, so links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment. From within an area, omitting `asp-area` keeps links inside the current area, which is sometimes the wrong intent. Cross-area links require both `asp-area` and `asp-controller` (and `asp-action`). The same rule applies to `Url.Action` — I pass `new { area = "Admin" }` in route values.
 
 ---
 
 #### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
 
-**Answer:** A missing unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value — not null or empty.
+**Concepts**
+- Unchecked checkbox posting nothing, model binding defaulting to `false`
+- `[Required]` never failing on non-nullable `bool` since `false` is a valid value
+- `bool?` with `[Required]` requiring an explicit selection
+- Hidden-field pattern for deliberate `false` posting
 
-- Use `bool?` with `[Required]` to require an explicit true selection for consent checkboxes.
-- Or use the hidden-field pattern: hidden input `false` plus checkbox `true` so unchecked still posts `false` deliberately.
-- Server-side, verify explicit consent with a dedicated check rather than relying on `[Required]` alone.
-- This applies to both full-page forms and AJAX form posts.
+**Answer**
+
+An unchecked checkbox posts nothing, so model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid non-null value — the attribute only rejects `null`. I use `bool?` with `[Required]` when I need an explicit true selection for consent checkboxes, or the hidden-field pattern where a hidden input posts `false` and the checkbox posts `true`, so unchecked still posts a deliberate `false` rather than nothing at all.
 
 ---
 
 #### Gotcha 11. Collection binding with gap indices
 
-**Answer:** Deleting a row from a dynamic form leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment — index 1 is missing and subsequent items may bind incorrectly or truncate.
+**Concepts**
+- Contiguous zero-based index requirement for collection model binder
+- Client-side reindexing after row deletion
+- Custom `IModelBinder` as alternative for non-contiguous indices
+- Partial views needing consistent index naming throughout
 
-- Reindex client-side after row deletion so indices are contiguous starting at zero.
-- Or implement a custom `IModelBinder` that tolerates non-contiguous indices.
-- Partial views rendering collection editors must maintain consistent index naming.
-- Test add/delete row scenarios explicitly in complex form POSTs.
+**Answer**
+
+Deleting a row from a dynamic form leaving indices like `Lines[0]` and `Lines[2]` breaks model binder alignment — index 1 is missing and subsequent items may bind incorrectly or truncate. I reindex client-side after row deletion so indices are contiguous starting at zero. Alternatively, a custom `IModelBinder` can tolerate non-contiguous indices. Partial views rendering collection editors must maintain consistent index naming throughout add and delete operations.
 
 ---
 
 #### Gotcha 12. `@Html.Raw` with user content
 
-**Answer:** Default Razor encoding prevents XSS by HTML-encoding output. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side.
+**Concepts**
+- Razor auto-encoding preventing XSS by default
+- `@Html.Raw` bypassing encoding for attacker-supplied content
+- Server-side sanitization before any raw rendering
+- Content-Security-Policy as defense-in-depth, not a replacement for encoding
 
-- Encode first, then apply safe formatting — never wrap raw user input in HTML.
-- AJAX-loaded partials injected via `innerHTML` execute injected script the same as full pages.
-- Prefer `@Model.UserComment` (auto-encoded) or sanitize with a trusted HTML sanitizer library.
-- Content-Security-Policy limits blast radius but does not replace encoding.
+**Answer**
+
+Default Razor encoding prevents XSS by HTML-encoding output, so `@Html.Raw(Model.UserComment)` with unsanitized user content renders any attacker-supplied script. I never wrap raw user input in HTML — I use `@Model.UserComment` for auto-encoding, or sanitize server-side with a trusted HTML sanitizer library before any raw rendering. AJAX-loaded partials injected via `innerHTML` execute injected script exactly the same as full pages. Content-Security-Policy limits blast radius but does not replace encoding.
 
 ---
 
 #### Gotcha 13. AJAX POST without antiforgery token
 
-**Answer:** Form tag helpers emit antiforgery tokens automatically, but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` header or `__RequestVerificationToken` form field or POSTs fail with 400 antiforgery errors.
+**Concepts**
+- Form tag helpers emitting antiforgery tokens automatically
+- `fetch`/jQuery AJAX requiring manual token inclusion
+- `RequestVerificationToken` header or `__RequestVerificationToken` form field
+- `[AutoValidateAntiforgeryToken]` rejecting missing tokens before action runs
 
-- Read the hidden field value from the page and include it on every mutating AJAX request.
-- Same-origin requests send the antiforgery cookie automatically.
-- `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe methods — missing tokens fail before the action runs.
-- Do not disable antiforgery on MVC cookie-auth endpoints to "fix" AJAX — add the token instead.
+**Answer**
+
+Form tag helpers emit antiforgery tokens automatically, but `fetch` and jQuery AJAX must manually send the `RequestVerificationToken` header or `__RequestVerificationToken` form field — otherwise POSTs fail with 400 antiforgery errors. I read the hidden field value from the page and include it on every mutating AJAX request. `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe methods so missing tokens fail before the action runs. The fix is always to add the token, never to disable antiforgery validation on MVC cookie-auth endpoints.
 
 ---
 
 #### Gotcha 14. Injecting Hub into MVC controller
 
-**Answer:** Hubs are not registered in DI for direct injection into controllers. Use `IHubContext<THub>` to broadcast messages from controllers, services, or background jobs.
+**Concepts**
+- Hub not registered in DI for direct injection
+- `IHubContext<THub>` as correct singleton proxy
+- Hub requiring active connection context that DI-resolved instance lacks
+- Redis backplane or Azure SignalR for multi-instance fan-out
 
-- Injecting a concrete `Hub` fails activation or produces an instance without connection context.
-- `IHubContext<T>` is a singleton proxy registered by `AddSignalR()`.
-- Pair with Redis backplane or Azure SignalR for multi-instance fan-out.
-- Keep hubs thin; business logic stays in scoped or transient services.
+**Answer**
+
+Hubs are not registered in DI for direct injection into controllers — they are instantiated by SignalR per invocation with connection context. Injecting a concrete `Hub` fails activation or produces an instance without active connection state. I inject `IHubContext<THub>` instead, which is registered as a singleton proxy by `AddSignalR()`. Business notifications flow: controller → service → `IHubContext` → clients. For multi-instance deployments I pair with a Redis backplane or Azure SignalR.
 
 ---
 
 #### Gotcha 15. SignalR scale-out without backplane
 
-**Answer:** Sticky sessions alone do not fan-out events across server instances. Multi-node deployments need a Redis backplane or Azure SignalR Service so messages sent from any instance reach clients on all instances.
+**Concepts**
+- Sticky sessions routing connections but not cross-instance messages
+- Redis backplane as pub/sub fan-out across all instances
+- `IHubContext.Clients.User` missing connections on other instances without backplane
+- Group membership and connection IDs local to each instance
 
-- Controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users connected to instance B without a backplane.
-- Sticky sessions route connections but do not route cross-instance messages.
-- Group membership and connection IDs are local to each instance.
-- Register `AddStackExchangeRedis` or `AddAzureSignalR` when scaling beyond a single node.
+**Answer**
 
----
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+Sticky sessions alone do not fan-out events across server instances — they route connections to the same node but do not relay messages. A controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users connected to instance B without a backplane. Multi-node deployments need a Redis backplane via `AddStackExchangeRedis` or Azure SignalR Service so messages sent from any instance reach clients on all instances. Group membership and connection IDs are local to each instance, so the backplane carries the messaging instruction, not the connection state.
 
 ---
 
@@ -469,27 +525,9 @@ public class RegisterViewModel
 
 ---
 
-**Answer:**
+**Answer**
 
-**Answer:** Client-side validation is UX only — the POST action never checks `ModelState.IsValid` and always redirects, so any HTTP client can bypass browser scripts and submit invalid or malicious payloads directly to the server.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security | No server-side validation gate | Empty password / invalid email persisted or logic runs on bad data |
-| Correctness | Unconditional redirect on POST | Invalid submissions appear "successful" |
-| Defense in depth | Client scripts treated as enforcement | Trivial curl/Postman bypass |
-
-**Fix (priority order):**
-
-1. Add server validation: `if (!ModelState.IsValid) return View(model);` before any persistence or redirect.
-2. Keep `_ValidationScriptsPartial` for UX — it does not replace server checks.
-3. Return appropriate status for API-style endpoints; for MVC, re-render the view with `ModelState` errors.
-
-**Production takeaway:** Karat tests the classic security hole — jQuery unobtrusive validation must mirror server rules, never replace them. See `07. Data Annotations & Validation` for annotation parity.
-
----
+The POST action never checks `ModelState.IsValid` and always redirects, so any HTTP client can bypass browser scripts and submit invalid or malicious payloads directly to the server. The `[Required]` and `[MinLength(8)]` annotations generate `data-val-*` attributes for the browser, but those attributes have no effect on the server-side execution path — the action unconditionally redirects regardless of what was submitted. The fix is to add `if (!ModelState.IsValid) return View(model);` before any persistence or redirect. The `_ValidationScriptsPartial` stays for UX; it does not replace server checks. For API-style endpoints the equivalent is returning a `ValidationProblemDetails` 400; for MVC, re-rendering the view with `ModelState` errors.
 
 ---
 
@@ -517,9 +555,9 @@ public class RegisterViewModel
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+`jquery.validate.unobtrusive.min.js` is the bridge that reads `data-val-*` attributes and registers rules with jQuery Validate. Without it, `data-val-required` and all other attributes are present in the HTML but nothing ever parses them or attaches validators to the form — so blur and submit events produce no errors. jQuery Validate alone does not know to look at `data-val-*` attributes; it needs the unobtrusive adapter to translate them. The fix is to restore `jquery.validate.unobtrusive.min.js` in the scripts section. Removing it to "reduce bundle size" saves a small number of kilobytes while silently disabling all client-side validation.
 
 ---
 
@@ -545,9 +583,9 @@ View uses `<input asp-for="ShipDate" />` and `_ValidationScriptsPartial`.
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+The framework only knows how to translate built-in annotations into `data-val-*` attributes — custom `ValidationAttribute` subclasses are invisible to the client pipeline until I implement `IClientModelValidator`. I add `AddValidation(ClientModelValidationContext context)` on the attribute (or via a separate adapter class) to emit a custom attribute like `data-val-mustbefuturedate="true"` and `data-val-mustbefuturedate-message="Ship date must be in the future."`. That alone is not enough — I also need a matching jQuery Validate custom method and unobtrusive adapter registered in JavaScript that reads `data-val-mustbefuturedate` and performs the comparison. The `IClientModelValidator` registration happens either by implementing the interface directly on the attribute or by registering a `ClientModelValidatorProvider` in `AddControllersWithViews` options. The server `ValidationAttribute` remains the authoritative rule; the client adapter is purely UX.
 
 ---
 
@@ -578,9 +616,9 @@ public IActionResult CheckUsername(string username)
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+The remote validation AJAX call is asynchronous — when a user tabs through the field quickly and clicks Submit, the form submits before the remote response returns, since jQuery Validate does not block submit until all pending remote checks complete. There is no submit guard or debounce, so the race window is wide. The POST action must always re-validate uniqueness server-side regardless of what `[Remote]` reported in the browser, because `[Remote]` is UX feedback only. To narrow the race for users, I disable the submit button while a remote check is in flight and re-enable it after the response arrives, and I add a short debounce on the field's change event. The authoritative duplicate check is a unique constraint in the database or an explicit uniqueness check in the service before account creation.
 
 ---
 
@@ -614,9 +652,9 @@ Model: `[Required]` on `ProductName`, `[Range(0.01, 9999)]` on `UnitPrice`. Clie
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+`asp-validation-summary="ModelOnly"` renders only errors added explicitly with `ModelState.AddModelError(string.Empty, ...)` — it intentionally excludes property-level annotation failures. Since `[Required]` and `[Range]` are property-level rules, they appear in the `asp-validation-for` spans next to each field, not in the summary div. The summary div is blank because no model-level errors were added. Users who expect all errors in one banner should use `asp-validation-summary="All"`. The per-field spans already show the correct property errors — the only mismatch is the summary mode chosen. I use `"ModelOnly"` when I want a clean separation: the summary for business-rule messages I add manually, and the spans for annotation failures.
 
 ---
 
@@ -636,9 +674,9 @@ Layout still renders `_ValidationScriptsPartial` in all environments.
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+The `ClientValidationEnabled` assignment works correctly — setting it in `_ViewImports.cshtml` applies to every view before any tag helper emits attributes, so `data-val-*` attributes are suppressed in Production and emitted in Development. The remaining issue is that `_ValidationScriptsPartial` loads the jQuery Validate and unobtrusive scripts in all environments even when `ClientValidationEnabled` is `false`, wasting bandwidth in Production on scripts that have nothing to wire up. The fix is to also gate the partial behind the same environment check, either inline in the layout or by reading `ClientValidationEnabled` from `ViewContext`. Server-side `ModelState` validation is unaffected by this flag and continues running normally in both environments, which is the correct behavior.
 
 ---
 
@@ -665,9 +703,9 @@ public class LineItemViewModel
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+`asp-for="Quantity"` triggers `IHtmlGenerator` which reads `ModelMetadata` for the `Quantity` property, finds `[Required]` and `[Range(1, 100)]`, and emits `data-val="true"`, `data-val-required`, `data-val-required-message`, `data-val-range`, `data-val-range-min="1"`, `data-val-range-max="100"`, and `data-val-range-message` as HTML attributes. The hand-written `<input>` carries none of those attributes, so `jquery.validate.unobtrusive.js` finds no rules to register for that field — client validation silently does nothing. Server-side `ModelState` validation continues to work on POST because it reads the same `ModelMetadata` independently of how the HTML was rendered. The fix for design-system inputs is either to keep `asp-for` and override only styling via CSS class, or manually add every required `data-val-*` attribute to the hand-written element — the latter is fragile because any annotation change requires updating the HTML manually.
 
 ---
 
@@ -687,9 +725,9 @@ _Answer not found._
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+The `data-val-required-message` attribute on the rendered `<input>` will contain the French string from the resource file, so the unobtrusive layer correctly shows the French message for annotation-backed rules. The problem is jQuery Validate's built-in method messages — `required`, `email`, `number`, `date` — which are hardcoded English strings inside `jquery.validate.min.js` and are not affected by server-side localization at all. To override them for French I load `messages_fr.min.js` (from the jQuery Validation locales package) after `jquery.validate.min.js` and before `jquery.validate.unobtrusive.min.js` parses the form, so the French strings are in place before rules are registered. Alternatively I call `$.extend($.validator.messages, { required: "Ce champ est obligatoire.", ... })` in a page script block. Without this step, annotation-backed messages show French while format validators show English.
 
 ---
 
@@ -715,9 +753,9 @@ public class OrdersApiController : ControllerBase
 
 ---
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+The data annotations on `OrderViewModel` protect the server on both paths but through entirely different mechanisms. On the MVC admin path, tag helpers emit `data-val-*` attributes from the annotations and `jquery.validate.unobtrusive.js` provides client-side UX feedback before POST — then `ModelState.IsValid` enforces the same rules server-side. On the API path with `[ApiController]`, the framework automatically runs model validation on the bound `OrderViewModel` and returns a `ValidationProblemDetails` 400 before the action body executes if validation fails — no unobtrusive scripts are involved at all. The React SPA gets no client-side validation from the annotations; it must implement its own input rules using a library like Zod or React Hook Form. Those client rules are a separate implementation from the server annotations — changes to one do not automatically propagate to the other, so the team must keep both in sync deliberately.
 
 ---
 
@@ -741,8 +779,10 @@ _Answer not found._
 
 `DisplayName` has `[Required]`. Standard unobtrusive scripts are loaded.
 
-**Answer:**
+---
 
-_Answer not found._
+**Answer**
+
+The button is `type="button"`, so clicking it fires the jQuery click handler directly without triggering the form `submit` event that jQuery unobtrusive validation intercepts. The AJAX `$.post` call fires regardless of field state because the validator is never consulted. The fix is to call `$('#profile-form').valid()` before sending the request and return early if it returns `false`. A cleaner alternative is to change the button to `type="submit"`, prevent the default submit in a `submit` event handler, and call `$(this).valid()` there. Either way, the server-side action must still check `ModelState.IsValid` because the AJAX request can also be sent directly from outside the browser.
 
 ---

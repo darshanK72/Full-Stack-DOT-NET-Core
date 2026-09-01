@@ -26,35 +26,43 @@
 
 ## Q1. What are Minimal APIs in ASP.NET Core?
 
-What are Minimal APIs in ASP.NET Core?
+**Concepts**
+- MapGet/MapPost/MapDelete/MapPut as the surface area
+- Same Kestrel host, middleware pipeline, and DI container as controllers
+- First-class routed endpoints participating in authorization and OpenAPI
+- Lambda, local function, or static method as handler
 
-**Answer:** Minimal APIs are a lightweight way to define HTTP endpoints directly on the application builder without creating MVC controller classes, using `MapGet`, `MapPost`, and related extension methods to bind routes to delegates or methods in `Program.cs` or extension classes.
+**Answer**
 
-- They were introduced to reduce ceremony for small services, microservices, and prototypes while still running on the same Kestrel host, middleware pipeline, and dependency injection container as controller-based apps.
-- A minimal endpoint is still a first-class routed endpoint in ASP.NET Core 8 — it participates in endpoint routing, authorization metadata, OpenAPI generation, and endpoint filters.
-- Handlers can be lambda expressions, local functions, or static/instance methods registered through extension methods such as `TodoEndpoints.Map(app)`.
-- They compile to the same hosting model as `WebApplication.CreateBuilder` — there is no separate runtime; only the API surface area is smaller.
+Minimal APIs are a lightweight way to define HTTP endpoints directly on the application builder without creating MVC controller classes, using `MapGet`, `MapPost`, and related extension methods to bind routes to delegates or methods in `Program.cs` or extension classes. They run on the same Kestrel host, middleware pipeline, and dependency injection container as controller-based apps — there is no separate runtime, only a smaller API surface area. A minimal endpoint is a first-class routed endpoint in ASP.NET Core 8 and participates in endpoint routing, authorization metadata, OpenAPI generation, and endpoint filters. Handlers can be lambda expressions, local functions, or static and instance methods registered through extension methods such as `TodoEndpoints.Map(app)`.
 
 ---
 
 ## Q2. How do Minimal APIs differ from controller-based APIs?
 
-How do Minimal APIs differ from controller-based APIs?
+**Concepts**
+- No automatic model validation — must use endpoint filters or explicit validation
+- IEndpointFilter replacing MVC action/authorization filters
+- IResult/TypedResults vs IActionResult/ActionResult<T>
+- Scale via extension methods vs controller class conventions
 
-**Answer:** Controller-based APIs organize endpoints in classes inheriting `ControllerBase` with action methods and `[ApiController]` conventions, while Minimal APIs map routes to functions with explicit metadata and opt-in validation rather than inheriting MVC's opinionated defaults.
+**Answer**
 
-- Controllers get automatic model validation responses (400 ProblemDetails) through `[ApiController]`; Minimal APIs require endpoint filters or manual validation unless you add those behaviors explicitly.
-- MVC uses action filters, authorization filters, and result filters; Minimal APIs use endpoint filters and middleware instead — there is no `[Authorize]` attribute unless you apply `.RequireAuthorization()` on the route.
-- Controllers return `IActionResult`/`ActionResult<T>` executed by MVC infrastructure; Minimal APIs prefer `IResult`/`TypedResults`, which write responses directly without invoking MVC result executors.
-- Controllers scale well for large teams with established folder conventions (`Controllers/`, `Services/`); Minimal APIs scale when you enforce the same separation through extension methods and avoid a monolithic `Program.cs`.
+Controller-based APIs organize endpoints in classes inheriting `ControllerBase` with `[ApiController]` conventions that automatically return 400 `ValidationProblemDetails` on model failure. Minimal APIs require endpoint filters or explicit validation since there is no `[ApiController]` behavior by default. MVC uses action filters, authorization filters, and result filters; minimal APIs use endpoint filters (`IEndpointFilter`) and middleware, with authorization applied via `.RequireAuthorization()` rather than `[Authorize]` attributes. Controllers return `IActionResult` / `ActionResult<T>` processed by MVC infrastructure; minimal APIs prefer `IResult` / `TypedResults` which write responses directly. Controllers scale well for large teams with established folder conventions; minimal APIs scale when the same separation is enforced through extension methods to avoid a monolithic `Program.cs`.
 
 ---
 
 ## Q3. How do you define a GET endpoint with Minimal APIs?
 
-How do you define a GET endpoint with Minimal APIs?
+**Concepts**
+- app.MapGet(route, handler) after builder.Build()
+- Route parameter binding by name from template
+- Service parameters resolving from request scope automatically
+- Named endpoints via WithName() for link generation
 
-**Answer:** Call `app.MapGet` with a route template and a handler delegate that returns a response type or `IResult`, registering the endpoint during application configuration after `builder.Build()`.
+**Answer**
+
+Call `app.MapGet` with a route template and a handler delegate that returns a response type or `IResult`, registering the endpoint during application configuration after `builder.Build()`. Route parameters bind by name to handler parameters when types are compatible — `{id:int}` in the template binds to an `int id` parameter. Services such as `IItemService` resolve from the request scope automatically when listed as handler parameters without any attribute. Returning a plain object implicitly produces `200 OK` with JSON serialization using the configured `System.Text.Json` options.
 
 ```csharp
 app.MapGet("/weather", () => new[] { "Sunny", "Cloudy" });
@@ -63,96 +71,103 @@ app.MapGet("/items/{id:int}", (int id, IItemService items) =>
     items.Find(id) is { } item ? Results.Ok(item) : Results.NotFound());
 ```
 
-- Route parameters bind by name to handler parameters when types are compatible (`{id:int}` binds to `int id`).
-- Services such as `IItemService` resolve from the request scope automatically when listed as handler parameters.
-- Returning a plain object implicitly produces `200 OK` with JSON serialization using the configured `System.Text.Json` options.
-- Named endpoints (`.WithName("GetItem")`) support link generation for `Created`/`Accepted` responses and OpenAPI operation IDs.
-
 ---
 
 ## Q4. What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`?
 
-What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`?
+**Concepts**
+- Extension methods on IEndpointRouteBuilder registering verb-specific routes
+- RouteHandlerBuilder fluent API — Produces, RequireAuthorization, WithTags
+- MapMethods and Map for custom verbs
+- Endpoint objects added to route table consumed by routing middleware
 
-**Answer:** These are extension methods on `IEndpointRouteBuilder` (typically `WebApplication`) that register HTTP endpoints for a specific verb and path template, connecting them to a handler delegate and optional metadata.
+**Answer**
 
-- `MapGet` handles GET, `MapPost` handles POST, `MapPut` handles PUT, and `MapDelete` handles DELETE — each rejects requests using other verbs for that route unless you chain additional maps.
-- They return `RouteHandlerBuilder`, which supports fluent configuration: `.Produces<T>()`, `.RequireAuthorization()`, `.WithTags()`, `.AddEndpointFilter<T>()`, and `.WithName()`.
-- `MapMethods` and `Map` provide lower-level control when you need custom verbs or non-standard routing branches.
-- Under endpoint routing, these calls add `Endpoint` objects to the route table consumed by the routing middleware at request time.
+These are extension methods on `IEndpointRouteBuilder` (typically `WebApplication`) that register HTTP endpoints for a specific verb and path template, connecting them to a handler delegate and optional metadata. `MapGet` handles GET, `MapPost` handles POST, `MapPut` handles PUT, and `MapDelete` handles DELETE — each rejects requests using other verbs for that route unless you chain additional maps. They return `RouteHandlerBuilder`, which supports fluent configuration: `.Produces<T>()`, `.RequireAuthorization()`, `.WithTags()`, `.AddEndpointFilter<T>()`, and `.WithName()`. Under endpoint routing, these calls add `Endpoint` objects to the route table consumed by the routing middleware at request time.
 
 ---
 
 ## Q5. How does parameter binding work in Minimal API route handlers?
 
-How does parameter binding work in Minimal API route handlers?
+**Concepts**
+- Route template values binding by parameter name
+- [FromBody] once per request, [FromQuery], [FromHeader], [FromServices]
+- DI types resolving from HttpContext.RequestServices per-request scope
+- [AsParameters] aggregating route, query, and body into one object
 
-**Answer:** The minimal hosting binder resolves handler parameters from route values, query strings, headers, the request body, dependency injection, and framework types such as `HttpContext` and `CancellationToken`, using attributes to disambiguate when multiple sources could apply.
+**Answer**
 
-- Route template values bind by parameter name (`/users/{userId}` → `Guid userId`); built-in route constraints (`:int`, `:guid`) validate format before the handler runs.
-- `[FromBody]` binds JSON once per request; `[FromQuery]` and `[FromHeader]` select alternate sources; `[FromServices]` forces DI resolution even when a name collision exists.
-- Types registered in DI (`DbContext`, repositories, `IOptions<T>`) bind from `HttpContext.RequestServices` using the per-request scope.
-- `[AsParameters]` on a record or class aggregates multiple bindable properties (route + query + body) into one parameter object with predictable property-level binding.
+The minimal hosting binder resolves handler parameters from route values, query strings, headers, the request body, dependency injection, and framework types such as `HttpContext` and `CancellationToken`, using attributes to disambiguate when multiple sources could apply. Route template values bind by parameter name — `/users/{userId}` binds to `Guid userId`; built-in constraints (`:int`, `:guid`) validate format before the handler runs. Types registered in DI such as `DbContext`, repositories, and `IOptions<T>` bind from `HttpContext.RequestServices` using the per-request scope without any attribute. `[AsParameters]` on a record or class aggregates multiple bindable properties from route, query, and body into one parameter object with predictable property-level binding.
 
 ---
 
 ## Q6. What is the difference between `Results.Ok()` and `TypedResults.Ok()`?
 
-What is the difference between `Results.Ok()` and `TypedResults.Ok()`?
+**Concepts**
+- TypedResults.Ok<T> preserving generic response type for OpenAPI inference
+- Results.Ok() working at runtime but losing schema metadata
+- Both executing via IResult.ExecuteAsync without MVC infrastructure
+- TypedResults preferred for Native AOT and source-generated OpenAPI
 
-**Answer:** Both return an `IResult` that writes a 200 OK response, but `TypedResults.Ok<T>(T value)` preserves the generic response type at compile time so OpenAPI tools and source generators can infer accurate response schemas.
+**Answer**
 
-- `Results.Ok(dto)` works at runtime but often appears as an untyped or loosely typed schema in Swagger/OpenAPI documents.
-- `TypedResults.Ok<OrderDto>(order)` emits metadata that `AddOpenApi` and Swashbuckle use to document the response body shape and status code explicitly.
-- Both avoid allocating MVC `ObjectResult` infrastructure — the minimal pipeline executes `IResult.ExecuteAsync` directly.
-- Prefer `TypedResults` when client code generation, contract testing, or Native AOT trimming depends on strongly typed endpoint metadata.
+Both return an `IResult` that writes a 200 OK response, but `TypedResults.Ok<T>(T value)` preserves the generic response type at compile time so OpenAPI tools and source generators can infer accurate response schemas. `Results.Ok(dto)` works at runtime but often appears as an untyped or loosely typed schema in Swagger/OpenAPI documents, since the type information is not carried through the `IResult` interface. Both avoid allocating MVC `ObjectResult` infrastructure — the minimal pipeline executes `IResult.ExecuteAsync` directly. Prefer `TypedResults` when client code generation, contract testing, or Native AOT trimming depends on strongly typed endpoint metadata, since those scenarios require the generic type to be visible at the call site.
 
 ---
 
 ## Q7. What is `IResult`, and why use it?
 
-What is `IResult`, and why use it?
+**Concepts**
+- IResult encapsulating status code, headers, and body serialization
+- ExecuteAsync(HttpContext) writing the response directly
+- Explicit alternate response shapes — Ok<T>, NotFound, ValidationProblem
+- Custom IResult implementations for specialized response formatting
 
-**Answer:** `IResult` is the interface implemented by built-in minimal API response helpers (`Results`, `TypedResults`) that encapsulates how to write an HTTP response, including status code, headers, and body, without going through MVC result executors.
+**Answer**
 
-- Implementations such as `Ok<T>`, `NotFound`, `ValidationProblem`, and `Redirect` know how to serialize themselves through `ExecuteAsync(HttpContext)`.
-- Returning `IResult` makes alternate response shapes explicit in the handler signature (`Task<IResult>`), which improves readability compared to magic implicit status codes.
-- Chaining `.Produces<T>(StatusCodes.Status200OK)` on the route adds metadata even when the handler returns a custom `IResult` implementation.
-- Custom types can implement `IResult` for specialized response formatting while staying compatible with the minimal hosting pipeline.
+`IResult` is the interface implemented by built-in minimal API response helpers (`Results`, `TypedResults`) that encapsulates how to write an HTTP response — status code, headers, and body — without going through MVC result executors. Implementations such as `Ok<T>`, `NotFound`, `ValidationProblem`, and `Redirect` know how to serialize themselves through `ExecuteAsync(HttpContext)`. Returning `IResult` makes alternate response shapes explicit in the handler signature (`Task<IResult>`), which improves readability compared to implicit status codes. Chaining `.Produces<T>(StatusCodes.Status200OK)` on the route adds OpenAPI metadata even when the handler returns a custom `IResult` implementation.
 
 ---
 
 ## Q8. What are endpoint filters in Minimal APIs?
 
-What are endpoint filters in Minimal APIs?
+**Concepts**
+- IEndpointFilter with EndpointFilterInvocationContext
+- Runs after binding but before the handler
+- Short-circuit by returning IResult without calling next
+- Group-level filters via MapGroup for shared validation
 
-**Answer:** Endpoint filters are hooks that run immediately before and after a minimal API route handler, similar to action filters in MVC but scoped to a single endpoint or group, enabling validation, logging, and short-circuiting without global middleware.
+**Answer**
 
-- Register with `.AddEndpointFilter<ValidationFilter>()` on a route or `MapGroup`, or register a global filter through DI as `IEndpointFilter`.
-- Filters receive `EndpointFilterInvocationContext` with bound arguments and can return a result early (for example `Results.ValidationProblem`) without calling the next delegate.
-- They run after routing and model binding but before the handler executes, making them the idiomatic place for request validation in Minimal APIs.
-- Unlike middleware, endpoint filters see the specific bound parameters for that route and can access endpoint metadata such as authorization requirements.
+Endpoint filters are hooks that run immediately before and after a minimal API route handler, similar to action filters in MVC but scoped to a single endpoint or group. Register with `.AddEndpointFilter<ValidationFilter>()` on a route or `MapGroup`, or register globally through DI as `IEndpointFilter`. Filters receive `EndpointFilterInvocationContext` with bound arguments and can return a result early — for example `Results.ValidationProblem(errors)` — without calling the next delegate. They run after routing and model binding but before the handler executes, which is the idiomatic place for request validation in Minimal APIs. Unlike middleware, endpoint filters see the specific bound parameters for that route.
 
 ---
 
 ## Q9. How do you add validation to a Minimal API endpoint?
 
-How do you add validation to a Minimal API endpoint?
+**Concepts**
+- No automatic [ApiController] validation — must opt in via filters
+- Endpoint filter iterating Arguments and calling validator
+- Results.ValidationProblem for RFC 7807 validation errors
+- [AsParameters] record types for cohesive validation of request objects
 
-**Answer:** Minimal APIs do not automatically validate models the way `[ApiController]` does, so you add validation through endpoint filters, third-party libraries such as FluentValidation, or built-in validation extensions that inspect bound parameters before the handler runs.
+**Answer**
 
-- An endpoint filter can iterate `context.Arguments`, run `Validator.TryValidateObject` or FluentValidation's `ValidateAsync`, and return `Results.ValidationProblem(errors)` on failure.
-- Data annotations on DTOs work when you explicitly invoke validation — they are not enforced unless a filter or helper calls a validator.
-- ASP.NET Core 8 templates may include `.AddValidation()` extensions that wire common validation behavior for minimal endpoints.
-- Combine validation filters with `[AsParameters]` record types so route, query, and body fields validate as one cohesive request object.
+Minimal APIs do not automatically validate models the way `[ApiController]` does, so validation must be added explicitly through endpoint filters, third-party libraries such as FluentValidation, or built-in validation extensions. An endpoint filter can iterate `context.Arguments`, run `Validator.TryValidateObject` or FluentValidation's `ValidateAsync`, and return `Results.ValidationProblem(errors)` on failure — stopping the handler from running. Data annotations on DTOs work when a filter explicitly invokes a validator; they are not enforced automatically. Combine validation filters with `[AsParameters]` record types so route, query, and body fields validate as one cohesive request object rather than separately.
 
 ---
 
 ## Q10. How do you organize Minimal APIs with `MapGroup`?
 
-How do you organize Minimal APIs with `MapGroup`?
+**Concepts**
+- Route prefix and shared metadata applied once to a group
+- RequireAuthorization and AddEndpointFilter inherited by all child routes
+- Nested groups for versioning or domain boundaries
+- Static extension methods for MapGroup registration to keep Program.cs readable
 
-**Answer:** `MapGroup` creates a route prefix and shared configuration for related endpoints, letting you apply tags, authorization, filters, and OpenAPI metadata once instead of repeating it on every route.
+**Answer**
+
+`MapGroup` creates a route prefix and shared configuration for related endpoints, letting you apply tags, authorization, filters, and OpenAPI metadata once instead of repeating it on every route. Groups inherit fluent metadata — `.RequireAuthorization("PolicyName")` on the group protects all mapped child routes unless a specific route calls `.AllowAnonymous()`. Nested groups compose cleanly for versioning (`/api/v1`, `/api/v2`) or domain boundaries. Extract group registration into static extension methods such as `TodoEndpoints.Map(app)` to keep `Program.cs` readable as the API grows.
 
 ```csharp
 var todos = app.MapGroup("/api/todos")
@@ -164,109 +179,117 @@ todos.MapPost("/", Create);
 todos.MapGet("/{id:int}", GetById);
 ```
 
-- Groups inherit fluent metadata — `.RequireAuthorization("PolicyName")` on the group protects all mapped child routes unless a route calls `.AllowAnonymous()`.
-- Nested groups compose for versioning (`/api/v1`, `/api/v2`) or domain boundaries (`/api/billing`, `/api/inventory`).
-- Extract group registration into static extension methods (`TodoEndpoints.Map(app)`) to keep `Program.cs` readable as the API grows.
-- `MapGroup` organizes URLs and cross-cutting concerns; it does not version contracts — separate DTO types per major version remain necessary.
-
 ---
 
 ## Q11. How do you apply authorization to Minimal API endpoints?
 
-How do you apply authorization to Minimal API endpoints?
+**Concepts**
+- RequireAuthorization() and RequireAuthorization("PolicyName") on routes and groups
+- AddAuthorizationBuilder() defining named policies
+- Middleware order — UseAuthentication before UseAuthorization before endpoints
+- AllowAnonymous() for public endpoints when a fallback policy requires auth
 
-**Answer:** Register authentication and authorization services, place `UseAuthentication()` and `UseAuthorization()` in the middleware pipeline, define policies with `AddAuthorizationBuilder()`, and call `.RequireAuthorization()` or `.RequireAuthorization("PolicyName")` on routes or groups.
+**Answer**
 
-- JWT bearer example: `AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(...)` plus `AddAuthorizationBuilder().AddPolicy("AdminOnly", p => p.RequireRole("Admin"))`.
-- Apply per route: `app.MapDelete("/admin/users/{id}", Handler).RequireAuthorization("AdminOnly");`
-- Public endpoints omit authorization metadata or call `.AllowAnonymous()` when a fallback policy requires authentication globally.
-- Middleware order matters: authentication and authorization must run after routing (`UseRouting`) and before the endpoint executes in ASP.NET Core 8.
+Register authentication and authorization services, place `UseAuthentication()` and `UseAuthorization()` after `UseRouting()` in the middleware pipeline, define policies with `AddAuthorizationBuilder()`, and call `.RequireAuthorization()` or `.RequireAuthorization("PolicyName")` on routes or groups. Middleware order matters — authentication and authorization must run after routing so endpoint metadata is available. Public endpoints omit authorization metadata or call `.AllowAnonymous()` when a fallback policy requires authentication globally. A fallback policy (`options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()`) secures everything by default, leaving `.AllowAnonymous()` as the explicit opt-out for health checks and public routes.
 
 ---
 
 ## Q12. How does OpenAPI/Swagger discover Minimal API endpoints?
 
-How does OpenAPI/Swagger discover Minimal API endpoints?
+**Concepts**
+- AddEndpointsApiExplorer() for Swashbuckle metadata collection
+- AddOpenApi() as the built-in .NET 8 alternative
+- TypedResults and .Produces<T>() for accurate schema inference
+- WithName, WithTags, WithSummary for documentation metadata
 
-**Answer:** Register `AddEndpointsApiExplorer()` (for Swashbuckle) or `AddOpenApi()` (built-in .NET 8 OpenAPI support), map endpoints with discoverable metadata, and use `TypedResults` plus `.Produces<T>()` so schema generators infer request and response types.
+**Answer**
 
-- `WithName`, `WithTags`, `WithSummary`, and `WithDescription` attach documentation metadata consumed by OpenAPI generators.
-- Returning opaque types or untyped `object` yields empty or generic schemas — `TypedResults.Ok<CustomerDto>(dto)` fixes inference for client code generation.
-- Swashbuckle requires `AddSwaggerGen()` and middleware (`UseSwagger`, `UseSwaggerUI`); .NET 8's `MapOpenApi()` serves the document without Swashbuckle if configured.
-- Internal routes can opt out with `.ExcludeFromDescription()` so they do not appear in the public API document.
+Register `AddEndpointsApiExplorer()` for Swashbuckle or `AddOpenApi()` for .NET 8's built-in OpenAPI support, then map endpoints with discoverable metadata. Returning opaque types or untyped `object` yields empty or generic schemas — `TypedResults.Ok<CustomerDto>(dto)` fixes inference for client code generation by carrying the generic type. `WithName`, `WithTags`, `WithSummary`, and `WithDescription` attach documentation metadata consumed by OpenAPI generators. Swashbuckle requires `AddSwaggerGen()` and middleware (`UseSwagger`, `UseSwaggerUI`); .NET 8's `MapOpenApi()` serves the document directly when configured. Internal routes can opt out with `.ExcludeFromDescription()`.
 
 ---
 
 ## Q13. What is `ExcludeFromDescription()` used for?
 
-What is `ExcludeFromDescription()` used for?
+**Concepts**
+- Omitting endpoints from the public OpenAPI document
+- Endpoint remains callable — exclusion is documentation-only
+- Typical uses — internal admin hooks and operational routes
+- Security through documentation exclusion is not real security
 
-**Answer:** `ExcludeFromDescription()` marks a minimal API endpoint so OpenAPI/Swagger generators omit it from the published API description, which is useful for internal diagnostics, health probes, or admin-only operations you do not want in client-facing contracts.
+**Answer**
 
-- The endpoint remains fully callable at runtime — exclusion affects documentation only, not routing or authorization.
-- Typical uses include `/internal/reload-cache`, operational hooks, or duplicate routes kept for backward compatibility during migration.
-- Combine with proper authorization on sensitive routes; excluding an endpoint from Swagger does not secure it.
-- Controllers have analogous mechanisms (`[ApiExplorerSettings(IgnoreApi = true)]`); minimal APIs use the fluent `.ExcludeFromDescription()` method.
+`ExcludeFromDescription()` marks a minimal API endpoint so OpenAPI/Swagger generators omit it from the published API description — which is useful for internal diagnostics, health probes, or admin-only operations not intended for external clients. The endpoint remains fully callable at runtime — exclusion affects documentation only, not routing or authorization. Typical uses include `/internal/reload-cache`, operational hooks, or duplicate routes kept for backward compatibility during migration. Combine with proper authorization on sensitive routes, since excluding an endpoint from Swagger does not secure it from direct requests.
 
 ---
 
 ## Q14. When would you choose Minimal APIs over controllers?
 
-When would you choose Minimal APIs over controllers?
+**Concepts**
+- Low ceremony for microservices, internal tools, and prototypes
+- Fewer files when cross-cutting rules are simple
+- Comparable performance to controllers for typical JSON APIs
+- Still supports DI, middleware, auth, validation, and OpenAPI
 
-**Answer:** Choose Minimal APIs when the service is small, the team wants minimal ceremony, or you need fast iteration on a focused HTTP surface — microservices, internal tools, prototypes, and simple CRUD APIs are common fits.
+**Answer**
 
-- Fewer files and no controller base-class hierarchy reduce boilerplate when endpoint count is low and cross-cutting rules are simple.
-- Cloud-native and containerized workloads benefit from a compact startup path and straightforward `Program.cs` when paired with extension-method organization.
-- Performance characteristics are comparable to controllers for typical JSON APIs — the choice is primarily about structure and team conventions, not raw throughput.
-- Minimal APIs still support DI, middleware, auth, validation filters, and OpenAPI when configured explicitly.
+Choose Minimal APIs when the service is small, the team wants minimal ceremony, or you need fast iteration on a focused HTTP surface — microservices, internal tools, prototypes, and simple CRUD APIs are common fits. Fewer files and no controller base-class hierarchy reduce boilerplate when endpoint count is low, since the same DI, middleware, auth, validation filters, and OpenAPI support are available when configured explicitly. Performance characteristics are comparable to controllers for typical JSON APIs — the choice is primarily about structure and team conventions rather than raw throughput. Cloud-native containerized workloads benefit from a compact startup path when paired with extension-method organization.
 
 ---
 
 ## Q15. When would Minimal APIs become a poor long-term choice?
 
-When would Minimal APIs become a poor long-term choice?
+**Concepts**
+- God Program.cs as the common failure mode with inline lambdas
+- Large teams preferring controller discoverability
+- Complex validation, versioning, and hypermedia requiring disciplined structure
+- Mixing conventions when the project already standardizes on MVC
 
-**Answer:** Minimal APIs become harder to maintain when the API grows large, many cross-cutting concerns stack up, or the team relies on MVC conventions for consistency — a sprawling `Program.cs` with inline lambdas and no test seams is the common failure mode.
+**Answer**
 
-- Large teams often prefer controllers for discoverability (`Controllers/OrdersController.cs`), consistent filter usage, and established code-review patterns.
-- Complex validation, versioning, and hypermedia requirements need disciplined extension methods, filters, and DTO separation — without that discipline, minimal APIs accumulate "god file" debt faster than controllers.
-- If the project already standardizes on MVC patterns (areas, view results, complex filter pipelines), forcing Minimal APIs splits conventions across services.
-- Minimal APIs are not wrong at scale, but they require the same architectural boundaries as controllers — handlers in dedicated classes, filters for validation, and DI for all infrastructure.
+Minimal APIs become harder to maintain when the API grows large, many cross-cutting concerns stack up, or the team relies on MVC conventions for consistency. The common failure mode is a sprawling `Program.cs` with inline lambdas, no test seams, and no separation of concerns. Large teams often prefer controllers for discoverability — `Controllers/OrdersController.cs` is immediately navigable — consistent filter usage, and established code-review patterns. Complex validation, versioning, and hypermedia requirements need the same architectural discipline as controllers: handlers in dedicated classes, filters for validation, and DI for all infrastructure. Minimal APIs are not wrong at scale, but they require explicitly enforcing the same boundaries that MVC provides by convention.
 
 ---
 
 ## Q16. How is DI used in Minimal API handlers?
 
-How is DI used in Minimal API handlers?
+**Concepts**
+- Handler parameters resolved from HttpContext.RequestServices per request
+- Scoped services safe because each request creates a scope
+- Captive dependency risk when closures capture services at startup
+- Static or class-based handlers for lambdas needing many dependencies
 
-**Answer:** Handler parameters are resolved from the per-request `IServiceProvider` (`HttpContext.RequestServices`), so any service registered in DI can be injected by listing its type as a parameter — constructor injection applies to named methods, not inline lambdas that capture no service provider.
+**Answer**
 
-- Scoped services (`DbContext`, repositories) work correctly when resolved per invocation because each request creates a scope.
-- Singleton services resolve from the root provider; avoid capturing scoped services in closures created at startup (captive dependency).
-- `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` bind like any other service; snapshot refreshes per request when configuration reloads.
-- For lambdas that need many dependencies, prefer static handler methods or class-based handlers registered through DI (`AddScoped<OrderHandler>()` + method group reference).
+Handler parameters are resolved from the per-request `IServiceProvider` (`HttpContext.RequestServices`), so any service registered in DI can be injected by listing its type as a parameter — constructor injection applies to named methods, not inline lambdas that capture no service provider. Scoped services such as `DbContext` and repositories work correctly because each request creates a fresh scope. The captive dependency risk arises when closures capture references to services at startup time rather than per-request — avoid storing service references in variables outside the handler. For lambdas that need many dependencies, prefer static handler methods or class-based handlers registered through DI and referenced as method groups.
 
 ---
 
 ## Q17. What is `AddEndpointsApiExplorer()`?
 
-What is `AddEndpointsApiExplorer()`?
+**Concepts**
+- Registers IApiDescriptionGroupCollectionProvider
+- Swashbuckle SwaggerGen consuming endpoint metadata
+- .NET 8 AddOpenApi() as an alternative pipeline
+- Incomplete schemas without API explorer and Produces<T>() metadata
 
-**Answer:** `AddEndpointsApiExplorer()` registers the API explorer services that collect endpoint metadata (HTTP methods, routes, parameters, response types) from minimal endpoints and controllers, enabling Swashbuckle and other tools to generate OpenAPI documents.
+**Answer**
 
-- It implements `IApiDescriptionGroupCollectionProvider`, which Swashbuckle's `SwaggerGen` consumes to build schemas and operation lists.
-- Call it in the service configuration phase: `builder.Services.AddEndpointsApiExplorer();` alongside `AddSwaggerGen()` when using Swashbuckle.
-- .NET 8's built-in `AddOpenApi()` provides an alternative pipeline that also relies on endpoint metadata being present and correctly typed.
-- Without an API explorer and without explicit `.Produces<T>()` metadata, minimal endpoints may appear in Swagger with incomplete or generic schemas.
+`AddEndpointsApiExplorer()` registers the API explorer services that collect endpoint metadata — HTTP methods, routes, parameters, and response types — from both minimal endpoints and controllers, enabling Swashbuckle and other tools to generate OpenAPI documents. It implements `IApiDescriptionGroupCollectionProvider`, which Swashbuckle's `SwaggerGen` consumes to build schemas and operation lists. Call it in the service configuration phase alongside `AddSwaggerGen()` when using Swashbuckle. Without an API explorer and without explicit `.Produces<T>()` metadata, minimal endpoints appear in Swagger with incomplete or generic schemas, since the framework has no way to infer response types from opaque return values.
 
 ---
 
 ## Q18. How do you return HTTP 201 Created from a Minimal API?
 
-How do you return HTTP 201 Created from a Minimal API?
+**Concepts**
+- TypedResults.Created(uri, value) for compile-time response metadata
+- Location header set to the new resource URI
+- WithName() and link generation for route-based URI construction
+- Results.CreatedAtRoute as the named-route equivalent
 
-**Answer:** Return `Results.Created(uri, value)` or `TypedResults.Created<Uri, T>(uri, value)` from the handler, supplying the URI of the newly created resource for the `Location` header and the response body DTO.
+**Answer**
+
+Return `TypedResults.Created<T>(uri, value)` or `Results.Created(uri, value)` from the handler, supplying the URI of the newly created resource for the `Location` header and the response body DTO. The first argument is the resource URI (string or `Uri`) placed in `Location` — it should identify the new entity, not the collection URL. Use `.WithName("CreateOrder")` and link generation helpers when the URI should be built from a route name rather than string interpolation. `Results.CreatedAtRoute` is available when named routes are defined, analogous to MVC's `CreatedAtAction`.
 
 ```csharp
 app.MapPost("/orders", async (CreateOrderRequest req, IOrderService svc) =>
@@ -276,187 +299,213 @@ app.MapPost("/orders", async (CreateOrderRequest req, IOrderService svc) =>
 });
 ```
 
-- The first argument is the resource URI (string or `Uri`) placed in the `Location` header — it should identify the new entity, not the collection URL.
-- The response body typically contains the created representation or a subset; status code is 201 automatically.
-- Use `.WithName("CreateOrder")` and link generation helpers when the URI should be generated from route names rather than string interpolation.
-- `Results.CreatedAtRoute` is available when named routes are defined, analogous to MVC's `CreatedAtAction`.
-
----
-
 ---
 
 ## Gotchas — ASP.NET Core (Interview Traps)
 
 #### Gotcha 1. Middleware order — routing before auth
 
-**Answer:** In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata — registering auth before routing breaks endpoint-aware authorization and policy resolution.
+**Concepts**
+- UseRouting must precede UseAuthentication and UseAuthorization
+- Endpoint metadata not selected before routing runs
+- Recommended pipeline order for ASP.NET Core 8
 
-- The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints (`MapControllers` / `MapGet`).
-- When auth runs before routing, the endpoint has not been selected yet and `[Authorize]` metadata on minimal routes or controllers may not apply correctly.
-- Symptoms include anonymous access to protected endpoints or 401 responses without proper challenge behavior.
-- Always verify middleware order in `Program.cs` during code review for new services.
+**Answer**
+
+In ASP.NET Core endpoint routing, `UseAuthentication` and `UseAuthorization` must run after `UseRouting` so the auth middleware can read endpoint metadata — if auth runs before routing, the endpoint has not been selected yet and policy resolution for `[Authorize]` and `RequireAuthorization()` cannot inspect the correct attributes. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms of wrong order include anonymous access to protected endpoints and 401 challenges that fire without correctly applying per-endpoint allow-anonymous overrides.
 
 ---
 
 #### Gotcha 2. Scoped service in a Singleton
 
-**Answer:** Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`.
+**Concepts**
+- Captive dependency lifetime violation
+- EF DbContext stale change tracker accumulation
+- ValidateScopes detecting the problem at startup
+- IServiceScopeFactory as the correct fix
 
-- The singleton holds one scoped instance forever instead of one per request — EF change trackers accumulate unrelated entities.
-- Enable `ValidateScopes` in Development/staging to catch illegal scope combinations at startup.
-- Fix by injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation.
-- This applies equally to singleton services, hosted services, and cached delegates in Minimal APIs.
+**Answer**
+
+A scoped service injected into a singleton is held for the entire application lifetime, long after the scope that created it was disposed. The most common case is `DbContext`: the change tracker accumulates entities from unrelated requests, and after the scope is torn down any access throws `ObjectDisposedException`. Enable `ValidateScopes = true` in Development and staging to catch these combinations at startup rather than under production load. The fix is to inject `IServiceScopeFactory` and create a scope per unit of work, or use `IDbContextFactory<T>` to get a short-lived context per operation.
 
 ---
 
 #### Gotcha 3. `new HttpClient()` in a singleton
 
-**Answer:** Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected.
+**Concepts**
+- HttpMessageHandler lifetime and socket exhaustion
+- IHttpClientFactory managed handler recycling
+- Named and typed client registration pattern
 
-- `HttpClient` is disposable but not meant for per-use disposal — `using var client = new HttpClient()` in a singleton is an anti-pattern.
-- `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly.
-- Register named or typed clients: `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>();`
-- Symptoms include `SocketException` and timeout errors only under production traffic, not in local testing.
+**Answer**
+
+Instantiating `HttpClient` with `new` in a long-lived singleton prevents socket reuse because each instance holds its own `HttpMessageHandler` and the underlying TCP connections are not returned to a pool until garbage collection. Under load this causes socket exhaustion — `SocketException` and timeout errors that do not appear in local testing with low concurrency. `IHttpClientFactory` manages handler lifetimes and recycles connections correctly, so the fix is to register named or typed clients via `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject them rather than constructing `HttpClient` directly.
 
 ---
 
 #### Gotcha 4. `IOptions<T>` vs reload
 
-**Answer:** `IOptions<T>` captures configuration snapshot at first resolution — reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled.
+**Concepts**
+- IOptions<T> frozen snapshot at first resolution
+- IOptionsSnapshot<T> recalculates per request scope
+- IOptionsMonitor<T> live change notifications for singletons
+- Silent staleness until process restart
 
-- `IOptionsSnapshot<T>` recalculates per request scope; `IOptionsMonitor<T>` supports change notifications via `OnChange`.
-- Singleton services must use `IOptionsMonitor<T>` or read options inside scoped operations if they need live updates.
-- Misconfiguration persists silently until process restart when `.Value` was cached at construction.
-- See Chapter 05 for the full options lifetime comparison.
+**Answer**
+
+`IOptions<T>` resolves once and caches the configuration snapshot for the service's lifetime, so a singleton that reads `.Value` in its constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope but is only usable in scoped services. `IOptionsMonitor<T>` supports change notifications via `OnChange` and works correctly in singletons. The failure mode is silent — misconfiguration persists until process restart because `.Value` was captured at construction.
 
 ---
 
 #### Gotcha 5. GET with `[FromBody]`
 
-**Answer:** Using `[FromBody]` on GET action parameters or minimal API handlers is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies, so binding fails silently in production.
+**Concepts**
+- HTTP GET semantics and safe/idempotent URL parameters
+- Proxies and caches stripping GET request bodies
+- [FromQuery] with [AsParameters] for complex filter criteria
+- Silent failures in CDN and proxy layers
 
-- Query strings and route values are the correct binding sources for GET requests.
-- Complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys.
-- Failures often appear only in specific browsers or CDN layers, not in Swagger "Try it out" during development.
-- REST conventions expect GET to be safe and idempotent with parameters in the URL.
+**Answer**
+
+`[FromBody]` on a GET endpoint is an anti-pattern because HTTP GET is defined as safe and idempotent with parameters in the URL — many clients, CDNs, and caching proxies strip or ignore request bodies on GET requests, so binding fails silently in production while "Try it out" in Swagger may appear to work. Use `[FromQuery]` with separate parameter names or `[AsParameters]` on a record type to aggregate complex filter criteria into a single clean parameter object.
 
 ---
 
 #### Gotcha 6. PascalCase JSON keys with default camelCase policy
 
-**Answer:** ASP.NET Core 8 Web API serializes JSON with camelCase property names by default via `JsonNamingPolicy.CamelCase`, so incoming JSON with PascalCase keys (for example `"CustomerName"`) may not bind to `CustomerName` unless case-insensitive matching is enabled.
+**Concepts**
+- JsonNamingPolicy.CamelCase as ASP.NET Core default
+- Silent binding producing default values instead of errors
+- PropertyNameCaseInsensitive as a mitigation
+- Validation attributes turning silent failure into 400 responses
 
-- Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values (empty string, zero).
-- Prefer standardizing clients on camelCase and documenting the contract in OpenAPI.
-- Optional mitigation: `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` — but explicit camelCase contracts are cleaner.
-- Add validation attributes so silent binding failures become 400 responses instead of corrupt data.
+**Answer**
+
+ASP.NET Core Web API serializes JSON with `JsonNamingPolicy.CamelCase` by default, which means incoming JSON with PascalCase keys like `"CustomerName"` does not match the property — the model binds successfully but properties silently hold default values (null, zero, false). The preferred fix is standardizing all clients on camelCase and enforcing it through OpenAPI contracts. As a mitigation, `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` relaxes matching. Add required validation attributes so silent binding failures produce 400 responses rather than corrupt data silently stored to the database.
 
 ---
 
 #### Gotcha 7. `throw ex` vs `throw`
 
-**Answer:** Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown.
+**Concepts**
+- throw; preserving original stack trace
+- throw ex; resetting stack trace to the catch site
+- InnerException preservation when intentionally wrapping
+- APM and structured logging dependency on accurate stack traces
 
-- Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis.
-- Always use `throw;` when rethrowing after logging or cleanup in a catch block.
-- Wrap in a new exception only when adding context: `throw new OrderProcessingException("...", ex)` to preserve `InnerException`.
-- This trap appears in both application code and background worker error handlers.
+**Answer**
+
+Rethrowing with `throw ex` resets the stack trace to the catch block line, which means Application Insights, Serilog, and `IExceptionHandler` all point at the handler rather than the code that actually failed. Bare `throw;` preserves the full original stack trace. Use `throw;` when logging and delegating upward; wrap with a new exception type only when adding context — `throw new OrderProcessingException("...", ex)` — so the original failure is preserved in `InnerException`. This rule applies identically in async code after `await`.
 
 ---
 
 #### Gotcha 8. Kestrel as the only production layer
 
-**Answer:** Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching that production deployments typically require.
+**Concepts**
+- Kestrel as application server vs edge gateway
+- TLS termination and certificate management at the reverse proxy
+- WAF, rate limiting, and static file caching at the edge
+- UseForwardedHeaders required for client IP logging
 
-- Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front.
-- TLS certificates are easier to manage at the proxy layer with automatic renewal.
-- Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy.
-- Containers often bind Kestrel to port 8080 internally while the ingress controller handles HTTPS externally.
+**Answer**
+
+Kestrel is a production-grade application server optimized for running .NET efficiently, but directly exposing it to the internet skips TLS certificate centralization, WAF filtering, centralized rate limiting, and efficient static-file caching that reverse proxies handle. nginx, IIS, Azure Front Door, or AWS ALB typically sit in front so certificates are managed at the proxy layer with automatic renewal. If Kestrel is exposed directly, client IP logging requires `UseForwardedHeaders` configuration, and containers typically bind Kestrel to an internal port while the ingress controller handles external HTTPS.
 
 ---
 
 #### Gotcha 9. `launchSettings.json` in production
 
-**Answer:** Settings in `Properties/launchSettings.json` — including `applicationUrl`, environment variables, and launch profiles — apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts.
+**Concepts**
+- launchSettings.json applies only to dotnet run and IDE launch
+- ASPNETCORE_URLS and ASPNETCORE_ENVIRONMENT as production env vars
+- appsettings.Production.json for non-secret production tuning
 
-- Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
-- Assuming `launchSettings.json` sets Production behavior leads to wrong environment or binding in deployed environments.
-- The file is development ergonomics, not runtime configuration.
-- Use `appsettings.Production.json` and host-level env vars for production values.
+**Answer**
+
+`Properties/launchSettings.json` contains URLs, environment variables, and launch profiles that are read only by `dotnet run`, Visual Studio, and VS Code — the file is not deployed to production hosts and has no effect on them. Relying on it for environment name or URL configuration leads to wrong `ASPNETCORE_ENVIRONMENT` or binding address in deployed environments. Production URLs and environment come from host-level environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
 
 ---
 
 #### Gotcha 10. Non-nullable `bool` for PATCH semantics
 
-**Answer:** A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics.
+**Concepts**
+- default(false) for missing JSON field
+- Nullable bool? for tri-state intent
+- PATCH semantics requiring omitted-vs-false distinction
+- Update DTO design for partial updates
 
-- PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent.
-- Marketing consent and feature flags are common domains where this bug causes compliance or logic errors.
-- Create DTOs may use non-nullable bool when explicit values are always required on insert.
-- Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
+**Answer**
+
+A non-nullable `bool` property in a PATCH DTO cannot distinguish "field omitted from JSON" from "explicitly set to false" because `System.Text.Json` deserializes missing properties to `default(false)`, which corrupts partial-update semantics — a client updating only an email address accidentally resets a consent flag to false. PATCH endpoints need `bool?`, separate update DTOs that only include fields being modified, or tri-state enums like `Unspecified | OptIn | OptOut` to represent intent explicitly. Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
 
 ---
 
 #### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
 
-**Answer:** Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs.
+**Concepts**
+- X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host headers
+- ForwardedHeadersOptions.KnownProxies for trusted network restriction
+- Pipeline position — must run before HTTPS redirection and auth
+- Header spoofing risk when trusting all proxies
 
-- Call `UseForwardedHeaders()` early, before middleware that reads scheme or host (HTTPS redirection, link generation, rate limiting by IP).
-- Configure `ForwardedHeadersOptions` to trust only your reverse proxy network — trusting all proxies enables header spoofing.
-- Headers include `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host`.
-- Local development without a proxy does not need this; production behind nginx/IIS/ALB does.
+**Answer**
+
+Without `UseForwardedHeaders()` configured with known proxy IPs, `HttpContext.Request.Scheme` stays `http` even when clients used HTTPS, `Request.Host` reflects the internal address, and the client IP is the proxy — breaking HTTPS redirects, secure cookie flags, and audit logs. Call `UseForwardedHeaders()` as early as possible, before HTTPS redirection, authentication, link generation, and rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your specific reverse proxy network rather than all proxies, since trusting all enables header spoofing by any client.
 
 ---
 
 #### Gotcha 12. Static files in `wwwroot` are public
 
-**Answer:** Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default — placing secrets, `.env`, backup configs, or private keys there exposes them over HTTP.
+**Concepts**
+- UseStaticFiles() serving without authentication
+- wwwroot as a public CDN root
+- Secrets management via environment variables and Key Vault
+- Build pipeline verification of publish output
 
-- Only public assets (CSS, JS, images, public PDFs) belong in `wwwroot`.
-- Sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers.
-- Accidental copy of `appsettings.Production.json` into `wwwroot` is a critical security incident.
-- Use build pipelines to verify web root contents before deploy.
+**Answer**
+
+Every file in `wwwroot` is served to unauthenticated anonymous clients by `UseStaticFiles()` — there is no authentication gate by default. Placing `.env` files, `appsettings.Production.json`, private keys, or backup configs there makes them directly downloadable via their URL path. Only public assets such as CSS, JavaScript, images, and public PDFs belong in `wwwroot`. Sensitive configuration must live in environment variables, Azure Key Vault, or similar secret managers, and build pipelines should verify that publish output does not include secrets in the web root.
 
 ---
 
 #### Gotcha 13. `MapFallbackToFile` intercepting API routes
 
-**Answer:** SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers.
+**Concepts**
+- SPA fallback order relative to API endpoint mapping
+- /api/* returning index.html with HTTP 200 as a silent failure
+- Endpoint-first ordering in Program.cs
 
-- Map API routes (`MapControllers`, minimal API groups) before `MapFallbackToFile("index.html")`.
-- Scope fallback to non-API paths or use conditional fallback that excludes `/api` prefixes.
-- Symptoms include CORS errors masked as HTML responses and Swagger fetch failures in production SPA hosting.
-- Order in `Program.cs` is: API endpoints first, static files, fallback last.
+**Answer**
+
+Registering `MapFallbackToFile("index.html")` before API endpoint mapping causes any unmatched API route — including valid 404s — to return `index.html` with HTTP 200, which breaks JSON parsers on clients and masks the real failure. The correct order is to map API routes with `MapControllers()` or `MapGroup("/api")` first, then static files, then the SPA fallback last. Symptoms include CORS errors appearing as HTML responses and Swagger fetch failures in production SPA hosting.
 
 ---
 
 #### Gotcha 14. Background service without scope factory
 
-**Answer:** A singleton `BackgroundService` that injects scoped services (`DbContext`, repositories) directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration.
+**Concepts**
+- BackgroundService singleton lifetime
+- Scoped service constructor injection causing disposal errors
+- IServiceScopeFactory.CreateAsyncScope() per background job
+- ValidateScopes detecting this at startup
 
-- Hosted services live for the application lifetime — scoped dependencies must not be constructor-injected.
-- Inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes.
-- Same rule applies to timers and `Task.Run` loops started from singletons.
-- Enable `ValidateScopes` to catch this defect before production deployment.
+**Answer**
+
+A singleton `BackgroundService` cannot constructor-inject scoped services like `DbContext` because hosted services live for the application lifetime while scoped instances are disposed after their first scope ends, causing `ObjectDisposedException` or scope validation errors at startup. The fix is to inject `IServiceScopeFactory`, then inside each background job call `await using var scope = factory.CreateAsyncScope()`, resolve the scoped service from `scope.ServiceProvider`, and dispose the scope when the job finishes. Enable `ValidateScopes` in Development to catch this before production deployment.
 
 ---
 
 #### Gotcha 15. SignalR without a backplane on multiple instances
 
-**Answer:** SignalR broadcasts from one server instance reach only clients connected to that instance — without a Redis or Azure Service Bus backplane (or Azure SignalR Service), users on different nodes never receive each other's real-time events.
+**Concepts**
+- SignalR broadcast scope — single server instance only
+- Redis or Azure Service Bus backplane for multi-instance routing
+- Sticky sessions vs backplane trade-offs
+- Azure SignalR Service as a managed alternative
 
-- Sticky sessions keep one client on one node but do not route events raised on other nodes to that client.
-- Register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application.
-- Raw WebSocket apps need equivalent custom pub/sub — SignalR's backplane is the built-in solution.
-- Test scale-out with at least two instances before launch, not single-node staging alone.
+**Answer**
 
----
-
----
-
-## Gotchas — ASP.NET Core (Interview Traps)
-
-## Gotchas — ASP.NET Core (Interview Traps)
+SignalR tracks connected clients per server instance, so a broadcast from one instance reaches only the clients connected to that instance. With multiple instances behind a load balancer, users on different nodes never receive events raised on other nodes — a critical failure for real-time chat or notifications. Sticky sessions keep one client on one node but do not route server-side events across nodes. The solution is a Redis or Azure Service Bus backplane registered with `AddSignalR().AddStackExchangeRedis(...)`, or the managed Azure SignalR Service. Test scale-out with at least two instances before launch.
 
 ---
 
@@ -482,66 +531,49 @@ app.MapPost("/orders/{id:int}/lines", async (int id, OrderLine line, AppDbContex
 
 *(Assume `AppDbContext` is scoped and registered correctly.)*
 
----
+**Concepts**
+- Delegate-captured closure behaving as singleton state
+- Dictionary<> not thread-safe under concurrent reads and writes
+- In-memory aggregate diverging from persisted database state
+- Scale-out producing different totals per instance
 
-**Answer:**
+**Answer**
 
-**Answer:** The handler keeps mutable order totals in a process-wide `Dictionary` captured by the delegate while also persisting lines through scoped `DbContext` — the in-memory aggregate is shared across all requests, is not thread-safe, and diverges from the database under concurrency.
+The handler captures `orderTotals` in a closure at startup, so the dictionary is shared across all requests and all users for the lifetime of the process — it behaves exactly like a static field. Under concurrent load, two requests for the same order execute the read-modify-write sequence simultaneously, each reading the same stale total and writing conflicting updates. `Dictionary<int, decimal>` is not thread-safe under concurrent writes, so the dictionary itself can corrupt. Beyond concurrency, the in-memory aggregate diverges from the database: restarts reset the dictionary while the database retains all lines, and behind a load balancer each instance holds a different subset of totals.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Static-like `orderTotals` dictionary outside DI | Cross-request shared mutable state |
-| Concurrency | Non-thread-safe `Dictionary` read/modify | Corrupted totals, lost updates under load |
-| Correctness | Running total not sourced from DB | Drift from persisted lines; wrong financial figures |
-| Scale-out | In-memory dict per process | Different totals per instance behind load balancer |
-
-**Fix (priority order):**
-
-1. Remove the shared dictionary; compute totals from the database (`SUM` query or domain service) or use a scoped service keyed by order id within the request only.
-2. If caching is required, use `IMemoryCache` with explicit keys and expiration, or a distributed cache with version stamps — never a bare static field.
-3. Return the persisted aggregate from a repository method so the response reflects committed state.
-
-**Production takeaway:** Minimal API delegates are registered once at startup — any closed-over mutable state behaves like a singleton and will leak across users unless deliberately scoped.
-
----
+The fix is to remove the dictionary entirely and compute the running total from the database — a `SUM` query or a domain service that aggregates committed lines. If caching is needed, use `IMemoryCache` or a distributed cache with explicit expiration and cache keys scoped by order ID, not a bare closure-captured dictionary. The response should reflect committed state from the database, not an in-memory aggregate that has no consistency guarantees.
 
 ---
 
 #### Q2. (M) A teammate returns `IActionResult` from a minimal API route handler while another uses `Results.Ok()` and `TypedResults.Created()`. When does each approach fit, and what does ASP.NET Core lose when you pick the wrong one?
 
----
+**Concepts**
+- IResult executing directly without MVC infrastructure
+- TypedResults.Ok<T> carrying compile-time type for OpenAPI inference
+- IActionResult adapted via compatibility shim — weaker metadata
+- Naked DTO return implicitly 200 but hiding alternate response shapes
 
-**Answer:**
+**Answer**
 
-**Answer:** Prefer `IResult` / `TypedResults` in minimal APIs because they carry compile-time response metadata for OpenAPI and avoid allocating MVC infrastructure; `IActionResult` works via compatibility shims but sacrifices typed endpoint metadata and can produce vague Swagger schemas.
+`IResult` and `TypedResults` are the idiomatic minimal API response types because the minimal pipeline executes them directly via `IResult.ExecuteAsync` without invoking MVC result executors or allocating `ObjectResult` infrastructure. `TypedResults.Created<Uri, T>(uri, value)` preserves generic response types so `AddOpenApi` and Swashbuckle can emit accurate status codes and body schemas — which matters for client code generation, contract tests, and Native AOT trimming.
 
-- `Results.Ok(value)` and `TypedResults.Ok<T>(T value)` implement `IResult` — the minimal hosting pipeline executes them directly without invoking MVC result executors.
-- `TypedResults.Created<Uri, T>(uri, value)` preserves generic response types so `AddOpenApi` / Swashbuckle can emit accurate status codes and body schemas.
-- Returning raw `IActionResult` (e.g., `new OkObjectResult(dto)`) forces the framework to adapt MVC result types — functional but weaker for source-generated OpenAPI and AOT trimming scenarios.
-- Returning naked DTOs (`CustomerDto`) implicitly becomes `200 OK` — convenient but hides alternate responses (404, 422) from metadata unless `.Produces<T>()` is chained.
-- Use `Results.Problem()` / `TypedResults.Problem()` for consistent RFC 7807 error bodies aligned with global exception handling.
-
-**Production takeaway:** Karat tests whether you know minimal APIs are not "controller actions without classes" — response typing is part of the contract, not decoration.
-
----
+Returning `IActionResult` via `new OkObjectResult(dto)` works through a compatibility shim but the generic type is not visible to OpenAPI tooling, so the schema appears loosely typed or untyped in generated documents. Returning naked DTOs such as `return order` is concise and implicitly produces 200 OK, but it hides alternate response shapes — 404, 422 — from OpenAPI metadata unless `.Produces<T>()` is chained. The right habit is `TypedResults` throughout, with `.Produces<T>()` for any non-200 response paths that TypedResults cannot infer from the return type alone.
 
 ---
 
 #### Q3. (P) You need request-body validation on a minimal API POST without MVC controllers. How do you validate a DTO and return RFC 7807 `ProblemDetails` on failure using endpoint filters?
 
----
+**Concepts**
+- IEndpointFilter as the minimal API validation hook
+- context.Arguments iteration with Validator.TryValidateObject
+- Results.ValidationProblem for field-scoped RFC 7807 errors
+- [AsParameters] for cohesive validation of route, query, and body
 
-**Answer:**
+**Answer**
 
-**Answer:** Register an endpoint filter (globally or per route) that runs after model binding, validates with `ValidationContext` or FluentValidation, and short-circuits with `Results.ValidationProblem(errors)` before the handler executes.
+Register an endpoint filter that runs after model binding, validates bound arguments using `ValidationContext` or FluentValidation, and short-circuits with `Results.ValidationProblem(errors)` before the handler executes. Add `.AddEndpointFilter<ValidationFilter>()` on the route or a `MapGroup` so it applies consistently. In the filter, iterate `context.Arguments`, skip null values, call `Validator.TryValidateObject` or `_validator.ValidateAsync`, and on failure return `Results.ValidationProblem` with a dictionary of field names to error arrays — clients receive field-scoped errors in `ValidationProblemDetails` shape, consistent with RFC 7807.
 
-- Add `.AddEndpointFilter<ValidationFilter>()` on the route or `builder.Services.AddSingleton<IEndpointFilter, ValidationFilter>()` for global registration.
-- In the filter, inspect `context.Arguments` for the bound DTO; run `Validator.TryValidateObject` or `_validator.ValidateAsync`.
-- On failure, return `Results.ValidationProblem(dictionary, statusCode: StatusCodes.Status422UnprocessableEntity)` — clients receive field-scoped errors in ProblemDetails shape.
-- Combine with `[AsParameters]` record types so query/route/body bind into one validateable parameter object.
-- Do not rely on `[ApiController]` automatic 400 behavior — minimal endpoints opt in explicitly via filters or the built-in `.AddValidation()` extensions in newer templates.
+Combine with `[AsParameters]` record types so route, query, and body parameters bind into one validateable object, since the filter sees a single argument rather than having to find the right one among many. Do not rely on `[ApiController]` automatic behavior — minimal endpoints opt in explicitly.
 
 ```csharp
 public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext ctx, EndpointFilterDelegate next)
@@ -557,10 +589,6 @@ public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext ctx,
     return await next(ctx);
 }
 ```
-
-**Production takeaway:** Validation filters are the minimal-API equivalent of MVC's automatic model-state filter — skipping them means invalid payloads reach business logic silently.
-
----
 
 ---
 
@@ -590,63 +618,47 @@ app.MapDelete("/admin/purge-cache", () => Results.NoContent())
 
 *(Focus on metadata, response typing, and document completeness — not generic "install Swashbuckle" advice.)*
 
----
+**Concepts**
+- Untyped return from service method — empty schema in OpenAPI
+- Results.Accepted() without .Produces(202) — wrong or missing status
+- ExcludeFromDescription() correct for internal admin routes
+- TypedResults and .Produces<T>() for accurate response contracts
 
-**Answer:**
+**Answer**
 
-**Answer:** Anonymous return types and implicit status codes prevent schema inference, and `ExcludeFromDescription()` intentionally removes the admin route — public endpoints need explicit `.Produces<T>()` / `TypedResults` and XML or `[EndpointDescription]` metadata so OpenAPI documents accurate contracts.
+Two problems cause the degraded OpenAPI document, and one behavior is intentional. The `MapGet` returns whatever `svc.GetStatus(id)` returns — likely an anonymous object or an untyped `object` — so the schema generator sees no concrete type and emits an empty schema. The `MapPost` returns `Results.Accepted()` without `.Produces(202)` metadata, so Swashbuckle infers a 200 response or shows no status at all. The `ExcludeFromDescription()` on the admin route is correct and intentional — that endpoint should not appear in the public document.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| OpenAPI | `MapGet` returns untyped `object` from service | Empty or generic schema; bad client codegen |
-| OpenAPI | `Results.Accepted()` without `.Produces()` | Wrong status (shows 200) or missing 202 body |
-| API contract | Anonymous objects / opaque service return | Breaking changes invisible to consumers |
-| Intentional | `ExcludeFromDescription()` on admin route | Correct for internal ops — not a bug if deliberate |
-
-**Fix (priority order):**
-
-1. Return `TypedResults.Ok<ReportStatusDto>(dto)` or chain `.Produces<ReportStatusDto>(StatusCodes.Status200OK)`.
-2. For accepted POST, use `.Produces(StatusCodes.Status202Accepted)` or return `TypedResults.Accepted(uri, payload)`.
-3. Enable `builder.Services.AddOpenApi()` / Swashbuckle schema filters; annotate with `.WithName()`, `.WithTags("Reports")`, and `[EndpointSummary]` for discoverability.
-4. Keep `ExcludeFromDescription()` only on truly internal routes; verify public surface matches product spec.
-
-**Production takeaway:** Minimal APIs do not inherit controller conventions — every response type and status code you want documented must be declared or inferred from `TypedResults`.
-
----
+The fixes are type-driven. For the GET, return `TypedResults.Ok<ReportStatusDto>(dto)` or chain `.Produces<ReportStatusDto>(200)` so the schema generator has a concrete type. For the POST, chain `.Produces(StatusCodes.Status202Accepted)` or return `TypedResults.Accepted(uri, payload)` so the status code is declared. Add `.WithName()` and `.WithTags("Reports")` for discoverability and consistent OpenAPI operation IDs. Every response type and status code must be declared or inferred from `TypedResults` — there are no MVC conventions filling in gaps.
 
 ---
 
 #### Q5. (P) How do you protect a subset of minimal API endpoints with JWT bearer auth and a named authorization policy while leaving health checks anonymous? Where do you register requirements vs apply them on routes?
 
----
+**Concepts**
+- AddAuthentication + AddJwtBearer for scheme setup
+- AddAuthorizationBuilder().AddPolicy() for named policy definitions
+- RequireAuthorization("PolicyName") on routes or groups
+- AllowAnonymous() on public endpoints when a fallback policy secures by default
 
-**Answer:**
+**Answer**
 
-**Answer:** Register authentication and authorization in services, call `UseAuthentication()` then `UseAuthorization()` in the pipeline, define policies with `AddAuthorizationBuilder()`, and apply `.RequireAuthorization("PolicyName")` per route or group while leaving `/health` unannotated.
+Register authentication and authorization in services, then wire them in the pipeline, then apply policy metadata per route. `builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(...)` sets up JWT validation. `AddAuthorizationBuilder().AddPolicy("OrdersWrite", p => p.RequireRole("OrderWriter"))` defines the named policy. Middleware order: `UseAuthentication()` before `UseAuthorization()` before `Map*` endpoints, and both after `UseRouting()`.
 
-- `builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(...)` and `AddAuthorizationBuilder().AddPolicy("OrdersWrite", p => p.RequireRole("OrderWriter"))`.
-- Middleware order: `UseAuthentication()` before `UseAuthorization()` before `Map*` endpoints.
-- Protect routes: `app.MapPost("/orders", Handler).RequireAuthorization("OrdersWrite");` — groups inherit via `app.MapGroup("/api").RequireAuthorization();`.
-- Leave health anonymous: `app.MapHealthChecks("/health").AllowAnonymous();` or simply omit authorization metadata.
-- Fallback policy (`options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()`) secures everything by default — then explicitly `.AllowAnonymous()` on public endpoints.
-
-**Production takeaway:** Minimal APIs have no `[Authorize]` attribute by default — authorization is fluent metadata on the endpoint; missing `.RequireAuthorization()` leaves routes open even when JWT is configured.
-
----
+Apply to routes: `app.MapPost("/orders", Handler).RequireAuthorization("OrdersWrite")`. Groups inherit: `app.MapGroup("/api").RequireAuthorization()` protects all child routes, so specific routes that need different policies call `.RequireAuthorization("OtherPolicy")` individually. Leave health checks anonymous by either omitting authorization metadata or explicitly calling `.AllowAnonymous()` when a fallback policy requires authenticated users globally. The fallback policy approach is safer for large APIs — everything is secured by default and public routes opt out explicitly, rather than relying on developers to remember to annotate every protected route.
 
 ---
 
 #### Q6. (D) The team wants URL-based API versioning (`/api/v1/...`, `/api/v2/...`) using `MapGroup` without duplicating middleware and OpenAPI tags. What structure would you use, and what breaks if v1 and v2 share the same route parameter names but different DTO shapes?
 
----
+**Concepts**
+- Nested MapGroup for versioned route prefixes
+- Shared extension methods for cross-cutting filters on all versions
+- Separate DTO types per major version — v1 and v2 are distinct contracts
+- MapGroup organizing routes not versioning contracts
 
-**Answer:**
+**Answer**
 
-**Answer:** Nest versioned `MapGroup` chains with shared extension methods for cross-cutting filters, tag OpenAPI per version, and treat v1/v2 DTOs as separate contract types even when route templates match — reusing the same handler signature for different major versions silently breaks clients.
-
-- Structure:
+Structure versioned groups by nesting `MapGroup` with version-specific prefixes and tagging each for OpenAPI, then extract shared cross-cutting concerns into extension methods:
 
 ```csharp
 var v1 = app.MapGroup("/api/v1/orders").WithTags("Orders v1").RequireAuthorization();
@@ -655,14 +667,9 @@ var v2 = app.MapGroup("/api/v2/orders").WithTags("Orders v2").RequireAuthorizati
 v2.MapGet("/{orderId:guid}", GetOrderV2);
 ```
 
-- Extract shared concerns into `static RouteGroupBuilder AddOrderDefaults(this RouteGroupBuilder g) => g.AddEndpointFilter<AuditFilter>();`
-- **Breakage:** v2 changes `OrderDto` shape (renamed fields, different enums) but reuses v1 handler — binders succeed while JSON contract diverges; clients on v2 receive v1 semantics.
-- Prefer separate record types (`OrderV1Response`, `OrderV2Response`) and distinct handler methods even when logic delegates to shared domain services.
-- Document deprecation headers (`Sunset`, `Link`) on v1 group via filter when phasing out.
+Extract shared filters: `static RouteGroupBuilder AddOrderDefaults(this RouteGroupBuilder g) => g.AddEndpointFilter<AuditFilter>()` — call on both groups so audit, validation, and rate limiting apply to all versions without duplication.
 
-**Production takeaway:** `MapGroup` organizes routes; it does not version contracts — major versions need explicit types and OpenAPI tags, not just a path prefix.
-
----
+What breaks when v1 and v2 share route parameter names but different DTO shapes is that the binder resolves parameters by name and type — if both versions use the same handler function with `Guid orderId`, binding succeeds, but the response shape differs. The schema mismatch is invisible until clients consuming the v2 OpenAPI document try to deserialize a v1-shaped response. The fix is separate handler methods — `GetOrderV1` and `GetOrderV2` — and separate response DTO types — `OrderV1Response` and `OrderV2Response` — even when both delegate to the same domain service internally. `MapGroup` organizes routes and applies cross-cutting concerns; it does not version contracts — explicit types and separate OpenAPI tags are required for that.
 
 ---
 
@@ -699,51 +706,33 @@ app.MapPost("/customers", async (CustomerDto dto) =>
 app.Run();
 ```
 
----
+**Concepts**
+- new AppDbContext() bypassing DI — no scoped lifetime, untestable
+- new HttpClient() as captured singleton — socket exhaustion
+- new MemoryCache outside container — no size limits, not injectable
+- Results.Created with name not ID — wrong Location header
+- God Program.cs — inline logic with no test seams
 
-**Answer:**
+**Answer**
 
-**Answer:** This is a god-`Program.cs` that manually constructs `DbContext`, `HttpClient`, and cache outside the container — it bypasses DI lifetimes, disposes nothing correctly, and embeds infrastructure in route lambdas, making the API untestable and fragile under configuration changes.
+This `Program.cs` manually constructs `AppDbContext`, `HttpClient`, and `MemoryCache` outside the DI container, bypassing lifetime management entirely. `new AppDbContext(...)` inside each handler creates a new connection per request with no connection pooling benefit from EF's built-in pooling, no scoped lifetime alignment, and no ability to substitute a test double in integration tests. The `HttpClient` is captured as a closure-level variable — a singleton that prevents socket reuse and causes socket exhaustion under load. `MemoryCache` constructed with `new` has no size limits configured, no integration with the DI health check system, and cannot be injected or replaced in tests.
 
-**Issues:**
+`Results.Created($"/customers/{dto.Name}", dto)` sets the Location header to a path containing the customer name rather than the persisted entity ID — the REST contract is wrong and breaks client navigation. The entire handler logic is inlined in `Program.cs` with no seams for unit testing.
 
-| Category | Problem | Impact |
-|---|---|---|
-| DI | `new AppDbContext(...)` inside handlers | No scoped lifetime; connection leaks; untestable |
-| DI | `new HttpClient()` as singleton field | Socket exhaustion (see `IHttpClientFactory`) |
-| DI | `new MemoryCache` outside container | No size limits config; not injectable/mockable |
-| API design | `Results.Created` with name not id | Wrong Location header; broken REST contract |
-| Maintainability | All logic inline in `Program.cs` | God file; no unit test seams; merge conflicts |
-| Configuration | Connection string captured at build | Stale config if reload needed; wrong in tests |
-
-**Fix (priority order):**
-
-1. Register `AddDbContext<AppDbContext>`, `AddMemoryCache`, `AddHttpClient("legacy", ...)` in `builder.Services`.
-2. Move handlers to static or instance classes (`CustomerEndpoints.Map(app)`) injectable via DI.
-3. Fix `Created` to use persisted entity id: `TypedResults.Created($"/customers/{entity.Id}", dto)`.
-4. Add validation filter, exception handler, and OpenAPI metadata in extension methods.
-
-**Production takeaway:** Minimal APIs encourage small `Program.cs` — the anti-pattern is not lambdas themselves but bypassing the same DI and hosting rules controllers follow.
-
----
+The fix registers everything in `builder.Services`: `AddDbContext<AppDbContext>`, `AddMemoryCache`, `AddHttpClient("legacy", ...)`, then moves handlers to static classes (`CustomerEndpoints.Map(app)`) that receive DI-injected dependencies as handler parameters. The `Created` response uses the persisted entity ID: `TypedResults.Created($"/customers/{entity.Id}", dto)`.
 
 ---
 
 #### Q8. (M) Minimal APIs resolve route-handler parameters from route values, body, services, and `HttpContext`. A handler injects `IOptions<FeatureFlags>` and `[FromServices] IAuditLogger` alongside `[FromBody] CreateOrderRequest`. What determines injection order and failure modes when a parameter cannot be bound?
 
+**Concepts**
+- Explicit bind source attributes taking priority over inference
+- [FromBody] consumed once per request — duplicate body parameters invalid
+- Unregistered service parameter — 500 at invoke time not 404
+- [AsParameters] for deterministic property binding order
 
+**Answer**
 
-**Answer:**
+The parameter binding pipeline tries explicit bind source attributes first — `[FromRoute]`, `[FromQuery]`, `[FromBody]`, `[FromHeader]`, `[FromServices]` — which override inference. After explicit sources, the binder infers: route template matches bind by name, DI-registered types resolve from `RequestServices`, and special types like `HttpContext` and `CancellationToken` are resolved by type. `[FromBody]` consumes the request body once — declaring two body parameters is invalid and causes an error at startup or first request. `[FromServices]` forces DI resolution even when a parameter name matches a route value, which is useful when name collision would otherwise cause wrong-source binding.
 
-**Answer:** The parameter binding pipeline tries explicit bind sources first (route/query/body/header attributes), then services from DI, then special types like `HttpContext` and `CancellationToken`; an ambiguous or unregistered service parameter fails at first request (or startup with validation) with a binding exception, not a 404.
-
-- Route `{id}` binds to `int id` by name; `[FromBody]` takes JSON body once per request — duplicate body parameters are invalid.
-- Service parameters resolve from `RequestServices` (request scope) — scoped services work; singleton-only capture in constructed delegates still risks captive dependencies if cached incorrectly.
-- `IOptions<T>` / `IOptionsSnapshot<T>` resolve from DI — snapshot refreshes per request when options reload.
-- `[FromServices]` forces DI even when name collision with route value could occur.
-- Failure modes: missing required route value → 400; wrong JSON shape → 400; unregistered service → 500 at invoke time with `InvalidOperationException`; optional parameters use nullable types or default values.
-- `[AsParameters]` aggregates bindable properties into one complex parameter with deterministic property binding order.
-
-**Production takeaway:** Binding errors surface at runtime on first hit — integration tests per endpoint catch missing registrations faster than manual OpenAPI review.
-
----
+Failure modes: a missing required route value returns 400; an incorrect JSON body shape returns 400; an unregistered `IAuditLogger` service causes an `InvalidOperationException` at invoke time producing a 500 — not a 404 — since the binder finds no registration in `RequestServices`. `IOptions<FeatureFlags>` requires `builder.Services.AddOptions<FeatureFlags>()` to be registered, otherwise the same runtime 500 applies. Optional parameters use nullable types or default values to avoid 400 on missing input. `[AsParameters]` aggregates bindable properties into one object with deterministic property binding order, which simplifies filters that validate the whole request at once.

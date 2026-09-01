@@ -1,4 +1,4 @@
-# 02. Object Oriented Programming — Interview Q&A
+﻿# 02. Object Oriented Programming — Interview Q&A
 > Back to [README](../README.md)
 
 ## Table of Contents
@@ -12,41 +12,41 @@
   - [Q6. What is the difference between shallow copy and deep copy in C#?](#q6-what-is-the-difference-between-shallow-copy-and-deep-copy-in-c)
   - [Q7. What is the difference between object identity and object equality?](#q7-what-is-the-difference-between-object-identity-and-object-equality)
   - [Q8. What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?](#q8-what-is-the-difference-between-idisposable-and-a-finalizer-classname)
-  - [Q9. What happens at runtime when you execute `new MyClass()` — allocation, constructor, and reference assignment?](#q9-what-happens-at-runtime-when-you-execute-new-myclass-allocation-constructor-and-reference-assignment)
-  - [Q10. Where are class instances stored vs where are struct instances typically stored when local variables?](#q10-where-are-class-instances-stored-vs-where-are-struct-instances-typically-stored-when-local-variables)
+  - [Q9. What happens at runtime when you execute `new MyClass()`?](#q9-what-happens-at-runtime-when-you-execute-new-myclass)
+  - [Q10. Where are class instances stored vs where are struct instances typically stored?](#q10-where-are-class-instances-stored-vs-where-are-struct-instances-typically-stored)
   - [Q11. What is the difference between a field, a property, and a method on a class?](#q11-what-is-the-difference-between-a-field-a-property-and-a-method-on-a-class)
-  - [Q12. What is a static class vs an instance class — can you instantiate a static class?](#q12-what-is-a-static-class-vs-an-instance-class-can-you-instantiate-a-static-class)
+  - [Q12. What is a static class vs an instance class — can you instantiate a static class?](#q12-what-is-a-static-class-vs-an-instance-class--can-you-instantiate-a-static-class)
   - [Q13. What is the `null` reference for reference types, and what is `default` for a struct vs a class?](#q13-what-is-the-null-reference-for-reference-types-and-what-is-default-for-a-struct-vs-a-class)
   - [Q14. What is object initializer syntax, and how does it interact with constructors?](#q14-what-is-object-initializer-syntax-and-how-does-it-interact-with-constructors)
-  - [Q15. What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes that do not override equality?](#q15-what-is-the-difference-between-referenceequals-and-equals-for-classes-that-do-not-override-equality)
+  - [Q15. What is the difference between `ReferenceEquals`, `==`, and `Equals`?](#q15-what-is-the-difference-between-referenceequals--and-equals)
   - [Q16. When is a struct copied vs when is a reference copied when passed to a method?](#q16-when-is-a-struct-copied-vs-when-is-a-reference-copied-when-passed-to-a-method)
   - [Q17. What is the fragile base class problem at a high level?](#q17-what-is-the-fragile-base-class-problem-at-a-high-level)
-  - [Q18. What is the difference between stack allocation (`stackalloc`, local structs) and heap allocation for objects?](#q18-what-is-the-difference-between-stack-allocation-stackalloc-local-structs-and-heap-allocation-for-objects)
+  - [Q18. What is the difference between stack allocation and heap allocation for objects?](#q18-what-is-the-difference-between-stack-allocation-and-heap-allocation-for-objects)
   - [Q19. What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?](#q19-what-does-gcgettotalmemory-measure-and-why-is-it-only-a-rough-indicator)
-  - [Q20. What is the difference between an anemic class (data-only) and a rich domain object?](#q20-what-is-the-difference-between-an-anemic-class-data-only-and-a-rich-domain-object)
+  - [Q20. What is the difference between an anemic class and a rich domain object?](#q20-what-is-the-difference-between-an-anemic-class-and-a-rich-domain-object)
 
 - [02. Properties & Indexers](#02-properties-indexers)
   - [Q1. Explain properties and fields in C#.](#q1-explain-properties-and-fields-in-c)
   - [Q2. What are auto-implemented properties?](#q2-what-are-auto-implemented-properties)
   - [Q3. What are indexers in C#?](#q3-what-are-indexers-in-c)
-  - [Q4. What is the difference between a `public` field and a `public` auto-property — if they behave similarly, why prefer properties?](#q4-what-is-the-difference-between-a-public-field-and-a-public-auto-property-if-they-behave-similarly-why-prefer-properties)
-  - [Q5. What are init-only properties (`get; init;`), and how do they differ from get-only and `{ get; set; }`?](#q5-what-are-init-only-properties-get-init-and-how-do-they-differ-from-get-only-and-get-set)
-  - [Q6. What is the difference between `{ get; private set; }` and a property with only a public getter backed by a private setter method?](#q6-what-is-the-difference-between-get-private-set-and-a-property-with-only-a-public-getter-backed-by-a-private-setter-method)
-  - [Q7. What are expression-bodied properties (`public string Label => $"{Title}";`)?](#q7-what-are-expression-bodied-properties-public-string-label-title)
-  - [Q8. Can indexers be overloaded — what distinguishes overloads?](#q8-can-indexers-be-overloaded-what-distinguishes-overloads)
-  - [Q9. What is the syntax for an indexer (`this[int index]`, `this[string key]`)?](#q9-what-is-the-syntax-for-an-indexer-thisint-index-thisstring-key)
+  - [Q4. What is the difference between a `public` field and a `public` auto-property?](#q4-what-is-the-difference-between-a-public-field-and-a-public-auto-property)
+  - [Q5. What are init-only properties (`get; init;`)?](#q5-what-are-init-only-properties-get-init)
+  - [Q6. What is the difference between `{ get; private set; }` and a public getter with a private setter method?](#q6-what-is-the-difference-between--get-private-set--and-a-public-getter-with-a-private-setter-method)
+  - [Q7. What are expression-bodied properties?](#q7-what-are-expression-bodied-properties)
+  - [Q8. Can indexers be overloaded — what distinguishes overloads?](#q8-can-indexers-be-overloaded--what-distinguishes-overloads)
+  - [Q9. What is the syntax for an indexer?](#q9-what-is-the-syntax-for-an-indexer)
   - [Q10. When should you use a full property with validation vs an auto-property?](#q10-when-should-you-use-a-full-property-with-validation-vs-an-auto-property)
   - [Q11. What is a computed/read-only property that derives its value from other members?](#q11-what-is-a-computedread-only-property-that-derives-its-value-from-other-members)
   - [Q12. What is the difference between `init` properties and constructor parameters for immutable objects?](#q12-what-is-the-difference-between-init-properties-and-constructor-parameters-for-immutable-objects)
   - [Q13. How do properties participate in object initializer syntax?](#q13-how-do-properties-participate-in-object-initializer-syntax)
   - [Q14. What is a preview-level understanding of `record` types and synthesized properties?](#q14-what-is-a-preview-level-understanding-of-record-types-and-synthesized-properties)
-  - [Q15. Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?](#q15-why-might-exposing-a-public-get-set-on-a-collection-typed-property-break-encapsulation)
+  - [Q15. Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?](#q15-why-might-exposing-a-public--get-set--on-a-collection-typed-property-break-encapsulation)
   - [Q16. What is the difference between an indexer and a method named `GetByIndex`?](#q16-what-is-the-difference-between-an-indexer-and-a-method-named-getbyindex)
   - [Q17. Can interface types declare indexers, and how are they implemented?](#q17-can-interface-types-declare-indexers-and-how-are-they-implemented)
-  - [Q18. What is the relationship between properties and data binding / serialization frameworks?](#q18-what-is-the-relationship-between-properties-and-data-binding-serialization-frameworks)
+  - [Q18. What is the relationship between properties and data binding / serialization frameworks?](#q18-what-is-the-relationship-between-properties-and-data-binding--serialization-frameworks)
 
-- [03. Constructors & Method Overloading](#03-constructors-method-overloading)
-  - [Q1. Explain constructors and their types in C# (default, parameterized, static, private).](#q1-explain-constructors-and-their-types-in-c-default-parameterized-static-private)
+- [03. Constructors & Method Overloading](#03-constructors--method-overloading)
+  - [Q1. Explain constructors and their types in C#.](#q1-explain-constructors-and-their-types-in-c)
   - [Q2. What is a destructor/finalizer in C#?](#q2-what-is-a-destructorfinalizer-in-c)
   - [Q3. Explain constructor chaining in C# (`: this(...)` vs `: base(...)`).](#q3-explain-constructor-chaining-in-c-this-vs-base)
   - [Q4. How can you call the base class constructor from a derived class?](#q4-how-can-you-call-the-base-class-constructor-from-a-derived-class)
@@ -54,85 +54,85 @@
   - [Q6. Explain method overloading and method overriding in C#.](#q6-explain-method-overloading-and-method-overriding-in-c)
   - [Q7. What is a static constructor, and when does it run?](#q7-what-is-a-static-constructor-and-when-does-it-run)
   - [Q8. Can a struct have a parameterless constructor (C# 10+ rules vs earlier)?](#q8-can-a-struct-have-a-parameterless-constructor-c-10-rules-vs-earlier)
-  - [Q9. What is the difference between a primary constructor (C# 12 on classes/records) and traditional constructors?](#q9-what-is-the-difference-between-a-primary-constructor-c-12-on-classesrecords-and-traditional-constructors)
-  - [Q10. What happens if you do not define any constructor — what default constructor is provided?](#q10-what-happens-if-you-do-not-define-any-constructor-what-default-constructor-is-provided)
-  - [Q11. Why might you mark a constructor `private` (singleton, factory patterns)?](#q11-why-might-you-mark-a-constructor-private-singleton-factory-patterns)
+  - [Q9. What is the difference between a primary constructor (C# 12) and traditional constructors?](#q9-what-is-the-difference-between-a-primary-constructor-c-12-and-traditional-constructors)
+  - [Q10. What happens if you do not define any constructor?](#q10-what-happens-if-you-do-not-define-any-constructor)
+  - [Q11. Why might you mark a constructor `private`?](#q11-why-might-you-mark-a-constructor-private)
   - [Q12. What is constructor overloading, and how does `: this(...)` reduce duplication?](#q12-what-is-constructor-overloading-and-how-does-this-reduce-duplication)
-  - [Q13. What is the exact order: static constructor, instance field initializers, instance constructor body, base constructor?](#q13-what-is-the-exact-order-static-constructor-instance-field-initializers-instance-constructor-body-base-constructor)
+  - [Q13. What is the exact initialization order: static constructor, field initializers, instance constructor, base constructor?](#q13-what-is-the-exact-initialization-order-static-constructor-field-initializers-instance-constructor-base-constructor)
   - [Q14. What is the difference between method overloading (compile-time) and method overriding (runtime polymorphism)?](#q14-what-is-the-difference-between-method-overloading-compile-time-and-method-overriding-runtime-polymorphism)
-  - [Q15. When does the compiler fail to pick an overload due to ambiguity involving optional parameters and `params`?](#q15-when-does-the-compiler-fail-to-pick-an-overload-due-to-ambiguity-involving-optional-parameters-and-params)
-  - [Q16. Can constructors be inherited — how does a derived class get a base constructor?](#q16-can-constructors-be-inherited-how-does-a-derived-class-get-a-base-constructor)
+  - [Q15. When does the compiler fail to pick an overload due to ambiguity?](#q15-when-does-the-compiler-fail-to-pick-an-overload-due-to-ambiguity)
+  - [Q16. Can constructors be inherited?](#q16-can-constructors-be-inherited)
   - [Q17. What validation belongs in a constructor vs a factory method?](#q17-what-validation-belongs-in-a-constructor-vs-a-factory-method)
   - [Q18. What is the difference between calling an overloaded instance method vs a static overloaded method?](#q18-what-is-the-difference-between-calling-an-overloaded-instance-method-vs-a-static-overloaded-method)
 
-- [04. Static Members & Static Classes](#04-static-members-static-classes)
+- [04. Static Members & Static Classes](#04-static-members--static-classes)
   - [Q1. Explain the `static` keyword in detail.](#q1-explain-the-static-keyword-in-detail)
   - [Q2. What is a static class in C#?](#q2-what-is-a-static-class-in-c)
   - [Q3. Why can you not override a `static` method?](#q3-why-can-you-not-override-a-static-method)
   - [Q4. What is the difference between a static class and the singleton pattern?](#q4-what-is-the-difference-between-a-static-class-and-the-singleton-pattern)
-  - [Q5. What is a static field, and how is lifetime different from an instance field?](#q5-what-is-a-static-field-and-how-is-lifetime-different-from-an-instance-field)
-  - [Q6. What is a static property and static method — what is the `this` reference inside them?](#q6-what-is-a-static-property-and-static-method-what-is-the-this-reference-inside-them)
+  - [Q5. What is a static field, and how is its lifetime different from an instance field?](#q5-what-is-a-static-field-and-how-is-its-lifetime-different-from-an-instance-field)
+  - [Q6. What is a static property and static method — what is the `this` reference inside them?](#q6-what-is-a-static-property-and-static-method--what-is-the-this-reference-inside-them)
   - [Q7. Why can static methods not access instance members directly?](#q7-why-can-static-methods-not-access-instance-members-directly)
   - [Q8. When are static constructors executed, and how many times per AppDomain/process?](#q8-when-are-static-constructors-executed-and-how-many-times-per-appdomainprocess)
-  - [Q9. What is the difference between `const` (implicitly static) and `static readonly`?](#q9-what-is-the-difference-between-const-implicitly-static-and-static-readonly)
+  - [Q9. What is the difference between `const` and `static readonly`?](#q9-what-is-the-difference-between-const-and-static-readonly)
   - [Q10. Can a static class implement interfaces?](#q10-can-a-static-class-implement-interfaces)
   - [Q11. What thread-safety concerns apply to mutable static fields?](#q11-what-thread-safety-concerns-apply-to-mutable-static-fields)
   - [Q12. Why is overusing static state a testing and maintainability problem?](#q12-why-is-overusing-static-state-a-testing-and-maintainability-problem)
   - [Q13. What is the difference between static nested classes and non-static nested classes?](#q13-what-is-the-difference-between-static-nested-classes-and-non-static-nested-classes)
-  - [Q14. How do static members participate in inheritance — are they polymorphic?](#q14-how-do-static-members-participate-in-inheritance-are-they-polymorphic)
+  - [Q14. How do static members participate in inheritance — are they polymorphic?](#q14-how-do-static-members-participate-in-inheritance--are-they-polymorphic)
 
-- [05. Inheritance & Polymorphism](#05-inheritance-polymorphism)
+- [05. Inheritance & Polymorphism](#05-inheritance--polymorphism)
   - [Q1. Explain inheritance in detail in C#.](#q1-explain-inheritance-in-detail-in-c)
   - [Q2. Explain polymorphism in C# and how it can be achieved.](#q2-explain-polymorphism-in-c-and-how-it-can-be-achieved)
-  - [Q3. What is the difference between compile-time (static) and runtime (dynamic) polymorphism?](#q3-what-is-the-difference-between-compile-time-static-and-runtime-dynamic-polymorphism)
+  - [Q3. What is the difference between compile-time and runtime polymorphism?](#q3-what-is-the-difference-between-compile-time-and-runtime-polymorphism)
   - [Q4. What is a sealed class in C#?](#q4-what-is-a-sealed-class-in-c)
   - [Q5. What is a virtual method in C#?](#q5-what-is-a-virtual-method-in-c)
   - [Q6. What is the difference between `this` and `base` keywords?](#q6-what-is-the-difference-between-this-and-base-keywords)
   - [Q7. What is operator overloading in C#?](#q7-what-is-operator-overloading-in-c)
   - [Q8. Explain the difference between `virtual`, `abstract`, and `override` keywords.](#q8-explain-the-difference-between-virtual-abstract-and-override-keywords)
   - [Q9. Explain the `new` keyword in the context of method hiding.](#q9-explain-the-new-keyword-in-the-context-of-method-hiding)
-  - [Q10. Explain how C# handles multiple inheritance (using interfaces).](#q10-explain-how-c-handles-multiple-inheritance-using-interfaces)
+  - [Q10. Explain how C# handles multiple inheritance.](#q10-explain-how-c-handles-multiple-inheritance)
   - [Q11. Why does C# not support multiple inheritance of classes?](#q11-why-does-c-not-support-multiple-inheritance-of-classes)
   - [Q12. What is the fragile base class problem?](#q12-what-is-the-fragile-base-class-problem)
   - [Q13. Why is "favor composition over inheritance" a common guideline?](#q13-why-is-favor-composition-over-inheritance-a-common-guideline)
-  - [Q14. What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?](#q14-what-is-runtime-dispatch-how-does-the-clr-resolve-override-calls-through-a-base-reference)
+  - [Q14. What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?](#q14-what-is-runtime-dispatch--how-does-the-clr-resolve-override-calls-through-a-base-reference)
   - [Q15. What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable?](#q15-what-is-the-difference-between-hiding-with-new-and-overriding-with-override-when-calling-through-a-base-typed-variable)
   - [Q16. Can you inherit from a sealed class?](#q16-can-you-inherit-from-a-sealed-class)
   - [Q17. What is the difference between `is` type testing and casting in polymorphic code paths?](#q17-what-is-the-difference-between-is-type-testing-and-casting-in-polymorphic-code-paths)
-  - [Q18. What is the Liskov Substitution Principle in one sentence, and how does it relate to inheritance?](#q18-what-is-the-liskov-substitution-principle-in-one-sentence-and-how-does-it-relate-to-inheritance)
+  - [Q18. What is the Liskov Substitution Principle?](#q18-what-is-the-liskov-substitution-principle)
   - [Q19. When does `base.Method()` call the parent's implementation vs the current type's override?](#q19-when-does-basemethod-call-the-parents-implementation-vs-the-current-types-override)
   - [Q20. What is the difference between extending behavior with inheritance vs wrapping with composition?](#q20-what-is-the-difference-between-extending-behavior-with-inheritance-vs-wrapping-with-composition)
 
-- [06. Abstract Classes & Interfaces](#06-abstract-classes-interfaces)
+- [06. Abstract Classes & Interfaces](#06-abstract-classes--interfaces)
   - [Q1. Explain abstraction in detail in C#.](#q1-explain-abstraction-in-detail-in-c)
   - [Q2. What is the difference between abstraction and encapsulation?](#q2-what-is-the-difference-between-abstraction-and-encapsulation)
   - [Q3. What is the difference between abstraction and polymorphism?](#q3-what-is-the-difference-between-abstraction-and-polymorphism)
   - [Q4. What is the difference between an abstract class and an interface?](#q4-what-is-the-difference-between-an-abstract-class-and-an-interface)
-  - [Q5. What is the difference between an abstract class and an interface before C# 8 vs after (default interface methods)?](#q5-what-is-the-difference-between-an-abstract-class-and-an-interface-before-c-8-vs-after-default-interface-methods)
+  - [Q5. What is the difference between an abstract class and an interface before C# 8 vs after?](#q5-what-is-the-difference-between-an-abstract-class-and-an-interface-before-c-8-vs-after)
   - [Q6. Why do we need interfaces in C#?](#q6-why-do-we-need-interfaces-in-c)
   - [Q7. What is explicit interface implementation and when is it used?](#q7-what-is-explicit-interface-implementation-and-when-is-it-used)
   - [Q8. What are static abstract members in interfaces (C# 11)?](#q8-what-are-static-abstract-members-in-interfaces-c-11)
   - [Q9. Can an abstract class have concrete (non-abstract) methods?](#q9-can-an-abstract-class-have-concrete-non-abstract-methods)
-  - [Q10. Can a class implement multiple interfaces — what about an interface inheriting another interface?](#q10-can-a-class-implement-multiple-interfaces-what-about-an-interface-inheriting-another-interface)
+  - [Q10. Can a class implement multiple interfaces?](#q10-can-a-class-implement-multiple-interfaces)
   - [Q11. When would you choose an abstract base class over an interface for shared implementation?](#q11-when-would-you-choose-an-abstract-base-class-over-an-interface-for-shared-implementation)
-  - [Q12. What is the diamond problem, and how does C# avoid it for classes but address it for interfaces with default methods?](#q12-what-is-the-diamond-problem-and-how-does-c-avoid-it-for-classes-but-address-it-for-interfaces-with-default-methods)
-  - [Q13. What is explicit interface implementation — why might `((IMyInterface)obj).Method()` work when `obj.Method()` does not?](#q13-what-is-explicit-interface-implementation-why-might-imyinterfaceobjmethod-work-when-objmethod-does-not)
-  - [Q14. Can interfaces declare fields, constructors, or static concrete state (pre- and post-C# 8)?](#q14-can-interfaces-declare-fields-constructors-or-static-concrete-state-pre--and-post-c-8)
-  - [Q15. What is the difference between `IReadOnlyList<T>` as a parameter type and `List<T>` for abstraction?](#q15-what-is-the-difference-between-ireadonlylistt-as-a-parameter-type-and-listt-for-abstraction)
+  - [Q12. What is the diamond problem, and how does C# address it?](#q12-what-is-the-diamond-problem-and-how-does-c-address-it)
+  - [Q13. What is explicit interface implementation — why might `((IMyInterface)obj).Method()` work when `obj.Method()` does not?](#q13-what-is-explicit-interface-implementation--why-might-imyinterfaceobjmethod-work-when-objmethod-does-not)
+  - [Q14. Can interfaces declare fields, constructors, or static concrete state?](#q14-can-interfaces-declare-fields-constructors-or-static-concrete-state)
+  - [Q15. What is the difference between `IReadOnlyList<T>` as a parameter type and `List<T>`?](#q15-what-is-the-difference-between-ireadonlylistt-as-a-parameter-type-and-listt)
   - [Q16. When should API surface depend on interfaces vs abstract classes?](#q16-when-should-api-surface-depend-on-interfaces-vs-abstract-classes)
 
-- [07. Encapsulation & Access Modifiers](#07-encapsulation-access-modifiers)
+- [07. Encapsulation & Access Modifiers](#07-encapsulation--access-modifiers)
   - [Q1. Explain encapsulation in C# with examples.](#q1-explain-encapsulation-in-c-with-examples)
-  - [Q2. What are the different access modifiers in C#? (`private`, `protected`, `internal`, `protected internal`, `private protected`)](#q2-what-are-the-different-access-modifiers-in-c-private-protected-internal-protected-internal-private-protected)
+  - [Q2. What are the different access modifiers in C#?](#q2-what-are-the-different-access-modifiers-in-c)
   - [Q3. What is the difference between "information hiding" and "data hiding"?](#q3-what-is-the-difference-between-information-hiding-and-data-hiding)
   - [Q4. Why is exposing a mutable collection through a public getter an encapsulation break?](#q4-why-is-exposing-a-mutable-collection-through-a-public-getter-an-encapsulation-break)
   - [Q5. What is the difference between `protected internal` and `private protected`?](#q5-what-is-the-difference-between-protected-internal-and-private-protected)
   - [Q6. What does `internal` mean in the context of assemblies and `InternalsVisibleTo`?](#q6-what-does-internal-mean-in-the-context-of-assemblies-and-internalsvisibleto)
-  - [Q7. What is the default access level for class members if you omit an modifier?](#q7-what-is-the-default-access-level-for-class-members-if-you-omit-an-modifier)
+  - [Q7. What is the default access level for class members if you omit a modifier?](#q7-what-is-the-default-access-level-for-class-members-if-you-omit-a-modifier)
   - [Q8. How do access modifiers apply to nested types vs top-level types?](#q8-how-do-access-modifiers-apply-to-nested-types-vs-top-level-types)
   - [Q9. What is defensive copying when returning collections from properties?](#q9-what-is-defensive-copying-when-returning-collections-from-properties)
   - [Q10. What is the difference between encapsulation and immutability?](#q10-what-is-the-difference-between-encapsulation-and-immutability)
-  - [Q11. Why are public fields discouraged in public APIs even for simple DTOs in some codebases?](#q11-why-are-public-fields-discouraged-in-public-apis-even-for-simple-dtos-in-some-codebases)
+  - [Q11. Why are public fields discouraged in public APIs?](#q11-why-are-public-fields-discouraged-in-public-apis)
   - [Q12. How does `private protected` restrict visibility compared to `protected` alone?](#q12-how-does-private-protected-restrict-visibility-compared-to-protected-alone)
   - [Q13. What is a friend assembly pattern, and what are its trade-offs?](#q13-what-is-a-friend-assembly-pattern-and-what-are-its-trade-offs)
   - [Q14. How do property accessors use asymmetric access (`public get; private set;`)?](#q14-how-do-property-accessors-use-asymmetric-access-public-get-private-set)
@@ -142,6273 +142,2477 @@
   - [Q2. What is the difference between an `event` and a plain public delegate field?](#q2-what-is-the-difference-between-an-event-and-a-plain-public-delegate-field)
   - [Q3. Why should you unsubscribe from events, and what problem does this prevent?](#q3-why-should-you-unsubscribe-from-events-and-what-problem-does-this-prevent)
   - [Q4. What happens during multicast delegate invocation if one subscriber throws?](#q4-what-happens-during-multicast-delegate-invocation-if-one-subscriber-throws)
-  - [Q5. What is the standard `EventHandler` / `EventHandler<TEventArgs>` pattern?](#q5-what-is-the-standard-eventhandler-eventhandlerteventargs-pattern)
-  - [Q6. How do you raise an event safely (null-check, `?.Invoke`, local copy pattern)?](#q6-how-do-you-raise-an-event-safely-null-check-invoke-local-copy-pattern)
+  - [Q5. What is the standard `EventHandler` / `EventHandler<TEventArgs>` pattern?](#q5-what-is-the-standard-eventhandler--eventhandlerteventargs-pattern)
+  - [Q6. How do you raise an event safely?](#q6-how-do-you-raise-an-event-safely)
   - [Q7. What is the difference between custom delegate types and `EventHandler` for events?](#q7-what-is-the-difference-between-custom-delegate-types-and-eventhandler-for-events)
   - [Q8. Can interfaces declare events, and how are they implemented?](#q8-can-interfaces-declare-events-and-how-are-they-implemented)
   - [Q9. What memory-leak scenario arises when a long-lived publisher holds references to short-lived subscribers?](#q9-what-memory-leak-scenario-arises-when-a-long-lived-publisher-holds-references-to-short-lived-subscribers)
-  - [Q10. What is the difference between events and the Observer pattern / IObservable?](#q10-what-is-the-difference-between-events-and-the-observer-pattern-iobservable)
-  - [Q11. Can you assign to an event from outside the declaring class (`event += handler` vs `event = handler`)?](#q11-can-you-assign-to-an-event-from-outside-the-declaring-class-event-handler-vs-event-handler)
+  - [Q10. What is the difference between events and the Observer pattern / IObservable?](#q10-what-is-the-difference-between-events-and-the-observer-pattern--iobservable)
+  - [Q11. Can you assign to an event from outside the declaring class?](#q11-can-you-assign-to-an-event-from-outside-the-declaring-class)
   - [Q12. What is thread-safe event raising, and when is locking required?](#q12-what-is-thread-safe-event-raising-and-when-is-locking-required)
 
 - [09. OOP Real-World Examples](#09-oop-real-world-examples)
   - [Q1. Explain the SOLID principles with concrete C# examples.](#q1-explain-the-solid-principles-with-concrete-c-examples)
-  - [Q2. What is the Liskov Substitution Principle? Give a classic violation (e.g., `Square`/`Rectangle`).](#q2-what-is-the-liskov-substitution-principle-give-a-classic-violation-eg-squarerectangle)
+  - [Q2. What is the Liskov Substitution Principle? Give a classic violation.](#q2-what-is-the-liskov-substitution-principle-give-a-classic-violation)
   - [Q3. What is Dependency Inversion, and how does constructor injection implement it?](#q3-what-is-dependency-inversion-and-how-does-constructor-injection-implement-it)
   - [Q4. What is the difference between Dependency Injection and the Service Locator pattern?](#q4-what-is-the-difference-between-dependency-injection-and-the-service-locator-pattern)
-  - [Q5. What is the difference between "has-a" and "is-a" relationships? When is inheritance the wrong choice?](#q5-what-is-the-difference-between-has-a-and-is-a-relationships-when-is-inheritance-the-wrong-choice)
+  - [Q5. What is the difference between "has-a" and "is-a" relationships?](#q5-what-is-the-difference-between-has-a-and-is-a-relationships)
   - [Q6. What is the anemic domain model anti-pattern?](#q6-what-is-the-anemic-domain-model-anti-pattern)
   - [Q7. What is the Open/Closed Principle, and how do interfaces support extension without modification?](#q7-what-is-the-openclosed-principle-and-how-do-interfaces-support-extension-without-modification)
-  - [Q8. What is the Single Responsibility Principle — how do you recognize a class that violates it?](#q8-what-is-the-single-responsibility-principle-how-do-you-recognize-a-class-that-violates-it)
-  - [Q9. What is the Interface Segregation Principle — why are fat interfaces problematic?](#q9-what-is-the-interface-segregation-principle-why-are-fat-interfaces-problematic)
-  - [Q10. What is a factory method vs a simple constructor — when do you introduce a factory?](#q10-what-is-a-factory-method-vs-a-simple-constructor-when-do-you-introduce-a-factory)
+  - [Q8. What is the Single Responsibility Principle?](#q8-what-is-the-single-responsibility-principle)
+  - [Q9. What is the Interface Segregation Principle?](#q9-what-is-the-interface-segregation-principle)
+  - [Q10. What is a factory method vs a simple constructor?](#q10-what-is-a-factory-method-vs-a-simple-constructor)
   - [Q11. What is the Strategy pattern, and how does it map to interfaces/delegates in C#?](#q11-what-is-the-strategy-pattern-and-how-does-it-map-to-interfacesdelegates-in-c)
   - [Q12. What is the Repository pattern at a high level, and why depend on abstractions?](#q12-what-is-the-repository-pattern-at-a-high-level-and-why-depend-on-abstractions)
-  - [Q13. How does polymorphism simplify replacing implementations in tests (mock/stub scenarios)?](#q13-how-does-polymorphism-simplify-replacing-implementations-in-tests-mockstub-scenarios)
+  - [Q13. How does polymorphism simplify replacing implementations in tests?](#q13-how-does-polymorphism-simplify-replacing-implementations-in-tests)
   - [Q14. What is the difference between domain modeling with rich behavior vs CRUD-style service objects?](#q14-what-is-the-difference-between-domain-modeling-with-rich-behavior-vs-crud-style-service-objects)
-  - [Q15. **Virtual method from base constructor** — Calling an overridden virtual method from a base constructor runs before derived field initializers complete; overridden code sees default values.](#q15-virtual-method-from-base-constructor-calling-an-overridden-virtual-method-from-a-base-constructor-runs-before-derived-field-initializers-complete-overridden-code-sees-default-values)
-  - [Q16. **Method hiding vs overriding** — `new` hides by compile-time type; `override` dispatches by runtime type. Mixing them breaks expected polymorphism.](#q16-method-hiding-vs-overriding-new-hides-by-compile-time-type-override-dispatches-by-runtime-type-mixing-them-breaks-expected-polymorphism)
-  - [Q17. **`Equals()` without `GetHashCode()`** — Breaks the hash contract; objects can exist in a `Dictionary`/`HashSet` but not be found again after mutation.](#q17-equals-without-gethashcode-breaks-the-hash-contract-objects-can-exist-in-a-dictionaryhashset-but-not-be-found-again-after-mutation)
-  - [Q18. **Mutable object as dictionary key** — Changing a key after insertion causes "lost" entries at runtime.](#q18-mutable-object-as-dictionary-key-changing-a-key-after-insertion-causes-lost-entries-at-runtime)
-  - [Q19. **Struct boxing via interface** — Assigning a struct to an interface type boxes; subsequent struct mutations don't affect the boxed copy.](#q19-struct-boxing-via-interface-assigning-a-struct-to-an-interface-type-boxes-subsequent-struct-mutations-dont-affect-the-boxed-copy)
-  - [Q20. **`protected internal` vs `private protected`** — `protected internal` = protected OR internal; `private protected` = protected AND internal (same assembly only).](#q20-protected-internal-vs-private-protected-protected-internal-protected-or-internal-private-protected-protected-and-internal-same-assembly-only)
-  - [Q21. **Type-checking anti-pattern** — Long `if (animal is Dog)` chains defeat polymorphism; prefer virtual methods or pattern matching on a common abstraction.](#q21-type-checking-anti-pattern-long-if-animal-is-dog-chains-defeat-polymorphism-prefer-virtual-methods-or-pattern-matching-on-a-common-abstraction)
-  - [Q22. **Memory leaks despite GC** — Event handlers and static caches holding references to short-lived objects are the classic managed leak.](#q22-memory-leaks-despite-gc-event-handlers-and-static-caches-holding-references-to-short-lived-objects-are-the-classic-managed-leak)
-  - [Q23. **Exposing `List<T>` directly** — Callers can mutate internal state without invariant checks; return `IReadOnlyList<T>` or defensive copies.](#q23-exposing-listt-directly-callers-can-mutate-internal-state-without-invariant-checks-return-ireadonlylistt-or-defensive-copies)
-  - [Q24. **`init` after construction** — Init-only properties can be set in object initializers and constructors but not arbitrary code afterward; confusing with `{ get; private set; }`.](#q24-init-after-construction-init-only-properties-can-be-set-in-object-initializers-and-constructors-but-not-arbitrary-code-afterward-confusing-with-get-private-set)
-  - [Q25. **Static "singleton" vs DI singleton** — A static class is hard to test and replace; instance singletons registered in DI are still mockable if designed carefully.](#q25-static-singleton-vs-di-singleton-a-static-class-is-hard-to-test-and-replace-instance-singletons-registered-in-di-are-still-mockable-if-designed-carefully)
-  - [Q26. **Explicit interface hiding** — Public class method and explicit interface method can coexist with different behavior; callers must know which API they use.](#q26-explicit-interface-hiding-public-class-method-and-explicit-interface-method-can-coexist-with-different-behavior-callers-must-know-which-api-they-use)
-  - [Q27. **Finalizer timing** — `~ClassName()` runs non-deterministically; do not rely on it for timely resource release — use `Dispose`.](#q27-finalizer-timing-classname-runs-non-deterministically-do-not-rely-on-it-for-timely-resource-release-use-dispose)
-  - [Q28. **Overriding `==` without consistent `Equals`/`GetHashCode`** — Custom equality operators that disagree with `Equals` break collections and LINQ.](#q28-overriding-without-consistent-equalsgethashcode-custom-equality-operators-that-disagree-with-equals-break-collections-and-linq)
-  - [Q29. **Default interface methods on structs** — Calling a default interface method on a struct may box the struct depending on how it is invoked.](#q29-default-interface-methods-on-structs-calling-a-default-interface-method-on-a-struct-may-box-the-struct-depending-on-how-it-is-invoked)
-  - [Q1. (R) A loan portal caches `Customer` instances in memory between requests. After one user edits a profile, another user sees the same name and loan amount. Review:](#q1-r-a-loan-portal-caches-customer-instances-in-memory-between-requests-after-one-user-edits-a-profile-another-user-sees-the-same-name-and-loan-amount-review)
-  - [Q2. (R) A student lookup API throws `NullReferenceException` in production when a roll number is missing. Review the service:](#q2-r-a-student-lookup-api-throws-nullreferenceexception-in-production-when-a-roll-number-is-missing-review-the-service)
-  - [Q3. (R) After `Student` gained only a parameterized constructor (`Student(string studentName, int rollNumber)`), a teammate adds a factory method. `dotnet build` fails. Review:](#q3-r-after-student-gained-only-a-parameterized-constructor-studentstring-studentname-int-rollnumber-a-teammate-adds-a-factory-method-dotnet-build-fails-review)
-  - [Q4. (D) Your team models loans with the chapter's `Customer` class — public fields plus `CalculateTotalInterest()` on the instance. A new developer moves all interest math into a static `LoanCalculator` and leaves `Customer` as a data bag. Review both approaches. Which would you standardize on for a production lending module, and why?](#q4-d-your-team-models-loans-with-the-chapters-customer-class-public-fields-plus-calculatetotalinterest-on-the-instance-a-new-developer-moves-all-interest-math-into-a-static-loancalculator-and-leaves-customer-as-a-data-bag-review-both-approaches-which-would-you-standardize-on-for-a-production-lending-module-and-why)
-  - [Q5. (M) A scheduling feature stores each student's date of birth and a "next review date." A bug report says review dates never update on the student record. Review:](#q5-m-a-scheduling-feature-stores-each-students-date-of-birth-and-a-next-review-date-a-bug-report-says-review-dates-never-update-on-the-student-record-review)
-  - [Q6. (R) An enrollment module aliases student records for audit trails. Roll numbers change unexpectedly in downstream reports. Review:](#q6-r-an-enrollment-module-aliases-student-records-for-audit-trails-roll-numbers-change-unexpectedly-in-downstream-reports-review)
-
-- [02. Properties & Indexers - Done](#02-properties-indexers---done)
-
-- [02. Properties & Indexers - Done](#02-properties-indexers---done-1)
-  - [Q1. (R) A catalog service persists book records. A junior dev refactors `Isbn` to an auto-property "for consistency." Review the change — what breaks in production, and how should `Isbn` be implemented?](#q1-r-a-catalog-service-persists-book-records-a-junior-dev-refactors-isbn-to-an-auto-property-for-consistency-review-the-change-what-breaks-in-production-and-how-should-isbn-be-implemented)
-  - [Q2. (R) An API team models catalog metadata with init-only properties. After code review, a developer adds a "sync" method. What is wrong, and what pattern should they use instead?](#q2-r-an-api-team-models-catalog-metadata-with-init-only-properties-after-code-review-a-developer-adds-a-sync-method-what-is-wrong-and-what-pattern-should-they-use-instead)
-  - [Q3. (R) A dashboard reads `DisplayLabel` on every row render. A teammate adds "helpful" logic inside the expression-bodied getter. Review — what problems does this introduce?](#q3-r-a-dashboard-reads-displaylabel-on-every-row-render-a-teammate-adds-helpful-logic-inside-the-expression-bodied-getter-review-what-problems-does-this-introduce)
-  - [Q4. (R) A `BookShelf` indexer passes QA with small test data, but production reports `NullReferenceException` and "empty slot" bugs. Review the indexer — what's wrong with bounds checking?](#q4-r-a-bookshelf-indexer-passes-qa-with-small-test-data-but-production-reports-nullreferenceexception-and-empty-slot-bugs-review-the-indexer-whats-wrong-with-bounds-checking)
-  - [Q5. (R) A library module exposes the internal book list through a property so callers can "query and filter easily." Review the API surface — what can go wrong?](#q5-r-a-library-module-exposes-the-internal-book-list-through-a-property-so-callers-can-query-and-filter-easily-review-the-api-surface-what-can-go-wrong)
-  - [Q6. (D) You inherit a domain model mixing auto-properties, init-only metadata, expression-bodied labels, and a collection property. A PR proposes fixing all five categories above in one sprint. How do you prioritize encapsulation fixes before a catalog migration goes live?](#q6-d-you-inherit-a-domain-model-mixing-auto-properties-init-only-metadata-expression-bodied-labels-and-a-collection-property-a-pr-proposes-fixing-all-five-categories-above-in-one-sprint-how-do-you-prioritize-encapsulation-fixes-before-a-catalog-migration-goes-live)
-
-- [03. Constructors & Method Overloading](#03-constructors-method-overloading-1)
-
-- [03. Constructors & Method Overloading](#03-constructors-method-overloading-2)
-  - [Q1. (R) A teammate refactors `OrderLine` to chain constructors like the chapter's `Product` type. QA reports invalid lines in production — empty SKU and zero quantity slip through. Review the ctors. What went wrong, and how do you fix it?](#q1-r-a-teammate-refactors-orderline-to-chain-constructors-like-the-chapters-product-type-qa-reports-invalid-lines-in-production-empty-sku-and-zero-quantity-slip-through-review-the-ctors-what-went-wrong-and-how-do-you-fix-it)
-  - [Q2. (R) A .NET 8 service adopts a **primary constructor** for a warehouse DTO. Unit tests expecting `ArgumentException` on bad input fail with `NullReferenceException` instead. Review the type. What is the initialization order problem, and how would you enforce invariants?](#q2-r-a-net-8-service-adopts-a-primary-constructor-for-a-warehouse-dto-unit-tests-expecting-argumentexception-on-bad-input-fail-with-nullreferenceexception-instead-review-the-type-what-is-the-initialization-order-problem-and-how-would-you-enforce-invariants)
-  - [Q3. (R) After adding a convenience overload to `LineItemCalculator`-style pricing helpers, `dotnet build` fails with **CS0121** ("The call is ambiguous"). Which overloads conflict, and how do you resolve the call site or signatures?](#q3-r-after-adding-a-convenience-overload-to-lineitemcalculator-style-pricing-helpers-dotnet-build-fails-with-cs0121-the-call-is-ambiguous-which-overloads-conflict-and-how-do-you-resolve-the-call-site-or-signatures)
-  - [Q4. (M) A junior dev models discounted inventory items by inheriting from `Product` (chapter pattern). `dotnet build` reports **CS2506** and **CS7036**. Diagnose **`: this(...)` vs `: base(...)`** mistakes and state the correct ctor initialization order.](#q4-m-a-junior-dev-models-discounted-inventory-items-by-inheriting-from-product-chapter-pattern-dotnet-build-reports-cs2506-and-cs7036-diagnose-this-vs-base-mistakes-and-state-the-correct-ctor-initialization-order)
-  - [Q5. (P) An ASP.NET Core API maps inbound JSON to a **`required`** init-only request type before calling domain ctors. A client omits `Name` but the payload still deserializes and reaches `new Product(...)`. What happened at compile time vs runtime, and how do you align API contracts with constructor validation?](#q5-p-an-aspnet-core-api-maps-inbound-json-to-a-required-init-only-request-type-before-calling-domain-ctors-a-client-omits-name-but-the-payload-still-deserializes-and-reaches-new-product-what-happened-at-compile-time-vs-runtime-and-how-do-you-align-api-contracts-with-constructor-validation)
-  - [Q6. (D) A warehouse microservice registers services in DI but still constructs dependencies manually inside ctors. Review startup and `InventorySyncService`. What breaks in tests, lifetimes, and startup, and what pattern replaces it?](#q6-d-a-warehouse-microservice-registers-services-in-di-but-still-constructs-dependencies-manually-inside-ctors-review-startup-and-inventorysyncservice-what-breaks-in-tests-lifetimes-and-startup-and-what-pattern-replaces-it)
-
-- [04. Static Members & Static Classes](#04-static-members-static-classes-1)
-
-- [04. Static Members & Static Classes](#04-static-members-static-classes-2)
-  - [Q1. (R) An ASP.NET Core API caches the "current user's cart" in a static field so every controller can read it without DI. Under load, users report seeing each other's items. Review the code — what is wrong and how do you fix it?](#q1-r-an-aspnet-core-api-caches-the-current-users-cart-in-a-static-field-so-every-controller-can-read-it-without-di-under-load-users-report-seeing-each-others-items-review-the-code-what-is-wrong-and-how-do-you-fix-it)
-  - [Q2. (M) A teammate adds runtime config loading to `AppSettings` and reports intermittent `TypeInitializationException` on first request. Review the static initialization — what ordering traps exist, and how would you make startup deterministic?](#q2-m-a-teammate-adds-runtime-config-loading-to-appsettings-and-reports-intermittent-typeinitializationexception-on-first-request-review-the-static-initialization-what-ordering-traps-exist-and-how-would-you-make-startup-deterministic)
-  - [Q3. (R) Production logging uses the tutorial's `AuditLogger` singleton instead of `ILogger`. Tests pass locally but CI flakes and log counts are wrong under concurrent requests. Review the pattern — what's broken and what replaces it?](#q3-r-production-logging-uses-the-tutorials-auditlogger-singleton-instead-of-ilogger-tests-pass-locally-but-ci-flakes-and-log-counts-are-wrong-under-concurrent-requests-review-the-pattern-whats-broken-and-what-replaces-it)
-  - [Q4. (R) A developer refactors `TaxHelper` to support per-region tax profiles and adds instance state. Build fails. Review the changes — what rules did they violate, and what structure should replace a static class here?](#q4-r-a-developer-refactors-taxhelper-to-support-per-region-tax-profiles-and-adds-instance-state-build-fails-review-the-changes-what-rules-did-they-violate-and-what-structure-should-replace-a-static-class-here)
-  - [Q5. (R) `BankAccount` account numbers duplicate in production after traffic increases. The team uses the tutorial counter as-is. Review the static field usage — what race exists and how do you fix it without abandoning a shared sequence?](#q5-r-bankaccount-account-numbers-duplicate-in-production-after-traffic-increases-the-team-uses-the-tutorial-counter-as-is-review-the-static-field-usage-what-race-exists-and-how-do-you-fix-it-without-abandoning-a-shared-sequence)
-  - [Q6. (D) Your API team debates three approaches for shared, read-mostly configuration: `public const` literals, `static readonly` loaded at type init, and mutable `public static` properties set from middleware. Which would you allow in a multi-instance ASP.NET Core deployment, and which would you ban? Why?](#q6-d-your-api-team-debates-three-approaches-for-shared-read-mostly-configuration-public-const-literals-static-readonly-loaded-at-type-init-and-mutable-public-static-properties-set-from-middleware-which-would-you-allow-in-a-multi-instance-aspnet-core-deployment-and-which-would-you-ban-why)
-
-- [05. Inheritance &  Polymorphism](#05-inheritance-polymorphism-1)
-
-- [05. Inheritance &  Polymorphism](#05-inheritance-polymorphism-2)
-  - [Q1. (R) Badge printing in production shows `"EMP"` for every staff member, including managers and contractors. Review this excerpt from the payroll service (pattern matches this chapter's `GetBadgeThroughEmployeeReference`). What is wrong, and how do you fix it?](#q1-r-badge-printing-in-production-shows-emp-for-every-staff-member-including-managers-and-contractors-review-this-excerpt-from-the-payroll-service-pattern-matches-this-chapters-getbadgethroughemployeereference-what-is-wrong-and-how-do-you-fix-it)
-  - [Q2. (R) After adding `InternEmployee` to the payroll hierarchy, `ProcessPayroll` sometimes throws and totals are wrong. Review the new type and the unchanged payroll loop. What design rule did this violate, and what is the prioritized fix?](#q2-r-after-adding-internemployee-to-the-payroll-hierarchy-processpayroll-sometimes-throws-and-totals-are-wrong-review-the-new-type-and-the-unchanged-payroll-loop-what-design-rule-did-this-violate-and-what-is-the-prioritized-fix)
-  - [Q3. (R) A developer adds `Director : Manager` but the project fails to compile. Review the constructors. What is wrong with the chain, and what runs (in order) when `new Director(...)` succeeds?](#q3-r-a-developer-adds-director-manager-but-the-project-fails-to-compile-review-the-constructors-what-is-wrong-with-the-chain-and-what-runs-in-order-when-new-director-succeeds)
-  - [Q4. (R) A refactor adds validation to the base payroll method. Contract net pay drops unexpectedly for some employees. Review the change. What broke, and how do you fix it without duplicating validation in every derived class?](#q4-r-a-refactor-adds-validation-to-the-base-payroll-method-contract-net-pay-drops-unexpectedly-for-some-employees-review-the-change-what-broke-and-how-do-you-fix-it-without-duplicating-validation-in-every-derived-class)
-  - [Q5. (P) A teammate replaces the polymorphic payroll loop with explicit type checks "for clarity." New `ContractEmployee` rows are added to the database but never appear in the exported total. Review the method. What failed at runtime, and what pattern from this chapter should drive payroll aggregation instead?](#q5-p-a-teammate-replaces-the-polymorphic-payroll-loop-with-explicit-type-checks-for-clarity-new-contractemployee-rows-are-added-to-the-database-but-never-appear-in-the-exported-total-review-the-method-what-failed-at-runtime-and-what-pattern-from-this-chapter-should-drive-payroll-aggregation-instead)
-  - [Q6. (D) Product wants `Employee` to inherit from a shared `AuditableEntity` base that already inherits `EntityBase`, while payroll still needs `Person → Employee → PermanentEmployee → Manager`. The team also proposes `Employee : Department` so every employee "is a department" for reporting. What breaks in C#, and where do LSP and fragile-base-class risks show up even if it compiles?](#q6-d-product-wants-employee-to-inherit-from-a-shared-auditableentity-base-that-already-inherits-entitybase-while-payroll-still-needs-person-employee-permanentemployee-manager-the-team-also-proposes-employee-department-so-every-employee-is-a-department-for-reporting-what-breaks-in-c-and-where-do-lsp-and-fragile-base-class-risks-show-up-even-if-it-compiles)
-
-- [06. Abstract Classes & Interfaces](#06-abstract-classes-interfaces-1)
-
-- [06. Abstract Classes & Interfaces](#06-abstract-classes-interfaces-2)
-  - [Q1. (D) Your team is adding a `SpreadsheetDocument` to the document archive. It shares `Title` and `CreatedOn` with invoices and reports, but also needs optional CSV export and a separate audit trail that other document types may never use. A junior dev proposes making everything an interface:](#q1-d-your-team-is-adding-a-spreadsheetdocument-to-the-document-archive-it-shares-title-and-createdon-with-invoices-and-reports-but-also-needs-optional-csv-export-and-a-separate-audit-trail-that-other-document-types-may-never-use-a-junior-dev-proposes-making-everything-an-interface)
-  - [Q2. (R) A storage service saves file names for archived documents. After deployment, some invoices overwrite each other on disk. Review:](#q2-r-a-storage-service-saves-file-names-for-archived-documents-after-deployment-some-invoices-overwrite-each-other-on-disk-review)
-  - [Q3. (R) A PR introduces a "kitchen sink" capability interface for the export pipeline. Review:](#q3-r-a-pr-introduces-a-kitchen-sink-capability-interface-for-the-export-pipeline-review)
-  - [Q4. (M) The team ships a NuGet package with `IExportable` consumed by ten internal services. To add optional metadata without breaking implementers, they add a C# 8 default method:](#q4-m-the-team-ships-a-nuget-package-with-iexportable-consumed-by-ten-internal-services-to-add-optional-metadata-without-breaking-implementers-they-add-a-c-8-default-method)
-  - [Q5. (R) Unit tests for `DocumentProcessor` are slow and require real PDF files on disk because production code was wired to concrete types. Review:](#q5-r-unit-tests-for-documentprocessor-are-slow-and-require-real-pdf-files-on-disk-because-production-code-was-wired-to-concrete-types-review)
-  - [Q6. (D) Code review: two approaches for a payment-notification feature.](#q6-d-code-review-two-approaches-for-a-payment-notification-feature)
-
-- [07. Encapsulation & Access Modifiers](#07-encapsulation-access-modifiers-1)
-
-- [07. Encapsulation & Access Modifiers](#07-encapsulation-access-modifiers-2)
-  - [Q1. (R) A junior developer "simplifies" the chapter's `BankAccount` for a payments microservice. QA reports negative balances in production. Review the change — what broke the invariant, and how do you fix it?](#q1-r-a-junior-developer-simplifies-the-chapters-bankaccount-for-a-payments-microservice-qa-reports-negative-balances-in-production-review-the-change-what-broke-the-invariant-and-how-do-you-fix-it)
-  - [Q2. (R) A shared library ships both a public façade and internal implementation types. A consuming team references the NuGet package and complains they cannot unit-test ledger entries. Review the library surface:](#q2-r-a-shared-library-ships-both-a-public-façade-and-internal-implementation-types-a-consuming-team-references-the-nuget-package-and-complains-they-cannot-unit-test-ledger-entries-review-the-library-surface)
-  - [Q3. (P) Two assemblies in the same solution — `Billing.Core` (library) and `Billing.Tests` — need test access to `internal` pricing helpers without exposing them on the public NuGet surface. A developer adds this to `Billing.Core.csproj`:](#q3-p-two-assemblies-in-the-same-solution-billingcore-library-and-billingtests-need-test-access-to-internal-pricing-helpers-without-exposing-them-on-the-public-nuget-surface-a-developer-adds-this-to-billingcorecsproj)
-  - [Q4. (R) A domain hierarchy models employee compensation. A subclass "optimizes" payroll by writing directly to protected state. Review:](#q4-r-a-domain-hierarchy-models-employee-compensation-a-subclass-optimizes-payroll-by-writing-directly-to-protected-state-review)
-  - [Q5. (D) Your team designs an immutable `MemberProfile` DTO for cross-service messaging (similar to this chapter's `MemberProfile`). Two proposals:](#q5-d-your-team-designs-an-immutable-memberprofile-dto-for-cross-service-messaging-similar-to-this-chapters-memberprofile-two-proposals)
-  - [Q6. (M) A plugin assembly (`Plugins.Payroll`) references your core HR assembly and defines `PayrollProcessor : Employee`. Developers expect to read `InternalCounter` on a base instance from the plugin, but the build fails with CS0122. Given this base class from the chapter:](#q6-m-a-plugin-assembly-pluginspayroll-references-your-core-hr-assembly-and-defines-payrollprocessor-employee-developers-expect-to-read-internalcounter-on-a-base-instance-from-the-plugin-but-the-build-fails-with-cs0122-given-this-base-class-from-the-chapter)
-
-- [08. Events](#08-events-1)
-  - [Q1. (R) A WPF-style desktop app keeps growing in memory after users open and close account detail panels. Review this wiring. What keeps `AccountDetailPanel` instances alive, and how do you fix it?](#q1-r-a-wpf-style-desktop-app-keeps-growing-in-memory-after-users-open-and-close-account-detail-panels-review-this-wiring-what-keeps-accountdetailpanel-instances-alive-and-how-do-you-fix-it)
-  - [Q2. (R) After a refactor, balance notifications crash when no UI is subscribed. Review the publisher change:](#q2-r-after-a-refactor-balance-notifications-crash-when-no-ui-is-subscribed-review-the-publisher-change)
-  - [Q3. (R) A teammate exposes a notification hook as a public delegate field "for flexibility." Review usage from another assembly:](#q3-r-a-teammate-exposes-a-notification-hook-as-a-public-delegate-field-for-flexibility-review-usage-from-another-assembly)
-  - [Q4. (P) A background `BankAccount` service raises `BalanceChanged` from worker threads while the UI thread subscribes handlers. A developer uses only null-conditional invoke inside `OnBalanceChanged`:](#q4-p-a-background-bankaccount-service-raises-balancechanged-from-worker-threads-while-the-ui-thread-subscribes-handlers-a-developer-uses-only-null-conditional-invoke-inside-onbalancechanged)
-  - [Q5. (P) An ASP.NET Core API registers a **Singleton** `OrderStateTracker` that exposes `event EventHandler<OrderPlacedEventArgs>? OrderPlaced`. Scoped services subscribe in their constructors to push SignalR updates. After a few thousand requests, memory climbs and old connections still receive events. What is wrong with this wiring, and what pattern replaces in-process events for web apps?](#q5-p-an-aspnet-core-api-registers-a-singleton-orderstatetracker-that-exposes-event-eventhandlerorderplacedeventargs-orderplaced-scoped-services-subscribe-in-their-constructors-to-push-signalr-updates-after-a-few-thousand-requests-memory-climbs-and-old-connections-still-receive-events-what-is-wrong-with-this-wiring-and-what-pattern-replaces-in-process-events-for-web-apps)
-  - [Q6. (D) Your team debates three ways to notify downstream code when `BankAccount` balance changes: (A) `public event EventHandler<T>`, (B) `public Action<T>?` callback field, (C) `INotificationService` injected and called directly from `Deposit`/`TryWithdraw`. When would you choose each in a production ASP.NET Core domain layer, and what is the unsubscribe/lifetime rule of thumb?](#q6-d-your-team-debates-three-ways-to-notify-downstream-code-when-bankaccount-balance-changes-a-public-event-eventhandlert-b-public-actiont-callback-field-c-inotificationservice-injected-and-called-directly-from-deposittrywithdraw-when-would-you-choose-each-in-a-production-aspnet-core-domain-layer-and-what-is-the-unsubscribelifetime-rule-of-thumb)
-
-- [09. OOP Real-World Examples](#09-oop-real-world-examples-1)
-
-- [09. OOP Real-World Examples](#09-oop-real-world-examples-2)
-  - [Q1. (R) A team ports the chapter's order-fulfillment payment flow into a service class. Support sees duplicate debits and failed rollbacks after card declines. Review:](#q1-r-a-team-ports-the-chapters-order-fulfillment-payment-flow-into-a-service-class-support-sees-duplicate-debits-and-failed-rollbacks-after-card-declines-review)
-  - [Q2. (R) A logistics API quotes delivery cost from the chapter's `Vehicle` fleet. After adding `Motorcycle` to the fleet, quotes are wrong and every new vehicle type requires editing this method. Review:](#q2-r-a-logistics-api-quotes-delivery-cost-from-the-chapters-vehicle-fleet-after-adding-motorcycle-to-the-fleet-quotes-are-wrong-and-every-new-vehicle-type-requires-editing-this-method-review)
-  - [Q3. (R) A PR consolidates payment, delivery, labels, notifications, and invoicing into one coordinator for "simplicity." Review:](#q3-r-a-pr-consolidates-payment-delivery-labels-notifications-and-invoicing-into-one-coordinator-for-simplicity-review)
-  - [Q4. (D) Product wants **push notifications** and a shared **retry-with-backoff** helper for all channels. Two proposals land in code review:](#q4-d-product-wants-push-notifications-and-a-shared-retry-with-backoff-helper-for-all-channels-two-proposals-land-in-code-review)
-  - [Q5. (P) An ASP.NET Core team registers the chapter's fulfillment types in `Program.cs` for a checkout API:](#q5-p-an-aspnet-core-team-registers-the-chapters-fulfillment-types-in-programcs-for-a-checkout-api)
-  - [Q6. (R) A developer splits `BankAccount` into partial files (as in this chapter) but adds a "fast path" for internal ops. Frozen accounts still accept money in staging. Review both fragments:](#q6-r-a-developer-splits-bankaccount-into-partial-files-as-in-this-chapter-but-adds-a-fast-path-for-internal-ops-frozen-accounts-still-accept-money-in-staging-review-both-fragments)
-  - [Q7. (D) You inherit a monolithic fulfillment codebase that mirrors this chapter's demo `Main` — one method creates every object, mutates wallet state, picks a truck by array index, renders shapes, sends notifications, and prints the invoice. The team has one sprint to improve production readiness without a full rewrite.](#q7-d-you-inherit-a-monolithic-fulfillment-codebase-that-mirrors-this-chapters-demo-main-one-method-creates-every-object-mutates-wallet-state-picks-a-truck-by-array-index-renders-shapes-sends-notifications-and-prints-the-invoice-the-team-has-one-sprint-to-improve-production-readiness-without-a-full-rewrite)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+  - [Q15. Virtual method from base constructor — what is the risk?](#q15-virtual-method-from-base-constructor--what-is-the-risk)
+  - [Q16. Method hiding vs overriding — how does `new` vs `override` affect dispatch?](#q16-method-hiding-vs-overriding--how-does-new-vs-override-affect-dispatch)
+  - [Q17. `Equals()` without `GetHashCode()` — what breaks?](#q17-equals-without-gethashcode--what-breaks)
+  - [Q18. Mutable object as dictionary key — what is the runtime risk?](#q18-mutable-object-as-dictionary-key--what-is-the-runtime-risk)
+  - [Q19. Struct boxing via interface — what happens to subsequent mutations?](#q19-struct-boxing-via-interface--what-happens-to-subsequent-mutations)
+  - [Q20. `protected internal` vs `private protected` — what is the access difference?](#q20-protected-internal-vs-private-protected--what-is-the-access-difference)
+  - [Q21. Type-checking anti-pattern — why are long `is` chains problematic?](#q21-type-checking-anti-pattern--why-are-long-is-chains-problematic)
+  - [Q22. Memory leaks despite GC — what causes them in managed code?](#q22-memory-leaks-despite-gc--what-causes-them-in-managed-code)
+  - [Q23. Exposing `List<T>` directly — why is this problematic?](#q23-exposing-listt-directly--why-is-this-problematic)
+  - [Q24. `init` after construction — what is allowed and what is not?](#q24-init-after-construction--what-is-allowed-and-what-is-not)
+  - [Q25. Static "singleton" vs DI singleton — what is the testability difference?](#q25-static-singleton-vs-di-singleton--what-is-the-testability-difference)
+  - [Q26. Explicit interface hiding — how can two `GetName()` methods coexist?](#q26-explicit-interface-hiding--how-can-two-getname-methods-coexist)
+  - [Q27. Finalizer timing — why can't you rely on `~ClassName()` for timely cleanup?](#q27-finalizer-timing--why-cant-you-rely-on-classname-for-timely-cleanup)
+  - [Q28. Overriding `==` without consistent `Equals`/`GetHashCode` — what breaks?](#q28-overriding--without-consistent-equalsgethashcode--what-breaks)
+  - [Q29. Default interface methods on structs — when does boxing occur?](#q29-default-interface-methods-on-structs--when-does-boxing-occur)
 
 ---
 
 ### 01. Classes & Objects
 
-#### Q1. What is a class and what is an object in C#?
+---
 
-What is a class and what is an object in C#?
+## Q1. What is a class and what is an object in C#?
 
-**Answer:** A class is a type definition—a blueprint describing fields, properties, and methods that instances will have. An object is a concrete instance of that class created at runtime with `new`, holding its own copy of instance state while sharing method implementations from the type.
+**Concepts**
+- class as a type definition and blueprint
+- object as a runtime instance on the heap
+- reference vs instance state distinction
+- static members vs instance members
+- many-objects-from-one-class relationship
 
-- The class exists once in metadata; many objects can be instantiated from it during execution.
-- Reference-type objects live on the heap; the variable stores a reference to the object.
-- Static members belong to the type; instance members belong to each object—see Q12.
-- Tutorial terminology: `Student` is the class; `new Student(...)` produces an object.
+**Answer**
+
+A class is a type definition — a blueprint that describes the fields, properties, and methods every instance will have. An object is a concrete instance of that class created at runtime with `new`, which allocates memory on the managed heap and returns a reference stored in the variable. The class exists once in compiled metadata, while many independent objects can be created from it during execution, each holding its own copy of instance fields. Static members belong to the type itself rather than any particular object, so every instance observes the same static state and no instance is needed to access them.
 
 ---
 
-#### Q2. What is the difference between `struct` and `class` in C#?
+## Q2. What is the difference between `struct` and `class` in C#?
 
-What is the difference between `struct` and `class` in C#?
+**Concepts**
+- value type vs reference type semantics
+- copy-on-assignment behavior
+- null default for class references vs zero-bits for structs
+- inheritance restrictions on structs
+- struct identity vs reference identity
 
-**Answer:** `struct` is a value type copied on assignment and defaulting to zeroed fields without null (unless nullable), while `class` is a reference type identified by reference, defaulting to null, supporting inheritance and full polymorphism.
+**Answer**
 
-| | `struct` | `class` |
-|---|---|---|
-| Kind | Value type | Reference type |
-| Inheritance | Interfaces only | Single base class + interfaces |
-| Default | Zero bits | `null` |
-| Identity | Copied; no reference identity | Reference equality by default |
-
-Choose structs for small immutable data; classes for identity, shared mutable state, and inheritance hierarchies.
+A `struct` is a value type that copies its entire data on assignment, so two variables holding the same struct are independent after the assignment. A `class` is a reference type where the variable stores only a pointer, meaning two variables can reference the same object and mutations through one are visible through the other. Structs default to all-zero bits and cannot be null unless wrapped in `Nullable<T>`, while class variables default to `null` since no object is referenced. Structs support only interface inheritance and cannot serve as base types, which means they are unsuitable for polymorphic hierarchies. Use structs for small, short-lived, immutable data; use classes for entities with identity, shared mutable state, or inheritance.
 
 ---
 
-#### Q3. What are the different principles of OOP supported in C#?
+## Q3. What are the different principles of OOP supported in C#?
 
-What are the different principles of OOP supported in C#?
+**Concepts**
+- encapsulation via access modifiers and properties
+- abstraction via abstract classes and interfaces
+- inheritance via single base class plus interfaces
+- polymorphism via virtual dispatch and interface implementation
+- composition as a modern complement to inheritance
 
-**Answer:** C# supports encapsulation (hide state, expose controlled APIs), abstraction (essential model without implementation detail), inheritance (reuse and extend types), and polymorphism (one interface, many behaviors via virtual methods and interfaces).
+**Answer**
 
-- Encapsulation uses access modifiers and properties—Module 02 chapter 07.
-- Abstraction uses abstract classes and interfaces—chapter 06.
-- Inheritance and polymorphism—chapter 05.
-- C# also emphasizes composition patterns alongside classical OOP in modern API design.
-
----
-
-#### Q4. What is a partial class in C#?
-
-What is a partial class in C#?
-
-**Answer:** A `partial class` splits one class definition across multiple source files, merged by the compiler into a single type. It supports designer-generated code separation (WinForms, EF) and large team workflows without one giant file.
-
-- All parts must use the `partial` modifier and the same namespace and class name.
-- Partial methods (with restrictions) allow one part to declare and another to implement.
-- Cannot split across assemblies—partial is a compile-time source organization feature only.
-- One partial file can hold generated code users should not edit manually.
+C# supports the four classical OOP pillars. Encapsulation hides state behind access modifiers and controlled property accessors so the type enforces its own invariants. Abstraction exposes only essential operations through abstract classes or interfaces, hiding implementation details from callers. Inheritance lets a derived class extend a base class, reusing and specializing behavior while sharing the base contract. Polymorphism allows code written against a base type or interface reference to invoke the correct derived behavior at runtime through virtual dispatch.
 
 ---
 
-#### Q5. Explain object initializers and collection initializers in C#.
+## Q4. What is a partial class in C#?
 
-Explain object initializers and collection initializers in C#.
+**Concepts**
+- partial keyword splitting one type across files
+- compiler merging at compile time only
+- use with designer-generated code
+- partial methods for cross-file hooks
+- same namespace and assembly requirement
 
-**Answer:** Object initializers set public fields or properties immediately after construction with `{ Property = value }` syntax without requiring a dedicated constructor overload. Collection initializers add elements to collections implementing `Add` with `{ item1, item2 }` or `{ ["key"] = value }` for indexers.
+**Answer**
 
-- Object initializers call constructor first, then assign listed members in source order.
-- Collection initializers desugar to repeated `Add` calls on the new collection instance.
-- Init-only properties (`init`) work in object initializers until construction completes—chapter 02.
-- Initializers improve readability for DTO construction and test data setup.
-
----
-
-#### Q6. What is the difference between shallow copy and deep copy in C#?
-
-What is the difference between shallow copy and deep copy in C#?
-
-**Answer:** Shallow copy duplicates the top-level object and copies field values as-is—for reference fields, both copies point to the same nested objects. Deep copy recursively clones nested objects so the clone graph is independent, requiring custom logic or serialization.
-
-- `MemberwiseClone` on classes is protected shallow copy; structs copy by value shallowly for contained references.
-- Arrays clone shallowly for elements that are reference types.
-- Immutable nested objects make shallow copy safe when inner state cannot change.
-- See Arrays Q11 for array copy semantics.
+A `partial class` splits one type's definition across multiple source files, and the compiler merges them into a single type at compile time. All parts must carry the `partial` modifier and share the same namespace, type name, and assembly. This pattern is common for tooling scenarios like WinForms and EF Core scaffolding, where one file holds auto-generated code that users should not edit and another holds custom logic. Partial methods let one part declare a method signature while another provides the implementation, with the compiler eliminating call sites when no implementation is supplied.
 
 ---
 
-#### Q7. What is the difference between object identity and object equality?
+## Q5. Explain object initializers and collection initializers in C#.
 
-What is the difference between object identity and object equality?
+**Concepts**
+- object initializer running after constructor
+- collection initializer desugaring to Add calls
+- init-only properties in object initializers
+- property assignment order in initializers
+- use cases for DTOs and test data
 
-**Answer:** Identity means two references denote the same heap object (`ReferenceEquals` true). Equality means two objects compare as equivalent by value or custom logic (`Equals`, overloaded `==`) even when they are distinct instances.
+**Answer**
 
-- Default class equality is reference identity unless overridden.
-- Value types compare by value bitwise/default equality unless overridden.
-- Equal but non-identical strings illustrate content vs reference—Module 01 Strings Q16.
-- Consistent `Equals`, `GetHashCode`, and `==` matter for collections—Gotcha 3 Module 02.
-
----
-
-#### Q8. What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?
-
-What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?
-
-**Answer:** `IDisposable.Dispose` releases resources deterministically when callers use `using` or explicit dispose. A finalizer runs later during garbage collection as a safety net for missed dispose calls, not for timely cleanup of scarce resources like file handles.
-
-- Implement dispose pattern: public `Dispose()` calling protected virtual `Dispose(bool disposing)`.
-- Suppress finalizer after successful dispose with `GC.SuppressFinalize`.
-- Finalizers add GC overhead and non-deterministic timing—Gotcha 13 Module 02.
-- Unmanaged resources belong in dispose; managed references usually need only nulling in dispose when holding events or caches.
+Object initializers set public properties or fields immediately after a constructor completes using `{ Property = value }` syntax, which avoids needing a dedicated constructor overload for every combination of optional properties. Collection initializers add elements to collections that implement `Add` using `{ item1, item2 }` syntax, which desugars to repeated `Add` calls after the collection is constructed. The constructor still runs first and establishes required invariants; the initializer assignments follow in source-text order. Init-only properties (`init`) accept assignments during this initializer phase and become read-only once construction ends.
 
 ---
 
-#### Q9. What happens at runtime when you execute `new MyClass()` — allocation, constructor, and reference assignment?
+## Q6. What is the difference between shallow copy and deep copy in C#?
 
-What happens at runtime when you execute `new MyClass()` — allocation, constructor, and reference assignment?
+**Concepts**
+- shallow copy duplicating top-level fields only
+- deep copy recursively cloning all referenced objects
+- MemberwiseClone producing shallow copy
+- reference aliasing risk in shallow copies
+- immutable nested objects making shallow copy safe
 
-**Answer:** The runtime allocates memory for the object (heap for classes), initializes fields to defaults or field initializers, runs instance constructors (base then derived chain), and returns a reference assigned to the variable.
+**Answer**
 
-1. **Allocate** — CLR allocates object header, method table pointer, and field storage aligned for the type.
-2. **Initialize fields** — Field initializers and default values run before constructor body in defined order (chapter 03).
-3. **Construct** — Constructor chain executes `: base(...)` then `: this(...)` rules per inheritance.
-4. **Assign** — Reference is stored in the target variable or returned to caller.
-
-No object exists for instance methods until `new` completes successfully.
-
----
-
-#### Q10. Where are class instances stored vs where are struct instances typically stored when local variables?
-
-Where are class instances stored vs where are struct instances typically stored when local variables?
-
-**Answer:** Class instances always live on the managed heap; local variables hold references. Struct locals typically reside on the stack or in registers, but structs embedded in heap objects or boxed to `object` live on the heap as part of those containers.
-
-- Escape analysis may allocate struct locals on heap when referenced from closures surviving the method.
-- Large struct locals still copy by value on assignment—performance consideration for `in` parameters.
-- See Module 01 Q13 for value vs reference storage teaching model.
-- `stackalloc` and `Span` scenarios use stack memory for buffers with safety rules.
+A shallow copy duplicates the top-level object and copies field values as-is, which means reference-type fields in the copy still point to the same nested objects as the original. A deep copy recursively clones every nested object so the entire object graph is independent, requiring custom logic, serialization-based cloning, or explicit recursive `Clone` implementations. `MemberwiseClone` on a class produces a shallow copy. Since two shallow-copied objects share nested reference types, mutating a nested collection through one copy is visible through the other, which makes shallow copy unsafe when inner state must be isolated. Immutable nested objects make shallow copy safe because inner state cannot change regardless of sharing.
 
 ---
 
-#### Q11. What is the difference between a field, a property, and a method on a class?
+## Q7. What is the difference between object identity and object equality?
 
-What is the difference between a field, a property, and a method on a class?
+**Concepts**
+- identity as same heap address
+- equality as equivalent value or custom logic
+- ReferenceEquals for identity check
+- Equals and == for equality check
+- consistent override of Equals, GetHashCode, and ==
 
-**Answer:** Fields are data storage locations; properties are accessors (often with get/set) presenting controlled access to state; methods are operations that perform behavior, optionally mutating state or computing results without necessarily exposing storage.
+**Answer**
 
-- Public fields expose implementation directly—discouraged in public APIs (chapter 07).
-- Properties can validate, compute, or defer loading while keeping field-like syntax at call sites.
-- Methods express actions (`CalculateTotal`, `Save`) with arbitrary parameters and return types.
-- Auto-properties blur field/property line syntactically but still generate hidden backing fields.
-
----
-
-#### Q12. What is a static class vs an instance class — can you instantiate a static class?
-
-What is a static class vs an instance class — can you instantiate a static class?
-
-**Answer:** A static class is sealed, cannot be instantiated, and contains only static members—it acts as a container for shared utilities. Instance classes create objects with `new` and may mix instance and static members.
-
-- Attempting `new` on a static class is a compile error.
-- Static classes cannot implement interfaces (C# rules)—chapter 04.
-- Instance classes can have static helpers (`InstanceCount`) alongside instance state.
-- Prefer instance services with dependency injection over static classes for testability—Gotcha 11 Module 02.
+Identity means two references point to the exact same heap object, which `ReferenceEquals` tests. Equality means two objects compare as equivalent by value or custom logic even when they are distinct instances, which `Equals` and an overloaded `==` operator express. For classes, the default `Equals` uses reference identity unless overridden; for value types, it compares fields structurally by default. When you override `Equals` to express value equality, you must also override `GetHashCode` consistently so that equal objects produce the same hash, which dictionary and set operations rely on.
 
 ---
 
-#### Q13. What is the `null` reference for reference types, and what is `default` for a struct vs a class?
+## Q8. What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?
 
-What is the `null` reference for reference types, and what is `default` for a struct vs a class?
+**Concepts**
+- IDisposable for deterministic cleanup
+- finalizer as a safety net for missed dispose
+- GC.SuppressFinalize after successful dispose
+- dispose pattern with protected virtual Dispose(bool)
+- non-deterministic finalizer timing
 
-**Answer:** Reference type variables default to `null`, meaning no object is referenced. Struct `default` is all-zero value with no null unless `Nullable<T>`. Class `default` in generics is null.
+**Answer**
 
-- Dereferencing null throws `NullReferenceException`.
-- Nullable reference type annotations warn when null assigned to non-nullable references under `#nullable enable`.
-- `default(Customer)` for a class is null; `default(Point)` for struct is (0,0) coordinates.
-- Always initialize reference fields in constructors for non-nullable intent.
-
----
-
-#### Q14. What is object initializer syntax, and how does it interact with constructors?
-
-What is object initializer syntax, and how does it interact with constructors?
-
-**Answer:** Object initializer syntax runs immediately after the selected constructor completes, assigning listed properties or fields in textual order. Constructor establishes invariants; initializer sets additional optional surface properties.
-
-- You must invoke an accessible constructor—either parameterless or matched overload before `{ ... }`.
-- Init-only properties accept assignments only during this construction phase in modern C#.
-- Constructor cannot see initializer assignments; initializer runs after constructor body returns to caller chain.
-- See Q5 and Properties chapter Q13.
+`IDisposable.Dispose` releases resources deterministically when callers use `using` or call `Dispose` explicitly, which makes it the right mechanism for timely cleanup of file handles, database connections, or network sockets. A finalizer (`~ClassName()`) runs later and non-deterministically during garbage collection as a last-resort safety net for cases where `Dispose` was never called. Since finalizers add GC overhead and cannot be relied on for timely release, the standard pattern is to implement `IDisposable` and call `GC.SuppressFinalize(this)` after successful cleanup so the finalizer is skipped when dispose ran correctly.
 
 ---
 
-#### Q15. What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes that do not override equality?
+## Q9. What happens at runtime when you execute `new MyClass()`?
 
-What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes that do not override equality?
+**Concepts**
+- heap allocation including object header and method table pointer
+- field initialization before constructor body
+- constructor chain execution order
+- reference assignment after construction completes
+- no instance exists until new returns
 
-**Answer:** Without overrides, `ReferenceEquals` and `==` (unless overloaded) compare reference identity, and `Equals` on `Object` also uses reference equality by default. Overloads may diverge if `==` is customized without matching `Equals`.
+**Answer**
 
-- Structs use value equality defaults; classes use reference identity defaults.
-- Gotcha 14 Module 02 warns when `==` is overridden without consistent `GetHashCode`.
-- For domain equality, override `Equals`, `GetHashCode`, and optionally `==` together.
-- See Module 01 Operators Q3 and Q14.
-
----
-
-#### Q16. When is a struct copied vs when is a reference copied when passed to a method?
-
-When is a struct copied vs when is a reference copied when passed to a method?
-
-**Answer:** Struct parameters copy the entire struct value into the parameter slot unless modified by `ref`, `out`, or `in`. Reference type parameters copy the reference value, aliasing the same object without copying the object itself.
-
-- Mutating struct parameter fields mutates the copy only unless `ref`.
-- Mutating object fields through reference parameter affects caller's object.
-- Large structs use `in` for efficient readonly passing—Methods Q12 Module 01.
-- Boxing copies struct to heap when passed as `object` or interface—Gotcha 5 Module 02.
+The CLR first allocates memory on the managed heap for the object header, method table pointer, and all instance fields. Field initializers then run in declaration order, setting fields to their explicit initial values before any constructor body executes. Next the constructor chain fires: if a `: base(...)` call is present, the base constructor runs first, then the derived constructor body. Finally the completed object's reference is returned and assigned to the target variable. No object reference is available during construction until `new` returns, which is why passing `this` out of a constructor can expose a partially-initialized object.
 
 ---
 
-#### Q17. What is the fragile base class problem at a high level?
+## Q10. Where are class instances stored vs where are struct instances typically stored?
 
-What is the fragile base class problem at a high level?
+**Concepts**
+- class instances always on the managed heap
+- struct locals typically on the stack or in registers
+- structs boxed to heap when cast to object or interface
+- closures capturing struct locals promote to heap
+- large struct copy cost vs heap indirection
 
-**Answer:** The fragile base class problem occurs when a base class change (new virtual method, altered constructor sequence) breaks derived classes that relied on previous behavior, because subclasses are tightly coupled to base implementation details they do not control.
+**Answer**
 
-- Adding virtual calls in base constructor to overridable methods is especially dangerous—Gotcha 1 Module 02.
-- Favor composition, sealed defaults, or careful virtual design to minimize surprise in derivatives.
-- See Inheritance chapter Q12 for expanded discussion.
-- Versioning public base classes in libraries requires extreme caution.
-
----
-
-#### Q18. What is the difference between stack allocation (`stackalloc`, local structs) and heap allocation for objects?
-
-What is the difference between stack allocation (`stackalloc`, local structs) and heap allocation for objects?
-
-**Answer:** `stackalloc` and local struct variables use stack or register storage scoped to the method invocation (with escape restrictions), while `new` on classes allocates on the heap with lifetime managed by garbage collection until unreachable.
-
-- Stack memory is reclaimed when the method returns automatically—no GC.
-- Heap objects survive until no references remain; finalizers run non-deterministically if present.
-- `stackalloc` into `Span<T>` is idiomatic for temporary buffers in modern C#.
-- Do not return references to stack memory that outlives the method—language rules prevent most cases.
+Class instances always live on the managed heap and variables hold references to them. Struct local variables typically reside on the stack or in registers because they are value types with bounded lifetimes, which eliminates GC pressure for short-lived computations. However, structs embedded as fields in a heap object, boxed to `object` or an interface, or captured in a lambda closure are promoted to the heap as part of those containers. Large struct locals still copy by value on assignment and parameter passing, so structs with many fields can be more expensive to pass than a single reference, which is why the `in` modifier exists for read-only pass-by-reference.
 
 ---
 
-#### Q19. What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?
+## Q11. What is the difference between a field, a property, and a method on a class?
 
-What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?
+**Concepts**
+- field as a raw storage location
+- property as a controlled accessor pair
+- method as a behavioral operation
+- properties enabling validation and versioning
+- fields bypassing invariant enforcement
 
-**Answer:** `GC.GetTotalMemory` returns an approximate number of bytes the garbage collector believes are allocated in managed heaps after optionally forcing a collection, useful for coarse diagnostics—not precise accounting of process working set or native memory.
+**Answer**
 
-- Passing `true` triggers collection before measure, skewing results toward post-GC state.
-- Does not include unmanaged allocations, stack, or JIT code size.
-- Production monitoring uses profilers and `dotnet-counters`, not ad hoc `GetTotalMemory` alone.
-- Teaches that GC heap size differs from task manager process memory.
+A field is a direct storage location on the object, accessible by name; it holds state but offers no interception on reads or writes. A property is a pair of get/set accessor methods that present field-like syntax to callers while letting the type validate, compute, or defer values on access. A method is an operation that performs behavior, takes explicit parameters, and may mutate state or return results. Public fields are discouraged in APIs because any future need to add validation requires a breaking change from field to property, whereas properties can evolve internally without changing the public call site.
+
+---
+
+## Q12. What is a static class vs an instance class — can you instantiate a static class?
+
+**Concepts**
+- static class sealed and non-instantiable
+- static class containing only static members
+- instance class supporting new and inheritance
+- compile error on new with static class
+- testability tradeoff of static vs injected instance
+
+**Answer**
+
+A static class is implicitly sealed, cannot be instantiated, and can contain only static members, making it a named container for related utility functions or extension methods. Attempting `new` on a static class is a compile error because no constructor exists to call. An instance class can mix static helpers and instance state, and clients create objects with `new` whose lifetimes the GC manages. Static classes are suitable for stateless utilities but are difficult to mock or replace in tests, which is why production services that need substitution are better modeled as instance classes registered in dependency injection.
 
 ---
 
-#### Q20. What is the difference between an anemic class (data-only) and a rich domain object?
+## Q13. What is the `null` reference for reference types, and what is `default` for a struct vs a class?
 
-What is the difference between an anemic class (data-only) and a rich domain object?
+**Concepts**
+- null as absence of any object reference
+- NullReferenceException on dereference of null
+- default(T) for classes resolving to null
+- default(T) for structs resolving to zero-initialized value
+- nullable reference type annotations under #nullable enable
 
-**Answer:** An anemic class exposes data through getters and setters while behavior lives in external services, whereas a rich domain object encapsulates business rules and invariants alongside its data, enforcing valid states through methods and properties.
+**Answer**
 
-- Anemic models simplify CRUD and mapping layers but scatter domain logic across procedural code.
-- Rich models align with encapsulation and reduce invalid state combinations if designed well.
-- Neither is always wrong—reporting DTOs are intentionally anemic; core domain may be rich.
-- See OOP Real-World Examples chapter Q6 on anemic domain anti-pattern.
+`null` for a reference type means the variable holds no object reference; dereferencing it throws `NullReferenceException`. `default(T)` for a class type evaluates to `null` since the default state is no object. `default(T)` for a struct evaluates to a zero-initialized value where all fields are their respective zero equivalents — `0`, `false`, `null` for reference-type fields, and so on — which is always a valid struct value. Under `#nullable enable`, the compiler warns when `null` is assigned to a non-nullable reference variable, helping catch null dereferences at compile time.
 
 ---
+
+## Q14. What is object initializer syntax, and how does it interact with constructors?
+
+**Concepts**
+- constructor running before initializer assignments
+- initializer executing after constructor returns
+- init-only properties accepting assignments in initializer
+- assignment order following source text
+- constructor cannot observe initializer assignments
+
+**Answer**
+
+Object initializer syntax `new Foo(args) { Prop = value }` calls the specified constructor first, lets it complete and establish invariants, and then assigns the listed properties or fields in source-text order. The constructor body finishes before any initializer assignment runs, so the constructor cannot read values set in the initializer. Init-only properties accept assignments during this phase and become read-only once the object exits its construction context. This pattern is useful for optional properties that do not belong in the required constructor signature, keeping the constructor focused on the mandatory invariants.
+
+---
+
+## Q15. What is the difference between `ReferenceEquals`, `==`, and `Equals`?
+
+**Concepts**
+- ReferenceEquals always checking pointer identity
+- == default behavior for classes vs structs
+- Equals virtual method overridable per type
+- risk of == and Equals diverging
+- GetHashCode consistency requirement
+
+**Answer**
+
+`ReferenceEquals` always compares whether two references point to the same heap address and cannot be overridden. For classes that do not override equality, `==` and `Equals` also compare reference identity by default, so all three agree. When a class overrides `Equals` to express value equality but forgets to overload `==`, the two operators diverge — `==` still uses identity while `Equals` uses the custom logic — which confuses callers and breaks `Dictionary` and `HashSet` operations. The correct approach is to override `Equals`, `GetHashCode`, and `==` together so they remain consistent.
+
+---
+
+## Q16. When is a struct copied vs when is a reference copied when passed to a method?
+
+**Concepts**
+- struct parameter copying entire value by default
+- reference parameter copying only the pointer
+- ref and out enabling struct pass-by-reference
+- in modifier for read-only struct pass-by-reference
+- boxing when struct assigned to object or interface
+
+**Answer**
+
+When you pass a struct to a method, the entire struct value is copied into the parameter slot, so mutations to the parameter's fields affect only the copy and are invisible to the caller. When you pass a class instance, only the reference (pointer) is copied, so both caller and callee share the same heap object and mutations to fields are visible on both sides. Adding `ref` or `out` to a struct parameter passes it by reference, eliminating the copy and allowing the method to mutate the caller's variable. The `in` modifier passes a struct by read-only reference, avoiding the copy cost without allowing mutation.
+
+---
+
+## Q17. What is the fragile base class problem at a high level?
+
+**Concepts**
+- derived class coupling to base implementation details
+- base change silently breaking subclasses
+- virtual calls from constructors as acute risk
+- sealed classes reducing fragility
+- composition avoiding the coupling
+
+**Answer**
+
+The fragile base class problem occurs when a change to a base class — adding a virtual method, reordering constructor steps, or altering a shared field — unexpectedly breaks subclasses that relied on the previous behavior. Subclasses are tightly coupled to base implementation details they do not control, so the base class author cannot safely evolve the type without auditing all known derivations. Calling overridable virtual methods from a base constructor is particularly dangerous because the derived override runs before derived field initializers complete, leaving derived state at default values. Sealing classes, minimizing virtual surface, and preferring composition over inheritance all reduce this risk.
+
+---
+
+## Q18. What is the difference between stack allocation and heap allocation for objects?
+
+**Concepts**
+- stack allocation scoped to method invocation
+- heap allocation managed by GC
+- stackalloc for unmanaged buffer on stack
+- Span<T> wrapping stackalloc safely
+- escape restrictions preventing dangling stack pointers
+
+**Answer**
+
+Stack allocation ties memory to the current method invocation: it is automatically reclaimed when the method returns with no GC involvement. Heap allocation via `new` on a class produces an object whose lifetime extends until the GC determines it is unreachable, which can be longer or shorter than any single method call. `stackalloc` allocates a buffer on the stack and is typically wrapped in `Span<T>` for safe bounds-checked access; it is useful for high-performance temporary buffers because it generates no GC pressure. The language prevents returning references to stack-allocated memory that would outlive the method, catching most misuses at compile time.
+
+---
+
+## Q19. What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?
+
+**Concepts**
+- approximate managed heap byte count
+- optional forced collection before measurement
+- exclusion of unmanaged and JIT memory
+- post-GC state skewing measurements
+- production profiling tools as the correct alternative
+
+**Answer**
+
+`GC.GetTotalMemory` returns an approximation of bytes currently allocated in the managed heaps as the GC understands them. Passing `true` triggers a collection before measuring, which returns a post-collection low-water mark that obscures normal working-set usage. The number excludes unmanaged allocations made through P/Invoke or `Marshal.AllocHGlobal`, JIT code size, and native memory from interop — so it never equals the process working set shown in Task Manager. For production memory analysis, use dotnet-counters, dotnet-trace, or a memory profiler that captures full heap snapshots rather than this single approximate value.
+
+---
+
+## Q20. What is the difference between an anemic class and a rich domain object?
+
+**Concepts**
+- anemic class as data bag with external behavior
+- rich domain object encapsulating state and rules together
+- invariant enforcement inside rich objects
+- scattered logic risk with anemic models
+- context-appropriate choice between the two
+
+**Answer**
+
+An anemic class exposes all state through public getters and setters while business rules live in separate service classes that operate on the data externally. A rich domain object encapsulates both state and the rules that govern valid transitions, enforcing invariants through methods and controlled property accessors so the object can never exist in an illegal state. Anemic models are straightforward for simple CRUD operations and mapping layers, but they scatter domain logic across many service classes, making the rules hard to find and easy to bypass. Rich models align better with encapsulation when the type has meaningful constraints — for example a `BankAccount` that refuses negative balances through its `TryWithdraw` method rather than a plain balance setter.
 
 ### 02. Properties & Indexers
 
-#### Q1. Explain properties and fields in C#.
+---
 
-Explain properties and fields in C#.
+## Q1. Explain properties and fields in C#.
 
-**Answer:** Fields are variables declared directly on a type; properties are members with accessors that read or write backing state through methods disguised as field-like syntax. Properties enable validation, computed values, and versioning without changing public call sites.
+**Concepts**
+- field as raw storage variable
+- property as get/set accessor pair
+- compiler-generated backing field for auto-properties
+- properties enabling validation and interception
+- interface contracts using properties not public fields
 
-- Auto-properties compile to hidden backing fields with trivial get/set.
-- Fields cannot intercept assignment; properties can enforce invariants on set.
-- Interface contracts use properties, not public fields, for consistency.
-- See Classes Q11 for roles relative to methods.
+**Answer**
+
+Fields are variables declared directly on a type and hold state without any interception on reads or writes. Properties are members with `get` and `set` accessors that present field-like syntax to callers while letting the type add validation, compute derived values, raise change notifications, or enforce invariants on assignment. Auto-properties declare `{ get; set; }` and the compiler generates a hidden backing field automatically, making them syntactically equivalent to fields at the call site but with the extensibility of a property. Interfaces specify properties in their contracts because fields cannot be part of an interface, which means using properties from the start avoids a breaking binary change later when validation becomes necessary.
 
 ---
 
-#### Q2. What are auto-implemented properties?
+## Q2. What are auto-implemented properties?
 
-What are auto-implemented properties?
+**Concepts**
+- compiler-generated backing field
+- get-only via init or constructor-only patterns
+- private set restricting external mutation
+- upgrade path to full property without API change
+- use for DTOs and simple state
 
-**Answer:** Auto-implemented properties declare `{ get; set; }` without manual backing field code; the compiler generates a private hidden field and accessor methods automatically.
+**Answer**
 
-- Useful for DTOs and simple state when no validation is needed yet.
-- Can use `{ get; private set; }` for restricted mutation from outside the type.
-- Init-only `{ get; init; }` restricts assignment to construction phase—Q5.
-- Upgrade to full property with backing field when validation becomes necessary—Q10.
-
----
-
-#### Q3. What are indexers in C#?
-
-What are indexers in C#?
-
-**Answer:** Indexers are properties that accept parameters in square brackets (`this[int index]`, `this[string key]`) allowing instance syntax like `collection[i]` on custom types, implemented as get/set methods with parameters.
-
-- Syntax mirrors arrays but defined on classes or structs implementing dictionaries, buffers, or matrices.
-- Can overload on parameter types—Q8.
-- Interfaces may declare indexers implemented explicitly or publicly—Q17.
-- Distinct from methods named `GetByIndex` primarily by call-site syntax—Q16.
+Auto-implemented properties use `{ get; set; }` syntax and let the compiler generate a private hidden backing field and the corresponding accessor methods, removing the need to write a field manually. They are appropriate for DTOs and simple state where any valid value of the property type is acceptable and no side effects are needed on get or set. Restricting mutation to the owning class uses `{ get; private set; }`, and restricting to the construction phase uses `{ get; init; }`. When validation or change notification becomes necessary later, you can replace the auto-property with a full property backed by an explicit field without changing the public API surface.
 
 ---
 
-#### Q4. What is the difference between a `public` field and a `public` auto-property — if they behave similarly, why prefer properties?
+## Q3. What are indexers in C#?
 
-What is the difference between a `public` field and a `public` auto-property — if they behave similarly, why prefer properties?
+**Concepts**
+- this keyword with bracket parameters
+- collection-like bracket syntax on custom types
+- get and set accessors with parameters
+- overloading by parameter signature
+- interface indexer declarations
 
-**Answer:** At runtime both expose get/set-like access, but properties are methods in IL metadata, allowing future validation, computed backing, versioning, and data-binding conventions without breaking binary compatibility as easily as changing public fields.
+**Answer**
 
-- Reflection and serializers often treat properties as the public surface for serialization.
-- Fields cannot be virtual; properties can be overridden with custom logic in derived classes.
-- Public fields cannot intercept assignment for invariant checks without refactoring all call sites to methods.
-- Encapsulation chapter expands API design rationale—chapter 07 Q11.
-
----
-
-#### Q5. What are init-only properties (`get; init;`), and how do they differ from get-only and `{ get; set; }`?
-
-What are init-only properties (`get; init;`), and how do they differ from get-only and `{ get; set; }`?
-
-**Answer:** Init-only properties allow assignment only during object construction—constructor body or object initializer—then become read-only afterward. Get-only properties without init may be set only in constructor or expression-bodied; `{ get; set; }` allows mutation any time.
-
-- Init supports immutable object models with object initializer ergonomics.
-- `{ get; private set; }` allows class methods to mutate after construction; init does not.
-- Records use init properties heavily for positional semantics—Q14 preview.
-- Gotcha 10 Module 02 contrasts init vs private set confusion.
+Indexers let a class or struct expose element-access syntax `obj[key]` by declaring a member with the `this` keyword and parameters in brackets: `public T this[int index] { get { ... } set { ... } }`. They work like properties with parameters, so the get accessor returns a value for the given key and the set accessor assigns one. Indexers are natural for collection-like types such as custom dictionaries, matrices, or buffers where callers expect bracket notation. They can be overloaded by parameter type — `this[int index]` and `this[string key]` can coexist — and interfaces may declare indexer contracts that implementing classes fulfill.
 
 ---
 
-#### Q6. What is the difference between `{ get; private set; }` and a property with only a public getter backed by a private setter method?
+## Q4. What is the difference between a `public` field and a `public` auto-property?
 
-What is the difference between `{ get; private set; }` and a property with only a public getter backed by a private setter method?
+**Concepts**
+- property compiled to methods in IL
+- field exposing storage directly
+- data binding and serialization framework conventions
+- properties supporting virtual override
+- future validation without breaking call sites
 
-**Answer:** `{ get; private set; }` exposes a property whose setter is callable from any member of the declaring type. A public getter with private `SetName()` method restricts mutation to explicit methods, documenting which operations change state.
+**Answer**
 
-- Auto-property private set is concise for simple internal mutation from any instance method.
-- Dedicated setter methods name the intent (`Promote()`, `Deactivate()`) and can carry parameters beyond single value assignment.
-- Both hide public mutation; choose based on clarity of domain operations vs generic property set.
-- Init-only properties differ from both—see Q5.
-
----
-
-#### Q7. What are expression-bodied properties (`public string Label => $"{Title}";`)?
-
-What are expression-bodied properties (`public string Label => $"{Title}";`)?
-
-**Answer:** Expression-bodied properties use `=>` to define read-only properties computing a single expression without a braced get accessor block, reducing noise for derived values like formatted labels or boolean flags from other members.
-
-- Must be read-only unless using `{ get => field; set => field = value; }` form for accessors in newer C#.
-- Evaluated on each get access unless caching added in backing logic elsewhere.
-- Keep expressions simple; complex logic belongs in methods or full property bodies.
-- See Methods Q3 Module 01 for expression-bodied members generally.
+At the call site both look identical, but a property compiles to get/set methods in IL while a field compiles to a raw storage slot. Serialization frameworks like `System.Text.Json` and data-binding frameworks like WPF discover public properties by convention and may skip public fields unless explicitly configured, so switching from field to property later can change serialization behavior. Properties can be `virtual` and overridden in derived classes, which fields cannot. Changing a public field to a property later is a binary-incompatible change for compiled consumers, whereas a property can evolve its getter or setter implementation without breaking callers.
 
 ---
 
-#### Q8. Can indexers be overloaded — what distinguishes overloads?
+## Q5. What are init-only properties (`get; init;`)?
 
-Can indexers be overloaded — what distinguishes overloads?
+**Concepts**
+- assignment allowed only during construction phase
+- read-only after object initialization completes
+- difference from get-only and from private set
+- object initializer ergonomics with init
+- records relying heavily on init properties
 
-**Answer:** Indexers overload by parameter signature—different parameter types, counts, or modifier combinations (`int` vs `string` key)—while sharing the `this[...]` name. Return types alone do not distinguish indexer overloads.
+**Answer**
 
-- Multi-dimensional indexers use multiple parameters: `this[int row, int col]`.
-- Explicit interface indexers can implement interface indexer separately from public class indexer.
-- Overloads must differ in parameter lists like methods.
-- Compiler selects overload based on argument types at call site.
-
----
-
-#### Q9. What is the syntax for an indexer (`this[int index]`, `this[string key]`)?
-
-What is the syntax for an indexer (`this[int index]`, `this[string key]`)?
-
-**Answer:** Indexers declare `public Type this[ParameterList] { get; set; }` where `this` keyword marks the indexer, parameters appear in brackets, and get/set accessors behave like property accessors with parameters.
-
-- Parameter types define key or coordinate semantics (`string key`, `int index`).
-- Read-only indexers omit set accessor.
-- Default parameter values are not allowed on indexer parameters.
-- Collection initializer syntax on custom types requires public `Add` or accessible indexer set.
+Init-only properties use `{ get; init; }` and allow assignment only during the construction phase — inside the constructor body or in an object initializer `new Foo { Prop = value }` — after which they become read-only. This differs from `{ get; private set; }`, where class methods can still mutate the property after construction, and from a plain get-only property, which only a constructor or field initializer can set. Init properties give immutable-by-default semantics with the ergonomics of object initializers, since callers can specify only the properties they care about without a large constructor signature. Records use init properties heavily for their positional members.
 
 ---
 
-#### Q10. When should you use a full property with validation vs an auto-property?
+## Q6. What is the difference between `{ get; private set; }` and a public getter backed by a private setter method?
 
-When should you use a full property with validation vs an auto-property?
+**Concepts**
+- private set accessible from all instance methods
+- named setter method documenting intent
+- domain operation vs generic assignment
+- private set for simple internal mutation
+- method for operations with parameters or side effects
 
-**Answer:** Use a full property with explicit backing field when assignment must validate ranges, normalize input, raise change notifications, or lazy-load expensive data. Use auto-properties when any valid value of the type is acceptable and no side effects are needed on get/set.
+**Answer**
 
-- Transition from auto to full property without changing public API surface beyond behavior.
-- Throw `ArgumentOutOfRangeException` in set for invalid domain values.
-- INotifyPropertyChanged implementations require full properties to invoke events on change.
-- YAGNI: start auto, upgrade when rules appear—avoid premature validation boilerplate.
-
----
-
-#### Q11. What is a computed/read-only property that derives its value from other members?
-
-What is a computed/read-only property that derives its value from other members?
-
-**Answer:** A read-only property calculates its return value from other fields or properties each time it is read, expressing derived state like `FullName => $"{First} {Last}"` or `IsAdult => Age >= 18` without storing redundant fields.
-
-- Avoid side effects in getters; keep them predictable for debugging and binding.
-- Cache in private field if computation is expensive and invalidation is manageable.
-- Computed properties should not create inconsistent mutable state separate from source fields.
-- Expression-bodied syntax common for simple computed properties—Q7.
+`{ get; private set; }` exposes a property where the setter is private, meaning any instance method of the declaring class can call it with plain assignment syntax. A dedicated method like `Promote()` or `ApplyDiscount(decimal rate)` restricts mutation to a named operation that documents its intent, can carry additional parameters, and can enforce domain-specific preconditions beyond a simple null check. The choice is about clarity: use `private set` when any instance method should freely assign the value; use a named method when mutation represents a specific business operation with its own invariants and semantics.
 
 ---
 
-#### Q12. What is the difference between `init` properties and constructor parameters for immutable objects?
+## Q7. What are expression-bodied properties?
 
-What is the difference between `init` properties and constructor parameters for immutable objects?
+**Concepts**
+- arrow syntax for read-only computed property
+- evaluated on every get access
+- no backing storage unless manually cached
+- suitable for simple derived values
+- complex logic belongs in full property or method
 
-**Answer:** Constructor parameters enforce required values at creation with explicit signature; init properties allow object initializer syntax and optional members while still preventing post-construction mutation. Records combine both with positional syntax.
+**Answer**
 
-- Constructors validate in one place; multiple constructor overloads may duplicate validation without `: this()`.
-- Init properties suit many optional immutable fields with initializer ergonomics.
-- Required members (C# 11+) annotate mandatory init properties compile-time.
-- Choose constructor-only for small immutable types; init + initializer for many optional fields.
-
----
-
-#### Q13. How do properties participate in object initializer syntax?
-
-How do properties participate in object initializer syntax?
-
-**Answer:** Object initializers assign to settable properties and fields after the constructor runs: `new Customer { Name = "Ada", Id = 1 }`. Init-only properties accept assignments there; get-only properties without init cannot be set in initializer.
-
-- Order of initializer assignments follows source text; dependencies between properties should not assume order unless documented.
-- Collection initializers target properties returning mutable collections or indexers.
-- Constructor still establishes required invariants before initializer assignments execute.
-- See Classes Q5 and Q14.
+Expression-bodied properties use `=>` to define a read-only property that returns the result of a single expression: `public string FullName => $"{First} {Last}";`. They are syntactic sugar for a get-only property with a one-line body, making derived or formatted values concise to write. Since there is no backing field, the expression is evaluated fresh on every read, which is fine for cheap derivations but wasteful for expensive computations that should be cached. When the logic involves more than a single expression, a full property body with explicit get accessor or a dedicated method is clearer and avoids hiding significant work inside what looks like a simple property access.
 
 ---
 
-#### Q14. What is a preview-level understanding of `record` types and synthesized properties?
+## Q8. Can indexers be overloaded — what distinguishes overloads?
 
-What is a preview-level understanding of `record` types and synthesized properties?
+**Concepts**
+- overloading by parameter signature
+- parameter type and count distinguishing overloads
+- return type alone not distinguishing overloads
+- multi-dimensional indexers with multiple parameters
+- explicit interface indexers as a separate contract
 
-**Answer:** Records (C# 9+) are reference types (or struct records) with compiler-synthesized equality, `ToString`, and clone members, often using primary constructor parameters that become init or get-only properties for concise immutable data carriers.
+**Answer**
 
-- `record Person(string Name, int Age);` creates positional properties `Name` and `Age`.
-- Value equality by default compares property values, not reference identity.
-- `with` expressions create copies with selective property changes.
-- Records suit DTOs and domain events; behavior-rich entities may remain classes.
-
----
-
-#### Q15. Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?
-
-Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?
-
-**Answer:** Callers can replace or mutate the internal collection without going through your type's methods, bypassing invariants like duplicate prevention, sorting, or synchronization—Gotcha 9 Module 02.
-
-- Exposing `List<T>` allows `obj.Items.Clear()` from outside without your knowledge.
-- Prefer `IReadOnlyList<T>` public get with private mutable backing list, or defensive copies on get.
-- See Encapsulation chapter Q4 and Q9.
-- Initialize collection properties to empty instances to avoid null reference on add.
+Indexers overload by parameter signature just like methods — different parameter types, counts, or type combinations produce distinct overloads that share the `this[...]` name. For example, `this[int index]` and `this[string key]` are two separate indexers on the same type. Return type alone does not distinguish overloads, since the compiler cannot select based on how the return value is used. Multi-dimensional access uses multiple parameters: `this[int row, int col]`. A class can also implement an interface indexer explicitly, providing separate behavior when accessed through the interface reference versus the concrete class type.
 
 ---
 
-#### Q16. What is the difference between an indexer and a method named `GetByIndex`?
+## Q9. What is the syntax for an indexer?
 
-What is the difference between an indexer and a method named `GetByIndex`?
+**Concepts**
+- this keyword with bracket parameter list
+- access modifier and return type before this
+- get and set accessor blocks with parameters
+- read-only indexer omitting set
+- no default parameter values on indexer parameters
 
-**Answer:** Indexers use `obj[key]` syntax integrated with language indexing semantics and collection initializers; methods use `obj.GetByIndex(key)` explicit call syntax without participating in indexer language features.
+**Answer**
 
-- Indexers feel natural for collection-like types; methods clarify intent for non-collection lookups.
-- Indexers cannot be extension members; methods can be extensions in static classes.
-- Performance is equivalent; choice is API ergonomics and framework conventions (` IList<T>` uses indexer).
-- Overloading rules differ slightly in discoverability for tooling.
-
----
-
-#### Q17. Can interface types declare indexers, and how are they implemented?
-
-Can interface types declare indexers, and how are they implemented?
-
-**Answer:** Interfaces may declare indexers with get/set requirements; implementing classes provide `this[...]` accessors matching the contract, either publicly or through explicit interface implementation when name clashes occur.
-
-- `interface IMap { string this[string key] { get; set; } }`
-- Explicit implementation: `string IMap.this[string key] { get => ...; set => ...; }`
-- Consumers typed as interface use indexer syntax through interface reference.
-- Same explicit implementation hiding patterns as methods—Gotcha 12 Module 02.
+An indexer is declared as `public ReturnType this[ParameterType name] { get { ... } set { ... } }` where `this` signals the indexer, the parameters appear in square brackets, and the accessors work like property accessors with parameters available inside them. The access modifier and return type precede `this`. A read-only indexer omits the set accessor. Indexer parameters cannot have default values, which distinguishes them from methods with optional parameters. The `value` keyword in the set accessor refers to the assigned value, exactly as in a property setter.
 
 ---
 
-#### Q18. What is the relationship between properties and data binding / serialization frameworks?
+## Q10. When should you use a full property with validation vs an auto-property?
 
-What is the relationship between properties and data binding / serialization frameworks?
+**Concepts**
+- full property when invariants or side effects are needed
+- auto-property when any valid value is acceptable
+- transition from auto to full without API change
+- validation throwing ArgumentOutOfRangeException
+- INotifyPropertyChanged requiring full property
 
-**Answer:** Data-binding (WPF, ASP.NET model binding) and serializers (System.Text.Json, XmlSerializer) typically discover public readable/writable properties by convention, ignoring fields unless configured otherwise.
+**Answer**
 
-- Missing public setters affects deserialization and two-way binding unless custom converters exist.
-- `[JsonIgnore]` and similar attributes target properties to control serialization shape.
-- Init-only properties work with serializers that support immutable object patterns in modern versions.
-- Naming conventions (`Id`, `Name`) align with model binding from query strings and JSON bodies.
+Use a full property with an explicit backing field when assignment must validate ranges, normalize input, raise property-changed notifications, or trigger lazy loading. Use an auto-property when any value of the declared type is acceptable and no side effects are needed on get or set. The practical approach is to start with an auto-property and upgrade to a full property only when a specific rule appears, since the API surface — the property name and accessibility — remains identical to callers before and after the change. INotifyPropertyChanged implementations always require full properties because the setter must raise the `PropertyChanged` event when the value actually changes.
 
 ---
+
+## Q11. What is a computed/read-only property that derives its value from other members?
+
+**Concepts**
+- no backing field storing the derived value
+- evaluated on each read
+- expression-bodied syntax for simple cases
+- caching for expensive computations
+- avoiding side effects in getters
+
+**Answer**
+
+A computed property derives its value from other fields or properties each time it is read, expressing derived state like `public decimal Total => Quantity * UnitPrice` or `public bool IsAdult => Age >= 18`. Since there is no separate backing field, the property never goes stale relative to its sources. Getters should avoid side effects because callers expect property reads to be predictable and cheap; if the computation is expensive, cache the result in a private field and invalidate it when the source fields change. Expression-bodied syntax is natural for simple computed properties.
+
+---
+
+## Q12. What is the difference between `init` properties and constructor parameters for immutable objects?
+
+**Concepts**
+- constructor parameters enforcing required values at creation
+- init properties enabling optional member object initializer ergonomics
+- required modifier for mandatory init properties (C# 11)
+- constructor validation in one place
+- choosing based on number and optionality of members
+
+**Answer**
+
+Constructor parameters enforce required values through an explicit signature — callers must supply each argument, and the compiler enforces the parameter list at every call site. Init properties allow object initializer syntax where callers supply only the properties they care about, with unset properties defaulting to their type defaults unless marked `required` (C# 11). For small immutable types with a few mandatory values, constructor parameters are cleaner since the signature documents what is required. For types with many optional fields, init properties with `required` annotations scale better than constructors with many optional parameters. Records combine both through positional syntax that generates both a constructor and init properties.
+
+---
+
+## Q13. How do properties participate in object initializer syntax?
+
+**Concepts**
+- settable properties assigned after constructor
+- init-only properties restricted to this phase
+- get-only properties not assignable in initializer
+- assignment order following source text
+- constructor invariants established before initializer
+
+**Answer**
+
+Object initializers can assign any property that has a publicly accessible setter or is declared `init`. The constructor runs first and establishes the object's core invariants, then the listed property assignments execute in source-text order. Init-only properties accept assignment here and become read-only once the initializer block closes. Get-only properties without `init` cannot be assigned in an object initializer; only the constructor or a field initializer can set them. Collection-typed properties can be populated via nested collection initializers if the property returns a mutable collection and the property itself is readable.
+
+---
+
+## Q14. What is a preview-level understanding of `record` types and synthesized properties?
+
+**Concepts**
+- record synthesizing equality, ToString, and Clone
+- positional parameters becoming init-only properties
+- value equality by default instead of reference equality
+- with expressions for non-destructive mutation
+- record struct for value-type records
+
+**Answer**
+
+Records (C# 9+) are primarily reference types where the compiler synthesizes `Equals`, `GetHashCode`, `ToString`, and a `Clone` method based on their properties. A positional record `record Person(string Name, int Age)` generates init-only properties `Name` and `Age`, a primary constructor, and value equality that compares those properties rather than reference identity. Two record instances with the same property values are equal even though they are distinct objects. The `with` expression creates a copy with selective property changes: `person with { Name = "Ali" }` produces a new `Person` with `Age` from the original. Record structs (C# 10+) apply the same pattern to value types.
+
+---
+
+## Q15. Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?
+
+**Concepts**
+- public setter allowing complete collection replacement
+- callers mutating internal collection directly
+- invariant bypass via Add and Remove
+- IReadOnlyList<T> as safer return type
+- defensive copy pattern
+
+**Answer**
+
+A public setter on a `List<T>` property lets callers replace the entire collection with one they control, bypassing any sorting, deduplication, or synchronization the owning type maintains. Even without a setter, returning the live `List<T>` reference through the getter lets callers call `Add`, `Remove`, or `Clear` directly, which the owning type cannot observe or prevent. The safer pattern is to expose an `IReadOnlyList<T>` or `IReadOnlyCollection<T>` through the public getter while keeping a private mutable backing list, or to return a defensive copy when the collection must be fully detached from internal state.
+
+---
+
+## Q16. What is the difference between an indexer and a method named `GetByIndex`?
+
+**Concepts**
+- indexer using bracket syntax integrated with language
+- method using explicit call syntax
+- indexers participating in collection initializer protocol
+- methods extensible via extension method pattern
+- API ergonomics as the primary consideration
+
+**Answer**
+
+An indexer enables `obj[key]` bracket syntax that integrates naturally with C# language features — collection initializers can target indexer setters, and LINQ's `IList<T>` contract uses indexers. A method named `GetByIndex` requires explicit call syntax `obj.GetByIndex(key)` and reads more like a named query, which clarifies intent for non-collection lookups where bracket syntax might mislead. Indexers cannot be extension members, while methods can be. The choice is about API ergonomics: collection-like types with natural element access benefit from indexers; types where the lookup is a named domain operation are clearer with methods.
+
+---
+
+## Q17. Can interface types declare indexers, and how are they implemented?
+
+**Concepts**
+- interface indexer declaring get and set requirements
+- implementing class providing this[ ] accessors
+- explicit interface implementation for name conflicts
+- consumers using interface reference for bracket access
+- same hiding patterns as explicit method implementation
+
+**Answer**
+
+Interfaces can declare indexers with `Type this[ParamType name] { get; set; }`, and implementing classes provide the `this[...]` accessors that fulfill the contract. A class can implement the indexer publicly, making `obj[key]` work regardless of reference type, or implement it explicitly as `ReturnType IMap.this[string key] { get => ... }`, which is accessible only through an interface-typed reference. Explicit implementation is useful when the class also has a public indexer with different behavior or a different return type than the interface demands, and callers must cast to the interface to reach the explicit version.
+
+---
+
+## Q18. What is the relationship between properties and data binding / serialization frameworks?
+
+**Concepts**
+- serializers discovering public properties by convention
+- public setter required for deserialization in most frameworks
+- JsonIgnore and similar attributes targeting properties
+- init-only properties supported by modern serializers
+- naming conventions aligning with model binding
+
+**Answer**
+
+Serialization frameworks like `System.Text.Json` and `XmlSerializer` discover public readable and writable properties by convention and ignore fields unless explicitly configured otherwise, so making fields public does not automatically include them in serialized output. Missing public setters can prevent deserialization unless the framework supports constructor-based or init-based initialization. Attributes like `[JsonIgnore]` and `[JsonPropertyName]` target properties to control the serialized shape. Init-only properties work with modern versions of `System.Text.Json` when constructor-based deserialization is enabled. Data-binding systems in WPF and ASP.NET model binding follow similar conventions, expecting public properties as the bindable surface.
 
 ### 03. Constructors & Method Overloading
 
-#### Q1. Explain constructors and their types in C# (default, parameterized, static, private).
+---
 
-(R) A teammate refactors `OrderLine` to chain constructors like the chapter's `Product` type. QA reports invalid lines in production — empty SKU and zero quantity slip through. Review the ctors. What went wrong, and how do you fix it?
+## Q1. Explain constructors and their types in C# (default, parameterized, static, private).
 
-**Answer:** The single-parameter constructor does not chain to the validated `(string, int)` ctor — it duplicates initialization logic without guards, so callers using `new OrderLine("")` or `new OrderLine(null)` get empty SKUs that never hit the validation in the three-parameter constructor.
+**Concepts**
+- constructor as special initialization method
+- compiler-generated default constructor
+- parameterized constructor for required arguments
+- static constructor for type-level initialization
+- private constructor for singleton and factory patterns
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Design | `OrderLine(string sku)` bypasses `: this(sku, 1)` | Invalid SKU values reach production data |
-| Correctness | `sku?.Trim() ?? string.Empty` masks null instead of rejecting | Silent bad state instead of fail-fast at creation |
-| Maintainability | Validation duplicated in intent but only implemented once | Future ctors can repeat the same bypass mistake |
-
-**Fix (priority order):**
-
-1. Chain the one-parameter ctor: `public OrderLine(string sku) : this(sku, 1) { }` — single validation path.
-2. Keep all invariant checks in the **most complete** ctor (here, `(string sku, int quantity)`), matching the chapter's `Product` pattern in **Program.cs** Sections 1c and 1b.
-3. Remove defensive null-coalescing to empty string in convenience ctors — let the validated ctor throw `ArgumentException`.
-4. Add unit tests per ctor overload to assert invalid SKU/quantity throws before any repository write.
-
-```csharp
-public OrderLine(string sku)
-    : this(sku, 1)
-{
-}
-```
-
-**Production takeaway:** Constructor chaining only enforces invariants when **every** ctor path reaches the guarded ctor — a common Karat trap after "helpful" shortcut ctors are added without `: this(...)`.
+A constructor is a special method invoked when an object is created, responsible for initializing fields and enforcing invariants before the object is exposed to callers. If you define no constructor, the compiler generates a public parameterless default constructor that zero-initializes all instance fields. A parameterized constructor accepts arguments so required values are supplied at the call site, which prevents partially-initialized objects. A static constructor is declared without access modifiers and runs once before the first use of the type to initialize static members. A private constructor prevents direct instantiation from outside the class, which is the foundation of singleton and factory patterns where instance creation is controlled through a static method.
 
 ---
 
-#### Q2. What is a destructor/finalizer in C#?
+## Q2. What is a destructor/finalizer in C#?
 
-(R) A .NET 8 service adopts a **primary constructor** for a warehouse DTO. Unit tests expecting `ArgumentException` on bad input fail with `NullReferenceException` instead. Review the type. What is the initialization order problem, and how would you enforce invariants?
+**Concepts**
+- finalizer as GC-scheduled safety net
+- non-deterministic execution timing
+- IDisposable as the preferred deterministic alternative
+- GC.SuppressFinalize after successful dispose
+- finalizer adding two-pass GC overhead
 
-**Answer:** Field initializers on the primary-constructor type run **before** the instance constructor body block, so `sku.Trim()` executes while `sku` is still null — throwing `NullReferenceException` instead of the intended `ArgumentException` from the guard block below.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Sku = sku.Trim()` before validation block | Wrong exception type; callers/tests cannot rely on contract |
-| Correctness | Invariants assumed to run "first" in `{ }` body | Primary ctor initialization order differs from mental model |
-| API contract | Mixed primary params + property initializers | Hard to see which line can throw what |
-
-**Fix (priority order):**
-
-1. Validate **before** any use of parameters — either in the constructor body as the first statements with manual assignment to properties, or via a static factory `StockReceipt.Create(...)` that validates then calls a private ctor.
-2. Do not call instance methods (`Trim`) on parameters in field/property initializers when null is invalid.
-3. Prefer explicit parameterized ctor + chaining for domain types with strict invariants; use primary constructors for simple immutable carriers where validation is minimal or delegated to a factory.
-4. Align tests to assert the final exception type after fix (`ArgumentException` for null/whitespace SKU).
-
-```csharp
-public sealed class StockReceipt
-{
-    public string Sku { get; }
-    public decimal UnitCost { get; }
-    public int Quantity { get; }
-
-    public StockReceipt(string sku, decimal unitCost, int quantity)
-    {
-        if (string.IsNullOrWhiteSpace(sku))
-            throw new ArgumentException("SKU is required.", nameof(sku));
-        if (unitCost < 0m)
-            throw new ArgumentOutOfRangeException(nameof(unitCost));
-        if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
-
-        Sku = sku.Trim();
-        UnitCost = unitCost;
-        Quantity = quantity;
-    }
-}
-```
-
-**Production takeaway:** Primary constructors do not replace the chapter rule — **enforce invariants at creation** — but the execution order is initializer expressions first, then body; Karat tests whether you know where validation must live.
+A finalizer, written as `~ClassName()`, is called by the garbage collector before reclaiming the object's memory, providing a last-resort opportunity to release unmanaged resources if `Dispose` was never called. Finalizers execute non-deterministically because the GC schedules them based on memory pressure, so you cannot rely on them for timely release of file handles, connections, or locks. Objects with finalizers require two GC passes to collect — one to detect unreachability and one to run the finalizer and then collect — which adds heap pressure. The correct pattern is `IDisposable` for deterministic cleanup, calling `GC.SuppressFinalize(this)` after `Dispose` succeeds so the finalizer is skipped when cleanup already ran.
 
 ---
 
-#### Q3. Explain constructor chaining in C# (`: this(...)` vs `: base(...)`).
+## Q3. Explain constructor chaining in C# (`: this(...)` vs `: base(...)`).
 
-(R) After adding a convenience overload to `LineItemCalculator`-style pricing helpers, `dotnet build` fails with **CS0121** ("The call is ambiguous"). Which overloads conflict, and how do you resolve the call site or signatures?
+**Concepts**
+- this() chaining within the same class
+- base() crossing to the parent class constructor
+- chained constructor running before calling constructor body
+- single validation path through canonical constructor
+- convention of most-complete constructor doing the real work
 
-**Answer:** The call `LineTotal(3, 2.49m, 0.10m)` matches both the three-parameter overload (with optional `discountRate`) and the four-parameter overload equally well — the third argument `0.10m` can bind to either `discountRate` or the third positional parameter before `taxRate`, so the compiler cannot pick a unique best match.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Optional parameter on overload A overlaps arity with overload B | CS0121 — build blocked |
-| Design | Two overloads differ only by trailing optional vs required extension | Call sites with three decimals are ambiguous |
-| Maintainability | Mixing optional params and extra overloads (chapter Section 9 warning) | Every new decimal argument risks new ambiguity |
-
-**Fix (priority order):**
-
-1. **Preferred:** Remove the optional from the three-parameter signature — use two explicit overloads (`qty, price` and `qty, price, discount`) plus a separate `WithTax(...)` method, mirroring **Program.cs** `Price(int, decimal)` vs `Price(int, decimal, decimal)`.
-2. At the call site, disambiguate with a **named argument**: `LineTotal(3, 2.49m, discountRate: 0.10m)` if you must keep the optional temporarily.
-3. Avoid `params` + optional + overlapping arity in the same method group — chapter Section 15 / CS0121.
-4. Add a compiler-focused unit test project or analyzer rule comment so overlapping optionals are caught in review.
-
-**Production takeaway:** Overload resolution is compile-time — ambiguous APIs never ship — but Karat uses this to test whether you can diagnose **optional parameters colliding with additional overloads**, not just recall the CS0121 code.
+Constructor chaining allows one constructor to call another to eliminate duplicated initialization logic. `: this(...)` delegates to another constructor in the same class, so simpler overloads can call the most-complete constructor that holds all validation. `: base(...)` forwards to a constructor in the base class, which is required when the base has no accessible parameterless constructor. The chained constructor runs entirely before the calling constructor's body begins, which means validation in the target constructor runs for every path. By convention the most-parameter constructor does the real work, and simpler overloads delegate to it with default argument values.
 
 ---
 
-#### Q4. How can you call the base class constructor from a derived class?
+## Q4. How can you call the base class constructor from a derived class?
 
-(M) A junior dev models discounted inventory items by inheriting from `Product` (chapter pattern). The project does not compile. Diagnose **`: this(...)` vs `: base(...)`** mistakes and state the correct ctor initialization order.
+**Concepts**
+- base() syntax in derived constructor declaration
+- base constructor running before derived constructor body
+- implicit call to parameterless base constructor
+- compiler error when no accessible parameterless base exists
+- base constructor initializing the base portion fully
 
-**Answer:** Attempt A lists **both** `: base(...)` and `: this(...)` on one constructor header — only one initializer is allowed (CS2506). Attempt B omits `: base(...)` while `Product` has no parameterless ctor, so the compiler cannot construct the base part (CS7036). Derived ctors must eventually reach the parent through `: base(...)`; `: this(...)` only delegates to another ctor in the **same** derived type. Initialization order: static base → static derived → instance base → instance derived → base ctor body → derived ctor body.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `: base(...)` and `: this(...)` on Attempt A | CS2506 — only one constructor initializer permitted |
-| Compile | Attempt B missing `: base(name, unitPrice)` | CS7036 — no accessible parameterless base ctor |
-| Design | Treating `: this(...)` as a way to call the parent | Parent state never constructed; validation in `Product` skipped |
-
-**Fix (priority order):**
-
-1. Split Attempt A into **either** sibling delegation **or** base forwarding — not both on one header:
-   `public DiscountedProduct(string name, decimal unitPrice, decimal discountRate) : this(name, unitPrice, discountRate, applyMinimum: true) { }`
-2. Fix Attempt B: `public DiscountedProduct(..., bool applyMinimum) : base(name, unitPrice) { DiscountRate = discountRate; }`.
-3. Ensure every `: this(...)` chain in the derived class terminates at a ctor that calls `: base(...)` so `Product` validation runs — matching chapter **Program.cs** Section 3 preview.
-4. Document ctor order in review: base static → derived static → base instance → derived instance → base ctor → derived ctor.
-
-**Production takeaway:** `: this(...)` chains within a type; `: base(...)` crosses inheritance — Karat stacks this with CS7036 when the base parameterless ctor disappears after adding a parameterized base ctor.
+You call the base class constructor by appending `: base(arguments)` to the derived constructor declaration, immediately after its parameter list. The base constructor runs first, before the derived constructor body, so the base portion of the object is fully initialized when derived initialization code executes. If you omit `: base(...)`, the compiler implicitly inserts a call to the base's parameterless constructor; if the base has no parameterless constructor, omitting `: base(...)` is a compile error that requires you to provide an explicit chain. This guarantees that every object in the hierarchy is initialized from root to leaf in construction order.
 
 ---
 
-#### Q5. In what order do constructors and field initializers run in an inheritance chain?
+## Q5. In what order do constructors and field initializers run in an inheritance chain?
 
-(P) An ASP.NET Core API maps inbound JSON to a **`required`** init-only request type before calling domain ctors. A client omits `Name` but the payload still deserializes and reaches `new Product(...)`. What happened at compile time vs runtime, and how do you align API contracts with constructor validation?
+**Concepts**
+- base field initializers running before base constructor body
+- derived field initializers running before derived constructor body
+- execution flowing root to leaf
+- virtual method calls from base constructor reading uninitialized derived fields
+- static constructors running once before any instance creation
 
-**Answer:** `required` is enforced at **object creation** for object initializers and `new()` expressions at compile time, but **System.Text.Json** (and Newtonsoft) can still materialize instances without required members unless you enable required-member deserialization validation — so `Name` may default to `null` at runtime, and `Product`'s ctor then throws or mis-validates depending on null checks.
+**Answer**
 
-- **Compile time:** `new CreateProductRequest { UnitPrice = 8.99m }` without `Name` fails to compile — `required` works for in-code construction.
-- **Runtime (JSON):** Deserializer may not enforce `required` unless configured (`JsonSerializerOptions` / `[JsonRequired]` / validation attributes / manual guard in minimal APIs).
-- **Domain layer:** `Product(string name, decimal unitPrice)` should still validate — last line of defense — but the API should return **400 ProblemDetails**, not a 500 from an unhandled `ArgumentException`.
-- **Alignment:** Use `[Required]` + FluentValidation or ASP.NET model validation, enable required property support for STJ in .NET 7+, map to domain via factory that throws typed validation exceptions converted to 400.
-
-```csharp
-// Minimal API guard example:
-if (string.IsNullOrWhiteSpace(body.Name))
-    return Results.ValidationProblem(new Dictionary<string, string[]>
-    {
-        [nameof(body.Name)] = ["Name is required."]
-    });
-```
-
-**Production takeaway:** Required members and constructor validation solve different layers — DTO `required` for developer mistakes, ctor invariants for domain truth, API validation for external clients — Karat tests stacking all three.
+For an instance creation, execution flows from the most-base type outward: base instance field initializers run first (in source order), then the base constructor body executes, then derived instance field initializers run, then the derived constructor body. This means the base constructor completes before any derived field initializer has run, which is why calling virtual methods from a base constructor is dangerous — the derived override executes while derived fields are still at their default zero values. Static constructors for each type in the chain run once before the first instance of that type is used, following the same root-to-leaf order among static constructors.
 
 ---
 
-#### Q6. Explain method overloading and method overriding in C#.
+## Q6. Explain method overloading and method overriding in C#.
 
-(D) A warehouse microservice registers services in DI but still constructs dependencies manually inside ctors. Review startup and `InventorySyncService`. What breaks in tests, lifetimes, and startup, and what pattern replaces it?
+**Concepts**
+- overloading as compile-time dispatch by parameter signature
+- overriding as runtime dispatch through virtual table
+- override requiring virtual or abstract on base method
+- new keyword hiding rather than overriding
+- both techniques orthogonal and independently applicable
 
-**Answer:** The service graph mixes DI registration with static singleton access and throws inside `ProductCatalog`'s ctor during container build — startup fails (or the host never becomes healthy), tests cannot substitute a fake registry, and two lifetimes (DI singleton vs static `Instance`) fight for the same responsibility.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Startup | `new Product("Seed SKU", -1.00m)` in `ProductCatalog` ctor | `ArgumentOutOfRangeException` during `BuildServiceProvider` — app won't start |
-| DI | `InventorySyncService` uses `InventoryRegistry.Instance` | Bypasses container; cannot mock `IInventoryRegistry` in tests |
-| Lifetime | Static singleton + `AddSingleton<>` duplicate ownership | Hidden global state; unclear thread-safety and test isolation |
-| Design | Chapter singleton (`InventoryRegistry`) copied into production service | Violates "prefer DI" note in **Program.cs** Section 2 |
-
-**Fix (priority order):**
-
-1. **Constructor injection:** `public InventorySyncService(IInventoryRegistry registry)` — no parameterless ctor grabbing statics.
-2. Register an abstraction: `builder.Services.AddSingleton<IInventoryRegistry, InventoryRegistry>()` with a **public or internal** ctor (or factory delegate) — retire `Instance` for app code; keep private ctor only if factory registration is used.
-3. Move seed data out of the ctor — use `IHostedService`, explicit `SeedAsync`, or configuration-driven load so invalid catalog data surfaces as a controlled startup error with logging, not ctor throw during DI resolution.
-4. Let `Product`'s validated ctor throw for bad **runtime** input; seed paths must pass valid arguments or use a dedicated test factory.
-5. Integration tests build `WebApplicationFactory` with replaced `IInventoryRegistry` fake — only possible when ctors demand interfaces.
-
-```csharp
-builder.Services.AddSingleton<IInventoryRegistry, InventoryRegistry>();
-builder.Services.AddSingleton<IInventorySyncService, InventorySyncService>();
-
-public sealed class InventorySyncService : IInventorySyncService
-{
-    private readonly IInventoryRegistry _registry;
-
-    public InventorySyncService(IInventoryRegistry registry)
-    {
-        _registry = registry;
-    }
-
-    public void Sync(Product product) => _registry.Register(product);
-}
-```
-
-**Production takeaway:** Object creation belongs in the composition root — ctors enforce invariants for **their** parameters, not for bootstrapping entire graphs via `new` and static `Instance`; Karat links chapter singleton intro to real ASP.NET Core registration mistakes.
+Method overloading defines multiple methods with the same name but different parameter signatures in the same class; the compiler selects the best-matching overload at the call site based on argument types and counts, so the selection is entirely at compile time. Method overriding replaces a base class's `virtual` or `abstract` method in a derived class using `override`, and the CLR dispatches to the most-derived override at runtime when the method is called through a base-typed reference. Overloading is about convenience — one name for logically similar operations with different inputs. Overriding is about behavioral substitution — derived types specialized behavior transparently replacing the base's. A derived class can both overload its own methods and override inherited virtual ones independently.
 
 ---
 
----
+## Q7. What is a static constructor, and when does it run?
 
-#### Q7. What is a static constructor, and when does it run?
+**Concepts**
+- static constructor running once per type per AppDomain
+- triggered before first use of the type
+- no access modifier and no parameters
+- TypeInitializationException wrapping any thrown exception
+- cannot be called explicitly
 
-_Answer not found._
+**Answer**
 
----
-
-#### Q8. Can a struct have a parameterless constructor (C# 10+ rules vs earlier)?
-
-_Answer not found._
-
----
-
-#### Q9. What is the difference between a primary constructor (C# 12 on classes/records) and traditional constructors?
-
-_Answer not found._
+A static constructor is declared with only the `static` keyword and no access modifier or parameters, and the CLR guarantees it runs exactly once per AppDomain before the first instance of the type is created or the first static member is accessed, whichever happens first. It is used to initialize static fields that require complex setup beyond what a field initializer can express. The static constructor cannot be called directly — the runtime invokes it automatically. If it throws, the type is permanently poisoned for that AppDomain: all subsequent attempts to use the type throw `TypeInitializationException` wrapping the original exception.
 
 ---
 
-#### Q10. What happens if you do not define any constructor — what default constructor is provided?
+## Q8. Can a struct have a parameterless constructor (C# 10+ rules vs earlier)?
 
-_Answer not found._
+**Concepts**
+- pre-C# 10 struct parameterless constructor disallowed
+- C# 10 allowing explicit parameterless struct constructor
+- default(T) always zero-initializing regardless of constructor
+- array element initialization bypassing constructor
+- practical use for safe default values
 
----
+**Answer**
 
-#### Q11. Why might you mark a constructor `private` (singleton, factory patterns)?
-
-_Answer not found._
-
----
-
-#### Q12. What is constructor overloading, and how does `: this(...)` reduce duplication?
-
-_Answer not found._
+Before C# 10, structs could not declare an explicit parameterless constructor; the runtime always provided one that zero-initializes all fields, and this was not overridable. Starting with C# 10, structs can declare their own parameterless constructor to produce a meaningful default value. However, `default(T)` always produces the zero-initialized form rather than calling the parameterless constructor, and arrays of structs initialize elements to zero without calling any constructor. This means `new Point()` calls the custom constructor but `default(Point)` and `new Point[10]` still produce zero-initialized structs, so relying on the parameterless constructor for a "safe default" requires callers to use `new` explicitly.
 
 ---
 
-#### Q13. What is the exact order: static constructor, instance field initializers, instance constructor body, base constructor?
+## Q9. What is the difference between a primary constructor (C# 12) and traditional constructors?
 
-_Answer not found._
+**Concepts**
+- primary constructor parameters declared on the class declaration line
+- parameters captured in scope throughout the type body
+- no automatic field generation in classes (unlike records)
+- traditional constructor body for validation
+- primary constructors reducing boilerplate for DI scenarios
 
----
+**Answer**
 
-#### Q14. What is the difference between method overloading (compile-time) and method overriding (runtime polymorphism)?
-
-_Answer not found._
-
----
-
-#### Q15. When does the compiler fail to pick an overload due to ambiguity involving optional parameters and `params`?
-
-_Answer not found._
+Primary constructors (C# 12 for classes and structs) declare constructor parameters directly in the type declaration — `class Service(ILogger logger)` — making those parameters available throughout the type body as if they were captured variables. Unlike records, primary constructor parameters in classes are not automatically converted to properties or fields; you must manually assign them to fields if persistence beyond construction is needed. Traditional constructors have an explicit body where validation logic, field assignments, and chaining can all occur, which makes invariant enforcement straightforward. Primary constructors reduce boilerplate for types that only need to capture dependencies, such as DI-injected services where each parameter simply becomes a private readonly field.
 
 ---
 
-#### Q16. Can constructors be inherited — how does a derived class get a base constructor?
+## Q10. What happens if you do not define any constructor?
 
-_Answer not found._
+**Concepts**
+- compiler generating public parameterless constructor
+- generated constructor zero-initializing all fields
+- parameterized constructor suppressing generated default
+- frameworks requiring parameterless constructor for instantiation
+- explicit constructor for invariant enforcement
+
+**Answer**
+
+If you define no constructor at all, the compiler generates a public parameterless constructor that zero-initializes all instance fields, so callers can instantiate the type with `new Foo()`. If you define at least one constructor with parameters but no parameterless constructor, the compiler does not generate one, which means `new Foo()` is a compile error for callers. This matters for frameworks like `System.Text.Json` (in some configurations), EF Core, and XML serializers that require a parameterless constructor to materialize instances during deserialization or object-relational mapping.
+
+---
+
+## Q11. Why might you mark a constructor `private`?
+
+**Concepts**
+- private constructor preventing direct external instantiation
+- factory method pattern returning instances through static methods
+- singleton pattern controlling single instance creation
+- subtype selection in factory methods
+- async initialization requiring factory for constructor limitation
+
+**Answer**
+
+A private constructor prevents any code outside the class from calling `new` directly, which forces all instance creation through static factory methods that the class controls. The singleton pattern uses a private constructor combined with a static property to ensure only one instance exists. Factory methods benefit from private constructors because they can return subtypes, cache instances, validate complex preconditions, or perform asynchronous initialization — none of which is possible in a constructor directly. This pattern is also used when the creation name should be descriptive: `Order.CreateWithDiscount(...)` communicates more intent than `new Order(amount, true)`.
 
 ---
 
-#### Q17. What validation belongs in a constructor vs a factory method?
+## Q12. What is constructor overloading, and how does `: this(...)` reduce duplication?
 
-_Answer not found._
+**Concepts**
+- constructor overloading providing multiple initialization signatures
+- this() delegation to the canonical constructor
+- validation living in one constructor only
+- simpler overloads supplying defaults
+- avoiding inconsistency when rules change
+
+**Answer**
+
+Constructor overloading provides multiple constructors with different parameter signatures so callers can initialize an object in the most convenient way for their context. `: this(...)` chaining has the simpler overloads delegate to the most-complete constructor so that all validation and initialization logic exists in one place. When a business rule changes — for example, a minimum quantity requirement — updating the single canonical constructor automatically enforces it for every overload without duplicating the check. Without chaining, each overload that copies initialization logic independently risks drifting out of sync with the others.
 
 ---
 
-#### Q18. What is the difference between calling an overloaded instance method vs a static overloaded method?
+## Q13. What is the exact initialization order: static constructor, field initializers, instance constructor body, base constructor?
 
-_Answer not found._
+**Concepts**
+- static constructor running once before first type use
+- instance field initializers running before constructor body
+- base field initializers running before base constructor body
+- full base initialization before derived body
+- derivation chain executing root to leaf
+
+**Answer**
+
+When a type is first used, its static field initializers run in source order and then the static constructor body executes — this happens once per AppDomain. For instance creation the order is: derived instance field initializers run, then execution jumps up to the base chain: base instance field initializers run, then the base constructor body, and then control returns down the chain so the derived constructor body runs. The full sequence for `new Derived()` where `Derived : Base` is: Derived field initializers → Base field initializers → Base constructor body → Derived constructor body. Virtual methods called from the base constructor execute during that phase, which means derived field initialization (constructor body assignments) has not run yet at that point.
 
 ---
+
+## Q14. What is the difference between method overloading (compile-time) and method overriding (runtime polymorphism)?
+
+**Concepts**
+- overloading resolved by compiler from static type
+- overriding resolved at runtime from actual object type
+- virtual dispatch through method table
+- same method name different selection mechanisms
+- overloading for convenience, overriding for substitution
+
+**Answer**
+
+Method overloading is resolved entirely at compile time: the compiler inspects the static types of the arguments and selects the best-matching overload, which is fixed in the compiled IL. Method overriding is resolved at runtime: when a `virtual` method is called on a base-typed reference, the CLR looks up the actual object's method table and invokes the most-derived override. Overloading is a convenience mechanism — one name for conceptually similar operations with different inputs. Overriding is a behavioral-substitution mechanism — derived types provide specialized implementations that callers using the base API receive automatically. Both can coexist: a virtual method can be overloaded across parameter signatures and overridden in derived classes simultaneously.
+
+---
+
+## Q15. When does the compiler fail to pick an overload due to ambiguity?
+
+**Concepts**
+- CS0121 ambiguous call error
+- optional parameters creating overlapping arities
+- params arrays matching fixed-parameter overloads
+- named arguments as disambiguation at call site
+- removing optional parameters as the structural fix
+
+**Answer**
+
+The compiler emits CS0121 when two or more overloads are equally applicable to a call site and neither is more specific than the other. The most common cause is a method with optional parameters whose reduced arity overlaps with another overload's required parameters, so an argument list that satisfies both overloads with equal specificity triggers the error. A `params` array overload can also conflict with a fixed-parameter overload when the argument count matches both. The clean fix is to ensure each overload has a unique required parameter signature so no call site is ambiguous; a temporary workaround is using named arguments at the call site to force the compiler to pick the intended overload.
+
+---
+
+## Q16. Can constructors be inherited?
+
+**Concepts**
+- constructors not inherited in C#
+- derived class must define its own constructors
+- implicit base() call when base has parameterless constructor
+- required explicit base() when base has only parameterized constructors
+- C# 13 primary constructor inheritance in limited scenarios
+
+**Answer**
+
+Constructors are not inherited in C#; each class must define its own constructors explicitly. When you create a derived class without any constructor and the base has a public parameterless constructor, the compiler generates a parameterless derived constructor that implicitly calls `: base()`. If the base has only parameterized constructors, the derived class must define at least one constructor that explicitly calls `: base(args)`, otherwise the code does not compile. This design means derived classes always have clear ownership of their initialization, since inheriting constructors would implicitly expose base initialization paths that the derived type might not want to support.
+
+---
+
+## Q17. What validation belongs in a constructor vs a factory method?
+
+**Concepts**
+- constructor for fundamental type invariants
+- factory method for complex conditional or async creation
+- factory returning different subtypes based on arguments
+- constructor throwing for invalid fundamental state
+- factory returning result type to avoid exception-based error flow
+
+**Answer**
+
+Constructor validation is appropriate for fundamental invariants — conditions without which the object simply cannot exist in a meaningful state, such as a non-null required dependency or a positive price. If the condition fails, throwing from the constructor correctly prevents the variable from being assigned. Factory methods are preferred when creation can fail in ways that should return a typed result rather than throw, when the method may return different subtypes based on arguments, when asynchronous initialization is required (since constructors cannot be `async`), or when complex preconditions span multiple values whose interaction only makes sense at a higher level. The guideline is: constructors for invariants, factories for policy.
+
+---
+
+## Q18. What is the difference between calling an overloaded instance method vs a static overloaded method?
+
+**Concepts**
+- identical compile-time overload resolution rules for both
+- instance method requiring an object receiver
+- static method requiring type name as receiver
+- virtual instance overloads dispatching at runtime if virtual
+- static overloads always resolved at compile time
+
+**Answer**
+
+Both instance and static overloaded methods follow the same compile-time overload resolution rules: the compiler selects the best match based on argument types, counts, and any applicable conversions. The practical difference is that instance method overloads have access to `this` and participate in virtual dispatch if declared `virtual`, so calling an overloaded virtual instance method through a base reference may dispatch to a derived override at runtime. Static overload resolution always uses compile-time types since there is no instance and no virtual dispatch. The call site syntax differs — instance methods need an object or `this`, static methods need the type name — but the selection mechanics are the same.
 
 ### 04. Static Members & Static Classes
 
-#### Q1. Explain the `static` keyword in detail.
+---
 
-(R) An ASP.NET Core API caches the "current user's cart" in a static field so every controller can read it without DI. Under load, users report seeing each other's items. Review the code — what is wrong and how do you fix it?
+## Q1. Explain the `static` keyword in detail.
 
-**Answer:** A static `_items` list is one shared object for the entire application domain — every request overwrites and reads the same cart, so concurrent users bleed data across threads and requests; this is the classic mutable-static-state failure mode in web apps.
+**Concepts**
+- static member belonging to the type not an instance
+- shared state across all instances
+- no this reference in static context
+- static constructor initializing type-level state
+- static class as sealed non-instantiable container
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Mutable static `_items` holds per-user data | User A sees User B's cart under concurrency |
-| Architecture | Static holder bypasses request scope and DI | Hidden global state; untestable without static resets |
-| Scale-out | In-memory static state is per process | Sticky sessions won't help — race is on one instance |
-| Thread safety | `List<T>` mutated without synchronization | Corrupted list / exceptions under parallel requests |
-
-**Fix (priority order):**
-
-1. Remove `CartContext` static mutable storage — register a **scoped** `ICartService` (or store cart keyed by user id in Redis/SQL).
-2. Pass `HttpContext.User` identity into the service; never store "current user" in static fields.
-3. If caching shared **read-only** reference data, use `IMemoryCache` or `IOptions<T>` with immutable snapshots — not a static `List` rewritten per request.
-4. Add integration tests with parallel HTTP clients to catch cross-user leakage.
-
-**Production takeaway:** Static members are fine for type-level constants and pure helpers (`BankAccount.IsValidRoutingNumber`) — not for request-scoped or user-scoped state. See **Program.cs** Section 1 — "mutable static fields are shared global state."
+The `static` keyword declares a member as belonging to the type itself rather than to any particular instance, so static fields are shared across all instances and static methods have no `this` reference. A static field is allocated once when the type is loaded and lives for the duration of the AppDomain. A static method can only access other static members directly; it must receive an explicit instance parameter to work with any object state. A static constructor runs once before the first use of the type. A `static class` is implicitly sealed, cannot be instantiated, and can contain only static members, making it a named container for stateless utility functions or extension methods.
 
 ---
 
-#### Q2. What is a static class in C#?
+## Q2. What is a static class in C#?
 
-(M) A teammate adds runtime config loading to `AppSettings` and reports intermittent `TypeInitializationException` on first request. Review the static initialization — what ordering traps exist, and how would you make startup deterministic?
+**Concepts**
+- implicitly sealed and non-instantiable
+- only static members permitted
+- compiler enforcing no instance constructors or fields
+- use for stateless utility groupings and extension methods
+- cannot implement interfaces or be used as base
 
-**Answer:** Static field initializers run in declaration order before the static constructor body, but circular reads between static fields or throwing initializers can fail type initialization once and poison the type for the AppDomain — the fix is to defer I/O to explicit startup (`IConfiguration`) instead of fragile static ctor chains.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Init order | `MaxLoginAttempts = LoadMaxAttempts()` runs before `static AppSettings()` body | `LoadMaxAttempts` uses `ConfigPath` — OK here, but reordering fields breaks silently |
-| Runtime | `LoadMaxAttempts` throws on missing/malformed file | `TypeInitializationException` — type unusable until app restart |
-| Design | Static ctor performs I/O and logging | Failures happen on first touch, not at controlled startup |
-| Web hosting | First request triggers type load | Lazy failure in prod instead of fail-fast at `WebApplication` boot |
-
-**Fix (priority order):**
-
-1. Move config loading to ASP.NET Core **options pattern** — `builder.Services.Configure<LoginOptions>(configuration.GetSection("Login"))` — validate at startup with `ValidateOnStart`.
-2. If static readonly is required, keep static fields **simple** (env var only); load file-backed values in `Program.cs` after `builder.Configuration` exists.
-3. Avoid static initializers that depend on each other's side effects; document declaration order or use explicit static ctor assignment only.
-4. Never swallow exceptions in static constructors — they wrap inner failures in `TypeInitializationException` and hide root cause in logs.
-
-```csharp
-// Prefer at startup, not in static type init:
-builder.Services.AddOptions<LoginOptions>()
-    .Bind(configuration.GetSection("Login"))
-    .Validate(o => o.MaxAttempts > 0, "MaxAttempts required")
-    .ValidateOnStart();
-```
-
-**Production takeaway:** Static constructors run once per type load (**Program.cs** Section 6 preview) — treat them like hidden startup code. Production apps load config through `IConfiguration`, not static field chains that throw on first access.
+A static class is implicitly sealed, cannot be instantiated with `new`, and can contain only static members. The compiler rejects any instance field, instance property, instance constructor, or inheritance relationship on a static class. Static classes are used to group logically related utility functions that operate purely on their parameters — math helpers, string extension methods, and configuration constants are typical examples. Because they hold no instance state, they behave as typed namespaces for methods. Extension methods must be declared in a static non-nested class, which is the most common reason to define one in application code.
 
 ---
 
-#### Q3. Why can you not override a `static` method?
+## Q3. Why can you not override a `static` method?
 
-(R) Production logging uses the tutorial's `AuditLogger` singleton instead of `ILogger`. Tests pass locally but CI flakes and log counts are wrong under concurrent requests. Review the pattern — what's broken and what replaces it?
+**Concepts**
+- static dispatch resolved at compile time by type name
+- no virtual table for static members
+- new hiding static method by compile-time type
+- C# 11 static abstract in interfaces for generic polymorphism
+- class static hierarchy remaining non-polymorphic
 
-**Answer:** Hand-rolled singletons expose untestable global mutable state (`_entryCount++` is not thread-safe) and fight ASP.NET Core's built-in logging pipeline — register `ILogger<T>` and scoped/transient services instead of `AuditLogger.Instance`.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Non-interlocked `_entryCount++` | Lost updates / wrong counts under parallel requests |
-| Testability | Static `Instance` and private ctor | Tests share global counter; order-dependent flakes |
-| DI misuse | `AddSingleton(AuditLogger.Instance)` registers pre-built object | Bypasses container ownership; can't substitute fakes easily |
-| Observability | `Console.WriteLine` instead of `ILogger` | No levels, filters, structured fields, or centralized sinks |
-
-**Fix (priority order):**
-
-1. Delete the singleton — inject `ILogger<CheckoutController>` (or an application service) via constructor DI.
-2. If audit is a domain concern, define `IAuditService` registered **scoped** or **singleton** only when the implementation is **stateless**; persist counts to storage if needed.
-3. Use `Interlocked.Increment` only for cheap diagnostics — not as a substitute for proper logging/metrics (`IMeterFactory`, Application Insights).
-4. In tests, use `WebApplicationFactory` with logging providers or mock `ILogger<T>` — no static reset hacks.
-
-```csharp
-public class CheckoutController : ControllerBase
-{
-    private readonly ILogger<CheckoutController> _logger;
-
-    public CheckoutController(ILogger<CheckoutController> logger) => _logger = logger;
-
-    public IActionResult Checkout()
-    {
-        _logger.LogInformation("Checkout completed for {UserId}", UserId);
-        return Ok();
-    }
-}
-```
-
-**Production takeaway:** **Program.cs** Section 10 previews singleton for learning — production prefers DI singletons (container-managed, interface-based) over static `Instance` accessors. See foundation **Constructors** chapter for thread-safe lazy init when a true single instance is required.
+Static methods are resolved at compile time using the type name in the call rather than through virtual dispatch on an object's method table. Since there is no runtime instance involved, there is nothing to look up in a virtual table, and the concept of "override" — which means the most-derived implementation wins at runtime — does not apply. If a derived class declares a static method with the same name using `new`, it hides the base method by compile-time type, but a call through a base-typed reference still invokes the base version. C# 11 introduced `static abstract` and `static virtual` members in interfaces to enable a constrained form of polymorphism in generic contexts, but this does not extend to class hierarchies.
 
 ---
 
-#### Q4. What is the difference between a static class and the singleton pattern?
+## Q4. What is the difference between a static class and the singleton pattern?
 
-(R) A developer refactors `TaxHelper` to support per-region tax profiles and adds instance state. Build fails. Review the changes — what rules did they violate, and what structure should replace a static class here?
+**Concepts**
+- static class as a language-level type with no instances
+- singleton as a design pattern limiting a class to one instance
+- singleton instance being a real heap object
+- singleton implementing interfaces and participating in DI
+- testability advantage of singleton over static class
 
-**Answer:** Static classes cannot have instance members or instance constructors — the compiler rejects instance fields and `TaxHelper(decimal)` on a `static class`; once you need per-object state, convert to an ordinary instance class (often injected via DI) and keep only pure functions static if needed.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Instance field + ctor on `static class` | CS0708 / CS0710 — build blocked |
-| Design | Mixed static utility + instance profile in one type | Violates static class purpose (stateless helper group) |
-| API | Callers would need `new TaxHelper(...)` | CS0712 — cannot instantiate static class even without other errors |
-
-**Fix (priority order):**
-
-1. Replace `static class TaxHelper` with a normal sealed class, e.g. `ITaxCalculator` / `TaxCalculator`, taking `regionRate` via constructor or options.
-2. Register `ITaxCalculator` as scoped or singleton in DI depending on whether rate is per-request or app-wide config.
-3. Keep stateless math as `public static decimal CalculateSalesTax(...)` on a separate `TaxMath` static class **or** private static method on the instance class — match **Program.cs** Section 7 (static class = no instance state).
-4. Do not inherit from `TaxHelper` — static classes are implicitly sealed; use composition and interfaces instead.
-
-```csharp
-public interface ITaxCalculator
-{
-    decimal CalculateForRegion(decimal amount);
-}
-
-public sealed class TaxCalculator : ITaxCalculator
-{
-    private readonly decimal _regionRate;
-    public TaxCalculator(IOptions<TaxOptions> options) => _regionRate = options.Value.Rate;
-    public decimal CalculateForRegion(decimal amount) =>
-        Math.Round(amount * _regionRate, 2, MidpointRounding.AwayFromZero);
-}
-```
-
-**Production takeaway:** Static classes (`TaxHelper`, `AppSettings` helpers) are for stateless utilities — the moment you need `this`, use an instance type. Karat tests whether you know CS0712/CS0709 rules from **Program.cs** Section 7, not just memorize `static`.
+A static class is a language construct that can never be instantiated and exists purely as a container for type-level members. The singleton pattern is a design pattern where a normal class controls its instantiation to produce exactly one instance, typically exposed through a static property like `Instance`. The singleton's single object lives on the heap, can implement interfaces, and can be substituted with a subtype or mock in tests by injecting it through a constructor parameter. A static class provides none of these capabilities, since you cannot assign it to a variable, pass it to a method expecting an interface, or replace it with a test double.
 
 ---
 
-#### Q5. What is a static field, and how is lifetime different from an instance field?
+## Q5. What is a static field, and how is its lifetime different from an instance field?
 
-(R) `BankAccount` account numbers duplicate in production after traffic increases. The team uses the tutorial counter as-is. Review the static field usage — what race exists and how do you fix it without abandoning a shared sequence?
+**Concepts**
+- static field allocated once per type per AppDomain
+- instance field allocated per object
+- static field persisting across object lifetimes
+- GC collecting objects but not static state
+- mutable static field as shared global state risk
 
-**Answer:** `_nextAccountNumber++` is not atomic — two threads can read the same value before either writes back, producing duplicate `AccountNumber` values; use `Interlocked.Increment` for in-process sequences or a database/ID service for authoritative numbering.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Read-modify-write on `_nextAccountNumber++` | Duplicate account numbers under parallel ctor calls |
-| Correctness | Assumes single-threaded console demo semantics | Web API creates many `BankAccount` objects concurrently |
-| Scale-out | Static counter is per process | Two pods can still collide — DB sequence or distributed ID required |
-
-**Fix (priority order):**
-
-1. **In-process fix:** assign with `Interlocked.Increment(ref _nextAccountNumber)` (or `Interlocked.Add`) inside the constructor.
-2. **Production fix:** generate account numbers from SQL `IDENTITY`/sequence, UUID, or Snowflake-style ID service — static fields don't survive multi-instance deployments.
-3. Mark `_nextAccountNumber` `private static` and never expose mutability via public static setters.
-4. Add stress test spawning parallel account creation tasks asserting unique numbers.
-
-```csharp
-public BankAccount(string ownerName, decimal openingDeposit)
-{
-    AccountNumber = Interlocked.Increment(ref _nextAccountNumber);
-    OwnerName = ownerName;
-    Balance = openingDeposit;
-}
-```
-
-**Production takeaway:** **Program.cs** Section 1 warns that mutable static fields race unless synchronized — the tutorial's counter is correct for demos, not for concurrent web registration endpoints.
+A static field is associated with the type rather than any instance; it is allocated once when the type is first loaded and lives for the entire duration of the AppDomain or process. An instance field is allocated as part of each object and lives until that object is garbage collected. Because static fields exist independently of individual object lifetimes, they persist across method calls and object creations, making them suitable for type-level counts or caches but dangerous for per-request or per-user mutable state in multi-threaded applications. Mutating a static field in a web application without synchronization is a race condition since multiple request threads share the same static storage.
 
 ---
 
-#### Q6. What is a static property and static method — what is the `this` reference inside them?
+## Q6. What is a static property and static method — what is the `this` reference inside them?
 
-(D) Your API team debates three approaches for shared, read-mostly configuration: `public const` literals, `static readonly` loaded at type init, and mutable `public static` properties set from middleware. Which would you allow in a multi-instance ASP.NET Core deployment, and which would you ban? Why?
+**Concepts**
+- accessed through type name not an object
+- no this reference available
+- accessing only static members directly
+- instance members requiring explicit parameter
+- useful for lazy initialization of shared state
 
-**Answer:** Allow `const` for true compile-time literals and immutable `static readonly` only when the value is identical on every instance and never changes after type init; ban mutable `public static` properties for app configuration — use `IOptions<T>` / `IConfiguration` so each pod reads consistent, reloadable, testable settings without global writes from middleware.
+**Answer**
 
-**Allow — `const` (e.g., `MaxLoginAttempts = 3`):**
-
-- Fixed at compile time; zero runtime cost; safe to share everywhere.
-- Trade-off: changing value requires recompile of all assemblies that inline it (**Program.cs** Section 8 — const metadata inlining).
-
-**Allow with caution — `static readonly` set once at type init (e.g., `EnvironmentName` from env var):**
-
-- OK for process-wide, immutable facts loaded before requests (deployment stamp, machine name).
-- Must not read per-request data; env var is fixed for process lifetime.
-- Prefer `IOptions<T>` for anything that might reload or differ by environment file.
-
-**Ban — mutable `public static` properties (e.g., `BankAccount.BankName { get; set; }` set from middleware):**
-
-- Creates hidden global state writable from anywhere; race-prone under concurrent requests.
-- Multi-instance: each pod has its own static copy — "global" settings drift if one instance mutates.
-- Breaks unit tests (order-dependent mutations) and violates DI/test seams.
-
-**Production pattern:** `builder.Services.Configure<BankOptions>(configuration.GetSection("Bank"))` inject `IOptionsSnapshot<BankOptions>` where refresh matters. Keep static classes for pure functions only (`IsValidRoutingNumber`).
-
-**Production takeaway:** **Program.cs** contrasts `const`, `static readonly`, and mutable static properties — in web apps, configuration flows through the options/configuration stack, not static setters touched during the HTTP pipeline.
+Static properties and methods are invoked through the type name rather than an object reference, so there is no `this` reference inside them. They can only access other static members directly; to work with instance members they must receive an explicit object as a parameter. A static property can implement lazy initialization of shared state — for example, returning a cached `Lazy<T>` value or a configuration setting loaded once. A static method is appropriate for pure computations that operate only on their arguments and type-level state, such as parsing helpers or factory-like `Create(args)` methods that allocate and return new instances.
 
 ---
 
----
+## Q7. Why can static methods not access instance members directly?
 
-#### Q7. Why can static methods not access instance members directly?
+**Concepts**
+- static context lacking a this reference
+- instance members stored per-object on the heap
+- no object to read instance state from
+- explicit instance parameter enabling access
+- design enforcing stateless utility nature of static methods
 
-_Answer not found._
+**Answer**
 
----
-
-#### Q8. When are static constructors executed, and how many times per AppDomain/process?
-
-_Answer not found._
-
----
-
-#### Q9. What is the difference between `const` (implicitly static) and `static readonly`?
-
-_Answer not found._
+Static methods lack a `this` reference because they are invoked on the type, not on any particular object. Instance fields and properties hold values per object on the heap, and without knowing which specific object to read, the runtime has no way to locate the correct data. To access instance members from a static method you must accept an explicit object parameter and access members through it. This restriction is a design feature: it enforces that static methods remain stateless with respect to any particular object, which makes them easy to reason about in isolation and safe to call from any context without worrying about object lifecycle.
 
 ---
 
-#### Q10. Can a static class implement interfaces?
+## Q8. When are static constructors executed, and how many times per AppDomain/process?
 
-_Answer not found._
+**Concepts**
+- executed exactly once per type per AppDomain
+- triggered before first instance creation or first static member access
+- cannot be called explicitly
+- TypeInitializationException wrapping any failure
+- type permanently unusable after static constructor throws
 
----
+**Answer**
 
-#### Q11. What thread-safety concerns apply to mutable static fields?
-
-_Answer not found._
-
----
-
-#### Q12. Why is overusing static state a testing and maintainability problem?
-
-_Answer not found._
+The CLR executes a type's static constructor exactly once per AppDomain, before the first instance of the type is created or the first static member is accessed, whichever comes first. The runtime serializes this execution so even concurrent first accesses result in the static constructor running only once. It cannot be invoked explicitly. If the static constructor throws an exception, the type is permanently poisoned for that AppDomain: every subsequent attempt to use the type throws `TypeInitializationException` wrapping the original exception, and there is no recovery without restarting the process. This makes avoiding I/O and external calls in static constructors important for production reliability.
 
 ---
 
-#### Q13. What is the difference between static nested classes and non-static nested classes?
+## Q9. What is the difference between `const` and `static readonly`?
 
-_Answer not found._
+**Concepts**
+- const inlined at compile time into consuming assemblies
+- static readonly evaluated once at runtime
+- const requiring recompile of consumers after change
+- static readonly readable from environment or config at startup
+- const limited to primitive and string types
+
+**Answer**
+
+`const` values are substituted by the compiler directly into every consuming assembly's IL at compile time, so they incur zero runtime cost but require recompiling all consumers when the value changes to pick up the new value. `static readonly` fields are assigned once — either from a field initializer or from the static constructor — and stored in the type's memory at runtime, so consuming assemblies read the current value without recompilation after redeployment. `const` is limited to types the compiler can embed inline (primitive numerics, `string`, `bool`, and `enum`), while `static readonly` can hold any type including complex objects. Use `const` for true universal constants that will never change; use `static readonly` for values that are logically constant but derived at startup.
 
 ---
 
-#### Q14. How do static members participate in inheritance — are they polymorphic?
+## Q10. Can a static class implement interfaces?
 
-_Answer not found._
+**Concepts**
+- static class cannot implement interfaces
+- interfaces describing instance contracts
+- no instance to assign to an interface variable
+- workaround via normal sealed class with static members
+- extension method host static class as a common exception
+
+**Answer**
+
+No — a static class cannot implement interfaces because an interface describes a contract for instances, and you cannot create an instance of a static class or assign it to a variable of interface type. The compiler rejects the attempt with an error. If you need a type that both exposes utility members statically and satisfies an interface contract, you must use a normal (non-static) class, potentially with a combination of static and instance members. Extension method container classes are static classes that cannot implement interfaces, which is why extension method dispatch is resolved at compile time rather than through interface polymorphism.
 
 ---
+
+## Q11. What thread-safety concerns apply to mutable static fields?
+
+**Concepts**
+- shared across all threads with no automatic synchronization
+- read-modify-write as a non-atomic race condition
+- Interlocked for simple counters
+- lock for compound multi-field operations
+- mutable static in ASP.NET Core as a per-process global
+
+**Answer**
+
+Mutable static fields are shared across all threads in the AppDomain without any built-in synchronization, so any read-modify-write sequence is a potential race condition. Even an innocuous `count++` compiles to separate load, increment, and store instructions, meaning two threads can read the same value before either writes back and produce a lost update. For simple integer counters, `Interlocked.Increment` provides an atomic operation without locking. For compound operations spanning multiple fields, a `lock` or a `ReaderWriterLockSlim` is required. In ASP.NET Core, mutable static fields are especially dangerous because every HTTP request runs on a thread pool thread and all requests share the same static state.
+
+---
+
+## Q12. Why is overusing static state a testing and maintainability problem?
+
+**Concepts**
+- static state persisting across test runs in the same process
+- test order dependency causing flaky failures
+- no injection seam for fakes or mocks
+- parallel test isolation impossible with shared static state
+- global hidden coupling between unrelated code paths
+
+**Answer**
+
+Static state persists for the entire AppDomain lifetime, so mutations in one test affect subsequent tests unless explicitly reset, which makes test order matter and produces flaky failures. There is no injection seam: you cannot replace a static dependency with a fake without modifying the class under test, which means static callers are tightly coupled to specific static implementations. Running tests in parallel is unsafe when tests share mutable static state because race conditions produce unpredictable results. At the design level, static state creates hidden coupling — any code anywhere in the process can read or write it, making dependencies invisible and refactoring risky.
+
+---
+
+## Q13. What is the difference between static nested classes and non-static nested classes?
+
+**Concepts**
+- static nested class lacking reference to enclosing instance
+- non-static nested class holding implicit reference to outer instance
+- static nested class accessing only outer static members
+- non-static nested class accessing all outer private members
+- use cases for builder pattern and helper types
+
+**Answer**
+
+A static nested class declared inside an outer class does not hold a reference to any instance of the enclosing type; it can access only the outer class's static members. It is essentially a normal class that is logically scoped inside the outer type's namespace for organizational clarity. A non-static nested class holds an implicit reference to an enclosing instance and can access all instance members of the outer class, including private ones. Static nested classes are common for builder patterns, configuration options nested inside a service class, and helper types that logically belong to an outer type but need no instance reference. Non-static nested classes are uncommon in C# compared to Java and are typically used when the inner type must tightly couple to a specific outer instance's private state.
+
+---
+
+## Q14. How do static members participate in inheritance — are they polymorphic?
+
+**Concepts**
+- static members not polymorphic through virtual dispatch
+- hiding with new resolving by compile-time type
+- C# 11 static abstract and static virtual in interfaces
+- class-level static hierarchy non-polymorphic
+- generic constraints enabling static polymorphism via interfaces
+
+**Answer**
+
+Static members in a class hierarchy are not polymorphic. You cannot declare a static method `virtual` in a class or override it with `override` in a derived class. If a derived class defines a static method with the same name using `new`, it hides the base version by compile-time type, so a call through a base-type reference still reaches the base method. C# 11 introduced `static abstract` and `static virtual` members in interfaces, which allows a constrained form of polymorphism for statics when consumed through generic type parameters constrained to that interface. This enables patterns like `T.Parse(string)` in generic math, but it is distinct from class-based inheritance and requires the interface constraint at the call site.
 
 ### 05. Inheritance & Polymorphism
 
-#### Q1. Explain inheritance in detail in C#.
+---
 
-Explain inheritance in detail in C#.
+## Q1. Explain inheritance in detail in C#.
 
-**Answer:** Inheritance lets a derived class extend a base class, inheriting instance and static members (with accessibility limits) and adding or replacing behavior. C# supports single inheritance of classes plus multiple interface implementation.
+**Concepts**
+- single base class inheritance plus multiple interface implementation
+- derived class inheriting instance and static members with access limits
+- virtual methods enabling override in subclasses
+- constructor chaining ensuring base initialization
+- sealed keyword stopping further derivation
 
-- Base class can define virtual methods for override; sealed base stops further derivation.
-- Protected members visible to derived classes enable extension while hiding from unrelated code.
-- Constructor chaining ensures base initialization—Constructors chapter.
-- Favor composition when inheritance only reuses implementation without true is-a relationship—Q13.
+**Answer**
+
+Inheritance lets a derived class extend a base class, gaining all accessible instance and static members and adding or replacing behavior. C# supports single inheritance of classes — a class can have exactly one direct base class — but a class may implement any number of interfaces, which allows multiple behavioral contracts without the complexity of multiple implementation inheritance. Protected members are visible to derived classes, enabling controlled extension while hiding implementation from unrelated code. A derived class constructor must chain to a base constructor using `: base(...)`, ensuring the base portion of the object is initialized before the derived body runs. Sealing a class or sealing an individual override stops further derivation at that point, which documents a final implementation and allows the JIT to devirtualize calls.
 
 ---
 
-#### Q2. Explain polymorphism in C# and how it can be achieved.
+## Q2. Explain polymorphism in C# and how it can be achieved.
 
-Explain polymorphism in C# and how it can be achieved.
+**Concepts**
+- runtime dispatch through virtual method table
+- base-typed reference invoking derived override
+- interface implementation as a form of polymorphism
+- compile-time polymorphism via overloading
+- pattern matching as an alternative for closed hierarchies
 
-**Answer:** Polymorphism allows code to operate on abstractions (base class or interface references) while runtime behavior comes from the actual derived type. C# achieves it via virtual method overriding, interface implementation, and implicit interface dispatch.
+**Answer**
 
-- `Animal a = new Dog(); a.Speak()` calls `Dog.Speak` if `Speak` is virtual/override.
-- Interfaces enable polymorphism without shared base class implementation.
-- Pattern matching and switch on type complement but do not replace virtual design for open hierarchies.
-- Gotcha 7 warns against long type-check chains defeating polymorphism.
-
----
-
-#### Q3. What is the difference between compile-time (static) and runtime (dynamic) polymorphism?
-
-What is the difference between compile-time (static) and runtime (dynamic) polymorphism?
-
-**Answer:** Compile-time polymorphism includes method overloading and `new` method hiding—resolved from static type at compile time. Runtime polymorphism uses `virtual`/`override` dispatch based on actual object type, and interface calls through implementing instances.
-
-- Overload: chosen by argument types at compile time.
-- Override: `Base b = new Derived(); b.V()` calls Derived at runtime.
-- `dynamic` keyword adds runtime binding for member resolution beyond inheritance—Module 01 Q25.
-- Default interface methods dispatch with rules for struct boxing—Gotcha 15 Module 02.
+Polymorphism allows code written against an abstraction — a base class or interface reference — to receive behavior from the actual derived type at runtime. When a `virtual` method is called through a base-typed reference, the CLR uses the object's method table to dispatch to the most-derived override, so `Animal a = new Dog(); a.Speak()` calls `Dog.Speak` if `Speak` is declared virtual. Interfaces achieve polymorphism without a shared class hierarchy: any type implementing `IShape` can be substituted wherever `IShape` is expected. Method overloading is compile-time polymorphism since the compiler picks the overload from static argument types. Pattern matching with `switch` expressions extends polymorphic dispatch to closed type sets where virtual dispatch is impractical.
 
 ---
 
-#### Q4. What is a sealed class in C#?
+## Q3. What is the difference between compile-time (static) and runtime (dynamic) polymorphism?
 
-What is a sealed class in C#?
+**Concepts**
+- compile-time selection from static type information
+- runtime selection through virtual dispatch table
+- overloading as compile-time polymorphism
+- virtual override as runtime polymorphism
+- dynamic keyword adding late binding beyond inheritance
 
-**Answer:** A `sealed class` cannot be inherited; `sealed override` on a method prevents further overrides in derived classes. Sealing documents final implementation and enables runtime devirtualization optimizations in some cases.
+**Answer**
 
-- `string` and many BCL types are sealed for security and invariant preservation.
-- Seal classes when extension via inheritance would break invariants (security, correctness).
-- Cannot derive from sealed class—Q16.
-- Sealing is optional design choice vs `virtual` extensibility trade-off.
-
----
-
-#### Q5. What is a virtual method in C#?
-
-What is a virtual method in C#?
-
-**Answer:** A `virtual` method in a base class provides a default implementation that derived classes may replace with `override`, enabling runtime dispatch to the most derived override through a base-typed reference.
-
-- Without `virtual`, methods are non-virtual by default in C# (unlike Java instance methods).
-- Virtual methods participate in inheritance chains; `abstract` virtual requires override in derived non-abstract class.
-- Calling virtual methods from constructor sees derived overrides before derived initialization completes—Gotcha 1.
-- Performance: JIT can devirtualize sealed or known types in optimized tiers.
+Compile-time polymorphism is resolved when the compiler builds the IL: method overloading, operator overloading, and `new` method hiding are all decided from the static types visible at the call site. Runtime polymorphism is resolved when the program executes: virtual method dispatch looks up the actual object's method table and invokes the most-derived override, regardless of the compile-time type of the reference. The key difference is when the decision is made — compile-time means the behavior is fixed in IL, runtime means it depends on what object is actually there. The `dynamic` keyword adds a third form of late binding where member resolution is deferred entirely to runtime beyond what the type system normally expresses.
 
 ---
 
-#### Q6. What is the difference between `this` and `base` keywords?
+## Q4. What is a sealed class in C#?
 
-What is the difference between `this` and `base` keywords?
+**Concepts**
+- sealed class preventing subclassing
+- sealed override preventing further override in chain
+- JIT devirtualization optimization opportunity
+- invariant and security preservation motivation
+- CS0509 error on deriving from sealed class
 
-**Answer:** `this` refers to the current instance for disambiguation and passing self; `base` accesses base class members hidden by derived declarations, especially calling `base.Method()` to run parent implementation before or after derived logic.
+**Answer**
 
-- `base` in constructor initializer calls base constructor—Constructors Q4.
-- `base.Method()` invokes base virtual method even when derived overrides—does not dynamically dispatch to derived when explicitly qualified with `base`.
-- `this()` chains constructors on same class.
-- Static context has no `this`; `base` only in instance members of derived class.
-
----
-
-#### Q7. What is operator overloading in C#?
-
-What is operator overloading in C#?
-
-**Answer:** Operator overloading defines static methods with `operator` keyword so expressions like `a + b` compile for user-defined types when overloads exist, subject to language rules on which operators are overloadable.
-
-- Must declare public static overloads; some operators require paired overloads (`==` and `!=`).
-- Cannot overload `&&` `||` as user operators though `true`/`false` unary operators enable short-circuit patterns for custom types in limited scenarios.
-- Use sparingly for domain types (vectors, money) with intuitive semantics.
-- Inconsistent equality operators break collections—Gotcha 14 Module 02.
+A `sealed` class cannot be used as a base class; any attempt to inherit from it produces compile error CS0509. `sealed` can also be applied to an individual `override` method, which allows the class itself to be subclassed while preventing that specific virtual method from being overridden further down the hierarchy. The CLR and JIT can devirtualize calls to sealed types in some scenarios, since the method table lookup can be eliminated when the final type is known. Many BCL types like `string` are sealed to preserve invariants and security assumptions that would break if subclasses could replace key methods.
 
 ---
 
-#### Q8. Explain the difference between `virtual`, `abstract`, and `override` keywords.
+## Q5. What is a virtual method in C#?
 
-Explain the difference between `virtual`, `abstract`, and `override` keywords.
+**Concepts**
+- virtual providing overridable default implementation
+- non-virtual default in C# unlike Java
+- runtime dispatch for virtual calls
+- abstract virtual requiring override in concrete subclasses
+- calling virtual methods from constructors as a risk
 
-**Answer:** `virtual` provides overridable default implementation in concrete base class. `abstract` on class or method requires derived non-abstract class to implement (no body on abstract method). `override` replaces inherited virtual or abstract method in derived class.
+**Answer**
 
-| Keyword | On class | On method |
-|---|---|---|
-| `virtual` | — | Optional override with default body |
-| `abstract` | Class cannot instantiate | No body; must override in derived |
-| `override` | — | Replaces base virtual/abstract |
-
-Abstract class can mix concrete and abstract methods—chapter 06 Q9.
-
----
-
-#### Q9. Explain the `new` keyword in the context of method hiding.
-
-Explain the `new` keyword in the context of method hiding.
-
-**Answer:** `new` on a derived method hides a base method with the same signature without overriding; dispatch when calling through base-typed reference uses base method unless static type of reference is derived.
-
-- Does not participate in runtime polymorphism like `override`.
-- Warning CS0108 if hiding without `new` keyword—compiler suggests `new`.
-- Gotcha 2: mixing hide and override breaks expectations when calling through base type.
-- Use `override` when polymorphism intended; `new` when base API should remain unchanged for base references.
+A `virtual` method in a base class provides a default implementation that derived classes may replace using `override`, and calls to it through any base-typed reference dispatch to the most-derived override at runtime. Unlike Java, C# methods are non-virtual by default, so only explicitly `virtual` members participate in runtime dispatch. An `abstract` method is implicitly virtual but has no body and must be overridden in every non-abstract derived class. Calling a virtual method from a base constructor is risky because the override runs while derived field initializers have not yet executed, meaning the override sees default values for all derived fields.
 
 ---
 
-#### Q10. Explain how C# handles multiple inheritance (using interfaces).
+## Q6. What is the difference between `this` and `base` keywords?
 
-Explain how C# handles multiple inheritance (using interfaces).
+**Concepts**
+- this as reference to current instance
+- base accessing base class members hidden by derived declarations
+- base() in constructor calling parent constructor
+- base.Method() invoking parent implementation without virtual redispatch
+- static context having no this
 
-**Answer:** C# allows a class to inherit one base class at most but implement multiple interfaces, gaining polymorphic contracts from each interface without merging implementation from multiple class hierarchies.
+**Answer**
 
-- `class Worker : Person, IEmployable, IPayable` inherits Person once and implements both interfaces.
-- Interface methods implemented explicitly or publicly on the class.
-- Default interface methods (C# 8+) supply shared implementation on interfaces without class base duplication.
-- Diamond problem for classes avoided; interfaces with default methods have resolution rules—chapter 06 Q12.
-
----
-
-#### Q11. Why does C# not support multiple inheritance of classes?
-
-Why does C# not support multiple inheritance of classes?
-
-**Answer:** Multiple class inheritance complicates object layout, virtual dispatch, constructor chaining, and the diamond problem where two base classes provide conflicting implementations of the same method. C# chose single inheritance plus interfaces for clarity and predictable memory layout.
-
-- COM and CLR object model simplified with single inheritance chain.
-- Composition and interfaces cover most multiple reuse scenarios without MI complexity.
-- Languages with MI require complex resolution rules C# designers avoided.
-- See Q13 favor composition guideline.
+`this` refers to the current object instance and is used for disambiguation (when a parameter name shadows a field), for passing the current instance as an argument, or for chaining to another constructor with `: this(...)`. `base` accesses base class members when they have been hidden by a derived declaration, and `base.Method()` explicitly calls the base class's implementation of a virtual method — it bypasses the derived override for that specific call site without dynamic redispatch. `base(...)` in a constructor initializer calls the base class constructor. Neither `this` nor `base` is available in static members since there is no instance involved.
 
 ---
 
-#### Q12. What is the fragile base class problem?
+## Q7. What is operator overloading in C#?
 
-What is the fragile base class problem?
+**Concepts**
+- public static methods with operator keyword
+- which operators can be overloaded
+- paired overload requirement for == and !=
+- equality operator consistency with Equals and GetHashCode
+- use for domain types with intuitive arithmetic semantics
 
-**Answer:** Derived classes depend on base class implementation details; changes in base (new virtual methods, altered sequence) break subclasses unexpectedly. Virtual calls from base constructors exacerbate the issue—Gotcha 1.
+**Answer**
 
-- Mitigate by sealing classes, minimizing virtual surface, documenting extension points, using composition.
-- Framework authors treat unsealed public classes as extensibility contracts with versioning cost.
-- See Classes Q17 high-level summary.
-- Unit tests on derived classes may fail when base library updates silently change behavior.
-
----
-
-#### Q13. Why is "favor composition over inheritance" a common guideline?
-
-Why is "favor composition over inheritance" a common guideline?
-
-**Answer:** Composition builds types by containing helper objects and delegating behavior, avoiding tight coupling to base class implementation and fragile override chains. Inheritance exposes derived classes to base changes and deep hierarchy maintenance costs.
-
-- Wrapper pattern (`class LoggingRepository : IRepository` delegating to inner repo) swaps behavior without subclassing concrete base.
-- Inheritance suits true is-a polymorphic relationships with stable abstractions.
-- Deep inheritance trees obscure where behavior originates.
-- Strategy pattern uses composition with interfaces—OOP Examples Q11.
+Operator overloading defines `public static` methods with the `operator` keyword so expressions like `a + b` compile for user-defined types when the appropriate overload is defined. Most arithmetic, comparison, and bitwise operators can be overloaded; some like `&&` and `||` cannot be directly overloaded though the `true` and `false` unary operators unlock short-circuit behavior for custom types. When you overload `==` you must also overload `!=`, and you should override `Equals` and `GetHashCode` consistently — if equality operators disagree with `Equals`, dictionary and set operations produce wrong results. Operator overloading is appropriate for domain types with natural numeric or comparison semantics, such as monetary amounts, vectors, or duration types.
 
 ---
 
-#### Q14. What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?
+## Q8. Explain the difference between `virtual`, `abstract`, and `override` keywords.
 
-What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?
+**Concepts**
+- virtual providing overridable implementation in concrete class
+- abstract requiring override with no body in base
+- abstract class non-instantiable
+- override replacing virtual or abstract in derived class
+- sealed override stopping the chain
 
-**Answer:** For virtual calls, the CLR uses the method table of the actual object type at runtime to locate the most derived override, ignoring the compile-time static type of the reference for instance virtual methods.
+**Answer**
 
-- Each object header points to method table with slot for virtual methods; override replaces slot in derived table layout.
-- Non-virtual calls bind to compile-time type method directly without virtual indirection.
-- `callvirt` IL instruction enforces virtual dispatch and null check on instance.
-- Sealed override enables devirtualization optimization when JIT proves final type.
-
----
-
-#### Q15. What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable?
-
-What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable?
-
-**Answer:** With `override`, `Base b = new Derived(); b.M()` calls `Derived.M` at runtime. With `new` hiding, same call invokes `Base.M` because dispatch uses static type of reference `Base` for non-virtual hidden method.
-
-- Gotcha 2 is core interview trap.
-- Explicit cast to `Derived` calls hidden method on derived: `((Derived)b).M()`.
-- Polymorphic designs should use `virtual`/`override`, not `new`.
-- Interface implementation always uses runtime type of implementing object for interface calls.
+`virtual` declares a method in a concrete base class with an implementation that derived classes may optionally replace. `abstract` declares a method with no body and requires every non-abstract derived class to provide an implementation; a class with any abstract method must itself be declared `abstract` and cannot be instantiated. `override` in a derived class replaces the inherited virtual or abstract slot, and the runtime dispatches to the most-derived override at runtime. A `sealed override` in a derived class replaces the slot and simultaneously prevents any further subclass from overriding it again. Abstract classes can mix abstract methods (which derived classes must implement) with concrete methods (which derived classes inherit as-is or optionally override if declared virtual).
 
 ---
 
-#### Q16. Can you inherit from a sealed class?
+## Q9. Explain the `new` keyword in the context of method hiding.
 
-Can you inherit from a sealed class?
+**Concepts**
+- new hiding base method by compile-time type
+- no virtual dispatch for hidden methods
+- CS0108 warning when hiding without new
+- override for polymorphism vs new for hiding
+- explicit cast to derived type exposing hidden method
 
-**Answer:** No—sealed classes cannot serve as base classes; attempting to derive produces compile error CS0509.
+**Answer**
 
-- Sealed types include `string`, `Enum`, and many BCL security-sensitive classes.
-- Seal when extension would violate invariants or security assumptions.
-- Use interfaces or composition to extend behavior of sealed types.
-- `sealed override` on method stops further override but class itself may still be subclassed unless class is sealed.
-
----
-
-#### Q17. What is the difference between `is` type testing and casting in polymorphic code paths?
-
-What is the difference between `is` type testing and casting in polymorphic code paths?
-
-**Answer:** `is` checks compatibility and supports patterns without throwing; casting `(Derived)b` throws `InvalidCastException` on failure. In polymorphic code, prefer `is` patterns or virtual methods over repeated casts.
-
-- `if (b is Dog d)` assigns typed variable on success.
-- Cast required when you know type after guard or for value types unboxing.
-- Excessive type tests suggest missing virtual abstraction—Gotcha 7.
-- Switch expressions on type patterns scale better than cast chains.
+When a derived class declares a method with the same signature as a non-virtual base method (or intentionally hides a virtual one), the `new` modifier signals the hiding is deliberate and suppresses compiler warning CS0108. Unlike `override`, hiding does not replace the virtual slot — when the method is called through a base-typed reference, the base version is invoked because dispatch is based on the compile-time type of the reference, not the runtime type. Calling through a derived-typed reference or after an explicit cast reaches the hiding method. Hiding is the wrong tool when polymorphism is the goal; use `override` when you want callers using a base reference to automatically receive the derived behavior.
 
 ---
 
-#### Q18. What is the Liskov Substitution Principle in one sentence, and how does it relate to inheritance?
+## Q10. Explain how C# handles multiple inheritance (using interfaces).
 
-What is the Liskov Substitution Principle in one sentence, and how does it relate to inheritance?
+**Concepts**
+- single class inheritance preventing multiple base classes
+- multiple interface implementation allowed
+- explicit interface implementation resolving name conflicts
+- default interface methods in C# 8 for shared implementation
+- diamond problem resolved through interface resolution rules
 
-**Answer:** Liskov Substitution Principle states that objects of a derived class must be usable anywhere their base class is expected without breaking correctness—derived types must honor the base contract, not strengthen preconditions or weaken postconditions.
+**Answer**
 
-- Violation example: `Square`/`Rectangle` with settable width/height breaking area invariants—OOP Examples Q2.
-- Inheritance implies substitutability; if derived breaks callers of base, inheritance was wrong model.
-- Prefer interfaces defining minimal contracts derived types can reliably fulfill.
-- Related to polymorphism safety in tests using mocks substituting real implementations.
-
----
-
-#### Q19. When does `base.Method()` call the parent's implementation vs the current type's override?
-
-When does `base.Method()` call the parent's implementation vs the current type's override?
-
-**Answer:** `base.Method()` explicitly invokes the base class's method implementation for that virtual method, bypassing the derived override for that call site even though the object is derived. Normal virtual call without `base` uses most derived override.
-
-- Useful when derived override extends rather than replaces base behavior (call base first).
-- `base` qualified calls are non-virtual dispatch to immediate base implementation in the inheritance chain step.
-- Differs from calling through base-typed reference with hidden `new` methods—Q15.
-- Constructor cannot call overridable virtual methods safely before derived init—Gotcha 1.
+C# allows a class to inherit from exactly one base class but implement any number of interfaces, gaining multiple behavioral contracts without the diamond-problem complexity of multiple class inheritance. When two implemented interfaces define members with the same signature, the class must either provide a single implementation that satisfies both or use explicit interface implementation to provide separate implementations per interface. C# 8 introduced default interface methods, which allow interfaces to supply a default body for members; when two interfaces provide conflicting default implementations, the compiler requires the implementing class to explicitly disambiguate.
 
 ---
 
-#### Q20. What is the difference between extending behavior with inheritance vs wrapping with composition?
+## Q11. Why does C# not support multiple inheritance of classes?
 
-What is the difference between extending behavior with inheritance vs wrapping with composition?
+**Concepts**
+- diamond problem with conflicting implementations
+- ambiguous object layout and constructor chaining
+- CLR object model designed around single inheritance
+- interfaces as the multiple-behavior alternative
+- composition providing reuse without MI complexity
 
-**Answer:** Inheritance extends by substituting a subtype that IS-A base, overriding virtual methods for changed behavior. Composition wraps an inner object HAS-A collaborator, forwarding calls and optionally intercepting without subclassing the inner type.
+**Answer**
 
-- Inheritance couples to base implementation; composition couples to interface of inner object swappable at runtime.
-- Decorator pattern uses composition to stack behaviors.
-- Inheritance depth increases fragile base risk; composition localizes changes.
-- OOP Examples chapter SOLID guidance reinforces composition for extension—Q5–Q7.
+Multiple class inheritance introduces the diamond problem: if two base classes both define a method, the derived class inherits two conflicting implementations and the runtime has no unambiguous way to resolve which to call. It also complicates object layout since the object must accommodate two full base class instances, and constructor chaining becomes ambiguous. C# designers chose single class inheritance plus interface implementation, which allows multiple behavioral contracts without implementation conflicts. Composition — building a type from contained objects implementing each interface — covers most reuse scenarios that might otherwise motivate multiple inheritance, without the ambiguity.
 
 ---
+
+## Q12. What is the fragile base class problem?
+
+**Concepts**
+- derived class tight coupling to base implementation details
+- base change silently breaking subclasses
+- adding virtual methods to base breaking derived assumptions
+- virtual calls from constructors as acute risk
+- composition and sealing as mitigations
+
+**Answer**
+
+The fragile base class problem arises when a change to a base class — adding a new virtual method, altering constructor order, changing a protected field's semantics — unexpectedly breaks derived classes that depended on the previous behavior. Subclasses couple to implementation details they cannot control, so the base author cannot safely evolve the type without auditing every subclass. The problem is especially acute when a base constructor calls a virtual method: the derived override runs before derived field initializers complete, producing bugs that are hard to diagnose. Mitigations include sealing classes that should not be extended, minimizing the virtual surface area, documenting extension points explicitly, and preferring composition over inheritance.
+
+---
+
+## Q13. Why is "favor composition over inheritance" a common guideline?
+
+**Concepts**
+- composition building types from contained collaborators
+- loose coupling to interface of inner object
+- inheritance exposing derived to base implementation changes
+- wrapper and decorator patterns using composition
+- strategy pattern replacing subclassing with injected behavior
+
+**Answer**
+
+Composition builds a type by containing other objects and delegating behavior to them, coupling only to those objects' interfaces rather than their internal implementations. Inheritance couples a derived class tightly to its base — every change to the base can silently break subclasses, and deep hierarchies obscure where behavior originates. A composed collaborator can be swapped at construction time, while a base class is fixed at compile time. The Strategy pattern replaces inheritance-based behavioral variation with an injected interface, and the Decorator pattern stacks composed wrappers instead of creating subclass combinations. Inheritance is still appropriate for true is-a relationships with stable, well-understood base contracts, but composition is the first tool to reach for when reuse is the only motivation.
+
+---
+
+## Q14. What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?
+
+**Concepts**
+- method table pointer in object header
+- virtual slot replaced in derived type's method table
+- callvirt IL instruction enforcing virtual lookup and null check
+- static type of reference irrelevant for virtual dispatch
+- JIT devirtualization for sealed or provably final types
+
+**Answer**
+
+Every object's header contains a pointer to its type's method table. For virtual methods, the table has a slot per virtual member; when a derived class overrides a method, its method table slot points to the derived implementation. The CLR's `callvirt` IL instruction reads the actual object's method table pointer at runtime and invokes whatever function is in the relevant slot, ignoring the static type of the reference. This means `Base b = new Derived(); b.Method()` — where `Method` is virtual — always calls `Derived.Method` since the object's table has the derived slot. The JIT can skip the table lookup (devirtualize) when it can prove the object's concrete type is known, for example when calling through a `sealed` type reference.
+
+---
+
+## Q15. What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable?
+
+**Concepts**
+- override replacing virtual slot for runtime dispatch
+- new hiding by compile-time type only
+- base-typed reference reaching hidden method
+- explicit cast to derived type exposing hidden method
+- polymorphic design requiring override not new
+
+**Answer**
+
+With `override`, a call through a base-typed reference dispatches to the derived implementation because virtual dispatch uses the runtime type. With `new` hiding, the same call invokes the base implementation because hiding is purely a compile-time, static-type decision — the base's virtual slot is untouched, so the runtime still finds the base method. To invoke the hiding method, callers must hold a derived-typed reference or cast explicitly to the derived type. This is why `new` should not be used as a substitute for `override` in polymorphic designs: callers holding base references will never see the derived behavior.
+
+---
+
+## Q16. Can you inherit from a sealed class?
+
+**Concepts**
+- sealed class preventing any derivation
+- CS0509 compile error on attempt
+- sealed types in BCL including string and Enum
+- sealed override allowing class subclassing while blocking method override
+- composition and interfaces for extending sealed types
+
+**Answer**
+
+No — a sealed class cannot serve as a base class, and any attempt produces compile error CS0509. Many BCL types like `string`, `Enum`, and most value-type boxed forms are sealed to preserve invariants and prevent subclasses from altering behavior that the framework depends on. `sealed` on a specific `override` method is distinct from sealing the class: a class can still be subclassed while that particular method cannot be overridden further. When you need to extend behavior on a sealed type, the options are composition — wrapping an instance and forwarding calls — and interfaces, since the sealed type may already implement interfaces you can program against.
+
+---
+
+## Q17. What is the difference between `is` type testing and casting in polymorphic code paths?
+
+**Concepts**
+- is returning bool without throwing on mismatch
+- cast throwing InvalidCastException on failure
+- pattern variable binding with is
+- excessive type tests as a code smell
+- switch expression with type patterns scaling better
+
+**Answer**
+
+`is` tests compatibility and returns a boolean without throwing, and the pattern form `if (b is Dog d)` also binds a typed variable on success so no separate cast is needed. A direct cast `(Dog)b` throws `InvalidCastException` when the object is not the expected type. In polymorphic code, excessive `is` chains are a code smell because they re-implement dispatch logic that virtual methods would handle automatically — a long `if (x is Cat) ... else if (x is Dog)` sequence should usually be replaced with a virtual method. When a closed type set genuinely requires type-based dispatch without a common virtual method, `switch` expressions with type patterns are more maintainable than chains of `is` checks.
+
+---
+
+## Q18. What is the Liskov Substitution Principle?
+
+**Concepts**
+- derived objects usable wherever base expected
+- preconditions not strengthened in derived
+- postconditions not weakened in derived
+- Square/Rectangle as classic violation
+- LSP violations indicating wrong inheritance choice
+
+**Answer**
+
+The Liskov Substitution Principle states that objects of a derived class must be usable anywhere their base class is expected without breaking correctness. A derived type must honor the base contract: it cannot strengthen preconditions (require more of callers than the base required) or weaken postconditions (deliver less to callers than the base promised). The classic violation is `Square : Rectangle` where settable width and height are meaningful on `Rectangle` but break on `Square` because setting width must also change height, violating callers who set width and height independently. When a derived class breaks callers of the base, the inheritance relationship is wrong; composition or a shared interface better expresses the relationship.
+
+---
+
+## Q19. When does `base.Method()` call the parent's implementation vs the current type's override?
+
+**Concepts**
+- base.Method() bypassing virtual dispatch for that call
+- invoking immediate base class implementation directly
+- useful for extending rather than replacing base behavior
+- distinct from calling through a base-typed reference
+- constructor virtual call danger unrelated to base.Method()
+
+**Answer**
+
+`base.Method()` explicitly invokes the base class's implementation for that virtual method slot, bypassing any override in the current or further-derived class for that specific call. It is a non-virtual dispatch pinned to the immediate base in the inheritance chain. This is useful when a derived override wants to extend rather than completely replace the base behavior — calling `base.Method()` first runs the parent logic, then the derived body adds on top. It differs from calling through a base-typed reference: `base.Method()` in a derived method always targets the declared base; a base-typed reference still dispatches to the most-derived override at runtime.
+
+---
+
+## Q20. What is the difference between extending behavior with inheritance vs wrapping with composition?
+
+**Concepts**
+- inheritance extending via subtype that is-a base
+- composition wrapping via has-a collaborator
+- inheritance coupling to base implementation details
+- composition coupling only to collaborator interface
+- decorator pattern stacking composed behaviors
+
+**Answer**
+
+Inheritance extends behavior by creating a subtype that IS-A base, overriding virtual methods to specialize behavior while reusing the base's other members. Composition wraps an inner object that the outer type HAS-A, forwarding calls and optionally intercepting them without subclassing the inner type's implementation. Inheritance couples the derived class to base internals — changes to the base can silently affect all subclasses. Composition couples only to the interface of the inner collaborator, which can be swapped at construction time with a different implementation or a mock. The Decorator pattern uses composition to stack multiple behaviors by wrapping the same interface, which is more flexible than creating a subclass for every combination.
 
 ### 06. Abstract Classes & Interfaces
 
-#### Q1. Explain abstraction in detail in C#.
+---
 
-(D) Your team is adding a `SpreadsheetDocument` to the document archive. It shares `Title` and `CreatedOn` with invoices and reports, but also needs optional CSV export and a separate audit trail that other document types may never use. A junior dev proposes making everything an interface:
+## Q1. Explain abstraction in detail in C#.
 
-```csharp
-public interface ISpreadsheetDocument
-{
-    string Title { get; }
-    DateTime CreatedOn { get; }
-    string RenderContent();
-    string Export(string format);
-    void WriteAuditEntry(string action);
-}
-```
+**Concepts**
+- abstraction hiding implementation behind a simplified interface
+- abstract class with partial implementation and required overrides
+- interface as a pure contract with no instance state
+- use for expressing essential operations without exposing how
+- enabling polymorphism and dependency inversion
 
-How would you model this using abstract classes and interfaces (as in this chapter), and why?
+**Answer**
 
-**Answer:** Keep the **IS-A** document hierarchy on an abstract `Document` base for shared state and rendering contract, then add **CAN-DO** interfaces only for optional capabilities — `IExportable` for export, a narrow `IAuditable` (or similar) for audit — instead of one fat document interface.
-
-- **Abstract `Document`:** `Title`, `CreatedOn`, protected constructor, abstract `DocumentKind` and `RenderContent()`, plus concrete `GetSummary()` — matches **Program.cs** Sections 1 and 3; `SpreadsheetDocument : Document` reuses helpers without duplicating fields.
-- **`IExportable`:** Export is a cross-cutting capability; invoices, reports, and spreadsheets can implement it without forcing audit on types that do not need it.
-- **`IAuditable` (small interface):** Only types that write audit entries implement `WriteAuditEntry`; reports that never audit are not forced to stub empty methods.
-- **Why not one interface:** Duplicates state across unrelated "documents," blocks multiple inheritance of implementation, and violates Interface Segregation — consumers that only export must know about audit members.
-- **Both together:** `class SpreadsheetDocument : Document, IExportable, IAuditable` — single class hierarchy, multiple optional behaviors, same pattern as `InvoiceDocument : Document, IExportable, IPrintable, INamedDocument`.
-
-**Production takeaway:** Abstract class for shared identity and partial implementation; interfaces for capabilities that cut across hierarchies. See this chapter's **Document** + **IExportable** split and foundation **Abstract class vs interface** table.
+Abstraction means exposing only the essential operations of a concept while hiding the implementation details behind a controlled interface. In C#, abstraction is achieved through abstract classes and interfaces. An abstract class defines a partial implementation — some methods are concrete and shared, others are abstract and must be overridden in each non-abstract subclass. An interface defines a pure contract specifying what a type can do without any instance state or implementation (before C# 8) or with optional default implementations (C# 8+). Abstraction enables callers to work against the simplified interface without knowing or depending on any specific implementation, which makes code extensible and testable.
 
 ---
 
-#### Q2. What is the difference between abstraction and encapsulation?
+## Q2. What is the difference between abstraction and encapsulation?
 
-(R) A storage service saves file names for archived documents. After deployment, some invoices overwrite each other on disk. Review:
+**Concepts**
+- abstraction hiding what a thing does from the outside
+- encapsulation hiding how it does it internally
+- abstraction operating at the API design level
+- encapsulation operating at the implementation level
+- both reducing coupling but at different layers
 
-```csharp
-public sealed class InvoiceStorageService
-{
-    public string ResolveFileName(InvoiceDocument invoice)
-    {
-        // Human-readable label for UI and logs
-        return invoice.GetName();
-    }
+**Answer**
 
-    public void Save(InvoiceDocument invoice, Stream content)
-    {
-        string path = Path.Combine(_root, ResolveFileName(invoice));
-        using var file = File.Create(path);
-        content.CopyTo(file);
-    }
-}
-```
-
-`InvoiceDocument` implements `INamedDocument` with explicit `string INamedDocument.GetName()` returning a file-safe name, and a public `GetName()` returning `"Invoice: " + Title`. What is wrong, and how do you fix it?
-
-**Answer:** The storage service calls the **public** `GetName()` (display label with spaces and punctuation), not the **explicit** `INamedDocument.GetName()` (file-safe slug) — two invoices with the same title collide on disk because paths are not unique or filesystem-safe.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `ResolveFileName` uses public `GetName()` instead of `INamedDocument` contract | Duplicate paths; overwrites; invalid characters on some OSes |
-| API surface | Explicit implementation is invisible on concrete type | Callers assume one `GetName()` — easy to pick the wrong one |
-| Design | Storage depends on concrete `InvoiceDocument` | Harder to test; wrong abstraction for "file naming" capability |
-
-**Fix (priority order):**
-
-1. Resolve names through the interface: `((INamedDocument)invoice).GetName()` or accept `INamedDocument` / `IFileNaming` in `ResolveFileName`.
-2. Add uniqueness: append document id or hash if titles can repeat — explicit slug alone may still collide.
-3. Rename public method to `GetDisplayName()` if both names must coexist on the type — reduces accidental misuse.
-4. Unit-test storage with two invoices sharing a title; assert distinct file paths.
-
-```csharp
-public string ResolveFileName(INamedDocument named)
-{
-    return named.GetName(); // explicit implementation invoked via interface
-}
-```
-
-**Production takeaway:** Explicit interface implementation exists precisely when the public API and contract differ — services must depend on the **interface variable**, as **Program.cs** Section 5 demonstrates with `namedContract.GetName()` vs `invoice.GetName()`.
+Abstraction is about the design of a public API — it presents a simplified view of what a type or operation does, hiding the complexity behind an interface or abstract class. Encapsulation is about the protection of internal state — it hides the data and implementation details within a type using access modifiers, ensuring the type enforces its own invariants. Abstraction says "here is what you can do with this thing"; encapsulation says "here is the state this thing owns and manages privately." A `BankAccount` interface is abstraction; the `private decimal _balance` backing field and the `TryWithdraw` method that enforces invariants is encapsulation. Both reduce coupling, but abstraction targets the consumer's view while encapsulation targets the implementation's integrity.
 
 ---
 
-#### Q3. What is the difference between abstraction and polymorphism?
+## Q3. What is the difference between abstraction and polymorphism?
 
-(R) A PR introduces a "kitchen sink" capability interface for the export pipeline. Review:
+**Concepts**
+- abstraction defining the simplified interface
+- polymorphism enabling multiple implementations of that interface
+- abstraction at design time, polymorphism at runtime
+- abstract class or interface enabling polymorphic dispatch
+- both working together in object-oriented design
 
-```csharp
-public interface IDocumentCapabilities
-{
-    string Export(string format);
-    string Print();
-    string GetName();
-    byte[] RenderPdf();
-    void SendToPrinter(string queueName);
-    string SignWithCertificate(string thumbprint);
-}
+**Answer**
 
-public class ExportOrchestrator
-{
-    public void RunBatch(IEnumerable<IDocumentCapabilities> items, string format)
-    {
-        foreach (var item in items)
-        {
-            _logger.LogInformation(item.Export(format));
-        }
-    }
-}
-```
-
-Only invoices need signing; reports only export. What design problems do you see, and how would you refactor?
-
-**Answer:** `IDocumentCapabilities` is a **fat interface** that violates the **Interface Segregation Principle** — every implementer must stub or throw for unrelated members, and callers cannot express minimal dependencies.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design (ISP) | One interface bundles export, print, PDF, signing, naming | `ReportDocument` forced to implement `SignWithCertificate` with `NotSupportedException` |
-| Maintainability | New capability added to interface breaks all implementers | Package version churn; empty stubs multiply |
-| Testing | Fakes must implement six methods to test export-only orchestrator | Bloated test doubles; brittle mocks |
-| API clarity | `ExportOrchestrator` only needs `Export` but depends on mega-contract | Misleading type bounds; hides true requirements |
-
-**Fix (priority order):**
-
-1. Split into focused interfaces — `IExportable`, `IPrintable`, `ISignable`, `INamedDocument` — matching this chapter's pattern.
-2. Change orchestrator signature to `IEnumerable<IExportable>` (as **ExportService.ExportAll** does).
-3. Compose at call site: pass types that implement multiple interfaces; use pattern matching or separate services for signing/printing steps.
-4. If a facade is needed for DI registration, use a small adapter per document type — not a monolithic interface.
-
-**Production takeaway:** Prefer several small interfaces over one "capabilities" blob — callers depend on what they use, implementers only provide what they support. See **Program.cs** Section 4 (`InvoiceDocument` implements three interfaces, not one fat type).
+Abstraction defines the interface — the simplified contract that callers use. Polymorphism is what happens at runtime when that interface is invoked: different concrete implementations each provide their own behavior, and the caller receives the right behavior for the actual type in use. Abstraction is a design-time activity — you choose which operations to expose and which to hide. Polymorphism is the runtime mechanism that makes the abstraction pay off — calling `shape.Draw()` produces different output for `Circle`, `Square`, and `Triangle` without the caller knowing which is in use. Without abstraction there is no stable interface to be polymorphic over; without polymorphism the abstraction is just a naming choice with no runtime benefit.
 
 ---
 
-#### Q4. What is the difference between an abstract class and an interface?
+## Q4. What is the difference between an abstract class and an interface?
 
-(M) The team ships a NuGet package with `IExportable` consumed by ten internal services. To add optional metadata without breaking implementers, they add a C# 8 default method:
+**Concepts**
+- abstract class allowing state, constructors, and concrete methods
+- interface defining a contract without instance state (pre-C# 8)
+- single inheritance for abstract classes vs multiple interfaces
+- abstract class for shared implementation, interface for capability contract
+- access modifiers on abstract class members vs public-only interface
 
-```csharp
-public interface IExportable
-{
-    string Export(string format);
+**Answer**
 
-    string ExportWithMetadata(string format)
-    {
-        return Export(format) + " | exported=" + DateTime.UtcNow.ToString("O");
-    }
-}
-```
-
-An older service still targets `netstandard2.0` and references the updated package. A newer ASP.NET Core service on `net8.0` overrides `ExportWithMetadata` in one document type. What breaks or surprises you in build, runtime, and testing — and what would you document for consumers?
-
-**Answer:** Default interface methods require **C# 8+** and a runtime that supports them — `netstandard2.0` consumers may **fail to compile** or cannot override defaults the same way; even on modern runtimes, dispatch through the interface vs concrete type can surprise callers who expect polymorphic override behavior.
-
-- **Build / TFM:** Default interface members are not available on older language/runtime combinations targeting pre-C#-8 projects — the package bump may block the legacy service until it retargets or the new member is moved to an extension method or separate `IExportableV2`.
-- **Binary compatibility:** Adding a default method is often safer than adding a **required** abstract member (which breaks all implementers), but implementers on C# 8+ can override — document which types customize metadata vs inherit default.
-- **Dispatch nuance:** Calling `ExportWithMetadata` on `IExportable` uses the most specific override on the implementing type; calling on concrete class without override uses default — tests must use the same reference type production uses.
-- **Testing:** Fakes implementing `IExportable` inherit the default unless they override — unit tests may accidentally assert timestamp behavior from the default implementation instead of domain logic.
-- **Alternative for wide compatibility:** Extension method `ExportWithMetadata(this IExportable e, ...)` or compositional wrapper — works on `netstandard2.0` without DIM.
-
-**Production takeaway:** Default interface methods help evolve shared contracts with optional behavior (**Program.cs** Section 7 preview), but package authors must treat TFMs, override rules, and test doubles as part of the public API — not every consumer upgrades language version with the package.
+An abstract class can have instance fields, constructors, access modifiers on members, and a mix of concrete and abstract methods, making it suitable when a group of related types shares partial implementation. An interface traditionally defines only method, property, event, and indexer signatures without any state or implementation, though C# 8 added default method bodies. A class can inherit only one abstract base class but implement many interfaces. Choose an abstract class when subtypes genuinely share fields, constructors, or non-trivial concrete methods; choose an interface when unrelated types need to satisfy a common capability contract without sharing implementation.
 
 ---
 
-#### Q5. What is the difference between an abstract class and an interface before C# 8 vs after (default interface methods)?
+## Q5. What is the difference between an abstract class and an interface before C# 8 vs after (default interface methods)?
 
-(R) Unit tests for `DocumentProcessor` are slow and require real PDF files on disk because production code was wired to concrete types. Review:
+**Concepts**
+- pre-C# 8 interface as pure signature contract with no bodies
+- C# 8 default interface methods providing optional implementation
+- binary compatibility for adding members to interfaces
+- dispatch nuance for default vs overriding implementations
+- target framework requirements for default interface methods
 
-```csharp
-public sealed class DocumentProcessor
-{
-    private readonly PdfRenderer _renderer = new PdfRenderer(); // reads templates from disk
+**Answer**
 
-    public string BuildBatchSummary(IReadOnlyList<InvoiceDocument> documents)
-    {
-        var builder = new StringBuilder();
-        foreach (var doc in documents)
-        {
-            builder.AppendLine(doc.GetSummary());
-            builder.AppendLine(_renderer.Render(doc)); // not on Document base
-        }
-        return builder.ToString();
-    }
-}
-```
-
-The chapter's `DocumentProcessor` accepts `IReadOnlyList<Document>` and `ExportService` accepts `IEnumerable<IExportable>`. What is wrong here, and how would you introduce test seams?
-
-**Answer:** The processor **news up** a concrete `PdfRenderer`, accepts only `InvoiceDocument`, and mixes summary building with PDF rendering — no injection point, so tests hit disk and cannot substitute a fake.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Testability | `new PdfRenderer()` inside the class | Tests require filesystem templates; slow, flaky CI |
-| Abstraction | Parameter is `InvoiceDocument` not `Document` | Cannot reuse batch logic for reports; breaks polymorphism |
-| SRP / design | Summary builder coupled to PDF rendering | Changing render strategy forces retesting batch orchestration |
-| DI | Hidden dependency | ASP.NET Core cannot register or swap renderer per environment |
-
-**Fix (priority order):**
-
-1. Extract rendering behind an interface — `IDocumentRenderer` or reuse `IExportable` / a narrow `IRenderable` with `string Render()` — inject via constructor.
-2. Accept abstractions on the base type: `IReadOnlyList<Document>` for polymorphic summaries (**Program.cs** Section 6).
-3. Register `PdfRenderer` in DI for production; register `FakeRenderer` in tests returning fixed strings.
-4. Keep orchestration thin — `BuildBatchSummary` calls `document.GetSummary()` and `document.RenderContent()` on the abstract base where possible; PDF-specific work lives in export/render services.
-
-```csharp
-public sealed class DocumentProcessor
-{
-    private readonly IDocumentRenderer _renderer;
-
-    public DocumentProcessor(IDocumentRenderer renderer) => _renderer = renderer;
-
-    public string BuildBatchSummary(IReadOnlyList<Document> documents)
-    {
-        var builder = new StringBuilder();
-        foreach (var doc in documents)
-        {
-            builder.AppendLine(doc.GetSummary());
-            builder.AppendLine(_renderer.Render(doc));
-        }
-        return builder.ToString();
-    }
-}
-```
-
-**Production takeaway:** Interfaces are test seams — depend on abstractions, inject implementations. The chapter's static `DocumentProcessor` / `ExportService` illustrate the **dependency direction**; production services add constructor injection and fakes for fast tests.
+Before C# 8, an interface could only declare signatures — no method bodies, fields, or constructors — so any new interface member was a breaking change for all implementors. Abstract classes could always provide concrete methods, so they were the only way to share implementation in a hierarchy. C# 8 introduced default interface methods, which allow an interface to supply a body for a member so existing implementors are not required to add the method to remain compilable. However, default interface methods require a runtime that supports them (not `netstandard2.0`) and have dispatch nuances: calling the default through the interface invokes the default unless the implementor overrides it, but calling on the concrete class type invokes only what the class explicitly provides. Abstract classes remain preferable when sharing instance state or constructors, since interfaces still cannot have these.
 
 ---
 
-#### Q6. Why do we need interfaces in C#?
+## Q6. Why do we need interfaces in C#?
 
-(D) Code review: two approaches for a payment-notification feature.
+**Concepts**
+- multiple interface implementation without multiple class inheritance
+- programming to abstraction for testability
+- decoupling callers from specific implementations
+- enabling polymorphism across unrelated type hierarchies
+- contract documentation for consumers
 
-**Option A — one abstract base:**
+**Answer**
 
-```csharp
-public abstract class NotifierBase
-{
-    public abstract void Send(string recipient, string message);
-    protected void LogAttempt(string recipient) { /* shared */ }
-}
-```
-
-**Option B — interface only:**
-
-```csharp
-public interface INotificationSender
-{
-    void Send(string recipient, string message);
-}
-```
-
-Some notifiers are `EmailNotifier : NotifierBase`; others are `SmsNotifier : INotificationSender` with no shared base. When do you pick abstract class, interface, or both — and what is your decision rule for this codebase?
-
-**Answer:** Use an **abstract base** when notifiers truly share state or concrete helpers (logging, retry policy, template loading); use an **interface** when the only contract is "can send" across unrelated types; use **both** when shared infrastructure belongs in a base but multiple channels must also be substitutable in DI and tests.
-
-**Decision rule (aligned with this chapter):**
-
-| Signal | Choose |
-|---|---|
-| Shared fields, protected helpers, single IS-A hierarchy | Abstract class (`NotifierBase`) |
-| Unrelated types (email, SMS, webhook) must be swappable | `INotificationSender` interface |
-| Shared logging/retry **and** need multiple inheritance of behavior | Base class for shared code + `INotificationSender` implemented by base or subclasses |
-| Only some notifiers support attachments/signing | Separate small interfaces — do not bloated base |
-
-**For this codebase:**
-
-- **`INotificationSender`** for DI registration, controllers, and unit tests — same role as `IExportable` in **ExportService**.
-- **`NotifierBase`** only if most channels share `LogAttempt`, correlation id, or configuration — avoid forcing SMS through an email-centric hierarchy.
-- **`SmsNotifier : INotificationSender`** without base is valid when there is nothing to share — do not invent an abstract class for one method.
-
-**Production takeaway:** Abstract class answers "what are they in common?" Interface answers "what can they do for me?" The chapter's **Document** + **IExportable** combination is the template — base for identity, interfaces for pluggable capabilities and test doubles.
+Interfaces provide a way for unrelated types to satisfy the same capability contract without sharing a common base class, which is essential since C# classes can only inherit from one base. They are the primary mechanism for dependency inversion: when a class depends on `IRepository` rather than `SqlRepository`, any implementation can be injected including test doubles, alternate databases, or in-memory fakes. Interfaces also enable polymorphism across unrelated hierarchies — `string`, `List<T>`, and `Array` all implement `IEnumerable<T>` even though they share no common class ancestor. This makes interfaces the preferred abstraction mechanism for API design, since they express capability without implying identity or shared state.
 
 ---
 
----
+## Q7. What is explicit interface implementation and when is it used?
 
-#### Q7. What is explicit interface implementation and when is it used?
+**Concepts**
+- explicit implementation accessible only through interface reference
+- resolving name conflicts between two interfaces with same member name
+- hiding members from the public API of the class
+- accessing explicit members via cast to interface type
+- different behavior on class reference vs interface reference
 
-_Answer not found._
+**Answer**
 
----
-
-#### Q8. What are static abstract members in interfaces (C# 11)?
-
-_Answer not found._
-
----
-
-#### Q9. Can an abstract class have concrete (non-abstract) methods?
-
-_Answer not found._
+Explicit interface implementation declares a method as `ReturnType IInterface.Method(...)` without an access modifier, making it accessible only when the object is held through the named interface reference, not through the class type directly. It is used when two implemented interfaces define members with the same signature but different intended semantics, allowing each to have a separate implementation. It also hides interface-mandated members from the class's public API when exposing them publicly would be confusing or misleading — for example, `IDisposable.Dispose` explicitly implemented when the class exposes a more descriptive `Close()` method publicly. Callers must cast to the interface to reach the explicit implementation: `((IMyInterface)obj).Method()`.
 
 ---
 
-#### Q10. Can a class implement multiple interfaces — what about an interface inheriting another interface?
+## Q8. What are static abstract members in interfaces (C# 11)?
 
-_Answer not found._
+**Concepts**
+- static abstract enabling polymorphism over type-level operations
+- generic constraints required for static abstract usage
+- use for generic math and operator polymorphism
+- no instance dispatch since no object is involved
+- static virtual providing optional default implementation
 
----
+**Answer**
 
-#### Q11. When would you choose an abstract base class over an interface for shared implementation?
-
-_Answer not found._
-
----
-
-#### Q12. What is the diamond problem, and how does C# avoid it for classes but address it for interfaces with default methods?
-
-_Answer not found._
+C# 11 introduced `static abstract` (and `static virtual` with a default) members in interfaces, which enable a form of polymorphism where the "implementation" is selected based on a type parameter rather than an object instance. Because there is no instance, callers must use a generic type parameter constrained to the interface: `T.Parse(string)` where `T : IParsable<T>`. This enables generic math where `T.operator +(T, T)` works across any numeric type implementing `IAdditionOperators<T,T,T>`. Static abstract members cannot be called on a concrete type directly without a generic context; they exist specifically to allow type-safe generic algorithms that are polymorphic over type-level operations like parsing, construction, or arithmetic operators.
 
 ---
 
-#### Q13. What is explicit interface implementation — why might `((IMyInterface)obj).Method()` work when `obj.Method()` does not?
+## Q9. Can an abstract class have concrete (non-abstract) methods?
 
-_Answer not found._
+**Concepts**
+- abstract class mixing abstract and concrete methods
+- concrete methods providing shared default behavior
+- abstract methods requiring override in non-abstract subclasses
+- virtual concrete methods optionally overridable
+- abstract class as partial implementation pattern
 
----
+**Answer**
 
-#### Q14. Can interfaces declare fields, constructors, or static concrete state (pre- and post-C# 8)?
-
-_Answer not found._
-
----
-
-#### Q15. What is the difference between `IReadOnlyList<T>` as a parameter type and `List<T>` for abstraction?
-
-_Answer not found._
+Yes — an abstract class can and typically does contain concrete methods alongside abstract ones. Concrete methods in an abstract class provide shared behavior that all subclasses inherit without needing to override, which is the main reason to use an abstract class instead of an interface. Abstract methods declare obligations that each non-abstract subclass must fulfill with its own implementation. Concrete methods can also be declared `virtual`, making them optionally overridable, or non-virtual, meaning subclasses inherit them unchanged. This mixture — shared implementation for common concerns, abstract requirements for type-specific behavior — is the abstract class's core advantage over interfaces when a family of related types shares significant behavior.
 
 ---
 
-#### Q16. When should API surface depend on interfaces vs abstract classes?
+## Q10. Can a class implement multiple interfaces — what about an interface inheriting another interface?
 
-_Answer not found._
+**Concepts**
+- class implementing unlimited number of interfaces
+- interface inheritance extending contract with additional members
+- implementing class must satisfy all inherited interface members
+- explicit implementation for conflicting signatures
+- interface hierarchy for capability layering
+
+**Answer**
+
+A class can implement any number of interfaces simultaneously: `class Worker : IEmployable, IPayable, ISchedulable` satisfies all three contracts. An interface can itself inherit from one or more other interfaces, extending the contract — `interface IReadWriteStream : IReadStream, IWriteStream` requires implementors to provide all members from both parent interfaces as well. When two implemented interfaces have members with the same signature, the class either provides one implementation satisfying both or uses explicit interface implementation to give each interface a separate body. This system allows capability layering without multiple class inheritance and without the diamond problem, since interfaces carry no instance state.
 
 ---
+
+## Q11. When would you choose an abstract base class over an interface for shared implementation?
+
+**Concepts**
+- shared instance fields requiring abstract class
+- constructor-enforced invariants requiring abstract class
+- access-modifier-protected helpers requiring abstract class
+- unrelated types sharing only a contract favoring interface
+- template method pattern as classic abstract class use case
+
+**Answer**
+
+Choose an abstract class when the related types genuinely share instance state — fields that each subtype inherits and that establish shared identity or configuration. Abstract classes can enforce invariants through constructors that all derived classes must call, can provide protected helper methods with implementation, and can define fields with access modifiers that derived classes read through controlled accessors. Interfaces cannot have instance fields or constructors, so they cannot provide any of this. The template method pattern is the clearest signal: when a base class defines an algorithm skeleton with `protected abstract` steps that subclasses fill in, an abstract class is the right tool. When the common factor is only "this type can do X" with no shared state or helpers, an interface expresses the contract more cleanly.
+
+---
+
+## Q12. What is the diamond problem, and how does C# address it for classes and interfaces?
+
+**Concepts**
+- diamond problem arising from two base classes sharing an ancestor
+- ambiguous method resolution without explicit override
+- C# preventing it for classes via single inheritance
+- C# 8 interfaces requiring explicit disambiguation for default method conflicts
+- most-specific override rule for interface default methods
+
+**Answer**
+
+The diamond problem occurs when a type inherits from two sources that both trace back to a common ancestor with the same method, leaving the compiler unable to determine which implementation to use. C# avoids it for classes entirely through single class inheritance — there is only one path up the hierarchy so no ambiguity is possible. For interfaces with default methods (C# 8+), the diamond can arise when a class implements two interfaces that each provide a default implementation of the same member tracing back to a common base interface. C# resolves this with the most-specific override rule: if one interface's default is explicitly more derived than another's, it wins. When both are equally specific, the compiler requires the implementing class to provide an explicit override that disambiguates, otherwise it is a compile error.
+
+---
+
+## Q13. What is explicit interface implementation — why might `((IMyInterface)obj).Method()` work when `obj.Method()` does not?
+
+**Concepts**
+- explicit member not in the class's public API
+- accessible only through interface-typed reference
+- class reference resolving to nothing or different method
+- name collision resolution between interfaces
+- hiding interface-mandated members from class surface
+
+**Answer**
+
+When a method is explicitly implemented as `void IMyInterface.Method()`, it has no access modifier and does not appear on the class's public member list. Calling `obj.Method()` on a variable typed as the class fails to compile because there is no public method named `Method` on the class. Accessing the method requires holding the object through the interface: `((IMyInterface)obj).Method()` succeeds because the explicit implementation is visible through the interface reference. This pattern is used to hide members that are required by an interface contract but are not appropriate to expose on the class's own API — for example, explicit `IEnumerator.Reset()` on enumerators that do not logically support reset — or to resolve naming conflicts when two implemented interfaces demand the same member name with different semantics.
+
+---
+
+## Q14. Can interfaces declare fields, constructors, or static concrete state?
+
+**Concepts**
+- interfaces having no instance fields ever
+- no constructors in interfaces
+- C# 8 adding static private fields as implementation detail for default methods
+- C# 11 adding static abstract and static virtual members
+- these additions not changing the no-instance-state rule
+
+**Answer**
+
+Interfaces have never been allowed to declare instance fields or instance constructors, and this restriction remains in all C# versions. C# 8 added default interface methods, and to support them the spec allows `private static` fields within interfaces as implementation details of default methods — but these are type-level, not instance-level. C# 11 added `static abstract` and `static virtual` members, which can include static properties. None of these additions permit instance state; an interface still cannot hold per-object data or define initialization logic. Constructors in interfaces would be meaningless since you cannot instantiate an interface directly.
+
+---
+
+## Q15. What is the difference between `IReadOnlyList<T>` as a parameter type and `List<T>`?
+
+**Concepts**
+- IReadOnlyList<T> accepting arrays, lists, and any read-only collection
+- List<T> restricting callers to that specific concrete type
+- read-only contract preventing mutation through the parameter
+- callers passing any compatible implementation
+- widening parameter type reducing coupling
+
+**Answer**
+
+Using `IReadOnlyList<T>` as a parameter type accepts any read-only indexed sequence — `T[]`, `List<T>`, `ImmutableList<T>`, or any custom implementation — because they all implement the interface. Using `List<T>` forces callers to provide exactly a `List<T>`, which excludes arrays and other sequences and creates an unnecessary coupling to a specific collection implementation. The read-only interface also signals intent: the method promises not to mutate the collection, which callers can rely on. Widening parameter types to the narrowest sufficient abstraction — preferring `IEnumerable<T>` when only iteration is needed, `IReadOnlyList<T>` when indexed access is needed, `IList<T>` when mutation is needed — is a key API design principle.
+
+---
+
+## Q16. When should API surface depend on interfaces vs abstract classes?
+
+**Concepts**
+- interfaces for public API boundaries consumed by unrelated callers
+- abstract classes for family hierarchies with shared state
+- interfaces enabling testability via mock injection
+- abstract classes when callers are closely related subclasses
+- mixing both for shared implementation plus broad contractual usage
+
+**Answer**
+
+Public API surface that will be consumed by unrelated callers — including test doubles — should depend on interfaces, because interfaces impose no implementation constraints and any type can satisfy them. Interfaces are the right tool when the contract is "you can do X" and the caller has no reason to care about what state or helpers an implementor uses internally. Abstract classes are appropriate when the API is the base of a closely related family — the abstract class establishes shared state, protected helpers, and partial implementation that all subclasses inherit, and callers are the subclasses themselves rather than unrelated consumers. In practice, the two are often combined: an abstract class `DocumentBase` provides shared implementation for the family, and `IExportable` provides a broad contract that any document type plus unrelated types can satisfy.
 
 ### 07. Encapsulation & Access Modifiers
 
-#### Q1. Explain encapsulation in C# with examples.
+---
 
-(R) A junior developer "simplifies" the chapter's `BankAccount` for a payments microservice. QA reports negative balances in production. Review the change — what broke the invariant, and how do you fix it?
+## Q1. Explain encapsulation in C# with examples.
 
-**Answer:** Exposing `Balance` as a public setter lets any caller bypass `TryWithdraw` and `Deposit` rules — the type no longer owns its invariant, so external code and concurrent writers can corrupt state even though the methods still look correct.
+**Concepts**
+- hiding internal state behind controlled accessors
+- access modifiers restricting who can read or write state
+- methods enforcing invariants on state changes
+- private fields with public property accessors
+- encapsulation preventing external invariant violation
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Public `{ get; set; }` on domain state | Callers assign `Balance` directly — negative balances, skipped validation |
-| Concurrency | Read-modify-write on public property | Two threads can interleave `Balance +=` / `-=` without synchronization |
-| Encapsulation | Methods enforce rules; property ignores them | `TryWithdraw` checks become advisory — support scripts and mappers bypass them |
-| API contract | Mutable balance contradicts audit expectations | Ledger reconciliation finds amounts that never passed `Deposit`/`TryWithdraw` |
-
-**Fix (priority order):**
-
-1. Restore a **private** backing field (`private decimal _balance`) — no public setter.
-2. Expose balance read-only: `public decimal Balance => _balance;` or keep `GetBalance()` — callers observe, they do not mutate.
-3. Route all changes through methods that enforce invariants (positive deposits, sufficient funds, audit logging).
-4. If external systems must post adjustments, add an explicit `ApplyAdjustment(decimal amount, string reason, IAuthorizationContext ctx)` that validates authorization — never a bare setter.
-5. For concurrent updates, guard mutations with a lock, database transaction, or optimistic concurrency token — encapsulation alone does not fix races.
-
-```csharp
-private decimal _balance;
-
-public decimal Balance => _balance;
-
-public bool TryWithdraw(decimal amount, out string message)
-{
-    // sole path to decrease _balance
-}
-```
-
-**Production takeaway:** Auto-properties feel idiomatic in C#, but a public setter on invariant-bearing state is a field in disguise — Karat uses this to test whether you protect rules at the type boundary, not only inside "happy path" methods. See **Program.cs** Section 1 — `BankAccount` keeps `_balance` private.
+Encapsulation bundles state and the rules governing it into a single type, hiding the internal details behind a controlled interface. A `BankAccount` class stores balance in a `private decimal _balance` field and exposes it read-only through `public decimal Balance => _balance`, while mutations go through `Deposit(decimal amount)` and `TryWithdraw(decimal amount, out string message)` which enforce business rules like no-negative-amounts and frozen-account checks. Without encapsulation, callers could assign `Balance` directly and bypass those rules, so the type cannot guarantee it is always in a valid state. Access modifiers — `private`, `protected`, `internal`, `public` — are the language mechanism; the discipline of routing all state changes through validated methods is the design principle.
 
 ---
 
-#### Q2. What are the different access modifiers in C#? (`private`, `protected`, `internal`, `protected internal`, `private protected`)
+## Q2. What are the different access modifiers in C#?
 
-(R) A shared library ships both a public façade and internal implementation types. A consuming team references the NuGet package and complains they cannot unit-test ledger entries. Review the library surface:
+**Concepts**
+- private accessible within declaring type only
+- protected accessible to declaring type and derived classes
+- internal accessible within the same assembly
+- protected internal union of protected and internal
+- private protected intersection of protected and same-assembly
 
-**Answer:** The library leaked an `internal` type through public method signatures — `CreateLedger` and `PostEntry` expose `InternalLedger` on the public API, which is a compile error for external consumers and breaks the intended assembly boundary even if it compiled.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `public` methods return/accept `internal` type | CS0051/CS0052 — inconsistent accessibility; package may not build |
-| API surface | Internal implementation type is part of public contract | Callers depend on types you intended to hide — versioning nightmare |
-| Encapsulation | Façade pattern inverted — gateway exposes guts | `List<string> Entries` on internal type becomes reachable if accessibility bug is fixed |
-| Testing | Consumers cannot construct `InternalLedger` | Tests forced to go through static gateway — brittle, no seam for fakes |
-
-**Fix (priority order):**
-
-1. Keep `InternalLedger` **internal**; never appear in public signatures.
-2. Introduce a **public** abstraction: `public interface ILedger { string PostEntry(string description); }` implemented internally, or return `string`/`LedgerEntryId` DTOs only.
-3. `LedgerGateway.PostEntry(string description)` creates the internal ledger internally — matches **Program.cs** Section 3 pattern.
-4. For testability inside the library, use `InternalsVisibleTo` for test assembly **or** expose `ILedger` with an internal default implementation registered via DI.
-5. Return immutable snapshots (`IReadOnlyList<LedgerEntry>`) rather than live `List<T>` references.
-
-```csharp
-public static class LedgerGateway
-{
-    public static string PostEntry(string description)
-    {
-        var ledger = new InternalLedger();
-        return ledger.Record(description);
-    }
-}
-```
-
-**Production takeaway:** `internal` types belong behind public façades — leaking them in signatures is worse than making everything public because it fails at compile time and signals unclear API design. See **Program.cs** Section 3 — `LedgerGateway` hides `InternalLedger`.
+C# provides five access modifiers. `private` restricts access to the declaring type only — no subclass, no assembly peer. `protected` allows access within the declaring type and any derived class, regardless of assembly. `internal` allows access to any code within the same assembly but nothing outside it. `protected internal` is the union: accessible to derived classes in any assembly OR to any code in the same assembly, whichever applies. `private protected` is the intersection: accessible only to derived classes that are also in the same assembly, making it the narrowest combined modifier. Types themselves at the top level can only be `public` or `internal`; nested types may use all five.
 
 ---
 
-#### Q3. What is the difference between "information hiding" and "data hiding"?
+## Q3. What is the difference between "information hiding" and "data hiding"?
 
-(P) Two assemblies in the same solution — `Billing.Core` (library) and `Billing.Tests` — need test access to `internal` pricing helpers without exposing them on the public NuGet surface. A developer adds `InternalsVisibleTo` to the csproj. What does it grant, what risks does it introduce, and what guardrails apply?
+**Concepts**
+- data hiding concealing raw fields behind property accessors
+- information hiding concealing implementation details broadly
+- information hiding applying to algorithms, dependencies, and structure
+- data hiding as a subset of information hiding
+- both reducing coupling and improving maintainability
 
-**Answer:** `InternalsVisibleTo` lets named friend assemblies access `internal` types and members at compile time — it widens visibility from "same assembly" to "same assembly plus declared friends," without changing `public` NuGet consumers' view if friends are test or first-party tooling projects only.
+**Answer**
 
-- **What it grants:** Friend assemblies can reference `internal` classes, methods, and constructors — tests can call pricing helpers, factories, and validators directly without making them `public`.
-- **Strong-name caveat:** Signed assemblies require `InternalsVisibleTo` to include the friend's public key (`Include="Tests, PublicKey=..."`) — mismatched keys silently fail to grant access.
-- **Risks:** Every friend is a **maintenance coupling** — internal refactors break friend code; overuse turns `internal` into "public but inconvenient." Shipping `InternalsVisibleTo` to production friends (other product teams, plugins) expands your semver surface — `internal` changes become breaking for them.
-- **Security:** Friends can invoke internal code paths — do not use IVT to bypass auth; it is a compile-time visibility tool, not a security boundary.
-- **Guardrails:** Limit friends to `*.Tests` and build-time tooling; document in ARCHITECTURE.md; prefer `public` interfaces for legitimate extension points; never friend untrusted third-party assemblies; audit IVT entries in code review like public API changes.
-
-**Production takeaway:** Friend assemblies are the idiomatic way to test `internal` implementation without polluting NuGet — Karat tests whether you distinguish visibility for **consumers** vs **collaborators**. See **Program.cs** Quick Reference — InternalsVisibleTo cross-ref to .NET Framework Architecture module.
-
----
-
-#### Q4. Why is exposing a mutable collection through a public getter an encapsulation break?
-
-(R) A domain hierarchy models employee compensation. A subclass "optimizes" payroll by writing directly to protected state. Review:
-
-**Answer:** `protected` fields expose implementation details to every derived class — `CommissionEmployee` can mutate `_baseSalary` and `_auditTrail` without going through `ApplyRaise`, breaking payroll invariants and audit integrity that the base class thought it owned.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | `protected` fields instead of controlled hooks | Subclasses bypass validation, logging, and business rules |
-| Invariant | Direct `_baseSalary` assignment | Raises applied without approval workflow; minimum wage rules skipped |
-| Audit | `_auditTrail.Clear()` | HR/compliance reports lose history — protected mutable collection |
-| Design | Base class cannot enforce postconditions on derived behavior | Liskov violations — base assumes audit trail is append-only |
-
-**Fix (priority order):**
-
-1. Make fields **private**; stop exposing raw state to subclasses.
-2. Expose controlled extension points: `protected void SetBaseSalary(decimal value, string reason)` that validates and appends audit entries — or make `ApplyRaise` `sealed`/`non-virtual` and use template method with protected abstract hooks that cannot touch salary directly.
-3. Return **read-only** audit view: `public IReadOnlyList<string> AuditTrail => _auditTrail.AsReadOnly();` — never expose mutable `List<T>` as `protected`.
-4. If derived types need guaranteed minimum, model it as separate state (`_guaranteedMinimum`) combined in a computed `EffectiveBaseSalary` — not by overwriting `_baseSalary`.
-5. Consider `private protected` only for same-assembly inheritance helpers — not as a substitute for private fields.
-
-```csharp
-private decimal _baseSalary;
-private readonly List<string> _auditTrail = new();
-
-protected void AdjustBaseSalary(decimal newSalary, string reason)
-{
-    if (newSalary < 0) throw new ArgumentOutOfRangeException(nameof(newSalary));
-    _baseSalary = newSalary;
-    _auditTrail.Add(reason);
-}
-```
-
-**Production takeaway:** `protected` is not "private but inheritance-friendly" for invariant-bearing data — it is a public API for every future subclass. See **Program.cs** Section 2 — `protected` visibility and Section 1 — behavior enforces invariants, not exposed fields.
+Data hiding is the narrower concept: keeping raw fields private and exposing them only through property accessors so callers cannot directly manipulate storage. Information hiding is broader: concealing any implementation detail that callers need not know — including which algorithm is used, which dependencies are held, which data structures back a collection, and how internal state is organized. Data hiding is one tool for information hiding. A class that exposes its sorting algorithm name through a public property is hiding data (the field is private) but failing at information hiding (the algorithm choice is an implementation detail callers should not depend on). The goal of both is reducing the coupling between the type and its callers.
 
 ---
 
-#### Q5. What is the difference between `protected internal` and `private protected`?
+## Q4. Why is exposing a mutable collection through a public getter an encapsulation break?
 
-(D) Your team designs an immutable `MemberProfile` DTO for cross-service messaging. Proposal A (init-only + `List<string>`) vs Proposal B (factory + `IReadOnlyList`). Which do you ship, and what breaks if callers treat Proposal A as immutable?
+**Concepts**
+- caller getting direct reference to internal list
+- Add and Remove bypassing the type's invariants
+- Clear or Replace via setter bypassing ownership entirely
+- IReadOnlyList<T> or defensive copy as solutions
+- encapsulation requiring all mutations go through methods
 
-**Answer:** Ship Proposal B (or Proposal A only after deep-defensive copying and a read-only exposed collection) — init-only scalars are immutable after construction, but a mutable `List<string>` referenced by the DTO remains live, so "immutable" messages can change under downstream caches and serializers.
+**Answer**
 
-**Proposal A — hidden mutability:**
-
-- `Roles` is init-settable once, but the **list contents** mutate forever — any holder can `dto.Roles.Add("Admin")` without reconstructing the DTO.
-- Passing the DTO through a message bus, in-memory queue, or ORM session shares one list instance — Service B mutates roles; Service C sees the change — violates message immutability expectations.
-- JSON deserializers often populate concrete `List<T>` — deserialization is fine, but post-deserialization mutation breaks contract assumptions.
-
-**Proposal B — true read-only surface:**
-
-- Factory validates inputs (non-empty email, trimmed strings — mirrors **Program.cs** `MemberProfile.Email` setter rules).
-- Constructor copies roles into private `List<string>` or array; expose `IReadOnlyList<string>`.
-- Callers cannot widen privileges after send — safe for retries, caching, parallel consumers.
-
-**Pragmatic middle ground if staying with init:**
-
-```csharp
-public IReadOnlyList<string> Roles { get; init; }
-
-// In factory/constructor:
-Roles = roles.ToList().AsReadOnly();
-```
-
-**Production takeaway:** C# `init` immutability is shallow — reference-type properties still leak mutable innards. Karat tests whether you design DTOs like **Program.cs** Section 4 — `MemberId` get-only, `RegisteredOn` init-only, `LoginCount` private set — with attention to collection defense. See foundation **Properties** — init vs mutable backing stores.
+When a property returns the live mutable collection that the type owns internally, callers can call `items.Add(...)`, `items.Remove(...)`, or `items.Clear()` directly and the owning type has no way to observe or validate those changes. This bypasses any sorting, deduplication, capacity limits, or notification logic the type manages through its own methods. If the property also has a public setter, callers can replace the entire collection with one they control, severing the type's ownership entirely. The fix is to expose only `IReadOnlyList<T>` or `IReadOnlyCollection<T>` through the getter, return a defensive copy if the caller needs to work with a detached list, and provide specific mutating methods like `AddItem(T item)` on the owning type.
 
 ---
 
-#### Q6. What does `internal` mean in the context of assemblies and `InternalsVisibleTo`?
+## Q5. What is the difference between `protected internal` and `private protected`?
 
-(M) A plugin assembly references your core HR assembly and defines `PayrollProcessor : Employee`. Developers expect to read `InternalCounter` on a base instance from the plugin, but the build fails with CS0122. Explain visibility for `InternalCounter`, `ProtectedInternalCounter`, and `PrivateProtectedCounter` from a derived class in another assembly, and which modifier fits same-assembly first-party plugins.
+**Concepts**
+- protected internal as a union: protected OR internal
+- private protected as an intersection: protected AND same-assembly
+- protected internal accessible to derived classes anywhere plus same-assembly peers
+- private protected accessible only to derived classes in the same assembly
+- private protected as the narrower of the two combined modifiers
 
-**Answer:** From a derived class in **another assembly**, only `protected internal` members are accessible on `this` — plain `internal` is assembly-scoped (CS0122 from outside), and `private protected` requires both derivation **and** same assembly (narrowest intersection).
+**Answer**
 
-| Member | Modifier | Derived in other assembly |
-|---|---|---|
-| `InternalCounter` | `internal` | **No** — visible only inside HR assembly; unrelated same-assembly peers can access, but derived plugin code cannot |
-| `ProtectedInternalCounter` | `protected internal` (union) | **Yes** — union: accessible if derived **or** same assembly; cross-assembly derivation satisfies the `protected` side |
-| `PrivateProtectedCounter` | `private protected` (intersection) | **No** — must be derived **and** same assembly; plugin in `Plugins.Payroll.dll` fails CS0122 |
-
-- **`internal` on base instance from derived code:** Even in the same assembly, `VisibilityDerived.SummarizeFromDerived` in **Program.cs** deliberately omits `InternalCounter` — `internal` is not inherited as a subclass privilege; it is assembly membership. Derived types do not get special access to `internal` members on arbitrary base instances unless they are in the same assembly (and even then, access is through the instance in same assembly — the chapter notes derived code in same asm still follows the visibility table).
-- **First-party plugins compiled into the same assembly:** Use `private protected` when the hook must never leak to external extenders — same-assembly subclasses only. Use `protected internal` only when third-party plugins in other assemblies legitimately need the hook (widest combo — use sparingly).
-- **Cross-assembly plugin extensibility:** Prefer `protected` methods with controlled behavior over exposing protected fields; keep counters private and expose `protected virtual OnPayrollProcessed()` template hooks.
-
-**Production takeaway:** Combined modifiers are easy to misread — `protected internal` is a **union** (wider), `private protected` is an **intersection** (narrower). Karat embeds the chapter's **Program.cs** Section 2 visibility table in a cross-assembly plugin scenario — the fix is choosing the narrowest modifier that matches your trust boundary, not defaulting to `public`.
+`protected internal` is a union: the member is accessible to any derived class regardless of assembly, and also to any code in the same assembly regardless of whether it derives from the declaring type. `private protected` is an intersection: the member is accessible only to code that is both a derived class and in the same assembly. If an external assembly defines a derived class, it can access `protected internal` members (the `protected` side applies) but cannot access `private protected` members (the assembly requirement fails). `private protected` is the right choice when a member is an extension hook intended only for subclasses built as part of the same library, not for external subclasses.
 
 ---
 
----
+## Q6. What does `internal` mean in the context of assemblies and `InternalsVisibleTo`?
 
-#### Q7. What is the default access level for class members if you omit an modifier?
+**Concepts**
+- internal visible only within the declaring assembly
+- InternalsVisibleTo granting named assemblies access to internal members
+- test assembly as the canonical friend
+- strong-named assemblies requiring public key in InternalsVisibleTo
+- InternalsVisibleTo as a compile-time visibility grant not a security boundary
 
-_Answer not found._
+**Answer**
 
----
-
-#### Q8. How do access modifiers apply to nested types vs top-level types?
-
-_Answer not found._
-
----
-
-#### Q9. What is defensive copying when returning collections from properties?
-
-_Answer not found._
+`internal` restricts access to any code compiled into the same assembly — the `.dll` or `.exe` — and is invisible to any code in other assemblies. `InternalsVisibleTo` in an assembly's source grants one or more named friend assemblies compile-time access to that assembly's `internal` members, as if they were in the same assembly. The canonical use is test assemblies: `[assembly: InternalsVisibleTo("MyLib.Tests")]` lets unit tests call internal helpers without making them public on the NuGet surface. For strong-named assemblies, the friend's public key must be specified or the access grant silently fails. `InternalsVisibleTo` is a visibility mechanism, not a security boundary — it applies to compile-time access only and does not prevent reflection-based access at runtime.
 
 ---
 
-#### Q10. What is the difference between encapsulation and immutability?
+## Q7. What is the default access level for class members if you omit a modifier?
 
-_Answer not found._
+**Concepts**
+- class members defaulting to private
+- top-level types defaulting to internal
+- nested types defaulting to private
+- interface members defaulting to public
+- enum members always public
 
----
+**Answer**
 
-#### Q11. Why are public fields discouraged in public APIs even for simple DTOs in some codebases?
-
-_Answer not found._
-
----
-
-#### Q12. How does `private protected` restrict visibility compared to `protected` alone?
-
-_Answer not found._
+Class and struct members default to `private` when no access modifier is specified. Top-level types (non-nested) default to `internal`. Nested types default to `private`, the same as other class members. Interface members default to `public` because their purpose is to define a public contract — although C# 8 explicit access modifiers on default implementations may alter this for individual members. Enum members are always `public` regardless of the enum's own accessibility. Knowing the defaults prevents accidental over-exposure (forgetting a modifier on a member that should be private is safe) and accidental under-exposure (forgetting `public` on a top-level class makes it assembly-internal).
 
 ---
 
-#### Q13. What is a friend assembly pattern, and what are its trade-offs?
+## Q8. How do access modifiers apply to nested types vs top-level types?
 
-_Answer not found._
+**Concepts**
+- top-level types limited to public or internal
+- nested types supporting all five access modifiers
+- nested types defaulting to private
+- private nested type visible only within the enclosing type
+- protected nested type accessible to derived classes of outer type
+
+**Answer**
+
+Top-level types (not nested inside another type) can only be `public` or `internal` — the other modifiers are not meaningful without an enclosing scope. Nested types — declared inside a class, struct, or interface — can use all five access modifiers including `private` and `protected`. A `private` nested type is visible only within the enclosing type, making it a true implementation detail. A `protected` nested type is accessible to derived classes of the enclosing type. A `private protected` nested type is accessible to derived classes in the same assembly. This lets complex types encapsulate their helper or builder types as deeply as needed without exposing them in the public API.
 
 ---
 
-#### Q14. How do property accessors use asymmetric access (`public get; private set;`)?
+## Q9. What is defensive copying when returning collections from properties?
 
-_Answer not found._
+**Concepts**
+- returning a copy instead of the live collection reference
+- preventing callers from mutating internal state through the copy
+- ToList() or ToArray() as common copy mechanisms
+- performance cost of copying on every access
+- IReadOnlyList<T> as a lighter alternative that avoids copying
+
+**Answer**
+
+Defensive copying means the property getter returns a new collection object containing the same elements rather than returning a reference to the internal collection. Callers who add, remove, or clear elements on the returned copy do not affect the original because they have an independent list. The typical pattern is `return _items.ToList()` or `return _items.ToArray()`. The cost is a full allocation and copy on every get, which is acceptable for collections accessed infrequently but expensive for hot paths. A lighter alternative that avoids copying is returning `_items.AsReadOnly()` or typing the property as `IReadOnlyList<T>`, which prevents callers from calling mutating methods without the allocation overhead of a full copy.
 
 ---
+
+## Q10. What is the difference between encapsulation and immutability?
+
+**Concepts**
+- encapsulation controlling who can change state through methods
+- immutability preventing any change to state after construction
+- encapsulation allowing controlled mutation through validated methods
+- immutability eliminating mutation entirely
+- immutability as a stronger constraint useful for concurrency and value semantics
+
+**Answer**
+
+Encapsulation controls access — it hides state behind methods that validate mutations, so the object can change but only in ways the type explicitly permits. Immutability prevents change entirely — once an object is constructed, its state cannot be modified by anyone including the owning type. A `BankAccount` is encapsulated but mutable: only `Deposit` and `TryWithdraw` can change the balance, and they enforce rules. An immutable `Money` record cannot change after creation; operations produce new values. Encapsulation is sufficient for most domain objects where state evolution is expected. Immutability simplifies concurrent access and reasoning about value semantics, since there are no race conditions on reads and no aliasing hazards.
+
+---
+
+## Q11. Why are public fields discouraged in public APIs even for simple DTOs?
+
+**Concepts**
+- public field exposing implementation storage directly
+- no interception on read or write
+- binary incompatibility when changing field to property
+- serialization and data-binding frameworks preferring properties
+- properties enabling future validation without API change
+
+**Answer**
+
+A public field exposes the storage mechanism directly, so any future need to add validation, raise change notifications, compute a derived value, or serialize with a different name requires changing the field to a property — which is a binary-incompatible change that recompiles consumers. Serialization frameworks and data-binding systems like WPF and ASP.NET model binding discover properties by convention and may skip fields. A public auto-property `{ get; set; }` looks identical to callers at the source level but compiles to get/set methods, giving the type room to add logic later without breaking anyone. Even for DTOs where no validation is expected today, the consistent practice of using properties avoids an API churn when requirements change.
+
+---
+
+## Q12. How does `private protected` restrict visibility compared to `protected` alone?
+
+**Concepts**
+- protected visible to all derived classes in any assembly
+- private protected visible only to derived classes in the same assembly
+- external subclasses unable to access private protected members
+- use for same-library extension hooks
+- narrowest possible combined visibility
+
+**Answer**
+
+`protected` alone makes a member accessible to any derived class, regardless of which assembly that class lives in. This means third-party libraries or plugin assemblies that subclass your type can read and write `protected` members, which widens your effective public surface unexpectedly. `private protected` adds the requirement that the accessing code must also reside in the same assembly. External derived classes — plugin projects, consumer subclasses — receive a compile error when they try to access `private protected` members. This is the right choice for extension hooks that are internal implementation details for your own team's subclasses but should not form part of the contract for external extenders.
+
+---
+
+## Q13. What is a friend assembly pattern, and what are its trade-offs?
+
+**Concepts**
+- InternalsVisibleTo granting named assembly access to internal members
+- test assembly as the primary legitimate use case
+- maintenance coupling between friend and provider assemblies
+- overuse turning internal into effectively public
+- strong-naming requirement for signed assemblies
+
+**Answer**
+
+The friend assembly pattern uses `[assembly: InternalsVisibleTo("FriendAssembly")]` to grant a named assembly access to `internal` types and members at compile time, without exposing them publicly in the NuGet or binary API surface. The main legitimate use is test assemblies: unit tests can exercise internal helpers, validators, and factories without making them `public`. The trade-off is that every friend assembly creates a maintenance coupling — internal refactors that rename or remove members break the friend. Overuse promotes `internal` to effectively "public but inconvenient," which defeats the purpose of encapsulation. For signed assemblies, the friend's public key must be included in the attribute, or access is silently denied.
+
+---
+
+## Q14. How do property accessors use asymmetric access (`public get; private set;`)?
+
+**Concepts**
+- asymmetric access combining different visibility on get and set
+- public getter exposing value for reading
+- private set restricting mutation to the owning class
+- protected set for hierarchy-controlled mutation
+- common pattern for domain objects with encapsulated state changes
+
+**Answer**
+
+Asymmetric access lets a property be readable by the public while being settable only from within the declaring class: `public decimal Balance { get; private set; }`. This exposes the value for observation without allowing external code to assign it directly. Any mutation must go through a method that the class controls, such as `Deposit` or `Withdraw`, which can enforce invariants before changing the backing value. `protected set` extends mutation rights to derived classes while still hiding the setter from external callers. This pattern is a practical middle ground between a fully read-only property (which requires a constructor or backing field assignment) and a fully public property (which exposes mutation without control).
 
 ### 08. Events
 
-#### Q1. Explain events in C# (including event handling and publisher-subscriber pattern).
+---
 
-(R) A WPF-style desktop app keeps growing in memory after users open and close account detail panels. Review this wiring. What keeps `AccountDetailPanel` instances alive, and how do you fix it?
+## Q1. Explain events in C# (including event handling and publisher-subscriber pattern).
 
-**Answer:** The panel subscribes to `_account.BalanceChanged` with a lambda but never unsubscribes in `Dispose`, so the long-lived `BankAccount` publisher holds a delegate that captures `this` — the closed panel cannot be collected even after it is removed from the UI.
+**Concepts**
+- event as encapsulated multicast delegate
+- publisher raising the event without knowing subscribers
+- subscriber registering handler with +=
+- EventHandler and EventHandler<T> as standard delegate signatures
+- loose coupling between publisher and zero or more subscribers
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Lifetime | `+=` in constructor, no `-=` in `Dispose` | Publisher retains subscriber → memory leak |
-| Handler target | Lambda captures `this` (the panel instance) | GC cannot reclaim disposed UI objects |
-| Design | Shared singleton/static `BankAccount` outlives every panel | Leak accumulates on each navigation open/close |
-
-**Fix (priority order):**
-
-1. Unsubscribe in `Dispose` (or `IAsyncDisposable`) — store the handler in a field if you used a lambda so `-=` matches the same delegate instance.
-2. Prefer a named instance method handler when possible: `_account.BalanceChanged += OnBalanceChanged;` and `-= OnBalanceChanged` in `Dispose`.
-3. If the publisher outlives all subscribers, consider weak-event patterns or a mediator (`IMediator`, `Channel<T>`) for UI refresh instead of direct domain events.
-4. Profile with a memory dump — look for `AccountDetailPanel` instances retained via `BankAccount` → multicast delegate chain.
-
-```csharp
-private readonly EventHandler<BalanceChangedEventArgs> _balanceHandler;
-
-public AccountDetailPanel(BankAccount account)
-{
-    _account = account;
-    _balanceHandler = (_, e) => RefreshBalanceLabel(e.NewBalance);
-    _account.BalanceChanged += _balanceHandler;
-}
-
-public void Dispose()
-{
-    _account.BalanceChanged -= _balanceHandler;
-}
-```
-
-**Production takeaway:** Events create implicit references from publisher to subscriber — Karat tests whether you treat `-=` as mandatory cleanup, not optional. See **Program.cs** Section 6 — subscribe/unsubscribe and **Section 4c** — publisher outlives handlers.
+An event in C# is a member backed by a multicast delegate, restricted by the `event` keyword so outside code can only subscribe (`+=`) or unsubscribe (`-=`) but cannot raise the event or replace all handlers. The publisher-subscriber pattern has the publisher type declare the event and raise it when something meaningful happens — `BankAccount` raises `BalanceChanged` after a deposit — while subscriber objects attach handler methods with `+=` and remove them with `-=`. Because the publisher knows nothing about its subscribers and subscribers know nothing about each other, the pattern decouples these concerns: adding a new subscriber requires no change to the publisher. When the event is raised, every subscribed handler is invoked in subscription order through the multicast delegate chain.
 
 ---
 
-#### Q2. What is the difference between an `event` and a plain public delegate field?
+## Q2. What is the difference between an `event` and a plain public delegate field?
 
-(R) After a refactor, balance notifications crash when no UI is subscribed. Review the publisher change:
+**Concepts**
+- event restricting outsiders to += and -= only
+- public delegate field allowing external invoke and = assignment
+- CS0070 error on external raise of event
+- encapsulation protecting publisher's raise logic
+- event as the correct tool for publish-subscribe APIs
 
-```csharp
-public class BankAccount
-{
-    public event EventHandler<BalanceChangedEventArgs>? BalanceChanged;
+**Answer**
 
-    protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-    {
-        if (BalanceChanged != null)
-        {
-            BalanceChanged(this, e);  // was: BalanceChanged?.Invoke(this, e);
-        }
-    }
-}
-```
-
-What breaks at runtime, and what is the idiomatic raise pattern in modern C#?
-
-**Answer:** The null check and invoke are not atomic — another thread can unsubscribe between the `!= null` test and the call, leaving `BalanceChanged` null and throwing `NullReferenceException`. The idiomatic fix is null-conditional invoke: `BalanceChanged?.Invoke(this, e)`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | Split null-check + direct invoke | Rare NRE when last handler unsubscribes during raise |
-| Style | Verbose `if (BalanceChanged != null)` | Easy to regress during refactor away from `?.` |
-| Threading | Non-atomic check-then-invoke | Same race as Q4; worse under concurrent UI/service threads |
-
-**Fix (priority order):**
-
-1. Restore null-conditional invoke inside `OnBalanceChanged`: `BalanceChanged?.Invoke(this, e);`
-2. For multi-threaded publishers, copy to a local before invoke (see Q4): `var handler = BalanceChanged; handler?.Invoke(this, e);`
-3. Keep raise logic centralized in `OnBalanceChanged` so derived classes override one hook — matches **Program.cs** Section 4c.
-4. Add a unit test that unsubscribes a handler from inside another handler — reproduces the race without UI.
-
-**Production takeaway:** Forgetting `?.` is a classic production footgun — zero subscribers is normal, not exceptional. See **Program.cs** QUICK REFERENCE — "Forgetting ?. before Invoke → NullReferenceException."
+A plain `public Action<string>? Completed` field lets any code outside the class invoke the delegate directly (`gateway.Completed("x")`) or replace all subscribers with `gateway.Completed = null`, which silently removes every registered handler without anyone's consent. The `event` keyword restricts outside code to `+=` and `-=` only; any attempt to invoke the event or assign to it from outside the declaring class is a compile error (CS0070). Only the declaring class can raise the event. This encapsulates the raise logic inside the publisher, prevents accidental clearing of the subscriber list, and prevents third-party code from firing fake notifications that could corrupt downstream state.
 
 ---
 
-#### Q3. Why should you unsubscribe from events, and what problem does this prevent?
+## Q3. Why should you unsubscribe from events, and what problem does this prevent?
 
-(R) A teammate exposes a notification hook as a public delegate field "for flexibility." Review usage from another assembly:
+**Concepts**
+- publisher holding reference to subscriber via delegate
+- GC unable to collect subscribers still referenced by event
+- memory leak accumulating as subscribe-without-unsubscribe cycles
+- -= in Dispose or equivalent cleanup method
+- named handler method enabling matching unsubscribe
 
-```csharp
-public class PaymentGateway
-{
-    public Action<string>? PaymentCompleted;  // public field, not event
-}
+**Answer**
 
-// Consumer startup:
-gateway.PaymentCompleted += msg => _audit.Log(msg);
-
-// Later, a test helper "resets" listeners before each test:
-gateway.PaymentCompleted = null;
-
-// Malicious or buggy caller in another module:
-gateway.PaymentCompleted?.Invoke("Fake payment — ship order");
-```
-
-What production risks does this design create compared to `public event Action<string>? PaymentCompleted`?
-
-**Answer:** A public delegate field lets any caller invoke the callback chain or assign `null`, wiping every subscriber without their knowledge — breaking audit trails, tests, and domain integrity. The `event` keyword restricts outsiders to `+=` / `-=` only; only `PaymentGateway` may raise from inside the type (CS0070 blocks external `Invoke`).
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security / integrity | External `Invoke` fakes domain events | Downstream systems act on spoofed "payment completed" |
-| Encapsulation | `= null` clears entire multicast chain | Silent loss of audit/logging handlers after test reset or bug |
-| API contract | Callers cannot distinguish publisher vs subscriber responsibilities | Violates publisher/subscriber roles from **Program.cs** Section 1 |
-| Compile-time safety | No CS0070 guard on external raise | Fake notifications ship to production undetected |
-
-**Fix (priority order):**
-
-1. Change to `public event Action<string>? PaymentCompleted;` and raise only from an internal `Publish(string message)` method.
-2. Replace test `= null` with explicit `-=` per registered handler, or create a fresh gateway instance per test.
-3. For cross-assembly extensibility, prefer interfaces + DI (`INotificationPublisher`) over exposed delegate fields.
-4. Code-review rule: flag `public Action`/`Func` fields on domain types — require `event` or method-based hooks.
-
-```csharp
-public class PaymentGateway
-{
-    public event Action<string>? PaymentCompleted;
-
-    public void CompletePayment(string receiptId)
-    {
-        // real gateway work...
-        PaymentCompleted?.Invoke(receiptId);
-    }
-}
-```
-
-**Production takeaway:** **Program.cs** Section 5 — `UnsafeNotifier` vs `SafeNotifier` — same lesson at enterprise scale: events protect who may raise and who may clear subscribers.
+When an object subscribes to an event, the publisher's delegate list holds a reference to the subscriber's handler method (and through it, to the subscriber object itself if a lambda captures `this`). If the subscriber is logically done — a UI panel closed, a scoped service disposed — but never unsubscribes, the publisher's long-lived delegate list keeps the subscriber in memory indefinitely, preventing the GC from collecting it. This creates a leak that accumulates with every subscribe-without-unsubscribe cycle. The fix is to unsubscribe in a `Dispose` method or lifecycle cleanup hook using the same delegate reference used for `+=`. Using a named instance method rather than a lambda makes the matching `-=` straightforward.
 
 ---
 
-#### Q4. What happens during multicast delegate invocation if one subscriber throws?
+## Q4. What happens during multicast delegate invocation if one subscriber throws?
 
-(P) A background `BankAccount` service raises `BalanceChanged` from worker threads while the UI thread subscribes handlers. A developer uses only null-conditional invoke inside `OnBalanceChanged`:
+**Concepts**
+- multicast delegate invoking handlers in subscription order
+- exception from one handler aborting remaining handlers
+- remaining handlers after the throwing one not called
+- GetInvocationList for exception-isolated invocation
+- aggregate exception pattern for collecting all failures
 
-```csharp
-protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-{
-    BalanceChanged?.Invoke(this, e);
-}
-```
+**Answer**
 
-Under concurrent subscribe/unsubscribe, handlers are occasionally skipped or you see rare `NullReferenceException` in older .NET code paths. Explain the race and show the thread-safe raise pattern from this chapter.
-
-**Answer:** `BalanceChanged?.Invoke` still reads the event field twice conceptually — between load and invoke another thread can `-=` the last handler and set the backing delegate to null, so some handlers never run or an older pattern throws. Copy the delegate reference to a local variable, then null-conditional invoke the copy so the invocation list is fixed for that raise.
-
-- **Race:** Thread A loads non-null delegate → Thread B unsubscribes last handler (field becomes null) → Thread A invokes — skipped notification or NRE with explicit null-check code.
-- **Thread-safe pattern (from this chapter):**
-
-```csharp
-protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-{
-    EventHandler<BalanceChangedEventArgs>? handler = BalanceChanged;
-    handler?.Invoke(this, e);
-}
-```
-
-- **Why it works:** The local `handler` captures the multicast delegate snapshot at raise time; subsequent `+=`/`-=` on the event do not affect that snapshot.
-- **Stronger option:** Custom `add`/`remove` accessors with a lock if subscribe/unsubscribe must be synchronized with raise — **Program.cs** Section 4d; default compiler accessors are usually enough once you copy locally.
-- **UI note:** Even with a safe raise, handlers that touch UI controls must marshal to the UI thread (`Dispatcher`, `SynchronizationContext`) — thread-safe raise does not make handler bodies thread-safe.
-
-**Production takeaway:** Null-conditional invoke fixes "no subscribers"; local copy fixes "subscribers changed mid-raise" — Karat stacks both. See **BankAccount.OnBalanceChanged** in **Program.cs** lines 215–219.
+When a multicast delegate is invoked, handlers are called in the order they were subscribed. If one handler throws an unhandled exception, the default invocation stops at that point and the remaining handlers in the chain are never called. This means a poorly-behaved subscriber can silently prevent other subscribers from receiving the event. To invoke all handlers and collect exceptions independently, use `GetInvocationList()` to iterate handlers one at a time in a try-catch loop, which lets you accumulate failures in an `AggregateException` and ensure every subscriber is attempted regardless of prior failures. This pattern is important in frameworks where all subscribers must receive notification even if some are buggy.
 
 ---
 
-#### Q5. What is the standard `EventHandler` / `EventHandler<TEventArgs>` pattern?
+## Q5. What is the standard `EventHandler` / `EventHandler<TEventArgs>` pattern?
 
-(P) An ASP.NET Core API registers a **Singleton** `OrderStateTracker` that exposes `event EventHandler<OrderPlacedEventArgs>? OrderPlaced`. Scoped services subscribe in their constructors to push SignalR updates. After a few thousand requests, memory climbs and old connections still receive events. What is wrong with this wiring, and what pattern replaces in-process events for web apps?
+**Concepts**
+- EventHandler<TEventArgs> as the BCL-standard delegate signature
+- sender as object for the raising instance
+- EventArgs subclass carrying event-specific data
+- parameterless EventHandler for events with no payload
+- convention enabling consistent event wiring across BCL and user code
 
-**Answer:** A singleton publisher lives for the app lifetime, but each scoped `OrderNotificationService` subscribes in its constructor and never unsubscribes — every request adds another handler to the same event, retaining disposed scopes, `IHubContext` captures, and stale SignalR targets until the process recycles.
+**Answer**
 
-- **DI lifetime mismatch:** Singleton event source + scoped subscriber constructor subscription = unbounded handler list growth per HTTP request.
-- **Memory:** Each handler closes over `hub` and possibly request state — GC cannot collect completed requests still referenced by the delegate chain.
-- **Correctness:** Old handlers fire on new orders — clients see duplicate or ghost notifications from recycled connection ids.
-
-**Fix (priority order):**
-
-1. **Do not** subscribe in scoped service constructors to singleton events without matching `-=` in `Dispose`/`IAsyncDisposable` — hard to get right in ASP.NET.
-2. Prefer **`IOptions` + `IHostedService`**, a **singleton** broadcaster with explicit connection mapping, or **`IHubContext` injected into a singleton** that tracks groups — not per-request event handlers.
-3. For domain decoupling in ASP.NET Core, use **`IMediator` (MediatR)**, **`Channel<T>`**, or **message bus** (Azure Service Bus, RabbitMQ) scoped to the unit of work — not classic C# events across DI lifetimes.
-4. If events are required (e.g., `DbContext.SaveChanges` interceptors), keep subscriber lifetime **≤ publisher lifetime** and unsubscribe when scope ends.
-
-```csharp
-// Better: scoped handler invoked explicitly from application service, no singleton event
-public sealed class OrderApplicationService
-{
-    private readonly IHubContext<OrderHub> _hub;
-    public async Task PlaceOrderAsync(Order order, CancellationToken ct)
-    {
-        // persist order...
-        await _hub.Clients.Group(order.CustomerId).SendAsync("orderPlaced", order.Id, ct);
-    }
-}
-```
-
-**Production takeaway:** C# events assume you manage lifetimes manually — ASP.NET DI scopes do not auto-unsubscribe. Karat links **Events** to **DI lifetimes**: singleton + scoped event wiring is a production leak. Preview: **Program.cs** Section 6 — multi-handler wiring moves to ch.09 with service registration.
+The standard pattern uses `EventHandler<TEventArgs>` where the delegate signature is `void Handler(object? sender, TEventArgs e)`. The `sender` parameter provides the object that raised the event, and `e` is a custom `EventArgs` subclass carrying event-specific data — for example `BalanceChangedEventArgs` with `NewBalance` and `OldBalance` properties. For events with no meaningful payload, the non-generic `EventHandler` delegate (with `EventArgs.Empty`) is used. Following this convention ensures that any C# developer can immediately recognize the pattern, that tooling can correctly identify event handlers, and that framework infrastructure for event wiring recognizes and supports the signature.
 
 ---
 
-#### Q6. How do you raise an event safely (null-check, `?.Invoke`, local copy pattern)?
+## Q6. How do you raise an event safely?
 
-(D) Your team debates three ways to notify downstream code when `BankAccount` balance changes: (A) `public event EventHandler<T>`, (B) `public Action<T>?` callback field, (C) `INotificationService` injected and called directly from `Deposit`/`TryWithdraw`. When would you choose each in a production ASP.NET Core domain layer, and what is the unsubscribe/lifetime rule of thumb?
+**Concepts**
+- null-conditional invoke handling no-subscribers case
+- local copy preventing race between null-check and invoke
+- protected virtual OnX method as the raise helper
+- null check required because zero subscribers leaves delegate null
+- thread-safe local copy for concurrent subscribe/unsubscribe
 
-**Answer:** In ASP.NET Core domain services, prefer **(C) injected abstractions** for application boundaries; use **(A) events** for in-process, same-lifetime object graphs (UI controls, short-lived aggregates with explicit cleanup); avoid **(B) public delegate fields** in production domain code except internal test doubles.
+**Answer**
 
-| Option | When to use | Lifetime rule |
-|---|---|---|
-| **(A) `event`** | Same-assembly domain objects, UI binding, aggregates where subscribers share publisher lifetime | Every `+=` needs matching `-=` when subscriber dies first; publisher must outlive or use weak patterns |
-| **(B) `Action` field** | Rare — single callback slot, prototype code, serializer-friendly delegates you control entirely | Same as (A), plus anyone can `= null` or invoke — not for public APIs |
-| **(C) `INotificationService` / MediatR** | ASP.NET Core services, cross-layer notifications, testability, multiple implementations | DI scope owns lifetime — no manual unsubscribe; singleton must not capture scoped services |
-
-**Production guidance:**
-
-- **Domain layer in API:** `BankAccount` should not expose public events to the web stack — call `INotificationService.PublishBalanceChanged(...)` from application services after persistence so lifetimes follow the request scope.
-- **Console/UI tools:** Events match **Program.cs** tutorial — `BankAccount` + handlers in `Main` with clear subscribe/unsubscribe demo.
-- **Testing:** (C) is easiest to mock; (A) requires raising events or attaching test handlers with cleanup; (B) invites test code that clears production handlers with `= null`.
-- **Rule of thumb:** If the subscriber has a **shorter lifetime than the publisher**, you must unsubscribe — or do not use events. If lifetimes are managed by DI, use interfaces instead of events.
-
-**Production takeaway:** Events excel at decoupling within one process and one lifetime story; ASP.NET Core's scoped/singleton graph breaks that assumption — Karat expects you to pick the mechanism by **who raises, who listens, and who outlives whom**, not syntax preference alone.
+The idiomatic safe raise uses null-conditional invocation: `BalanceChanged?.Invoke(this, e)`. Since an event with no subscribers is represented as a `null` delegate, calling it directly would throw `NullReferenceException`. In multi-threaded scenarios where subscribers may unsubscribe concurrently, copy the delegate reference to a local variable before invoking it: `var handler = BalanceChanged; handler?.Invoke(this, e)`. The local copy captures the invocation list at that moment, so even if another thread unsubscribes the last handler between the copy and the invoke, the copy is non-null and the call is safe. The conventional structure wraps this in a `protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)` method so derived classes can override the raise behavior.
 
 ---
 
-#### Q7. What is the difference between custom delegate types and `EventHandler` for events?
+## Q7. What is the difference between custom delegate types and `EventHandler` for events?
 
-_Answer not found._
+**Concepts**
+- EventHandler<T> as the BCL-recommended standard signature
+- custom delegate types for non-standard parameter shapes
+- EventHandler enforcing object sender and EventArgs e convention
+- custom delegate allowing direct typed parameters
+- interoperability and tooling recognition favoring EventHandler
 
----
+**Answer**
 
-#### Q8. Can interfaces declare events, and how are they implemented?
-
-_Answer not found._
-
----
-
-#### Q9. What memory-leak scenario arises when a long-lived publisher holds references to short-lived subscribers?
-
-_Answer not found._
+`EventHandler<TEventArgs>` enforces the `(object? sender, TEventArgs e)` signature that matches BCL conventions, makes event handlers immediately recognizable, and ensures compatibility with framework infrastructure that expects this shape. A custom delegate type like `delegate void PriceChangedHandler(decimal oldPrice, decimal newPrice)` allows a different parameter shape — no sender, no EventArgs wrapping — which can be cleaner for simple domain-internal events but is less interoperable with generic tooling. The trade-off is ergonomics vs convention: use `EventHandler<T>` for events that may be consumed by general-purpose infrastructure or external callers; custom delegates are acceptable for tightly-scoped internal events where the strongly-typed parameters are clearer than boxing values into an `EventArgs` subclass.
 
 ---
 
-#### Q10. What is the difference between events and the Observer pattern / IObservable?
+## Q8. Can interfaces declare events, and how are they implemented?
 
-_Answer not found._
+**Concepts**
+- interface declaring event with standard EventHandler pattern
+- implementing class providing += and -= accessors
+- explicit event implementation for name conflicts
+- callers subscribing through interface reference
+- same hiding patterns as explicit method implementation
+
+**Answer**
+
+Interfaces can declare events: `event EventHandler<T>? SomeEvent;`. Implementing classes provide the event either by declaring a matching `event` field (the compiler generates accessors) or by providing explicit `add { }` and `remove { }` accessors. When two implemented interfaces declare events with the same name, explicit event implementation — `event EventHandler IFirst.SomeEvent { add {...} remove {...} }` — provides separate implementations per interface. Callers holding an interface-typed reference subscribe and unsubscribe through that interface, and the dispatch reaches the class's implementation. The same encapsulation rules apply: only the implementing class can raise the event even when declared through an interface.
+
+---
+
+## Q9. What memory-leak scenario arises when a long-lived publisher holds references to short-lived subscribers?
+
+**Concepts**
+- publisher's delegate list retaining reference to subscriber
+- GC unable to reclaim short-lived subscriber
+- UI controls closing without unsubscribing from domain events
+- scoped services subscribing to singleton events without cleanup
+- weak event patterns and IDisposable unsubscribe as mitigations
+
+**Answer**
+
+When a long-lived publisher — a static service, a singleton, a domain aggregate with application lifetime — holds an event to which short-lived subscribers have attached, those subscribers cannot be garbage collected because the publisher's delegate list holds a strong reference to each handler (and through captured variables, to the subscriber object itself). A WPF panel that subscribes to `account.BalanceChanged` in its constructor and is later "closed" but never disposed remains in memory as long as the `BankAccount` exists. The fix is to unsubscribe in the subscriber's `Dispose` or `IAsyncDisposable` implementation. When explicit unsubscription is impractical, weak event patterns or a mediator that does not hold references between events can prevent the leak.
 
 ---
 
-#### Q11. Can you assign to an event from outside the declaring class (`event += handler` vs `event = handler`)?
+## Q10. What is the difference between events and the Observer pattern / IObservable?
 
-_Answer not found._
+**Concepts**
+- C# events as a language-level multicast delegate mechanism
+- Observer pattern as a design pattern with explicit Subject and Observer roles
+- IObservable<T> as the reactive pull-push stream contract
+- events having no built-in completion or error notification
+- IObservable supporting OnNext, OnError, and OnCompleted
+
+**Answer**
+
+C# events are a language mechanism backed by multicast delegates; they fire notifications on demand but have no concept of completion, error propagation, or sequence termination. The Observer pattern is a broader design pattern that defines a `Subject` maintaining a list of `Observer` objects and notifying them of state changes — C# events are one implementation of this pattern. `IObservable<T>` from the Reactive Extensions model represents an asynchronous stream of values with three notification types: `OnNext(T)` for each value, `OnError(Exception)` for a terminal error, and `OnCompleted()` for stream termination. `IObservable<T>` also supports composition, filtering, and transformation via LINQ-style operators, which plain events do not. Use events for simple domain notifications; use `IObservable<T>` when stream composition, backpressure, or lifecycle semantics are needed.
 
 ---
 
-#### Q12. What is thread-safe event raising, and when is locking required?
+## Q11. Can you assign to an event from outside the declaring class?
 
-_Answer not found._
+**Concepts**
+- event restricting external code to += and -= only
+- = assignment on event outside declaring class is CS0070
+- only the declaring class can raise or replace the invocation list
+- test code needing fresh instances rather than = null resets
+- delegate field allowing = but breaking encapsulation
+
+**Answer**
+
+No — code outside the declaring class can only subscribe (`+=`) and unsubscribe (`-=`) from an event. Attempting to assign (`=`) or invoke the event from outside the declaring type is compile error CS0070. Only the class that declares the event can raise it or manipulate the underlying delegate directly. This restriction is what makes `event` different from a plain `public` delegate field: a public field allows external `= null` to wipe all subscribers, which `event` prevents. Test code that wants to start with a clean event state should use a fresh publisher instance rather than trying to null out the event from outside.
 
 ---
+
+## Q12. What is thread-safe event raising, and when is locking required?
+
+**Concepts**
+- local delegate copy as the minimal thread-safe raise pattern
+- concurrent subscribe/unsubscribe not corrupting the copy
+- default add/remove accessors using Interlocked internally
+- lock required for compound read-raise-decide sequences
+- custom add/remove with explicit lock for stricter ordering
+
+**Answer**
+
+The minimal thread-safe raise pattern copies the delegate to a local variable before invoking: `var h = MyEvent; h?.Invoke(this, e)`. This is safe because delegate assignment in .NET is atomic — the local variable captures a complete invocation list snapshot — and even if another thread unsubscribes concurrently, the copy remains valid for the duration of the raise. The default compiler-generated `add` and `remove` accessors use `Interlocked.CompareExchange` internally, so subscribe and unsubscribe are themselves thread-safe. Explicit locking is needed only when the raise decision depends on state that must be consistent with the event invocation — for example, "raise only if count > 0" where another thread could change count between the check and the raise — in which case a `lock` wrapping both the check and the invoke is required.
 
 ### 09. OOP Real-World Examples
 
-#### Q1. Explain the SOLID principles with concrete C# examples.
-
-(R) A team ports the chapter's order-fulfillment payment flow into a service class. Support sees duplicate debits and failed rollbacks after card declines. Review:
-
-```csharp
-public sealed class OrderPaymentService
-{
-    public string Run(BankAccount wallet, decimal total, string orderRef)
-    {
-        var card = new CardPaymentProcessor();
-        var walletGw = new WalletPaymentProcessor();
-
-        if (wallet.Balance < total)
-            return "Insufficient funds";
-
-        wallet.TryWithdraw(total, out _);
-
-        string result = card.ProcessOrderPayment(total, orderRef);
-        if (result.Contains("declined", StringComparison.OrdinalIgnoreCase))
-        {
-            wallet.Deposit(total);
-            result = walletGw.ProcessOrderPayment(total, "WLT-" + orderRef);
-        }
-
-        return result;
-    }
-}
-```
-
-What is wrong across encapsulation, abstraction, and correctness — and how would you fix it in priority order?
-
-**Answer:** The service debits the wallet before any gateway succeeds, then infers payment outcome from a formatted string and silently retries a second gateway — so a declined card can still leave the customer charged twice or in an inconsistent ledger state. It also hard-codes concrete processors instead of depending on the chapter's `PaymentProcessor` abstraction.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Withdraw **before** confirmed charge; fallback charges a **second** gateway after partial success | Duplicate debits, reconciliation nightmares, support tickets |
-| Encapsulation | Ignores `TryWithdraw` result (`out _` discarded); balance check + withdraw not atomic with payment | Race conditions; withdraw can fail while flow continues |
-| Abstraction / DIP | `new CardPaymentProcessor()` / `new WalletPaymentProcessor()` inside method | Cannot swap gateways, mock in tests, or extend without editing this class (OCP) |
-| Design | Parses `"declined"` from human-readable `ProcessOrderPayment` string | Fragile coupling to message text; breaks localization or logging changes |
-| Domain | No idempotency on `orderRef` | Retries double-charge the same order |
-
-**Fix (priority order):**
-
-1. **Stop debiting before payment succeeds** — call `PaymentProcessor.TryCharge` (or gateway API) first; only `TryWithdraw` / ledger debit after confirmed charge, inside one transactional boundary (DB transaction or saga with compensating action).
-2. **Inject `PaymentProcessor` (or strategy per payment method)** — caller or factory selects one processor per order; do not sequentially hammer two gateways on one decline string match.
-3. **Use structured results** — return `bool` / result type from charge APIs, not `Contains("declined")` on formatted strings.
-4. **Respect `TryWithdraw` outcome** and frozen-account rules from chapter `BankAccount` — propagate `errorMessage`; never ignore `out` parameters.
-5. Add **idempotency key** on `orderRef` so retries are safe.
-
-```csharp
-public sealed class OrderPaymentService
-{
-    private readonly PaymentProcessor _processor;
-
-    public OrderPaymentService(PaymentProcessor processor) => _processor = processor;
-
-    public bool Run(BankAccount wallet, decimal total, string orderRef, out string message)
-    {
-        if (!_processor.TryCharge(total, orderRef))
-        {
-            message = _processor.ProcessOrderPayment(total, orderRef);
-            return false;
-        }
-
-        if (!wallet.TryWithdraw(total, out message))
-        {
-            // Compensating refund/charge reversal on gateway
-            return false;
-        }
-
-        message = _processor.ProcessOrderPayment(total, orderRef);
-        return true;
-    }
-}
-```
-
-**Production takeaway:** The chapter separates **encapsulated ledger rules** (`BankAccount`) from **hidden gateway logic** (`PaymentProcessor`) — Karat stacks them to see if you preserve invariants when wiring a "real" service. See **Program.cs** Sections 2–3 — `TryWithdraw` + `ProcessOrderPayment`.
-
----
-
-#### Q2. What is the Liskov Substitution Principle? Give a classic violation (e.g., `Square`/`Rectangle`).
-
-(R) A logistics API quotes delivery cost from the chapter's `Vehicle` fleet. After adding `Motorcycle` to the fleet, quotes are wrong and every new vehicle type requires editing this method. Review:
-
-```csharp
-public static decimal QuoteDelivery(Vehicle vehicle, decimal distanceKm, decimal ratePerKm)
-{
-    if (vehicle is Car)
-        return distanceKm * ratePerKm;
-
-    if (vehicle is Truck truck)
-        return distanceKm * ratePerKm * (1.0m + truck.PayloadTons * 0.05m);
-
-    // Fallback for anything else (Motorcycle, future types)
-    return distanceKm * ratePerKm * 2.0m;
-}
-```
-
-What design problems do you see, and how does the chapter's polymorphism model replace this?
-
-**Answer:** The method re-implements pricing with type tests and a punitive default multiplier, so `Motorcycle` quotes are wrong and every new `Vehicle` subtype forces another branch — exactly what polymorphic `EstimateDeliveryCostKm` on the chapter's hierarchy avoids.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Polymorphism | Ignores `Vehicle.EstimateDeliveryCostKm` override on `Truck` | Duplicated / divergent pricing logic; truck payload formula may drift from domain |
-| OCP | Central `is` / `if` chain | New vehicle types require editing shared utility — merge conflicts, missed cases |
-| LSP / correctness | `2.0m` fallback for unknown types | Motorcycles overcharged; silent wrong quotes in production |
-| Maintainability | `Car` branch duplicates base `ratePerKm * 1.0m` | Two places to change base rate logic |
-
-**Fix (priority order):**
-
-1. Replace the method body with **`vehicle.EstimateDeliveryCostKm(ratePerKm) * distanceKm`** — one line using runtime dispatch.
-2. Override `EstimateDeliveryCostKm` on subtypes that differ (`Truck` already does); leave `Car` / `Motorcycle` on base behavior or add precise overrides.
-3. Delete the fallback multiplier — if a new type needs special pricing, add a derived class override instead of editing a god-method.
-4. Accept `Vehicle` (or `IReadOnlyList<Vehicle>`) in fleet APIs so callers never downcast for pricing.
-
-**Production takeaway:** Chapter Section 4–5 shows **virtual override + base reference** so fleet loops stay branch-free — Karat uses logistics quoting to test whether you reach for `is` checks after learning polymorphism. See **Program.cs** — `deliveryVehicle.EstimateDeliveryCostKm(ratePerKm)`.
-
----
-
-#### Q3. What is Dependency Inversion, and how does constructor injection implement it?
-
-(R) A PR consolidates payment, delivery, labels, notifications, and invoicing into one coordinator for "simplicity." Review:
-
-```csharp
-public sealed class OrderFulfillmentHub
-{
-    public BankAccount CustomerWallet { get; set; } = new("ACC-DEFAULT", 0m);
-
-    public string Fulfill(string customer, string orderRef, decimal total)
-    {
-        CustomerWallet.TryWithdraw(total, out _);
-
-        var card = new CardPaymentProcessor();
-        card.ProcessOrderPayment(total, orderRef);
-
-        var truck = new Truck("Tata", "LPT", 2021, 3.5m);
-        decimal cost = truck.EstimateDeliveryCostKm(2.4m) * 12.5m;
-
-        var circle = new Circle(3.5);
-        string label = $"Label area={Math.PI * circle.Radius * circle.Radius:0.##}";
-
-        var email = new EmailNotificationSender();
-        email.Send(customer, $"Order {orderRef} for {total:C}");
-
-        var invoice = new InvoiceDocument("INV-1", DateTime.UtcNow, customer, total);
-        return invoice.Render() + $" | delivery={cost:C} | {label}";
-    }
-}
-```
-
-Identify stacked OOP and SOLID issues. What would you split, inject, or abstract first?
-
-**Answer:** One class owns mutable shared wallet state, hard-coded collaborators, duplicated shape math, and a string-concatenated API response — violating SRP and DIP while bypassing the chapter's interface and polymorphism seams.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| SRP | Payment, delivery, labeling, notify, invoice in one method | Untestable blob; any change risks regressions everywhere |
-| Encapsulation | Public `CustomerWallet` setter + default account | Any caller can swap or corrupt shared wallet; multi-tenant bleed |
-| DIP / abstraction | `new CardPaymentProcessor`, `new EmailNotificationSender`, inline `Circle` math | No injection; cannot add SMS/Push or swap truck without editing hub |
-| Polymorphism | Recomputes circle area instead of `circle.Area` / `Shape.Draw()` | Duplicated domain logic; breaks when label rules change |
-| Correctness | Withdraw + charge ordering (same as Q1) | Financial inconsistency |
-| API design | Returns opaque concatenated string | Callers cannot compose invoice PDF, audit log, or HTTP 201 body cleanly |
-
-**Fix (priority order):**
-
-1. **Extract orchestrator** that accepts dependencies — `PaymentProcessor`, `Vehicle` (or fleet service), `IReadOnlyList<Shape>`, `IEnumerable<INotificationSender>`, `Document` factory — constructor injection.
-2. **Remove mutable shared `BankAccount` property** — pass per-order wallet/account id into `Fulfill`; load scoped instance per request.
-3. **Use chapter contracts** — `NotifyCustomer(senders, …)` pattern from **Program.cs**; `RenderLabels` / `SumAreas` for shapes; `invoice.Render()` as sole document output, map to DTO separately.
-4. Split **domain services** — `OrderPaymentService`, `DeliveryQuoteService`, `NotificationService` — orchestrator coordinates; each unit-tested.
-5. Return a **structured result** (payment status, delivery cost, notification receipts, invoice text) — not one mega-string.
-
-**Production takeaway:** The chapter's `Main` intentionally orchestrates for learning — production code inverts that into injected abstractions. Karat capstone tests whether you recognize demo-style composition vs shippable boundaries.
-
----
-
-#### Q4. What is the difference between Dependency Injection and the Service Locator pattern?
-
-(D) Product wants **push notifications** and a shared **retry-with-backoff** helper for all channels. Two proposals land in code review:
-
-**Option A — extend abstract base:**
-
-```csharp
-public abstract class NotificationSenderBase
-{
-    protected void Retry(Action sendAttempt) { /* shared retry */ }
-    public abstract string Send(string recipient, string message);
-}
-
-public class PushNotificationSender : NotificationSenderBase { /* ... */ }
-```
-
-**Option B — keep chapter interface + optional helper:**
-
-```csharp
-public interface INotificationSender
-{
-    string ChannelName { get; }
-    string Send(string recipient, string message);
-}
-
-public static class NotificationRetry
-{
-    public static string SendWithRetry(INotificationSender sender, string recipient, string message) { /* ... */ }
-}
-```
-
-Email and SMS already implement `INotificationSender` with no common base. Which direction fits this chapter's fulfillment model, and when would you combine both?
-
-**Answer:** Prefer **Option B** — keep `INotificationSender` and add `PushNotificationSender : INotificationSender`, with retry as a cross-cutting helper or decorator — because email and SMS are unrelated types united only by a contract, matching Section 6. Introduce an abstract base only when several channels share substantial state or template steps, not for one shared utility method.
-
-- **Why not Option A alone:** Forcing `EmailNotificationSender` and `SmsNotificationSender` onto a new base class reshapes existing types, introduces fragile inheritance where a interface sufficed, and violates **ISP** if the base accumulates channel-specific hooks (push tokens, SMS truncation).
-- **Option B alignment:** Chapter `NotifyCustomer` already loops `INotificationSender[]` — push slots in without changing orchestration; retry wraps any sender.
-- **When to combine both:** If push and SMS later share **significant** infrastructure (shared rate limiter state, correlation id field, template rendering), extract a small `NotificationSenderBase` **in addition to** the interface for those two — or use a **decorator** `RetryingNotificationSender : INotificationSender` that wraps any implementer.
-- **Events vs direct Send:** Audit/logging can stay on `OrderFulfillmentCoordinator.OrderCompleted` (Section 9 preview) — do not push audit into the notification hierarchy.
-- **Testing:** Interface + decorator/helper lets you mock `INotificationSender` and assert retry policy independently.
-
-**Production takeaway:** Chapter rule — **interface when unrelated types share a capability; abstract class when subtypes share fields + template logic** (`Document` vs `INotificationSender`). Karat asks you to apply that rule under feature pressure, not pick inheritance by default.
-
----
-
-#### Q5. What is the difference between "has-a" and "is-a" relationships? When is inheritance the wrong choice?
-
-(P) An ASP.NET Core team registers the chapter's fulfillment types in `Program.cs` for a checkout API:
-
-```csharp
-builder.Services.AddSingleton<BankAccount>();
-builder.Services.AddSingleton<OrderFulfillmentCoordinator>();
-builder.Services.AddTransient<CardPaymentProcessor>();
-builder.Services.AddTransient<PaymentProcessor>(sp => sp.GetRequiredService<CardPaymentProcessor>());
-builder.Services.AddSingleton<INotificationSender, EmailNotificationSender>();
-```
-
-Under concurrent requests, balances mix between customers and notification behavior looks "sticky." Explain what breaks at the DI lifetime layer and how you would register these abstractions for production.
-
-**Answer:** `BankAccount` and a single `INotificationSender` registered as **singletons** share one instance for all HTTP requests, so every customer's checkout mutates the same balance and notification channel — a functional bug that only appears under concurrent load.
-
-- **`BankAccount` singleton:** Domain objects with mutable balance must be **scoped per request** (or loaded per customer from persistence), never singleton — same rule as cart state in web apps. Opening an account belongs in a repository + scoped unit of work, not a shared DI instance.
-- **`INotificationSender` singleton:** If the implementer holds per-send state, connection, or throttling counters, those leak across users. Prefer **transient** senders or **stateless singleton** that only wraps an `HttpClient` from `IHttpClientFactory`.
-- **`OrderFulfillmentCoordinator` singleton:** Acceptable only if it is **stateless** and raises events without storing subscriber lists incorrectly — but event handlers that capture scoped services from singleton are a captive dependency smell; usually register coordinator **scoped**.
-- **`PaymentProcessor` transient mapping:** Fine for stateless gateways; register **multiple implementations** via factory or keyed services (`IPaymentProcessorFactory`) when checkout picks card vs wallet per order — not a single `PaymentProcessor` → card binding.
-- **Production pattern:** Scoped `OrderFulfillmentService` orchestrator; transient/scoped processors; `IEnumerable<INotificationSender>` or separate sends via factory; **never** singleton mutable domain entities.
-
-```csharp
-builder.Services.AddScoped<OrderFulfillmentCoordinator>();
-builder.Services.AddTransient<CardPaymentProcessor>();
-builder.Services.AddTransient<WalletPaymentProcessor>();
-builder.Services.AddTransient<INotificationSender, EmailNotificationSender>();
-builder.Services.AddTransient<INotificationSender, SmsNotificationSender>();
-// BankAccount: resolve from scoped service using customer id — not AddSingleton<BankAccount>()
-```
-
-**Production takeaway:** Chapter types teach OOP shape; ASP.NET DI teaches **which instance lives how long**. Karat capstone connects `BankAccount` encapsulation to **scoped vs singleton** — see foundation DI lifetime gotchas when moving console demo to API.
-
----
-
-#### Q6. What is the anemic domain model anti-pattern?
-
-(R) A developer splits `BankAccount` into partial files (as in this chapter) but adds a "fast path" for internal ops. Frozen accounts still accept money in staging. Review both fragments:
-
-```csharp
-// BankAccount.Core.cs
-public partial class BankAccount
-{
-    private decimal _balance;
-
-    public decimal Balance => _balance;
-
-    public void Deposit(decimal amount)
-    {
-        if (amount <= 0m) throw new ArgumentOutOfRangeException(nameof(amount));
-        _balance += amount;
-    }
-}
-
-// BankAccount.Ops.cs
-public partial class BankAccount
-{
-    public bool IsActive { get; set; } = true;
-
-    public void CreditOpsAdjustment(decimal amount)
-    {
-        // Skips ValidateForTransaction — ops-only
-        _balance += amount;
-    }
-
-    private void ValidateForTransaction()
-    {
-        if (!IsActive) throw new InvalidOperationException("Account is frozen.");
-    }
-}
-```
-
-`TryWithdraw` still calls `ValidateForTransaction`, but `Deposit` no longer does. What failed across encapsulation and invariants, and how do you fix it?
-
-**Answer:** Partial classes merge into one type, but splitting files does not split invariants — `Deposit` and `CreditOpsAdjustment` now mutate `_balance` without the freeze check, while `TryWithdraw` still enforces it, so callers can credit frozen accounts and `IsActive` is publicly settable, breaking encapsulation.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | `IsActive` public setter | Any consumer can unfreeze/freeze accounts; bypasses `Freeze()` intent from chapter |
-| Invariant | `Deposit` dropped `ValidateForTransaction()` | Frozen accounts accept deposits — staging bug matches production fraud/ops risk |
-| Design | `CreditOpsAdjustment` writes `_balance` directly | Second mutation path; ops and customer deposits diverge in rules |
-| partial class misuse | Team assumed file boundary = security boundary | Partial only splits compilation units, not access control |
-
-**Fix (priority order):**
-
-1. Restore **`ValidateForTransaction()` at the start of every public mutator** — `Deposit`, and any ops path that should respect freeze (or explicitly document and gate ops behind internal/admin API).
-2. Change **`IsActive` to `{ get; private set; }`** — only `Freeze()` (and controlled `Reactivate()` if needed) mutate lifecycle.
-3. Route **all balance changes** through private helpers, e.g. `ApplyCredit(decimal amount, bool bypassFreeze = false)` used only from trusted internal assembly with `InternalsVisibleTo` — not a public `CreditOpsAdjustment`.
-4. Add tests: deposit/withdraw on frozen account must fail consistently across partial files.
-
-```csharp
-public void Deposit(decimal amount)
-{
-    ValidateForTransaction();
-    if (amount <= 0m) throw new ArgumentOutOfRangeException(nameof(amount));
-    _balance += amount;
-}
-
-public bool IsActive { get; private set; } = true;
-```
-
-**Production takeaway:** Chapter Section 2c–2d uses **partial** for team file layout — Karat checks you know both fragments share one invariant surface. See **Program.cs** — `TryDepositOnFrozenAccount` after `Freeze()`.
-
----
-
-#### Q7. What is the Open/Closed Principle, and how do interfaces support extension without modification?
-
-(D) You inherit a monolithic fulfillment codebase that mirrors this chapter's demo `Main` — one method creates every object, mutates wallet state, picks a truck by array index, renders shapes, sends notifications, and prints the invoice. The team has one sprint to improve production readiness without a full rewrite.
-
-What refactor order would you choose (encapsulation fixes, introduce interfaces, extract services, events/DI), and what would you **defer**? Tie your answer to the chapter's types (`BankAccount`, `PaymentProcessor`, `Vehicle`, `Shape`, `INotificationSender`, `Document`, `OrderFulfillmentCoordinator`).
-
-**Answer:** First stop financial and state corruption (wallet + payment ordering + singleton/scoped mistakes), then introduce constructor-injected abstractions for payment and notifications, then extract read-only polymorphic helpers for fleet/shapes/documents — defer full event-driven architecture and extension-method polish until core seams are testable.
-
-**Sprint 1 priority (do now):**
-
-1. **Encapsulation / correctness (`BankAccount`, payment flow):** Ensure all debits go through `TryWithdraw`; fix withdraw-before-charge ordering; no public wallet mutation; per-customer account resolution — highest business risk.
-2. **DIP entry points (`PaymentProcessor`, `INotificationSender`):** Extract an `OrderFulfillmentService` that accepts `PaymentProcessor` + `IEnumerable<INotificationSender>` — mirrors chapter `NotifyCustomer` and `ProcessOrderPayment` without rewriting domain types.
-3. **Polymorphism cleanup (`Vehicle`, `Shape`):** Replace index/`is` checks with `EstimateDeliveryCostKm` and `Shape.Area`/`Draw()` helpers already in **Program.cs** — low risk, high clarity win.
-4. **Document output (`Document`):** Keep `Render()` template method; return invoice string from service, not `Console.WriteLine` in orchestrator — enables API responses.
-5. **DI lifetimes (when moving to ASP.NET):** Scoped orchestrator; never singleton `BankAccount`.
-
-**Defer (explicitly):**
-
-- **Full event-driven redesign** (`OrderFulfillmentCoordinator` audit via events) until core flow is unit-tested — events are valuable but add indirection early.
-- **New subtypes** (extra shapes, vehicle types) — OCP is already satisfied once polymorphic calls exist.
-- **Extension methods** (`ToDisplayLabel`) — cosmetic; no production risk.
-- **Partial class splits** — organizational only; no runtime benefit until team scale demands it.
-- **Sealed/further inheritance tuning** on `Motorcycle` — design hygiene, not sprint-critical.
-
-**Production takeaway:** Capstone chapter integrates pillars in one narrative — Karat asks for **prioritized** hardening: protect invariants first, inject swappable collaborators second, unify polymorphic dispatch third, polish decoupling (events) last. That mirrors how you would evolve the chapter demo `Main` into a shippable checkout pipeline without a big-bang rewrite.
-
----
-
-#### Q8. What is the Single Responsibility Principle — how do you recognize a class that violates it?
-
-_Answer not found._
-
----
-
-#### Q9. What is the Interface Segregation Principle — why are fat interfaces problematic?
-
-_Answer not found._
-
----
-
-#### Q10. What is a factory method vs a simple constructor — when do you introduce a factory?
-
-_Answer not found._
-
----
-
-#### Q11. What is the Strategy pattern, and how does it map to interfaces/delegates in C#?
-
-_Answer not found._
-
----
-
-#### Q12. What is the Repository pattern at a high level, and why depend on abstractions?
-
-_Answer not found._
-
----
-
-#### Q13. How does polymorphism simplify replacing implementations in tests (mock/stub scenarios)?
-
-_Answer not found._
-
----
-
-#### Q14. What is the difference between domain modeling with rich behavior vs CRUD-style service objects?
-
-_Answer not found._
-
----
-
-#### Q15. **Virtual method from base constructor** — Calling an overridden virtual method from a base constructor runs before derived field initializers complete; overridden code sees default values.
-
-_Answer not found._
-
----
-
-#### Q16. **Method hiding vs overriding** — `new` hides by compile-time type; `override` dispatches by runtime type. Mixing them breaks expected polymorphism.
-
-_Answer not found._
-
----
-
-#### Q17. **`Equals()` without `GetHashCode()`** — Breaks the hash contract; objects can exist in a `Dictionary`/`HashSet` but not be found again after mutation.
-
-_Answer not found._
-
----
-
-#### Q18. **Mutable object as dictionary key** — Changing a key after insertion causes "lost" entries at runtime.
-
-_Answer not found._
-
----
-
-#### Q19. **Struct boxing via interface** — Assigning a struct to an interface type boxes; subsequent struct mutations don't affect the boxed copy.
-
-_Answer not found._
-
----
-
-#### Q20. **`protected internal` vs `private protected`** — `protected internal` = protected OR internal; `private protected` = protected AND internal (same assembly only).
-
-_Answer not found._
-
----
-
-#### Q21. **Type-checking anti-pattern** — Long `if (animal is Dog)` chains defeat polymorphism; prefer virtual methods or pattern matching on a common abstraction.
-
-_Answer not found._
-
----
-
-#### Q22. **Memory leaks despite GC** — Event handlers and static caches holding references to short-lived objects are the classic managed leak.
-
-_Answer not found._
-
----
-
-#### Q23. **Exposing `List<T>` directly** — Callers can mutate internal state without invariant checks; return `IReadOnlyList<T>` or defensive copies.
-
-_Answer not found._
-
----
-
-#### Q24. **`init` after construction** — Init-only properties can be set in object initializers and constructors but not arbitrary code afterward; confusing with `{ get; private set; }`.
-
-_Answer not found._
-
----
-
-#### Q25. **Static "singleton" vs DI singleton** — A static class is hard to test and replace; instance singletons registered in DI are still mockable if designed carefully.
-
-_Answer not found._
-
----
-
-#### Q26. **Explicit interface hiding** — Public class method and explicit interface method can coexist with different behavior; callers must know which API they use.
-
-_Answer not found._
-
----
-
-#### Q27. **Finalizer timing** — `~ClassName()` runs non-deterministically; do not rely on it for timely resource release — use `Dispose`.
-
-_Answer not found._
-
----
-
-#### Q28. **Overriding `==` without consistent `Equals`/`GetHashCode`** — Custom equality operators that disagree with `Equals` break collections and LINQ.
-
-_Answer not found._
-
----
-
-#### Q29. **Default interface methods on structs** — Calling a default interface method on a struct may box the struct depending on how it is invoked.
-
-_Answer not found._
-
----
-
-## Scenario-Based Questions (Karat Format)
-
-#### Q1. (R) A loan portal caches `Customer` instances in memory between requests. After one user edits a profile, another user sees the same name and loan amount. Review:
-
-```csharp
-public class CustomerCache
-{
-    private readonly Dictionary<int, Customer> _cache = new();
-
-    public Customer GetOrCreate(int id)
-    {
-        if (!_cache.ContainsKey(id))
-            _cache[id] = new Customer(); // Id assigned by parameterless ctor
-        return _cache[id];
-    }
-
-    public void UpdateLoan(int id, Customer updated)
-    {
-        var existing = GetOrCreate(id);
-        existing.Name = updated.Name;
-        existing.LoanAmount = updated.LoanAmount;
-        existing.RateOfInterest = updated.RateOfInterest;
-        existing.DurationOfLoan = updated.DurationOfLoan;
-    }
-}
-```
-
-```csharp
-// Request A
-var draft = cache.GetOrCreate(7);
-draft.Name = "Meera Shah";
-draft.LoanAmount = 250_000;
-
-// Request B — same id, minutes later
-var profile = cache.GetOrCreate(7);
-Console.WriteLine(profile.Name); // prints Meera Shah
-```
-
-What is wrong with how objects are shared, and how would you fix it?
-
----
-
-**Answer:**
-
-```csharp
-public class CustomerCache
-{
-    private readonly Dictionary<int, Customer> _cache = new();
-
-    public Customer GetOrCreate(int id)
-    {
-        if (!_cache.ContainsKey(id))
-            _cache[id] = new Customer(); // Id assigned by parameterless ctor
-        return _cache[id];
-    }
-
-    public void UpdateLoan(int id, Customer updated)
-    {
-        var existing = GetOrCreate(id);
-        existing.Name = updated.Name;
-        existing.LoanAmount = updated.LoanAmount;
-        existing.RateOfInterest = updated.RateOfInterest;
-        existing.DurationOfLoan = updated.DurationOfLoan;
-    }
-}
-```
-
-```csharp
-// Request A
-var draft = cache.GetOrCreate(7);
-draft.Name = "Meera Shah";
-draft.LoanAmount = 250_000;
-
-// Request B — same id, minutes later
-var profile = cache.GetOrCreate(7);
-Console.WriteLine(profile.Name); // prints Meera Shah
-```
-
-What is wrong with how objects are shared, and how would you fix it?
-
-**Answer:** `Customer` is a reference type — `GetOrCreate` returns the same heap instance for a given id, and mutating fields through one variable changes the single shared object every caller sees. The cache conflates **identity** (one live object per id) with **session draft state** that should be isolated per request.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Reference semantics | `_cache[id]` stores one `Customer` reference; all callers mutate the same instance | Cross-request data bleed — user B sees user A's in-progress edits |
-| Design | In-memory singleton cache of mutable domain objects without copy-on-read/write | Violates tenant/session isolation; hard to reason about in multi-user apps |
-| Lifetime | `Customer` uses mutable public fields (chapter style) | Any holder of the reference can change state — no encapsulation boundary |
-| Correctness | `GetOrCreate` assigns new `Customer()` but key is `id` while `Customer.Id` comes from static `CustomerCount` | Id/key mismatch risk if cache key ≠ `Customer.Id` |
-
-**Fix (priority order):**
-
-1. **Do not cache mutable domain entities** as shared writeable graphs — cache immutable DTOs/snapshots, or store ids and load fresh per request from a database.
-2. If caching is required, return **copies** on read (`MemberwiseClone` only as a stopgap; prefer explicit DTO mapping) and treat cache entries as read-only.
-3. Replace public fields with properties and encapsulate updates behind methods that validate invariants (see chapter **02. Properties and Indexers**).
-4. Scope draft state to the **request** (scoped DI service), not a process-wide dictionary keyed by user id without version checks.
-5. Use `TryGetValue` instead of `ContainsKey` + indexer for clarity and single lookup.
-
-**Production takeaway:** Reference assignment copies the pointer, not the object — the chapter's `enrolled = student1` demo is intentional; in production, shared mutable caches cause the same surprise at scale. See **Program.cs** Section 5 — reference semantics.
-
----
-
----
-
-#### Q2. (R) A student lookup API throws `NullReferenceException` in production when a roll number is missing. Review the service:
-
-```csharp
-public Student? FindByRoll(int rollNumber, List<Student> roster)
-{
-    return roster.FirstOrDefault(s => s.RollNumber == rollNumber);
-}
-
-public string BuildReportLine(int rollNumber, List<Student> roster)
-{
-    Student student = FindByRoll(rollNumber, roster);
-    return $"{student.StudentName} — Roll {student.RollNumber}, Age {student.Age}";
-}
-```
-
-The domain model uses public fields (as in this chapter's `Student` class). What breaks, and what would you change?
-
----
-
-**Answer:**
-
-```csharp
-public Student? FindByRoll(int rollNumber, List<Student> roster)
-{
-    return roster.FirstOrDefault(s => s.RollNumber == rollNumber);
-}
-
-public string BuildReportLine(int rollNumber, List<Student> roster)
-{
-    Student student = FindByRoll(rollNumber, roster);
-    return $"{student.StudentName} — Roll {student.RollNumber}, Age {student.Age}";
-}
-```
-
-The domain model uses public fields (as in this chapter's `Student` class). What breaks, and what would you change?
-
-**Answer:** `FindByRoll` correctly returns `null` when no match exists, but `BuildReportLine` assigns that result to a non-nullable `Student` and dereferences fields — producing `NullReferenceException` instead of a controlled "not found" response.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Null reference | Missing guard after `FirstOrDefault` | Runtime crash on unknown roll number |
-| Nullable flow | Return type `Student?` but consumer treats as always present | Compiler warnings ignored; NRE in prod |
-| API contract | No distinction between "invalid input" and "missing entity" | Callers cannot return 404/problem details |
-| Domain model | Public fields allow `StudentName` to remain unset/null despite ctor defaults | Weaker invariants when objects constructed outside parameterized ctor paths |
-
-**Fix (priority order):**
-
-1. Guard before dereference: `if (student is null) return "Unknown roll"…` or throw `KeyNotFoundException` / return `Result<string>` — match API layer (404 + `ProblemDetails`).
-2. Annotate honestly: `Student? student = FindByRoll(...)` and enable nullable reference types project-wide (`<Nullable>enable</Nullable>`).
-3. Prefer **factory/constructor paths** that establish required fields (`StudentName`, `RollNumber`) so valid instances cannot be half-initialized.
-4. Move reporting to a method that accepts `Student` only after null check, or use null-conditional: `student?.StudentName ?? "(unknown)"` for display-only paths.
-5. Long term: replace public fields with properties and validation (chapter **07. Encapsulation**).
-
-**Production takeaway:** Nullable reference types express intent — `Student?` means "may be absent"; production services must branch before field access. See **Program.cs** Section 6 — null references and `?.` / `??`.
-
----
-
----
-
-#### Q3. (R) After `Student` gained only a parameterized constructor (`Student(string studentName, int rollNumber)`), a teammate adds a factory method. `dotnet build` fails. Review:
-
-```csharp
-public static Student CreateFromImport(ImportRow row)
-{
-    return new Student
-    {
-        StudentName = row.Name,
-        RollNumber = row.Roll,
-        Percentage = row.Score,
-        Address = row.Address ?? string.Empty
-    };
-}
-```
-
-What conflicted with the class design, and how do you fix it without weakening invariants?
-
----
-
-**Answer:**
-
-```csharp
-public static Student CreateFromImport(ImportRow row)
-{
-    return new Student
-    {
-        StudentName = row.Name,
-        RollNumber = row.Roll,
-        Percentage = row.Score,
-        Address = row.Address ?? string.Empty
-    };
-}
-```
-
-What conflicted with the class design, and how do you fix it without weakening invariants?
-
-**Answer:** Object initializer syntax requires a **parameterless constructor** (or an accessible ctor chain). Once `Student(string, int)` was added, the compiler stopped synthesizing a default ctor — so `new Student { … }` does not compile (CS7036 / no accessible parameterless constructor).
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Object initializer without parameterless ctor | Build blocked after ctor change |
-| Invariants | Initializer sets `RollNumber`/`StudentName` **after** construction — bypasses ctor validation | Duplicate initialization paths; null names possible if ctor rules added later |
-| Design | Two construction stories (ctor vs initializer) for the same type | Team confusion about which fields are required at birth |
-| Data integrity | `Percentage`/`Address` set outside ctor while identity fields expected in ctor | Import rows can create inconsistent students |
-
-**Fix (priority order):**
-
-1. **Preferred:** Call the parameterized ctor, then set remaining fields via `AssignDetails` or a dedicated import method:
-
-```csharp
-public static Student CreateFromImport(ImportRow row)
-{
-    var student = new Student(row.Name, row.Roll);
-    student.AssignDetails(row.DateOfBirth, row.Age, row.Score, row.Address ?? string.Empty);
-    return student;
-}
-```
-
-2. If object initializers are required, add an explicit parameterless ctor **only** with clear rules (often `private` + static factory) — avoid public parameterless ctors that leave identity unset.
-3. Centralize validation in one place (ctor or static factory), not split across initializer + methods.
-4. Add unit tests that import rows missing required columns fail fast at construction time.
-
-**Production takeaway:** `new T()` and `new T { … }` are not interchangeable — initializers still run a ctor first. See **Program.cs** Section 3 — adding any ctor removes the compiler-generated default.
-
----
-
----
-
-#### Q4. (D) Your team models loans with the chapter's `Customer` class — public fields plus `CalculateTotalInterest()` on the instance. A new developer moves all interest math into a static `LoanCalculator` and leaves `Customer` as a data bag. Review both approaches. Which would you standardize on for a production lending module, and why?
-
----
-
-**Answer:**
-
-**Answer:** Prefer a **rich domain model** where `Customer` (or a renamed `LoanAccount`) owns `CalculateTotalInterest()` and enforces loan rules, supplemented by application services for orchestration — not an **anemic** `Customer` with public fields and all behavior in static helpers.
-
-**Rich domain (chapter style, evolved):**
-
-- Behavior lives with data: `CalculateTotalInterest()` reads `LoanAmount`, `RateOfInterest`, `DurationOfLoan` from the instance — matches **Program.cs** Section 3.
-- Easier to test one object: construct `Customer`, set fields, assert interest without static glue.
-- Natural path to encapsulation: replace public fields with properties, add validation ("rate must be > 0") inside the type.
-
-**Anemic model (static `LoanCalculator`):**
-
-- Acceptable for **pure functions** over DTOs (reporting, batch ETL) or when entities are persistence shapes only (some CRUD APIs).
-- Risk: every caller must remember to invoke the calculator; invariants scatter across services; duplicate formulas drift.
-
-**Production standard:**
-
-- **Core lending domain:** rich entities/value objects + domain services for multi-entity rules (e.g., cross-account limits).
-- **API/integration layer:** map entities to DTOs; do not expose public mutable fields.
-- **Static calculators:** only for stateless policy tables or shared math with no instance context.
-
-**Production takeaway:** Karat tests whether you recognize anemic vs rich trade-offs — tutorials use public fields for clarity; production moves behavior inward and encapsulates state. See **Program.cs** — `Customer.CalculateTotalInterest()` vs field-only `Student` with `AssignDetails`.
-
----
-
----
-
-#### Q5. (M) A scheduling feature stores each student's date of birth and a "next review date." A bug report says review dates never update on the student record. Review:
-
-```csharp
-public void ScheduleReview(Student student, DateTime reviewDate)
-{
-    DateTime scheduled = student.DateOfBirth;
-    scheduled = reviewDate; // developer intended to persist review on student
-}
-
-public void Demo()
-{
-    var s = new Student("Darshan K.", 101);
-    s.AssignDetails(new DateTime(2000, 12, 7), 15, 78.52, "Malegaon");
-    ScheduleReview(s, new DateTime(2026, 9, 1));
-    Console.WriteLine(s.DateOfBirth); // still 2000-12-07
-}
-```
-
-Explain the behavior using **reference vs value** semantics. What would you change?
-
----
-
-**Answer:**
-
-```csharp
-public void ScheduleReview(Student student, DateTime reviewDate)
-{
-    DateTime scheduled = student.DateOfBirth;
-    scheduled = reviewDate; // developer intended to persist review on student
-}
-
-public void Demo()
-{
-    var s = new Student("Darshan K.", 101);
-    s.AssignDetails(new DateTime(2000, 12, 7), 15, 78.52, "Malegaon");
-    ScheduleReview(s, new DateTime(2026, 9, 1));
-    Console.WriteLine(s.DateOfBirth); // still 2000-12-07
-}
-```
-
-Explain the behavior using **reference vs value** semantics. What would you change?
-
-**Answer:** `Student` is a **reference type** — the parameter `student` points at the heap object and could be mutated through it. `DateTime` is a **value type** — `scheduled = student.DateOfBirth` copies the date value into a local; reassigning `scheduled` only changes the local copy, not `student.DateOfBirth`. The developer confused assigning a new value to a local struct with updating instance state.
-
-**Mechanism:**
-
-| Type | Assignment | Effect in snippet |
-|---|---|---|
-| `Student` (class) | Passed by reference | Mutations like `student.RollNumber = x` would persist |
-| `DateTime` (struct) | Copied by value | `scheduled = reviewDate` does not write back to `student` |
-
-**Fix:**
-
-1. Add a field/property on `Student` (e.g., `NextReviewDate`) and assign directly: `student.NextReviewDate = reviewDate;`.
-2. Or, if overloading `DateOfBirth` was intentional, assign to the instance field: `student.DateOfBirth = reviewDate;` (usually wrong semantically — separate fields are clearer).
-3. For value-type updates that must stick, always mutate through the owning object, not a detached local copy — same lesson as `birthDateCopy = birthDateCopy.AddYears(1)` not changing `student1.DateOfBirth` in **Program.cs** Section 11.
-
-**Production takeaway:** Reference variables alias one object; value types copy on assignment — production bugs often mix the two when developers expect struct locals to mirror writes. See **Program.cs** Sections 5 and 11 — reference semantics vs struct copy independence.
-
----
-
----
-
-#### Q6. (R) An enrollment module aliases student records for audit trails. Roll numbers change unexpectedly in downstream reports. Review:
-
-```csharp
-public class EnrollmentService
-{
-    public void RegisterAuditCopy(Student liveEnrollment, List<Student> auditTrail)
-    {
-        Student auditEntry = liveEnrollment; // snapshot for compliance
-        auditTrail.Add(auditEntry);
-    }
-
-    public void CorrectRollNumber(Student liveEnrollment, int correctedRoll)
-    {
-        liveEnrollment.RollNumber = correctedRoll;
-    }
-}
-```
-
-```csharp
-var student = new Student("Priya Nair", 102);
-service.RegisterAuditCopy(student, auditTrail);
-service.CorrectRollNumber(student, 1102);
-// auditTrail[0].RollNumber is now 1102 — not the original 102
-```
-
-What went wrong with object identity, and how would you fix the audit trail?
-
----
-
-### 02. Properties & Indexers - Done
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/02. Properties & Indexers - Done`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-public class EnrollmentService
-{
-    public void RegisterAuditCopy(Student liveEnrollment, List<Student> auditTrail)
-    {
-        Student auditEntry = liveEnrollment; // snapshot for compliance
-        auditTrail.Add(auditEntry);
-    }
-
-    public void CorrectRollNumber(Student liveEnrollment, int correctedRoll)
-    {
-        liveEnrollment.RollNumber = correctedRoll;
-    }
-}
-```
-
-```csharp
-var student = new Student("Priya Nair", 102);
-service.RegisterAuditCopy(student, auditTrail);
-service.CorrectRollNumber(student, 1102);
-// auditTrail[0].RollNumber is now 1102 — not the original 102
-```
-
-What went wrong with object identity, and how would you fix the audit trail?
-
-**Answer:** `Student auditEntry = liveEnrollment` copies the **reference**, not a snapshot — `auditTrail` and `liveEnrollment` denote the same instance. `ReferenceEquals(auditEntry, liveEnrollment)` is true, so correcting the live record mutates the "audit" entry too. Compliance expects **value snapshots** or immutable records, not shared aliases.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Reference sharing | Audit list stores pointers to live objects | Historical reports rewrite when live data changes |
-| Identity vs equality | No distinction between "same student over time" and "point-in-time copy" | Audit trail legally/operationally invalid |
-| Design | Mutable `Student` with public fields | Any holder can mutate shared state unintentionally |
-| Correctness | Comment says "snapshot" but code aliases | Reviewers miss bug without `ReferenceEquals` mental model |
-
-**Fix (priority order):**
-
-1. Store **immutable audit DTOs** or value snapshots at registration time:
-
-```csharp
-auditTrail.Add(new StudentAuditRecord(
-    liveEnrollment.StudentName,
-    liveEnrollment.RollNumber,
-    capturedAt: DateTime.UtcNow));
-```
-
-2. If full `Student` copies are required, implement explicit `Clone()` / mapping to a new `Student` instance — never add the same reference twice.
-3. Prefer append-only audit logs (events) keyed by enrollment id, not mutable object graphs in a `List<Student>`.
-4. For live corrections, mutate only the authoritative record; audits remain frozen records.
-5. Use `ReferenceEquals` in tests to assert audit entries are **not** the same instance as live enrollment.
-
-**Production takeaway:** `ReferenceEquals` and `==` on classes compare identity by default — "copy" in business language usually means new instance or immutable record, not `=`. See **Program.cs** Section 5 — `enrolled = student1` shares one object; Section 5b — separate `new Student(...)` for independent instances.
-
----
-
-### 02. Properties & Indexers - Done
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/02. Properties & Indexers - Done`
-
----
-
----
-
-#### Q1. (R) A catalog service persists book records. A junior dev refactors `Isbn` to an auto-property "for consistency." Review the change — what breaks in production, and how should `Isbn` be implemented?
-
-```csharp
-public class Book
-{
-    public string CatalogId { get; }
-
-    // Refactored from full property with validation
-    public string Isbn { get; set; } = string.Empty;
-
-    public Book(string catalogId, string title, string isbn)
-    {
-        CatalogId = catalogId;
-        Title = title;
-        Isbn = isbn;
-    }
-
-    public string Title { get; set; } = string.Empty;
-}
-```
-
-```csharp
-// Called from import pipeline after JSON deserialization
-var book = new Book("CAT-001", "Clean Code", "978-0132350884");
-book.Isbn = "   ";                    // whitespace-only "update"
-await repository.SaveAsync(book);      // persists invalid ISBN
-```
-
----
-
-**Answer:**
-
-**Answer:** Auto-implemented properties cannot enforce invariants — whitespace-only or untrimmed ISBNs pass straight through to persistence, corrupting catalog data and breaking keyed lookups that assume normalized values.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | No validation on `Isbn` setter | `"   "` and empty strings persist; ISBN indexers return inconsistent results |
-| Data integrity | No trimming/normalization | `" 978-0132350884 "` and `"978-0132350884"` may be treated as different keys |
-| Design | Validation moved out of the type | Import pipeline, API controllers, and EF must duplicate rules — easy to miss one path |
-| Encapsulation | Public `{ get; set; }` on invariant field | Any caller can bypass domain rules the chapter's `Book.Isbn` full property was meant to centralize |
-
-**Fix (priority order):**
-
-1. Restore a **full property** with a private backing field — validate in the setter (reject null/whitespace, trim before store), matching this chapter's `Book.Isbn` pattern.
-2. Keep constructor assignment routed through the setter (`Isbn = isbn;`) so construction and later updates share one code path.
-3. Add unit tests for invalid ISBN assignment (`ArgumentException`) and trim behavior.
-4. Leave simple pass-through data (e.g., `Title`) as auto-properties — apply full properties only where invariants exist.
-
-```csharp
-private string _isbn = string.Empty;
-
-public string Isbn
-{
-    get => _isbn;
-    set
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("ISBN is required.", nameof(value));
-        _isbn = value.Trim();
-    }
-}
-```
-
-**Production takeaway:** Auto-properties are for dumb data; the moment a field has validation, normalization, or authorization, use a backing field. See **Program.cs** Section 2b — full property on `Isbn`.
-
----
-
----
-
-#### Q2. (R) An API team models catalog metadata with init-only properties. After code review, a developer adds a "sync" method. What is wrong, and what pattern should they use instead?
-
-```csharp
-public class CatalogEntry
-{
-    public string CatalogId { get; init; } = string.Empty;
-    public DateTime AddedOn { get; init; }
-    public string Title { get; set; } = string.Empty;
-}
-
-public class CatalogSyncService
-{
-    public void ApplyRemoteTimestamp(CatalogEntry entry, DateTime remoteAddedOn)
-    {
-        // Remote source has the authoritative AddedOn — update local copy
-        entry.AddedOn = remoteAddedOn;
-    }
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** `init` accessors only allow assignment during object construction or an object initializer — assigning `AddedOn` after the object exists is a compile-time error (`CS8852`), and that restriction is intentional for create-once metadata.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `entry.AddedOn = remoteAddedOn` outside init context | Build fails — method as written cannot ship |
-| Design | Treating init-only props like mutable `{ get; set; }` | Confusion about which fields are immutable audit metadata vs editable display data |
-| Correctness (if forced) | Reflection or serialization tricks to mutate init props | Breaks immutability guarantees; audit trail timestamps become untrustworthy |
-| API contract | Mixed mutability on one DTO | Callers cannot tell `AddedOn` is fixed at creation without reading every accessor |
-
-**Fix (priority order):**
-
-1. **Do not** mutate init-only properties after construction — if remote sync needs a new timestamp, create a **new** `CatalogEntry` (record/copy pattern) or use a dedicated mutable field (`LastSyncedOn { get; private set; }`) for operational updates.
-2. Keep true creation metadata (`AddedOn`, `CatalogId`) as `{ get; init; }` or `{ get; }` set only in the constructor.
-3. Use `{ get; set; }` only for fields that legitimately change (`Title`, status flags).
-4. For EF/API deserialization that must hydrate init props, rely on constructor + init in one creation flow — not post-hoc setter methods.
-
-```csharp
-public CatalogEntry WithAddedOn(DateTime addedOn) =>
-    new() { CatalogId = CatalogId, Title = Title, AddedOn = addedOn };
-```
-
-**Production takeaway:** `init` is stricter than `{ get; set; }` for "set once at birth" data — production models should separate immutable audit fields from mutable operational fields. See **Program.cs** Section 2d — `AddedOn { get; init; }`.
-
----
-
----
-
-#### Q3. (R) A dashboard reads `DisplayLabel` on every row render. A teammate adds "helpful" logic inside the expression-bodied getter. Review — what problems does this introduce?
-
-```csharp
-public class Book
-{
-    public string Title { get; set; } = string.Empty;
-    public string Isbn { get; set; } = string.Empty;
-    public int ViewCount { get; private set; }
-
-    public string DisplayLabel
-    {
-        get
-        {
-            ViewCount++;
-            LastRendered = DateTime.UtcNow;
-            return $"{Title} [{Isbn}]";
-        }
-    }
-
-    public DateTime LastRendered { get; private set; }
-}
-```
-
-```csharp
-// Grid binds to DisplayLabel — 500 rows × 3 re-renders per second
-foreach (var book in books)
-    row.Cells["Label"].Text = book.DisplayLabel;
-```
-
----
-
-**Answer:**
-
-**Answer:** Expression-bodied and block-bodied getters must be **pure reads** — incrementing `ViewCount` and updating `LastRendered` on every property access turns an innocent label lookup into hidden mutation that breaks caching, threading, and test expectations.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Getter mutates object state | `ViewCount` grows on every UI re-bind, not on actual user views — metrics lie |
-| Performance | Side effects on hot path (500 rows × 3/sec) | Unnecessary writes; defeats memoization; harder to optimize |
-| Surprise / API | Property looks like a field read | Callers expect idempotent `book.DisplayLabel` — logging/analytics code may read it in loops |
-| Threading | Non-atomic read + two writes in getter | Concurrent grid refresh can race on `ViewCount` / `LastRendered` without locks |
-| Testing | Asserting label text changes internal counters | Tests become order-dependent; "read property" tests mutate state |
-
-**Fix (priority order):**
-
-1. Make `DisplayLabel` a **pure computed property**: `public string DisplayLabel => $"{Title} [{Isbn}]";` — no storage writes in the getter.
-2. Move view tracking to an explicit method: `RecordView()` or an application/analytics service called once per actual view event.
-3. If expensive formatting is needed, use explicit caching with a known invalidation point (when `Title`/`Isbn` change), not on every get.
-4. Code-review rule: **getters do not have side effects** — same input state, same output, no hidden I/O.
-
-**Production takeaway:** Expression-bodied `=>` properties are syntactic sugar for `get` only — they do not imply "cheap," but they must not mutate. Side effects belong in methods or event handlers. See **Program.cs** Section 2f — `DisplayLabel` as read-only computed value.
-
----
-
----
-
-#### Q4. (R) A `BookShelf` indexer passes QA with small test data, but production reports `NullReferenceException` and "empty slot" bugs. Review the indexer — what's wrong with bounds checking?
-
-```csharp
-public class BookShelf
-{
-    private readonly Book[] _slots;
-    private int _count;
-
-    public BookShelf(int capacity) => _slots = new Book[capacity];
-
-    public void Add(Book book) => _slots[_count++] = book;
-
-    public Book this[int index]
-    {
-        get
-        {
-            if (index < 0 || index >= _slots.Length)
-                throw new ArgumentOutOfRangeException(nameof(index));
-
-            return _slots[index];   // may return default/null for unused slots
-        }
-    }
-
-    public int Count => _count;
-}
-```
-
-```csharp
-var shelf = new BookShelf(10);
-shelf.Add(bookA);
-shelf.Add(bookB);
-var third = shelf[2];   // no exception — caller gets null
-```
-
----
-
-**Answer:**
-
-**Answer:** The indexer validates against `_slots.Length` (capacity) instead of `_count` (occupied slots), so indices in the "empty tail" of the array are legal but return `null` — callers expecting a `Book` hit `NullReferenceException` downstream.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Bounds check uses `Capacity`, not `Count` | `shelf[2]` succeeds after two adds — returns `default(Book)` (null reference) |
-| API contract | Indexer implies "slot i of books on shelf" | Callers cannot distinguish "out of range" from "empty reserved slot" |
-| Consistency | `Add` stops at capacity; indexer allows reading unused indices | Off-by-one between logical collection size and array size |
-| Defensive coding | Downstream null dereference instead of clear exception | Harder to diagnose in prod logs than `ArgumentOutOfRangeException` |
-
-**Fix (priority order):**
-
-1. Bound against **`_count`**, not `_slots.Length`: `if (index < 0 || index >= _count) throw new ArgumentOutOfRangeException(nameof(index));`
-2. Match this chapter's `BookShelf` int indexer — positional access only over populated slots.
-3. If "raw array slot" access is needed internally, keep it private; public indexer represents logical contents.
-4. Add tests: after `Add` twice, index `2` must throw; index `0` and `1` return books.
-
-```csharp
-public Book this[int index]
-{
-    get
-    {
-        if (index < 0 || index >= _count)
-            throw new ArgumentOutOfRangeException(nameof(index));
-        return _slots[index];
-    }
-}
-```
-
-**Production takeaway:** Indexers should enforce the same logical bounds as `Count` — array capacity is an implementation detail. See **Program.cs** Section 3a — int indexer checks `index >= _count`.
-
----
-
----
-
-#### Q5. (R) A library module exposes the internal book list through a property so callers can "query and filter easily." Review the API surface — what can go wrong?
-
-```csharp
-public class LibrarySection
-{
-    private readonly List<Book> _books = new();
-
-    public List<Book> Books => _books;
-
-    public void AddBook(Book book) => _books.Add(book);
-}
-```
-
-```csharp
-var section = library.GetSection("Fiction");
-section.Books.Clear();                          // bypasses AddBook / validation
-section.Books.Add(new Book("", "Hack", "bad")); // no ISBN rules enforced
-var snapshot = section.Books;                   // same list reference — mutates later
-```
-
----
-
-**Answer:**
-
-**Answer:** Returning the live `List<Book>` breaks encapsulation — callers can clear, reorder, or inject invalid books without going through `AddBook`, and holding a reference to `Books` sees every later internal mutation.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | Exposes mutable `_books` reference | `section.Books.Clear()` empties internal state without validation or events |
-| Invariant bypass | Direct `Add` skips ISBN/page-count rules on `Book` | Invalid domain objects enter the collection |
-| Aliasing | `snapshot = section.Books` shares reference | Code thinks it captured a point-in-time list; later adds/removes corrupt the "snapshot" |
-| Evolution | Cannot swap backing store (array, immutable list) later | Public API locked to `List<Book>` forever |
-| Thread safety | Unsynchronized shared list | Concurrent read during internal modification → `InvalidOperationException` or torn state |
-
-**Fix (priority order):**
-
-1. Expose **`IReadOnlyList<Book>`** (or `IEnumerable<Book>`) via a defensive copy or read-only wrapper: `public IReadOnlyList<Book> Books => _books.AsReadOnly();` or `return _books.ToList()` when callers need isolation.
-2. Keep all mutations through controlled methods: `AddBook`, `RemoveBook`, `ClearSection` — enforce validation and raise change notifications if needed.
-3. For LINQ-friendly querying without mutation, expose `Books.AsReadOnly()` or methods like `FindByIsbn(string)`.
-4. Never return `List<T>` from a public property unless the type is explicitly a builder/mutable DTO documented as such.
-
-```csharp
-public IReadOnlyList<Book> Books => _books.AsReadOnly();
-```
-
-**Production takeaway:** Properties that expose collections should expose **views or copies**, not the backing collection — same principle as `BookShelf` hiding `_slots` behind indexers and `Count`. See foundation encapsulation — prefer controlled access over public fields/lists.
-
----
-
----
-
-#### Q6. (D) You inherit a domain model mixing auto-properties, init-only metadata, expression-bodied labels, and a collection property. A PR proposes fixing all five categories above in one sprint. How do you prioritize encapsulation fixes before a catalog migration goes live?
-
-Topics on the table: ISBN validation (Q1), init-only `AddedOn` misuse (Q2), side-effect getters (Q3), indexer bounds vs `Count` (Q4), and returning `IReadOnlyList<Book>` vs `List<Book>` (Q5). What do you fix first, what can wait, and why?
-
----
-
----
-
-### 03. Constructors & Method Overloading
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/03. Constructors & Method Overloading`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** Fix **data-corruption and silent-failure paths first** (ISBN validation, indexer bounds, mutable collection exposure), then **compile/design violations** (init misuse), then **observability/side-effect getters** — ship validation and bounds before migration writes bad rows into the new store.
-
-**Priority order:**
-
-| Priority | Fix | Why first / can wait |
-|---|---|---|
-| **P0 — before migration** | ISBN full property (Q1) | Invalid keys written during import are expensive to backfill; breaks ISBN indexer lookups immediately |
-| **P0 — before migration** | Indexer bounds vs `_count` (Q4) | Silent nulls cause NREs in batch jobs — migration scripts often iterate by index |
-| **P0 — before migration** | Stop exposing `List<Book>` (Q5) | Prevents callers from corrupting in-memory catalog during parallel migration tooling |
-| **P1 — same release** | Init-only discipline (Q2) | Compile blocker if present; clarify immutable audit fields before API publishes contracts |
-| **P2 — next iteration** | Pure getters / remove side effects (Q3) | Wrong metrics and perf, but rarely corrupts persisted data; fix before enabling analytics dashboards |
-| **P3 — hardening** | Tests + API review checklist | Property validation tests, indexer edge cases, read-only collection contract tests |
-
-**Trade-offs:**
-
-- A big-bang refactor delays migration — **surgical P0 fixes** on hot types (`Book`, `BookShelf`, `LibrarySection`) unblock data move with minimal surface change.
-- Auto-properties on low-risk display fields (`Title`) can stay — don't gold-plate every property in the same PR.
-- Document team rules: invariants → full property; create-once → `init`; computed → pure getter; collections → `IReadOnlyList` or indexer.
-
-**Production takeaway:** Encapsulation fixes rank by **what bad data or silent nulls cost in production**, not by line count — Karat tests prioritization, not just pattern recognition. Aligns with **Program.cs** property/indexer patterns in Sections 2–3.
-
----
-
----
-
-### 03. Constructors & Method Overloading
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/03. Constructors & Method Overloading`
-
----
-
----
-
-#### Q1. (R) A teammate refactors `OrderLine` to chain constructors like the chapter's `Product` type. QA reports invalid lines in production — empty SKU and zero quantity slip through. Review the ctors. What went wrong, and how do you fix it?
-
-```csharp
-public sealed class OrderLine
-{
-    public string Sku { get; }
-    public int Quantity { get; }
-
-    public OrderLine()
-        : this("MISC", 1)
-    {
-    }
-
-    public OrderLine(string sku)
-    {
-        Sku = sku?.Trim() ?? string.Empty;
-        Quantity = 1;
-    }
-
-    public OrderLine(string sku, int quantity)
-    {
-        if (string.IsNullOrWhiteSpace(sku))
-            throw new ArgumentException("SKU is required.", nameof(sku));
-        if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
-
-        Sku = sku.Trim();
-        Quantity = quantity;
-    }
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** The single-parameter constructor does not chain to the validated `(string, int)` ctor — it duplicates initialization logic without guards, so callers using `new OrderLine("")` or `new OrderLine(null)` get empty SKUs that never hit the validation in the three-parameter constructor.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | `OrderLine(string sku)` bypasses `: this(sku, 1)` | Invalid SKU values reach production data |
-| Correctness | `sku?.Trim() ?? string.Empty` masks null instead of rejecting | Silent bad state instead of fail-fast at creation |
-| Maintainability | Validation duplicated in intent but only implemented once | Future ctors can repeat the same bypass mistake |
-
-**Fix (priority order):**
-
-1. Chain the one-parameter ctor: `public OrderLine(string sku) : this(sku, 1) { }` — single validation path.
-2. Keep all invariant checks in the **most complete** ctor (here, `(string sku, int quantity)`), matching the chapter's `Product` pattern in **Program.cs** Sections 1c and 1b.
-3. Remove defensive null-coalescing to empty string in convenience ctors — let the validated ctor throw `ArgumentException`.
-4. Add unit tests per ctor overload to assert invalid SKU/quantity throws before any repository write.
-
-```csharp
-public OrderLine(string sku)
-    : this(sku, 1)
-{
-}
-```
-
-**Production takeaway:** Constructor chaining only enforces invariants when **every** ctor path reaches the guarded ctor — a common Karat trap after "helpful" shortcut ctors are added without `: this(...)`.
-
----
-
----
-
-#### Q2. (R) A .NET 8 service adopts a **primary constructor** for a warehouse DTO. Unit tests expecting `ArgumentException` on bad input fail with `NullReferenceException` instead. Review the type. What is the initialization order problem, and how would you enforce invariants?
-
-```csharp
-public sealed class StockReceipt(string sku, decimal unitCost, int quantity)
-{
-    public string Sku { get; } = sku.Trim();
-    public decimal UnitCost { get; } = unitCost;
-    public int Quantity { get; } = quantity;
-
-    // Intended guard — runs after field initializers above
-    {
-        if (string.IsNullOrWhiteSpace(sku))
-            throw new ArgumentException("SKU is required.", nameof(sku));
-        if (unitCost < 0m)
-            throw new ArgumentOutOfRangeException(nameof(unitCost));
-        if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
-    }
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** Field initializers on the primary-constructor type run **before** the instance constructor body block, so `sku.Trim()` executes while `sku` is still null — throwing `NullReferenceException` instead of the intended `ArgumentException` from the guard block below.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Sku = sku.Trim()` before validation block | Wrong exception type; callers/tests cannot rely on contract |
-| Correctness | Invariants assumed to run "first" in `{ }` body | Primary ctor initialization order differs from mental model |
-| API contract | Mixed primary params + property initializers | Hard to see which line can throw what |
-
-**Fix (priority order):**
-
-1. Validate **before** any use of parameters — either in the constructor body as the first statements with manual assignment to properties, or via a static factory `StockReceipt.Create(...)` that validates then calls a private ctor.
-2. Do not call instance methods (`Trim`) on parameters in field/property initializers when null is invalid.
-3. Prefer explicit parameterized ctor + chaining for domain types with strict invariants; use primary constructors for simple immutable carriers where validation is minimal or delegated to a factory.
-4. Align tests to assert the final exception type after fix (`ArgumentException` for null/whitespace SKU).
-
-```csharp
-public sealed class StockReceipt
-{
-    public string Sku { get; }
-    public decimal UnitCost { get; }
-    public int Quantity { get; }
-
-    public StockReceipt(string sku, decimal unitCost, int quantity)
-    {
-        if (string.IsNullOrWhiteSpace(sku))
-            throw new ArgumentException("SKU is required.", nameof(sku));
-        if (unitCost < 0m)
-            throw new ArgumentOutOfRangeException(nameof(unitCost));
-        if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
-
-        Sku = sku.Trim();
-        UnitCost = unitCost;
-        Quantity = quantity;
-    }
-}
-```
-
-**Production takeaway:** Primary constructors do not replace the chapter rule — **enforce invariants at creation** — but the execution order is initializer expressions first, then body; Karat tests whether you know where validation must live.
-
----
-
----
-
-#### Q3. (R) After adding a convenience overload to `LineItemCalculator`-style pricing helpers, `dotnet build` fails with **CS0121** ("The call is ambiguous"). Which overloads conflict, and how do you resolve the call site or signatures?
-
-```csharp
-public static class PricingHelper
-{
-    public static decimal LineTotal(int qty, decimal unitPrice, decimal discountRate = 0m)
-    {
-        decimal gross = qty * unitPrice;
-        return gross - (gross * discountRate);
-    }
-
-    public static decimal LineTotal(int qty, decimal unitPrice, decimal discountRate, decimal taxRate)
-    {
-        decimal net = LineTotal(qty, unitPrice, discountRate);
-        return net + (net * taxRate);
-    }
-}
-
-// Call site in OrderService:
-decimal total = PricingHelper.LineTotal(3, 2.49m, 0.10m);
-```
-
----
-
-**Answer:**
-
-**Answer:** The call `LineTotal(3, 2.49m, 0.10m)` matches both the three-parameter overload (with optional `discountRate`) and the four-parameter overload equally well — the third argument `0.10m` can bind to either `discountRate` or the third positional parameter before `taxRate`, so the compiler cannot pick a unique best match.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Optional parameter on overload A overlaps arity with overload B | CS0121 — build blocked |
-| Design | Two overloads differ only by trailing optional vs required extension | Call sites with three decimals are ambiguous |
-| Maintainability | Mixing optional params and extra overloads (chapter Section 9 warning) | Every new decimal argument risks new ambiguity |
-
-**Fix (priority order):**
-
-1. **Preferred:** Remove the optional from the three-parameter signature — use two explicit overloads (`qty, price` and `qty, price, discount`) plus a separate `WithTax(...)` method, mirroring **Program.cs** `Price(int, decimal)` vs `Price(int, decimal, decimal)`.
-2. At the call site, disambiguate with a **named argument**: `LineTotal(3, 2.49m, discountRate: 0.10m)` if you must keep the optional temporarily.
-3. Avoid `params` + optional + overlapping arity in the same method group — chapter Section 15 / CS0121.
-4. Add a compiler-focused unit test project or analyzer rule comment so overlapping optionals are caught in review.
-
-**Production takeaway:** Overload resolution is compile-time — ambiguous APIs never ship — but Karat uses this to test whether you can diagnose **optional parameters colliding with additional overloads**, not just recall the CS0121 code.
-
----
-
----
-
-#### Q4. (M) A junior dev models discounted inventory items by inheriting from `Product` (chapter pattern). `dotnet build` reports **CS2506** and **CS7036**. Diagnose **`: this(...)` vs `: base(...)`** mistakes and state the correct ctor initialization order.
-
-```csharp
-public class Product
-{
-    public Product(string name, decimal unitPrice) { /* validates */ }
-    // No parameterless constructor — adding one removed compiler default.
-}
-
-public class DiscountedProduct : Product
-{
-    public decimal DiscountRate { get; }
-
-    // Attempt A — build error CS2506
-    public DiscountedProduct(string name, decimal unitPrice, decimal discountRate)
-        : base(name, unitPrice)
-        : this(name, unitPrice, discountRate, applyMinimum: true)
-    {
-        DiscountRate = discountRate;
-    }
-
-    // Attempt B — would be CS7036 without : base(...)
-    public DiscountedProduct(string name, decimal unitPrice, decimal discountRate, bool applyMinimum)
-    {
-        DiscountRate = discountRate;
-    }
-
-    public DiscountedProduct(string name)
-        : base(name, 0m)
-    {
-        DiscountRate = 0.10m;
-    }
-}
-```
-
----
-
-**Answer:**
-
-_Answer not found._
-
----
-
-#### Q5. (P) An ASP.NET Core API maps inbound JSON to a **`required`** init-only request type before calling domain ctors. A client omits `Name` but the payload still deserializes and reaches `new Product(...)`. What happened at compile time vs runtime, and how do you align API contracts with constructor validation?
-
-```csharp
-public sealed class CreateProductRequest
-{
-    public required string Name { get; init; }
-    public required decimal UnitPrice { get; init; }
-}
-
-public static class ProductFactory
-{
-    public static Product FromRequest(CreateProductRequest request)
-    {
-        return new Product(request.Name, request.UnitPrice);
-    }
-}
-
-// Controller (simplified):
-[HttpPost]
-public IActionResult Create([FromBody] CreateProductRequest body)
-{
-    var product = ProductFactory.FromRequest(body);
-    return Ok(product.Describe());
-}
-```
-
-Client POST body:
-
-```json
-{ "unitPrice": 8.99 }
-```
-
----
-
-**Answer:**
-
-**Answer:** `required` is enforced at **object creation** for object initializers and `new()` expressions at compile time, but **System.Text.Json** (and Newtonsoft) can still materialize instances without required members unless you enable required-member deserialization validation — so `Name` may default to `null` at runtime, and `Product`'s ctor then throws or mis-validates depending on null checks.
-
-- **Compile time:** `new CreateProductRequest { UnitPrice = 8.99m }` without `Name` fails to compile — `required` works for in-code construction.
-- **Runtime (JSON):** Deserializer may not enforce `required` unless configured (`JsonSerializerOptions` / `[JsonRequired]` / validation attributes / manual guard in minimal APIs).
-- **Domain layer:** `Product(string name, decimal unitPrice)` should still validate — last line of defense — but the API should return **400 ProblemDetails**, not a 500 from an unhandled `ArgumentException`.
-- **Alignment:** Use `[Required]` + FluentValidation or ASP.NET model validation, enable required property support for STJ in .NET 7+, map to domain via factory that throws typed validation exceptions converted to 400.
-
-```csharp
-// Minimal API guard example:
-if (string.IsNullOrWhiteSpace(body.Name))
-    return Results.ValidationProblem(new Dictionary<string, string[]>
-    {
-        [nameof(body.Name)] = ["Name is required."]
-    });
-```
-
-**Production takeaway:** Required members and constructor validation solve different layers — DTO `required` for developer mistakes, ctor invariants for domain truth, API validation for external clients — Karat tests stacking all three.
-
----
-
----
-
-#### Q6. (D) A warehouse microservice registers services in DI but still constructs dependencies manually inside ctors. Review startup and `InventorySyncService`. What breaks in tests, lifetimes, and startup, and what pattern replaces it?
-
-```csharp
-// Program.cs
-builder.Services.AddSingleton<IInventorySyncService, InventorySyncService>();
-builder.Services.AddSingleton<IProductCatalog, ProductCatalog>();
-
-public sealed class InventoryRegistry  // legacy singleton from tutorial
-{
-    private static readonly InventoryRegistry Shared = new();
-    private InventoryRegistry() { }
-    public static InventoryRegistry Instance => Shared;
-    public void Register(Product p) { /* ... */ }
-}
-
-public sealed class ProductCatalog : IProductCatalog
-{
-    private readonly List<Product> _products = new();
-
-    public ProductCatalog()
-    {
-        _products.Add(new Product("Seed SKU", -1.00m)); // negative price
-    }
-}
-
-public sealed class InventorySyncService : IInventorySyncService
-{
-    private readonly InventoryRegistry _registry;
-
-    public InventorySyncService()
-    {
-        _registry = InventoryRegistry.Instance;
-    }
-
-    public void Sync(Product product) => _registry.Register(product);
-}
-```
-
-What would you change in registration, ctor signatures, and object creation?
-
----
-
----
-
-### 04. Static Members & Static Classes
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/04. Static Members & Static Classes`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** The service graph mixes DI registration with static singleton access and throws inside `ProductCatalog`'s ctor during container build — startup fails (or the host never becomes healthy), tests cannot substitute a fake registry, and two lifetimes (DI singleton vs static `Instance`) fight for the same responsibility.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Startup | `new Product("Seed SKU", -1.00m)` in `ProductCatalog` ctor | `ArgumentOutOfRangeException` during `BuildServiceProvider` — app won't start |
-| DI | `InventorySyncService` uses `InventoryRegistry.Instance` | Bypasses container; cannot mock `IInventoryRegistry` in tests |
-| Lifetime | Static singleton + `AddSingleton<>` duplicate ownership | Hidden global state; unclear thread-safety and test isolation |
-| Design | Chapter singleton (`InventoryRegistry`) copied into production service | Violates "prefer DI" note in **Program.cs** Section 2 |
-
-**Fix (priority order):**
-
-1. **Constructor injection:** `public InventorySyncService(IInventoryRegistry registry)` — no parameterless ctor grabbing statics.
-2. Register an abstraction: `builder.Services.AddSingleton<IInventoryRegistry, InventoryRegistry>()` with a **public or internal** ctor (or factory delegate) — retire `Instance` for app code; keep private ctor only if factory registration is used.
-3. Move seed data out of the ctor — use `IHostedService`, explicit `SeedAsync`, or configuration-driven load so invalid catalog data surfaces as a controlled startup error with logging, not ctor throw during DI resolution.
-4. Let `Product`'s validated ctor throw for bad **runtime** input; seed paths must pass valid arguments or use a dedicated test factory.
-5. Integration tests build `WebApplicationFactory` with replaced `IInventoryRegistry` fake — only possible when ctors demand interfaces.
-
-```csharp
-builder.Services.AddSingleton<IInventoryRegistry, InventoryRegistry>();
-builder.Services.AddSingleton<IInventorySyncService, InventorySyncService>();
-
-public sealed class InventorySyncService : IInventorySyncService
-{
-    private readonly IInventoryRegistry _registry;
-
-    public InventorySyncService(IInventoryRegistry registry)
-    {
-        _registry = registry;
-    }
-
-    public void Sync(Product product) => _registry.Register(product);
-}
-```
-
-**Production takeaway:** Object creation belongs in the composition root — ctors enforce invariants for **their** parameters, not for bootstrapping entire graphs via `new` and static `Instance`; Karat links chapter singleton intro to real ASP.NET Core registration mistakes.
-
----
-
----
-
-### 04. Static Members & Static Classes
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/04. Static Members & Static Classes`
-
----
-
----
-
-#### Q1. (R) An ASP.NET Core API caches the "current user's cart" in a static field so every controller can read it without DI. Under load, users report seeing each other's items. Review the code — what is wrong and how do you fix it?
-
-```csharp
-public static class CartContext
-{
-    private static List<CartItem> _items = new();
-
-    public static void SetCart(List<CartItem> items) => _items = items;
-
-    public static decimal GetTotal() => _items.Sum(i => i.Price * i.Quantity);
-}
-
-public class CheckoutController : ControllerBase
-{
-    [HttpPost("checkout")]
-    public IActionResult Checkout([FromBody] List<CartItem> cart)
-    {
-        CartContext.SetCart(cart);
-        var total = CartContext.GetTotal();
-        return Ok(new { total });
-    }
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** A static `_items` list is one shared object for the entire application domain — every request overwrites and reads the same cart, so concurrent users bleed data across threads and requests; this is the classic mutable-static-state failure mode in web apps.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Mutable static `_items` holds per-user data | User A sees User B's cart under concurrency |
-| Architecture | Static holder bypasses request scope and DI | Hidden global state; untestable without static resets |
-| Scale-out | In-memory static state is per process | Sticky sessions won't help — race is on one instance |
-| Thread safety | `List<T>` mutated without synchronization | Corrupted list / exceptions under parallel requests |
-
-**Fix (priority order):**
-
-1. Remove `CartContext` static mutable storage — register a **scoped** `ICartService` (or store cart keyed by user id in Redis/SQL).
-2. Pass `HttpContext.User` identity into the service; never store "current user" in static fields.
-3. If caching shared **read-only** reference data, use `IMemoryCache` or `IOptions<T>` with immutable snapshots — not a static `List` rewritten per request.
-4. Add integration tests with parallel HTTP clients to catch cross-user leakage.
-
-**Production takeaway:** Static members are fine for type-level constants and pure helpers (`BankAccount.IsValidRoutingNumber`) — not for request-scoped or user-scoped state. See **Program.cs** Section 1 — "mutable static fields are shared global state."
-
----
-
----
-
-#### Q2. (M) A teammate adds runtime config loading to `AppSettings` and reports intermittent `TypeInitializationException` on first request. Review the static initialization — what ordering traps exist, and how would you make startup deterministic?
-
-```csharp
-public static class AppSettings
-{
-    public static readonly string EnvironmentName =
-        Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Development";
-
-    public static readonly int MaxLoginAttempts = LoadMaxAttempts();
-
-    private static readonly string ConfigPath =
-        Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-
-    static AppSettings()
-    {
-        Console.WriteLine($"Loading settings from {ConfigPath} for {EnvironmentName}");
-    }
-
-    private static int LoadMaxAttempts()
-    {
-        // reads ConfigPath from disk — throws if file missing
-        return int.Parse(File.ReadAllText(ConfigPath).Trim());
-    }
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** Static field initializers run in declaration order before the static constructor body, but circular reads between static fields or throwing initializers can fail type initialization once and poison the type for the AppDomain — the fix is to defer I/O to explicit startup (`IConfiguration`) instead of fragile static ctor chains.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Init order | `MaxLoginAttempts = LoadMaxAttempts()` runs before `static AppSettings()` body | `LoadMaxAttempts` uses `ConfigPath` — OK here, but reordering fields breaks silently |
-| Runtime | `LoadMaxAttempts` throws on missing/malformed file | `TypeInitializationException` — type unusable until app restart |
-| Design | Static ctor performs I/O and logging | Failures happen on first touch, not at controlled startup |
-| Web hosting | First request triggers type load | Lazy failure in prod instead of fail-fast at `WebApplication` boot |
-
-**Fix (priority order):**
-
-1. Move config loading to ASP.NET Core **options pattern** — `builder.Services.Configure<LoginOptions>(configuration.GetSection("Login"))` — validate at startup with `ValidateOnStart`.
-2. If static readonly is required, keep static fields **simple** (env var only); load file-backed values in `Program.cs` after `builder.Configuration` exists.
-3. Avoid static initializers that depend on each other's side effects; document declaration order or use explicit static ctor assignment only.
-4. Never swallow exceptions in static constructors — they wrap inner failures in `TypeInitializationException` and hide root cause in logs.
-
-```csharp
-// Prefer at startup, not in static type init:
-builder.Services.AddOptions<LoginOptions>()
-    .Bind(configuration.GetSection("Login"))
-    .Validate(o => o.MaxAttempts > 0, "MaxAttempts required")
-    .ValidateOnStart();
-```
-
-**Production takeaway:** Static constructors run once per type load (**Program.cs** Section 6 preview) — treat them like hidden startup code. Production apps load config through `IConfiguration`, not static field chains that throw on first access.
-
----
-
----
-
-#### Q3. (R) Production logging uses the tutorial's `AuditLogger` singleton instead of `ILogger`. Tests pass locally but CI flakes and log counts are wrong under concurrent requests. Review the pattern — what's broken and what replaces it?
-
-```csharp
-public sealed class AuditLogger
-{
-    private static readonly AuditLogger InstanceField = new AuditLogger();
-    private int _entryCount;
-
-    private AuditLogger() { }
-
-    public static AuditLogger Instance => InstanceField;
-
-    public void Record(string message)
-    {
-        _entryCount++;
-        Console.WriteLine($"[{_entryCount}] {message}");
-    }
-}
-
-// Startup.cs / Program.cs
-builder.Services.AddSingleton(AuditLogger.Instance);
-```
-
----
-
-**Answer:**
-
-**Answer:** Hand-rolled singletons expose untestable global mutable state (`_entryCount++` is not thread-safe) and fight ASP.NET Core's built-in logging pipeline — register `ILogger<T>` and scoped/transient services instead of `AuditLogger.Instance`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Non-interlocked `_entryCount++` | Lost updates / wrong counts under parallel requests |
-| Testability | Static `Instance` and private ctor | Tests share global counter; order-dependent flakes |
-| DI misuse | `AddSingleton(AuditLogger.Instance)` registers pre-built object | Bypasses container ownership; can't substitute fakes easily |
-| Observability | `Console.WriteLine` instead of `ILogger` | No levels, filters, structured fields, or centralized sinks |
-
-**Fix (priority order):**
-
-1. Delete the singleton — inject `ILogger<CheckoutController>` (or an application service) via constructor DI.
-2. If audit is a domain concern, define `IAuditService` registered **scoped** or **singleton** only when the implementation is **stateless**; persist counts to storage if needed.
-3. Use `Interlocked.Increment` only for cheap diagnostics — not as a substitute for proper logging/metrics (`IMeterFactory`, Application Insights).
-4. In tests, use `WebApplicationFactory` with logging providers or mock `ILogger<T>` — no static reset hacks.
-
-```csharp
-public class CheckoutController : ControllerBase
-{
-    private readonly ILogger<CheckoutController> _logger;
-
-    public CheckoutController(ILogger<CheckoutController> logger) => _logger = logger;
-
-    public IActionResult Checkout()
-    {
-        _logger.LogInformation("Checkout completed for {UserId}", UserId);
-        return Ok();
-    }
-}
-```
-
-**Production takeaway:** **Program.cs** Section 10 previews singleton for learning — production prefers DI singletons (container-managed, interface-based) over static `Instance` accessors. See foundation **Constructors** chapter for thread-safe lazy init when a true single instance is required.
-
----
-
----
-
-#### Q4. (R) A developer refactors `TaxHelper` to support per-region tax profiles and adds instance state. Build fails. Review the changes — what rules did they violate, and what structure should replace a static class here?
-
-```csharp
-public static class TaxHelper
-{
-    public const decimal DefaultRate = 0.0825m;
-    private decimal _regionRate;  // set from constructor
-
-    public TaxHelper(decimal regionRate) => _regionRate = regionRate;
-
-    public static decimal CalculateSalesTax(decimal amount, decimal rate)
-        => Math.Round(amount * rate, 2, MidpointRounding.AwayFromZero);
-
-    public decimal CalculateForRegion(decimal amount)
-        => CalculateSalesTax(amount, _regionRate);
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** Static classes cannot have instance members or instance constructors — the compiler rejects instance fields and `TaxHelper(decimal)` on a `static class`; once you need per-object state, convert to an ordinary instance class (often injected via DI) and keep only pure functions static if needed.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Instance field + ctor on `static class` | CS0708 / CS0710 — build blocked |
-| Design | Mixed static utility + instance profile in one type | Violates static class purpose (stateless helper group) |
-| API | Callers would need `new TaxHelper(...)` | CS0712 — cannot instantiate static class even without other errors |
-
-**Fix (priority order):**
-
-1. Replace `static class TaxHelper` with a normal sealed class, e.g. `ITaxCalculator` / `TaxCalculator`, taking `regionRate` via constructor or options.
-2. Register `ITaxCalculator` as scoped or singleton in DI depending on whether rate is per-request or app-wide config.
-3. Keep stateless math as `public static decimal CalculateSalesTax(...)` on a separate `TaxMath` static class **or** private static method on the instance class — match **Program.cs** Section 7 (static class = no instance state).
-4. Do not inherit from `TaxHelper` — static classes are implicitly sealed; use composition and interfaces instead.
-
-```csharp
-public interface ITaxCalculator
-{
-    decimal CalculateForRegion(decimal amount);
-}
-
-public sealed class TaxCalculator : ITaxCalculator
-{
-    private readonly decimal _regionRate;
-    public TaxCalculator(IOptions<TaxOptions> options) => _regionRate = options.Value.Rate;
-    public decimal CalculateForRegion(decimal amount) =>
-        Math.Round(amount * _regionRate, 2, MidpointRounding.AwayFromZero);
-}
-```
-
-**Production takeaway:** Static classes (`TaxHelper`, `AppSettings` helpers) are for stateless utilities — the moment you need `this`, use an instance type. Karat tests whether you know CS0712/CS0709 rules from **Program.cs** Section 7, not just memorize `static`.
-
----
-
----
-
-#### Q5. (R) `BankAccount` account numbers duplicate in production after traffic increases. The team uses the tutorial counter as-is. Review the static field usage — what race exists and how do you fix it without abandoning a shared sequence?
-
-```csharp
-public class BankAccount
-{
-    private static int _nextAccountNumber = 1000;
-
-    public int AccountNumber { get; }
-
-    public BankAccount(string ownerName, decimal openingDeposit)
-    {
-        AccountNumber = _nextAccountNumber++;  // called from many threads
-        OwnerName = ownerName;
-        Balance = openingDeposit;
-    }
-
-    // ...
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** `_nextAccountNumber++` is not atomic — two threads can read the same value before either writes back, producing duplicate `AccountNumber` values; use `Interlocked.Increment` for in-process sequences or a database/ID service for authoritative numbering.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Read-modify-write on `_nextAccountNumber++` | Duplicate account numbers under parallel ctor calls |
-| Correctness | Assumes single-threaded console demo semantics | Web API creates many `BankAccount` objects concurrently |
-| Scale-out | Static counter is per process | Two pods can still collide — DB sequence or distributed ID required |
-
-**Fix (priority order):**
-
-1. **In-process fix:** assign with `Interlocked.Increment(ref _nextAccountNumber)` (or `Interlocked.Add`) inside the constructor.
-2. **Production fix:** generate account numbers from SQL `IDENTITY`/sequence, UUID, or Snowflake-style ID service — static fields don't survive multi-instance deployments.
-3. Mark `_nextAccountNumber` `private static` and never expose mutability via public static setters.
-4. Add stress test spawning parallel account creation tasks asserting unique numbers.
-
-```csharp
-public BankAccount(string ownerName, decimal openingDeposit)
-{
-    AccountNumber = Interlocked.Increment(ref _nextAccountNumber);
-    OwnerName = ownerName;
-    Balance = openingDeposit;
-}
-```
-
-**Production takeaway:** **Program.cs** Section 1 warns that mutable static fields race unless synchronized — the tutorial's counter is correct for demos, not for concurrent web registration endpoints.
-
----
-
----
-
-#### Q6. (D) Your API team debates three approaches for shared, read-mostly configuration: `public const` literals, `static readonly` loaded at type init, and mutable `public static` properties set from middleware. Which would you allow in a multi-instance ASP.NET Core deployment, and which would you ban? Why?
-
----
-
----
-
-### 05. Inheritance &  Polymorphism
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/05. Inheritance &  Polymorphism`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** Allow `const` for true compile-time literals and immutable `static readonly` only when the value is identical on every instance and never changes after type init; ban mutable `public static` properties for app configuration — use `IOptions<T>` / `IConfiguration` so each pod reads consistent, reloadable, testable settings without global writes from middleware.
-
-**Allow — `const` (e.g., `MaxLoginAttempts = 3`):**
-
-- Fixed at compile time; zero runtime cost; safe to share everywhere.
-- Trade-off: changing value requires recompile of all assemblies that inline it (**Program.cs** Section 8 — const metadata inlining).
-
-**Allow with caution — `static readonly` set once at type init (e.g., `EnvironmentName` from env var):**
-
-- OK for process-wide, immutable facts loaded before requests (deployment stamp, machine name).
-- Must not read per-request data; env var is fixed for process lifetime.
-- Prefer `IOptions<T>` for anything that might reload or differ by environment file.
-
-**Ban — mutable `public static` properties (e.g., `BankAccount.BankName { get; set; }` set from middleware):**
-
-- Creates hidden global state writable from anywhere; race-prone under concurrent requests.
-- Multi-instance: each pod has its own static copy — "global" settings drift if one instance mutates.
-- Breaks unit tests (order-dependent mutations) and violates DI/test seams.
-
-**Production pattern:** `builder.Services.Configure<BankOptions>(configuration.GetSection("Bank"))` inject `IOptionsSnapshot<BankOptions>` where refresh matters. Keep static classes for pure functions only (`IsValidRoutingNumber`).
-
-**Production takeaway:** **Program.cs** contrasts `const`, `static readonly`, and mutable static properties — in web apps, configuration flows through the options/configuration stack, not static setters touched during the HTTP pipeline.
-
----
-
----
-
-### 05. Inheritance &  Polymorphism
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/05. Inheritance &  Polymorphism`
-
----
-
----
-
-#### Q1. (R) Badge printing in production shows `"EMP"` for every staff member, including managers and contractors. Review this excerpt from the payroll service (pattern matches this chapter's `GetBadgeThroughEmployeeReference`). What is wrong, and how do you fix it?
-
-```csharp
-public abstract class Employee
-{
-    public string GetBadgeCode() => "EMP";          // not virtual
-}
-
-public class ContractEmployee : Employee
-{
-    public new string GetBadgeCode() => "CTR";
-}
-
-public class Manager : PermanentEmployee
-{
-    public new string GetBadgeCode() => "MGR";
-}
-
-public static string PrintBadge(Employee employee) => employee.GetBadgeCode();
-
-// Called from HR export loop over Employee[] payrollStaff
-```
-
----
-
-**Answer:**
-
-**Answer:** `GetBadgeCode` is hidden with `new` in derived types but invoked through an `Employee` reference — binding is static (compile-time), so the base implementation always runs and every badge prints `"EMP"`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Polymorphism | `new` hides; no `virtual`/`override` | Base reference calls `Employee.GetBadgeCode()` — wrong badge for all derived instances |
-| API contract | Polymorphic loop uses `Employee` (see chapter `ProcessPayroll` / badge helper) | HR export and access-control integrations show incorrect codes |
-| Maintainability | Looks like overriding; behaves like hiding | Future devs add more `new` methods and repeat the bug |
-
-**Fix (priority order):**
-
-1. Make the base member polymorphic: `public virtual string GetBadgeCode() => "EMP";` and `public override string GetBadgeCode()` in derived types.
-2. If badge text is not truly polymorphic, do not call it through `Employee` — accept `ContractEmployee`/`Manager` or introduce a strategy/interface (`IBadgeSource`) resolved at the call site.
-3. Add a unit test that asserts badge text when the static type is `Employee` but the runtime type is `Manager` — catches hiding regressions.
-4. Enable or heed compiler warning CS0114 ("hides inherited member") and treat `new` on instance methods as a code-review flag.
-
-**Production takeaway:** Method hiding is the chapter's intentional trap — Karat tests whether you distinguish reference-type binding from virtual dispatch. See **Program.cs** Section 6b and `GetBadgeThroughEmployeeReference`.
-
----
-
----
-
-#### Q2. (R) After adding `InternEmployee` to the payroll hierarchy, `ProcessPayroll` sometimes throws and totals are wrong. Review the new type and the unchanged payroll loop. What design rule did this violate, and what is the prioritized fix?
-
-```csharp
-public class InternEmployee : Employee
-{
-    public InternEmployee(/* ... */) : base(/* ... */) { }
-
-    public override Money CalculateNet()
-    {
-        throw new InvalidOperationException("Interns are stipend-only; use StipendService");
-    }
-}
-
-public static Money ProcessPayroll(IReadOnlyList<Employee> staff)
-{
-    Money total = new(0m);
-    foreach (Employee employee in staff)
-        total += employee.CalculateNet();   // no type checks — polymorphic sum
-    return total;
-}
-
-// InternEmployee instances are stored in List<Employee> alongside permanent staff
-```
-
----
-
-**Answer:**
-
-**Answer:** Substituting `InternEmployee` anywhere `Employee` is expected breaks callers that assume `CalculateNet()` always succeeds and returns a payroll amount — a Liskov Substitution Principle (LSP) violation, not a bug in the loop.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| LSP | Derived type throws where base contract implies a `Money` net pay | `ProcessPayroll` crashes when interns appear in `List<Employee>` |
-| Design | Forced IS-A (`Intern : Employee`) for a role with incompatible pay semantics | Every consumer must special-case or try/catch |
-| Extensibility | Polymorphic collection pattern (chapter Section 9a) assumes substitutability | Adding one subtype breaks aggregation without compile-time warning |
-
-**Fix (priority order):**
-
-1. Do not model interns as `Employee` if they cannot honor the payroll contract — use a separate type or composition (`PayrollParticipant` interface with `TryCalculateNet` / separate `StipendService`).
-2. If they must share a collection, define an explicit contract on the base: document whether `CalculateNet()` may throw; prefer `Money?` or a result type over exceptions for expected branches.
-3. Never fix this only with `if (employee is InternEmployee) continue` inside `ProcessPayroll` — that reintroduces switch-on-type and defeats the chapter's polymorphic design.
-4. Add integration test: `ProcessPayroll` over mixed staff including the new role.
-
-**Production takeaway:** LSP is not academic — any code that iterates `Employee[]` and calls `CalculateNet()` (as in **Program.cs** `ProcessPayroll`) trusts substitutability. Throwing overrides break that trust silently until runtime.
-
----
-
----
-
-#### Q3. (R) A developer adds `Director : Manager` but the project fails to compile. Review the constructors. What is wrong with the chain, and what runs (in order) when `new Director(...)` succeeds?
-
-```csharp
-public class Person
-{
-    public Person(int id, string fullName) { /* sets Id, FullName */ }
-}
-
-public class Employee : Person
-{
-    public Employee(int id, string fullName, Department dept, Money salary)
-        : base(id, fullName) { /* ... */ }
-}
-
-public class Manager : PermanentEmployee
-{
-    public Manager(int id, string name, Department dept, Money salary,
-        Money perks, Money pf, Money teamBonus)
-        : base(id, name, dept, salary, perks, pf) { /* ... */ }
-}
-
-public class Director : Manager
-{
-    public Director(int id, string name, Department dept, Money salary,
-        Money perks, Money pf, Money teamBonus, Money boardFee)
-    {
-        BoardFee = boardFee;   // CS7036 — no suitable base constructor
-    }
-
-    public Money BoardFee { get; }
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** The derived constructor must forward to an accessible base constructor with `: base(...)`; without it the compiler looks for a parameterless `Manager` constructor, finds none, and reports CS7036.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Missing `: base(id, name, dept, salary, perks, pf, teamBonus)` on `Director` | CS7036 — build blocked |
-| Initialization | `BoardFee` assigned before base chain completes (if forced via workaround) | Illegal in C# — base constructors always run first |
-| Hierarchy | Multilevel chain `Person → … → Manager → Director` requires each level to pass args upward | Easy to drop one salary/perk parameter when extending |
-
-**Fix (priority order):**
-
-1. Add explicit base forward:
-
-```csharp
-public Director(int id, string name, Department dept, Money salary,
-    Money perks, Money pf, Money teamBonus, Money boardFee)
-    : base(id, name, dept, salary, perks, pf, teamBonus)
-{
-    BoardFee = boardFee;
-}
-```
-
-2. When `new Director(...)` runs successfully, constructors execute **base-first, outer-last**: `Person` → `Employee` → `PermanentEmployee` → `Manager` → `Director` body.
-3. Reuse `: base(...)` in overrides like `CalculateNet()` when extending parent logic — same chaining idea as **Program.cs** `Manager.CalculateNet()` calling `base.CalculateNet()`.
-
-**Production takeaway:** Constructor order is deterministic and non-negotiable — Karat uses multilevel payroll types to test CS7036 and whether you can narrate the chain. See **Program.cs** Sections 4 and 8.
-
----
-
----
-
-#### Q4. (R) A refactor adds validation to the base payroll method. Contract net pay drops unexpectedly for some employees. Review the change. What broke, and how do you fix it without duplicating validation in every derived class?
-
-```csharp
-public class Employee
-{
-    public virtual Money CalculateNet()
-    {
-        ValidateNonNegative(BaseSalary);
-        return BaseSalary;
-    }
-
-    protected void ValidateNonNegative(Money amount)
-    {
-        if (amount.Amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
-    }
-}
-
-public class ContractEmployee : Employee
-{
-    public override Money CalculateNet()
-    {
-        // author assumed base still ran — only added bonus locally
-        return BaseSalary + ContractBonus;
-    }
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** Derived `CalculateNet` overrides replaced the base implementation entirely, so `ValidateNonNegative` in `Employee.CalculateNet()` no longer runs — a classic **fragile base class** problem when subclasses do not call `base.CalculateNet()`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Fragile base | Base gained behavior; derived overrides bypass it | Negative or inconsistent nets slip through for contract staff |
-| Correctness | `ContractEmployee` omits validation on `BaseSalary` and `ContractBonus` | Payroll audit failures; possible overpayment |
-| Maintainability | Every future override must remember hidden base rules | Each new employee type is a regression vector |
-
-**Fix (priority order):**
-
-1. Call base from override: `return base.CalculateNet() + ContractBonus;` (after ensuring bonus validation — either in base hook or local check).
-2. Prefer **Template Method**: base defines `public Money CalculateNet() { Validate...; return CalculateNetCore(); }` with `protected abstract/virtual Money CalculateNetCore()` — derived types cannot skip validation.
-3. Move cross-cutting rules to non-virtual helpers invoked from a sealed `CalculateNet()` on the base if the rule must never be skipped.
-4. Add tests for each derived type asserting validation runs (negative salary throws).
-
-**Production takeaway:** Adding logic to a base `virtual` method silently breaks subclasses that fully override — the fix is structural (template method / sealed orchestrator), not "remember to call base." Mirrors **Manager** reusing permanent math via `base.CalculateNet()` in **Program.cs**.
-
----
-
----
-
-#### Q5. (P) A teammate replaces the polymorphic payroll loop with explicit type checks "for clarity." New `ContractEmployee` rows are added to the database but never appear in the exported total. Review the method. What failed at runtime, and what pattern from this chapter should drive payroll aggregation instead?
-
-```csharp
-public static Money ProcessPayroll(IEnumerable<Employee> staff)
-{
-    Money total = new(0m);
-
-    foreach (Employee employee in staff)
-    {
-        if (employee is PermanentEmployee permanent)
-            total += permanent.CalculateNet();
-        else if (employee is Manager manager)
-            total += manager.CalculateNet();
-        // ContractEmployee and future types not handled
-    }
-
-    return total;
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** The `is PermanentEmployee` / `is Manager` ladder omits `ContractEmployee` (and any future sibling), so those instances contribute zero to `total` — silent underpayment, not a compile error.
-
-- **Root cause:** Switching on concrete types duplicates dispatch the virtual table already provides; every new `Employee` subtype requires editing `ProcessPayroll`.
-- **Manager branch is redundant noise:** `Manager` is a `PermanentEmployee` — if both were handled, order would matter; as written, neither contract nor many permanents may be counted correctly depending on edits.
-- **Correct pattern:** Single polymorphic loop over `Employee` (or `IReadOnlyList<Employee>`) calling `employee.CalculateNet()` with `virtual`/`override` — exactly as **Program.cs** `ProcessPayroll` demonstrates in Section 9a.
-- **Open/closed goal:** Add `ContractEmployee`, `PermanentEmployee`, `Manager` without changing the aggregator — new behavior lives in overrides.
-- **If discrimination is truly required:** use visitor/double-dispatch or separate pipelines — not a partial `if/else` chain on siblings.
-
-**Production takeaway:** Polymorphic collections only pay off when behavior stays on the type (`CalculateNet`, `RoleLabel`). Partial type switches fail open in finance code — totals look plausible but omit whole populations.
-
----
-
----
-
-#### Q6. (D) Product wants `Employee` to inherit from a shared `AuditableEntity` base that already inherits `EntityBase`, while payroll still needs `Person → Employee → PermanentEmployee → Manager`. The team also proposes `Employee : Department` so every employee "is a department" for reporting. What breaks in C#, and where do LSP and fragile-base-class risks show up even if it compiles?
-
----
-
----
-
-### 06. Abstract Classes & Interfaces
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/06. Abstract Classes & Interfaces`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** C# allows only one direct base class — you cannot chain `Person` and `AuditableEntity : EntityBase` on `Employee` without merging into one lineage or using interfaces; `Employee : Department` is a HAS-A relationship mis modeled as IS-A and invites LSP and fragile-hierarchy problems.
-
-**Single inheritance (CS1721):**
-
-- `class Employee : Person, AuditableEntity` does not compile — pick one base and move cross-cutting concerns to interfaces (`IAuditable`) or compose an `AuditableEntity` field.
-- Deepening `Person → EntityBase → AuditableEntity → Employee → …` couples payroll to persistence auditing — changes to `AuditableEntity` (soft-delete flags, ORM hooks) ripple through every override (**fragile base class**).
-
-**`Employee : Department` (HAS-A as IS-A):**
-
-- Violates the chapter's composition rule: employees **have** departments (`HomeDepartment` field), they are not departments.
-- LSP: code expecting a `Department` (code, name, org chart) receives an `Employee` — calling `Department` APIs on "employees" fails or returns nonsense.
-- Reporting switches that pass `Department` into headcount APIs break when instances are actually people.
-
-**Safer design:**
-
-- Keep `Employee HAS-A Department`; share auditing via interface implementation on `Employee` or a small injected service.
-- Cap hierarchy depth — prefer `Manager` bonuses over `Director : SeniorManager : …` solely for field reuse; extract shared payroll math into composable services when reuse is not IS-A.
-
-**Production takeaway:** Inheritance is for substitutable IS-A contracts; auditing, persistence, and org structure are usually interfaces or composition. Karat ties **Program.cs** IS-A vs HAS-A (Section 2) to real hierarchy mistakes that compile only until you merge unrelated bases.
-
----
-
----
-
-### 06. Abstract Classes & Interfaces
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/06. Abstract Classes & Interfaces`
-
----
-
----
-
-#### Q1. (D) Your team is adding a `SpreadsheetDocument` to the document archive. It shares `Title` and `CreatedOn` with invoices and reports, but also needs optional CSV export and a separate audit trail that other document types may never use. A junior dev proposes making everything an interface:
-
-```csharp
-public interface ISpreadsheetDocument
-{
-    string Title { get; }
-    DateTime CreatedOn { get; }
-    string RenderContent();
-    string Export(string format);
-    void WriteAuditEntry(string action);
-}
-```
-
-How would you model this using abstract classes and interfaces (as in this chapter), and why?
-
----
-
-**Answer:**
-
-```csharp
-public interface ISpreadsheetDocument
-{
-    string Title { get; }
-    DateTime CreatedOn { get; }
-    string RenderContent();
-    string Export(string format);
-    void WriteAuditEntry(string action);
-}
-```
-
-How would you model this using abstract classes and interfaces (as in this chapter), and why?
-
-**Answer:** Keep the **IS-A** document hierarchy on an abstract `Document` base for shared state and rendering contract, then add **CAN-DO** interfaces only for optional capabilities — `IExportable` for export, a narrow `IAuditable` (or similar) for audit — instead of one fat document interface.
-
-- **Abstract `Document`:** `Title`, `CreatedOn`, protected constructor, abstract `DocumentKind` and `RenderContent()`, plus concrete `GetSummary()` — matches **Program.cs** Sections 1 and 3; `SpreadsheetDocument : Document` reuses helpers without duplicating fields.
-- **`IExportable`:** Export is a cross-cutting capability; invoices, reports, and spreadsheets can implement it without forcing audit on types that do not need it.
-- **`IAuditable` (small interface):** Only types that write audit entries implement `WriteAuditEntry`; reports that never audit are not forced to stub empty methods.
-- **Why not one interface:** Duplicates state across unrelated "documents," blocks multiple inheritance of implementation, and violates Interface Segregation — consumers that only export must know about audit members.
-- **Both together:** `class SpreadsheetDocument : Document, IExportable, IAuditable` — single class hierarchy, multiple optional behaviors, same pattern as `InvoiceDocument : Document, IExportable, IPrintable, INamedDocument`.
-
-**Production takeaway:** Abstract class for shared identity and partial implementation; interfaces for capabilities that cut across hierarchies. See this chapter's **Document** + **IExportable** split and foundation **Abstract class vs interface** table.
-
----
-
----
-
-#### Q2. (R) A storage service saves file names for archived documents. After deployment, some invoices overwrite each other on disk. Review:
-
-```csharp
-public sealed class InvoiceStorageService
-{
-    public string ResolveFileName(InvoiceDocument invoice)
-    {
-        // Human-readable label for UI and logs
-        return invoice.GetName();
-    }
-
-    public void Save(InvoiceDocument invoice, Stream content)
-    {
-        string path = Path.Combine(_root, ResolveFileName(invoice));
-        using var file = File.Create(path);
-        content.CopyTo(file);
-    }
-}
-```
-
-`InvoiceDocument` implements `INamedDocument` with explicit `string INamedDocument.GetName()` returning a file-safe name, and a public `GetName()` returning `"Invoice: " + Title`. What is wrong, and how do you fix it?
-
----
-
-**Answer:**
-
-```csharp
-public sealed class InvoiceStorageService
-{
-    public string ResolveFileName(InvoiceDocument invoice)
-    {
-        // Human-readable label for UI and logs
-        return invoice.GetName();
-    }
-
-    public void Save(InvoiceDocument invoice, Stream content)
-    {
-        string path = Path.Combine(_root, ResolveFileName(invoice));
-        using var file = File.Create(path);
-        content.CopyTo(file);
-    }
-}
-```
-
-`InvoiceDocument` implements `INamedDocument` with explicit `string INamedDocument.GetName()` returning a file-safe name, and a public `GetName()` returning `"Invoice: " + Title`. What is wrong, and how do you fix it?
-
-**Answer:** The storage service calls the **public** `GetName()` (display label with spaces and punctuation), not the **explicit** `INamedDocument.GetName()` (file-safe slug) — two invoices with the same title collide on disk because paths are not unique or filesystem-safe.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `ResolveFileName` uses public `GetName()` instead of `INamedDocument` contract | Duplicate paths; overwrites; invalid characters on some OSes |
-| API surface | Explicit implementation is invisible on concrete type | Callers assume one `GetName()` — easy to pick the wrong one |
-| Design | Storage depends on concrete `InvoiceDocument` | Harder to test; wrong abstraction for "file naming" capability |
-
-**Fix (priority order):**
-
-1. Resolve names through the interface: `((INamedDocument)invoice).GetName()` or accept `INamedDocument` / `IFileNaming` in `ResolveFileName`.
-2. Add uniqueness: append document id or hash if titles can repeat — explicit slug alone may still collide.
-3. Rename public method to `GetDisplayName()` if both names must coexist on the type — reduces accidental misuse.
-4. Unit-test storage with two invoices sharing a title; assert distinct file paths.
-
-```csharp
-public string ResolveFileName(INamedDocument named)
-{
-    return named.GetName(); // explicit implementation invoked via interface
-}
-```
-
-**Production takeaway:** Explicit interface implementation exists precisely when the public API and contract differ — services must depend on the **interface variable**, as **Program.cs** Section 5 demonstrates with `namedContract.GetName()` vs `invoice.GetName()`.
-
----
-
----
-
-#### Q3. (R) A PR introduces a "kitchen sink" capability interface for the export pipeline. Review:
-
-```csharp
-public interface IDocumentCapabilities
-{
-    string Export(string format);
-    string Print();
-    string GetName();
-    byte[] RenderPdf();
-    void SendToPrinter(string queueName);
-    string SignWithCertificate(string thumbprint);
-}
-
-public class ExportOrchestrator
-{
-    public void RunBatch(IEnumerable<IDocumentCapabilities> items, string format)
-    {
-        foreach (var item in items)
-        {
-            _logger.LogInformation(item.Export(format));
-        }
-    }
-}
-```
-
-Only invoices need signing; reports only export. What design problems do you see, and how would you refactor?
-
----
-
-**Answer:**
-
-```csharp
-public interface IDocumentCapabilities
-{
-    string Export(string format);
-    string Print();
-    string GetName();
-    byte[] RenderPdf();
-    void SendToPrinter(string queueName);
-    string SignWithCertificate(string thumbprint);
-}
-
-public class ExportOrchestrator
-{
-    public void RunBatch(IEnumerable<IDocumentCapabilities> items, string format)
-    {
-        foreach (var item in items)
-        {
-            _logger.LogInformation(item.Export(format));
-        }
-    }
-}
-```
-
-Only invoices need signing; reports only export. What design problems do you see, and how would you refactor?
-
-**Answer:** `IDocumentCapabilities` is a **fat interface** that violates the **Interface Segregation Principle** — every implementer must stub or throw for unrelated members, and callers cannot express minimal dependencies.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design (ISP) | One interface bundles export, print, PDF, signing, naming | `ReportDocument` forced to implement `SignWithCertificate` with `NotSupportedException` |
-| Maintainability | New capability added to interface breaks all implementers | Package version churn; empty stubs multiply |
-| Testing | Fakes must implement six methods to test export-only orchestrator | Bloated test doubles; brittle mocks |
-| API clarity | `ExportOrchestrator` only needs `Export` but depends on mega-contract | Misleading type bounds; hides true requirements |
-
-**Fix (priority order):**
-
-1. Split into focused interfaces — `IExportable`, `IPrintable`, `ISignable`, `INamedDocument` — matching this chapter's pattern.
-2. Change orchestrator signature to `IEnumerable<IExportable>` (as **ExportService.ExportAll** does).
-3. Compose at call site: pass types that implement multiple interfaces; use pattern matching or separate services for signing/printing steps.
-4. If a facade is needed for DI registration, use a small adapter per document type — not a monolithic interface.
-
-**Production takeaway:** Prefer several small interfaces over one "capabilities" blob — callers depend on what they use, implementers only provide what they support. See **Program.cs** Section 4 (`InvoiceDocument` implements three interfaces, not one fat type).
-
----
-
----
-
-#### Q4. (M) The team ships a NuGet package with `IExportable` consumed by ten internal services. To add optional metadata without breaking implementers, they add a C# 8 default method:
-
-```csharp
-public interface IExportable
-{
-    string Export(string format);
-
-    string ExportWithMetadata(string format)
-    {
-        return Export(format) + " | exported=" + DateTime.UtcNow.ToString("O");
-    }
-}
-```
-
-An older service still targets `netstandard2.0` and references the updated package. A newer ASP.NET Core service on `net8.0` overrides `ExportWithMetadata` in one document type. What breaks or surprises you in build, runtime, and testing — and what would you document for consumers?
-
----
-
-**Answer:**
-
-```csharp
-public interface IExportable
-{
-    string Export(string format);
-
-    string ExportWithMetadata(string format)
-    {
-        return Export(format) + " | exported=" + DateTime.UtcNow.ToString("O");
-    }
-}
-```
-
-An older service still targets `netstandard2.0` and references the updated package. A newer ASP.NET Core service on `net8.0` overrides `ExportWithMetadata` in one document type. What breaks or surprises you in build, runtime, and testing — and what would you document for consumers?
-
-**Answer:** Default interface methods require **C# 8+** and a runtime that supports them — `netstandard2.0` consumers may **fail to compile** or cannot override defaults the same way; even on modern runtimes, dispatch through the interface vs concrete type can surprise callers who expect polymorphic override behavior.
-
-- **Build / TFM:** Default interface members are not available on older language/runtime combinations targeting pre-C#-8 projects — the package bump may block the legacy service until it retargets or the new member is moved to an extension method or separate `IExportableV2`.
-- **Binary compatibility:** Adding a default method is often safer than adding a **required** abstract member (which breaks all implementers), but implementers on C# 8+ can override — document which types customize metadata vs inherit default.
-- **Dispatch nuance:** Calling `ExportWithMetadata` on `IExportable` uses the most specific override on the implementing type; calling on concrete class without override uses default — tests must use the same reference type production uses.
-- **Testing:** Fakes implementing `IExportable` inherit the default unless they override — unit tests may accidentally assert timestamp behavior from the default implementation instead of domain logic.
-- **Alternative for wide compatibility:** Extension method `ExportWithMetadata(this IExportable e, ...)` or compositional wrapper — works on `netstandard2.0` without DIM.
-
-**Production takeaway:** Default interface methods help evolve shared contracts with optional behavior (**Program.cs** Section 7 preview), but package authors must treat TFMs, override rules, and test doubles as part of the public API — not every consumer upgrades language version with the package.
-
----
-
----
-
-#### Q5. (R) Unit tests for `DocumentProcessor` are slow and require real PDF files on disk because production code was wired to concrete types. Review:
-
-```csharp
-public sealed class DocumentProcessor
-{
-    private readonly PdfRenderer _renderer = new PdfRenderer(); // reads templates from disk
-
-    public string BuildBatchSummary(IReadOnlyList<InvoiceDocument> documents)
-    {
-        var builder = new StringBuilder();
-        foreach (var doc in documents)
-        {
-            builder.AppendLine(doc.GetSummary());
-            builder.AppendLine(_renderer.Render(doc)); // not on Document base
-        }
-        return builder.ToString();
-    }
-}
-```
-
-The chapter's `DocumentProcessor` accepts `IReadOnlyList<Document>` and `ExportService` accepts `IEnumerable<IExportable>`. What is wrong here, and how would you introduce test seams?
-
----
-
-**Answer:**
-
-```csharp
-public sealed class DocumentProcessor
-{
-    private readonly PdfRenderer _renderer = new PdfRenderer(); // reads templates from disk
-
-    public string BuildBatchSummary(IReadOnlyList<InvoiceDocument> documents)
-    {
-        var builder = new StringBuilder();
-        foreach (var doc in documents)
-        {
-            builder.AppendLine(doc.GetSummary());
-            builder.AppendLine(_renderer.Render(doc)); // not on Document base
-        }
-        return builder.ToString();
-    }
-}
-```
-
-The chapter's `DocumentProcessor` accepts `IReadOnlyList<Document>` and `ExportService` accepts `IEnumerable<IExportable>`. What is wrong here, and how would you introduce test seams?
-
-**Answer:** The processor **news up** a concrete `PdfRenderer`, accepts only `InvoiceDocument`, and mixes summary building with PDF rendering — no injection point, so tests hit disk and cannot substitute a fake.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Testability | `new PdfRenderer()` inside the class | Tests require filesystem templates; slow, flaky CI |
-| Abstraction | Parameter is `InvoiceDocument` not `Document` | Cannot reuse batch logic for reports; breaks polymorphism |
-| SRP / design | Summary builder coupled to PDF rendering | Changing render strategy forces retesting batch orchestration |
-| DI | Hidden dependency | ASP.NET Core cannot register or swap renderer per environment |
-
-**Fix (priority order):**
-
-1. Extract rendering behind an interface — `IDocumentRenderer` or reuse `IExportable` / a narrow `IRenderable` with `string Render()` — inject via constructor.
-2. Accept abstractions on the base type: `IReadOnlyList<Document>` for polymorphic summaries (**Program.cs** Section 6).
-3. Register `PdfRenderer` in DI for production; register `FakeRenderer` in tests returning fixed strings.
-4. Keep orchestration thin — `BuildBatchSummary` calls `document.GetSummary()` and `document.RenderContent()` on the abstract base where possible; PDF-specific work lives in export/render services.
-
-```csharp
-public sealed class DocumentProcessor
-{
-    private readonly IDocumentRenderer _renderer;
-
-    public DocumentProcessor(IDocumentRenderer renderer) => _renderer = renderer;
-
-    public string BuildBatchSummary(IReadOnlyList<Document> documents)
-    {
-        var builder = new StringBuilder();
-        foreach (var doc in documents)
-        {
-            builder.AppendLine(doc.GetSummary());
-            builder.AppendLine(_renderer.Render(doc));
-        }
-        return builder.ToString();
-    }
-}
-```
-
-**Production takeaway:** Interfaces are test seams — depend on abstractions, inject implementations. The chapter's static `DocumentProcessor` / `ExportService` illustrate the **dependency direction**; production services add constructor injection and fakes for fast tests.
-
----
-
----
-
-#### Q6. (D) Code review: two approaches for a payment-notification feature.
-
-**Option A — one abstract base:**
-
-```csharp
-public abstract class NotifierBase
-{
-    public abstract void Send(string recipient, string message);
-    protected void LogAttempt(string recipient) { /* shared */ }
-}
-```
-
-**Option B — interface only:**
-
-```csharp
-public interface INotificationSender
-{
-    void Send(string recipient, string message);
-}
-```
-
-Some notifiers are `EmailNotifier : NotifierBase`; others are `SmsNotifier : INotificationSender` with no shared base. When do you pick abstract class, interface, or both — and what is your decision rule for this codebase?
-
----
-
----
-
-### 07. Encapsulation & Access Modifiers
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/07. Encapsulation & Access Modifiers`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
 ---
 
-**Answer:**
+## Q1. Explain the SOLID principles with concrete C# examples.
 
-**Option A — one abstract base:**
+**Concepts**
+- Single Responsibility: one reason to change per class
+- Open/Closed: open for extension, closed for modification
+- Liskov Substitution: derived types substitutable for base
+- Interface Segregation: small focused interfaces over fat ones
+- Dependency Inversion: depend on abstractions not concretions
 
-```csharp
-public abstract class NotifierBase
-{
-    public abstract void Send(string recipient, string message);
-    protected void LogAttempt(string recipient) { /* shared */ }
-}
-```
+**Answer**
 
-**Option B — interface only:**
+SOLID is five principles that guide maintainable OOP design. Single Responsibility means a class has one reason to change — `OrderValidator` validates, `OrderRepository` persists, not one class that does both. Open/Closed means extending behavior by adding new classes rather than editing existing ones — adding `PushNotificationSender : INotificationSender` extends the notification system without touching the `OrderFulfillmentService`. Liskov Substitution means derived types must be safely substitutable for their base — `Square : Rectangle` violates this when setting width independently breaks area invariants. Interface Segregation means clients should not depend on members they do not use — split a fat `IDocumentCapabilities` into `IExportable`, `IPrintable`, and `ISignable`. Dependency Inversion means high-level modules depend on abstractions — `OrderService` depends on `IPaymentProcessor`, not on `CardPaymentProcessor` directly.
 
-```csharp
-public interface INotificationSender
-{
-    void Send(string recipient, string message);
-}
-```
-
-Some notifiers are `EmailNotifier : NotifierBase`; others are `SmsNotifier : INotificationSender` with no shared base. When do you pick abstract class, interface, or both — and what is your decision rule for this codebase?
-
-**Answer:** Use an **abstract base** when notifiers truly share state or concrete helpers (logging, retry policy, template loading); use an **interface** when the only contract is "can send" across unrelated types; use **both** when shared infrastructure belongs in a base but multiple channels must also be substitutable in DI and tests.
-
-**Decision rule (aligned with this chapter):**
-
-| Signal | Choose |
-|---|---|
-| Shared fields, protected helpers, single IS-A hierarchy | Abstract class (`NotifierBase`) |
-| Unrelated types (email, SMS, webhook) must be swappable | `INotificationSender` interface |
-| Shared logging/retry **and** need multiple inheritance of behavior | Base class for shared code + `INotificationSender` implemented by base or subclasses |
-| Only some notifiers support attachments/signing | Separate small interfaces — do not bloated base |
-
-**For this codebase:**
-
-- **`INotificationSender`** for DI registration, controllers, and unit tests — same role as `IExportable` in **ExportService**.
-- **`NotifierBase`** only if most channels share `LogAttempt`, correlation id, or configuration — avoid forcing SMS through an email-centric hierarchy.
-- **`SmsNotifier : INotificationSender`** without base is valid when there is nothing to share — do not invent an abstract class for one method.
-
-**Production takeaway:** Abstract class answers "what are they in common?" Interface answers "what can they do for me?" The chapter's **Document** + **IExportable** combination is the template — base for identity, interfaces for pluggable capabilities and test doubles.
-
----
-
----
-
-### 07. Encapsulation & Access Modifiers
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/07. Encapsulation & Access Modifiers`
-
----
-
----
-
-#### Q1. (R) A junior developer "simplifies" the chapter's `BankAccount` for a payments microservice. QA reports negative balances in production. Review the change — what broke the invariant, and how do you fix it?
-
-```csharp
-public class BankAccount
-{
-    public decimal Balance { get; set; }
-    public string AccountNumber { get; }
-
-    public BankAccount(string accountNumber, decimal openingDeposit)
-    {
-        AccountNumber = accountNumber;
-        Balance = openingDeposit;
-    }
-
-    public void Deposit(decimal amount)
-    {
-        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
-        Balance += amount;
-    }
-
-    public bool TryWithdraw(decimal amount, out string message)
-    {
-        if (amount <= 0) { message = "Amount must be positive."; return false; }
-        if (amount > Balance) { message = "Insufficient funds."; return false; }
-        Balance -= amount;
-        message = "OK";
-        return true;
-    }
-}
-
-// Elsewhere in the API layer:
-account.Balance = -10_000m;   // "adjustment" from a support script
-account.Balance += 999m;      // race between two threads — no lock
-```
-
----
-
-**Answer:**
-
-**Answer:** Exposing `Balance` as a public setter lets any caller bypass `TryWithdraw` and `Deposit` rules — the type no longer owns its invariant, so external code and concurrent writers can corrupt state even though the methods still look correct.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design | Public `{ get; set; }` on domain state | Callers assign `Balance` directly — negative balances, skipped validation |
-| Concurrency | Read-modify-write on public property | Two threads can interleave `Balance +=` / `-=` without synchronization |
-| Encapsulation | Methods enforce rules; property ignores them | `TryWithdraw` checks become advisory — support scripts and mappers bypass them |
-| API contract | Mutable balance contradicts audit expectations | Ledger reconciliation finds amounts that never passed `Deposit`/`TryWithdraw` |
-
-**Fix (priority order):**
-
-1. Restore a **private** backing field (`private decimal _balance`) — no public setter.
-2. Expose balance read-only: `public decimal Balance => _balance;` or keep `GetBalance()` — callers observe, they do not mutate.
-3. Route all changes through methods that enforce invariants (positive deposits, sufficient funds, audit logging).
-4. If external systems must post adjustments, add an explicit `ApplyAdjustment(decimal amount, string reason, IAuthorizationContext ctx)` that validates authorization — never a bare setter.
-5. For concurrent updates, guard mutations with a lock, database transaction, or optimistic concurrency token — encapsulation alone does not fix races.
-
-```csharp
-private decimal _balance;
-
-public decimal Balance => _balance;
-
-public bool TryWithdraw(decimal amount, out string message)
-{
-    // sole path to decrease _balance
-}
-```
-
-**Production takeaway:** Auto-properties feel idiomatic in C#, but a public setter on invariant-bearing state is a field in disguise — Karat uses this to test whether you protect rules at the type boundary, not only inside "happy path" methods. See **Program.cs** Section 1 — `BankAccount` keeps `_balance` private.
-
----
-
----
-
-#### Q2. (R) A shared library ships both a public façade and internal implementation types. A consuming team references the NuGet package and complains they cannot unit-test ledger entries. Review the library surface:
-
-```csharp
-// Payments.Core.dll
-internal class InternalLedger
-{
-    public List<string> Entries { get; } = new();
-    public void Record(string description) => Entries.Add(description);
-}
-
-public class LedgerGateway
-{
-    public static InternalLedger CreateLedger() => new InternalLedger();
-
-    public static string PostEntry(InternalLedger ledger, string description)
-    {
-        ledger.Record(description);
-        return ledger.Entries[^1];
-    }
-}
-```
-
-What is wrong with this public API shape, and how would you redesign the assembly boundary?
-
----
-
-**Answer:**
-
-**Answer:** The library leaked an `internal` type through public method signatures — `CreateLedger` and `PostEntry` expose `InternalLedger` on the public API, which is a compile error for external consumers and breaks the intended assembly boundary even if it compiled.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `public` methods return/accept `internal` type | CS0051/CS0052 — inconsistent accessibility; package may not build |
-| API surface | Internal implementation type is part of public contract | Callers depend on types you intended to hide — versioning nightmare |
-| Encapsulation | Façade pattern inverted — gateway exposes guts | `List<string> Entries` on internal type becomes reachable if accessibility bug is fixed |
-| Testing | Consumers cannot construct `InternalLedger` | Tests forced to go through static gateway — brittle, no seam for fakes |
-
-**Fix (priority order):**
-
-1. Keep `InternalLedger` **internal**; never appear in public signatures.
-2. Introduce a **public** abstraction: `public interface ILedger { string PostEntry(string description); }` implemented internally, or return `string`/`LedgerEntryId` DTOs only.
-3. `LedgerGateway.PostEntry(string description)` creates the internal ledger internally — matches **Program.cs** Section 3 pattern.
-4. For testability inside the library, use `InternalsVisibleTo` for test assembly **or** expose `ILedger` with an internal default implementation registered via DI.
-5. Return immutable snapshots (`IReadOnlyList<LedgerEntry>`) rather than live `List<T>` references.
-
-```csharp
-public static class LedgerGateway
-{
-    public static string PostEntry(string description)
-    {
-        var ledger = new InternalLedger();
-        return ledger.Record(description);
-    }
-}
-```
-
-**Production takeaway:** `internal` types belong behind public façades — leaking them in signatures is worse than making everything public because it fails at compile time and signals unclear API design. See **Program.cs** Section 3 — `LedgerGateway` hides `InternalLedger`.
-
 ---
 
----
-
-#### Q3. (P) Two assemblies in the same solution — `Billing.Core` (library) and `Billing.Tests` — need test access to `internal` pricing helpers without exposing them on the public NuGet surface. A developer adds this to `Billing.Core.csproj`:
-
-```xml
-<ItemGroup>
-  <InternalsVisibleTo Include="Billing.Tests" />
-</ItemGroup>
-```
-
-What does `InternalsVisibleTo` actually grant, what risks does it introduce if misused, and what guardrails would you apply before adding friend assemblies in a production codebase?
+## Q2. What is the Liskov Substitution Principle? Give a classic violation.
 
----
-
-**Answer:**
+**Concepts**
+- substitutability of derived for base without breaking behavior
+- preconditions not strengthened in derived
+- postconditions not weakened in derived
+- Square/Rectangle as the canonical violation
+- invariant preservation as the key test
 
-_Answer not found._
-
----
+**Answer**
 
-#### Q4. (R) A domain hierarchy models employee compensation. A subclass "optimizes" payroll by writing directly to protected state. Review:
-
-```csharp
-public abstract class Employee
-{
-    protected decimal _baseSalary;
-    protected List<string> _auditTrail = new();
-
-    protected Employee(decimal baseSalary)
-    {
-        _baseSalary = baseSalary;
-        _auditTrail.Add($"Hired at {_baseSalary:C}");
-    }
-
-    public decimal GetBaseSalary() => _baseSalary;
-
-    public virtual void ApplyRaise(decimal percent)
-    {
-        if (percent <= 0) throw new ArgumentOutOfRangeException(nameof(percent));
-        _baseSalary *= (1 + percent / 100m);
-        _auditTrail.Add($"Raise {percent}% applied");
-    }
-}
-
-public class CommissionEmployee : Employee
-{
-    public CommissionEmployee(decimal baseSalary) : base(baseSalary) { }
-
-    public void SetGuaranteedMinimum(decimal minimum)
-    {
-        _baseSalary = minimum;           // bypasses ApplyRaise validation/audit
-        _auditTrail.Clear();             // hides history from HR reports
-    }
-}
-```
-
-What encapsulation failure does `protected` enable here, and how would you protect invariants for derived types?
+The Liskov Substitution Principle states that every instance of a derived class must be usable in place of a base class instance without breaking the program's correctness. The classic violation is `Square : Rectangle`: `Rectangle` has independently settable `Width` and `Height`, and code that sets `Width = 5` and then asserts `Area == 5 * Height` is correct for a `Rectangle` but breaks for a `Square`, because setting `Width` on a square must also change `Height`. When existing code that works correctly with `Rectangle` fails with `Square`, the is-a inheritance relationship is wrong. A design that models the relationship as a `Shape` interface with an `Area` property, where both implement independently, avoids the violation entirely.
 
 ---
 
-**Answer:**
+## Q3. What is Dependency Inversion, and how does constructor injection implement it?
 
-**Answer:** `protected` fields expose implementation details to every derived class — `CommissionEmployee` can mutate `_baseSalary` and `_auditTrail` without going through `ApplyRaise`, breaking payroll invariants and audit integrity that the base class thought it owned.
+**Concepts**
+- high-level modules depending on abstractions not concretions
+- low-level modules implementing abstractions
+- constructor injection as the primary DI mechanism
+- abstractions defined in terms of what callers need
+- testability and replaceability as outcomes
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | `protected` fields instead of controlled hooks | Subclasses bypass validation, logging, and business rules |
-| Invariant | Direct `_baseSalary` assignment | Raises applied without approval workflow; minimum wage rules skipped |
-| Audit | `_auditTrail.Clear()` | HR/compliance reports lose history — protected mutable collection |
-| Design | Base class cannot enforce postconditions on derived behavior | Liskov violations — base assumes audit trail is append-only |
+Dependency Inversion says high-level policy modules should not depend on low-level implementation details; both should depend on abstractions. Rather than `OrderService` creating a `new SqlOrderRepository()` internally, it declares `private readonly IOrderRepository _repo` and receives an `IOrderRepository` through its constructor. The concrete `SqlOrderRepository : IOrderRepository` is resolved by the DI container at startup. Constructor injection makes dependencies explicit and visible in the constructor signature, which makes the class testable — you can pass a fake `InMemoryOrderRepository` in unit tests — and replaceable — swapping `SqlOrderRepository` for `CosmosOrderRepository` requires no change to `OrderService`. The abstraction is defined in terms of what `OrderService` needs, not what the database supports.
 
-**Fix (priority order):**
-
-1. Make fields **private**; stop exposing raw state to subclasses.
-2. Expose controlled extension points: `protected void SetBaseSalary(decimal value, string reason)` that validates and appends audit entries — or make `ApplyRaise` `sealed`/`non-virtual` and use template method with protected abstract hooks that cannot touch salary directly.
-3. Return **read-only** audit view: `public IReadOnlyList<string> AuditTrail => _auditTrail.AsReadOnly();` — never expose mutable `List<T>` as `protected`.
-4. If derived types need guaranteed minimum, model it as separate state (`_guaranteedMinimum`) combined in a computed `EffectiveBaseSalary` — not by overwriting `_baseSalary`.
-5. Consider `private protected` only for same-assembly inheritance helpers — not as a substitute for private fields.
-
-```csharp
-private decimal _baseSalary;
-private readonly List<string> _auditTrail = new();
-
-protected void AdjustBaseSalary(decimal newSalary, string reason)
-{
-    if (newSalary < 0) throw new ArgumentOutOfRangeException(nameof(newSalary));
-    _baseSalary = newSalary;
-    _auditTrail.Add(reason);
-}
-```
-
-**Production takeaway:** `protected` is not "private but inheritance-friendly" for invariant-bearing data — it is a public API for every future subclass. See **Program.cs** Section 2 — `protected` visibility and Section 1 — behavior enforces invariants, not exposed fields.
-
----
-
 ---
-
-#### Q5. (D) Your team designs an immutable `MemberProfile` DTO for cross-service messaging (similar to this chapter's `MemberProfile`). Two proposals:
 
-**Proposal A — all init-only, mutable collection inside:**
+## Q4. What is the difference between Dependency Injection and the Service Locator pattern?
 
-```csharp
-public sealed class MemberProfileDto
-{
-    public string MemberId { get; init; }
-    public string Email { get; init; }
-    public List<string> Roles { get; init; } = new();
-}
-```
+**Concepts**
+- DI pushing dependencies in through constructor or parameters
+- Service Locator pulling dependencies out from a global registry
+- DI making dependencies explicit and visible
+- Service Locator creating hidden dependencies and global coupling
+- DI enabling testability without global state
 
-**Proposal B — private ctor + factory + read-only surface:**
+**Answer**
 
-```csharp
-public sealed class MemberProfileDto
-{
-    public string MemberId { get; }
-    public string Email { get; }
-    public IReadOnlyList<string> Roles { get; }
+Dependency Injection pushes dependencies into a class through its constructor (or method/property), making all dependencies explicit in the class signature. Service Locator has the class pull its own dependencies from a global registry: `var repo = ServiceLocator.Get<IOrderRepository>()`. With DI, you can see exactly what a class needs from its constructor; with Service Locator, dependencies are hidden inside the method body and the class couples itself to the locator globally. Testing with DI is straightforward — pass fakes through the constructor. Testing with Service Locator requires configuring the global registry before each test, creating ordering dependencies and potential test pollution. Service Locator is widely considered an anti-pattern for application code for these reasons.
 
-    private MemberProfileDto(string memberId, string email, IReadOnlyList<string> roles) { ... }
-
-    public static MemberProfileDto Create(string memberId, string email, IEnumerable<string> roles) { ... }
-}
-```
-
-Which approach would you ship for a message contract shared between three services, and why? What breaks if callers treat Proposal A as immutable?
-
----
-
-**Answer:**
-
-_Answer not found._
-
 ---
 
-#### Q6. (M) A plugin assembly (`Plugins.Payroll`) references your core HR assembly and defines `PayrollProcessor : Employee`. Developers expect to read `InternalCounter` on a base instance from the plugin, but the build fails with CS0122. Given this base class from the chapter:
+## Q5. What is the difference between "has-a" and "is-a" relationships? When is inheritance the wrong choice?
 
-```csharp
-public class VisibilityBase
-{
-    internal int InternalCounter = 3;
-    protected internal int ProtectedInternalCounter = 4;
-    private protected int PrivateProtectedCounter = 5;
-}
-```
+**Concepts**
+- is-a relationship justifying inheritance
+- has-a relationship justifying composition
+- inheritance implying substitutability by LSP
+- reuse without substitutability favoring composition
+- Stack extending List as a classic wrong inheritance
 
-Explain why each of the three counters behaves differently from a **derived class in another assembly**, and which modifier you would choose for a hook intended only for first-party plugins compiled into the same assembly as the base.
+**Answer**
 
----
+An is-a relationship means a derived type truly is a specialized form of the base and can be substituted for it — `Manager : Employee` is valid because a manager is an employee in every context that handles employees. A has-a relationship means a type contains another as a component — `OrderService` has an `IOrderRepository`, not is-a repository. Inheritance is wrong when the only motivation is code reuse without a true is-a relationship. The `Stack<T> : List<T>` design in older Java code is the canonical mistake: a stack is not a list and should not expose `Insert`, `RemoveAt`, or arbitrary indexing. The correct model is for `Stack<T>` to contain a `List<T>` internally and expose only `Push`, `Pop`, and `Peek`.
 
 ---
 
-### 08. Events
+## Q6. What is the anemic domain model anti-pattern?
 
-# Karat — Interview Questions
+**Concepts**
+- domain objects as pure data bags
+- business logic in external service classes
+- invariants unenforceable at the object level
+- rich domain model as the alternative
+- scattered and duplicated rules as the consequence
 
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/08. Events`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
+**Answer**
 
----
-
-**Answer:**
+An anemic domain model has classes that are pure data bags — only public getters and setters — while all business logic lives in separate service classes that operate on those data bags procedurally. A `Customer` with public `Balance` and `IsActive` setters that a `CustomerService` reads and writes directly is anemic: there is no place in the `Customer` type to enforce that balance never goes negative or that inactive customers cannot accrue transactions. Rules scatter across service classes, duplicate across use cases, and are easy to bypass. A rich domain model encapsulates rules inside the domain objects — `Customer.TryWithdraw` enforces the balance invariant — so the object cannot reach an invalid state regardless of which service method is called.
 
-_Answer not found._
-
 ---
-
-#### Q1. (R) A WPF-style desktop app keeps growing in memory after users open and close account detail panels. Review this wiring. What keeps `AccountDetailPanel` instances alive, and how do you fix it?
 
-```csharp
-public sealed class AccountDetailPanel : IDisposable
-{
-    private readonly BankAccount _account;
+## Q7. What is the Open/Closed Principle, and how do interfaces support extension without modification?
 
-    public AccountDetailPanel(BankAccount account)
-    {
-        _account = account;
-        _account.BalanceChanged += (_, e) =>
-            RefreshBalanceLabel(e.NewBalance);
-    }
+**Concepts**
+- open for extension by adding new implementations
+- closed for modification of existing stable code
+- interface enabling new types without editing callers
+- polymorphic dispatch routing to new behavior automatically
+- strategy and decorator as patterns relying on OCP
 
-    public void Dispose() { /* panel removed from UI */ }
+**Answer**
 
-    private void RefreshBalanceLabel(decimal balance) { /* update UI */ }
-}
+The Open/Closed Principle says software entities should be open for extension but closed for modification — you should be able to add new behavior without editing existing, tested code. Interfaces enable this: when `OrderFulfillmentService` loops over `IEnumerable<INotificationSender>`, adding `PushNotificationSender : INotificationSender` extends the system without touching the service. If the service instead had a long `if (type == "email") ... else if (type == "sms")` chain, adding push would require editing and retesting that chain. The polymorphic dispatch driven by the interface routes calls to the new implementation automatically. The Strategy and Decorator patterns both rely on OCP: strategies are new implementations of an interface injected at runtime; decorators wrap existing implementations with new behavior without changing the wrapped class.
 
-// Caller creates panels on navigation:
-var panel = new AccountDetailPanel(sharedAccount);
-// ... user navigates away; panel.Dispose() called but memory does not drop
-```
-
 ---
-
-**Answer:**
-
-**Answer:** The panel subscribes to `_account.BalanceChanged` with a lambda but never unsubscribes in `Dispose`, so the long-lived `BankAccount` publisher holds a delegate that captures `this` — the closed panel cannot be collected even after it is removed from the UI.
-
-**Issues:**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Lifetime | `+=` in constructor, no `-=` in `Dispose` | Publisher retains subscriber → memory leak |
-| Handler target | Lambda captures `this` (the panel instance) | GC cannot reclaim disposed UI objects |
-| Design | Shared singleton/static `BankAccount` outlives every panel | Leak accumulates on each navigation open/close |
+## Q8. What is the Single Responsibility Principle — how do you recognize a class that violates it?
 
-**Fix (priority order):**
+**Concepts**
+- one reason to change per class
+- responsibility as a cohesive area of concern
+- multiple unrelated concerns as a violation signal
+- large number of dependencies as a code smell
+- frequent changes for different reasons as runtime evidence
 
-1. Unsubscribe in `Dispose` (or `IAsyncDisposable`) — store the handler in a field if you used a lambda so `-=` matches the same delegate instance.
-2. Prefer a named instance method handler when possible: `_account.BalanceChanged += OnBalanceChanged;` and `-= OnBalanceChanged` in `Dispose`.
-3. If the publisher outlives all subscribers, consider weak-event patterns or a mediator (`IMediator`, `Channel<T>`) for UI refresh instead of direct domain events.
-4. Profile with a memory dump — look for `AccountDetailPanel` instances retained via `BankAccount` → multicast delegate chain.
+**Answer**
 
-```csharp
-private readonly EventHandler<BalanceChangedEventArgs> _balanceHandler;
+The Single Responsibility Principle says a class should have one reason to change — one area of concern that drives its evolution. A class that violates it will need to change when business rules for validation change, when the persistence mechanism changes, when the notification format changes, and when the logging format changes, all independently. A common signal is a constructor with many injected dependencies covering unrelated concerns: `OrderService(IValidator, IRepository, INotifier, ILogger, IInvoiceGenerator, IEmailService)` suggests the class is doing too much. The fix is to split responsibilities: `OrderValidator`, `OrderRepository`, `OrderNotificationService`, each with a focused constructor and a single reason to evolve.
 
-public AccountDetailPanel(BankAccount account)
-{
-    _account = account;
-    _balanceHandler = (_, e) => RefreshBalanceLabel(e.NewBalance);
-    _account.BalanceChanged += _balanceHandler;
-}
-
-public void Dispose()
-{
-    _account.BalanceChanged -= _balanceHandler;
-}
-```
-
-**Production takeaway:** Events create implicit references from publisher to subscriber — Karat tests whether you treat `-=` as mandatory cleanup, not optional. See **Program.cs** Section 6 — subscribe/unsubscribe and **Section 4c** — publisher outlives handlers.
-
----
-
 ---
 
-#### Q2. (R) After a refactor, balance notifications crash when no UI is subscribed. Review the publisher change:
+## Q9. What is the Interface Segregation Principle — why are fat interfaces problematic?
 
-```csharp
-public class BankAccount
-{
-    public event EventHandler<BalanceChangedEventArgs>? BalanceChanged;
+**Concepts**
+- clients not forced to depend on methods they do not use
+- fat interface forcing stubs for unused members
+- ISP violation producing unnecessary implementation coupling
+- small focused interfaces as the remedy
+- callers declaring minimal required contract
 
-    protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-    {
-        if (BalanceChanged != null)
-        {
-            BalanceChanged(this, e);  // was: BalanceChanged?.Invoke(this, e);
-        }
-    }
-}
-```
+**Answer**
 
-What breaks at runtime, and what is the idiomatic raise pattern in modern C#?
+The Interface Segregation Principle says clients should not be forced to implement or depend on interface members they do not use. A fat interface like `IDocumentCapabilities` that bundles export, print, PDF rendering, signing, and naming forces every implementor to provide all of them — a `ReportDocument` that only exports must stub or throw on signing and printing. This creates unnecessary coupling between unrelated capabilities. Small focused interfaces — `IExportable`, `IPrintable`, `ISignable` — let each implementor satisfy only what applies, and each caller declare the narrowest contract it needs: `ExportService` accepts `IEnumerable<IExportable>` rather than the full capabilities type.
 
 ---
-
-**Answer:**
-
-```csharp
-public class BankAccount
-{
-    public event EventHandler<BalanceChangedEventArgs>? BalanceChanged;
-
-    protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-    {
-        if (BalanceChanged != null)
-        {
-            BalanceChanged(this, e);  // was: BalanceChanged?.Invoke(this, e);
-        }
-    }
-}
-```
 
-What breaks at runtime, and what is the idiomatic raise pattern in modern C#?
+## Q10. What is a factory method vs a simple constructor — when do you introduce a factory?
 
-**Answer:** The null check and invoke are not atomic — another thread can unsubscribe between the `!= null` test and the call, leaving `BalanceChanged` null and throwing `NullReferenceException`. The idiomatic fix is null-conditional invoke: `BalanceChanged?.Invoke(this, e)`.
+**Concepts**
+- constructor for fundamental invariant-guaranteed creation
+- factory method for conditional or named creation
+- factory returning different subtypes based on arguments
+- factory enabling async initialization
+- factory encapsulating validation in a named operation
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | Split null-check + direct invoke | Rare NRE when last handler unsubscribes during raise |
-| Style | Verbose `if (BalanceChanged != null)` | Easy to regress during refactor away from `?.` |
-| Threading | Non-atomic check-then-invoke | Same race as Q4; worse under concurrent UI/service threads |
+A constructor is appropriate when creation is straightforward: supply required values, enforce basic invariants, and return a fully initialized object. A factory method is preferable when creation can fail in ways that should return a typed result rather than throw, when different arguments should yield different concrete subtypes (`Order.CreateRushOrder(...)` vs `Order.CreateStandardOrder(...)`), when the operation name carries domain meaning beyond "construct a T", or when initialization requires async work that constructors cannot express. Factory methods also allow private constructors so the only valid entry points are the named methods, which makes the creation API explicit and prevents callers from bypassing validation by choosing an inappropriate overload.
 
-**Fix (priority order):**
-
-1. Restore null-conditional invoke inside `OnBalanceChanged`: `BalanceChanged?.Invoke(this, e);`
-2. For multi-threaded publishers, copy to a local before invoke (see Q4): `var handler = BalanceChanged; handler?.Invoke(this, e);`
-3. Keep raise logic centralized in `OnBalanceChanged` so derived classes override one hook — matches **Program.cs** Section 4c.
-4. Add a unit test that unsubscribes a handler from inside another handler — reproduces the race without UI.
-
-**Production takeaway:** Forgetting `?.` is a classic production footgun — zero subscribers is normal, not exceptional. See **Program.cs** QUICK REFERENCE — "Forgetting ?. before Invoke → NullReferenceException."
-
----
-
 ---
-
-#### Q3. (R) A teammate exposes a notification hook as a public delegate field "for flexibility." Review usage from another assembly:
 
-```csharp
-public class PaymentGateway
-{
-    public Action<string>? PaymentCompleted;  // public field, not event
-}
+## Q11. What is the Strategy pattern, and how does it map to interfaces/delegates in C#?
 
-// Consumer startup:
-gateway.PaymentCompleted += msg => _audit.Log(msg);
+**Concepts**
+- Strategy encapsulating an algorithm behind an interface
+- context holding a strategy reference not a concrete implementation
+- swapping strategy at construction or runtime
+- delegate as lightweight strategy for single-method behaviors
+- dependency injection naturally delivering strategies
 
-// Later, a test helper "resets" listeners before each test:
-gateway.PaymentCompleted = null;
+**Answer**
 
-// Malicious or buggy caller in another module:
-gateway.PaymentCompleted?.Invoke("Fake payment — ship order");
-```
+The Strategy pattern defines a family of algorithms, encapsulates each behind an interface, and makes them interchangeable so the context that uses them can vary the algorithm independently. In C#, the pattern maps directly to interfaces: `IDiscountStrategy` with `decimal Calculate(Order order)`, implemented by `PercentageDiscount`, `FixedAmountDiscount`, and `NoDiscount`. The `PricingService` holds an `IDiscountStrategy` injected through its constructor and calls it without knowing the concrete type. For single-method strategies, a `Func<Order, decimal>` delegate is a lightweight alternative that avoids defining a dedicated interface. DI containers naturally deliver strategies: registering `IDiscountStrategy` binds to the environment-appropriate implementation at startup.
 
-What production risks does this design create compared to `public event Action<string>? PaymentCompleted`?
-
 ---
-
-**Answer:**
 
-```csharp
-public class PaymentGateway
-{
-    public Action<string>? PaymentCompleted;  // public field, not event
-}
+## Q12. What is the Repository pattern at a high level, and why depend on abstractions?
 
-// Consumer startup:
-gateway.PaymentCompleted += msg => _audit.Log(msg);
+**Concepts**
+- repository mediating between domain and data storage
+- interface hiding persistence mechanism from domain logic
+- domain logic testable without database
+- swappable implementations for different storage backends
+- unit of work pairing with repository for transaction scope
 
-// Later, a test helper "resets" listeners before each test:
-gateway.PaymentCompleted = null;
+**Answer**
 
-// Malicious or buggy caller in another module:
-gateway.PaymentCompleted?.Invoke("Fake payment — ship order");
-```
+The Repository pattern mediates between the domain model and the data storage layer, presenting a collection-like interface for querying and persisting domain objects: `ICustomerRepository` with `GetById(Guid id)`, `Add(Customer customer)`, and `Save()`. Domain logic depends on the interface, not on EF Core, Dapper, or any specific storage technology. This separation means domain logic can be unit-tested with an in-memory fake repository without a database, alternate storage backends (SQL, CosmosDB, file system) can be introduced by implementing the interface, and the domain layer does not need to change when the persistence technology changes. A Unit of Work pairs with repositories to coordinate multiple repositories in a single transaction boundary.
 
-What production risks does this design create compared to `public event Action<string>? PaymentCompleted`?
-
-**Answer:** A public delegate field lets any caller invoke the callback chain or assign `null`, wiping every subscriber without their knowledge — breaking audit trails, tests, and domain integrity. The `event` keyword restricts outsiders to `+=` / `-=` only; only `PaymentGateway` may raise from inside the type (CS0070 blocks external `Invoke`).
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security / integrity | External `Invoke` fakes domain events | Downstream systems act on spoofed "payment completed" |
-| Encapsulation | `= null` clears entire multicast chain | Silent loss of audit/logging handlers after test reset or bug |
-| API contract | Callers cannot distinguish publisher vs subscriber responsibilities | Violates publisher/subscriber roles from **Program.cs** Section 1 |
-| Compile-time safety | No CS0070 guard on external raise | Fake notifications ship to production undetected |
-
-**Fix (priority order):**
-
-1. Change to `public event Action<string>? PaymentCompleted;` and raise only from an internal `Publish(string message)` method.
-2. Replace test `= null` with explicit `-=` per registered handler, or create a fresh gateway instance per test.
-3. For cross-assembly extensibility, prefer interfaces + DI (`INotificationPublisher`) over exposed delegate fields.
-4. Code-review rule: flag `public Action`/`Func` fields on domain types — require `event` or method-based hooks.
-
-```csharp
-public class PaymentGateway
-{
-    public event Action<string>? PaymentCompleted;
-
-    public void CompletePayment(string receiptId)
-    {
-        // real gateway work...
-        PaymentCompleted?.Invoke(receiptId);
-    }
-}
-```
-
-**Production takeaway:** **Program.cs** Section 5 — `UnsafeNotifier` vs `SafeNotifier` — same lesson at enterprise scale: events protect who may raise and who may clear subscribers.
-
 ---
 
----
+## Q13. How does polymorphism simplify replacing implementations in tests?
 
-#### Q4. (P) A background `BankAccount` service raises `BalanceChanged` from worker threads while the UI thread subscribes handlers. A developer uses only null-conditional invoke inside `OnBalanceChanged`:
+**Concepts**
+- interface enabling mock or stub substitution
+- test double replacing real implementation via constructor injection
+- no network, disk, or database required in unit tests
+- polymorphic dispatch routing to fake in tests
+- behavior verification through mock assertions
 
-```csharp
-protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-{
-    BalanceChanged?.Invoke(this, e);
-}
-```
+**Answer**
 
-Under concurrent subscribe/unsubscribe, handlers are occasionally skipped or you see rare `NullReferenceException` in older .NET code paths. Explain the race and show the thread-safe raise pattern from this chapter.
+When a class depends on an interface rather than a concrete type, any object implementing that interface can be injected — including test doubles. A unit test for `OrderService(IOrderRepository repo)` creates a `FakeOrderRepository : IOrderRepository` that stores orders in a `Dictionary` and injects it: `new OrderService(fakeRepo)`. The `OrderService` code calls `repo.Save(order)` polymorphically, and the fake implementation records the call without touching a database. This makes tests fast, isolated, and deterministic. Mock frameworks like Moq and NSubstitute generate these fakes automatically from interfaces. Without the interface — if `OrderService` directly used `SqlOrderRepository` — there is no injection seam and no way to avoid the database dependency in tests.
 
 ---
-
-**Answer:**
-
-```csharp
-protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-{
-    BalanceChanged?.Invoke(this, e);
-}
-```
-
-Under concurrent subscribe/unsubscribe, handlers are occasionally skipped or you see rare `NullReferenceException` in older .NET code paths. Explain the race and show the thread-safe raise pattern from this chapter.
-
-**Answer:** `BalanceChanged?.Invoke` still reads the event field twice conceptually — between load and invoke another thread can `-=` the last handler and set the backing delegate to null, so some handlers never run or an older pattern throws. Copy the delegate reference to a local variable, then null-conditional invoke the copy so the invocation list is fixed for that raise.
-
-- **Race:** Thread A loads non-null delegate → Thread B unsubscribes last handler (field becomes null) → Thread A invokes — skipped notification or NRE with explicit null-check code.
-- **Thread-safe pattern (from this chapter):**
-
-```csharp
-protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
-{
-    EventHandler<BalanceChangedEventArgs>? handler = BalanceChanged;
-    handler?.Invoke(this, e);
-}
-```
 
-- **Why it works:** The local `handler` captures the multicast delegate snapshot at raise time; subsequent `+=`/`-=` on the event do not affect that snapshot.
-- **Stronger option:** Custom `add`/`remove` accessors with a lock if subscribe/unsubscribe must be synchronized with raise — **Program.cs** Section 4d; default compiler accessors are usually enough once you copy locally.
-- **UI note:** Even with a safe raise, handlers that touch UI controls must marshal to the UI thread (`Dispatcher`, `SynchronizationContext`) — thread-safe raise does not make handler bodies thread-safe.
+## Q14. What is the difference between domain modeling with rich behavior vs CRUD-style service objects?
 
-**Production takeaway:** Null-conditional invoke fixes "no subscribers"; local copy fixes "subscribers changed mid-raise" — Karat stacks both. See **BankAccount.OnBalanceChanged** in **Program.cs** lines 215–219.
+**Concepts**
+- rich domain object encapsulating state and rules together
+- CRUD service operating on dumb data objects
+- invariant enforcement location in each approach
+- anemic model duplicating rules across service methods
+- rich model keeping domain knowledge inside the domain
 
----
-
----
+**Answer**
 
-#### Q5. (P) An ASP.NET Core API registers a **Singleton** `OrderStateTracker` that exposes `event EventHandler<OrderPlacedEventArgs>? OrderPlaced`. Scoped services subscribe in their constructors to push SignalR updates. After a few thousand requests, memory climbs and old connections still receive events. What is wrong with this wiring, and what pattern replaces in-process events for web apps?
-
-```csharp
-builder.Services.AddSingleton<OrderStateTracker>();
-builder.Services.AddScoped<OrderNotificationService>();
-
-public sealed class OrderNotificationService
-{
-    public OrderNotificationService(OrderStateTracker tracker, IHubContext<OrderHub> hub)
-    {
-        tracker.OrderPlaced += async (_, e) =>
-            await hub.Clients.All.SendAsync("orderPlaced", e.OrderId);
-    }
-}
-```
+Rich domain modeling puts both state and the rules governing it inside the domain object: `Order.Confirm()` validates that the order has items, marks it confirmed, and raises an event — the `Order` class owns its lifecycle. CRUD-style service objects treat domain objects as passive data and perform all operations externally: `OrderService.ConfirmOrder(int orderId)` loads the order DTO, checks items, sets the status, saves it back. With CRUD, the rules scatter across service methods and are easy to bypass by calling the repository directly. With rich models, bypassing rules requires actively circumventing the domain object's methods. Rich modeling is preferable for complex domains with meaningful state transitions; CRUD is pragmatic for simple data entry applications where the domain is a thin wrapper over storage.
 
 ---
-
-**Answer:**
 
-**Answer:** A singleton publisher lives for the app lifetime, but each scoped `OrderNotificationService` subscribes in its constructor and never unsubscribes — every request adds another handler to the same event, retaining disposed scopes, `IHubContext` captures, and stale SignalR targets until the process recycles.
+## Q15. Virtual method from base constructor — what is the risk?
 
-- **DI lifetime mismatch:** Singleton event source + scoped subscriber constructor subscription = unbounded handler list growth per HTTP request.
-- **Memory:** Each handler closes over `hub` and possibly request state — GC cannot collect completed requests still referenced by the delegate chain.
-- **Correctness:** Old handlers fire on new orders — clients see duplicate or ghost notifications from recycled connection ids.
+**Concepts**
+- derived override executing before derived field initializers run
+- derived fields seeing default zero values during the virtual call
+- base constructor unaware of derived initialization order
+- NullReferenceException or logical errors from uninitialized state
+- avoiding virtual calls in constructors as the safe rule
 
-**Fix (priority order):**
+**Answer**
 
-1. **Do not** subscribe in scoped service constructors to singleton events without matching `-=` in `Dispose`/`IAsyncDisposable` — hard to get right in ASP.NET.
-2. Prefer **`IOptions` + `IHostedService`**, a **singleton** broadcaster with explicit connection mapping, or **`IHubContext` injected into a singleton** that tracks groups — not per-request event handlers.
-3. For domain decoupling in ASP.NET Core, use **`IMediator` (MediatR)**, **`Channel<T>`**, or **message bus** (Azure Service Bus, RabbitMQ) scoped to the unit of work — not classic C# events across DI lifetimes.
-4. If events are required (e.g., `DbContext.SaveChanges` interceptors), keep subscriber lifetime **≤ publisher lifetime** and unsubscribe when scope ends.
-
-```csharp
-// Better: scoped handler invoked explicitly from application service, no singleton event
-public sealed class OrderApplicationService
-{
-    private readonly IHubContext<OrderHub> _hub;
-    public async Task PlaceOrderAsync(Order order, CancellationToken ct)
-    {
-        // persist order...
-        await _hub.Clients.Group(order.CustomerId).SendAsync("orderPlaced", order.Id, ct);
-    }
-}
-```
-
-**Production takeaway:** C# events assume you manage lifetimes manually — ASP.NET DI scopes do not auto-unsubscribe. Karat links **Events** to **DI lifetimes**: singleton + scoped event wiring is a production leak. Preview: **Program.cs** Section 6 — multi-handler wiring moves to ch.09 with service registration.
-
----
+When a base class constructor calls a virtual method, the CLR dispatches to the most-derived override even though the derived object is still being initialized. Since derived instance field initializers and the derived constructor body have not yet run, the override sees all derived fields at their default zero values — `null` for reference types, `0` for numerics. This produces `NullReferenceException` or silent incorrect behavior when the override reads derived state it assumes has been initialized. The safe rule is to avoid calling virtual methods from constructors entirely; if base initialization must invoke logic that varies per subclass, use a separate virtual `Initialize()` method that callers invoke after construction, or pass the varying logic as a constructor parameter.
 
 ---
 
-#### Q6. (D) Your team debates three ways to notify downstream code when `BankAccount` balance changes: (A) `public event EventHandler<T>`, (B) `public Action<T>?` callback field, (C) `INotificationService` injected and called directly from `Deposit`/`TryWithdraw`. When would you choose each in a production ASP.NET Core domain layer, and what is the unsubscribe/lifetime rule of thumb?
+## Q16. Method hiding vs overriding — how does `new` vs `override` affect dispatch?
 
----
-
-### 09. OOP Real-World Examples
+**Concepts**
+- override replacing virtual slot for runtime-type-based dispatch
+- new creating a separate method slot resolved by compile-time type
+- base-typed reference reaching base method when new is used
+- derived-typed reference reaching hiding method
+- polymorphic designs requiring override not new
 
-# Karat — Interview Questions
+**Answer**
 
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/09. OOP Real-World Examples`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
+`override` replaces the virtual slot in the derived type's method table, so any call through any reference type — base or derived — dispatches to the derived implementation at runtime. `new` creates a separate method declaration that hides the base method for callers holding a derived-typed reference but leaves the virtual slot untouched, so callers holding a base-typed reference still reach the base method. The practical consequence: `Base b = new Derived(); b.M()` calls `Base.M` if `M` uses `new`, and calls `Derived.M` if `M` uses `override`. Mixing the two in a hierarchy breaks the expectation that polymorphic callers receive derived behavior, which is why `new` should not be used as a substitute for `override` in any design that relies on substitutability.
 
 ---
-
-**Answer:**
-
-**Answer:** In ASP.NET Core domain services, prefer **(C) injected abstractions** for application boundaries; use **(A) events** for in-process, same-lifetime object graphs (UI controls, short-lived aggregates with explicit cleanup); avoid **(B) public delegate fields** in production domain code except internal test doubles.
 
-| Option | When to use | Lifetime rule |
-|---|---|---|
-| **(A) `event`** | Same-assembly domain objects, UI binding, aggregates where subscribers share publisher lifetime | Every `+=` needs matching `-=` when subscriber dies first; publisher must outlive or use weak patterns |
-| **(B) `Action` field** | Rare — single callback slot, prototype code, serializer-friendly delegates you control entirely | Same as (A), plus anyone can `= null` or invoke — not for public APIs |
-| **(C) `INotificationService` / MediatR** | ASP.NET Core services, cross-layer notifications, testability, multiple implementations | DI scope owns lifetime — no manual unsubscribe; singleton must not capture scoped services |
+## Q17. `Equals()` without `GetHashCode()` — what breaks?
 
-**Production guidance:**
+**Concepts**
+- hash contract requiring equal objects to have equal hash codes
+- Dictionary and HashSet using hash code for bucket placement
+- object placed in bucket by original hash code
+- mutation changing hash code breaking dictionary lookup
+- required co-override of Equals and GetHashCode
 
-- **Domain layer in API:** `BankAccount` should not expose public events to the web stack — call `INotificationService.PublishBalanceChanged(...)` from application services after persistence so lifetimes follow the request scope.
-- **Console/UI tools:** Events match **Program.cs** tutorial — `BankAccount` + handlers in `Main` with clear subscribe/unsubscribe demo.
-- **Testing:** (C) is easiest to mock; (A) requires raising events or attaching test handlers with cleanup; (B) invites test code that clears production handlers with `= null`.
-- **Rule of thumb:** If the subscriber has a **shorter lifetime than the publisher**, you must unsubscribe — or do not use events. If lifetimes are managed by DI, use interfaces instead of events.
+**Answer**
 
-**Production takeaway:** Events excel at decoupling within one process and one lifetime story; ASP.NET Core's scoped/singleton graph breaks that assumption — Karat expects you to pick the mechanism by **who raises, who listens, and who outlives whom**, not syntax preference alone.
+The hash contract requires that if two objects are equal according to `Equals`, they must return the same value from `GetHashCode`. If you override `Equals` without also overriding `GetHashCode`, two equal objects may hash to different buckets in a `Dictionary` or `HashSet`, so the collection cannot find the key even though `Equals` would return true. Additionally, if you place a mutable object as a dictionary key and then mutate it in a way that changes what `GetHashCode` returns, the object is now in the wrong bucket and lookups fail silently — the entry appears lost even though it is still in the collection. Always override `Equals` and `GetHashCode` together so they remain consistent.
 
 ---
 
-### 09. OOP Real-World Examples
+## Q18. Mutable object as dictionary key — what is the runtime risk?
 
-# Karat — Interview Answers
+**Concepts**
+- dictionary placing key in bucket based on hash at insertion
+- mutation changing hash code moving key to wrong logical bucket
+- lookup after mutation failing to find the entry
+- entry effectively lost without removal
+- immutable types or stable hash codes as safe key designs
 
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
+**Answer**
 
-> **Folder:** `02. C# Language Fundamentals/02. Object Oriented Programming/09. OOP Real-World Examples`
+A `Dictionary<TKey, TValue>` hashes the key at insertion and places the entry in the bucket corresponding to that hash. If the key object is mutable and you change a field that affects `GetHashCode` after insertion, the stored hash no longer matches the bucket where the entry lives. A subsequent lookup hashes the mutated key, searches the wrong bucket, and finds nothing — the entry appears to have vanished even though it is still present in the dictionary. The entry cannot be retrieved or removed via normal means. The safe design is to use immutable types as dictionary keys — or at minimum types whose `GetHashCode` is based only on immutable identity fields that never change after construction.
 
 ---
-
----
-
-#### Q1. (R) A team ports the chapter's order-fulfillment payment flow into a service class. Support sees duplicate debits and failed rollbacks after card declines. Review:
-
-```csharp
-public sealed class OrderPaymentService
-{
-    public string Run(BankAccount wallet, decimal total, string orderRef)
-    {
-        var card = new CardPaymentProcessor();
-        var walletGw = new WalletPaymentProcessor();
 
-        if (wallet.Balance < total)
-            return "Insufficient funds";
+## Q19. Struct boxing via interface — what happens to subsequent mutations?
 
-        wallet.TryWithdraw(total, out _);
+**Concepts**
+- boxing copying struct to a new heap allocation
+- interface variable holding a reference to the boxed copy
+- mutations through the interface variable affecting only the boxed copy
+- original struct variable remaining unchanged
+- interfaces not enabling in-place struct mutation
 
-        string result = card.ProcessOrderPayment(total, orderRef);
-        if (result.Contains("declined", StringComparison.OrdinalIgnoreCase))
-        {
-            wallet.Deposit(total);
-            result = walletGw.ProcessOrderPayment(total, "WLT-" + orderRef);
-        }
+**Answer**
 
-        return result;
-    }
-}
-```
+When a struct is assigned to an interface variable, the struct is boxed: a new heap allocation is created containing a copy of the struct's fields, and the interface variable holds a reference to that boxed copy. Subsequent mutations through the interface variable modify the boxed copy on the heap, not the original struct variable. The original struct remains unchanged because it and the boxed copy are independent values after the boxing operation. This surprises developers who expect interface-based operations to modify the original struct in place. If you need a struct's interface implementations to mutate state that the original variable sees, you cannot achieve that through an interface reference — you must hold the struct directly or use `ref` parameters.
 
-What is wrong across encapsulation, abstraction, and correctness — and how would you fix it in priority order?
-
----
-
-**Answer:**
-
-```csharp
-public sealed class OrderPaymentService
-{
-    public string Run(BankAccount wallet, decimal total, string orderRef)
-    {
-        var card = new CardPaymentProcessor();
-        var walletGw = new WalletPaymentProcessor();
-
-        if (wallet.Balance < total)
-            return "Insufficient funds";
-
-        wallet.TryWithdraw(total, out _);
-
-        string result = card.ProcessOrderPayment(total, orderRef);
-        if (result.Contains("declined", StringComparison.OrdinalIgnoreCase))
-        {
-            wallet.Deposit(total);
-            result = walletGw.ProcessOrderPayment(total, "WLT-" + orderRef);
-        }
-
-        return result;
-    }
-}
-```
-
-What is wrong across encapsulation, abstraction, and correctness — and how would you fix it in priority order?
-
-**Answer:** The service debits the wallet before any gateway succeeds, then infers payment outcome from a formatted string and silently retries a second gateway — so a declined card can still leave the customer charged twice or in an inconsistent ledger state. It also hard-codes concrete processors instead of depending on the chapter's `PaymentProcessor` abstraction.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Withdraw **before** confirmed charge; fallback charges a **second** gateway after partial success | Duplicate debits, reconciliation nightmares, support tickets |
-| Encapsulation | Ignores `TryWithdraw` result (`out _` discarded); balance check + withdraw not atomic with payment | Race conditions; withdraw can fail while flow continues |
-| Abstraction / DIP | `new CardPaymentProcessor()` / `new WalletPaymentProcessor()` inside method | Cannot swap gateways, mock in tests, or extend without editing this class (OCP) |
-| Design | Parses `"declined"` from human-readable `ProcessOrderPayment` string | Fragile coupling to message text; breaks localization or logging changes |
-| Domain | No idempotency on `orderRef` | Retries double-charge the same order |
-
-**Fix (priority order):**
-
-1. **Stop debiting before payment succeeds** — call `PaymentProcessor.TryCharge` (or gateway API) first; only `TryWithdraw` / ledger debit after confirmed charge, inside one transactional boundary (DB transaction or saga with compensating action).
-2. **Inject `PaymentProcessor` (or strategy per payment method)** — caller or factory selects one processor per order; do not sequentially hammer two gateways on one decline string match.
-3. **Use structured results** — return `bool` / result type from charge APIs, not `Contains("declined")` on formatted strings.
-4. **Respect `TryWithdraw` outcome** and frozen-account rules from chapter `BankAccount` — propagate `errorMessage`; never ignore `out` parameters.
-5. Add **idempotency key** on `orderRef` so retries are safe.
-
-```csharp
-public sealed class OrderPaymentService
-{
-    private readonly PaymentProcessor _processor;
-
-    public OrderPaymentService(PaymentProcessor processor) => _processor = processor;
-
-    public bool Run(BankAccount wallet, decimal total, string orderRef, out string message)
-    {
-        if (!_processor.TryCharge(total, orderRef))
-        {
-            message = _processor.ProcessOrderPayment(total, orderRef);
-            return false;
-        }
-
-        if (!wallet.TryWithdraw(total, out message))
-        {
-            // Compensating refund/charge reversal on gateway
-            return false;
-        }
-
-        message = _processor.ProcessOrderPayment(total, orderRef);
-        return true;
-    }
-}
-```
-
-**Production takeaway:** The chapter separates **encapsulated ledger rules** (`BankAccount`) from **hidden gateway logic** (`PaymentProcessor`) — Karat stacks them to see if you preserve invariants when wiring a "real" service. See **Program.cs** Sections 2–3 — `TryWithdraw` + `ProcessOrderPayment`.
-
 ---
 
----
-
-#### Q2. (R) A logistics API quotes delivery cost from the chapter's `Vehicle` fleet. After adding `Motorcycle` to the fleet, quotes are wrong and every new vehicle type requires editing this method. Review:
+## Q20. `protected internal` vs `private protected` — what is the access difference?
 
-```csharp
-public static decimal QuoteDelivery(Vehicle vehicle, decimal distanceKm, decimal ratePerKm)
-{
-    if (vehicle is Car)
-        return distanceKm * ratePerKm;
+**Concepts**
+- protected internal as union: protected OR same-assembly
+- private protected as intersection: protected AND same-assembly
+- external derived classes accessing protected internal
+- external derived classes blocked from private protected
+- narrowest appropriate modifier as the guiding principle
 
-    if (vehicle is Truck truck)
-        return distanceKm * ratePerKm * (1.0m + truck.PayloadTons * 0.05m);
+**Answer**
 
-    // Fallback for anything else (Motorcycle, future types)
-    return distanceKm * ratePerKm * 2.0m;
-}
-```
+`protected internal` is a union modifier: a member is accessible to any derived class anywhere, and also to any code in the same assembly regardless of inheritance. An external assembly's subclass can access `protected internal` members because the `protected` part of the union applies. `private protected` is an intersection: a member is accessible only to code that is both a derived class and located in the same assembly. An external assembly's subclass cannot access `private protected` members because the assembly requirement is not met. Use `private protected` when a member is an extension point intended only for subclasses built as part of the same library; use `protected internal` only when external subclasses legitimately need the member as part of the public extension API.
 
-What design problems do you see, and how does the chapter's polymorphism model replace this?
-
 ---
-
-**Answer:**
 
-```csharp
-public static decimal QuoteDelivery(Vehicle vehicle, decimal distanceKm, decimal ratePerKm)
-{
-    if (vehicle is Car)
-        return distanceKm * ratePerKm;
+## Q21. Type-checking anti-pattern — why are long `is` chains problematic?
 
-    if (vehicle is Truck truck)
-        return distanceKm * ratePerKm * (1.0m + truck.PayloadTons * 0.05m);
+**Concepts**
+- is chains reimplementing virtual dispatch manually
+- new type requiring editing all switch/if locations
+- violating Open/Closed by requiring modification
+- virtual method routing automatically to new type
+- switch expression as a more maintainable alternative for closed sets
 
-    // Fallback for anything else (Motorcycle, future types)
-    return distanceKm * ratePerKm * 2.0m;
-}
-```
+**Answer**
 
-What design problems do you see, and how does the chapter's polymorphism model replace this?
-
-**Answer:** The method re-implements pricing with type tests and a punitive default multiplier, so `Motorcycle` quotes are wrong and every new `Vehicle` subtype forces another branch — exactly what polymorphic `EstimateDeliveryCostKm` on the chapter's hierarchy avoids.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Polymorphism | Ignores `Vehicle.EstimateDeliveryCostKm` override on `Truck` | Duplicated / divergent pricing logic; truck payload formula may drift from domain |
-| OCP | Central `is` / `if` chain | New vehicle types require editing shared utility — merge conflicts, missed cases |
-| LSP / correctness | `2.0m` fallback for unknown types | Motorcycles overcharged; silent wrong quotes in production |
-| Maintainability | `Car` branch duplicates base `ratePerKm * 1.0m` | Two places to change base rate logic |
-
-**Fix (priority order):**
-
-1. Replace the method body with **`vehicle.EstimateDeliveryCostKm(ratePerKm) * distanceKm`** — one line using runtime dispatch.
-2. Override `EstimateDeliveryCostKm` on subtypes that differ (`Truck` already does); leave `Car` / `Motorcycle` on base behavior or add precise overrides.
-3. Delete the fallback multiplier — if a new type needs special pricing, add a derived class override instead of editing a god-method.
-4. Accept `Vehicle` (or `IReadOnlyList<Vehicle>`) in fleet APIs so callers never downcast for pricing.
-
-**Production takeaway:** Chapter Section 4–5 shows **virtual override + base reference** so fleet loops stay branch-free — Karat uses logistics quoting to test whether you reach for `is` checks after learning polymorphism. See **Program.cs** — `deliveryVehicle.EstimateDeliveryCostKm(ratePerKm)`.
-
----
+Long `if (animal is Dog) ... else if (animal is Cat) ... else if (animal is Bird)` chains defeat polymorphism because they re-implement the dispatch logic that a virtual `Speak()` method would handle automatically. Every time a new animal type is added, every such chain throughout the codebase must be found and updated, which violates the Open/Closed Principle and creates maintenance risk when any chain is missed. A virtual method routes to the new type's override automatically with no existing code changed. When a closed type set genuinely warrants type-based dispatch — for example, an AST node visitor where not all types have a shared virtual method — prefer a `switch` expression with exhaustive type patterns so the compiler warns when a new case is not handled.
 
 ---
 
-#### Q3. (R) A PR consolidates payment, delivery, labels, notifications, and invoicing into one coordinator for "simplicity." Review:
+## Q22. Memory leaks despite GC — what causes them in managed code?
 
-```csharp
-public sealed class OrderFulfillmentHub
-{
-    public BankAccount CustomerWallet { get; set; } = new("ACC-DEFAULT", 0m);
+**Concepts**
+- GC collecting unreachable objects only
+- long-lived roots retaining references to short-lived objects
+- event handlers keeping subscribers alive through delegate references
+- static caches accumulating entries indefinitely
+- IDisposable unsubscription and cache eviction as fixes
 
-    public string Fulfill(string customer, string orderRef, decimal total)
-    {
-        CustomerWallet.TryWithdraw(total, out _);
+**Answer**
 
-        var card = new CardPaymentProcessor();
-        card.ProcessOrderPayment(total, orderRef);
+The GC collects objects that are unreachable — no live root holds a reference chain to them. A managed memory leak occurs when a long-lived root unintentionally holds a reference to a short-lived object, keeping it reachable and uncollectable. The two classic sources are event handlers and static caches. A static singleton publisher that accumulates event subscriptions over time holds references to every subscriber ever attached, preventing their collection even after they are logically done. A `static Dictionary` used as a cache that grows without eviction holds all cached objects for the process lifetime. The fixes are unsubscribing from events in `Dispose`, using `WeakReference` for caches that should not prevent collection, and adding cache eviction or expiration policies.
 
-        var truck = new Truck("Tata", "LPT", 2021, 3.5m);
-        decimal cost = truck.EstimateDeliveryCostKm(2.4m) * 12.5m;
-
-        var circle = new Circle(3.5);
-        string label = $"Label area={Math.PI * circle.Radius * circle.Radius:0.##}";
-
-        var email = new EmailNotificationSender();
-        email.Send(customer, $"Order {orderRef} for {total:C}");
-
-        var invoice = new InvoiceDocument("INV-1", DateTime.UtcNow, customer, total);
-        return invoice.Render() + $" | delivery={cost:C} | {label}";
-    }
-}
-```
-
-Identify stacked OOP and SOLID issues. What would you split, inject, or abstract first?
-
 ---
-
-**Answer:**
-
-```csharp
-public sealed class OrderFulfillmentHub
-{
-    public BankAccount CustomerWallet { get; set; } = new("ACC-DEFAULT", 0m);
-
-    public string Fulfill(string customer, string orderRef, decimal total)
-    {
-        CustomerWallet.TryWithdraw(total, out _);
-
-        var card = new CardPaymentProcessor();
-        card.ProcessOrderPayment(total, orderRef);
-
-        var truck = new Truck("Tata", "LPT", 2021, 3.5m);
-        decimal cost = truck.EstimateDeliveryCostKm(2.4m) * 12.5m;
-
-        var circle = new Circle(3.5);
-        string label = $"Label area={Math.PI * circle.Radius * circle.Radius:0.##}";
-
-        var email = new EmailNotificationSender();
-        email.Send(customer, $"Order {orderRef} for {total:C}");
-
-        var invoice = new InvoiceDocument("INV-1", DateTime.UtcNow, customer, total);
-        return invoice.Render() + $" | delivery={cost:C} | {label}";
-    }
-}
-```
-
-Identify stacked OOP and SOLID issues. What would you split, inject, or abstract first?
-
-**Answer:** One class owns mutable shared wallet state, hard-coded collaborators, duplicated shape math, and a string-concatenated API response — violating SRP and DIP while bypassing the chapter's interface and polymorphism seams.
-
-**Issues:**
 
-| Category | Problem | Impact |
-|---|---|---|
-| SRP | Payment, delivery, labeling, notify, invoice in one method | Untestable blob; any change risks regressions everywhere |
-| Encapsulation | Public `CustomerWallet` setter + default account | Any caller can swap or corrupt shared wallet; multi-tenant bleed |
-| DIP / abstraction | `new CardPaymentProcessor`, `new EmailNotificationSender`, inline `Circle` math | No injection; cannot add SMS/Push or swap truck without editing hub |
-| Polymorphism | Recomputes circle area instead of `circle.Area` / `Shape.Draw()` | Duplicated domain logic; breaks when label rules change |
-| Correctness | Withdraw + charge ordering (same as Q1) | Financial inconsistency |
-| API design | Returns opaque concatenated string | Callers cannot compose invoice PDF, audit log, or HTTP 201 body cleanly |
+## Q23. Exposing `List<T>` directly — why is this problematic?
 
-**Fix (priority order):**
+**Concepts**
+- direct List<T> reference enabling external Add and Remove
+- encapsulation bypass without type's knowledge
+- callers violating sorting, deduplication, or ordering invariants
+- IReadOnlyList<T> exposing read-only view
+- defensive copy or AsReadOnly as alternatives
 
-1. **Extract orchestrator** that accepts dependencies — `PaymentProcessor`, `Vehicle` (or fleet service), `IReadOnlyList<Shape>`, `IEnumerable<INotificationSender>`, `Document` factory — constructor injection.
-2. **Remove mutable shared `BankAccount` property** — pass per-order wallet/account id into `Fulfill`; load scoped instance per request.
-3. **Use chapter contracts** — `NotifyCustomer(senders, …)` pattern from **Program.cs**; `RenderLabels` / `SumAreas` for shapes; `invoice.Render()` as sole document output, map to DTO separately.
-4. Split **domain services** — `OrderPaymentService`, `DeliveryQuoteService`, `NotificationService` — orchestrator coordinates; each unit-tested.
-5. Return a **structured result** (payment status, delivery cost, notification receipts, invoice text) — not one mega-string.
+**Answer**
 
-**Production takeaway:** The chapter's `Main` intentionally orchestrates for learning — production code inverts that into injected abstractions. Karat capstone tests whether you recognize demo-style composition vs shippable boundaries.
+Returning the internal `List<T>` through a public property gives callers a live reference to the type's private state. They can call `items.Add(...)`, `items.Remove(...)`, `items.Clear()`, or `items.Sort(...)` without the owning type observing or validating those changes, bypassing any invariants the type maintains — such as keeping the list sorted, preventing duplicates, or maintaining a maximum count. The owning type loses control of its own state. Exposing `IReadOnlyList<T>` prevents callers from calling mutating methods; returning `_items.ToList()` gives a detached copy that callers can modify freely without affecting internal state. The preferred pattern is to provide specific mutating methods — `AddItem(T item)` — that enforce invariants.
 
 ---
 
----
-
-#### Q4. (D) Product wants **push notifications** and a shared **retry-with-backoff** helper for all channels. Two proposals land in code review:
-
-**Option A — extend abstract base:**
-
-```csharp
-public abstract class NotificationSenderBase
-{
-    protected void Retry(Action sendAttempt) { /* shared retry */ }
-    public abstract string Send(string recipient, string message);
-}
+## Q24. `init` after construction — what is allowed and what is not?
 
-public class PushNotificationSender : NotificationSenderBase { /* ... */ }
-```
+**Concepts**
+- init assignment allowed in constructor and object initializer
+- init assignment blocked after the construction phase ends
+- difference from private set which allows post-construction mutation
+- compile error CS8852 on assigning init property outside construction
+- confusing init and private set as a common mistake
 
-**Option B — keep chapter interface + optional helper:**
+**Answer**
 
-```csharp
-public interface INotificationSender
-{
-    string ChannelName { get; }
-    string Send(string recipient, string message);
-}
+Init-only properties (`{ get; init; }`) accept assignment during the construction phase only: inside the type's constructors and inside object initializer blocks at the call site. Once the object exits its construction context — that is, the `new` expression and any object initializer have completed — the property is read-only and any attempt to assign it produces compile error CS8852. `{ get; private set; }` differs in that any instance method of the declaring class can assign the property at any time after construction. The confusion arises because both look similar at the declaration site but have very different mutation semantics: `init` is for immutable-after-construction values; `private set` is for values the class needs to mutate over the object's lifetime.
 
-public static class NotificationRetry
-{
-    public static string SendWithRetry(INotificationSender sender, string recipient, string message) { /* ... */ }
-}
-```
-
-Email and SMS already implement `INotificationSender` with no common base. Which direction fits this chapter's fulfillment model, and when would you combine both?
-
 ---
-
-**Answer:**
-
-**Option A — extend abstract base:**
 
-```csharp
-public abstract class NotificationSenderBase
-{
-    protected void Retry(Action sendAttempt) { /* shared retry */ }
-    public abstract string Send(string recipient, string message);
-}
+## Q25. Static "singleton" vs DI singleton — what is the testability difference?
 
-public class PushNotificationSender : NotificationSenderBase { /* ... */ }
-```
+**Concepts**
+- static singleton accessed via type name as global state
+- DI singleton registered as single instance in the container
+- DI singleton implementing an interface and injectable
+- static singleton not replaceable in tests
+- DI singleton swappable with mock or alternative in tests
 
-**Option B — keep chapter interface + optional helper:**
+**Answer**
 
-```csharp
-public interface INotificationSender
-{
-    string ChannelName { get; }
-    string Send(string recipient, string message);
-}
+A static singleton — `static Instance` property on a non-injectable class — is global state accessed by type name from anywhere in the code. There is no injection seam: tests cannot substitute a fake without modifying the class, and static state persists across tests causing pollution. A DI singleton is a single instance registered in the container as an interface: `services.AddSingleton<IMyService, MyService>()`. Callers receive it through constructor injection, making the dependency explicit. Tests can configure `services.AddSingleton<IMyService>(mockService)` to replace the implementation entirely. Both result in one instance per process, but the DI singleton preserves the injection seam that makes substitution possible without global state.
 
-public static class NotificationRetry
-{
-    public static string SendWithRetry(INotificationSender sender, string recipient, string message) { /* ... */ }
-}
-```
-
-Email and SMS already implement `INotificationSender` with no common base. Which direction fits this chapter's fulfillment model, and when would you combine both?
-
-**Answer:** Prefer **Option B** — keep `INotificationSender` and add `PushNotificationSender : INotificationSender`, with retry as a cross-cutting helper or decorator — because email and SMS are unrelated types united only by a contract, matching Section 6. Introduce an abstract base only when several channels share substantial state or template steps, not for one shared utility method.
-
-- **Why not Option A alone:** Forcing `EmailNotificationSender` and `SmsNotificationSender` onto a new base class reshapes existing types, introduces fragile inheritance where a interface sufficed, and violates **ISP** if the base accumulates channel-specific hooks (push tokens, SMS truncation).
-- **Option B alignment:** Chapter `NotifyCustomer` already loops `INotificationSender[]` — push slots in without changing orchestration; retry wraps any sender.
-- **When to combine both:** If push and SMS later share **significant** infrastructure (shared rate limiter state, correlation id field, template rendering), extract a small `NotificationSenderBase` **in addition to** the interface for those two — or use a **decorator** `RetryingNotificationSender : INotificationSender` that wraps any implementer.
-- **Events vs direct Send:** Audit/logging can stay on `OrderFulfillmentCoordinator.OrderCompleted` (Section 9 preview) — do not push audit into the notification hierarchy.
-- **Testing:** Interface + decorator/helper lets you mock `INotificationSender` and assert retry policy independently.
-
-**Production takeaway:** Chapter rule — **interface when unrelated types share a capability; abstract class when subtypes share fields + template logic** (`Document` vs `INotificationSender`). Karat asks you to apply that rule under feature pressure, not pick inheritance by default.
-
 ---
 
----
+## Q26. Explicit interface hiding — how can two `GetName()` methods coexist?
 
-#### Q5. (P) An ASP.NET Core team registers the chapter's fulfillment types in `Program.cs` for a checkout API:
+**Concepts**
+- public class method GetName() for display purposes
+- explicit interface method INamedDocument.GetName() for system purposes
+- caller holding class reference reaching public method
+- caller holding interface reference reaching explicit method
+- different implementations of the same name for different purposes
 
-```csharp
-builder.Services.AddSingleton<BankAccount>();
-builder.Services.AddSingleton<OrderFulfillmentCoordinator>();
-builder.Services.AddTransient<CardPaymentProcessor>();
-builder.Services.AddTransient<PaymentProcessor>(sp => sp.GetRequiredService<CardPaymentProcessor>());
-builder.Services.AddSingleton<INotificationSender, EmailNotificationSender>();
-```
+**Answer**
 
-Under concurrent requests, balances mix between customers and notification behavior looks "sticky." Explain what breaks at the DI lifetime layer and how you would register these abstractions for production.
+A class can simultaneously expose a public `GetName()` method and an explicit `INamedDocument.GetName()` implementation, and they can return different values. The public method is accessible through a class-typed reference: `invoice.GetName()` returns the display name `"Invoice: Q1-2025"`. The explicit implementation is accessible only through the interface: `((INamedDocument)invoice).GetName()` returns the file-safe slug `"invoice-q1-2025"`. This pattern is appropriate when the interface contract demands a value with different semantics than what the class naturally provides publicly — for example, a file-safe name vs a display label. Callers must be aware of which API they are using, since the two versions can diverge.
 
 ---
-
-**Answer:**
-
-```csharp
-builder.Services.AddSingleton<BankAccount>();
-builder.Services.AddSingleton<OrderFulfillmentCoordinator>();
-builder.Services.AddTransient<CardPaymentProcessor>();
-builder.Services.AddTransient<PaymentProcessor>(sp => sp.GetRequiredService<CardPaymentProcessor>());
-builder.Services.AddSingleton<INotificationSender, EmailNotificationSender>();
-```
 
-Under concurrent requests, balances mix between customers and notification behavior looks "sticky." Explain what breaks at the DI lifetime layer and how you would register these abstractions for production.
+## Q27. Finalizer timing — why can't you rely on `~ClassName()` for timely cleanup?
 
-**Answer:** `BankAccount` and a single `INotificationSender` registered as **singletons** share one instance for all HTTP requests, so every customer's checkout mutates the same balance and notification channel — a functional bug that only appears under concurrent load.
+**Concepts**
+- finalizer running on GC thread non-deterministically
+- no guaranteed order or timing relative to application events
+- expensive resources held until next GC collection
+- using and IDisposable for deterministic release
+- GC.SuppressFinalize reducing overhead after Dispose
 
-- **`BankAccount` singleton:** Domain objects with mutable balance must be **scoped per request** (or loaded per customer from persistence), never singleton — same rule as cart state in web apps. Opening an account belongs in a repository + scoped unit of work, not a shared DI instance.
-- **`INotificationSender` singleton:** If the implementer holds per-send state, connection, or throttling counters, those leak across users. Prefer **transient** senders or **stateless singleton** that only wraps an `HttpClient` from `IHttpClientFactory`.
-- **`OrderFulfillmentCoordinator` singleton:** Acceptable only if it is **stateless** and raises events without storing subscriber lists incorrectly — but event handlers that capture scoped services from singleton are a captive dependency smell; usually register coordinator **scoped**.
-- **`PaymentProcessor` transient mapping:** Fine for stateless gateways; register **multiple implementations** via factory or keyed services (`IPaymentProcessorFactory`) when checkout picks card vs wallet per order — not a single `PaymentProcessor` → card binding.
-- **Production pattern:** Scoped `OrderFulfillmentService` orchestrator; transient/scoped processors; `IEnumerable<INotificationSender>` or separate sends via factory; **never** singleton mutable domain entities.
+**Answer**
 
-```csharp
-builder.Services.AddScoped<OrderFulfillmentCoordinator>();
-builder.Services.AddTransient<CardPaymentProcessor>();
-builder.Services.AddTransient<WalletPaymentProcessor>();
-builder.Services.AddTransient<INotificationSender, EmailNotificationSender>();
-builder.Services.AddTransient<INotificationSender, SmsNotificationSender>();
-// BankAccount: resolve from scoped service using customer id — not AddSingleton<BankAccount>()
-```
+A finalizer runs when the GC collects the object, which happens at an indeterminate future point based on memory pressure rather than when the object logically goes out of scope. File handles, database connections, and network sockets held by a finalizer-only class may remain open for an arbitrary duration after the object is no longer in use, exhausting the operating system's resource limit. Two finalizers on different objects have no guaranteed execution order. The correct approach is `IDisposable` and `using` statements: `Dispose` is called deterministically when the `using` block exits. The finalizer should only exist as a safety net for callers who forget to call `Dispose`, and `GC.SuppressFinalize(this)` in `Dispose` skips the finalizer when cleanup already ran.
 
-**Production takeaway:** Chapter types teach OOP shape; ASP.NET DI teaches **which instance lives how long**. Karat capstone connects `BankAccount` encapsulation to **scoped vs singleton** — see foundation DI lifetime gotchas when moving console demo to API.
-
----
-
----
-
-#### Q6. (R) A developer splits `BankAccount` into partial files (as in this chapter) but adds a "fast path" for internal ops. Frozen accounts still accept money in staging. Review both fragments:
-
-```csharp
-// BankAccount.Core.cs
-public partial class BankAccount
-{
-    private decimal _balance;
-
-    public decimal Balance => _balance;
-
-    public void Deposit(decimal amount)
-    {
-        if (amount <= 0m) throw new ArgumentOutOfRangeException(nameof(amount));
-        _balance += amount;
-    }
-}
-
-// BankAccount.Ops.cs
-public partial class BankAccount
-{
-    public bool IsActive { get; set; } = true;
-
-    public void CreditOpsAdjustment(decimal amount)
-    {
-        // Skips ValidateForTransaction — ops-only
-        _balance += amount;
-    }
-
-    private void ValidateForTransaction()
-    {
-        if (!IsActive) throw new InvalidOperationException("Account is frozen.");
-    }
-}
-```
-
-`TryWithdraw` still calls `ValidateForTransaction`, but `Deposit` no longer does. What failed across encapsulation and invariants, and how do you fix it?
-
 ---
 
-**Answer:**
-
-```csharp
-// BankAccount.Core.cs
-public partial class BankAccount
-{
-    private decimal _balance;
-
-    public decimal Balance => _balance;
-
-    public void Deposit(decimal amount)
-    {
-        if (amount <= 0m) throw new ArgumentOutOfRangeException(nameof(amount));
-        _balance += amount;
-    }
-}
-
-// BankAccount.Ops.cs
-public partial class BankAccount
-{
-    public bool IsActive { get; set; } = true;
-
-    public void CreditOpsAdjustment(decimal amount)
-    {
-        // Skips ValidateForTransaction — ops-only
-        _balance += amount;
-    }
-
-    private void ValidateForTransaction()
-    {
-        if (!IsActive) throw new InvalidOperationException("Account is frozen.");
-    }
-}
-```
-
-`TryWithdraw` still calls `ValidateForTransaction`, but `Deposit` no longer does. What failed across encapsulation and invariants, and how do you fix it?
-
-**Answer:** Partial classes merge into one type, but splitting files does not split invariants — `Deposit` and `CreditOpsAdjustment` now mutate `_balance` without the freeze check, while `TryWithdraw` still enforces it, so callers can credit frozen accounts and `IsActive` is publicly settable, breaking encapsulation.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | `IsActive` public setter | Any consumer can unfreeze/freeze accounts; bypasses `Freeze()` intent from chapter |
-| Invariant | `Deposit` dropped `ValidateForTransaction()` | Frozen accounts accept deposits — staging bug matches production fraud/ops risk |
-| Design | `CreditOpsAdjustment` writes `_balance` directly | Second mutation path; ops and customer deposits diverge in rules |
-| partial class misuse | Team assumed file boundary = security boundary | Partial only splits compilation units, not access control |
-
-**Fix (priority order):**
-
-1. Restore **`ValidateForTransaction()` at the start of every public mutator** — `Deposit`, and any ops path that should respect freeze (or explicitly document and gate ops behind internal/admin API).
-2. Change **`IsActive` to `{ get; private set; }`** — only `Freeze()` (and controlled `Reactivate()` if needed) mutate lifecycle.
-3. Route **all balance changes** through private helpers, e.g. `ApplyCredit(decimal amount, bool bypassFreeze = false)` used only from trusted internal assembly with `InternalsVisibleTo` — not a public `CreditOpsAdjustment`.
-4. Add tests: deposit/withdraw on frozen account must fail consistently across partial files.
-
-```csharp
-public void Deposit(decimal amount)
-{
-    ValidateForTransaction();
-    if (amount <= 0m) throw new ArgumentOutOfRangeException(nameof(amount));
-    _balance += amount;
-}
-
-public bool IsActive { get; private set; } = true;
-```
-
-**Production takeaway:** Chapter Section 2c–2d uses **partial** for team file layout — Karat checks you know both fragments share one invariant surface. See **Program.cs** — `TryDepositOnFrozenAccount` after `Freeze()`.
-
----
+## Q28. Overriding `==` without consistent `Equals`/`GetHashCode` — what breaks?
 
----
+**Concepts**
+- == operator and Equals() potentially diverging
+- Dictionary and HashSet using Equals and GetHashCode
+- LINQ Distinct and GroupBy using Equals and GetHashCode
+- inconsistent equality producing wrong results in collections
+- required triple override: Equals, GetHashCode, and ==
 
-#### Q7. (D) You inherit a monolithic fulfillment codebase that mirrors this chapter's demo `Main` — one method creates every object, mutates wallet state, picks a truck by array index, renders shapes, sends notifications, and prints the invoice. The team has one sprint to improve production readiness without a full rewrite.
+**Answer**
 
-What refactor order would you choose (encapsulation fixes, introduce interfaces, extract services, events/DI), and what would you **defer**? Tie your answer to the chapter's types (`BankAccount`, `PaymentProcessor`, `Vehicle`, `Shape`, `INotificationSender`, `Document`, `OrderFulfillmentCoordinator`).
+If you override `==` to express value equality but do not also override `Equals` and `GetHashCode`, the three equality mechanisms disagree: `a == b` returns `true` but `a.Equals(b)` returns `false`, and the two objects may have different hash codes. LINQ operators like `Distinct`, `GroupBy`, and `Contains` use `Equals` and `GetHashCode`, not `==`, so they treat the objects as different even when `==` says they are equal. `Dictionary` and `HashSet` key lookup uses the same path, causing lookups to fail for objects that compare equal via `==`. The rule is to always override all three together and ensure they agree: equal objects must produce equal hash codes, and `==` must be consistent with `Equals`.
 
 ---
-
-**Answer:**
-
-What refactor order would you choose (encapsulation fixes, introduce interfaces, extract services, events/DI), and what would you **defer**? Tie your answer to the chapter's types (`BankAccount`, `PaymentProcessor`, `Vehicle`, `Shape`, `INotificationSender`, `Document`, `OrderFulfillmentCoordinator`).
-
-**Answer:** First stop financial and state corruption (wallet + payment ordering + singleton/scoped mistakes), then introduce constructor-injected abstractions for payment and notifications, then extract read-only polymorphic helpers for fleet/shapes/documents — defer full event-driven architecture and extension-method polish until core seams are testable.
 
-**Sprint 1 priority (do now):**
+## Q29. Default interface methods on structs — when does boxing occur?
 
-1. **Encapsulation / correctness (`BankAccount`, payment flow):** Ensure all debits go through `TryWithdraw`; fix withdraw-before-charge ordering; no public wallet mutation; per-customer account resolution — highest business risk.
-2. **DIP entry points (`PaymentProcessor`, `INotificationSender`):** Extract an `OrderFulfillmentService` that accepts `PaymentProcessor` + `IEnumerable<INotificationSender>` — mirrors chapter `NotifyCustomer` and `ProcessOrderPayment` without rewriting domain types.
-3. **Polymorphism cleanup (`Vehicle`, `Shape`):** Replace index/`is` checks with `EstimateDeliveryCostKm` and `Shape.Area`/`Draw()` helpers already in **Program.cs** — low risk, high clarity win.
-4. **Document output (`Document`):** Keep `Render()` template method; return invoice string from service, not `Console.WriteLine` in orchestrator — enables API responses.
-5. **DI lifetimes (when moving to ASP.NET):** Scoped orchestrator; never singleton `BankAccount`.
+**Concepts**
+- default interface method called on struct via interface reference
+- boxing occurring when struct assigned to interface variable
+- no boxing when struct overrides the default method
+- constrained call instruction avoiding box in generic context
+- performance sensitivity requiring awareness of interface call paths
 
-**Defer (explicitly):**
+**Answer**
 
-- **Full event-driven redesign** (`OrderFulfillmentCoordinator` audit via events) until core flow is unit-tested — events are valuable but add indirection early.
-- **New subtypes** (extra shapes, vehicle types) — OCP is already satisfied once polymorphic calls exist.
-- **Extension methods** (`ToDisplayLabel`) — cosmetic; no production risk.
-- **Partial class splits** — organizational only; no runtime benefit until team scale demands it.
-- **Sealed/further inheritance tuning** on `Motorcycle` — design hygiene, not sprint-critical.
-
-**Production takeaway:** Capstone chapter integrates pillars in one narrative — Karat asks for **prioritized** hardening: protect invariants first, inject swappable collaborators second, unify polymorphic dispatch third, polish decoupling (events) last. That mirrors how you would evolve the chapter demo `Main` into a shippable checkout pipeline without a big-bang rewrite.
-
----
-
----
+When a struct implements an interface that has a default method, calling that default method depends on how the call is made. If the struct overrides the default method with its own implementation, calling it through an interface variable still boxes the struct (the interface reference is a heap pointer), but calling it through a generic constraint like `where T : IMyInterface` uses a constrained `callvirt` IL instruction that avoids boxing by calling the struct's override directly. If the struct does not override the default method and relies on the interface's default body, the call through an interface variable boxes the struct since the default method implementation belongs to the interface type, not the struct. For performance-critical code with high-frequency struct-through-interface calls, providing explicit struct overrides of all needed interface members avoids boxing on the constrained call path.

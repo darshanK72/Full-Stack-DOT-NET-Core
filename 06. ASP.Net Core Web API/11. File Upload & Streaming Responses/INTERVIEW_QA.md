@@ -26,427 +26,505 @@
 
 ## Q1. What is `IFormFile` in ASP.NET Core Web API?
 
-What is `IFormFile` in ASP.NET Core Web API?
+**Concepts**
+- IFormFile representing an uploaded file from a multipart/form-data request
+- OpenReadStream for reading bytes without full in-memory buffering
+- CopyToAsync for streaming to disk or blob storage
+- File name, content type, and length validation before persistence
+- [FromForm] or implicit form binding required to activate IFormFile binding
 
-**Answer:** `IFormFile` represents an uploaded file sent as part of a `multipart/form-data` request. It exposes the file name, content type, length, and `OpenReadStream()` for reading bytes without loading the entire file into memory upfront when configured correctly.
+**Answer**
 
-- Bind as an action parameter on POST/PUT endpoints accepting multipart form data.
-- Use `CopyToAsync` to stream to disk, blob storage, or virus scanner — avoid reading all bytes for large files.
-- Validate extension, content type, and size before persisting — never trust client-provided `FileName` for paths.
-- Available on `[ApiController]` actions with `[FromForm]` or implicit form binding for file parameters.
-- For JSON-only APIs, file upload requires switching to multipart — `IFormFile` does not bind from raw JSON bodies.
+`IFormFile` represents an uploaded file sent as part of a `multipart/form-data` request and exposes the file name, content type, length, and `OpenReadStream()` for reading bytes without loading the entire file into memory upfront. Bind it as an action parameter on POST/PUT endpoints and use `CopyToAsync` to stream directly to disk, blob storage, or a virus scanner pipeline rather than accumulating all bytes in a `byte[]`. Validate extension, content type, and size before persisting — never trust the client-provided `FileName` for constructing file system paths since it can contain path traversal sequences like `../../`. For JSON-only APIs, switching to file upload requires changing to multipart since `IFormFile` does not bind from raw JSON bodies.
 
 ---
 
 ## Q2. What is `multipart/form-data`?
 
-What is `multipart/form-data`?
+**Concepts**
+- multipart/form-data content type for mixed file and field requests
+- Boundary delimiter separating each part in the request body
+- ASP.NET Core mapping parts to IFormFile and form properties
+- Binary file upload requiring multipart rather than JSON
+- OpenAPI requestBody.content.multipart/form-data schema documentation
 
-**Answer:** `multipart/form-data` is an HTTP content type for requests containing a mix of files and form fields, each sent as a separate part with its own headers. Browsers and HTTP clients use it for file uploads; ASP.NET Core model binding maps parts to `IFormFile` and form properties.
+**Answer**
 
-- `Content-Type: multipart/form-data; boundary=----WebKitFormBoundary...` delimits parts in the body.
-- Each part can have a name matching the parameter (`file`, `title`, `metadata`).
-- Required for binary file upload — JSON cannot efficiently embed large binary payloads.
-- ASP.NET Core parses multipart via form readers with configurable size and memory thresholds.
-- OpenAPI documents multipart endpoints with `requestBody.content.multipart/form-data` schema.
+`multipart/form-data` is an HTTP content type for requests containing a mix of files and form fields, each sent as a separate part with its own headers — the `Content-Type` header includes a `boundary` string that delimits where one part ends and the next begins. Browsers and HTTP clients use it for file uploads; ASP.NET Core model binding maps parts to `IFormFile` parameters and form properties by matching part names to parameter names. It is required for binary file upload because JSON cannot efficiently or safely embed large binary payloads. ASP.NET Core parses multipart via form readers with configurable size and memory thresholds, and OpenAPI documents multipart endpoints with a `requestBody.content.multipart/form-data` schema including both the file part and any metadata fields.
 
 ---
 
 ## Q3. What does `[FromForm]` do for file uploads?
 
-What does `[FromForm]` do for file uploads?
+**Concepts**
+- [FromForm] directing model binding to read from form fields rather than JSON body
+- Combining IFormFile and metadata POCO in one multipart request
+- JSON nested in a multipart part not auto-deserialized into POCOs
+- [ApiController] inferring [FromForm] for IFormFile parameters in some cases
+- Explicit binding source attributes clarifying intent for complex upload actions
 
-**Answer:** `[FromForm]` tells model binding to read the parameter from form fields in a multipart or URL-encoded request body rather than from route, query, or JSON body. Apply it to `IFormFile` and companion metadata properties in mixed upload actions.
+**Answer**
 
-- Without correct binding source, complex upload actions may fail to bind file or metadata.
-- Combine `IFormFile file` and `[FromForm] DocumentMetadata metadata` in one multipart request.
-- JSON nested in a single multipart part is not auto-deserialized into POCOs — flatten fields or deserialize manually.
-- `[ApiController]` infers `[FromForm]` for simple types in some cases but explicit attributes clarify intent.
-- Not used for raw binary POST bodies — those require manual stream reading or custom formatters.
+`[FromForm]` tells model binding to read the parameter from form fields in a multipart or URL-encoded request body rather than from route, query, or JSON body. Apply it to both `IFormFile` parameters and companion metadata properties in mixed upload actions — for example, `IFormFile file` and `[FromForm] DocumentMetadata metadata` in one multipart request. A JSON string sent as a single multipart part is not automatically deserialized into a POCO; the model binder reads it as a raw string form field, so nested metadata must be either flattened into individual form fields or deserialized manually from the string value. `[ApiController]` infers `[FromForm]` for `IFormFile` parameters in some configurations, but explicit attributes clarify intent and prevent confusion when actions mix file and non-file parameters.
 
 ---
 
 ## Q4. What is the `[RequestSizeLimit]` attribute?
 
-What is the `[RequestSizeLimit]` attribute?
+**Concepts**
+- [RequestSizeLimit] overriding the action-level request body size
+- Alignment required with Kestrel global limit and FormOptions
+- IHttpMaxRequestBodySizeFeature for per-request programmatic override
+- Security purpose of conservative global defaults with opt-in large limits
+- [RequestFormLimits] as companion for multipart section limits
 
-**Answer:** `[RequestSizeLimit(bytes)]` raises or lowers the maximum allowed request body size for a specific action or endpoint, overriding the global Kestrel default (~30 MB). It must align with Kestrel, `FormOptions`, and reverse proxy limits or uploads still fail with 413.
+**Answer**
 
-- Apply to the action handling large uploads: `[RequestSizeLimit(1_073_741_824)]` for 1 GB.
-- Works with `IHttpMaxRequestBodySizeFeature` for per-request overrides in minimal APIs.
-- Does not alone fix multipart limits — pair with `[RequestFormLimits(MultipartBodyLengthLimit = ...)]`.
-- Setting a limit is also a security control — reject unexpectedly large bodies early.
-- Global default remains conservative; opt-in large limits only on import endpoints.
+`[RequestSizeLimit(bytes)]` raises or lowers the maximum allowed request body size for a specific action or endpoint, overriding the global Kestrel default of approximately 30 MB. It must be paired with Kestrel, `FormOptions`, and reverse proxy configuration — setting only the attribute while leaving Kestrel at its default means the request is rejected at the server level before the action attribute is evaluated. Apply to the specific action handling large uploads: `[RequestSizeLimit(1_073_741_824)]` for 1 GB. For multipart uploads, also set `[RequestFormLimits(MultipartBodyLengthLimit = 1_073_741_824)]` since `FormOptions.MultipartBodyLengthLimit` defaults to 128 MB independently of `MaxRequestBodySize`. Setting a large limit is also a security decision — leave the global conservative and opt-in per import endpoint only.
 
 ---
 
 ## Q5. What is the difference between buffering and streaming a file download?
 
-What is the difference between buffering and streaming a file download?
+**Concepts**
+- Buffering loading entire file into memory before the first byte is sent
+- FileStreamResult sending bytes incrementally from a stream
+- OOM risk from concurrent buffered large file downloads
+- enableRangeProcessing enabling HTTP range requests for seek and resume
+- Cloud blob OpenReadAsync piped directly to the response body
 
-**Answer:** **Buffering** reads the entire file into memory (e.g., `byte[]` or `ReadAllBytesAsync`) before sending the response — simple but causes OOM under concurrent large downloads. **Streaming** sends bytes as they are read from disk or blob storage via `FileStreamResult` — constant memory regardless of file size.
+**Answer**
 
-- `return File(bytes, contentType)` buffers; `return File(stream, contentType)` streams.
-- Streaming improves time-to-first-byte and supports large files (GB+) safely.
-- Streaming enables range requests when `enableRangeProcessing: true` for seek/resume.
-- Always dispose streams — `FileStreamResult` handles disposal after response completes.
-- Cloud downloads should pipe blob `OpenReadAsync` directly to the response body.
+**Buffering** reads the entire file into memory — via `File.ReadAllBytesAsync` or similar — before writing the first byte to the response, which is simple but causes OOM under concurrent large downloads as each request holds the full file in heap memory simultaneously. **Streaming** sends bytes as they are read from disk or blob storage via `FileStreamResult`, meaning memory usage is constant regardless of file size since bytes are piped through a fixed-size buffer. Use `return File(stream, contentType)` rather than `return File(bytes, contentType)` for any file above a few hundred kilobytes. Streaming also supports range requests when `enableRangeProcessing: true` is set, enabling resume and seek for video or large PDFs. Cloud downloads should pipe the blob SDK's `OpenReadAsync` stream directly to the response body rather than downloading to a local temp file first.
 
 ---
 
 ## Q6. What is the `Content-Disposition` header?
 
-What is the `Content-Disposition` header?
+**Concepts**
+- Content-Disposition instructing the client how to handle the response body
+- attachment disposition prompting a save dialog
+- inline disposition opening content in the browser
+- filename* (RFC 5987) for non-ASCII file name encoding
+- ControllerBase.File fileDownloadName parameter setting the header
 
-**Answer:** `Content-Disposition` tells the client how to handle the response body — typically as an attachment to download or inline to display in the browser. For file downloads it includes `filename` or `filename*` (UTF-8 encoded name).
+**Answer**
 
-- `Content-Disposition: attachment; filename="report.pdf"` prompts save dialog.
-- `Content-Disposition: inline; filename="report.pdf"` opens in browser if content type supports it.
-- Set via `ControllerBase.File(..., fileDownloadName)` or `ContentDispositionHeaderValue` in minimal APIs.
-- Important for APIs returning binary — JSON responses do not use Content-Disposition.
-- RFC 5987 `filename*` supports non-ASCII filenames.
+`Content-Disposition` tells the client how to handle the response body — typically as an attachment to download or inline to display in the browser. For file downloads it includes `filename` or the RFC 5987 `filename*` (UTF-8 encoded name) to suggest the save name. Set it via `ControllerBase.File(..., fileDownloadName: "report.pdf")` which automatically emits `Content-Disposition: attachment; filename="report.pdf"`, or construct a `ContentDispositionHeaderValue` manually in minimal APIs. JSON responses do not use Content-Disposition since they are not file downloads; it is meaningful only on binary, text, or octet-stream responses where the client needs guidance on how to present the bytes.
 
 ---
 
 ## Q7. What is the difference between attachment and inline Content-Disposition?
 
-What is the difference between attachment and inline Content-Disposition?
+**Concepts**
+- attachment instructing the client to save the file
+- inline instructing the browser to render the content in the viewport
+- Same bytes — only client handling behavior differs
+- Content-Type determining whether inline rendering is possible
+- attachment as safe default for unknown or sensitive file types
 
-**Answer:** **`attachment`** instructs the client to save the file locally or open with an external application. **`inline`** instructs the client to display the content within the browser window when the content type is renderable (PDF, images).
+**Answer**
 
-- Use attachment for exports, installers, and sensitive documents users should not preview in-browser.
-- Use inline for PDFs or images meant to be viewed directly in a tab or embedded viewer.
-- Same file bytes — only the disposition and client behavior differ.
-- Mobile clients may treat both similarly but attachment is safer default for unknown file types.
-- ASP.NET Core `fileDownloadName` parameter on `File()` results typically sets attachment disposition.
+**`attachment`** instructs the client to save the file locally or open it with an external application, producing a save dialog in browsers. **`inline`** instructs the client to display the content within the browser window when the content type is renderable — PDFs, images, and plain text open directly in the browser tab. The underlying bytes are identical; only the disposition and client behavior differ. Use attachment for exports, installers, and sensitive documents users should not preview in-browser, and inline for PDFs or images intended for in-page viewing. Mobile clients may treat both similarly. `ControllerBase.File()` with a `fileDownloadName` argument typically sets attachment disposition; returning `File(stream, contentType)` without a download name omits the header, and the browser decides based on content type alone.
 
 ---
 
 ## Q8. What HTTP status does 413 Payload Too Large indicate?
 
-What HTTP status does 413 Payload Too Large indicate?
+**Concepts**
+- 413 Payload Too Large from server size limit enforcement
+- Kestrel, FormOptions, [RequestSizeLimit], and proxy limits as layered gates
+- Action code never running — 413 occurs before model binding
+- Presigned direct-to-blob upload as alternative for very large files
+- Aligning limits across all layers to prevent unexpected 413
 
-**Answer:** **413 Payload Too Large** means the server refused to process the request because the body exceeds configured size limits — Kestrel `MaxRequestBodySize`, `FormOptions.MultipartBodyLengthLimit`, `[RequestSizeLimit]`, or reverse proxy body limits.
+**Answer**
 
-- Occurs before model binding completes — action code never runs.
-- Distinct from 400 validation failure — the body was not accepted at all due to size.
-- Fix by aligning limits at Kestrel, form options, attribute, and nginx/IIS `client_max_body_size`.
-- Return ProblemDetails from custom middleware if you intercept size violations with a friendly message.
-- Clients should chunk large uploads or use presigned direct-to-blob upload URLs when 413 persists.
+**413 Payload Too Large** means the server refused to process the request because the body exceeds configured size limits — and the action code never runs since the rejection happens during request body processing before model binding. The limits are layered: Kestrel `MaxRequestBodySize` (~30 MB default) is the server-level gate, `FormOptions.MultipartBodyLengthLimit` (128 MB default) is the form parser gate, `[RequestSizeLimit]` is the action-level override, and reverse proxy body limits (nginx `client_max_body_size`, IIS `maxAllowedContentLength`) are the infrastructure gate before Kestrel. A 413 from Kestrel means `[RequestSizeLimit]` on the action was never evaluated — you must raise the Kestrel limit as well. Return a friendly ProblemDetails message from custom middleware if you intercept size violations. For very large uploads (hundreds of MB to GB), consider presigned URLs for direct client-to-blob uploads so the API never handles the binary body.
 
 ---
 
 ## Q9. What are `FormOptions` in ASP.NET Core?
 
-What are `FormOptions` in ASP.NET Core?
+**Concepts**
+- FormOptions configuring multipart parsing limits in ASP.NET Core
+- MultipartBodyLengthLimit defaulting to 128 MB independently of Kestrel
+- ValueLengthLimit and KeyLengthLimit capping individual form field sizes
+- MultipartHeadersCountLimit preventing header explosion attacks
+- Alignment with [RequestSizeLimit] and Kestrel for consistent upload behavior
 
-**Answer:** `FormOptions` configures how ASP.NET Core parses form and multipart requests — limits on body length, number of headers, individual multipart section size, and memory buffering threshold before spilling to disk temp files.
+**Answer**
 
-- Configure via `services.Configure<FormOptions>(options => { ... })` or `[RequestFormLimits(...)]` per action.
-- `MultipartBodyLengthLimit` defaults to 128 MB — can block uploads below Kestrel limit.
-- `ValueLengthLimit` and `KeyLengthLimit` cap individual form field sizes.
-- `MultipartHeadersCountLimit` prevents header explosion attacks in multipart requests.
-- Must align with `[RequestSizeLimit]` and Kestrel for consistent upload behavior.
+`FormOptions` configures how ASP.NET Core parses form and multipart requests — limits on body length, number of headers, individual multipart section size, and the memory buffering threshold before spilling to disk temp files. Configure via `services.Configure<FormOptions>(options => { ... })` globally or `[RequestFormLimits(...)]` per action. `MultipartBodyLengthLimit` defaults to 128 MB, which can block uploads below the Kestrel limit and cause confusing 413s that appear to be an action-level problem. `ValueLengthLimit` and `KeyLengthLimit` cap individual form field sizes to prevent maliciously large field values. `MultipartHeadersCountLimit` limits the number of headers per part to prevent header explosion attacks. All these limits must be aligned with `[RequestSizeLimit]` and the Kestrel `MaxRequestBodySize` for uploads to behave consistently across all layers.
 
 ---
 
 ## Q10. What role do Kestrel limits play in request body size?
 
-What role do Kestrel limits play in request body size?
+**Concepts**
+- Kestrel MaxRequestBodySize as the server-level gate before all middleware
+- Global default of ~30 MB enforced before action attributes are evaluated
+- IHttpMaxRequestBodySizeFeature for per-request programmatic override
+- Setting MaxRequestBodySize to null disabling the limit entirely — risky
+- Proxy limits equally critical alongside Kestrel in production
 
-**Answer:** Kestrel enforces `Limits.MaxRequestBodySize` (default ~30 MB) at the server level before ASP.NET Core middleware and model binding see the body. No action-level attribute can allow larger uploads unless Kestrel (or `IHttpMaxRequestBodySizeFeature`) permits it first.
+**Answer**
 
-- Configure globally: `builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = ...)`.
-- Set to `null` to disable limit (not recommended publicly without other guards).
-- Per-endpoint override via `IHttpMaxRequestBodySizeFeature.DisableMaxRequestBodySize` or max size feature on HttpContext.
-- First gate in the stack — proxy limits (nginx, Azure Front Door) are equally critical.
-- 413 from Kestrel never reaches `[RequestSizeLimit]` logic — configure both layers explicitly.
+Kestrel enforces `Limits.MaxRequestBodySize` (default approximately 30 MB) at the server level before ASP.NET Core middleware, model binding, or action attributes see the body. No action-level `[RequestSizeLimit]` attribute can allow a larger upload unless Kestrel (or `IHttpMaxRequestBodySizeFeature`) first permits it — a 413 from Kestrel never reaches the attribute. Configure globally with `builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = ...)` or per-endpoint via `context.Features.Get<IHttpMaxRequestBodySizeFeature>()?.MaxRequestBodySize = ...` inside the action. Setting it to `null` disables the limit entirely, which is dangerous on public endpoints without other guards. In production the reverse proxy — nginx, Azure Front Door, or Cloudflare — imposes its own body limit that must also be aligned; a 413 from the proxy never even reaches Kestrel.
 
 ---
 
 ## Q11. What is `IAsyncEnumerable` streaming for API responses?
 
-What is `IAsyncEnumerable` streaming for API responses?
+**Concepts**
+- IAsyncEnumerable<T> producing items incrementally rather than materializing a full list
+- EF Core AsAsyncEnumerable() returning items as they are fetched
+- System.Text.Json serializing async enumerables to chunked JSON arrays
+- [EnumeratorCancellation] CancellationToken for client-disconnect cancellation
+- Reverse proxy buffering breaking streaming if not disabled at the gateway
 
-**Answer:** Returning `IAsyncEnumerable<T>` from a controller or minimal API lets ASP.NET Core serialize items incrementally as they are produced — chunked JSON array output instead of materializing millions of records in a `List<T>` first.
+**Answer**
 
-- EF Core: return query as `AsAsyncEnumerable()` — do not call `ToListAsync()` before returning.
-- Improves time-to-first-byte and bounds memory for large read-only exports (logs, events).
-- Use `[EnumeratorCancellation]` on `CancellationToken` parameter to cancel enumeration when client disconnects.
-- System.Text.Json in ASP.NET Core 8 supports async enumeration for JSON responses.
-- Reverse proxies may buffer responses — disable buffering on streaming endpoints at the gateway.
+Returning `IAsyncEnumerable<T>` from a controller or minimal API lets ASP.NET Core serialize items incrementally as they are produced — chunked JSON array output instead of materializing millions of records in a `List<T>` first. The EF Core pattern is to return the query as `AsAsyncEnumerable()` rather than calling `ToListAsync()`, which means rows flow from the database cursor to the HTTP response body without the entire result set ever existing in heap memory simultaneously. Use `[EnumeratorCancellation]` on the `CancellationToken` parameter to cancel enumeration when the client disconnects, preventing the database query from continuing to run for a client that has already left. System.Text.Json in ASP.NET Core 8 supports async enumeration natively. Reverse proxies may buffer entire responses — disable response buffering on streaming endpoints at the gateway to ensure the incremental benefit reaches the client.
 
 ---
 
 ## Q12. What is the difference between `File()` and `PhysicalFileResult`?
 
-What is the difference between `File()` and `PhysicalFileResult`?
+**Concepts**
+- PhysicalFileResult reading from a file system path on disk
+- File(stream) accepting any readable stream including cloud SDK streams
+- File(bytes) loading everything into memory — avoid for large files
+- enableRangeProcessing parameter for HTTP Range request support on both
+- VirtualFileResult serving from embedded resources or IFileProvider roots
 
-**Answer:** Both stream file content to the client. `PhysicalFileResult` (returned by `PhysicalFile(path, contentType, fileDownloadName)`) reads from a file path on disk. `File(stream, ...)` or `File(bytes, ...)` accepts an open stream or byte array — use stream overload for streaming, bytes for small files only.
+**Answer**
 
-- `PhysicalFile` is convenient when the file already exists on server filesystem.
-- `FileStreamResult` from `File(stream, ...)` works for any readable stream including blob SDK streams.
-- Both support `enableRangeProcessing` for HTTP Range requests.
-- `VirtualFileResult` serves from embedded resources or IFileProvider content roots.
-- Avoid `File(byte[])` for large files — use stream-based overloads exclusively in Production.
+Both stream file content to the client, but they differ in source. `PhysicalFileResult` (returned by `PhysicalFile(path, contentType, fileDownloadName)`) reads from a file path on disk, which is convenient when the file already exists on the server file system. `File(stream, ...)` accepts any open readable stream — including blob SDK streams, memory streams, or network streams — making it more flexible for cloud-stored files. `File(bytes, ...)` loads everything into memory before sending and should be avoided for any file above a few kilobytes. Both overloads accept `enableRangeProcessing: true` to support HTTP Range requests for resume and seek. `VirtualFileResult` serves from embedded resources or `IFileProvider` content roots, useful for static assets registered in the DI container.
 
 ---
 
 ## Q13. What is a streaming response in Web APIs?
 
-What is a streaming response in Web APIs?
+**Concepts**
+- Streaming response sending body bytes incrementally as data is produced
+- Chunked transfer encoding when Content-Length is unknown
+- CancellationToken stopping production when the client disconnects
+- Proxy and load balancer buffering breaking end-to-end streaming
+- Upload streaming and download streaming as separate concerns
 
-**Answer:** A streaming response sends the HTTP body incrementally as data is generated or read, rather than buffering the full payload before the first byte. Examples include `FileStreamResult`, `IAsyncEnumerable<T>` JSON, NDJSON line streams, and SSE.
+**Answer**
 
-- Reduces memory pressure and latency for large downloads and exports.
-- Client receives chunked transfer encoding when Content-Length is unknown.
-- CancellationToken propagates to stop production when the client disconnects.
-- Proxies and load balancers must not buffer entire responses for streaming to work end-to-end.
-- Distinct from upload streaming — both directions benefit from avoiding full-body buffering.
+A streaming response sends the HTTP body incrementally as data is generated or read, rather than buffering the full payload before the first byte. Examples include `FileStreamResult` for file downloads, `IAsyncEnumerable<T>` JSON serialization, NDJSON line streams for real-time event feeds, and Server-Sent Events. When `Content-Length` is unknown at the start of the response, ASP.NET Core uses chunked transfer encoding so the client knows when each chunk ends without waiting for the full body. The `CancellationToken` passed to the streaming operation propagates client-disconnect events so production stops rather than continuing to generate data for a disconnected client. Proxies and load balancers must not buffer entire responses for streaming to work end-to-end — configure `proxy_buffering off` in nginx for streaming endpoints or use a streaming-aware gateway.
 
 ---
 
 ## Q14. What is `[DisableFormValueModelBinding]`?
 
-What is `[DisableFormValueModelBinding]`?
+**Concepts**
+- [DisableFormValueModelBinding] preventing automatic form model binding
+- IFormFile parameters being null when the filter is applied
+- MultipartReader for section-by-section manual streaming upload processing
+- Mutually exclusive patterns: IFormFile binding vs manual multipart parsing
+- Section-by-section processing for virus scan pipelines
 
-**Answer:** `[DisableFormValueModelBinding]` is a filter that disables automatic form model binding for an action so the developer can manually parse multipart data with `MultipartReader` for true streaming uploads without buffering the entire body in memory first.
+**Answer**
 
-- When applied, `IFormFile` parameters will **not** bind — they remain null.
-- Used in advanced streaming upload samples — not compatible with standard `IFormFile` actions on the same endpoint.
-- Choose one pattern: standard `IFormFile` binding **or** manual multipart parsing, not both mixed incorrectly.
-- Pair with reading `Request.Body` directly and section-by-section processing for virus scan pipelines.
-- Removing the attribute restores normal form binding if you switch back to standard upload handling.
+`[DisableFormValueModelBinding]` is a filter that disables automatic form model binding for an action so the developer can manually parse multipart data with `MultipartReader` for true streaming uploads without first buffering the entire body. When applied, `IFormFile` parameters will not bind — they remain null — because the form reader that populates them is disabled. Use this pattern in virus-scan pipelines that must process the stream section-by-section and pass each chunk to the scanner before persisting. Mixing the two patterns incorrectly — applying `[DisableFormValueModelBinding]` while still expecting `IFormFile` parameters to be populated — produces null `IFormFile` with no error, which is the most common misapplication seen in code copied from streaming upload samples. Choose one pattern per endpoint: either standard `IFormFile` binding for simple uploads, or `[DisableFormValueModelBinding]` with `MultipartReader` for streaming processing.
 
 ---
 
 ## Q15. What is the difference between uploading via JSON vs multipart?
 
-What is the difference between uploading via JSON vs multipart?
+**Concepts**
+- JSON base64 encoding adding ~33% size overhead for binary data
+- multipart/form-data sending binary parts natively without encoding overhead
+- ASP.NET Core IFormFile binding from multipart parts
+- Presigned URL upload as a third pattern bypassing the API body entirely
+- OpenAPI schema differences between JSON and multipart endpoints
 
-**Answer:** **JSON** (`application/json`) suits metadata and small base64-encoded payloads but is inefficient and impractical for large binary files. **Multipart** (`multipart/form-data`) sends binary files as native binary parts alongside form fields — the standard for file uploads in HTTP APIs.
+**Answer**
 
-- JSON base64 inflates size ~33% and requires full body parsing in memory.
-- Multipart streams file parts with boundaries; ASP.NET binds to `IFormFile`.
-- OpenAPI: JSON endpoints use `application/json` schema; upload endpoints document `multipart/form-data`.
-- Mixed APIs often use multipart for create-with-file and JSON for metadata-only updates.
-- Presigned URL upload to blob storage is a third pattern — client uploads directly to storage, API receives JSON notification only.
+**JSON** (`application/json`) suits metadata and small text payloads but is inefficient and impractical for large binary files — base64 encoding inflates size by approximately 33% and requires the entire JSON body to be parsed before any bytes can be processed. **Multipart** (`multipart/form-data`) sends binary file parts as native binary alongside text form fields, which is the standard HTTP pattern for file uploads. ASP.NET Core binds multipart parts to `IFormFile` parameters and can stream file parts to their destination without full in-memory buffering. For very large files (gigabytes), a presigned URL pattern is a third option: the API generates a short-lived direct-to-blob upload URL and returns it to the client, which then uploads directly to blob storage without the API handling the binary body at all. OpenAPI documents multipart endpoints with `requestBody.content.multipart/form-data` schema and JSON endpoints with `application/json` schema — mixed APIs often use multipart for create-with-file and JSON for metadata-only updates.
 
 ---
 
 ## Q16. What is range request support for large files?
 
-What is range request support for large files?
+**Concepts**
+- HTTP Range header requesting byte subsets for resume and seek
+- 206 Partial Content response with Content-Range header
+- enableRangeProcessing: true on FileResult activating range support
+- Accept-Ranges: bytes header advertising capability to clients
+- Seeking requirement on the underlying stream for range requests
 
-**Answer:** HTTP Range requests let clients request byte subsets of a resource (`Range: bytes=0-1023`) for resume, seek, and partial downloads. Enable with `enableRangeProcessing: true` on `FileResult` — ASP.NET Core responds with **206 Partial Content** and `Content-Range` header.
+**Answer**
 
-- Essential for video, PDF viewers, and download managers that resume interrupted transfers.
-- Server must support seeking on the underlying stream or file.
-- `Accept-Ranges: bytes` header advertises capability to clients.
-- Without range support, clients re-download entire multi-GB files after connection drops.
-- `PhysicalFile(path, contentType, name, enableRangeProcessing: true)` is the typical Web API pattern.
+HTTP Range requests let clients request byte subsets of a resource (`Range: bytes=0-1023`) for resume, seek, and partial downloads — essential for video players, PDF viewers, and download managers that resume interrupted transfers. Enable with `enableRangeProcessing: true` on `FileResult`; ASP.NET Core then responds with **206 Partial Content** and a `Content-Range` header when a range header is present in the request, or the full 200 response when no range is requested. The `Accept-Ranges: bytes` header in the response advertises the capability to clients so they know to attempt range requests after a failed download. The underlying stream or file must support seeking — cloud blob streams from SDK `OpenReadAsync` typically support seek, but network streams from HTTP responses do not. Without range support, clients re-download entire multi-GB files after connection drops, which is unacceptable for video or large document download scenarios.
 
 ---
 
 ## Q17. What is `MemoryBufferThreshold` in FormOptions?
 
-What is `MemoryBufferThreshold` in FormOptions?
+**Concepts**
+- MemoryBufferThreshold controlling per-section in-memory buffer before disk spill
+- Default 64 KB spilling to temp file for larger sections
+- int.MaxValue forcing full in-memory buffering — OOM risk under concurrency
+- Per-section buffering independent for file parts and form text fields
+- Tuning for performance vs memory trade-off on high-concurrency upload servers
 
-**Answer:** `MemoryBufferThreshold` (default 64 KB) controls how much of each multipart section is buffered in memory before ASP.NET Core spills overflow to a temporary disk file. Lower values reduce RAM use; setting it to `int.MaxValue` forces full in-memory buffering.
+**Answer**
 
-- Large uploads should spill to disk temp — do not raise threshold to max unless you accept OOM risk.
-- Works per multipart section — file parts and form fields each have independent buffering behavior.
-- Tuning affects performance on high-concurrency upload servers.
-- Related to `MultipartBodyLengthLimit` — threshold is per-section memory, limit is total multipart size.
-- Streaming upload tutorials manipulate this setting — misconfiguration breaks expected memory profile.
+`MemoryBufferThreshold` (default 64 KB) controls how much of each multipart section is held in memory before ASP.NET Core spills overflow to a temporary disk file. This means a 10 MB file upload uses at most 64 KB of heap per request for the file section, with the remainder written to a temp file that `IFormFile.OpenReadStream()` then reads from. Setting it to `int.MaxValue` forces full in-memory buffering — simple but dangerous under concurrent large file uploads since every concurrent request holds the entire file in heap, which exhausts memory quickly. The threshold applies per multipart section independently, so a multipart request with a 100 MB file and a 1 KB metadata field buffers the field in memory and spills the file to disk. Tuning lower values reduces RAM at the cost of disk I/O; the default 64 KB is appropriate for most scenarios.
 
 ---
 
 ## Q18. How does a reverse proxy affect large file uploads?
 
-How does a reverse proxy affect large file uploads?
+**Concepts**
+- Proxy body size limits enforced before Kestrel sees the request
+- nginx client_max_body_size and IIS maxAllowedContentLength
+- Proxy read and send timeouts for slow-network large file uploads
+- Response buffering on proxy breaking IAsyncEnumerable streaming downloads
+- Aligning all layers: proxy, Kestrel, FormOptions, and action attributes
 
-**Answer:** Reverse proxies (nginx, IIS ARR, Azure Application Gateway, Cloudflare) impose their own body size limits, timeouts, and buffering behavior that can reject or truncate uploads before Kestrel sees them — causing 413, 502, or silent timeouts in Production only.
+**Answer**
 
-- nginx: `client_max_body_size` must meet or exceed API `[RequestSizeLimit]`.
-- IIS: `maxAllowedContentLength` in web.config.
-- Proxy read/send timeouts must exceed worst-case upload duration for large files on slow networks.
-- Response buffering on proxy can break streaming downloads and `IAsyncEnumerable` JSON exports.
-- Align limits and timeouts across proxy, Kestrel, and FormOptions; test large uploads through Production-like path, not just direct Kestrel.
-
----
+Reverse proxies (nginx, IIS ARR, Azure Application Gateway, Cloudflare) impose their own body size limits, timeouts, and buffering behavior that can reject or truncate uploads before Kestrel sees them — causing 413, 502, or silent timeouts in production even when all ASP.NET Core limits are correctly configured. nginx's `client_max_body_size` must meet or exceed the API's `[RequestSizeLimit]`; IIS requires `maxAllowedContentLength` in `web.config`. Proxy read and send timeouts must exceed the worst-case upload duration for large files on slow networks — a 30-second proxy timeout is insufficient for a 1 GB upload over a slow mobile connection. Response buffering on the proxy can also break streaming downloads and `IAsyncEnumerable` JSON exports by waiting for the complete body before forwarding to the client. Align limits and timeouts across proxy, Kestrel, and FormOptions, and always test large uploads through a production-like path that includes the proxy layer, not just directly against Kestrel.
 
 ---
 
 ## Gotchas — ASP.NET Core Web API (Interview Traps)
 
+---
+
 #### Gotcha 1. POST returning 200 instead of 201
 
-**Answer:** A successful resource creation with POST should return HTTP 201 Created and tell the client where the new resource lives — returning 200 OK omits that contract and breaks REST clients that rely on status codes and the Location header.
+**Concepts**
+- HTTP 201 Created with Location header as REST create contract
+- CreatedAtAction / CreatedAtRoute for correct response
+- Resource discovery via Location header
+- Status code semantics for OpenAPI-generated clients
 
-- Use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with a Location header pointing at the new resource URL.
-- Include the created representation or a minimal payload in the response body when clients need immediate data without a follow-up GET.
-- Returning 200 for create operations hides the new resource URL from standard HTTP client libraries and OpenAPI-generated SDKs.
+**Answer**
+
+A successful resource creation with POST should return HTTP 201 Created and a `Location` header pointing at the new resource URL, because 200 OK carries no hint that a new resource was created or where to find it. Standard HTTP clients, API gateways, and OpenAPI-generated SDKs all look at the status code first — returning 200 means the response body is the only way to discover the new resource id, and clients that skip parsing the body miss it entirely. Use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with the Location header, and include the created representation or a minimal payload in the body when clients need immediate data without a follow-up GET.
 
 ---
 
 #### Gotcha 2. GET that mutates state
 
-**Answer:** GET must be safe and idempotent — performing deletes or updates on GET violates HTTP semantics, breaks caching proxies, and creates security holes when URLs are prefetched, logged, or opened in email clients.
+**Concepts**
+- GET as safe and idempotent per HTTP specification
+- Prefetch and crawler risks from side-effecting GETs
+- Caching proxy behavior replaying GET responses
+- Correct HTTP verbs for state-changing operations
 
-- Browsers, CDNs, and link-preview crawlers may invoke GET URLs without user intent, so side effects run unintentionally.
-- Cached GET responses can replay destructive operations or stale mutations across clients.
-- Use POST, PUT, PATCH, or DELETE for state changes and keep GET read-only.
+**Answer**
+
+GET must be safe and idempotent per HTTP semantics — performing deletes or updates in a GET handler violates the specification, breaks caching proxies that may replay GET responses, and creates security holes when URLs are prefetched by browsers, link-preview crawlers, or email clients. The problem is that these callers invoke GET URLs without user intent, so a delete fires without anyone clicking anything. Cached GET responses can replay destructive operations across clients since the proxy treats the response as a normal cacheable resource. Use POST, PUT, PATCH, or DELETE for any operation that changes state and reserve GET strictly for reads.
 
 ---
 
 #### Gotcha 3. `{ success: false }` with HTTP 200
 
-**Answer:** Business failures must map to appropriate 4xx or 5xx status codes — a 200 response with an error flag forces every client to parse the body instead of using standard HTTP semantics, retries, and monitoring.
+**Concepts**
+- HTTP status code as the universal success vs failure contract
+- 200 with error flag defeating monitoring, retries, and API gateways
+- ProblemDetails for consistent structured failure responses
+- APM alerting and circuit breakers depending on HTTP status
 
-- Return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures and 404, 409, or 422 for domain errors.
-- HTTP status codes drive client retry logic, API gateways, and APM alerting; a 200 masks failures in dashboards.
-- Envelope patterns like `{ success: false }` require custom handling in every consumer and break OpenAPI contract expectations.
+**Answer**
+
+Business failures must map to appropriate 4xx or 5xx status codes because HTTP status is the universal contract that drives client retry logic, API gateway circuit breakers, and APM alerting thresholds — a 200 response with `success: false` in the body masks every failure from every system that does not parse the body. API gateways route and throttle on status code; if every response is 200, failed calls look healthy in dashboards and no alert fires. Return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for semantic rejections. Envelope patterns like `{ success: false }` require every consumer to implement a custom parser and break OpenAPI contract expectations.
 
 ---
 
 #### Gotcha 4. Returning EF entities from API actions
 
-**Answer:** EF Core entities expose navigation properties, shadow fields, and circular references that are not meant for public contracts — serialize DTOs with explicit shapes and never leak database schema to clients.
+**Concepts**
+- EF entity navigation properties not suitable for public HTTP contracts
+- Lazy-loading N+1 triggered during JSON serialization
+- Circular reference serializer loops
+- DTO decoupling API contract from persistence schema
 
-- Lazy-loaded navigations trigger N+1 queries during serialization and can pull entire object graphs into the response.
-- Circular references between entities cause JSON serializer loops or require fragile reference-handling settings.
-- DTOs decouple the API contract from schema migrations and let you expose only the fields clients need.
+**Answer**
+
+EF Core entities carry navigation properties, change-tracker state, and database-internal fields that were never meant to be a public HTTP contract, so serializing them directly leaks schema details and invites circular reference errors. Lazy-loaded navigations trigger N+1 queries during serialization when the JSON serializer walks the object graph — each navigation fires a new SQL query, exhausting the connection pool under load. Circular references between related entities cause the JSON serializer to loop indefinitely or require fragile `ReferenceHandler.IgnoreCycles` settings that hide design problems. Map entities to DTOs with explicit shapes in the service layer or via EF projection so the API contract evolves independently of table schema changes.
 
 ---
 
 #### Gotcha 5. PascalCase JSON with default camelCase policy
 
-**Answer:** ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json` — PascalCase property names from some clients bind as missing properties, leaving model properties at default values and causing silent data loss on POST and PUT.
+**Concepts**
+- System.Text.Json defaulting to camelCase serialization in ASP.NET Core 8
+- Silent binding failure from PascalCase client payloads
+- JsonPropertyName and PropertyNamingPolicy as alignment tools
+- PropertyNameCaseInsensitive for legacy mixed-casing clients
 
-- `[JsonPropertyName("PropertyName")]` or a custom `PropertyNamingPolicy` aligns server expectations with legacy client payloads.
-- Enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)` when you must accept mixed casing.
-- Silent binding failures produce 201/204 success responses with partially saved data and no validation error.
+**Answer**
+
+ASP.NET Core 8 defaults to camelCase JSON serialization via `System.Text.Json`, so PascalCase property names from legacy clients bind as missing properties because the case does not match — the model properties default to `null` or `0` rather than the values the client sent. The failure is silent: the request returns 201 or 204 with no validation error, but the persisted record has default values instead of the submitted data. Fix with `[JsonPropertyName("PropertyName")]` attributes on DTO properties or a custom `PropertyNamingPolicy` to align server expectations with legacy payloads. When accepting mixed casing from various clients, enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)`.
 
 ---
 
 #### Gotcha 6. GET with `[FromBody]`
 
-**Answer:** Many HTTP clients, proxies, and caches ignore or strip GET request bodies — filters sent as JSON in GET requests fail silently or never reach the action in ASP.NET Core 8 Web API.
+**Concepts**
+- GET request body not reliably supported across the HTTP ecosystem
+- [FromBody] on GET failing silently through proxies and caches
+- [FromQuery] for simple filters as the correct alternative
+- OpenAPI tools and browser fetch blocking GET bodies
 
-- Model binding for `[FromBody]` on GET is not reliably supported across the HTTP ecosystem.
-- Use query strings with `[FromQuery]` for simple filters or POST to a dedicated search endpoint for complex filter objects.
-- OpenAPI tools and browser fetch also discourage or block GET bodies, making the pattern fragile in production.
+**Answer**
+
+Many HTTP clients, proxies, CDNs, and caches ignore or strip GET request bodies because the HTTP specification does not define semantics for GET bodies — filters sent as JSON in GET requests fail silently or never reach the action in ASP.NET Core 8. Model binding for `[FromBody]` on GET is therefore unreliable across the full HTTP ecosystem even if it works in direct testing. Use query strings with `[FromQuery]` for simple filter parameters, or POST to a dedicated search endpoint for complex filter objects that do not fit in a URL. Browser fetch API and OpenAPI tooling also discourage or block GET bodies, making the pattern fragile in any production environment where the full request path includes a proxy.
 
 ---
 
 #### Gotcha 7. CORS as server security
 
-**Answer:** CORS is enforced by browsers only — it does not stop curl, Postman, server-to-server calls, or direct API requests; authentication and authorization still protect the API.
+**Concepts**
+- CORS as browser-only enforcement — not server-side authentication
+- Non-browser clients unaffected by CORS headers
+- Authentication and authorization as actual server protection
+- CORS enabling SPA browser access alongside real auth
 
-- CORS headers tell a browser whether JavaScript on one origin may read a cross-origin response; they do not authenticate callers.
-- A public API without auth remains fully accessible to any non-browser client regardless of CORS policy.
-- Register `AddCors` and `UseCors` for browser SPA access, and enforce JWT, cookies, or API keys separately for real security.
+**Answer**
+
+CORS is enforced by browsers only — it prevents JavaScript on one origin from reading cross-origin responses, but it does nothing to stop curl, Postman, server-to-server calls, or any direct API request. The `Access-Control-Allow-Origin` header is a signal browsers check after receiving the response; a non-browser client simply ignores it and reads the data. A public API without authentication is fully accessible to any non-browser caller regardless of CORS policy, so CORS is never a substitute for JWT, API keys, or cookies. Register `AddCors` and `UseCors` to enable browser SPA access on cross-origin calls, and enforce actual authentication and authorization separately for real protection.
 
 ---
 
 #### Gotcha 8. `AllowAnyOrigin` with credentials
 
-**Answer:** Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers — you must specify explicit origins with `WithOrigins` and call `AllowCredentials`.
+**Concepts**
+- Browser rejection of wildcard origin on credentialed requests
+- AllowAnyOrigin and AllowCredentials as mutually exclusive
+- WithOrigins for explicit trusted frontend origins
+- Access-Control-Allow-Credentials header requirement
 
-- `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined; ASP.NET Core will not emit a valid CORS response for credentialed requests.
-- List every trusted frontend origin explicitly, including local dev URLs and production domains.
-- Credentialed cross-origin calls require both matching origins and `Access-Control-Allow-Credentials: true`.
+**Answer**
+
+Browsers reject a response with `Access-Control-Allow-Origin: *` when the request includes cookies or an `Authorization` header, because the CORS specification explicitly forbids wildcard origins on credentialed cross-origin requests. `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined — ASP.NET Core will not emit a valid CORS response for credentialed requests when both are set. Instead, use `WithOrigins("https://app.example.com", "https://localhost:3000")` to list every trusted frontend origin explicitly, including local development URLs and all production domains. The browser also requires `Access-Control-Allow-Credentials: true` in the response, which `AllowCredentials()` handles.
 
 ---
 
 #### Gotcha 9. Swagger UI exposed in Production
 
-**Answer:** Public Swagger UI discloses the full API surface, schemas, and try-it-out access — gate it behind authentication or disable it outside Development and Staging in ASP.NET Core 8.
+**Concepts**
+- Swagger UI disclosing full API surface and schema to public internet
+- Environment checks wrapping MapSwagger and UseSwaggerUI
+- OpenAPI document exposure revealing endpoint names and enum values
+- Authentication or IP allowlist gating for API documentation
 
-- `MapSwagger` and `UseSwaggerUI` in `Program.cs` should be wrapped in environment checks or authorization middleware.
-- Exposed OpenAPI documents reveal internal endpoints, field names, and enum values useful for reconnaissance.
-- Production APIs typically serve OpenAPI only to authenticated developers or internal tooling, not the public internet.
+**Answer**
+
+Public Swagger UI discloses the full API surface, all schemas, enum values, and try-it-out access to anyone who finds the URL — giving potential attackers a complete map of your endpoints and data structures without any effort. Gate `MapSwagger` and `UseSwaggerUI` in `Program.cs` behind environment checks so they run only in Development and Staging, or require authentication middleware before the Swagger middleware. Production APIs should serve OpenAPI documents only to authenticated developers or internal tooling, not the public internet. Exposed OpenAPI documents reveal internal endpoint names, field names, and request schemas that are directly useful for targeted reconnaissance.
 
 ---
 
 #### Gotcha 10. Missing `[ApiController]` on some controllers
 
-**Answer:** Without `[ApiController]`, automatic 400 `ValidationProblemDetails`, binding source inference, and attribute routing behaviors differ — mixed controllers in the same Web API produce inconsistent error contracts.
+**Concepts**
+- [ApiController] enabling automatic ModelStateInvalidFilter
+- Binding source inference for complex types
+- Mixed controllers producing inconsistent error contracts
+- Assembly-level [ApiController] for uniform behavior
 
-- `[ApiController]` enables automatic model-state validation responses and `[FromBody]` inference for complex types.
-- Controllers missing the attribute may return 200 with invalid models or require manual `ModelState` checks.
-- Apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions.
+**Answer**
+
+Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses, binding source inference for complex types, and attribute routing enforcement all differ from controllers that have the attribute — so mixed controllers in the same API produce inconsistent error shapes that break partner integrations. A controller missing `[ApiController]` may return 200 OK with a partially bound model when model validation fails, because `ModelStateInvalidFilter` does not run, and `[FromBody]` is not inferred for complex parameters. Apply `[ApiController]` at the controller or assembly level using `[assembly: ApiController]` in an attribute file so every endpoint shares the same conventions without per-class annotation.
 
 ---
 
 #### Gotcha 11. Blocking on `.Result` in async actions
 
-**Answer:** Blocking on `.Result` or `.Wait()` in async API actions causes thread-pool starvation and deadlocks under load — always `await` async service and database calls in ASP.NET Core 8.
+**Concepts**
+- Sync-over-async causing thread-pool starvation under load
+- Deadlock when synchronization context is held during blocking call
+- async Task<IActionResult> propagating await through service layer
+- Kestrel throughput reduction from blocked request threads
 
-- Sync-over-async ties up request threads while I/O completes, reducing throughput on Kestrel under concurrent load.
-- Deadlocks occur when the blocked thread holds a synchronization context the continuation needs to resume.
-- Mark controller actions `async Task<IActionResult>` and propagate `await` through the service layer to EF Core and HTTP clients.
+**Answer**
+
+Blocking on `.Result` or `.Wait()` in async API actions causes thread-pool starvation under load because the calling thread is blocked waiting for I/O to complete while no thread is available to process the continuation. Deadlocks also occur in environments with a synchronization context when the blocked thread holds the context that the async continuation needs to resume on — the task never completes because the thread it needs is the thread that is waiting for it. Always `await` async service and database calls in controller actions, which means the action signature is `async Task<IActionResult>` and the `await` propagates through the entire service and repository layer. Kestrel processes many concurrent requests efficiently precisely because async I/O frees threads while waiting — sync-over-async defeats this design entirely.
 
 ---
 
 #### Gotcha 12. Liveness probe includes SQL check
 
-**Answer:** If the liveness probe fails when SQL is down, Kubernetes restarts pods that cannot fix the dependency — put SQL, Redis, and external service checks on readiness only.
+**Concepts**
+- Liveness as process restart signal — unrelated to external dependency recovery
+- Readiness as traffic drain signal for dependency failures
+- Kubernetes restart loop from liveness including external checks
+- Tag-based separation of liveness and readiness health checks
 
-- Liveness answers whether the process should be killed and restarted; a down database is not healed by restarting the app.
-- Readiness removes the pod from the load balancer until dependencies recover without unnecessary restarts.
-- Map `/health/live` to a lightweight self-check and `/health/ready` to `AddDbContextCheck` or custom dependency tags.
+**Answer**
+
+If the liveness probe includes SQL and the database goes down for maintenance, Kubernetes kills and restarts pods even though restarting cannot fix a database outage — creating a restart loop that adds startup overhead and delays recovery. Liveness answers whether the ASP.NET Core process is alive and responsive; it should return healthy as long as the process can handle an HTTP request, independent of downstream dependencies. Readiness answers whether the instance should receive traffic; SQL, Redis, and message bus checks belong here because a failing dependency means the instance will return errors. Map `/health/live` with a tag predicate selecting only the self-check and `/health/ready` with the predicate selecting `AddDbContextCheck` and other dependency checks.
 
 ---
 
 #### Gotcha 13. N+1 queries in list endpoints
 
-**Answer:** Returning entities with lazy-loaded navigation properties triggers one SQL query per row — use projection with `Select`, explicit `Include`, or DTO mapping to fetch list data in a bounded number of queries.
+**Concepts**
+- N+1 pattern: one parent query plus N child queries per row
+- Lazy loading triggering extra SQL during serialization
+- EF projection with Select fetching only required columns
+- Include/ThenInclude for explicit eager loading in one round trip
 
-- Serializing a list of `Order` entities with `Customer` navigation can execute 1 + N queries under default lazy loading.
-- Project directly to DTOs in LINQ so EF Core generates a single query with only the columns needed.
-- For graphs that must be included, use `Include`/`ThenInclude` or split queries deliberately rather than relying on lazy load during JSON output.
+**Answer**
+
+N+1 occurs when a list endpoint loads a parent collection and then each item triggers an additional query for a related navigation — one query for 100 orders plus 100 queries for each order's customer. The most common cause in APIs is serializing entity objects with lazy-loaded navigation properties: the JSON serializer accesses a navigation, EF fires a SELECT, and this repeats once per row. Fix with a single translated query: project directly to DTOs using `.Select(o => new OrderDto { CustomerName = o.Customer.Name })` so EF generates one SQL JOIN, or use explicit `.Include(o => o.Customer)` before materialization. Validate with EF logging or APM to confirm list endpoints produce a fixed small number of SQL round trips regardless of result set size.
 
 ---
 
 #### Gotcha 14. Unstable pagination with Skip/Take
 
-**Answer:** Concurrent inserts and deletes between offset pages cause duplicate or skipped rows — use keyset or cursor pagination ordered by a stable, indexed key for large datasets in Web API list endpoints.
+**Concepts**
+- Offset pagination page drift from concurrent inserts and deletes
+- Skip/Take without stable OrderBy producing undefined row order
+- Keyset pagination anchored to a stable indexed key
+- Large OFFSET performance cost scanning and discarding preceding rows
 
-- `Skip((page - 1) * pageSize).Take(pageSize)` shifts the window when rows are added or removed between requests.
-- Keyset pagination uses `WHERE id > @lastId ORDER BY id LIMIT @pageSize` with the last seen key from the previous response.
-- Offset pagination remains acceptable for small, mostly static tables; expose cursor tokens in link headers or response metadata for high-churn data.
+**Answer**
+
+Concurrent inserts and deletes shift row positions in the dataset while a client walks pages — a new row inserted at page 1 pushes all subsequent rows one position, so page 2 either repeats the last row of page 1 or skips a row entirely. `Skip((page - 1) * pageSize).Take(pageSize)` also requires the database to count and discard all preceding rows, which becomes expensive on large offsets. Keyset pagination avoids both problems by using `WHERE id > @lastSeenId ORDER BY id LIMIT @pageSize` with the last key from the previous response — no scanning skipped rows and no drift because the filter is anchored to a specific key rather than a count. Offset pagination remains acceptable for small mostly-static tables; expose cursor tokens in link headers or response metadata for high-churn datasets.
 
 ---
 
 #### Gotcha 15. GraphQL N+1 without DataLoader
 
-**Answer:** Field resolvers in HotChocolate or other GraphQL servers that query the database per parent row explode SQL under load — batch related loads with DataLoader or resolve joins at the root query.
+**Concepts**
+- Field resolvers executing one database query per parent row
+- DataLoader batching concurrent field resolutions into a single query
+- 101 queries for a 100-row list without batching
+- Root-level eager loading as alternative for static parent-child fields
 
-- A list of 100 authors each resolving `books` individually executes 101 queries instead of one batched query.
-- Register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips.
-- Eager-load or project at the root query when the client always requests nested fields together.
+**Answer**
+
+Field resolvers in HotChocolate or other GraphQL servers execute independently per parent row — resolving `books` for each of 100 authors runs 100 separate queries plus the initial author query, totaling 101 round trips. DataLoader batches concurrent field resolutions within a single request: all 100 `books` resolver calls accumulate the author ids during the execution tick, then DataLoader fires one grouped query for all of them at once. Register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips automatically. For fields the client almost always requests together with the parent, eager-load or project at the root query level rather than using DataLoader.
 
 ---
 
 #### Gotcha 16. gRPC in browser without gRPC-Web
 
-**Answer:** Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript — browser clients need gRPC-Web middleware plus CORS configuration in ASP.NET Core 8.
+**Concepts**
+- Native gRPC HTTP/2 binary framing not accessible to browser JavaScript
+- gRPC-Web protocol as browser-compatible translation layer
+- AddGrpcWeb and EnableGrpcWeb for middleware setup
+- CORS configuration required alongside gRPC-Web for cross-origin calls
 
-- Standard `@grpc/grpc-js` in Node or .NET clients works server-to-server; Blazor WASM and SPA browsers require the gRPC-Web protocol.
-- Add `AddGrpcWeb()` and `EnableGrpcWeb()` on mapped gRPC services to translate between gRPC-Web and native gRPC.
-- Configure CORS for the browser origin alongside gRPC-Web, since cross-origin browser calls still enforce CORS on preflight and response headers.
+**Answer**
 
----
-
-## Gotchas — ASP.NET Core Web API (Interview Traps)
-
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript APIs — browsers cannot control trailers or binary framing at the level gRPC requires, so `@grpc/grpc-js` in the browser fails. Browser clients need the gRPC-Web protocol, which translates between the browser-accessible HTTP/1.1 or HTTP/2 fetch API and the native gRPC binary format via ASP.NET Core middleware. Add `AddGrpcWeb()` to services and call `.EnableGrpcWeb()` on each mapped gRPC service to activate the translation layer. CORS must also be configured for the browser origin because cross-origin browser calls still enforce CORS preflight and response header checks regardless of gRPC-Web. Standard .NET or Node gRPC clients communicating server-to-server continue using native gRPC without gRPC-Web.
 
 ---
 
 ## Scenario-Based Questions (Karat Format)
+
+---
 
 #### Q1. (R) Review this document upload endpoint. QA uploads a 200 MB PDF successfully in test; Production Kestrel returns **413 Payload Too Large** for the same file. Developers say "we set `[RequestSizeLimit]` on the action."
 
@@ -465,21 +543,31 @@ public async Task<IActionResult> Upload(IFormFile file)
 
 `Program.cs` has no Kestrel or multipart limit configuration. Reverse proxy timeout is 30 seconds.
 
----
+**Concepts**
+- [RequestSizeLimit] overriding action-level limit but Kestrel global default still gates first
+- Kestrel MaxRequestBodySize ~30 MB evaluated before the action attribute
+- FormOptions.MultipartBodyLengthLimit at 128 MB as a separate limit
+- Path.Combine with client FileName enabling path traversal vulnerability
+- Proxy timeout insufficient for large file upload duration
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+The 413 comes from Kestrel, not from the action attribute — `[RequestSizeLimit(500MB)]` overrides the per-action limit, but Kestrel's global `MaxRequestBodySize` of approximately 30 MB is enforced at the server level before any action attribute is evaluated. The action attribute is never reached for a 200 MB upload. The fix requires also configuring Kestrel: `builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 500L * 1024 * 1024)` globally, or using `IHttpMaxRequestBodySizeFeature` per-request. Beyond the 413, `FormOptions.MultipartBodyLengthLimit` defaults to 128 MB independently and must also be raised via `[RequestFormLimits(MultipartBodyLengthLimit = 500L * 1024 * 1024)]` on the action. The 30-second proxy timeout is also a problem — a 200 MB upload on a slow connection takes longer than 30 seconds and will be cut off with a 502. There is also a security issue: `Path.Combine("/uploads", file.FileName)` is vulnerable to path traversal if `FileName` contains `../` sequences — always use `Path.GetFileName(file.FileName)` to strip directory components before constructing the destination path.
 
 ---
 
 #### Q2. (P) Configure **request body size limits** for a Web API that accepts CSV imports up to 1 GB via `IFormFile` while keeping default 30 MB limits on all other endpoints. What do you set in Kestrel, `FormOptions`, and action attributes?
 
----
+**Concepts**
+- Global Kestrel MaxRequestBodySize raised for upload endpoint via IHttpMaxRequestBodySizeFeature
+- [RequestSizeLimit] and [RequestFormLimits] on the specific import action
+- FormOptions global default preserved for all other endpoints
+- Per-request Kestrel override pattern to avoid raising global default
+- Proxy limit alignment alongside application-level limits
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+The correct approach avoids raising the global Kestrel limit — which would expose all endpoints to 1 GB bodies — and instead raises it only for the import endpoint. In `Program.cs`, keep the Kestrel global at the default (approximately 30 MB) or lower. On the import action, apply `[RequestSizeLimit(1L * 1024 * 1024 * 1024)]` and `[RequestFormLimits(MultipartBodyLengthLimit = 1L * 1024 * 1024 * 1024)]` to override both the action-level and form-parser limits. To also override the Kestrel limit for that specific request without changing the global, access `IHttpMaxRequestBodySizeFeature` inside the action before model binding runs — this requires a minimal API or an action filter rather than the action body itself, since model binding runs before the action body. Alternatively, raise the Kestrel global in `Program.cs` and rely on `[RequestSizeLimit(30 * 1024 * 1024)]` on all other endpoints to cap them down — less clean but simpler. In both cases, align the reverse proxy (`nginx: client_max_body_size 1g;`, IIS `maxAllowedContentLength`) and extend the proxy timeout to cover the upload duration.
 
 ---
 
@@ -497,11 +585,16 @@ public async Task<IActionResult> Download(int id)
 
 Files range from 50 MB to 4 GB.
 
----
+**Concepts**
+- File.ReadAllBytesAsync loading entire file into memory before the first byte is sent
+- File(bytes) buffering the full content in heap before response starts
+- FileStreamResult sending bytes incrementally from a stream
+- OOM under concurrent large downloads from multiple in-memory full-file copies
+- PhysicalFile as the simplest fix for server-disk files
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+`File.ReadAllBytesAsync` loads the entire file into a `byte[]` in heap memory before a single byte is sent to the client, and `File(bytes, ...)` holds that entire array until the response completes. For a 500 MB file, every concurrent download consumes 500 MB of heap — 10 concurrent downloads use 5 GB, which easily OOMs a container. The name "streaming download" is misleading: this is fully buffered. The fix is to stream from the file directly: `return PhysicalFile(path, "application/octet-stream", Path.GetFileName(path))` reads from disk incrementally through a fixed internal buffer so memory usage is constant regardless of file size. For files not on local disk (blob storage), use `return File(await _blobClient.OpenReadAsync(), "application/octet-stream", fileName)` — the SDK's `OpenReadAsync` returns a seekable stream that ASP.NET Core can pipe directly to the response. Add `enableRangeProcessing: true` to the `PhysicalFile` or `File` call to support resume and seek for large files.
 
 ---
 
@@ -523,41 +616,61 @@ public IActionResult Upload([FromForm] UploadRequest request)
 
 Client sends `metadata` part as `Content-Type: application/json` in the multipart body without `[FromForm]` on nested properties.
 
----
+**Concepts**
+- Multipart form binder treating all parts as string form fields regardless of part Content-Type
+- ASP.NET Core not auto-deserializing JSON parts within multipart as POCOs
+- Manual JSON deserialization from string form field value as the fix
+- Flattening metadata fields as individual form fields as an alternative
+- [FromForm] binding to flat string values only — not nested JSON
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+`Metadata` is null because ASP.NET Core's form model binder does not auto-deserialize JSON-encoded multipart parts into POCOs — it treats every part as a string form field regardless of the part's `Content-Type: application/json` header. The binder looks for a form field named `metadata` and finds a string, but `DocumentMetadata` is a complex type that cannot be bound from a string without explicit deserialization. `IFormFile` is populated because the binder has built-in support for mapping binary multipart parts to `IFormFile` parameters by matching on the part name and treating the part as a file rather than a string. There are two fixes. The simpler fix: read the metadata part as a string form field (`var json = Request.Form["metadata"]`) and deserialize manually (`var metadata = JsonSerializer.Deserialize<DocumentMetadata>(json)`). The more REST-idiomatic fix for simple metadata: flatten `DocumentMetadata` into individual form fields (`title`, `description`) so the binder can populate them directly without JSON parsing. If the metadata is complex, the manual deserialization approach is cleaner than flattening many fields.
 
 ---
 
 #### Q5. (P) Implement a **streaming file download** that sets correct **`Content-Disposition`** (attachment vs inline), supports range requests for large PDFs, and avoids loading the entire file into memory. What ASP.NET Core types and headers do you use?
 
----
+**Concepts**
+- PhysicalFile or File(stream) for streaming without full in-memory load
+- enableRangeProcessing: true for HTTP Range request support
+- Content-Disposition attachment vs inline based on intended client behavior
+- Accept-Ranges: bytes header emitted automatically with enableRangeProcessing
+- Content-Type matching the file format for correct browser handling
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+I use `PhysicalFile` for server-disk files since it reads incrementally through a fixed-size internal buffer without loading the file into memory. For attachment downloads where the browser should prompt a save dialog: `return PhysicalFile(path, "application/pdf", Path.GetFileName(path), enableRangeProcessing: true)` — the third argument is `fileDownloadName`, which sets `Content-Disposition: attachment; filename="..."` automatically. For inline display where the browser should render the PDF directly: `return PhysicalFile(path, "application/pdf", enableRangeProcessing: true)` without the download name argument, which omits the `Content-Disposition` header so the browser renders based on content type. The `enableRangeProcessing: true` parameter emits `Accept-Ranges: bytes` in the response and handles `Range:` request headers with **206 Partial Content** responses including `Content-Range` headers automatically. For files stored in cloud blob storage rather than local disk: `var stream = await _blob.OpenReadAsync(); return File(stream, "application/pdf", "report.pdf", enableRangeProcessing: true)` — the blob SDK stream is seekable so range processing works correctly. Always use `Path.GetFileName` on server-side paths to prevent path traversal issues, and set `Content-Type` to match the actual file format rather than `application/octet-stream` for formats the browser can render.
 
 ---
 
 #### Q6. (D) Design an upload pipeline: receive `IFormFile` → virus scan → store in blob storage → return 201. Where does scanning run (middleware vs action vs background queue), how do you avoid **memory buffering** the whole file before scan, and what HTTP status do you return if scan times out?
 
----
+**Concepts**
+- Streaming upload avoiding full in-memory file before scan
+- [DisableFormValueModelBinding] and MultipartReader for section-by-section streaming
+- Synchronous inline scan blocking the response vs background queue returning 202 Accepted
+- Scan timeout returning 503 Service Unavailable or 504 Gateway Timeout
+- Virus scan pipeline using CopyToAsync piping stream section to scanner
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+There are two viable pipeline designs depending on whether the client must know the scan result synchronously. For synchronous scanning: disable form model binding on the action with `[DisableFormValueModelBinding]`, read the request body section-by-section with `MultipartReader`, and pipe each file section's stream to the virus scanner and then to blob storage in a single pass — this avoids loading the file into memory because `MultipartReader` exposes a raw section stream that you `CopyTo` through the scanner pipeline to the destination. The action blocks until scanning and upload complete, then returns 201 Created with the blob location. If the scan times out (scanner unresponsive), return **503 Service Unavailable** with a `Retry-After` header rather than 500, since the scanner being unavailable is an upstream dependency failure, not an application error. For asynchronous scanning: accept the upload with standard `IFormFile`, stream to blob storage, enqueue a background scan job, and immediately return **202 Accepted** with a `Location` header pointing at a status-check endpoint. The client polls or subscribes to know when the file is approved. The asynchronous pattern is better for large files and slow scanners since it does not tie up an HTTP connection for the scan duration. Never run virus scan in global middleware for every request — it only makes sense on upload endpoints.
 
 ---
 
 #### Q7. (P) An API streams millions of log records to a data warehouse client. Implement **`IAsyncEnumerable<T>`** JSON streaming from a minimal API or controller. What formatter/signature do you use, and what breaks if you return `List<T>` instead?
 
----
+**Concepts**
+- IAsyncEnumerable<T> return type enabling incremental JSON array serialization
+- EF Core AsAsyncEnumerable() avoiding full materialization
+- System.Text.Json serializing IAsyncEnumerable to chunked output natively
+- [EnumeratorCancellation] CancellationToken stopping enumeration on disconnect
+- List<T> return type causing full materialization before the first byte is sent
 
-**Answer:**
+**Answer**
 
-_Answer not found._
+I return `IAsyncEnumerable<LogRecord>` from the action and EF Core provides the source with `.AsAsyncEnumerable()` on the query rather than `.ToListAsync()`. System.Text.Json in ASP.NET Core 8 serializes `IAsyncEnumerable<T>` natively to a JSON array, writing each element to the response body as it is produced rather than buffering the full array. The `CancellationToken` with `[EnumeratorCancellation]` attribute stops enumeration when the client disconnects, so the database query stops processing rather than running to completion for a dead client. If I return `List<T>` instead, EF Core must first execute `ToListAsync()` which materializes all millions of records into a `List<LogRecord>` in heap memory, then System.Text.Json serializes the full list at once — memory usage scales with record count rather than staying constant, causing OOM under concurrent requests. The incremental benefit also requires proxy configuration: the reverse proxy must not buffer the entire response before forwarding it to the data warehouse client, otherwise the client receives all bytes at once when the proxy finishes buffering, defeating the streaming benefit. Set `proxy_buffering off` in nginx or equivalent for the streaming endpoint.
 
 ---
 
@@ -585,8 +698,13 @@ builder.Services.Configure<FormOptions>(o =>
 
 The custom filter was copied from a streaming sample that parses multipart manually.
 
-**Answer:**
+**Concepts**
+- [DisableFormValueModelBinding] preventing IFormFile binding — parameter is always null
+- MemoryBufferThreshold = int.MaxValue forcing all uploads into heap memory
+- Mutually exclusive patterns: IFormFile binding vs manual MultipartReader
+- Silent null IFormFile with no validation error when binding is disabled
+- int.MaxValue buffer threshold causing OOM under concurrent large uploads
 
-_Answer not found._
+**Answer**
 
----
+`[DisableFormValueModelBinding]` disables the form reader that populates `IFormFile` parameters — `archive` is always null regardless of file size, which is why the action returns `BadRequest("No file")` silently for every upload. The filter was copied from a sample that uses `MultipartReader` to parse parts manually, where `[DisableFormValueModelBinding]` is required to prevent double-reading the request body. The two patterns are mutually exclusive: if you want `IFormFile` binding, remove `[DisableFormValueModelBinding]`; if you need streaming section-by-section processing, keep the filter but remove the `IFormFile` parameter and use `MultipartReader` in the action body instead. The second issue is `MemoryBufferThreshold = int.MaxValue` in the global `FormOptions` — this forces every multipart section to be buffered entirely in memory rather than spilling to a temp file at 64 KB. For large concurrent uploads, every request holds the full file in heap memory simultaneously, which causes OOM. Set `MemoryBufferThreshold` back to the default (65536) or a small value appropriate for your expected metadata parts, and let file parts spill to disk temp files as intended.

@@ -26,126 +26,142 @@
 
 ## Q1. What are filters in ASP.NET Core MVC?
 
-What are filters in ASP.NET Core MVC?
+**Concepts**
+- MVC filter pipeline vs middleware pipeline
+- Five filter types: authorization, resource, action, exception, result
+- MVC-specific context — ActionDescriptor, bound arguments
+- Endpoint filters in Minimal APIs as the equivalent
 
-**Answer:** Filters are attributes or DI-registered components that run before and after MVC action execution, providing cross-cutting logic at the controller/action level. ASP.NET Core 8 supports authorization, resource, action, exception, and result filters — distinct from middleware, which runs for the entire pipeline.
+**Answer**
 
-- Filters operate only after routing selects an MVC controller action (or Razor Page handler).
-- They access MVC-specific context — `ActionDescriptor`, route values, bound arguments, and `IActionResult`.
-- Register globally in `AddControllers(options => ...)`, via `[ServiceFilter]`, or `[TypeFilter]`.
-- Minimal APIs use endpoint filters instead of MVC filters for the same cross-cutting concerns.
+Filters are components that run before and after MVC action execution, providing cross-cutting logic at the controller or action level. Since they operate only after routing selects an MVC controller action or Razor Page handler, they have access to MVC-specific context — `ActionDescriptor`, route values, bound arguments, and `IActionResult` — which middleware never has. ASP.NET Core supports five filter types across that pipeline. Register them globally in `AddControllers(options => ...)`, per controller via `[ServiceFilter]`, or per action with `[TypeFilter]`. Minimal APIs use endpoint filters rather than MVC filters for the same cross-cutting concerns.
 
 ---
 
 ## Q2. What is the MVC filter pipeline execution order?
 
-What is the MVC filter pipeline execution order?
+**Concepts**
+- Authorization filter — fail-fast 401/403
+- Resource filter — wraps model binding and full action pipeline
+- Action filter — wraps the action method only
+- Exception filter — handles unhandled exceptions from earlier stages
+- Result filter — wraps IActionResult execution
+- IOrderedFilter.Order for within-stage sequencing
 
-**Answer:** MVC filters run in a fixed order: authorization filters, resource filters, action filters, exception filters (on failure), then result filters. Within each type, global filters run before controller filters, which run before action filters — `IOrderedFilter.Order` can fine-tune ordering.
+**Answer**
 
-- Authorization filters run first — fail-fast 401/403 before expensive work.
-- Resource filters wrap the remainder of the pipeline including model binding and action execution.
-- Action filters wrap the action method itself — `OnActionExecuting` before, `OnActionExecuted` after.
-- Result filters wrap `IActionResult` execution (view rendering, JSON serialization).
+MVC filters run in a fixed order: authorization filters first so expensive work is skipped on access failure, then resource filters wrapping the remainder of the pipeline including model binding, then action filters surrounding the action method itself, then exception filters on any unhandled failure, and finally result filters wrapping `IActionResult` execution such as view rendering or JSON serialization. Within each filter type, global filters run before controller-level filters, which run before action-level filters. `IOrderedFilter.Order` provides fine-grained control when the default within-stage ordering is insufficient.
 
 ---
 
 ## Q3. What is an authorization filter?
 
-What is an authorization filter?
+**Concepts**
+- IAuthorizationFilter / IAsyncAuthorizationFilter
+- context.Result short-circuit returning 401/403
+- Runs after HttpContext.User is populated by auth middleware
+- Policy-based authorization via IAuthorizationService
 
-**Answer:** An authorization filter implements `IAuthorizationFilter` or `IAsyncAuthorizationFilter` and runs before the action to verify the caller is allowed to execute it. The `[Authorize]` attribute is implemented as an authorization filter that evaluates policies via `IAuthorizationService`.
+**Answer**
 
-- Set `context.Result` to `UnauthorizedResult` or `ForbidResult` to short-circuit before the action runs.
-- Runs after authentication middleware populates `HttpContext.User`.
-- Custom filters can enforce API keys or custom claims, but prefer policy-based authorization for maintainability.
-- Use `IAsyncAuthorizationFilter` when authorization logic performs async I/O — never block with `.Result`.
+An authorization filter implements `IAuthorizationFilter` or `IAsyncAuthorizationFilter` and runs before the action to determine whether the caller is allowed to proceed. The `[Authorize]` attribute is itself implemented as an authorization filter that evaluates policies via `IAuthorizationService`. Short-circuiting happens by setting `context.Result` to `UnauthorizedResult` or `ForbidResult`, which prevents the action and all subsequent filters from running. Since this filter runs after authentication middleware has already populated `HttpContext.User`, it can safely evaluate claims. Use `IAsyncAuthorizationFilter` whenever authorization logic requires async I/O, and never block with `.Result` on async calls inside synchronous filter methods.
 
 ---
 
 ## Q4. What is an action filter?
 
-What is an action filter?
+**Concepts**
+- IActionFilter / IAsyncActionFilter interface
+- OnActionExecuting vs OnActionExecuted callbacks
+- context.Result short-circuit before the action runs
+- Access to bound parameters not available in middleware
 
-**Answer:** An action filter implements `IActionFilter` or `IAsyncActionFilter` and runs immediately before and after the action method executes. It is ideal for action-scoped concerns — audit logging, timing, mutating bound arguments, or validating models after binding.
+**Answer**
 
-- `OnActionExecuting` / before `await next()`: can set `context.Result` to skip the action.
-- `OnActionExecuted` / after `await next()`: inspect outcome, exceptions, or elapsed time.
-- Prefer `IAsyncActionFilter` when the filter performs I/O or async work.
-- Action filters see bound parameters — middleware does not have this MVC context.
+An action filter implements `IActionFilter` or `IAsyncActionFilter` and runs immediately before and after the action method executes. It is the right layer for action-scoped concerns such as audit logging, timing, mutating bound arguments, or validating models after binding — because unlike middleware, action filters see the actual bound parameters. In `OnActionExecuting` (or before `await next()` in the async variant), setting `context.Result` skips the action entirely. After `await next()`, `ActionExecutedContext` exposes the outcome, any exception, and elapsed time. Prefer `IAsyncActionFilter` whenever the filter performs I/O.
 
 ---
 
 ## Q5. What is a resource filter?
 
-What is a resource filter?
+**Concepts**
+- IResourceFilter / IAsyncResourceFilter interface
+- Runs after authorization, before model binding
+- Short-circuit bypasses model binding cost
+- HttpContext.Items for per-request scoped data
 
-**Answer:** A resource filter implements `IResourceFilter` or `IAsyncResourceFilter` and wraps execution of the entire remainder of the filter pipeline plus the action. It runs after authorization but before model binding and action filters on the way in, and after result execution on the way out.
+**Answer**
 
-- Use for request-scoped caching in `HttpContext.Items` or short-circuiting with a cached `IActionResult`.
-- `OnResourceExecuting` can set `context.Result` to bypass the action entirely.
-- Not intended for cross-request caching — use `IMemoryCache` with TTL for that.
-- Runs earlier than action filters — suitable for decisions that skip model binding cost.
+A resource filter implements `IResourceFilter` or `IAsyncResourceFilter` and wraps execution of the entire remainder of the filter pipeline plus the action, running after authorization but before model binding on the way in. This position makes it earlier than action filters, so setting `context.Result` in `OnResourceExecuting` bypasses model binding cost entirely — which is useful for returning a cached `IActionResult` without running the action. For per-request reuse, store data in `HttpContext.Items` within the same request; for cross-request caching use `IMemoryCache` with TTL, since resource filters are not the right lifetime for that.
 
 ---
 
 ## Q6. What is a result filter?
 
-What is a result filter?
+**Concepts**
+- IResultFilter / IAsyncResultFilter interface
+- OnResultExecuting — can cancel or replace context.Result
+- OnResultExecuted — inspect response status after execution
+- Exception filters vs result filters — different pipeline stages
 
-**Answer:** A result filter implements `IResultFilter` or `IAsyncResultFilter` and runs before and after the `IActionResult` is executed — rendering a view, writing JSON, or returning a file. Use it to modify headers, wrap responses, or log final output status.
+**Answer**
 
-- `OnResultExecuting` runs before the result executes — can cancel or replace `context.Result`.
-- `OnResultExecuted` runs after — inspect the response status code and log completion.
-- Exception filters handle action exceptions; result filters handle result execution wrapping.
-- For uniform response shaping across APIs, middleware or endpoint filters may be simpler.
+A result filter implements `IResultFilter` or `IAsyncResultFilter` and runs before and after `IActionResult` execution — view rendering, JSON serialization, or file delivery. `OnResultExecuting` fires before the result executes and can cancel or replace `context.Result`; `OnResultExecuted` fires after and lets you inspect the response status code and log completion. The key distinction from exception filters is stage: exception filters handle failures from the action and earlier MVC filter phases, while result filters wrap the result execution phase itself. For uniform response shaping across APIs, middleware or endpoint filters are often simpler than result filters.
 
 ---
 
 ## Q7. What is an exception filter?
 
-What is an exception filter?
+**Concepts**
+- IExceptionFilter / IAsyncExceptionFilter interface
+- MVC-pipeline scope only — misses middleware and minimal API failures
+- ExceptionHandled flag to prevent further propagation
+- IExceptionHandler middleware as the preferred centralized alternative
 
-**Answer:** An exception filter implements `IExceptionFilter` or `IAsyncExceptionFilter` and runs when an unhandled exception occurs in the action or earlier MVC filter stages, before the result is committed. It can mark the exception handled and set `context.Result` to an error response.
+**Answer**
 
-- Only catches exceptions from the MVC pipeline — not middleware failures or minimal API exceptions.
-- Runs before result execution — useful for converting domain exceptions to specific MVC views.
-- ASP.NET Core 8 APIs prefer centralized `IExceptionHandler` middleware for uniform ProblemDetails.
-- Exception filters do not replace logging — always log the full exception object server-side.
+An exception filter implements `IExceptionFilter` or `IAsyncExceptionFilter` and intercepts unhandled exceptions from the action or earlier MVC filter stages before the result is committed, so it can mark the exception handled and set `context.Result` to a clean error response. The key limitation is scope: exception filters only see exceptions from the MVC pipeline — failures in middleware, minimal API handlers, or infrastructure outside controller execution never reach them. For API services, the centralized `IExceptionHandler` middleware in .NET 8 is the preferred approach for uniform `ProblemDetails` responses, while exception filters remain useful for converting specific domain exceptions to particular MVC views.
 
 ---
 
 ## Q8. What is the difference between middleware and filters?
 
-What is the difference between middleware and filters?
+**Concepts**
+- Middleware scope — every request, all endpoint types
+- Filter scope — MVC/Razor Pages only, after action selection
+- ActionDescriptor and bound arguments as filter-exclusive context
+- Middleware order explicit in Program.cs vs MVC's fixed pipeline
 
-**Answer:** Middleware runs for every request matching its branch in the pipeline, before or after routing, and applies to all endpoint types. Filters run only for MVC/Razor Page requests after an action is selected, with access to MVC-specific context like `ActionDescriptor` and bound arguments.
+**Answer**
 
-- Middleware order is global and explicit in `Program.cs` — filters follow MVC's fixed pipeline order.
-- Middleware is the right layer for authentication, forwarded headers, rate limiting, and exception handling across all endpoints.
-- Filters suit per-controller or per-action logic — audit trails, action timing, MVC-specific authorization checks.
-- Minimal APIs and middleware-only pipelines never execute MVC filters.
+Middleware runs for every request that reaches its position in the pipeline and applies to all endpoint types including minimal APIs, static files, and health checks. Filters run only for MVC or Razor Page requests after routing has selected a controller action, which means they have access to MVC-specific context — `ActionDescriptor`, route values, and bound parameters — that middleware never sees. Middleware order is explicit in `Program.cs`; filter order follows MVC's fixed pipeline stages with `IOrderedFilter.Order` for tie-breaking. Middleware is the right layer for authentication, forwarded headers, rate limiting, and global exception handling, while filters suit per-controller or per-action concerns like audit trails or action timing.
 
 ---
 
 ## Q9. When would you use a filter instead of middleware?
 
-When would you use a filter instead of middleware?
+**Concepts**
+- Bound parameter and action metadata access in filters
+- Per-controller and per-action targeting
+- Middleware for cross-endpoint concerns including minimal APIs
+- API key validation as a middleware concern not a filter concern
 
-**Answer:** Use a filter when the logic needs MVC context — action name, bound parameters, or controller-level policies — or when the behavior should apply only to specific controllers/actions rather than every request. Use middleware for transport-wide concerns that must run before routing or across minimal APIs and MVC alike.
+**Answer**
 
-- Action-specific audit logging with access to bound DTOs → action filter.
-- Per-controller authorization beyond standard `[Authorize]` policies → authorization filter.
-- Rejecting requests before expensive DB middleware on all paths including health checks → middleware.
-- API key validation on all routes including minimal APIs → middleware, not controller filters.
+I would use a filter when the logic genuinely needs MVC context — the action name, bound DTO parameters, or controller-level policies — or when the behavior should apply only to specific controllers or actions rather than every request. Middleware is the right choice for transport-wide concerns that must run before routing or must apply uniformly across minimal APIs and controllers alike. As a concrete example, action-specific audit logging that needs to inspect the bound DTO belongs in an action filter, while API key validation on all routes including minimal API health endpoints belongs in middleware, since filter short-circuit fires too late and misses non-MVC paths.
 
 ---
 
 ## Q10. How do you register a global filter?
 
-How do you register a global filter?
+**Concepts**
+- options.Filters.Add<T>() vs AddService<T>() for DI resolution
+- Scoped filter requiring AddScoped<T>() registration
+- IOrderedFilter.Order for global filter sequencing
 
-**Answer:** Add the filter type in `AddControllers` options or register it as a scoped service and use `AddService`. Global filters apply to every controller action unless excluded.
+**Answer**
+
+Add the filter type in `AddControllers` options using `options.Filters.Add<T>()` for simple filters, or `options.Filters.AddService<T>()` when the filter has scoped dependencies such as `DbContext`. The key distinction is that `AddService<T>()` requires the filter to be registered in the DI container so it is resolved with the correct lifetime per request — scoped filters for scoped services. Global filters apply to every controller action unless excluded, and `IOrderedFilter.Order` controls sequencing when multiple global filters run in the same pipeline stage.
 
 ```csharp
 builder.Services.AddScoped<AuditActionFilter>();
@@ -153,116 +169,117 @@ builder.Services.AddControllers(options =>
     options.Filters.AddService<AuditActionFilter>());
 ```
 
-- `options.Filters.Add<AuditActionFilter>()` resolves the filter from DI when needed.
-- Global filters with scoped dependencies must use `AddService<T>()` with `AddScoped<T>()`.
-- `[AllowAnonymous]` bypasses authorization filters but not other filter types.
-- Order global filters with `IOrderedFilter.Order` when sequence matters.
-
 ---
 
 ## Q11. How do you apply a filter to a single action or controller?
 
-How do you apply a filter to a single action or controller?
+**Concepts**
+- ServiceFilter — DI resolution with proper lifetime
+- TypeFilter — instantiation with constructor arguments
+- Controller-level inheritance to all actions
+- Multiple filters running in declaration order within a stage
 
-**Answer:** Apply filter attributes directly on the controller class or action method — `[ServiceFilter(typeof(AuditActionFilter))]`, `[TypeFilter(typeof(AuditActionFilter))]`, or built-in attributes like `[Authorize]`. Controller-level filters inherit to all actions unless overridden.
+**Answer**
 
-- `[ServiceFilter]` resolves the filter from DI — supports constructor injection with proper lifetimes.
-- `[TypeFilter]` instantiates the filter with specified constructor arguments.
-- Multiple filters on one action run in declaration order within the same filter stage.
-- Action-level `[Authorize(Roles = "Admin")]` overrides or narrows controller-level authorization.
+Apply filter attributes directly on the controller class or action method. `[ServiceFilter(typeof(T))]` resolves the filter from DI, so constructor injection respects lifetimes; `[TypeFilter(typeof(T))]` instantiates the filter while allowing specified constructor arguments. Built-in attributes like `[Authorize]` work the same way. Controller-level filters inherit to all actions unless overridden — `[Authorize(Roles = "Admin")]` on one action narrows that action's authorization without affecting others. Multiple filters on one action run in declaration order within the same filter stage.
 
 ---
 
 ## Q12. What is `IAsyncActionFilter`, and how does it differ from `IActionFilter`?
 
-What is `IAsyncActionFilter`, and how does it differ from `IActionFilter`?
+**Concepts**
+- Single OnActionExecutionAsync method vs two sync callbacks
+- ActionExecutionDelegate next pattern with await
+- Thread-pool starvation from blocking async in sync filters
+- ActionExecutedContext.Exception and Result inspection after next()
 
-**Answer:** `IAsyncActionFilter` defines a single `OnActionExecutionAsync` method with an `ActionExecutionDelegate next`, enabling async/await around action execution. `IActionFilter` uses synchronous `OnActionExecuting` and `OnActionExecuted` callbacks — blocking async I/O in sync filters causes thread-pool starvation.
+**Answer**
 
-- Async filter: `var executed = await next();` then inspect `executed.Result` or `executed.Exception`.
-- Sync filter: implement both `OnActionExecuting` and `OnActionExecuted` — no async support.
-- Always prefer `IAsyncActionFilter` when the filter awaits databases, HTTP calls, or file I/O.
-- Never use `.Result` or `.Wait()` on tasks inside synchronous filter methods.
+`IAsyncActionFilter` defines a single `OnActionExecutionAsync` method that receives an `ActionExecutionDelegate` (`next`), so `await next()` surrounds the entire action execution — the result and any unhandled exception are on the returned `ActionExecutedContext`. `IActionFilter` splits the logic into two synchronous callbacks, `OnActionExecuting` and `OnActionExecuted`, with no direct async support. The critical reason this matters is that blocking async I/O inside synchronous filter methods via `.Result` or `.Wait()` causes thread-pool starvation under load, since ASP.NET Core's pipeline relies on non-blocking async throughout. Prefer `IAsyncActionFilter` whenever the filter awaits databases, HTTP calls, or file I/O.
 
 ---
 
 ## Q13. How does `[Authorize]` relate to authorization filters?
 
-How does `[Authorize]` relate to authorization filters?
+**Concepts**
+- AuthorizeFilter as MVC's implementation of [Authorize]
+- IAuthorizationService policy evaluation
+- AllowAnonymous bypassing filter enforcement
+- Same policy system backing RequireAuthorization() on minimal API routes
 
-**Answer:** `[Authorize]` is implemented as an authorization filter (`AuthorizeFilter`) that evaluates the configured authorization policy against `HttpContext.User` via `IAuthorizationService`. It sets `context.Result` to 401 or 403 when the policy fails, before the action or model binding proceeds.
+**Answer**
 
-- Policy names, roles, and schemes come from the attribute properties — `[Authorize(Policy = "CanEdit")]`.
-- `[AllowAnonymous]` on an action skips authorization filter enforcement for that endpoint.
-- The same policy system backs both `[Authorize]` and minimal API `.RequireAuthorization()`.
-- Authentication must run first via `UseAuthentication()` — filters authorize an already populated principal.
+`[Authorize]` is backed by `AuthorizeFilter`, which is MVC's authorization filter implementation. When an action or controller carries `[Authorize]`, the filter calls `IAuthorizationService` with the configured policy against `HttpContext.User` populated by authentication middleware, and sets `context.Result` to 401 or 403 if the policy fails — before the action or model binding runs. `[AllowAnonymous]` on an action suppresses this filter for that endpoint. The same policy infrastructure powers both `[Authorize]` on controllers and `.RequireAuthorization()` on minimal API routes, which means policy definitions are shared while the integration point differs.
 
 ---
 
 ## Q14. What is the difference between authentication middleware and authorization filters?
 
-What is the difference between authentication middleware and authorization filters?
+**Concepts**
+- Authentication middleware — identity establishment for all requests
+- Authorization filters — permission decision for MVC actions only
+- UseAuthentication() populating ClaimsPrincipal
+- UseAuthorization() enforcing endpoint metadata including minimal routes
 
-**Answer:** Authentication middleware (`UseAuthentication()`) validates credentials and constructs `HttpContext.User` — it runs for all requests before authorization. Authorization filters run later in the MVC pipeline and decide whether the authenticated (or anonymous) user may execute a specific action.
+**Answer**
 
-- Authentication answers "who is this caller?" — JWT, cookies, API keys via authentication handlers.
-- Authorization answers "may this caller perform this action?" — roles, policies, claims.
-- `UseAuthorization()` middleware enforces endpoint metadata including minimal API routes.
-- Authorization filters are the MVC integration point for `[Authorize]` on controllers — both use the same policy infrastructure.
+Authentication middleware (`UseAuthentication()`) runs for every request and validates credentials — JWT, cookies, API keys — to construct the `ClaimsPrincipal` on `HttpContext.User`. Authorization filters run later in the MVC pipeline and use that already-populated principal to decide whether the user may execute a specific action. The distinction is "who is this caller" versus "may this caller do this". `UseAuthorization()` middleware enforces endpoint metadata including `RequireAuthorization()` on minimal API routes and `[Authorize]` on controllers, while authorization filters are the MVC integration point for the same policy infrastructure — both evaluate policies via `IAuthorizationService`.
 
 ---
 
 ## Q15. Do Minimal APIs use MVC filters?
 
-Do Minimal APIs use MVC filters?
+**Concepts**
+- MVC filter pipeline does not apply to minimal API handlers
+- IEndpointFilter as the minimal API equivalent
+- RequireAuthorization() for authorization on minimal routes
+- Consistent configuration required when mixing both
 
-**Answer:** No — minimal API endpoints do not execute the MVC filter pipeline (`IActionFilter`, `IAuthorizationFilter`, etc.). Cross-cutting logic for minimal APIs uses endpoint filters (`IEndpointFilter`), authorization middleware, or custom middleware instead.
+**Answer**
 
-- `[Authorize]` on controllers does not protect minimal API routes registered separately.
-- Apply `.RequireAuthorization()` on minimal API endpoints or groups for policy enforcement.
-- Use `.AddEndpointFilter<T>()` for validation, logging, and timing around minimal handlers.
-- Mixing controllers and minimal APIs requires configuring both filter/middleware and endpoint metadata consistently.
+No — minimal API endpoints entirely bypass the MVC filter pipeline, so `IActionFilter`, `IAuthorizationFilter`, and the other MVC filter types never run for `MapGet`/`MapPost` handlers. The equivalent is `IEndpointFilter`, registered with `.AddEndpointFilter<T>()`, for validation, logging, and timing. For authorization, minimal API routes use `.RequireAuthorization()` rather than inheriting `[Authorize]` from controllers. Teams that mix controllers and minimal APIs must configure authorization at both layers — sprinkling `[Authorize]` on controllers does not protect separately registered minimal API routes.
 
 ---
 
 ## Q16. What are endpoint filters in Minimal APIs?
 
-What are endpoint filters in Minimal APIs?
+**Concepts**
+- IEndpointFilter with InvokeAsync(HttpContext, EndpointFilterInvocationContext)
+- EndpointFilterInvocationContext.Arguments for bound parameter inspection
+- Short-circuit by returning IResult without calling next
+- Group-level filters via MapGroup for shared validation
 
-**Answer:** Endpoint filters implement `IEndpointFilter` and wrap minimal API route handlers — the closest equivalent to MVC action filters. Register with `.AddEndpointFilter<T>()` on a route or group to run logic before and after the handler delegate.
+**Answer**
 
-- Signature: `InvokeAsync(HttpContext, EndpointFilterInvocationContext next)`.
-- Can validate arguments in `EndpointFilterInvocationContext.Arguments` before the handler runs.
-- Return `Results.Problem()` or other `IResult` to short-circuit without calling the handler.
-- Group-level filters apply to every endpoint in a `MapGroup` — useful for shared validation or timing.
+Endpoint filters implement `IEndpointFilter` and are registered with `.AddEndpointFilter<T>()` on a route or a `MapGroup`. The `InvokeAsync` signature provides access to `context.Arguments`, which holds the already-bound parameters for that specific route — so a filter can validate bound values before the handler runs, or return `Results.Problem()` to short-circuit without calling `await next(ctx)`. Applying a filter at the group level shares the same validation or timing logic across every endpoint in that `MapGroup`, which is the idiomatic way to avoid repeating filter registration on each route.
 
 ---
 
 ## Q17. How does DI work with filters?
 
-How does DI work with filters?
+**Concepts**
+- ServiceFilter and AddService<T>() for DI-resolved filters
+- Filter lifetime alignment with service lifetimes
+- Captive dependency — scoped DbContext in a singleton filter
+- IServiceScopeFactory or IDbContextFactory<T> for singleton filters needing a scope
 
-**Answer:** Filters are resolved from the DI container when registered via `[ServiceFilter]`, `AddService<T>()`, or `TypeFilter`. Constructor injection works, but filter lifetimes must align with their dependencies — scoped filters for scoped services like `DbContext`.
+**Answer**
 
-- Register: `builder.Services.AddScoped<MyActionFilter>()` then `[ServiceFilter(typeof(MyActionFilter))]`.
-- Global `options.Filters.Add<MyActionFilter>()` with scoped dependencies requires `AddService<MyActionFilter>()`.
-- Injecting scoped `DbContext` into a singleton-cached filter causes captive dependency errors in Production with `ValidateScopes`.
-- Use `IServiceScopeFactory` or `IDbContextFactory<T>` inside singleton filters when a scope per invocation is needed.
+Filters resolved through `[ServiceFilter]`, `options.Filters.AddService<T>()`, or `TypeFilterAttribute` participate in the DI container, so constructor injection works — but filter lifetimes must align with their dependencies. Injecting a scoped `DbContext` into a filter registered as singleton creates a captive dependency: the scoped instance is disposed after its first request scope while the singleton filter holds a reference forever, causing `ObjectDisposedException` or stale change trackers. Enable `ValidateScopes` in Development to catch this at startup. For singleton filters that need per-invocation database access, inject `IServiceScopeFactory` and create a scope per execution, or use `IDbContextFactory<T>` for a short-lived pooled context.
 
 ---
 
 ## Q18. Can a filter short-circuit a request? How?
 
-Can a filter short-circuit a request? How?
+**Concepts**
+- Setting context.Result to skip subsequent filters and the action
+- Resource filter short-circuit before model binding
+- Endpoint filter returning IResult without calling next()
+- Authorization filter 401/403 as the canonical short-circuit pattern
 
-**Answer:** Yes — filters short-circuit by assigning `context.Result` to an `IActionResult` (authorization, resource, action filters) or returning an `IResult` without calling `next()` (endpoint filters). Subsequent filters and the action are skipped once a result is set.
+**Answer**
 
-- Authorization filter: `context.Result = new UnauthorizedResult();` before the action runs.
-- Action filter: set `context.Result` in `OnActionExecuting` or before `await next()` in async filters.
-- Resource filter: set `context.Result` in `OnResourceExecuting` to skip model binding and the action entirely.
-- Endpoint filter: return `Results.BadRequest(...)` without invoking `await next()` to skip the handler.
-
----
+Yes — MVC authorization, resource, and action filters short-circuit by assigning `context.Result` to an `IActionResult` before calling `next()` (or in the `Executing` callback), which causes all subsequent filters and the action to be skipped. Endpoint filters short-circuit by returning an `IResult` directly without invoking `await next(ctx)`. Authorization filters use this pattern to return 401 or 403 before expensive model binding runs; resource filters use it to return a cached result and skip the entire action pipeline; action filters use it to return early on validation failure.
 
 ---
 
@@ -270,174 +287,207 @@ Can a filter short-circuit a request? How?
 
 #### Gotcha 1. Middleware order — routing before auth
 
-**Answer:** In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata — registering auth before routing breaks endpoint-aware authorization and policy resolution.
+**Concepts**
+- UseRouting must precede UseAuthentication and UseAuthorization
+- Endpoint metadata not selected before routing runs
+- Recommended pipeline order for ASP.NET Core 8
 
-- The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints (`MapControllers` / `MapGet`).
-- When auth runs before routing, the endpoint has not been selected yet and `[Authorize]` metadata on minimal routes or controllers may not apply correctly.
-- Symptoms include anonymous access to protected endpoints or 401 responses without proper challenge behavior.
-- Always verify middleware order in `Program.cs` during code review for new services.
+**Answer**
+
+In ASP.NET Core endpoint routing, `UseAuthentication` and `UseAuthorization` must run after `UseRouting` so the auth middleware can read endpoint metadata — if auth runs before routing, the endpoint has not been selected yet and policy resolution for `[Authorize]` and `RequireAuthorization()` cannot inspect the correct attributes. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms of wrong order include anonymous access to protected endpoints and 401 challenges that fire without correctly applying per-endpoint allow-anonymous overrides.
 
 ---
 
 #### Gotcha 2. Scoped service in a Singleton
 
-**Answer:** Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`.
+**Concepts**
+- Captive dependency lifetime violation
+- EF DbContext stale change tracker accumulation
+- ValidateScopes detecting the problem at startup
+- IServiceScopeFactory as the correct fix
 
-- The singleton holds one scoped instance forever instead of one per request — EF change trackers accumulate unrelated entities.
-- Enable `ValidateScopes` in Development/staging to catch illegal scope combinations at startup.
-- Fix by injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation.
-- This applies equally to singleton services, hosted services, and cached delegates in Minimal APIs.
+**Answer**
+
+A scoped service injected into a singleton is held for the entire application lifetime, long after the scope that created it was disposed. The most common case is `DbContext`: the change tracker accumulates entities from unrelated requests, and after the scope is torn down any access throws `ObjectDisposedException`. Enable `ValidateScopes = true` in Development and staging to catch these combinations at startup rather than under production load. The fix is to inject `IServiceScopeFactory` and create a scope per unit of work, or use `IDbContextFactory<T>` to get a short-lived context per operation.
 
 ---
 
 #### Gotcha 3. `new HttpClient()` in a singleton
 
-**Answer:** Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected.
+**Concepts**
+- HttpMessageHandler lifetime and socket exhaustion
+- IHttpClientFactory managed handler recycling
+- Named and typed client registration pattern
 
-- `HttpClient` is disposable but not meant for per-use disposal — `using var client = new HttpClient()` in a singleton is an anti-pattern.
-- `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly.
-- Register named or typed clients: `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>();`
-- Symptoms include `SocketException` and timeout errors only under production traffic, not in local testing.
+**Answer**
+
+Instantiating `HttpClient` with `new` in a long-lived singleton prevents socket reuse because each instance holds its own `HttpMessageHandler` and the underlying TCP connections are not returned to a pool until garbage collection. Under load this causes socket exhaustion — `SocketException` and timeout errors that do not appear in local testing with low concurrency. `IHttpClientFactory` manages handler lifetimes and recycles connections correctly, so the fix is to register named or typed clients via `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject them rather than constructing `HttpClient` directly.
 
 ---
 
 #### Gotcha 4. `IOptions<T>` vs reload
 
-**Answer:** `IOptions<T>` captures configuration snapshot at first resolution — reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled.
+**Concepts**
+- IOptions<T> frozen snapshot at first resolution
+- IOptionsSnapshot<T> recalculates per request scope
+- IOptionsMonitor<T> live change notifications for singletons
+- Silent staleness until process restart
 
-- `IOptionsSnapshot<T>` recalculates per request scope; `IOptionsMonitor<T>` supports change notifications via `OnChange`.
-- Singleton services must use `IOptionsMonitor<T>` or read options inside scoped operations if they need live updates.
-- Misconfiguration persists silently until process restart when `.Value` was cached at construction.
-- See Chapter 05 for the full options lifetime comparison.
+**Answer**
+
+`IOptions<T>` resolves once and caches the configuration snapshot for the service's lifetime, so a singleton that reads `.Value` in its constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope but is only usable in scoped services. `IOptionsMonitor<T>` supports change notifications via `OnChange` and works correctly in singletons. The failure mode is silent — misconfiguration persists until process restart because `.Value` was captured at construction.
 
 ---
 
 #### Gotcha 5. GET with `[FromBody]`
 
-**Answer:** Using `[FromBody]` on GET action parameters or minimal API handlers is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies, so binding fails silently in production.
+**Concepts**
+- HTTP GET semantics and safe/idempotent URL parameters
+- Proxies and caches stripping GET request bodies
+- [FromQuery] with [AsParameters] for complex filter criteria
+- Silent failures in CDN and proxy layers
 
-- Query strings and route values are the correct binding sources for GET requests.
-- Complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys.
-- Failures often appear only in specific browsers or CDN layers, not in Swagger "Try it out" during development.
-- REST conventions expect GET to be safe and idempotent with parameters in the URL.
+**Answer**
+
+`[FromBody]` on a GET endpoint is an anti-pattern because HTTP GET is defined as safe and idempotent with parameters in the URL — many clients, CDNs, and caching proxies strip or ignore request bodies on GET requests, so binding fails silently in production while "Try it out" in Swagger may appear to work. Use `[FromQuery]` with separate parameter names or `[AsParameters]` on a record type to aggregate complex filter criteria into a single clean parameter object.
 
 ---
 
 #### Gotcha 6. PascalCase JSON keys with default camelCase policy
 
-**Answer:** ASP.NET Core 8 Web API serializes JSON with camelCase property names by default via `JsonNamingPolicy.CamelCase`, so incoming JSON with PascalCase keys (for example `"CustomerName"`) may not bind to `CustomerName` unless case-insensitive matching is enabled.
+**Concepts**
+- JsonNamingPolicy.CamelCase as ASP.NET Core default
+- Silent binding producing default values instead of errors
+- PropertyNameCaseInsensitive as a mitigation
+- Validation attributes turning silent failure into 400 responses
 
-- Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values (empty string, zero).
-- Prefer standardizing clients on camelCase and documenting the contract in OpenAPI.
-- Optional mitigation: `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` — but explicit camelCase contracts are cleaner.
-- Add validation attributes so silent binding failures become 400 responses instead of corrupt data.
+**Answer**
+
+ASP.NET Core Web API serializes JSON with `JsonNamingPolicy.CamelCase` by default, which means incoming JSON with PascalCase keys like `"CustomerName"` does not match the property — the model binds successfully but properties silently hold default values (null, zero, false). The preferred fix is standardizing all clients on camelCase and enforcing it through OpenAPI contracts. As a mitigation, `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` relaxes matching. Add required validation attributes so silent binding failures produce 400 responses rather than corrupt data silently stored to the database.
 
 ---
 
 #### Gotcha 7. `throw ex` vs `throw`
 
-**Answer:** Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown.
+**Concepts**
+- throw; preserving original stack trace
+- throw ex; resetting stack trace to the catch site
+- InnerException preservation when intentionally wrapping
+- APM and structured logging dependency on accurate stack traces
 
-- Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis.
-- Always use `throw;` when rethrowing after logging or cleanup in a catch block.
-- Wrap in a new exception only when adding context: `throw new OrderProcessingException("...", ex)` to preserve `InnerException`.
-- This trap appears in both application code and background worker error handlers.
+**Answer**
+
+Rethrowing with `throw ex` resets the stack trace to the catch block line, which means Application Insights, Serilog, and `IExceptionHandler` all point at the handler rather than the code that actually failed. Bare `throw;` preserves the full original stack trace. Use `throw;` when logging and delegating upward; wrap with a new exception type only when adding context — `throw new OrderProcessingException("...", ex)` — so the original failure is preserved in `InnerException`. This rule applies identically in async code after `await`.
 
 ---
 
 #### Gotcha 8. Kestrel as the only production layer
 
-**Answer:** Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching that production deployments typically require.
+**Concepts**
+- Kestrel as application server vs edge gateway
+- TLS termination and certificate management at the reverse proxy
+- WAF, rate limiting, and static file caching at the edge
+- UseForwardedHeaders required for client IP logging
 
-- Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front.
-- TLS certificates are easier to manage at the proxy layer with automatic renewal.
-- Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy.
-- Containers often bind Kestrel to port 8080 internally while the ingress controller handles HTTPS externally.
+**Answer**
+
+Kestrel is a production-grade application server optimized for running .NET efficiently, but directly exposing it to the internet skips TLS certificate centralization, WAF filtering, centralized rate limiting, and efficient static-file caching that reverse proxies handle. nginx, IIS, Azure Front Door, or AWS ALB typically sit in front so certificates are managed at the proxy layer with automatic renewal. If Kestrel is exposed directly, client IP logging requires `UseForwardedHeaders` configuration, and containers typically bind Kestrel to an internal port while the ingress controller handles external HTTPS.
 
 ---
 
 #### Gotcha 9. `launchSettings.json` in production
 
-**Answer:** Settings in `Properties/launchSettings.json` — including `applicationUrl`, environment variables, and launch profiles — apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts.
+**Concepts**
+- launchSettings.json applies only to dotnet run and IDE launch
+- ASPNETCORE_URLS and ASPNETCORE_ENVIRONMENT as production env vars
+- appsettings.Production.json for non-secret production tuning
 
-- Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
-- Assuming `launchSettings.json` sets Production behavior leads to wrong environment or binding in deployed environments.
-- The file is development ergonomics, not runtime configuration.
-- Use `appsettings.Production.json` and host-level env vars for production values.
+**Answer**
+
+`Properties/launchSettings.json` contains URLs, environment variables, and launch profiles that are read only by `dotnet run`, Visual Studio, and VS Code — the file is not deployed to production hosts and has no effect on them. Relying on it for environment name or URL configuration leads to wrong `ASPNETCORE_ENVIRONMENT` or binding address in deployed environments. Production URLs and environment come from host-level environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
 
 ---
 
 #### Gotcha 10. Non-nullable `bool` for PATCH semantics
 
-**Answer:** A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics.
+**Concepts**
+- default(false) for missing JSON field
+- Nullable bool? for tri-state intent
+- PATCH semantics requiring omitted-vs-false distinction
+- Update DTO design for partial updates
 
-- PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent.
-- Marketing consent and feature flags are common domains where this bug causes compliance or logic errors.
-- Create DTOs may use non-nullable bool when explicit values are always required on insert.
-- Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
+**Answer**
+
+A non-nullable `bool` property in a PATCH DTO cannot distinguish "field omitted from JSON" from "explicitly set to false" because `System.Text.Json` deserializes missing properties to `default(false)`, which corrupts partial-update semantics — a client updating only an email address accidentally resets a consent flag to false. PATCH endpoints need `bool?`, separate update DTOs that only include fields being modified, or tri-state enums like `Unspecified | OptIn | OptOut` to represent intent explicitly. Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
 
 ---
 
 #### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
 
-**Answer:** Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs.
+**Concepts**
+- X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host headers
+- ForwardedHeadersOptions.KnownProxies for trusted network restriction
+- Pipeline position — must run before HTTPS redirection and auth
+- Header spoofing risk when trusting all proxies
 
-- Call `UseForwardedHeaders()` early, before middleware that reads scheme or host (HTTPS redirection, link generation, rate limiting by IP).
-- Configure `ForwardedHeadersOptions` to trust only your reverse proxy network — trusting all proxies enables header spoofing.
-- Headers include `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host`.
-- Local development without a proxy does not need this; production behind nginx/IIS/ALB does.
+**Answer**
+
+Without `UseForwardedHeaders()` configured with known proxy IPs, `HttpContext.Request.Scheme` stays `http` even when clients used HTTPS, `Request.Host` reflects the internal address, and the client IP is the proxy — breaking HTTPS redirects, secure cookie flags, and audit logs. Call `UseForwardedHeaders()` as early as possible, before HTTPS redirection, authentication, link generation, and rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your specific reverse proxy network rather than all proxies, since trusting all enables header spoofing by any client.
 
 ---
 
 #### Gotcha 12. Static files in `wwwroot` are public
 
-**Answer:** Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default — placing secrets, `.env`, backup configs, or private keys there exposes them over HTTP.
+**Concepts**
+- UseStaticFiles() serving without authentication
+- wwwroot as a public CDN root
+- Secrets management via environment variables and Key Vault
+- Build pipeline verification of publish output
 
-- Only public assets (CSS, JS, images, public PDFs) belong in `wwwroot`.
-- Sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers.
-- Accidental copy of `appsettings.Production.json` into `wwwroot` is a critical security incident.
-- Use build pipelines to verify web root contents before deploy.
+**Answer**
+
+Every file in `wwwroot` is served to unauthenticated anonymous clients by `UseStaticFiles()` — there is no authentication gate by default. Placing `.env` files, `appsettings.Production.json`, private keys, or backup configs there makes them directly downloadable via their URL path. Only public assets such as CSS, JavaScript, images, and public PDFs belong in `wwwroot`. Sensitive configuration must live in environment variables, Azure Key Vault, or similar secret managers, and build pipelines should verify that publish output does not include secrets in the web root.
 
 ---
 
 #### Gotcha 13. `MapFallbackToFile` intercepting API routes
 
-**Answer:** SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers.
+**Concepts**
+- SPA fallback order relative to API endpoint mapping
+- /api/* returning index.html with HTTP 200 as a silent failure
+- Endpoint-first ordering in Program.cs
 
-- Map API routes (`MapControllers`, minimal API groups) before `MapFallbackToFile("index.html")`.
-- Scope fallback to non-API paths or use conditional fallback that excludes `/api` prefixes.
-- Symptoms include CORS errors masked as HTML responses and Swagger fetch failures in production SPA hosting.
-- Order in `Program.cs` is: API endpoints first, static files, fallback last.
+**Answer**
+
+Registering `MapFallbackToFile("index.html")` before API endpoint mapping causes any unmatched API route — including valid 404s — to return `index.html` with HTTP 200, which breaks JSON parsers on clients and masks the real failure. The correct order is to map API routes with `MapControllers()` or `MapGroup("/api")` first, then static files, then the SPA fallback last. Symptoms include CORS errors appearing as HTML responses and Swagger fetch failures in production SPA hosting.
 
 ---
 
 #### Gotcha 14. Background service without scope factory
 
-**Answer:** A singleton `BackgroundService` that injects scoped services (`DbContext`, repositories) directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration.
+**Concepts**
+- BackgroundService singleton lifetime
+- Scoped service constructor injection causing disposal errors
+- IServiceScopeFactory.CreateAsyncScope() per background job
+- ValidateScopes detecting this at startup
 
-- Hosted services live for the application lifetime — scoped dependencies must not be constructor-injected.
-- Inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes.
-- Same rule applies to timers and `Task.Run` loops started from singletons.
-- Enable `ValidateScopes` to catch this defect before production deployment.
+**Answer**
+
+A singleton `BackgroundService` cannot constructor-inject scoped services like `DbContext` because hosted services live for the application lifetime while scoped instances are disposed after their first scope ends, causing `ObjectDisposedException` or scope validation errors at startup. The fix is to inject `IServiceScopeFactory`, then inside each background job call `await using var scope = factory.CreateAsyncScope()`, resolve the scoped service from `scope.ServiceProvider`, and dispose the scope when the job finishes. Enable `ValidateScopes` in Development to catch this before production deployment.
 
 ---
 
 #### Gotcha 15. SignalR without a backplane on multiple instances
 
-**Answer:** SignalR broadcasts from one server instance reach only clients connected to that instance — without a Redis or Azure Service Bus backplane (or Azure SignalR Service), users on different nodes never receive each other's real-time events.
+**Concepts**
+- SignalR broadcast scope — single server instance only
+- Redis or Azure Service Bus backplane for multi-instance routing
+- Sticky sessions vs backplane trade-offs
+- Azure SignalR Service as a managed alternative
 
-- Sticky sessions keep one client on one node but do not route events raised on other nodes to that client.
-- Register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application.
-- Raw WebSocket apps need equivalent custom pub/sub — SignalR's backplane is the built-in solution.
-- Test scale-out with at least two instances before launch, not single-node staging alone.
+**Answer**
 
----
-
----
-
-## Gotchas — ASP.NET Core (Interview Traps)
-
-## Gotchas — ASP.NET Core (Interview Traps)
+SignalR tracks connected clients per server instance, so a broadcast from one instance reaches only the clients connected to that instance. With multiple instances behind a load balancer, users on different nodes never receive events raised on other nodes — a critical failure for real-time chat or notifications. Sticky sessions keep one client on one node but do not route server-side events across nodes, so they are not a substitute for a backplane. The solution is a Redis or Azure Service Bus backplane registered with `AddSignalR().AddStackExchangeRedis(...)`, or the managed Azure SignalR Service. Test scale-out with at least two instances before launch.
 
 ---
 
@@ -445,21 +495,18 @@ Can a filter short-circuit a request? How?
 
 #### Q1. (M) A teammate says "we'll put auth in an action filter instead of middleware." Walk through the MVC filter execution order — authorization filter, resource filter, action filter, exception filter, result filter — and explain which filter type owns authentication vs authorization vs action-specific validation.
 
----
+**Concepts**
+- Authentication in middleware, not any filter type
+- Authorization filter — fail-fast access decision before model binding
+- Action filter — action-specific validation with bound parameters
+- Result filter wrapping IActionResult execution
+- Filter short-circuit scope vs middleware short-circuit scope
 
-**Answer:**
+**Answer**
 
-**Answer:** MVC runs filters in a fixed pipeline around the action: authorization filters first (fail-fast on access), then resource filters (before/after resource execution), action filters (around the action method), exception filters (on unhandled exceptions from earlier stages), and result filters (around `IActionResult` execution). Authentication belongs in middleware (`UseAuthentication`); authorization belongs in authorization filters or `[Authorize]`; action-specific validation belongs in action filters.
+MVC runs filters in a fixed pipeline around the action: authorization filters run first and short-circuit with 401/403 before model binding and the action incur cost, then resource filters wrap the remainder including model binding, then action filters run immediately around the action method, then exception filters handle unhandled exceptions from earlier stages, and finally result filters surround `IActionResult` execution. Authentication does not belong in any of these stages — it belongs in `UseAuthentication()` middleware, which runs earlier and populates `HttpContext.User` before routing even selects the action. Authorization filters then evaluate policies against that already-populated principal via `IAuthorizationService`. Action-specific validation — checking bound model state or business preconditions on the bound DTO — belongs in action filters, since they receive the bound parameters directly.
 
-- **Authorization filters** (`IAuthorizationFilter`, `[Authorize]`) run before model binding completes expensive work in some setups and set `context.Result` to short-circuit (401/403) before the action executes.
-- **Resource filters** (`IResourceFilter`) wrap the entire remainder of the filter pipeline plus action execution — useful for request-scoped caching of lookup data or short-circuiting if a cached `IActionResult` already exists.
-- **Action filters** (`IActionFilter` / `IAsyncActionFilter`) run immediately before and after the action — ideal for validating bound models, timing, or mutating `ActionExecutingContext`.
-- **Exception filters** run only when an exception escapes the action/resource stages but before the result is committed — they do not catch middleware failures or exceptions in result execution unless configured separately.
-- **Result filters** wrap execution of `IActionResult` (view rendering, JSON serialization).
-
-**Production takeaway:** Putting authentication in an action filter runs too late for non-MVC endpoints and duplicates what `UseAuthentication`/`UseAuthorization` middleware already standardizes — filters are for MVC/action-scoped concerns after routing.
-
----
+Putting authentication in an action filter runs it too late for non-MVC endpoints, bypasses it entirely for requests that never reach routing, and duplicates what the authentication middleware already standardizes across the entire pipeline.
 
 ---
 
@@ -484,43 +531,17 @@ public class ApiKeyAuthFilter : IAuthorizationFilter
 
 *(Assume the filter is registered globally via `AddControllers(options => options.Filters.Add<ApiKeyAuthFilter>())`.)*
 
----
+**Concepts**
+- Sync-over-async via .Result causing thread-pool starvation
+- IAsyncAuthorizationFilter as the correct interface
+- StringValues header validation before database lookup
+- UnauthorizedObjectResult with ProblemDetails for consistent error shape
 
-**Answer:**
+**Answer**
 
-```csharp
-public class ApiKeyAuthFilter : IAuthorizationFilter
-{
-    private readonly IUserRepository _users;
+The filter blocks a thread-pool thread by calling `.Result` on `FindByApiKey()` inside the synchronous `OnAuthorization` callback. Since every matched controller action runs through this global authorization filter, blocking I/O here multiplies across the entire MVC surface and causes thread-pool starvation under concurrent load. The header is also read and passed directly to the repository without checking whether it is empty or malformed — an absent `X-Api-Key` header passes a `StringValues.Empty` value to the database query. The response is a bare `UnauthorizedResult` with no body, which is inconsistent with any `ProblemDetails` contract the API maintains.
 
-    public ApiKeyAuthFilter(IUserRepository users) => _users = users;
-
-    public void OnAuthorization(AuthorizationFilterContext context)
-    {
-        var key = context.HttpContext.Request.Headers["X-Api-Key"];
-        var user = _users.FindByApiKey(key).Result;
-        if (user is null)
-            context.Result = new UnauthorizedResult();
-    }
-}
-```
-
-**Answer:** The filter blocks a thread with `.Result` on async database I/O inside the authorization path, causing sync-over-async under load, and it reads the header without validation while returning a bare `UnauthorizedResult` without `ProblemDetails` or logging.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Async | `.Result` on `FindByApiKey` | Thread-pool starvation; blocked requests during I/O |
-| API design | `StringValues` header assigned without `ToString()` / empty check | May query with invalid key shape; empty header passes to DB |
-| HTTP / API | `UnauthorizedResult` with no body | Clients get empty 401; inconsistent with API error contract |
-| Design | Sync authorization filter for async data access | Wrong filter interface — should be async auth handler or policy |
-
-**Fix (priority order):**
-
-1. Replace with `IAsyncAuthorizationFilter` and `await _users.FindByApiKeyAsync(key, context.HttpContext.RequestAborted)`.
-2. Validate header with `TryGetValue`; compare API keys with fixed-time equality.
-3. Set `context.Result` to `UnauthorizedObjectResult` with `ProblemDetails`, or use ASP.NET Core authentication handlers + `[Authorize]` policies instead of custom sync filter logic.
+The fix starts with switching to `IAsyncAuthorizationFilter` and awaiting `FindByApiKeyAsync` with the request cancellation token. Then validate the header with `TryGetValue` before querying, and return `UnauthorizedObjectResult` with a `ProblemDetails` body rather than the empty result.
 
 ```csharp
 public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
@@ -536,25 +557,19 @@ public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
 }
 ```
 
-**Production takeaway:** Authorization filters run on every matched MVC action — blocking I/O here multiplies across the entire controller surface.
-
----
-
 ---
 
 #### Q3. (P) Implement cross-cutting request timing and audit logging around controller actions using `IAsyncActionFilter`. What runs in `OnActionExecutionAsync` before vs after `await next()`, and what can you still change at each stage?
 
----
+**Concepts**
+- ActionExecutingContext before next() — short-circuit or read bound arguments
+- ActionExecutedContext after next() — outcome, exceptions, elapsed time
+- IAsyncActionFilter for async I/O in filter logic
+- ServiceFilter or global AddService<T>() registration
 
-**Answer:**
+**Answer**
 
-**Answer:** Register an `IAsyncActionFilter`, run audit setup and timing before `await next()`, then inspect or log the outcome after `next()` returns — you can still short-circuit before `next()` by setting `context.Result`, but after `next()` the action has executed and you can read `context.Result` or handled exceptions from `ActionExecutedContext`.
-
-- **Before `await next()`:** `ActionExecutingContext` — set `context.Result` to skip the action entirely (validation failure → 400); read route values and `HttpContext.User`.
-- **`await next()`:** invokes downstream filters and the action method; on exception, `ActionExecutedContext.Exception` is populated unless another filter handled it.
-- **After `await next()`:** log elapsed time, status code, user id; do not change the action's return value easily — mutate `context.Result` only if the action did not run or you are compensating.
-- Register via `[ServiceFilter(typeof(AuditActionFilter))]` for DI or globally with `options.Filters.Add<AuditActionFilter>()`.
-- Prefer `IAsyncActionFilter` over sync `IActionFilter` when logging or audit touches I/O.
+Register an `IAsyncActionFilter` and put setup and timing before `await next()`, then inspection and logging after. Before `await next()`, the `ActionExecutingContext` provides route values, `HttpContext.User`, and the bound arguments — at this point setting `context.Result` completely skips the action, which is useful for returning a validation failure 400 before the handler runs. After `await next()` returns, `ActionExecutedContext` carries the result type, any unhandled exception, and elapsed time for logging. Since `await next()` has already invoked the action, mutating the result at this stage is possible but unusual. Register via `[ServiceFilter(typeof(AuditActionFilter))]` for per-controller use, or globally with `options.Filters.AddService<AuditActionFilter>()` when scoped `DbContext` is needed.
 
 ```csharp
 public async Task OnActionExecutionAsync(ActionExecutingContext ctx, ActionExecutionDelegate next)
@@ -568,48 +583,37 @@ public async Task OnActionExecutionAsync(ActionExecutingContext ctx, ActionExecu
 }
 ```
 
-**Production takeaway:** Action filters see MVC context (action name, bound arguments) that middleware lacks — use them for per-action audit, not transport-level rejection.
-
----
-
 ---
 
 #### Q4. (D) Your team needs to reject requests without a valid API key before routing reaches expensive database middleware. Another developer wants an `IActionFilter` on every controller. Compare filter short-circuit (`context.Result = …`) vs middleware short-circuit (no `_next`). When is each the right seam?
 
----
+**Concepts**
+- Middleware short-circuit before routing and model binding
+- Filter short-circuit after MVC action selection — expensive upstream middleware already ran
+- Middleware applies to all endpoint types including minimal APIs
+- Per-controller policies as the filter's legitimate advantage
 
-**Answer:**
+**Answer**
 
-**Answer:** Middleware short-circuit rejects requests before routing and endpoint selection — saving work for non-MVC paths and global gates; filter short-circuit only runs after MVC has selected a controller action, so expensive upstream middleware already ran.
+Middleware short-circuit rejects requests before routing runs — saving the cost of endpoint selection, model binding, and any upstream middleware that runs after the gate. Filter short-circuit only fires after MVC has already selected a controller action, which means every expensive middleware between `UseRouting()` and the action already ran. The proposal to put an `IActionFilter` on every controller is the wrong seam for this requirement: it fires too late, misses minimal API routes and health endpoints, and duplicates authorization logic across controllers rather than centralizing it.
 
-- **Middleware** (`RequestDelegate` chain): runs for all requests matching its branch; skip `_next` to return 401/429 immediately; required for concerns before `UseRouting` (forwarded headers, global API key on all paths including minimal APIs and health endpoints if desired).
-- **Filter short-circuit:** sets `context.Result` (e.g., `UnauthorizedResult`) so the action and later filters skip execution, but routing, model binding, and earlier middleware already executed.
-- **Filter advantage:** access to `ActionDescriptor`, `[Authorize]` integration, per-controller policies, and `IAsyncActionFilter` with action arguments.
-- **Middleware advantage:** uniform behavior for MVC + minimal APIs; runs before DI scope for unrelated endpoints; pairs with endpoint routing `MapWhen` for path-specific branches.
-
-**Production takeaway:** "Reject before DB middleware" is a pipeline-order problem — action filters are the wrong layer; place API-key middleware before the expensive middleware, not on every controller.
-
----
+Middleware is the right layer when the rejection criterion is global — API key absence affects the entire HTTP surface, not one controller. Place the API key middleware before the expensive database middleware in the pipeline so rejections happen at the earliest possible point. Filters are the right layer when the logic needs MVC context: action name, bound parameters, or per-controller authorization policies. Both approaches can set a result and terminate the pipeline, but the position in the pipeline determines what has already executed when that result is written.
 
 ---
 
 #### Q5. (M) `[Authorize(Roles = "Admin")]` is implemented as an authorization filter. How does that differ from calling `app.UseAuthentication()` / `UseAuthorization()` middleware, and what happens if authorization middleware runs but no authorization filter is reached (e.g., minimal API endpoint)?
 
----
+**Concepts**
+- UseAuthentication() establishing ClaimsPrincipal for all requests
+- UseAuthorization() enforcing endpoint metadata after routing
+- AuthorizeFilter as MVC-only integration point
+- Minimal API routes requiring RequireAuthorization() not [Authorize]
 
-**Answer:**
+**Answer**
 
-**Answer:** Middleware authentication populates `HttpContext.User` from cookies, JWT, or schemes; middleware authorization enforces policies via endpoint metadata (`RequireAuthorization()`). MVC `[Authorize]` adds an authorization filter that checks the same policy system but only on controller actions — minimal APIs rely on endpoint metadata, not MVC filters.
+`UseAuthentication()` runs for every request and calls authentication handlers to set the `ClaimsPrincipal` on `HttpContext.User`. `UseAuthorization()` middleware evaluates `[Authorize]`, `[AllowAnonymous]`, and `RequireAuthorization()` metadata attached to the matched endpoint — since it runs after routing, it can see endpoint-specific authorization requirements including those on minimal API routes. The MVC `[Authorize]` attribute creates an `AuthorizeFilter` as one integration point for this same policy system, but this filter runs only for controller actions.
 
-- `UseAuthentication()` runs authentication handlers and sets `ClaimsPrincipal` on `HttpContext.User`.
-- `UseAuthorization()` evaluates `[Authorize]`, `[AllowAnonymous]`, and `RequireAuthorization()` metadata attached to endpoints — including minimal APIs and Razor Pages.
-- MVC **authorization filters** are one integration point for `[Authorize]` on controllers; they call into `IAuthorizationService` with the same policies as middleware.
-- A minimal API with `.RequireAuthorization("Admin")` never runs MVC authorization filters — only authorization middleware after routing.
-- If authorization middleware is missing, `[Authorize]` on controllers may not enforce correctly; filters alone cannot authenticate — they only authorize an already-populated `User`.
-
-**Production takeaway:** Teams mixing minimal APIs and controllers must configure authorization at the endpoint/middleware layer — sprinkling authorization filters on controllers leaves minimal API routes unprotected.
-
----
+A minimal API route registered with `.RequireAuthorization("Admin")` never reaches MVC exception or authorization filters — only the authorization middleware evaluates it. If a minimal API endpoint has no `.RequireAuthorization()` call, it is anonymous even if controllers are fully protected by `[Authorize]`. Teams mixing both surfaces must configure authorization at the middleware/metadata level — authorization filters alone cover only the MVC surface.
 
 ---
 
@@ -636,51 +640,17 @@ public class CatalogCacheResourceFilter : IResourceFilter
 }
 ```
 
----
+**Concepts**
+- Static Dictionary as process-wide shared state, not per-request
+- Dictionary<> thread-safety under concurrent writes
+- Inverted ContainsKey logic storing null on lookup failure
+- IMemoryCache with TTL for legitimate cross-request caching
 
-**Answer:**
+**Answer**
 
-```csharp
-public class CatalogCacheResourceFilter : IResourceFilter
-{
-    private static readonly Dictionary<string, object> _cache = new();
+The `static` dictionary shares catalog data across all requests and all users for the entire process lifetime, not just for one request as a resource filter normally intends. This causes three distinct problems. First, the cache never expires — entries accumulate indefinitely and stale pricing or availability data from one request persist for all subsequent ones. Second, `Dictionary<string, object>` is not thread-safe: concurrent reads and writes from parallel requests cause race conditions and potential data corruption. Third, the `OnResourceExecuted` condition is inverted — it stores when the key is absent in `HttpContext.Items`, which means it stores null when the lookup failed, poisoning the cache for subsequent requests on the same category.
 
-    public void OnResourceExecuting(ResourceExecutingContext context)
-    {
-        var key = context.RouteData.Values["categoryId"]?.ToString();
-        if (key != null && _cache.TryGetValue(key, out var cached))
-            context.HttpContext.Items["Catalog"] = cached;
-    }
-
-    public void OnResourceExecuted(ResourceExecutedContext context)
-    {
-        var key = context.RouteData.Values["categoryId"]?.ToString();
-        if (key != null && !context.HttpContext.Items.ContainsKey("Catalog"))
-            _cache[key] = context.HttpContext.Items["Catalog"]!;
-    }
-}
-```
-
-**Answer:** A `static` dictionary shares catalog data across all requests and users indefinitely — not per-request caching — creating stale data, unbounded memory growth, and thread-safety bugs under concurrent writes.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Design / state | `static` cache shared process-wide | User A sees User B's catalog; stale data never expires |
-| Concurrency | `Dictionary<>` without synchronization | Race conditions and corrupted state under load |
-| Correctness | `OnResourceExecuted` stores null if lookup failed | NullReference or poisoned cache entries |
-| Architecture | Resource filter misused for cross-request cache | Wrong lifetime — should be `IMemoryCache` with TTL or scoped service |
-
-**Fix (priority order):**
-
-1. For **per-request** reuse, store in `HttpContext.Items` only within the same request — remove static field; inject a scoped `ICatalogService` that memoizes once per scope.
-2. For **cross-request** caching, use `IMemoryCache` or distributed cache with expiration and cache keys including tenant/user.
-3. If short-circuiting with cached `IActionResult` is the goal, set `context.Result` in `OnResourceExecuting` when a valid cached result exists (resource filter pattern for short-circuit).
-
-**Production takeaway:** Resource filters excel at per-request short-circuit and `HttpContext.Items` — static fields turn them into hidden singleton state bugs.
-
----
+For per-request reuse, store data in `HttpContext.Items` within the same request with no static field. For cross-request caching, inject `IMemoryCache` with explicit TTL and per-tenant or per-category keys. The resource filter short-circuit pattern works correctly when you set `context.Result` in `OnResourceExecuting` from a populated `IMemoryCache` entry — that is the legitimate use of a resource filter, not a static mutable dictionary.
 
 ---
 
@@ -694,43 +664,37 @@ builder.Services.AddControllers(options =>
 builder.Services.AddDbContext<AppDbContext>();
 ```
 
----
+**Concepts**
+- options.Filters.Add<T>() vs AddService<T>() lifetime semantics
+- ValidateScopes detecting captive dependency at startup
+- Scoped filter requiring AddScoped<T>() registration
+- IDbContextFactory<T> for filters that must remain singleton
 
-**Answer:**
+**Answer**
 
-**Answer:** Global filters added via `options.Filters.Add<T>()` are resolved from DI when the filter runs; if the filter is registered as singleton (default for `TypeFilter` without scope) or cached at startup, injecting scoped `AppDbContext` violates lifetime rules — fix with `[ServiceFilter]` + scoped filter registration or `IServiceFilter` pattern.
+`options.Filters.Add<AuditActionFilter>()` without a corresponding `AddScoped<AuditActionFilter>()` registration causes the framework to construct the filter without a per-request lifetime, so it effectively behaves as a singleton. When `AppDbContext` is registered as scoped, injecting it into this singleton-like filter creates a captive dependency. Development typically does not catch this immediately because `ValidateScopes` defaults to false in development templates, but enabling it — or deploying to Production where it is on by default in `WebApplication` — surfaces the `InvalidOperationException` at first use.
 
-- `AddControllers(options => options.Filters.Add<AuditActionFilter>())` resolves `AuditActionFilter` through DI per filter contract — scoped dependencies require the filter itself to be scoped per request.
-- `ValidateScopes` in Production catches captive dependencies at runtime; Development may lazy-resolve until first request.
-- **Fix 1:** Register `builder.Services.AddScoped<AuditActionFilter>()` and use `options.Filters.AddService<AuditActionFilter>()`.
-- **Fix 2:** Inject `IServiceProvider` or `IDbContextFactory<AppDbContext>` and create a scope inside `OnActionExecutionAsync` — factory pattern for filters that must stay singleton.
-- **Fix 3:** Use `TypeFilterAttribute` or `ServiceFilterAttribute` on controllers needing the filter instead of global registration if only some actions need DB access.
+The fix has two parts: register `builder.Services.AddScoped<AuditActionFilter>()` so the filter gets a new instance per request scope, and switch to `options.Filters.AddService<AuditActionFilter>()` so the pipeline resolves it from DI per request. An alternative for filters that must remain singleton is to inject `IServiceScopeFactory` and create a scope inside `OnActionExecutionAsync`, or use `IDbContextFactory<AppDbContext>` which provides pooled short-lived contexts without a captive dependency.
 
 ```csharp
 builder.Services.AddScoped<AuditActionFilter>();
 builder.Services.AddControllers(o => o.Filters.AddService<AuditActionFilter>());
 ```
 
-**Production takeaway:** Global filters look like middleware but participate in DI lifetimes — treating them as singletons with DbContext is one of the most common Production startup/request failures.
-
----
-
 ---
 
 #### Q8. (D) Unhandled exceptions in a controller can be caught by an exception filter, `IExceptionHandler` middleware, or `UseExceptionHandler`. Compare scope (MVC-only vs entire pipeline), ordering, and when you would keep an exception filter vs centralizing everything in middleware.
 
+**Concepts**
+- Exception filter scope — MVC filter pipeline only
+- IExceptionHandler chain — DI-registered, handles entire pipeline
+- UseExceptionHandler as the outer safety net
+- Minimal API exceptions bypassing MVC exception filters entirely
 
+**Answer**
 
-**Answer:**
+Exception filters run only for exceptions thrown from controller actions and earlier MVC filter stages — they never see exceptions from middleware before routing, from minimal API handlers, or from infrastructure code outside the MVC pipeline. `IExceptionHandler` implementations registered via `AddExceptionHandler<T>()` are invoked by `UseExceptionHandler` middleware and handle exceptions from anywhere in the downstream pipeline, including both MVC and minimal API failures.
 
-**Answer:** Exception filters only see exceptions thrown from actions/filters in the MVC pipeline after routing; `IExceptionHandler` and exception middleware catch unhandled exceptions from the entire app including middleware, minimal APIs, and infrastructure — prefer centralized middleware/`IExceptionHandler` for uniform `ProblemDetails`.
+The ordering is: `UseExceptionHandler` middleware must be registered early — typically first after `Build()` — to wrap the entire downstream pipeline. When an exception reaches it, the middleware invokes registered `IExceptionHandler` implementations in registration order until one returns `true` from `TryHandleAsync`. MVC exception filters run inside this pipeline for controller failures; if they mark the exception as handled, it never reaches the outer middleware. Only if none handle it does the default behavior apply.
 
-- **Exception filter (`IExceptionFilter`):** MVC/Razor Pages only; runs before result execution; can mark exception handled and set `context.Result`; ignored by minimal APIs and middleware failures.
-- **`IExceptionHandler` (.NET 8+):** registered in DI; invoked by exception-handler middleware; returns `ProblemDetails`; chain multiple handlers; `TryHandleAsync` return true stops propagation.
-- **`UseExceptionHandler` / developer page:** outer safety net; re-executes pipeline to error endpoint or renders developer page in Development.
-- **Ordering:** exception middleware should be early (often first after `Build`) to wrap downstream pipeline; exception filters run only if the exception reaches MVC and is not already handled.
-- **Keep exception filters when:** converting specific MVC action failures to particular views (HTML) or when third-party MVC extensions require filter-level handling — otherwise migrate to global handler for APIs.
-
-**Production takeaway:** API teams standardizing on `IExceptionHandler` avoid split-brain error shapes between controllers, minimal APIs, and middleware — exception filters become legacy MVC-only paths.
-
----
+Keep exception filters when converting specific MVC action failures to particular HTML views, or when third-party MVC extensions require filter-level handling. For API teams standardizing on `ProblemDetails`, centralizing everything in `IExceptionHandler` produces consistent error shapes across controllers, minimal APIs, and middleware failures — exception filters become legacy MVC-only paths.

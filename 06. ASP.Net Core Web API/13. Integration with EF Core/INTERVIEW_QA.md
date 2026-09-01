@@ -26,409 +26,505 @@
 
 ## Q1. What is the typical DbContext lifetime in a Web API request?
 
-What is the typical DbContext lifetime in a Web API request?
+**Concepts**
+- Scoped DbContext lifetime matching one HTTP request via AddDbContext
+- Change tracking isolated between concurrent requests
+- Captive dependency risk when singletons capture the scoped context
+- Background work requiring a separate scope or IDbContextFactory
+- SaveChangesAsync flushing the tracked unit of work at request end
 
-**Answer:** In ASP.NET Core 8 Web APIs, `DbContext` is registered as **scoped** by default via `AddDbContext`, so one instance is created per HTTP request and disposed when the request completes. That aligns the unit of work with a single API call and keeps change tracking isolated between concurrent clients.
+**Answer**
 
-- `AddDbContext<AppDbContext>()` registers the context in the scoped DI container — the same scope as controllers and request-scoped services.
-- A scoped context must not be captured by singleton services; doing so causes `ObjectDisposedException` or cross-request data leaks under concurrency.
-- Long-running background work started from a request should not hold the request's `DbContext` after the response — use `IDbContextFactory` or a new scope instead.
-- `SaveChangesAsync` runs against the tracked entities accumulated during that single request scope before disposal.
+`DbContext` is registered as scoped by default via `AddDbContext`, so one instance is created when the HTTP request begins and disposed when it ends. That aligns the unit of work with a single API call and keeps change tracking isolated between concurrent clients — one request's tracked entities never bleed into another's. The scoped context is injected into controllers and scoped services just like any other DI dependency. Capturing a scoped `DbContext` in a singleton causes either an `ObjectDisposedException` after the first request scope ends or cross-request data leaks because singleton fields survive beyond the scope boundary. Background operations triggered inside a request — queue processing, fire-and-forget jobs — must not hold the request's `DbContext` after the response, since its scope ends then; use `IDbContextFactory` or `IServiceScopeFactory.CreateScope()` per operation instead.
 
 ---
 
 ## Q2. Why should API controllers avoid returning EF entities directly?
 
-Why should API controllers avoid returning EF entities directly?
+**Concepts**
+- Navigation properties leaking schema details not intended for public contracts
+- Lazy-loading N+1 triggered during JSON serialization with proxy entities
+- Circular reference serializer loops between related entities
+- DTO decoupling API surface from persistence schema
+- API contract stability across EF model refactors
 
-**Answer:** EF entities carry navigation properties, change-tracker state, and database-internal fields that were never meant to be a public HTTP contract. Serializing them leaks schema details, risks circular reference errors, and couples clients to your persistence model.
+**Answer**
 
-- Navigation properties can trigger lazy-loading N+1 queries during JSON serialization if proxies are enabled.
-- Entities expose columns and relationships clients should not see (internal flags, audit fields, soft-delete markers).
-- DTOs give you a stable API surface that can evolve independently of table or entity refactors.
-- `[ApiController]` actions should map entities to DTOs in the service layer or via projection before returning `Ok(dto)`.
+EF entities carry navigation properties, change-tracker state, and database-internal fields that were never meant to be a public HTTP contract, so serializing them leaks schema details and tightly couples clients to table structure. Navigation properties can trigger lazy-loading during JSON serialization when proxies are enabled — the serializer accesses a property, EF fires a SQL query, and this repeats for every row in a list, producing N+1 round trips invisibly. Circular references between related entities cause JSON serializer loops or require `ReferenceHandler.IgnoreCycles` settings that hide design problems rather than fix them. DTOs with explicit shapes give the API a stable surface that evolves independently of entity or table refactors — adding audit columns, renaming fields, or changing relationships does not break the API contract when DTOs intermediate the mapping.
 
 ---
 
 ## Q3. What is the N+1 query problem in API endpoints?
 
-What is the N+1 query problem in API endpoints?
+**Concepts**
+- One query loading parents plus N queries per row for related navigation
+- Lazy loading triggering extra SQL during serialization or post-materialization access
+- Include and ThenInclude for eager loading in one round trip
+- EF projection using Select for single-query DTO fetch
+- Connection pool exhaustion from unbounded per-row queries under load
 
-**Answer:** N+1 occurs when one query loads a parent collection and then each item triggers an additional query for a related navigation — for example, 1 query for 100 orders plus 100 queries for each order's customer. List endpoints become slow and exhaust the database connection pool under load.
+**Answer**
 
-- Common cause: returning entities with lazy-loaded navigations or accessing navigations after materialization without `Include`.
-- Another cause: field-by-field resolver or loop that calls `context.Orders.Where(o => o.CustomerId == id)` per row.
-- Fix with a single translated query: `.Select(o => new OrderDto { CustomerName = o.Customer.Name })` or explicit `.Include()` with split queries.
-- Validate with EF logging or APM — list endpoints should target one (or a fixed small number of) SQL round trips.
+N+1 occurs when a list endpoint loads a parent collection and then each item triggers an additional query for a related navigation — one query for 100 orders plus 100 queries for each order's customer, totaling 101 SQL round trips. The most common cause in APIs is returning entity objects with lazy-loaded navigation properties: the JSON serializer accesses a navigation, EF fires a SELECT, and this repeats once per parent row without any visible code in the controller. Another cause is post-materialization loops where code accesses `order.Customer` after `ToListAsync` for entities loaded without their related data. Fix with a single translated query: `.Select(o => new OrderSummaryDto { CustomerName = o.Customer.Name, LineCount = o.Lines.Count })` translates to SQL that retrieves everything in one round trip, or use explicit `.Include(o => o.Customer)` with `.ThenInclude` before materialization. Validate with EF logging or an APM tool — list endpoints should execute a fixed small number of SQL round trips regardless of result set size.
 
 ---
 
 ## Q4. What is `AsNoTracking` and when should read-only API actions use it?
 
-What is `AsNoTracking` and when should read-only API actions use it?
+**Concepts**
+- AsNoTracking skipping change-tracker snapshot — reduced memory and CPU
+- Read-only GET endpoints never calling SaveChanges — tracking waste
+- AsNoTrackingWithIdentityResolution for graph deduplication without full tracking
+- Tracked entities accumulating in scoped context memory for request lifetime
+- Combining AsNoTracking with projection for maximum efficiency on hot reads
 
-**Answer:** `AsNoTracking()` tells EF Core not to snapshot entities in the change tracker, reducing memory and CPU for queries whose results are only serialized to the client. Read-only GET endpoints should use it by default because they never call `SaveChanges`.
+**Answer**
 
-- Tracked entities remain in memory for the entire scoped `DbContext` lifetime — expensive on large list responses.
-- `AsNoTrackingWithIdentityResolution()` deduplicates repeated references in graphs when needed without full tracking.
-- Command endpoints (POST/PUT/DELETE) that update entities typically omit `AsNoTracking` so changes are detected on `SaveChangesAsync`.
-- Hot read paths can combine `AsNoTracking()` with projection (`Select`) to fetch only columns the DTO requires.
+`AsNoTracking()` tells EF Core not to add returned entities to the change tracker, which means no identity snapshot, no original-values storage, and no change detection overhead. Read-only GET endpoints should use it by default because they never call `SaveChangesAsync` — tracked entities sit in memory consuming RAM and CPU from change detection for the entire scoped context lifetime without providing any benefit. On a list returning 500 products, `AsNoTracking` eliminates the snapshot overhead for each row. `AsNoTrackingWithIdentityResolution()` is a middle option when the result contains repeated references — it deduplicates object instances within the result set without full tracking cost. Command endpoints (POST, PUT, DELETE) that load and then modify entities omit `AsNoTracking` so the change detector picks up mutations on `SaveChangesAsync`. Hot read paths get maximum benefit from combining `AsNoTracking()` with a `Select` projection that fetches only DTO columns from SQL.
 
 ---
 
 ## Q5. What is the difference between `Include` and projection (`Select`) in API queries?
 
-What is the difference between `Include` and projection (`Select`) in API queries?
+**Concepts**
+- Include eagerly loading full entity graphs into the change tracker
+- Select projecting directly to DTO shapes in SQL — only required columns
+- Cartesian explosion from multiple Include on collection navigations
+- AsSplitQuery splitting collection includes into separate SQL statements
+- Projection preferred for read-only API responses to minimize data over the wire
 
-**Answer:** `Include` eagerly loads related entities into the change tracker as full entity graphs, while `Select` projects directly into DTOs in SQL, returning only the columns and shapes the API needs. Projection is usually preferred for read-only API responses.
+**Answer**
 
-- `Include(o => o.Lines)` generates JOIN or split queries and materializes complete `OrderLine` entities even if the client only needs a count or title.
-- `.Select(o => new OrderDto(...))` translates to SQL that returns exactly the DTO fields — less data over the wire and less memory in the app.
-- `Include` is appropriate when the service layer must modify related entities before save.
-- `AsSplitQuery()` with multiple `Include`s avoids cartesian explosion on collection navigations but still loads full entities.
+`Include(o => o.Lines)` eagerly loads related entities as full entity graphs into the change tracker — even if the DTO needs only a line count, EF materializes every `OrderLine` column. `.Select(o => new OrderDto { LineCount = o.Lines.Count })` translates the projection to SQL that returns only the DTO fields, typically as a subquery or JOIN, sending less data over the wire and keeping no entities in the change tracker. Projection is preferred for read-only API responses since it is naturally `AsNoTracking` and fetches only what clients need. `Include` is appropriate when the service layer must modify related entities before saving, because tracked navigations allow change detection to pick up mutations automatically. Multiple `Include` calls on collection navigations produce a cartesian explosion where SQL rows multiply; `AsSplitQuery()` mitigates this by generating separate SELECT statements per include level while still loading full entities — projection remains cheaper when the DTO shape is known upfront.
 
 ---
 
 ## Q6. What is `SaveChangesAsync` in the context of API POST/PUT actions?
 
-What is `SaveChangesAsync` in the context of API POST/PUT actions?
+**Concepts**
+- SaveChangesAsync persisting all tracked Add/Update/Remove in one implicit transaction
+- Returning row count and generated primary key values after insert
+- Awaiting to avoid thread-pool starvation under concurrent load
+- BeginTransactionAsync for multi-step flows spanning multiple SaveChanges calls
+- Implicit transaction rolling back all changes on any individual failure
 
-**Answer:** `SaveChangesAsync` persists all tracked insert, update, and delete operations accumulated in the current `DbContext` to the database in one transactional unit. API command actions call it after validating input and applying changes to entities or after `Add`/`Update`/`Remove`.
+**Answer**
 
-- Returns the number of affected rows; use the returned entity's generated keys (identity columns) after insert for `CreatedAtAction` responses.
-- Runs inside an implicit transaction — all changes succeed or all roll back on failure.
-- Should be awaited in async controller actions to avoid blocking thread-pool threads under load.
-- For multi-step business flows (checkout, transfer), wrap multiple `SaveChanges` calls or operations in an explicit `BeginTransactionAsync` boundary.
+`SaveChangesAsync` persists all tracked insert, update, and delete operations accumulated in the current `DbContext` to the database as one transactional unit — either all changes commit or all roll back on failure. API command actions call it after validating input and applying mutations to tracked entities or after `Add`/`Update`/`Remove`. The return value is the number of affected rows; after an insert, generated identity column values are populated on the in-memory entity, so you can pass `entity.Id` to `CreatedAtAction` without a follow-up query. Always `await` it in async controller actions rather than blocking with `.Result` to avoid thread-pool starvation under load. For multi-step business flows like checkout where multiple logical operations must either fully succeed or fully fail, wrap the steps in `await context.Database.BeginTransactionAsync()` and call `CommitAsync` at the end so partial commits do not leave data inconsistent across the intermediate `SaveChangesAsync` calls.
 
 ---
 
 ## Q7. What is `DbUpdateConcurrencyException` in Web APIs?
 
-What is `DbUpdateConcurrencyException` in Web APIs?
+**Concepts**
+- DbUpdateConcurrencyException thrown when affected row count is zero on update/delete
+- Optimistic concurrency using rowversion or [Timestamp] token columns
+- Mapping to 409 Conflict rather than 500 Internal Server Error
+- Last-write-wins behavior when no concurrency token configured
+- Client retry pattern with fresh data after 409 on concurrent edits
 
-**Answer:** EF Core throws `DbUpdateConcurrencyException` when an update or delete affects zero rows because another request changed or deleted the same row first — typically when a concurrency token (`[Timestamp]`/`rowversion` or configured token) no longer matches. Web APIs should catch this and return **409 Conflict**, not 500.
+**Answer**
 
-- Optimistic concurrency assumes conflicts are rare; the client must retry with fresh data.
-- Without a concurrency token, last-write-wins silently overwrites prior updates.
-- Map to `Conflict()` or a `ProblemDetails` response with a clear message for the client to refresh and retry.
-- Common in PUT/PATCH endpoints on resources edited concurrently by multiple users or tabs.
+EF Core throws `DbUpdateConcurrencyException` when an `UPDATE` or `DELETE` affects zero rows, because another request changed or deleted the same row between when the current request loaded it and when it tried to save. This happens when a concurrency token — `[Timestamp]` on a `rowversion` column or a configured token — no longer matches, since EF includes the original token value in the `WHERE` clause and zero rows match. Web APIs must catch this exception and return **409 Conflict** rather than letting it propagate as a 500; the client then knows to refresh the resource and retry with the latest state. Without a concurrency token, EF has no basis for detecting conflicts and last-write-wins silently overwrites prior updates, which causes data loss on concurrent edits. This is most common on PUT and PATCH endpoints for resources that multiple users or browser tabs can edit simultaneously — add a `byte[] RowVersion` property with `[Timestamp]` to the entity and include it in the DTO's round-trip.
 
 ---
 
 ## Q8. What is the repository pattern for Web APIs?
 
-What is the repository pattern for Web APIs?
+**Concepts**
+- Repository wrapping data access behind interfaces like IOrderRepository
+- Controllers depending on abstractions not AppDbContext directly
+- Test seam enabling fakes without a real database in unit tests
+- Generic IRepository<T> leaking IQueryable — intent-based methods preferred
+- Repository and service registered scoped, same lifetime as DbContext
 
-**Answer:** The repository pattern wraps data access behind interfaces such as `IOrderRepository`, hiding EF queries from controllers and services. It centralizes query logic, simplifies unit testing with fakes, and keeps HTTP layers thin — though many teams use `DbContext` directly in application services instead of a generic repository.
+**Answer**
 
-- Controllers depend on `IOrderService` or `IOrderRepository`, not `AppDbContext` directly.
-- Generic `IRepository<T>` abstractions often leak `IQueryable` and re-expose EF — prefer specific, use-case-driven methods.
-- Repositories are registered scoped, same lifetime as `DbContext`.
-- EF Core already implements repository and unit-of-work patterns; add explicit repositories when testing or team conventions require a clear persistence boundary.
+The repository pattern wraps data access operations behind interfaces such as `IOrderRepository`, hiding EF queries from controllers and services so the HTTP layer focuses on request/response mapping and the persistence layer owns query logic. Controllers depend on `IOrderService` or `IOrderRepository` rather than `AppDbContext` directly, which creates a test seam where fakes can be injected without requiring a real database in unit tests. Generic `IRepository<T>` abstractions often leak `IQueryable` and re-expose EF details to callers, defeating the purpose — prefer specific, intent-named methods like `GetOpenOrdersByCustomerAsync(customerId)` that return concrete result types. EF Core already implements repository and unit-of-work patterns internally; explicit repository classes add value primarily when team conventions require a clear persistence boundary or when testing strategy demands mocking data access. Repositories register as scoped in DI, matching the DbContext lifetime so they share the same request-scoped context.
 
 ---
 
 ## Q9. What is `IQueryable` and why is returning it from repositories risky?
 
-What is `IQueryable` and why is returning it from repositories risky?
+**Concepts**
+- IQueryable as composable deferred database query executing on enumeration
+- Repository callers appending arbitrary filters leaking EF translation rules
+- DbContext disposed exception when IQueryable enumerated outside scope
+- Client-side evaluation on untranslatable expressions causing full table loads
+- Concrete return types like Task<List<T>> keeping query boundaries inside repositories
 
-**Answer:** `IQueryable<T>` represents a composable, deferred database query that executes only when enumerated. Returning it from repositories lets callers append filters, sorting, and paging — but also leaks EF-specific behavior, makes SQL shape unpredictable, and can cause queries to run outside the intended scope or after the `DbContext` is disposed.
+**Answer**
 
-- Callers may accidentally trigger client-side evaluation or multiple enumerations (double database hits).
-- Exposing `IQueryable` from a repository ties upper layers to LINQ and EF translation rules.
-- Prefer returning `Task<List<T>>`, `Task<T?>`, or paginated result types with explicit parameters.
-- If composition is needed, keep it inside the repository or service with well-named methods.
+`IQueryable<T>` represents a composable, deferred database query that executes only when enumerated. Returning it from a repository method lets callers append `Where`, `OrderBy`, and `Select` — which looks flexible but leaks EF-specific translation behavior to layers that should not know about it and makes the SQL shape unpredictable and untestable. Callers may accidentally append expressions that cannot translate to SQL, causing silent client-side evaluation that pulls entire tables into memory and filters in C#. If the `DbContext` is disposed before the caller enumerates the `IQueryable` — common in async fire-and-forget or middleware scenarios — EF throws `ObjectDisposedException`. The fix is to execute the query inside the repository with `ToListAsync`, `FirstOrDefaultAsync`, or a keyset-paginated method, and return a concrete `Task<List<T>>`, `Task<T?>`, or a custom `PagedResult<T>` type. If composition is genuinely needed, keep it inside well-named repository methods whose SQL shape is tested as a unit.
 
 ---
 
 ## Q10. What is the difference between scoped DbContext and `IDbContextFactory`?
 
-What is the difference between scoped DbContext and `IDbContextFactory`?
+**Concepts**
+- Scoped DbContext one instance shared per HTTP request via AddDbContext
+- IDbContextFactory creating independent contexts on demand via CreateDbContextAsync
+- Factory-created contexts requiring explicit disposal
+- Singleton services requiring factory — never scoped DbContext injection
+- AddDbContextPool reusing pooled instances while still scoping to the request
 
-**Answer:** Scoped `DbContext` from `AddDbContext` is injected once per HTTP request and shares the request's DI scope. `IDbContextFactory<TContext>` from `AddDbContextFactory` creates new context instances on demand — useful for parallel work, background tasks, or Blazor where a single scope does not map to one logical operation.
+**Answer**
 
-- Factory-created contexts must be disposed (`await using var context = await factory.CreateDbContextAsync()`).
-- Do not inject scoped `DbContext` into singleton services; use the factory to create short-lived contexts instead.
-- `AddDbContextPool` reuses context instances for performance in scoped request scenarios but still behaves as scoped per request.
-- Web APIs use scoped `DbContext` for typical CRUD; factories appear in hosted services, GraphQL DataLoaders, or multi-threaded batch jobs.
+Scoped `DbContext` from `AddDbContext` is injected once per HTTP request and all services in that request's DI scope share the same instance — convenient for CRUD where one request equals one unit of work. `IDbContextFactory<TContext>` from `AddDbContextFactory` creates fresh context instances on demand, decoupled from any DI scope, so callers manage the lifetime explicitly with `await using var context = factory.CreateDbContextAsync()`. The factory is required when singleton services need database access (since they cannot consume scoped DI), when a single request spawns parallel operations that must use isolated contexts without shared change trackers, or in background hosted services where no HTTP scope exists. `AddDbContextPool` is a performance optimization that reuses context instances across requests but still respects scoped lifetime per request — it is not the same as `IDbContextFactory` and does not help singleton services. Web APIs use scoped `DbContext` for typical CRUD and factories for hosted services, GraphQL DataLoaders, and any scenario where multiple independent contexts are needed within one logical operation.
 
 ---
 
 ## Q11. What is a transaction boundary in an API checkout flow?
 
-What is a transaction boundary in an API checkout flow?
+**Concepts**
+- Explicit BeginTransactionAsync wrapping multiple SaveChanges calls atomically
+- Partial commit leaving inventory inconsistent without explicit transaction
+- Transaction scope limited to database work — not external HTTP calls
+- ExecutionStrategy retry wrapping the transaction body for transient SQL failures
+- Distributed transaction replacement using outbox pattern across microservices
 
-**Answer:** A transaction boundary defines the atomic unit of work — either all persistence steps succeed (deduct inventory, create order, record payment) or none are committed. In EF Core, use `await context.Database.BeginTransactionAsync()` or a single `SaveChangesAsync` after all related changes when they fit one context.
+**Answer**
 
-- Partial commits (inventory reduced but order missing) indicate a missing or incorrectly scoped transaction.
-- Distributed transactions across microservices use outbox patterns or sagas, not one EF transaction spanning databases.
-- Keep transactions short — hold locks only for necessary database work, not external HTTP calls to payment gateways.
-- `ExecutionStrategy` with retry (SQL transient failures) wraps transactions when using `SqlServerRetryingExecutionStrategy`.
+A transaction boundary defines the atomic unit of work — either all persistence steps succeed (deduct inventory, create order, record payment) or none are committed. In EF Core, one `SaveChangesAsync` after all entity mutations in the same context uses an implicit transaction; when the checkout flow requires multiple separate `SaveChangesAsync` calls — or multiple repositories — wrap the whole operation in `await using var tx = await context.Database.BeginTransactionAsync()` and call `tx.CommitAsync()` only when all steps succeed. Without this, a failure between two `SaveChangesAsync` calls leaves data partially committed: inventory reduced but no order row created. Keep transactions short — hold locks only during the database work, never across external HTTP calls to a payment gateway, since those can take seconds and block rows. When using `SqlServerRetryingExecutionStrategy` for transient fault handling, wrap the transaction in a retry delegate because the strategy cannot retry transactions that span its own execution boundary automatically.
 
 ---
 
 ## Q12. What is pagination with Skip and Take?
 
-What is pagination with Skip and Take?
+**Concepts**
+- Skip and Take translating to SQL OFFSET FETCH for windowed row return
+- pageSize cap preventing unbounded queries from clients
+- Stable OrderBy required for deterministic page slices
+- Total count metadata enabling client-side page count rendering
+- Link headers or response metadata communicating next/prev cursor tokens
 
-**Answer:** Offset pagination uses `Skip((page - 1) * pageSize).Take(pageSize)` to return a fixed window of rows for list endpoints. Clients pass `page` and `pageSize` query parameters; the API returns the slice plus optional total count metadata.
+**Answer**
 
-- EF Core translates `Skip`/`Take` to `OFFSET`/`FETCH` in SQL Server.
-- Always cap `pageSize` (e.g., max 100) to prevent unbounded queries.
-- Include stable sort order (`OrderBy`) — without it, pages can return duplicate or missing rows between requests.
-- Return pagination metadata in the response body or `Link` headers (`rel="next"`, `rel="prev"`).
+Offset pagination uses `.Skip((page - 1) * pageSize).Take(pageSize)` to return a fixed window of rows. EF Core translates this to `OFFSET ... ROWS FETCH NEXT ... ROWS ONLY` in SQL Server. Always combine with `OrderBy` before `Skip` — without a stable sort the database may return rows in arbitrary physical order, meaning different pages return overlapping or missing rows. Cap `pageSize` to a maximum (e.g., 100) to prevent clients from requesting unbounded result sets. Return pagination metadata — total count, current page, page size, and ideally cursor tokens for next/previous — in the response body or `Link` headers. Total count requires a separate `CountAsync` query unless approximated via statistics; cache it briefly on hot read endpoints to reduce the per-request overhead of counting large tables on every page request.
 
 ---
 
 ## Q13. What causes unstable pagination in concurrent APIs?
 
-What causes unstable pagination in concurrent APIs?
+**Concepts**
+- Concurrent inserts shifting row positions between offset pagination requests
+- Duplicate and skipped rows from page drift on high-write tables
+- Keyset pagination anchored to a stable indexed column — no drift
+- Large OFFSET performance cost scanning and discarding preceding rows
+- Cursor token in API response as the keyset anchor for next page
 
-**Answer:** Offset pagination is unstable when rows are inserted or deleted while a client walks pages — new rows shift positions, causing duplicates or skipped records between page 2 and page 3. High-write tables under concurrent load expose this frequently.
+**Answer**
 
-- `Skip(1000).Take(50)` becomes expensive on large offsets because the database still scans skipped rows.
-- Keyset (cursor) pagination uses `WHERE Id > @lastSeenId ORDER BY Id TAKE 50` for stable, efficient paging on indexed columns.
-- Timestamp-based cursors work when ids are not sequential but require tie-breaker columns.
-- Document pagination strategy in the API contract so clients know whether totals and offsets are approximate.
+Offset pagination is unstable under concurrent writes because the dataset changes between page requests. A new row inserted at position 50 in a `page = 1` result pushes all subsequent rows one position — when the client requests `page = 2`, the first row of page 2 is the same as the last row of page 1 (a duplicate) or a row from page 1 appears on page 2 (a skip), depending on whether the insert happened before or after the offset. `Skip(1000)` also forces the database to count and discard 1000 rows regardless of whether the client sees them, which is expensive on large tables. Keyset pagination avoids both problems: `WHERE id > @lastSeenId ORDER BY id TAKE @pageSize` anchors the window to a specific key value rather than a row count, so inserts before that key do not shift the anchor, and the index seek is efficient. Return the last key as a cursor token in the response, and the client passes it back as the `after` parameter for the next page.
 
 ---
 
 ## Q14. What is DTO projection with EF Core Select?
 
-What is DTO projection with EF Core Select?
+**Concepts**
+- Select projecting inside LINQ query to DTO shapes before materialization
+- EF translating projection to SQL selecting only required columns
+- Naturally AsNoTracking — no entity enters the change tracker
+- Navigation flattening CustomerName = o.Customer.Name in one query
+- Client-side method calls in Select breaking SQL translation
 
-**Answer:** DTO projection maps database rows directly to response types inside the LINQ query: `.Select(p => new ProductDto(p.Id, p.Name, p.Price))`. EF Core translates the expression to SQL that selects only required columns, avoiding entity materialization and extra mapping steps.
+**Answer**
 
-- Projection queries are naturally `AsNoTracking` — no entities enter the change tracker.
-- Navigations can be flattened in one query: `CustomerName = o.Customer.Name` when translatable.
-- Use records or constructors in DTOs for concise projection expressions.
-- Client-side methods in `Select` break translation — keep projections to translatable property access and simple operators.
+DTO projection maps database rows directly to response types inside the LINQ expression: `.Select(p => new ProductDto(p.Id, p.Name, p.Price))`. EF Core translates the lambda to SQL that selects only the columns referenced in the DTO constructor or initializer, meaning unused columns never travel over the network or consume memory. Projection queries are naturally `AsNoTracking` because no entity is ever materialized — the change tracker has nothing to record. Navigations can be flattened in a single query when EF can translate the access: `CustomerName = o.Customer.Name` generates a JOIN in SQL without a separate round trip for each row. Keep projection expressions to translatable property access and simple operators; calling non-translatable C# methods like `string.Format` inside `Select` breaks translation and falls back to client-side evaluation, loading all columns then filtering in memory. Use record types or primary constructors for DTOs to make projection lambdas concise.
 
 ---
 
 ## Q15. What happens when DbContext is injected into a Singleton service?
 
-What happens when DbContext is injected into a Singleton service?
+**Concepts**
+- Captive dependency — scoped service captured by longer-lived singleton
+- ObjectDisposedException when request scope ends and context is disposed
+- Thread-safety violations from concurrent request access to shared context
+- ValidateScopes and ValidateOnBuild catching captive dependencies at startup
+- IDbContextFactory or IServiceScopeFactory as fixes for singleton database access
 
-**Answer:** Injecting a scoped `DbContext` into a singleton creates a captive dependency — the singleton lives for the application lifetime but holds a disposed or shared context across requests. This causes `ObjectDisposedException`, stale data, and thread-safety violations under concurrent API traffic.
+**Answer**
 
-- ASP.NET Core DI validates scopes at startup in Development when `ValidateScopes` is enabled, surfacing the misconfiguration early.
-- Singleton caches must not store entities tracked by a context — they become detached stale graphs.
-- Fix by making the service scoped, or inject `IDbContextFactory<TContext>` and create a context per operation.
-- Background singleton services should create a new DI scope (`IServiceScopeFactory.CreateScope()`) per work item.
+Injecting a scoped `DbContext` into a singleton creates a captive dependency — the singleton's constructor runs once and captures the context indefinitely, but that context's scope ends when the first HTTP request completes and DI disposes it. Subsequent requests use the same singleton which now holds a disposed `DbContext`, producing `ObjectDisposedException` or, worse, stale change-tracker data that silently returns outdated entities. Under concurrent traffic, multiple requests use the same `DbContext` instance simultaneously, which is not thread-safe and causes data corruption in the change tracker. ASP.NET Core surfaces this at startup in Development when `ValidateScopes` is enabled — `BuildServiceProvider(validateScopes: true)` throws an `InvalidOperationException` describing the captive dependency before any request reaches the singleton. Fix by making the service scoped, injecting `IDbContextFactory<TContext>` and creating a context per operation, or injecting `IServiceScopeFactory` and creating a new scope per unit of work inside the singleton's method calls.
 
 ---
 
 ## Q16. What is lazy loading and why is it problematic for APIs?
 
-What is lazy loading and why is it problematic for APIs?
+**Concepts**
+- Lazy loading automatically querying navigations on property access via proxy
+- N+1 triggered by serializer walking entity graph without explicit includes
+- UseLazyLoadingProxies typically disabled in API projects
+- Navigation access after DbContext disposal throwing InvalidOperationException
+- Explicit Include or projection making query cost visible and measurable
 
-**Answer:** Lazy loading automatically queries related entities when navigation properties are accessed on tracked proxies. In Web APIs, serializing an entity graph or touching navigations after the initial query triggers unexpected extra SQL (N+1) during response generation.
+**Answer**
 
-- Enabled via `UseLazyLoadingProxies()` — often disabled in API projects in favor of explicit loading or projection.
-- Serializers walking object graphs can fire dozens of lazy loads per request without obvious code in the controller.
-- Explicit `Include` or projection makes query cost visible and measurable in one place.
-- If proxies are enabled, returning entities directly from actions is especially dangerous.
+Lazy loading automatically fires a SQL query when a navigation property is accessed on a tracked proxy entity. In Web APIs this is problematic because serializers walk the object graph without any code in the controller: the JSON serializer touches `order.Customer`, EF fires a `SELECT` for that customer, and this repeats for every row in a list result without any obvious query happening in the action method. Dozens of lazy loads per request fire invisibly, exhausting the database connection pool under load. Lazy loading is also fragile after context disposal — if the entity leaves the request scope (cached in memory, returned to a background job), accessing a navigation throws `InvalidOperationException` because the context is gone. For these reasons, `UseLazyLoadingProxies` is typically disabled in API projects in favor of explicit `Include`/`ThenInclude` or projection, which make query cost visible in the code and measurable in EF logging.
 
 ---
 
 ## Q17. What is the difference between `FindAsync` and `FirstOrDefaultAsync` in APIs?
 
-What is the difference between `FindAsync` and `FirstOrDefaultAsync` in APIs?
+**Concepts**
+- FindAsync checking change-tracker identity cache before hitting the database
+- FirstOrDefaultAsync always executing SQL regardless of tracked state
+- FindAsync limited to primary key values — no arbitrary predicates
+- AsNoTracking on FirstOrDefaultAsync for read-only detail endpoints
+- Identity resolution in EF returning tracked instance from FirstOrDefaultAsync when already loaded
 
-**Answer:** `FindAsync(key)` uses the context's local cache first, then queries by primary key — efficient for composite or single keys already tracked. `FirstOrDefaultAsync(predicate)` always translates to a SQL query with a `WHERE` clause and is required for non-key lookups or filters.
+**Answer**
 
-- `FindAsync` only works with primary key values, not arbitrary predicates.
-- `FirstOrDefaultAsync(o => o.Id == id)` hits the database even if the entity is already tracked (unless EF's identity resolution applies in specific cases).
-- For GET-by-id endpoints, either works when querying by PK; `FindAsync` can skip a round trip if the entity is cached in the context.
-- Use `FirstOrDefaultAsync` with `AsNoTracking()` for read-only detail endpoints when the entity is not already tracked.
+`FindAsync(key)` checks the context's identity cache first — if an entity with that primary key is already tracked in the current request scope, it returns it without a round trip to the database; only on a cache miss does it execute SQL. `FirstOrDefaultAsync(e => e.Id == id)` always translates to a SQL WHERE clause and executes it, regardless of whether the entity is already tracked. `FindAsync` is limited to primary key lookups and cannot accept arbitrary predicates, so for any filter beyond the PK, `FirstOrDefaultAsync` is required. For GET-by-id endpoints that have not loaded the entity earlier in the request, both produce the same SQL; `FindAsync` offers a potential single-request cache hit benefit in scenarios where checkout loads and then immediately updates the same entity in one request. For read-only detail endpoints, use `FirstOrDefaultAsync` with `AsNoTracking()` to skip both change-tracker overhead and identity resolution.
 
 ---
 
 ## Q18. What is `AddDbContextFactory` used for in Web APIs?
 
-What is `AddDbContextFactory` used for in Web APIs?
+**Concepts**
+- AddDbContextFactory registering factory creating fresh DbContext on demand
+- Factory-created context requiring explicit disposal with await using
+- Parallel operations within one request needing isolated change trackers
+- Singleton and background service database access requiring factory not scoped injection
+- GraphQL DataLoader and streaming handlers as primary Web API use cases
 
-**Answer:** `AddDbContextFactory<AppDbContext>()` registers a factory that creates fresh `DbContext` instances outside the normal request scope. Web APIs use it for parallel operations within one request, background queue processors, or services that must not share a scoped context across threads.
+**Answer**
 
-- Register with `builder.Services.AddDbContextFactory<AppDbContext>(options => ...)` alongside or instead of scoped `AddDbContext` depending on needs.
-- Each `CreateDbContext()` / `CreateDbContextAsync()` returns a context the caller must dispose.
-- Common in GraphQL DataLoaders, report generators, and `IHostedService` workers that process jobs after the HTTP response.
-- Factory options can mirror pooled configuration but instances are not shared across concurrent callers.
-
----
+`AddDbContextFactory<AppDbContext>()` registers a factory that creates fresh `DbContext` instances outside the normal request scope, each with its own change tracker and connection. Use `await using var context = await factory.CreateDbContextAsync()` — the caller owns lifetime and must dispose. Web APIs use this for parallel operations within one request where two concurrent tasks must not share a change tracker, for singleton background services that process work items after HTTP responses have ended, and for GraphQL DataLoaders that batch database calls across many field resolvers in parallel. `IHostedService` workers and `BackgroundService` implementations that process queue items independently of HTTP scopes are the most common scenario since they have no DI request scope to inject a scoped `DbContext` from. Register with the same options and connection string as the scoped registration; both can coexist in DI and do not conflict — scoped injection satisfies normal CRUD controllers and the factory satisfies services that need independent context lifetimes.
 
 ---
 
 ## Gotchas — ASP.NET Core Web API (Interview Traps)
 
+---
+
 #### Gotcha 1. POST returning 200 instead of 201
 
-**Answer:** A successful resource creation with POST should return HTTP 201 Created and tell the client where the new resource lives — returning 200 OK omits that contract and breaks REST clients that rely on status codes and the Location header.
+**Concepts**
+- HTTP 201 Created with Location header as REST create contract
+- CreatedAtAction / CreatedAtRoute for correct response
+- Resource discovery via Location header
+- Status code semantics for OpenAPI-generated clients
 
-- Use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with a Location header pointing at the new resource URL.
-- Include the created representation or a minimal payload in the response body when clients need immediate data without a follow-up GET.
-- Returning 200 for create operations hides the new resource URL from standard HTTP client libraries and OpenAPI-generated SDKs.
+**Answer**
+
+A successful resource creation with POST should return HTTP 201 Created and a `Location` header pointing at the new resource URL, because 200 OK carries no hint that a new resource was created or where to find it. Standard HTTP clients, API gateways, and OpenAPI-generated SDKs all look at the status code first — returning 200 means the response body is the only way to discover the new resource id, and clients that skip parsing the body miss it entirely. Use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with the Location header, and include the created representation or a minimal payload in the body when clients need immediate data without a follow-up GET.
 
 ---
 
 #### Gotcha 2. GET that mutates state
 
-**Answer:** GET must be safe and idempotent — performing deletes or updates on GET violates HTTP semantics, breaks caching proxies, and creates security holes when URLs are prefetched, logged, or opened in email clients.
+**Concepts**
+- GET as safe and idempotent per HTTP specification
+- Prefetch and crawler risks from side-effecting GETs
+- Caching proxy behavior replaying GET responses
+- Correct HTTP verbs for state-changing operations
 
-- Browsers, CDNs, and link-preview crawlers may invoke GET URLs without user intent, so side effects run unintentionally.
-- Cached GET responses can replay destructive operations or stale mutations across clients.
-- Use POST, PUT, PATCH, or DELETE for state changes and keep GET read-only.
+**Answer**
+
+GET must be safe and idempotent per HTTP semantics — performing deletes or updates in a GET handler violates the specification, breaks caching proxies that may replay GET responses, and creates security holes when URLs are prefetched by browsers, link-preview crawlers, or email clients. The problem is that these callers invoke GET URLs without user intent, so a delete fires without anyone clicking anything. Cached GET responses can replay destructive operations across clients since the proxy treats the response as a normal cacheable resource. Use POST, PUT, PATCH, or DELETE for any operation that changes state and reserve GET strictly for reads.
 
 ---
 
 #### Gotcha 3. `{ success: false }` with HTTP 200
 
-**Answer:** Business failures must map to appropriate 4xx or 5xx status codes — a 200 response with an error flag forces every client to parse the body instead of using standard HTTP semantics, retries, and monitoring.
+**Concepts**
+- HTTP status code as the universal success vs failure contract
+- 200 with error flag defeating monitoring, retries, and API gateways
+- ProblemDetails for consistent structured failure responses
+- APM alerting and circuit breakers depending on HTTP status
 
-- Return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures and 404, 409, or 422 for domain errors.
-- HTTP status codes drive client retry logic, API gateways, and APM alerting; a 200 masks failures in dashboards.
-- Envelope patterns like `{ success: false }` require custom handling in every consumer and break OpenAPI contract expectations.
+**Answer**
+
+Business failures must map to appropriate 4xx or 5xx status codes because HTTP status is the universal contract that drives client retry logic, API gateway circuit breakers, and APM alerting thresholds — a 200 response with `success: false` in the body masks every failure from every system that does not parse the body. API gateways route and throttle on status code; if every response is 200, failed calls look healthy in dashboards and no alert fires. Return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for semantic rejections. Envelope patterns like `{ success: false }` require every consumer to implement a custom parser and break OpenAPI contract expectations.
 
 ---
 
 #### Gotcha 4. Returning EF entities from API actions
 
-**Answer:** EF Core entities expose navigation properties, shadow fields, and circular references that are not meant for public contracts — serialize DTOs with explicit shapes and never leak database schema to clients.
+**Concepts**
+- EF entity navigation properties not suitable for public HTTP contracts
+- Lazy-loading N+1 triggered during JSON serialization
+- Circular reference serializer loops
+- DTO decoupling API contract from persistence schema
 
-- Lazy-loaded navigations trigger N+1 queries during serialization and can pull entire object graphs into the response.
-- Circular references between entities cause JSON serializer loops or require fragile reference-handling settings.
-- DTOs decouple the API contract from schema migrations and let you expose only the fields clients need.
+**Answer**
+
+EF Core entities carry navigation properties, change-tracker state, and database-internal fields that were never meant to be a public HTTP contract, so serializing them directly leaks schema details and invites circular reference errors. Lazy-loaded navigations trigger N+1 queries during serialization when the JSON serializer walks the object graph — each navigation fires a new SQL query, exhausting the connection pool under load. Circular references between related entities cause the JSON serializer to loop indefinitely or require fragile `ReferenceHandler.IgnoreCycles` settings that hide design problems. Map entities to DTOs with explicit shapes in the service layer or via EF projection so the API contract evolves independently of table schema changes.
 
 ---
 
 #### Gotcha 5. PascalCase JSON with default camelCase policy
 
-**Answer:** ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json` — PascalCase property names from some clients bind as missing properties, leaving model properties at default values and causing silent data loss on POST and PUT.
+**Concepts**
+- System.Text.Json defaulting to camelCase serialization in ASP.NET Core 8
+- Silent binding failure from PascalCase client payloads
+- JsonPropertyName and PropertyNamingPolicy as alignment tools
+- PropertyNameCaseInsensitive for legacy mixed-casing clients
 
-- `[JsonPropertyName("PropertyName")]` or a custom `PropertyNamingPolicy` aligns server expectations with legacy client payloads.
-- Enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)` when you must accept mixed casing.
-- Silent binding failures produce 201/204 success responses with partially saved data and no validation error.
+**Answer**
+
+ASP.NET Core 8 defaults to camelCase JSON serialization via `System.Text.Json`, so PascalCase property names from legacy clients bind as missing properties because the case does not match — the model properties default to `null` or `0` rather than the values the client sent. The failure is silent: the request returns 201 or 204 with no validation error, but the persisted record has default values instead of the submitted data. Fix with `[JsonPropertyName("PropertyName")]` attributes on DTO properties or a custom `PropertyNamingPolicy` to align server expectations with legacy payloads. When accepting mixed casing from various clients, enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)`.
 
 ---
 
 #### Gotcha 6. GET with `[FromBody]`
 
-**Answer:** Many HTTP clients, proxies, and caches ignore or strip GET request bodies — filters sent as JSON in GET requests fail silently or never reach the action in ASP.NET Core 8 Web API.
+**Concepts**
+- GET request body not reliably supported across the HTTP ecosystem
+- [FromBody] on GET failing silently through proxies and caches
+- [FromQuery] for simple filters as the correct alternative
+- OpenAPI tools and browser fetch blocking GET bodies
 
-- Model binding for `[FromBody]` on GET is not reliably supported across the HTTP ecosystem.
-- Use query strings with `[FromQuery]` for simple filters or POST to a dedicated search endpoint for complex filter objects.
-- OpenAPI tools and browser fetch also discourage or block GET bodies, making the pattern fragile in production.
+**Answer**
+
+Many HTTP clients, proxies, CDNs, and caches ignore or strip GET request bodies because the HTTP specification does not define semantics for GET bodies — filters sent as JSON in GET requests fail silently or never reach the action in ASP.NET Core 8. Model binding for `[FromBody]` on GET is therefore unreliable across the full HTTP ecosystem even if it works in direct testing. Use query strings with `[FromQuery]` for simple filter parameters, or POST to a dedicated search endpoint for complex filter objects that do not fit in a URL. Browser fetch API and OpenAPI tooling also discourage or block GET bodies, making the pattern fragile in any production environment where the full request path includes a proxy.
 
 ---
 
 #### Gotcha 7. CORS as server security
 
-**Answer:** CORS is enforced by browsers only — it does not stop curl, Postman, server-to-server calls, or direct API requests; authentication and authorization still protect the API.
+**Concepts**
+- CORS as browser-only enforcement — not server-side authentication
+- Non-browser clients unaffected by CORS headers
+- Authentication and authorization as actual server protection
+- CORS enabling SPA browser access alongside real auth
 
-- CORS headers tell a browser whether JavaScript on one origin may read a cross-origin response; they do not authenticate callers.
-- A public API without auth remains fully accessible to any non-browser client regardless of CORS policy.
-- Register `AddCors` and `UseCors` for browser SPA access, and enforce JWT, cookies, or API keys separately for real security.
+**Answer**
+
+CORS is enforced by browsers only — it prevents JavaScript on one origin from reading cross-origin responses, but it does nothing to stop curl, Postman, server-to-server calls, or any direct API request. The `Access-Control-Allow-Origin` header is a signal browsers check after receiving the response; a non-browser client simply ignores it and reads the data. A public API without authentication is fully accessible to any non-browser caller regardless of CORS policy, so CORS is never a substitute for JWT, API keys, or cookies. Register `AddCors` and `UseCors` to enable browser SPA access on cross-origin calls, and enforce actual authentication and authorization separately for real protection.
 
 ---
 
 #### Gotcha 8. `AllowAnyOrigin` with credentials
 
-**Answer:** Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers — you must specify explicit origins with `WithOrigins` and call `AllowCredentials`.
+**Concepts**
+- Browser rejection of wildcard origin on credentialed requests
+- AllowAnyOrigin and AllowCredentials as mutually exclusive
+- WithOrigins for explicit trusted frontend origins
+- Access-Control-Allow-Credentials header requirement
 
-- `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined; ASP.NET Core will not emit a valid CORS response for credentialed requests.
-- List every trusted frontend origin explicitly, including local dev URLs and production domains.
-- Credentialed cross-origin calls require both matching origins and `Access-Control-Allow-Credentials: true`.
+**Answer**
+
+Browsers reject a response with `Access-Control-Allow-Origin: *` when the request includes cookies or an `Authorization` header, because the CORS specification explicitly forbids wildcard origins on credentialed cross-origin requests. `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined — ASP.NET Core will not emit a valid CORS response for credentialed requests when both are set. Instead, use `WithOrigins("https://app.example.com", "https://localhost:3000")` to list every trusted frontend origin explicitly, including local development URLs and all production domains. The browser also requires `Access-Control-Allow-Credentials: true` in the response, which `AllowCredentials()` handles.
 
 ---
 
 #### Gotcha 9. Swagger UI exposed in Production
 
-**Answer:** Public Swagger UI discloses the full API surface, schemas, and try-it-out access — gate it behind authentication or disable it outside Development and Staging in ASP.NET Core 8.
+**Concepts**
+- Swagger UI disclosing full API surface and schema to public internet
+- Environment checks wrapping MapSwagger and UseSwaggerUI
+- OpenAPI document exposure revealing endpoint names and enum values
+- Authentication or IP allowlist gating for API documentation
 
-- `MapSwagger` and `UseSwaggerUI` in `Program.cs` should be wrapped in environment checks or authorization middleware.
-- Exposed OpenAPI documents reveal internal endpoints, field names, and enum values useful for reconnaissance.
-- Production APIs typically serve OpenAPI only to authenticated developers or internal tooling, not the public internet.
+**Answer**
+
+Public Swagger UI discloses the full API surface, all schemas, enum values, and try-it-out access to anyone who finds the URL — giving potential attackers a complete map of your endpoints and data structures without any effort. Gate `MapSwagger` and `UseSwaggerUI` in `Program.cs` behind environment checks so they run only in Development and Staging, or require authentication middleware before the Swagger middleware. Production APIs should serve OpenAPI documents only to authenticated developers or internal tooling, not the public internet. Exposed OpenAPI documents reveal internal endpoint names, field names, and request schemas that are directly useful for targeted reconnaissance.
 
 ---
 
 #### Gotcha 10. Missing `[ApiController]` on some controllers
 
-**Answer:** Without `[ApiController]`, automatic 400 `ValidationProblemDetails`, binding source inference, and attribute routing behaviors differ — mixed controllers in the same Web API produce inconsistent error contracts.
+**Concepts**
+- [ApiController] enabling automatic ModelStateInvalidFilter
+- Binding source inference for complex types
+- Mixed controllers producing inconsistent error contracts
+- Assembly-level [ApiController] for uniform behavior
 
-- `[ApiController]` enables automatic model-state validation responses and `[FromBody]` inference for complex types.
-- Controllers missing the attribute may return 200 with invalid models or require manual `ModelState` checks.
-- Apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions.
+**Answer**
+
+Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses, binding source inference for complex types, and attribute routing enforcement all differ from controllers that have the attribute — so mixed controllers in the same API produce inconsistent error shapes that break partner integrations. A controller missing `[ApiController]` may return 200 OK with a partially bound model when model validation fails, because `ModelStateInvalidFilter` does not run, and `[FromBody]` is not inferred for complex parameters. Apply `[ApiController]` at the controller or assembly level using `[assembly: ApiController]` in an attribute file so every endpoint shares the same conventions without per-class annotation.
 
 ---
 
 #### Gotcha 11. Blocking on `.Result` in async actions
 
-**Answer:** Blocking on `.Result` or `.Wait()` in async API actions causes thread-pool starvation and deadlocks under load — always `await` async service and database calls in ASP.NET Core 8.
+**Concepts**
+- Sync-over-async causing thread-pool starvation under load
+- Deadlock when synchronization context is held during blocking call
+- async Task<IActionResult> propagating await through service layer
+- Kestrel throughput reduction from blocked request threads
 
-- Sync-over-async ties up request threads while I/O completes, reducing throughput on Kestrel under concurrent load.
-- Deadlocks occur when the blocked thread holds a synchronization context the continuation needs to resume.
-- Mark controller actions `async Task<IActionResult>` and propagate `await` through the service layer to EF Core and HTTP clients.
+**Answer**
+
+Blocking on `.Result` or `.Wait()` in async API actions causes thread-pool starvation under load because the calling thread is blocked waiting for I/O to complete while no thread is available to process the continuation. Deadlocks also occur in environments with a synchronization context when the blocked thread holds the context that the async continuation needs to resume on — the task never completes because the thread it needs is the thread that is waiting for it. Always `await` async service and database calls in controller actions, which means the action signature is `async Task<IActionResult>` and the `await` propagates through the entire service and repository layer. Kestrel processes many concurrent requests efficiently precisely because async I/O frees threads while waiting — sync-over-async defeats this design entirely.
 
 ---
 
 #### Gotcha 12. Liveness probe includes SQL check
 
-**Answer:** If the liveness probe fails when SQL is down, Kubernetes restarts pods that cannot fix the dependency — put SQL, Redis, and external service checks on readiness only.
+**Concepts**
+- Liveness as process restart signal — unrelated to external dependency recovery
+- Readiness as traffic drain signal for dependency failures
+- Kubernetes restart loop from liveness including external checks
+- Tag-based separation of liveness and readiness health checks
 
-- Liveness answers whether the process should be killed and restarted; a down database is not healed by restarting the app.
-- Readiness removes the pod from the load balancer until dependencies recover without unnecessary restarts.
-- Map `/health/live` to a lightweight self-check and `/health/ready` to `AddDbContextCheck` or custom dependency tags.
+**Answer**
+
+If the liveness probe includes SQL and the database goes down for maintenance, Kubernetes kills and restarts pods even though restarting cannot fix a database outage — creating a restart loop that adds startup overhead and delays recovery. Liveness answers whether the ASP.NET Core process is alive and responsive; it should return healthy as long as the process can handle an HTTP request, independent of downstream dependencies. Readiness answers whether the instance should receive traffic; SQL, Redis, and message bus checks belong here because a failing dependency means the instance will return errors. Map `/health/live` with a tag predicate selecting only the self-check and `/health/ready` with the predicate selecting `AddDbContextCheck` and other dependency checks.
 
 ---
 
 #### Gotcha 13. N+1 queries in list endpoints
 
-**Answer:** Returning entities with lazy-loaded navigation properties triggers one SQL query per row — use projection with `Select`, explicit `Include`, or DTO mapping to fetch list data in a bounded number of queries.
+**Concepts**
+- N+1 pattern: one parent query plus N child queries per row
+- Lazy loading triggering extra SQL during serialization
+- EF projection with Select fetching only required columns
+- Include/ThenInclude for explicit eager loading in one round trip
 
-- Serializing a list of `Order` entities with `Customer` navigation can execute 1 + N queries under default lazy loading.
-- Project directly to DTOs in LINQ so EF Core generates a single query with only the columns needed.
-- For graphs that must be included, use `Include`/`ThenInclude` or split queries deliberately rather than relying on lazy load during JSON output.
+**Answer**
+
+N+1 occurs when a list endpoint loads a parent collection and then each item triggers an additional query for a related navigation — one query for 100 orders plus 100 queries for each order's customer. The most common cause in APIs is serializing entity objects with lazy-loaded navigation properties: the JSON serializer accesses a navigation, EF fires a SELECT, and this repeats once per row. Fix with a single translated query: project directly to DTOs using `.Select(o => new OrderDto { CustomerName = o.Customer.Name })` so EF generates one SQL JOIN, or use explicit `.Include(o => o.Customer)` before materialization. Validate with EF logging or APM to confirm list endpoints produce a fixed small number of SQL round trips regardless of result set size.
 
 ---
 
 #### Gotcha 14. Unstable pagination with Skip/Take
 
-**Answer:** Concurrent inserts and deletes between offset pages cause duplicate or skipped rows — use keyset or cursor pagination ordered by a stable, indexed key for large datasets in Web API list endpoints.
+**Concepts**
+- Offset pagination page drift from concurrent inserts and deletes
+- Skip/Take without stable OrderBy producing undefined row order
+- Keyset pagination anchored to a stable indexed key
+- Large OFFSET performance cost scanning and discarding preceding rows
 
-- `Skip((page - 1) * pageSize).Take(pageSize)` shifts the window when rows are added or removed between requests.
-- Keyset pagination uses `WHERE id > @lastId ORDER BY id LIMIT @pageSize` with the last seen key from the previous response.
-- Offset pagination remains acceptable for small, mostly static tables; expose cursor tokens in link headers or response metadata for high-churn data.
+**Answer**
+
+Concurrent inserts and deletes shift row positions in the dataset while a client walks pages — a new row inserted at page 1 pushes all subsequent rows one position, so page 2 either repeats the last row of page 1 or skips a row entirely. `Skip((page - 1) * pageSize).Take(pageSize)` also requires the database to count and discard all preceding rows, which becomes expensive on large offsets. Keyset pagination avoids both problems by using `WHERE id > @lastSeenId ORDER BY id LIMIT @pageSize` with the last key from the previous response — no scanning skipped rows and no drift because the filter is anchored to a specific key rather than a count. Offset pagination remains acceptable for small mostly-static tables; expose cursor tokens in link headers or response metadata for high-churn datasets.
 
 ---
 
 #### Gotcha 15. GraphQL N+1 without DataLoader
 
-**Answer:** Field resolvers in HotChocolate or other GraphQL servers that query the database per parent row explode SQL under load — batch related loads with DataLoader or resolve joins at the root query.
+**Concepts**
+- Field resolvers executing one database query per parent row
+- DataLoader batching concurrent field resolutions into a single query
+- 101 queries for a 100-row list without batching
+- Root-level eager loading as alternative for static parent-child fields
 
-- A list of 100 authors each resolving `books` individually executes 101 queries instead of one batched query.
-- Register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips.
-- Eager-load or project at the root query when the client always requests nested fields together.
+**Answer**
+
+Field resolvers in HotChocolate or other GraphQL servers execute independently per parent row — resolving `books` for each of 100 authors runs 100 separate queries plus the initial author query, totaling 101 round trips. DataLoader batches concurrent field resolutions within a single request: all 100 `books` resolver calls accumulate the author ids during the execution tick, then DataLoader fires one grouped query for all of them at once. Register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips automatically. For fields the client almost always requests together with the parent, eager-load or project at the root query level rather than using DataLoader.
 
 ---
 
 #### Gotcha 16. gRPC in browser without gRPC-Web
 
-**Answer:** Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript — browser clients need gRPC-Web middleware plus CORS configuration in ASP.NET Core 8.
+**Concepts**
+- Native gRPC HTTP/2 binary framing not accessible to browser JavaScript
+- gRPC-Web protocol as browser-compatible translation layer
+- AddGrpcWeb and EnableGrpcWeb for middleware setup
+- CORS configuration required alongside gRPC-Web for cross-origin calls
 
-- Standard `@grpc/grpc-js` in Node or .NET clients works server-to-server; Blazor WASM and SPA browsers require the gRPC-Web protocol.
-- Add `AddGrpcWeb()` and `EnableGrpcWeb()` on mapped gRPC services to translate between gRPC-Web and native gRPC.
-- Configure CORS for the browser origin alongside gRPC-Web, since cross-origin browser calls still enforce CORS on preflight and response headers.
+**Answer**
 
----
-
-## Gotchas — ASP.NET Core Web API (Interview Traps)
-
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript APIs — browsers cannot control trailers or binary framing at the level gRPC requires, so `@grpc/grpc-js` in the browser fails. Browser clients need the gRPC-Web protocol, which translates between the browser-accessible HTTP/1.1 or HTTP/2 fetch API and the native gRPC binary format via ASP.NET Core middleware. Add `AddGrpcWeb()` to services and call `.EnableGrpcWeb()` on each mapped gRPC service to activate the translation layer. CORS must also be configured for the browser origin because cross-origin browser calls still enforce CORS preflight and response header checks regardless of gRPC-Web. Standard .NET or Node gRPC clients communicating server-to-server continue using native gRPC without gRPC-Web.
 
 ---
 
 ## Scenario-Based Questions (Karat Format)
+
+---
 
 #### Q1. (R) Review this `OrdersController`. QA reports intermittent `DbUpdateConcurrencyException` and slow list endpoints under load.
 
@@ -459,31 +555,16 @@ public class OrdersController : ControllerBase
 
 The team says "controllers are thin — we just use EF directly." What breaks at scale, and what would you change first?
 
----
+**Concepts**
+- Controller owning EF queries and SaveChanges blocking test seams
+- POST returning 200 violating REST create contract — no Location or 201
+- Missing concurrency token causing DbUpdateConcurrencyException to surface as 500
+- Service layer separating HTTP concerns from persistence unit of work
+- CreatedAtAction returning 201 with id for client resource discovery
 
-**Answer:**
+**Answer**
 
-**Answer:** Injecting `DbContext` directly into controllers couples HTTP, transactions, and persistence in one class — it works in demos but blocks test seams, scatters query logic, and makes concurrency and unit-of-work boundaries easy to get wrong. The immediate fixes are a service/repository layer, correct HTTP semantics on create, and explicit concurrency handling — not more logic in the controller.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Architecture | Controller owns EF queries and `SaveChanges` | Untestable without DB; business rules spread across endpoints |
-| API contract | `POST` returns `200 OK` without `Location` or body | Clients cannot discover new resource id; violates REST create pattern |
-| Concurrency | No row version / `DbUpdateConcurrencyException` handling | Intermittent 500s when two updates touch same order |
-| DI / scope | Long controller methods hold scoped context for full request | Large graphs tracked longer than needed — memory pressure |
-
-**Fix (priority order):**
-
-1. Introduce `IOrderService` (scoped) — controller maps HTTP ↔ DTOs only; service owns `DbContext` usage.
-2. Return `CreatedAtAction` with the new id after `SaveChangesAsync` (201 + Location).
-3. Add concurrency token on `Order` and catch `DbUpdateConcurrencyException` → 409 Conflict.
-4. Keep `AppDbContext` scoped via DI — never register as singleton.
-
-**Production takeaway:** "Thin controller" means thin on HTTP concerns, not "inject DbContext and call EF inline." Karat uses this to test whether you know where persistence boundaries belong.
-
----
+Injecting `AppDbContext` directly into the controller couples HTTP semantics, transaction boundaries, and query logic in one class, which makes it difficult to unit test (requires a real database), scatters query logic across action methods, and makes concurrency boundaries invisible. The first issue to fix is the architecture: introduce an `IOrderService` registered scoped that owns all `DbContext` usage — the controller maps HTTP input to service parameters and service results to HTTP responses only. The second issue is the `POST` returning `Ok()` — a create action must return `CreatedAtAction("Get", new { id = created.Id }, createdDto)` to give the 201 status code and a `Location` header, so clients know the new resource's URL without parsing a response body. The third issue is missing concurrency handling: without a `[Timestamp]` or `rowversion` concurrency token on `Order`, concurrent updates silently last-write-win; with one configured, EF throws `DbUpdateConcurrencyException` when another request updated the row between load and save — catch it in the service and return `Conflict()` (409) so the client knows to refresh and retry. Keeping `AppDbContext` scoped via DI is already correct and should stay as-is.
 
 ---
 
@@ -509,30 +590,16 @@ public async Task<ActionResult<IEnumerable<OrderSummaryDto>>> List()
 
 `Customer` and `Lines` are navigation properties; lazy loading is enabled globally.
 
----
+**Concepts**
+- Lazy loading firing per-row navigation queries during projection materialization
+- Navigation access in Select requiring translatable expression tree before materialization
+- EF translating Customer.Name and Lines.Count to JOIN and subquery in SQL
+- UseLazyLoadingProxies globally enabled defeating single-query projection benefit
+- Disabling lazy loading to fail fast rather than silently produce N+1
 
-**Answer:**
+**Answer**
 
-**Answer:** The projection references navigations (`Customer.Name`, `Lines.Count`) without translating them in a single SQL shape — with lazy loading enabled, materializing `Order` entities (or partially evaluated graphs) triggers one query per parent for each navigation access. The fix is a single translated query using projection or explicit `Include`/`AsSplitQuery`, and disable lazy loading for API projects.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| N+1 | Navigation props in projection with lazy loading | 1 + N (+ M) SQL round trips per request |
-| Query shape | `Select` may not fully translate if client eval sneaks in | Silent fallback to client evaluation in older patterns |
-| Performance | List endpoint scales with row count | DB connection pool exhaustion under load |
-
-**Fix (priority order):**
-
-1. Project in one query — EF translates `CustomerName = o.Customer.Name` and `LineCount = o.Lines.Count` into JOIN/subquery SQL when navigations are included in the expression tree before materialization.
-2. If using explicit loading pattern: `.Include(o => o.Customer)` and use split query for collections — still one round trip per include level, not N+1.
-3. Disable lazy loading (`UseLazyLoadingProxies` off) in API apps — fail fast if navigations accessed accidentally.
-4. Validate with logging: `LogTo` or APM — assert query count = 1 for list endpoints.
-
-**Production takeaway:** API projections must be **fully translatable** or **eager-loaded once** — N+1 is the default failure mode when navigations appear in DTO mapping.
-
----
+The projection references `o.Customer.Name` and `o.Lines.Count` inside `Select`, which EF Core 8 can translate to SQL as a JOIN and scalar subquery respectively — in a project without lazy loading enabled, this would produce one SQL statement. The problem here is that lazy loading is enabled globally via `UseLazyLoadingProxies`. When EF materializes the entities for the `Select` call and the proxy intercepts navigation access, it fires separate SELECT statements for `Customer` and `Lines` per row rather than letting the expression tree translation handle them in SQL. With 100 rows and two navigations each, that produces 1 + 100 + 100 = 201 queries. The fix has two parts: first, disable `UseLazyLoadingProxies` for the API project because lazy loading on APIs silently converts any navigation access into N+1 and provides no benefit compared to explicit projection or include; second, verify the `Select` expression is fully translatable by checking EF logs — `o.Customer.Name` and `o.Lines.Count` should translate when lazy loading is disabled, producing one SQL query with a LEFT JOIN and a subquery count. Add `AsNoTracking()` on the query as well since this is a read-only list endpoint.
 
 ---
 
@@ -559,30 +626,16 @@ public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts(
 
 No writes occur on this action. `_db` is scoped per request via DI.
 
----
+**Concepts**
+- Missing AsNoTracking causing all entities and includes to enter the change tracker
+- Include loading full Supplier and Reviews entity graphs not needed after DTO mapping
+- Over-fetching columns and rows — no pagination, no column projection
+- Client-side Select(ProductDto.FromEntity) running after full entity materialization
+- AsNoTracking plus projection eliminating tracker overhead and over-fetching together
 
-**Answer:**
+**Answer**
 
-**Answer:** Read-only list endpoints still **track every entity** returned by EF unless you opt out. `Include` pulls large graphs into the change tracker for the lifetime of the scoped `DbContext`, multiplying memory per request when thousands of products load with suppliers and reviews.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Change tracking | No `AsNoTracking()` on read query | Full snapshot of entities + relationships in memory |
-| Over-fetching | `Include` on list endpoint | Multiplies payload and tracked graph size |
-| API design | Maps full entities then DTO | Loads columns and navigations clients never see |
-
-**Fix (priority order):**
-
-1. Add `.AsNoTracking()` (or `AsNoTrackingWithIdentityResolution` if needed) on all read-only queries.
-2. Replace `Include` + entity map with `.Select(p => new ProductDto(...))` — SQL projects only required columns.
-3. Paginate — never return unbounded catalog lists (see Q6).
-4. For hot read paths, consider cached read models or compiled queries — still untracked.
-
-**Production takeaway:** **AsNoTracking is the default for GET list/detail in APIs** — tracking is for commands that call `SaveChanges`, not for serialization endpoints.
-
----
+There are three layered problems compounding during flash sales. First, the query has no `AsNoTracking()` — every `Product`, `Supplier`, and `Review` entity returned by the query enters the change tracker as a full snapshot including original-values. During a flash sale with hundreds of concurrent requests each returning the full catalog, the scoped context accumulates thousands of tracked entities in memory, causing the GC spikes. Second, `Include(p => p.Supplier)` and `Include(p => p.Reviews)` load full entity graphs including all columns, then `products.Select(ProductDto.FromEntity)` runs after materialization in C# — columns the DTO ignores still traveled over the wire and consumed memory. Third, there is no pagination — the endpoint returns the entire catalog on every request, which is unbounded. Fix in priority order: add `AsNoTracking()` immediately to eliminate tracker pressure; replace `Include` plus client-side map with a server-side `.Select(p => new ProductDto { ... })` projection so SQL returns only DTO columns and no `Supplier` or `Review` data beyond the fields used; add pagination with `Skip`/`Take` and a stable `OrderBy` to cap result size. For catalog endpoints that rarely change, also consider a short-TTL response cache at the controller or CDN level to reduce load during flash sales.
 
 ---
 
@@ -605,30 +658,16 @@ public async Task<IActionResult> Checkout(CheckoutRequest req)
 }
 ```
 
----
+**Concepts**
+- Two separate SaveChangesAsync calls as two independent implicit transactions
+- Partial commit leaving inventory decremented without matching order row
+- BeginTransactionAsync wrapping both saves in one atomic unit
+- Null-forgiving operator on FindAsync result risking NullReferenceException
+- Idempotency key preventing double-deduct on client retry after timeout
 
-**Answer:**
+**Answer**
 
-**Answer:** Two separate `SaveChangesAsync` calls mean **two independent transactions** — stock can commit while order insert fails on the next flush, leaving inventory inconsistent with orders. Checkout must be one atomic unit of work.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Transaction | No explicit transaction wrapping both saves | Partial commit — stock decremented, no order row |
-| Correctness | Null-forgiving `product!` after `FindAsync` | NullReference if id invalid — fails after partial path |
-| API design | No idempotency key for checkout | Retries may double-charge stock |
-
-**Fix (priority order):**
-
-1. Wrap in `await using var tx = await _db.Database.BeginTransactionAsync()` — single `SaveChangesAsync` at end, then `CommitAsync`.
-2. Prefer one `SaveChanges` after all entity mutations in the same context (transaction still recommended for isolation).
-3. Return structured errors; use row-level concurrency on `Stock` to prevent oversell.
-4. Add idempotency key header for POST checkout in production APIs.
-
-**Production takeaway:** **One business operation = one transaction** — "transaction per request" often means explicit `BeginTransaction` for multi-entity commands, not relying on implicit single SaveChanges boundaries across failure points.
-
----
+The two `SaveChangesAsync` calls execute as two independent implicit transactions. If anything fails after the first commits — a network interruption, an application exception, a process crash — the stock decrement is permanent but the order insert never ran, leaving inventory inconsistent with the order table. This is the partial commit scenario and the root cause of the missing order rows. Fix by wrapping both saves in one explicit transaction: `await using var tx = await _db.Database.BeginTransactionAsync()` before any mutation, accumulate both `product.Stock -= req.Quantity` and `_db.Orders.Add(...)`, call `SaveChangesAsync` once after both changes so EF sends both SQL statements in the same round trip, then call `tx.CommitAsync()` — if anything throws, the transaction rolls back and neither change persists. A secondary issue is `product!` with the null-forgiving operator: if `req.ProductId` is invalid, `FindAsync` returns null and the null-forgiving operator causes `NullReferenceException` at `product.Stock` — add a null check and return `NotFound()` explicitly. In production checkout APIs, also accept an idempotency key header so client retries after timeouts replay the same outcome rather than decrementing stock twice.
 
 ---
 
@@ -656,31 +695,16 @@ public ActionResult<IEnumerable<OrderDto>> Search([FromQuery] DateTime since)
 
 The controller is synchronous; `_repo.GetAll()` returns `IQueryable<Order>`.
 
----
+**Concepts**
+- IQueryable leaked from repository composable in controller bypassing repository abstraction
+- In-memory test provider skipping SQL translation that SQL Server applies
+- Synchronous ToList blocking thread-pool threads — async ToListAsync required
+- Always-applied Include fetching Lines even when DTO does not use them
+- Intent-based repository methods encapsulating query shape and execution
 
-**Answer:**
+**Answer**
 
-**Answer:** Returning **`IQueryable` from the repository** and composing in the controller is valid only if execution stays deferred until the controller builds the full expression tree. Calling synchronous `.ToList()` in the controller forces client-side evaluation of anything not yet translated, pulls entire tables into memory, and breaks when the provider differs from the in-memory test fake.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Repository leak | `GetAll()` exposes composable `IQueryable` | Unbounded queries; filters may not translate |
-| Sync over async | `.ToList()` blocks; no `ToListAsync` | Thread pool pressure; inconsistent with async pipeline |
-| Design | `Include` always applied in `GetAll` | Over-fetch even when DTO needs no lines |
-| Testing gap | In-memory provider hides translation bugs | Passes tests, fails SQL Server |
-
-**Fix (priority order):**
-
-1. Push filter + pagination into repository method: `Task<PagedResult<OrderDto>> SearchAsync(DateTime since, int page, ...)`.
-2. Execute with `ToListAsync` **inside** repository on a fully built `IQueryable` — never return `IQueryable` to controllers unless you fully control expression boundaries.
-3. Make controller action async end-to-end.
-4. Integration-test against real SQL (or Testcontainers) for query translation.
-
-**Production takeaway:** **Leaked `IQueryable`** is a common "works in unit test" trap — the repository should expose intent-based methods, not raw composable queries.
-
----
+Returning `IQueryable` from the repository leaks the query composition point to the controller, meaning the full expression tree including the controller's `Where` filter is executed in SQL — but in-memory test fakes use LINQ-to-Objects, which handles edge cases in date comparisons, timezone behavior, and string culture differently from SQL Server. What passes in tests fails in production because the translation gap is invisible. The synchronous `.ToList()` in the controller blocks the thread-pool thread while waiting for SQL, reducing Kestrel throughput under concurrent load — it should be `await _repo.SearchAsync(since)` with `ToListAsync` inside the repository. The `Include(o => o.Lines)` is always applied in `GetAll()` regardless of whether the DTO uses `Lines`, fetching and tracking the full line graph on every call including the `Search` endpoint. The repository's `GetAll()` returning `IQueryable` also means any caller in the codebase can append arbitrary expressions, making query shape unpredictable and difficult to test. Fix by replacing `GetAll()` with an intent-based async method: `Task<List<OrderSummaryDto>> SearchByDateAsync(DateTime since)` that encapsulates the filter, projects to DTO, adds `AsNoTracking`, executes with `ToListAsync`, and returns a concrete result type.
 
 ---
 
@@ -706,85 +730,58 @@ public async Task<ActionResult<PagedResult<ProductDto>>> GetPage(
 }
 ```
 
----
+**Concepts**
+- Missing OrderBy before Skip/Take producing undefined row order
+- Offset pagination page drift from concurrent inserts between page requests
+- Keyset pagination anchoring window to a stable indexed key eliminating drift
+- Separate CountAsync on full table on every request adding query overhead
+- pageSize cap missing — clients can request unbounded result sets
 
-**Answer:**
+**Answer**
 
-**Answer:** **`Skip`/`Take` without a stable `OrderBy`** produces undefined row order — SQL Server (and others) may return rows in any physical order, so pages overlap or skip as data moves. Pagination requires deterministic sort plus, for high-churn feeds, keyset pagination.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Pagination | Missing `OrderBy` before `Skip`/`Take` | Duplicate/missing rows across pages |
-| Concurrency | Offset pagination under concurrent inserts | Classic page drift during writes |
-| Performance | `CountAsync()` on full table every request | Expensive on large tables |
-
-**Fix (priority order):**
-
-1. Add stable sort: `.OrderBy(p => p.Id)` or `.OrderByDescending(p => p.CreatedUtc).ThenBy(p => p.Id)`.
-2. For live catalogs, prefer keyset: `Where(p => p.Id > lastId).OrderBy(p => p.Id).Take(pageSize)`.
-3. Cache or approximate total count when exact total is not required.
-4. Combine with `AsNoTracking` and column projection (Q3).
-
-**Production takeaway:** **Pagination + EF** always means **ORDER BY + SKIP/FETCH** — without order, pages are nondeterministic.
-
----
+There are two layered issues. First, there is no `OrderBy` before `Skip`/`Take` — without an explicit sort, SQL Server returns rows in unspecified physical order, which means different page requests get different orderings and pages overlap even without concurrent inserts. Add `.OrderBy(p => p.Id)` or a stable multi-column sort before the offset. Second, even with stable sorting, offset pagination drifts under concurrent inserts: a product inserted at row 20 while a client is reading page 2 shifts all subsequent products one position, so the client receives a duplicate or skipped product at the page boundary. For a product catalog with active inserts, use keyset pagination: accept `afterId` as a query parameter instead of `page`, and query `_db.Products.Where(p => p.Id > afterId).OrderBy(p => p.Id).Take(pageSize)` — this anchors the window to a specific key and no row drift occurs. Return the last id in the response as the cursor for the next request. The `CountAsync()` on every request adds a full table scan; cache it or compute it only when the client requests the first page, since total counts on paginated APIs are approximate after the first page anyway. Also add a `pageSize` cap to prevent unbounded requests.
 
 ---
 
 #### Q7. (P) An API team registers `AppDbContext` as scoped and injects it into controllers, services, and a **Singleton** `PricingCacheWarmupService` that preloads prices at startup. What failure mode appears in production, and what patterns fix EF usage in background work?
 
----
+**Concepts**
+- Captive dependency: scoped DbContext captured by singleton service
+- ObjectDisposedException after first request scope ends
+- ValidateScopes and ValidateOnBuild catching the misconfiguration at startup
+- IDbContextFactory creating independent context per background operation
+- IServiceScopeFactory.CreateScope for singleton services needing scoped DI
 
-**Answer:**
+**Answer**
 
-**Answer:** A singleton cannot consume a scoped `DbContext` — with `ValidateScopes` enabled, the app fails at startup; without validation, you get **captive dependency**: one disposed context reused across the app lifetime, or `ObjectDisposedException` after the first request scope ends. Background EF work needs its own scope per operation.
-
-- Register `IDbContextFactory<AppDbContext>` or create a scope in the hosted service: `using var scope = _scopeFactory.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();`.
-- Run warmup inside `IHostedService.StartAsync` with a **fresh scope**, not constructor-injected context.
-- Never hold `DbContext` in singleton fields; cache **DTOs/primitives**, not the context.
-- Enable `ValidateOnBuild` and scope validation in development to catch this at startup.
-
-**Production takeaway:** Same captive-dependency rule as DI gotchas — **singleton + DbContext** is always wrong; factory or scoped resolution per job is the fix.
-
----
+`PricingCacheWarmupService` is a singleton — it is constructed once and lives for the application lifetime. The scoped `AppDbContext` injected into its constructor is bound to the first request scope created during startup, which ends and is disposed shortly after the warmup runs. In Development with `ValidateScopes = true`, ASP.NET Core refuses to start with an `InvalidOperationException` describing the captive dependency. In Production without scope validation, the app starts but the context captured in the singleton is disposed after the first scope ends — any subsequent warmup refresh or retry call on `_db` in the singleton throws `ObjectDisposedException`. The failure is intermittent in production because it depends on timing of the first scope disposal relative to background re-use. There are two correct patterns. The first is `IDbContextFactory<AppDbContext>`: inject the factory into the singleton and call `await using var context = await _factory.CreateDbContextAsync()` inside each warmup operation — each call creates a fresh context that the caller disposes when done. The second is `IServiceScopeFactory`: inject it into the singleton and inside the warmup method call `using var scope = _scopeFactory.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<AppDbContext>()` — this creates a proper scoped context for the duration of the operation. Cache the resulting DTOs or primitives in the singleton's fields, never the context or tracked entities.
 
 ---
 
 #### Q8. (D) You inherit an API where every list endpoint returns full EF entities (including navigation graphs) serialized directly to JSON. Product list responses are 2 MB and Swagger shows circular reference warnings. Compare three remediation options and when you would pick each.
 
----
+**Concepts**
+- DTO projection as the preferred fix — minimal payload, stable contract, no cycle risk
+- AutoMapper from entity as short-term migration path for large codebases
+- GraphQL or OData as client-driven shape for diverse consumer field requirements
+- ReferenceHandler.IgnoreCycles as a warning sign not a production solution
+- Payload size reduction from column projection eliminating unused navigation data
 
-**Answer:**
+**Answer**
 
-**Answer:** Returning tracked entity graphs couples persistence model to HTTP contract, over-fetches data, and invites circular reference hacks (`ReferenceHandler.IgnoreCycles`) that hide design problems.
-
-- **DTO + projection (preferred for most REST APIs):** `.Select(p => new ProductListItemDto(...))` with `AsNoTracking` — smallest payload, stable contract, no cycle risk. Pick when clients need predictable JSON and you own the API surface.
-- **AutoMapper / manual mapper from entity with explicit includes:** Faster migration from legacy code; still load too much if includes are broad. Pick for short-term refactor when many endpoints must ship quickly — plan to narrow queries.
-- **GraphQL or OData (selective fields):** Client-driven shape — adds complexity, auth, and N+1 risk. Pick when many clients need different field sets and you will invest in DataLoader/guards — not as a band-aid for lazy entity serialization.
-
-**Production takeaway:** Serialize **contracts**, not **EF graphs** — `ReferenceHandler.IgnoreCycles` is a warning sign, not a production strategy.
-
----
+The circular reference warnings confirm that navigation property graphs loop — `Order` references `Customer` which references `Orders` which loops. `ReferenceHandler.IgnoreCycles` suppresses the exception but silently omits data, which breaks clients that expect the full response shape. There are three remediation options with different trade-offs. The first is DTO projection with `Select`: replace entity serialization with `.Select(p => new ProductListItemDto(p.Id, p.Name, p.Price))` so EF generates SQL that fetches only DTO columns, no navigations enter the change tracker, and there are no circular references by design. This reduces the 2 MB response to only the fields clients actually use and is the right choice when you own the API surface and can define stable response contracts. The second is AutoMapper from loaded entities with explicit includes: faster to migrate in a large codebase where adding `Select` projections to hundreds of endpoints would take weeks — map entities to DTOs after loading with controlled includes and no lazy loading. This still loads more columns than projection but fixes serialization issues quickly and gives time to optimize individual endpoints with projection later. The third is GraphQL or OData for client-driven field selection: each client requests exactly the fields it needs, eliminating over-fetch by design. Pick this when the team has multiple diverse consumer clients needing different field sets and is willing to invest in DataLoader for N+1 prevention and proper authorization guards on field-level access — not as a band-aid for the existing entity serialization problem.
 
 ---
 
 #### Q9. (M) A teammate proposes `AddDbContextFactory<AppDbContext>()` alongside scoped `AppDbContext` for the same API. Under what request patterns does `IDbContextFactory` help, and when should handlers keep using scoped `DbContext` from DI?
 
----
+**Concepts**
+- Scoped DbContext as the correct choice for one HTTP request = one unit of work
+- IDbContextFactory for parallel tasks needing isolated change trackers within one request
+- Background hosted service database access requiring factory not scoped injection
+- Two contexts in one request not sharing transaction without explicit coordination
+- Factory-created context requiring explicit disposal — not managed by DI scope
 
-**Answer:**
+**Answer**
 
-**Answer:** Scoped `DbContext` from DI matches **one HTTP request = one unit of work** — controllers and services in the same request share the same tracker and transaction. `IDbContextFactory` creates **short-lived contexts** on demand — ideal when one request needs **multiple isolated units of work** (parallel tasks, middleware that must not share tracker state, background work triggered from a request).
-
-- Use **scoped injection** for normal CRUD endpoints and services participating in one transaction per request.
-- Use **factory** when: spawning `Task.Run` work (anti-pattern but seen), multi-tenant parallel queries, gRPC/streaming handlers that outlive a single logical UoW, or hosted services (with `CreateDbContext()` per operation).
-- Do not inject both into the same class without clear boundaries — two contexts do not share change tracker; dual writes need explicit transaction coordination.
-- Register factory with same options as scoped context (same connection, interceptors).
-
-**Production takeaway:** Factory is not a replacement for scoped context in typical Web API actions — it solves **context lifetime shorter or multiple per operation** than the HTTP scope.
-
----
-
----
+Scoped `DbContext` from DI is correct for the vast majority of Web API handlers where one HTTP request equals one logical unit of work — all the services participating in a single request share the same context instance, which means they share the same change tracker and an implicit transaction boundary around `SaveChangesAsync`. This is the right model for CRUD endpoints, business workflows within one request, and any handler where one transactional save at the end is the desired behavior. `IDbContextFactory` is the right choice when the factory solves a specific problem the scoped context cannot: a singleton service that must query the database outside any HTTP request scope, a hosted service or `BackgroundService` that processes work items with no associated HTTP scope, a handler that spawns parallel database tasks within a single request where each task needs an isolated change tracker to avoid conflicts, or a GraphQL DataLoader that batches field resolutions across concurrent resolvers. Registering both `AddDbContextFactory` and `AddDbContext` is valid — they do not conflict. The scoped registration satisfies constructors that declare `AppDbContext`, and the factory satisfies constructors that declare `IDbContextFactory<AppDbContext>`. The critical constraint when using both in the same request is that factory-created contexts are independent of the scoped context — they do not share the change tracker, so writes to a factory context and the scoped context do not participate in the same implicit transaction without an explicit `BeginTransactionAsync` coordination.

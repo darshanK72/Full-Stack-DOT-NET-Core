@@ -26,235 +26,253 @@
 
 ## Q1. What is `ViewBag` in ASP.NET Core MVC?
 
-What is `ViewBag` in ASP.NET Core MVC?
+**Concepts**
+- Dynamic `ViewBag` property wrapping `ViewDataDictionary` on controller and Razor view
+- Runtime property resolution — typos silent, no compile-time error
+- Request-scoped — lost after any redirect
+- Appropriate scope — incidental page metadata, not primary data or form models
 
-**Answer:** `ViewBag` is a dynamic property on `Controller` and `ViewPage` that provides a loosely typed dictionary for passing ad hoc data from an action to a view without declaring a ViewModel property.
+**Answer**
 
-- Implemented as a wrapper around `ViewData` using `dynamic` — assignments like `ViewBag.Title = "Home"` store entries in the shared view dictionary.
-- Property access in Razor (`@ViewBag.Title`) resolves at runtime — typos compile without error and render as blank output.
-- Suitable for incidental page metadata (title, active tab, layout flags) rather than primary page data or form models.
-- Does not survive redirects — it is scoped to the current request's view rendering only.
+`ViewBag` is a `dynamic` property on the controller and Razor view page that wraps `ViewDataDictionary` to provide a loosely typed bag for passing ad hoc values — `ViewBag.Title = "Home"` stores the entry in the shared view dictionary, and `@ViewBag.Title` reads it during rendering. Because property resolution is dynamic, typos like `@ViewBag.Tittle` compile without error and render blank at runtime, making `ViewBag` unsuitable for data that matters. It is request-scoped — any assigned value is gone after `RedirectToAction`. The right use is incidental page metadata such as page titles, active tab indicators, or layout flags, not form models, domain data, or anything requiring validation.
 
 ---
 
 ## Q2. What is `ViewData` and how does it differ from `ViewBag`?
 
-What is `ViewData` and how does it differ from `ViewBag`?
+**Concepts**
+- `ViewDataDictionary` as the underlying shared store for both `ViewData` and `ViewBag`
+- `ViewData` string-keyed dictionary with explicit cast on read
+- `ViewBag` dynamic wrapper — same entries, dot-syntax access
+- Both request-scoped, lost across redirects
 
-**Answer:** `ViewData` is a strongly keyed `ViewDataDictionary` on the controller and view context; `ViewBag` is a dynamic wrapper over the same underlying dictionary, so writes through either are visible to both.
+**Answer**
 
-- `ViewData["Title"] = "Home"` and `ViewBag.Title = "Home"` store the same entry — they are not separate stores.
-- `ViewData` supports typed access via `ViewData.Model` (the `@model` type) and requires string keys for arbitrary entries.
-- `ViewBag` offers dot-syntax convenience but sacrifices compile-time checking on property names in views.
-- Both are request-scoped and do not persist across `RedirectToAction` — unlike `TempData`.
+`ViewData` and `ViewBag` share the same underlying `ViewDataDictionary` — writing `ViewData["Title"] = "Home"` and `ViewBag.Title = "Home"` store the same entry, so reads through either surface are interchangeable. `ViewData` uses string keys and requires an explicit cast when reading non-string values: `(int)ViewData["Count"]`. `ViewBag` offers dot-syntax convenience but loses compile-time key checking. Both are request-scoped — a redirect ends the request and the dictionary is discarded. `ViewData` also exposes `ViewData.Model`, which holds the strongly typed model passed to `View(model)` — this is the `@model` directive's backing store.
 
 ---
 
 ## Q3. What is `TempData` and when is it used?
 
-What is `TempData` and when is it used?
+**Concepts**
+- `ITempDataDictionary` persisting values across one redirect via cookie or session provider
+- Consume-on-read default — entries deleted after first access
+- Default provider in ASP.NET Core — `CookieTempDataProvider` with Data Protection encryption
+- Designed for short-lived flash payloads, not large view models or sensitive data
 
-**Answer:** `TempData` is a dictionary backed by a temp-data provider (cookie or session) that persists values across a redirect to the next HTTP request, making it ideal for flash messages after Post-Redirect-Get flows.
+**Answer**
 
-- Values written in a POST action survive `RedirectToAction` and are available when the subsequent GET action and view render.
-- Typical use: `TempData["SuccessMessage"] = "Order created."` after a successful form submission followed by redirect to a details page.
-- Backed by `ITempDataProvider` — the default in ASP.NET Core 8 serializes data into an encrypted cookie via Data Protection.
-- Designed for short-lived, small payloads (status messages, flags) — not for transporting large view models or domain entities.
+`TempData` is a dictionary backed by `ITempDataProvider` — by default `CookieTempDataProvider` — that serializes values across a redirect so they are available on the subsequent GET request. Values written in a POST action survive `RedirectToAction` and are accessible in the next action and its view. The defining behavior is consume-on-read: reading `TempData["Key"]` via the indexer marks it for deletion at the end of that request. The correct use case is flash messages in Post-Redirect-Get flows — `TempData["SuccessMessage"] = "Order created."` written before a redirect and displayed once on the confirmation page. It is backed by an encrypted cookie via Data Protection, so key rings must be synchronized across instances in multi-pod deployments.
 
 ---
 
 ## Q4. What is the difference between `ViewBag`, `ViewData`, and `TempData`?
 
-What is the difference between `ViewBag`, `ViewData`, and `TempData`?
+**Concepts**
+- `ViewBag` and `ViewData` — request-scoped, same underlying dictionary, different access syntax
+- `TempData` — persists across one redirect via cookie or session provider
+- Typing — `ViewData` string-keyed, `ViewBag` dynamic, `TempData` string-keyed with cross-request semantics
+- All three supplementary — ViewModel preferred for primary page data and forms
 
-**Answer:** All three pass data from controllers to views, but they differ in typing, lifetime, and persistence across redirects.
+**Answer**
 
-- **ViewBag / ViewData:** request-scoped only — available during the current action's view rendering; lost after `RedirectToAction`.
-- **TempData:** survives one redirect (by default) via cookie or session provider — designed for flash messaging across PRG.
-- **ViewBag** is dynamic; **ViewData** uses string keys; **TempData** uses string keys with cross-request persistence semantics.
-- For primary page data and forms, prefer a strongly typed ViewModel over any of the three — they are supplementary mechanisms.
+`ViewBag` and `ViewData` share the same request-scoped dictionary — they differ only in access syntax (dynamic vs string key), and both are gone after any redirect. `TempData` persists across a single redirect via cookie or session — it is the only one of the three that survives `RedirectToAction`. The typing model differs too: `ViewData` requires explicit casts, `ViewBag` resolves dynamically at runtime, and `TempData` stores serializable objects that survive to the next request. All three are supplementary mechanisms — for primary page data, form models, and anything with validation attributes, a strongly typed ViewModel is the right choice.
 
 ---
 
 ## Q5. Why is `TempData` used after `RedirectToAction`?
 
-Why is `TempData` used after `RedirectToAction`?
+**Concepts**
+- 302 redirect ending the POST response — `ViewBag` and `ViewData` discarded
+- Browser issuing a new GET request with no connection to prior POST state
+- `TempData` serialized into cookie for the next request
+- TempData as the built-in flash channel, not a substitute for reloading data from services
 
-**Answer:** After a redirect the browser issues a new GET request with no connection to the previous POST's `ViewBag`, `ViewData`, or `ModelState` — TempData is the built-in mechanism to carry a small message or flag into that next request.
+**Answer**
 
-- `RedirectToAction` returns 302/303 — the POST response body (including any ViewBag values) is discarded by the browser.
-- TempData serializes values into the temp-data cookie (or session) so the GET action's layout or view can display a success banner.
-- Without TempData, the user completes an action but sees no confirmation on the redirected page.
-- Only the route values (e.g., `{ id = orderId }`) and TempData survive — reload the entity from the database on GET rather than passing it through TempData.
+A `RedirectToAction` response sends a 302 to the browser, which issues a new independent GET request. That new request has no connection to the previous POST's `ViewBag`, `ViewData`, or `ModelState` — they are all request-scoped and discarded when the POST response completes. TempData survives because `ITempDataProvider` serializes the dictionary into an encrypted cookie on the POST response and deserializes it on the subsequent GET request. The only things that survive a redirect are route values in the URL and TempData — which makes TempData the correct channel for flash success messages, not a place to pass the entity. The GET action should reload data from services by route id.
 
 ---
 
 ## Q6. What is the Post-Redirect-Get (PRG) pattern?
 
-What is the Post-Redirect-Get (PRG) pattern?
+**Concepts**
+- PRG — POST mutates, response redirects to a GET, GET displays result
+- Browser refresh repeating last request — GET is safe, POST is not
+- `RedirectToAction` after success to make the last browser request a GET
+- `return View(model)` on validation failure — no redirect, preserving `ModelState`
 
-**Answer:** PRG is the pattern of responding to a successful POST with an HTTP redirect to a GET action, preventing the browser from re-submitting the form when the user refreshes the page.
+**Answer**
 
-- POST validates input and performs the mutation; on success, return `RedirectToAction(nameof(Details), new { id })` instead of `return View()`.
-- The browser's refresh on the GET page repeats a safe read — not the original POST — avoiding duplicate creates or charges.
-- On validation failure, return `View(model)` in the same POST response to preserve `ModelState` without redirecting.
-- TempData carries ephemeral success messages across the redirect; the GET action loads fresh data from services by route id.
+Post-Redirect-Get is the pattern of responding to a successful form POST with an HTTP redirect to a GET action rather than returning a view directly. The browser's last request then becomes the safe GET, so pressing refresh repeats a read rather than re-submitting the POST body — preventing duplicate orders, registrations, or charges. On success: `_products.Update(id, model)` followed by `return RedirectToAction(nameof(Details), new { id })`. TempData carries the flash message across the redirect. On validation failure, return `View(model)` in the same POST response to keep `ModelState` intact — redirect only on success.
 
 ---
 
 ## Q7. Why doesn't `ModelState` survive a redirect?
 
-Why doesn't `ModelState` survive a redirect?
+**Concepts**
+- `ModelState` stored in `ViewDataDictionary` — request-scoped, not persisted
+- Redirect ending the POST request — GET starts fresh with empty `ModelState`
+- PRG intentionally separating command (POST) from query (GET) lifecycle
+- Return `View(model)` on failure to preserve validation errors without redirect
 
-**Answer:** `ModelState` is stored in the controller's `ViewDataDictionary` for the current HTTP request only — a redirect ends that request and starts a new one with an empty `ModelState`.
+**Answer**
 
-- After `RedirectToAction`, the GET action receives no knowledge of previous validation errors unless explicitly rehydrated.
-- Model binding on the GET request populates a fresh model from route/query values, not from the failed POST fields.
-- This is by design — PRG intentionally separates the command (POST) from the query (GET) request lifecycle.
-- Re-displaying validation errors after redirect requires TempData serialization helpers, a second validation pass on GET, or avoiding redirect on validation failure.
+`ModelState` lives in the controller's `ViewDataDictionary` for the current HTTP request only — it is populated by model binding from the POST body and is discarded when the response completes. A redirect sends a 302 ending the POST request; the subsequent GET starts a new request lifecycle with an empty `ModelState` and no knowledge of previous validation errors. This separation is by design in PRG — the GET is a clean read, not a replay of the POST. The correct pattern is to redirect only on success and return `View(model)` on validation failure to display errors in the same request where `ModelState` is still populated.
 
 ---
 
 ## Q8. How can validation errors survive a redirect?
 
-How can validation errors survive a redirect?
+**Concepts**
+- Standard approach — `return View(model)` on failure, no redirect
+- TempData serialization of `ModelState` entries as a workaround when redirect is required
+- Second validation pass on the GET action as an alternative
+- Cookie size constraint limiting TempData-based error serialization for large forms
 
-**Answer:** Prefer `return View(model)` on validation failure without redirect to keep `ModelState` intact; if redirect is required, serialize errors to TempData or re-validate on the GET action.
+**Answer**
 
-- Standard pattern: invalid POST → `return View(model)` (same request, ModelState preserved); valid POST → redirect with TempData success message.
-- Third-party helpers (e.g., `TempData.Put("ModelState", ModelState)`) serialize errors to TempData — watch cookie size limits.
-- Alternative: redirect to GET with the entity id and run server-side validation again in the GET action before displaying the form.
-- Client-side validation state is also lost on redirect — the GET view re-renders from server-side ModelState or fresh validation.
+The standard approach is not to redirect on validation failure — return `View(model)` in the POST response so `ModelState` errors display inline without any cross-request transfer. If redirect on failure is genuinely required, serialize `ModelState` errors to TempData before redirecting and rehydrate them in the GET action — third-party helpers like `ITempDataSerializer` exist for this purpose, but they are subject to cookie size limits for forms with many fields. A cleaner alternative is to redirect with the entity id and re-run server-side validation on the GET action before rendering the pre-populated form. Client-side validation state is always lost on redirect and is re-derived from server-side `ModelState` on the next render.
 
 ---
 
 ## Q9. What is the difference between cookie-based and session-based TempData?
 
-What is the difference between cookie-based and session-based TempData?
+**Concepts**
+- `CookieTempDataProvider` — client-side storage in an encrypted cookie, no server state
+- `SessionStateTempDataProvider` — server-side storage keyed by session id
+- Cookie provider working across pods without sticky sessions
+- Session provider requiring distributed session for multi-node deployments
 
-**Answer:** Cookie-based TempData (the default `CookieTempDataProvider`) serializes values into an encrypted cookie sent with the next request; session-based TempData stores values server-side in ASP.NET session keyed by session id.
+**Answer**
 
-- **Cookie provider:** no server-side session store required; works across load-balanced pods without sticky sessions; subject to cookie size limits (~4 KB per cookie).
-- **Session provider (`SessionStateTempDataProvider`):** supports larger arbitrary objects; requires session middleware and either sticky sessions or distributed session (Redis/SQL) in multi-server deployments.
-- Cookie TempData uses ASP.NET Core Data Protection for encryption — key rings must be synchronized across instances or cookies become unreadable after deploy to another node.
-- Configure via `builder.Services.AddControllersWithViews().AddSessionStateTempDataProvider()` or cookie provider in MVC options.
+Cookie-based TempData (`CookieTempDataProvider`) serializes all values into a single encrypted cookie via Data Protection and sends it with the response — the server holds no state, so it works across load-balanced pods without sticky sessions. Session-based TempData (`SessionStateTempDataProvider`) stores values server-side in ASP.NET session keyed by a session cookie id — supports larger arbitrary objects but requires the same session store to be reachable on every pod, meaning in-memory session fails behind round-robin load balancers. Cookie provider is the ASP.NET Core 8 default; session provider requires `AddSession()` and session middleware. Data Protection key ring synchronization is required for cookie provider in multi-instance deployments — without it, cookies encrypted on one node become unreadable on another.
 
 ---
 
 ## Q10. What happens to TempData when it is read?
 
-What happens to TempData when it is read?
+**Concepts**
+- Consume-on-read default — indexer access marks key for deletion at request end
+- Read-once semantics distinct from session state persistence
+- `Peek()` reading without consuming in the same request
+- `Keep()` preserving a consumed key for the next request
 
-**Answer:** Reading a TempData key with the indexer (`TempData["Key"]`) marks it for deletion at the end of the current request — it is a read-once-by-default flash semantics.
+**Answer**
 
-- After the request completes, marked keys are removed and will not appear on the subsequent request.
-- If both the layout and the view read the same key in one request, the first read consumes it unless `Peek` is used for the first access.
-- `TempData.Keep("Key")` explicitly preserves a key for the **next** request even after it was read.
-- This consume-on-read behavior makes TempData behave like a one-shot message queue, not persistent session state.
+Reading a TempData key via the indexer (`TempData["Key"]`) marks it for deletion at the end of the current request — after the response completes, the provider removes those marked entries so they are absent on the next round-trip. This is consume-on-read semantics: TempData behaves like a one-shot message queue, not persistent session state. If both the layout and the view indexer-access the same key in one request, the first access consumes it and the second returns null. `Peek("Key")` reads without marking for deletion; `Keep("Key")` reverses a prior mark to preserve the entry for the next request.
 
 ---
 
 ## Q11. What is `TempData.Keep()` used for?
 
-What is `TempData.Keep()` used for?
+**Concepts**
+- `Keep(key)` — un-marking a consumed entry so it survives to the next request
+- Multi-step redirect chains requiring the same flash message across two GET requests
+- Overuse causing messages to reappear on unintended pages
+- `Keep` vs `Peek` — `Keep` for next-request retention, `Peek` for same-request multi-read
 
-**Answer:** `TempData.Keep("Key")` marks a TempData entry to survive into the next HTTP request even after it has been read in the current request — extending flash message life across a redirect chain.
+**Answer**
 
-- Use when a message must display across two consecutive GET requests (e.g., a multi-step redirect flow).
-- Without `Keep`, a read TempData key is deleted at end of request and absent on the next round-trip.
-- Overusing `Keep` causes messages to reappear on unintended pages — flash messages should normally die after one display.
-- Distinct from `Peek`: `Keep` affects the **next** request; `Peek` allows multiple reads within the **same** request.
+`TempData.Keep("Key")` reverses the consume-on-read deletion mark, preserving the entry so it is still present on the next HTTP request after it was read in the current one. The use case is a redirect chain where a flash message must survive two consecutive GET requests — for example, an intermediate redirect to a payment gateway and back before the confirmation page renders. Without `Keep`, reading the entry on the first GET deletes it; the second GET sees nothing. Overusing `Keep` causes messages to reappear on unrelated pages if the user navigates further — flash messages should survive exactly one display and then disappear. `Keep` targets the next request; `Peek` targets multiple reads within the same request.
 
 ---
 
 ## Q12. What is `TempData.Peek()` used for?
 
-What is `TempData.Peek()` used for?
+**Concepts**
+- `Peek(key)` — reading without marking for deletion
+- Same-request multi-read — layout and view both accessing the same flash key
+- `Peek` for same-request reads, `Keep` for next-request retention
+- Centralizing flash display in a single partial as a cleaner alternative
 
-**Answer:** `TempData.Peek("Key")` reads a TempData value without marking it for deletion, allowing multiple components in the same request (layout and view) to read the same flash message.
+**Answer**
 
-- Use in the layout to inspect a message while leaving it available for the child view in the same render pass.
-- The key is still subject to normal deletion at end of request unless also `Keep()`'d for the next request.
-- Preferred over double indexer reads when both layout and view need the same TempData key in one round-trip.
-- Best practice: centralize flash display in a single `_FlashMessages.cshtml` partial invoked from the layout to avoid double-read issues entirely.
+`TempData.Peek("Key")` reads the value without marking it for deletion, so the entry is still available for subsequent reads in the same request. The canonical use is a layout that inspects a flash message first — `Peek` in the layout leaves the entry available for the child view to also read via the indexer in the same render pass. The key is still subject to normal consume-on-read deletion at request end unless also `Keep()`'d for the next request. In practice, the cleanest pattern is to centralize flash rendering in a single `_FlashMessages.cshtml` partial invoked from the layout and read each key exactly once there, avoiding the need for `Peek` entirely.
 
 ---
 
 ## Q13. What are the size limits of cookie-based TempData?
 
-What are the size limits of cookie-based TempData?
+**Concepts**
+- Browser per-cookie limit — approximately 4096 bytes
+- Total request header size — browser and server limits of 8–16 KB
+- All TempData entries serialized into a single cookie competing with antiforgery and auth cookies
+- Store identifiers in TempData, reload full data from services on GET
 
-**Answer:** Cookie-based TempData serializes all entries into a single cookie (typically `.AspNetCore.Mvc.CookieTempDataProvider`), constrained by browser cookie limits of approximately 4096 bytes per cookie and total request header size limits of roughly 8–16 KB.
+**Answer**
 
-- Storing large objects (full view models, validation error collections for 40+ fields) exceeds cookie capacity and throws or silently fails on redirect.
-- Total header size includes all cookies, antiforgery tokens, and auth cookies — TempData competes for the same budget.
-- Store only small identifiers and messages in TempData (e.g., `orderId`, `"Saved successfully"`) and reload data from services on GET.
-- Switch to session-based TempData with distributed session only when large flash payloads are genuinely required and session infrastructure already exists.
+Cookie-based TempData serializes all entries into a single `.AspNetCore.Mvc.CookieTempDataProvider` cookie — browsers impose a per-cookie limit of approximately 4096 bytes and a total header size limit around 8–16 KB depending on browser and server configuration. That budget is shared with antiforgery tokens, auth cookies, and other application cookies. Storing a large view model — a 40-field `OrderSummaryViewModel` or a `ModelStateDictionary` with many errors — exceeds cookie capacity and either throws `InvalidOperationException` or silently truncates. The correct pattern is to store only a small identifier in TempData, such as `TempData["OrderId"] = order.Id`, and load the full summary from services on the GET action using that id.
 
 ---
 
 ## Q14. Why does session-based TempData fail behind load balancers without sticky sessions?
 
-Why does session-based TempData fail behind load balancers without sticky sessions?
+**Concepts**
+- In-memory session local to each pod — not shared across instances
+- Redirect landing on a different pod after round-robin load balancing
+- Sticky sessions masking the problem but not solving cross-instance state
+- Distributed session (Redis, SQL) or cookie TempData as the correct multi-node fix
 
-**Answer:** Session-based TempData stores data server-side keyed by session id — after redirect, the browser may hit a different pod that does not hold that session entry, returning empty TempData.
+**Answer**
 
-- In-memory session on one node is invisible to other nodes in a round-robin load-balanced deployment.
-- Sticky sessions (session affinity) route the same client to the same pod, masking the problem but reducing failover flexibility.
-- Fix: use cookie-based TempData (default) for flash strings, or configure distributed session (Redis, SQL Server) shared by all pods.
-- Data Protection key ring synchronization is also required for cookie TempData across nodes — unrelated to session but equally critical for multi-instance deployments.
+Session-based TempData stores entries server-side in ASP.NET session keyed by a session id cookie. After a redirect, the browser sends the session id cookie to the next request — but round-robin load balancing may route that request to a different pod whose in-memory session has no entry for that id, so `TempData["Key"]` returns null and the flash message disappears. Sticky sessions (session affinity) route the same client to the same pod and mask the problem, but they reduce failover flexibility and are brittle during rolling deploys. The correct fixes are either to switch to cookie-based TempData (the default), which carries the data in the cookie and requires no server-side session store, or to configure a distributed session provider such as Redis so all pods share the same session store.
 
 ---
 
 ## Q15. When should you use `ViewBag`/`ViewData` instead of a ViewModel?
 
-When should you use `ViewBag`/`ViewData` instead of a ViewModel?
+**Concepts**
+- ViewBag/ViewData appropriate for incidental page metadata not part of primary data contract
+- Action filters populating `ViewData` for layouts without changing action return types
+- ViewModel preferred when validation attributes, multiple fields, or client-side binding required
+- Layout data like page title and active tab as the canonical ViewBag use case
 
-**Answer:** Use ViewBag or ViewData for incidental page metadata that is not part of the primary data contract — page title, active navigation tab, breadcrumb flags, or one-off layout toggles — not for form models or domain data.
+**Answer**
 
-- `ViewBag.Title = "Dashboard"` in an action and `@ViewBag.Title` in a layout is a common, acceptable pattern.
-- Passing `"ActiveTab" => "Settings"` to highlight navigation avoids bloating a ViewModel with presentation-only properties.
-- Action filters can set ViewData entries consumed by layouts without changing the action's return model.
-- Anything with validation attributes, client-side validation, or more than a few simple properties belongs in a strongly typed ViewModel.
+`ViewBag` and `ViewData` are appropriate for incidental page metadata that is not part of the primary data contract — `ViewBag.Title = "Dashboard"`, `ViewBag.ActiveTab = "Settings"`, or layout-level flags that no ViewModel property should own. Action filters can populate `ViewData` entries consumed by layouts without changing the action's return model, which is useful for breadcrumbs or per-action layout toggles. Anything with validation attributes, client-side binding, more than a few simple properties, or data the view must cast and process belongs in a strongly typed ViewModel. The rule of thumb: if it appears in `asp-validation-for`, `asp-for`, or requires a model directive, it is ViewModel territory.
 
 ---
 
 ## Q16. When should you not use `ViewBag` for layout data?
 
-When should you not use `ViewBag` for layout data?
+**Concepts**
+- Compile-time checking absent — dot-property typos produce silent blank output
+- Complex or structured data exposed via dynamic access without IntelliSense support
+- Authorization and role checks belonging in policies and filters, not ViewBag flags
+- View components and strongly typed layout models as the alternatives for shared structured data
 
-**Answer:** Avoid ViewBag for data that multiple views depend on with compile-time safety, data shared between layout and child views with complex types, or any value where a typo causes silent runtime failures.
+**Answer**
 
-- Strongly typed layout models or view components provide compile-time checking that ViewBag's dynamic access cannot offer.
-- When the layout and view both need the same value, ViewBag typos (`ViewBag.UsreName`) render blank without build errors.
-- Authorization or role checks should not live in ViewBag flags set from actions — use policy-based authorization and view components instead.
-- Large or structured data (user profile objects, cart summaries) should use ViewModels or view components, not ViewBag dynamic properties.
+Avoid `ViewBag` when multiple views depend on the same data and a compile-time contract is needed, when the data is structured or complex rather than a simple string or flag, and when authorization or role decisions flow from the value — dynamic access cannot be verified at build time and typos produce blank output without compiler errors. A strongly typed layout model or view component provides compile-time safety and IntelliSense. Authorization checks based on role or policy should be expressed in `[Authorize]` attributes, policies, or view components that query `HttpContext.User`, not in `ViewBag` flags set from actions that can be accidentally omitted on new actions.
 
 ---
 
 ## Q17. Does TempData work on AJAX partial responses the same as full page redirects?
 
-Does TempData work on AJAX partial responses the same as full page redirects?
+**Concepts**
+- TempData designed for the next full HTTP request after a redirect
+- AJAX partial response returning HTML fragment — layout not re-executing
+- TempData written during AJAX POST not visible in already-rendered DOM
+- JSON response body or embedded partial element as the AJAX-appropriate flash channel
 
-**Answer:** No — TempData is designed for the next full HTTP request after a redirect; AJAX partial updates that return HTML or JSON in the same POST response cycle do not re-render the layout where TempData is typically consumed.
+**Answer**
 
-- The layout executes on the initial full-page load — TempData written during an AJAX POST is not injected into an already-rendered DOM.
-- Partial view responses replace a page fragment — the layout's TempData block does not re-execute.
-- For AJAX success messages, return the message in the JSON response body or embed a toast element in the returned partial HTML.
-- Reserve TempData for full-page POST → redirect → GET flows; use response payloads, SignalR, or client-side state for in-place updates.
+TempData does not work the same way for AJAX partial responses. It is designed for the POST → redirect → GET full-page cycle: the value serializes into the cookie on the POST response and is read during the subsequent GET's full-page layout and view render. In an AJAX partial update, the POST response returns an HTML fragment that replaces a DOM container — the layout has already rendered and is not re-executed, so any TempData written during the AJAX POST is never consumed during that response cycle. If the user then performs a full-page navigation, the TempData may unexpectedly appear. For AJAX success or error messages, embed the message in the JSON response body or include a toast element in the returned partial HTML rather than relying on TempData.
 
 ---
 
 ## Q18. What data should never be stored in TempData?
 
-What data should never be stored in TempData?
+**Concepts**
+- Sensitive credentials and auth tokens — encrypted cookie is still client-side
+- Large domain objects and entity graphs — exceed cookie size limits
+- PII beyond minimal identifiers — audit and compliance exposure
+- TempData as a flash notification channel, not a data transport
 
-**Answer:** Never store sensitive secrets, large domain objects, PII beyond minimal identifiers, or anything that should persist beyond a single flash display — TempData is serialized into cookies or session and consumed ephemerally.
+**Answer**
 
-- Passwords, API keys, credit card numbers, and auth tokens must not pass through TempData — cookies are client-visible (even if encrypted) and logs may capture values.
-- Full entity graphs or large view models exceed cookie size limits and expose internal schema details unnecessarily.
-- Instead of storing an `OrderSummaryViewModel` in TempData, store `TempData["OrderId"] = id` and load the summary from the service on the GET action.
-- Treat TempData as a flash notification channel — short strings, status flags, and route-correlated identifiers only.
+Never store passwords, API keys, JWT tokens, session secrets, or credit card numbers in TempData — even though `CookieTempDataProvider` encrypts the cookie via Data Protection, the ciphertext is still client-visible, can be transmitted over insecure connections if HTTPS is misconfigured, and may appear in logs or browser developer tools. Full entity graphs or large view models exceed cookie size limits and expose internal schema details. PII beyond a minimal identifier such as an order id creates compliance exposure since TempData may be logged or transmitted beyond its intended lifespan. The correct use is a flash notification channel: short status strings, status flags, and route-correlated identifiers only — load full data from services on the GET action using those identifiers.
 
 ---
 
@@ -262,182 +280,222 @@ What data should never be stored in TempData?
 
 ---
 
----
-
 ## Gotchas — ASP.NET Core MVC (Interview Traps)
+
+---
 
 #### Gotcha 1. Business logic in Razor views
 
-**Answer:** Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently.
+**Concepts**
+- Business logic in Razor — untestable and duplicated from the service layer
+- Separation of concerns — view as presentation only
+- Authorization checks in templates bypassing security layers
+- Divergent behavior when view and API/batch logic run the same rule separately
 
-- Views should render data the controller or ViewModel already prepared.
-- Authorization belongs in filters, policies, or controller/service checks before the view executes.
-- Calculations in Razor cannot be tested independently and often diverge from API or batch logic.
-- Keep Razor limited to presentation formatting — not business decisions.
+**Answer**
+
+Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render only what the controller or ViewModel already prepared, since Razor calculations cannot be tested independently and often diverge from API or batch logic. Authorization belongs in filters, policies, or controller checks executed before the view — not in view conditionals that a developer can accidentally omit.
 
 ---
 
 #### Gotcha 2. EF entities passed directly to views
 
-**Answer:** Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema.
+**Concepts**
+- Over-posting via direct entity binding on POST
+- Lazy-loaded navigation properties triggering unexpected queries during rendering
+- ViewModel as the narrow data contract between controller and view
+- Entity-to-ViewModel mapping responsibility
 
-- Lazy-loaded navigations can trigger unexpected queries during rendering.
-- Mass assignment can update properties the user should not control (e.g., `IsAdmin`).
-- Use dedicated ViewModels with only the fields the view needs.
-- Map between entities and ViewModels in the controller or a mapping service.
+**Answer**
+
+Binding and displaying EF Core entities exposes navigation properties, enables over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during Razor rendering — each navigation access issues a database round-trip. Mass assignment on POST can update properties the user should never control, such as `IsAdmin`. The correct pattern is a dedicated ViewModel with only the fields the view needs, mapped from the entity in the controller or a mapping service.
 
 ---
 
 #### Gotcha 3. `[FromBody]` on HTML form POST
 
-**Answer:** Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values.
+**Concepts**
+- Browser form encoding — `application/x-www-form-urlencoded` vs JSON
+- `[FromBody]` routing to the JSON input formatter only
+- Silent binding failure — model parameter receives default values
+- `FormData` following the form value provider rules
 
-- Remove `[FromBody]` for conventional form POSTs and let model binding read form fields.
-- Use `[FromBody]` only when the client sends JSON with the correct Content-Type.
-- Silent binding failure is a common source of "my POST action receives null model" bugs.
-- AJAX forms using `FormData` follow the same form binding rules as full-page forms.
+**Answer**
+
+Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` tells MVC to use the JSON input formatter — when a form POST arrives, the formatter finds no matching content and the model receives default values while the action runs silently. Remove `[FromBody]` for conventional form POSTs and let the form value provider bind fields. Use `[FromBody]` only when the client explicitly sends JSON with the correct Content-Type header.
 
 ---
 
 #### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
 
-**Answer:** Client-side validation is bypassable — attackers POST directly without browser scripts. Server-side validation is mandatory before any persist, redirect, or side effect.
+**Concepts**
+- Client validation as a UX convenience, not a security boundary
+- Server-side validation mandatory before any persist, redirect, or side effect
+- Direct POST attacks bypassing browser scripts entirely
 
-- Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent.
-- Client validation improves UX for legitimate users only.
-- Remote validation and unobtrusive rules are not security boundaries.
-- Treat missing server validation as a security defect regardless of client script presence.
+**Answer**
+
+Client-side validation is bypassable — attackers can POST directly without running browser scripts. Server-side `ModelState.IsValid` is mandatory before any persist, redirect, or side effect. Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent. Treating missing server validation as a security defect regardless of client script presence is the right standard.
 
 ---
 
 #### Gotcha 5. `return View()` after successful POST
 
-**Answer:** Returning the same view after a successful POST causes duplicate submission when the user refreshes the page — the browser resubmits the POST body.
+**Concepts**
+- Duplicate form submission triggered by browser refresh after POST
+- Post-Redirect-Get (PRG) pattern — mutation then safe redirect
+- `RedirectToAction` separating command (POST) from display (GET)
+- TempData carrying flash messages across the redirect
 
-- Use Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create/update.
-- PRG separates the mutation (POST) from the display (GET).
-- Flash success messages via TempData on the redirect target.
-- AJAX partial POSTs have a similar concern — disable submit during request or use idempotent server logic.
+**Answer**
+
+Returning the same view after a successful POST means the browser's last request was the POST. When the user refreshes, the browser re-submits the POST body, which can duplicate an order or registration. The fix is Post-Redirect-Get: return `RedirectToAction(nameof(Index))` after a successful mutation so the browser's last request is a safe GET. TempData carries flash success messages across the redirect.
 
 ---
 
 #### Gotcha 6. `ModelState` after redirect
 
-**Answer:** `ModelState` is request-scoped and does not survive `RedirectToAction`. Validation errors are lost unless rehydrated through TempData, a second validation pass on GET, or by redisplaying the form without redirect on failure only.
+**Concepts**
+- `ModelState` as request-scoped data lost on redirect
+- Return `View(model)` on validation failure to preserve errors inline
+- TempData serialization as a fallback for post-redirect error persistence
+- AJAX partial forms avoiding the redirect problem entirely
 
-- Common pattern: redirect only on success; on validation failure return `View(model)` with errors inline.
-- To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache.
-- Do not assume errors automatically follow the user after redirect.
-- AJAX partial forms avoid redirect and can return the form partial with `ModelState` errors directly.
+**Answer**
+
+`ModelState` lives in the controller's `ViewDataDictionary` for the current request only — a redirect ends that request with an empty `ModelState`. The standard pattern is redirect only on success and return `View(model)` on validation failure. If a redirect on failure is truly required, serialize errors to TempData or run a second validation pass on the GET action.
 
 ---
 
 #### Gotcha 7. TempData read twice in layout and view
 
-**Answer:** TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless you use `Peek()` or `Keep()`.
+**Concepts**
+- TempData consume-on-read default semantics
+- Layout consuming flash key before the child view reads it
+- `Peek()` — read without marking for deletion in the same request
+- `Keep()` — preserve a consumed key for the next request
 
-- Use `TempData.Peek("Message")` in the layout to read without consuming.
-- Or call `TempData.Keep("Message")` after the layout read so the view can read it too.
-- Prefer a single consumption point — typically the layout or a dedicated partial, not both.
-- Cookie-based TempData has size limits; avoid storing large payloads.
+**Answer**
+
+TempData marks entries for deletion the moment they are read via the indexer. If the layout reads a flash message first, the child view returns null. The fix is to use `TempData.Peek("Message")` in the layout, which reads without consuming. Centralizing flash display in a single partial avoids the double-read problem entirely.
 
 ---
 
 #### Gotcha 8. Missing `[Area]` attribute on area controllers
 
-**Answer:** Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong conventional route.
+**Concepts**
+- `[Area("AreaName")]` as required routing metadata on area controllers
+- Controller in `Areas/` folder without attribute treated as a root controller
+- `{area:exists}` constraint not matching unannotated controllers
+- Compile-time success masking a runtime 404
 
-- Every area controller must declare `[Area("AreaName")]` matching its folder.
-- Area routing is registered separately in `Program.cs` with the `{area:exists}` constraint.
-- Without the attribute, MVC treats the controller as a root controller.
-- Verify area registration order — specific area routes before catch-all default routes.
+**Answer**
+
+A controller physically in `Areas/Admin/Controllers/` is not automatically registered with the area route — it needs `[Area("Admin")]` on the class. Without it, MVC treats it as a root controller and requests return 404. The project compiles without the attribute, giving false confidence until the first HTTP request hits the area URL.
 
 ---
 
 #### Gotcha 9. Link generation without `asp-area`
 
-**Answer:** Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment.
+**Concepts**
+- Ambient area route values from the current request
+- Absent area context in root views producing wrong URLs
+- Explicit `asp-area` required for cross-area and root-to-area links
+- `Url.Action` requiring area route values in the anonymous object
 
-- From within an area, omitting `asp-area` keeps links inside the current area — sometimes incorrectly.
-- Cross-area links require both `asp-area` and `asp-controller` (and `asp-action`).
-- Wrong URLs produce 404 or hit unintended controllers.
-- Same rule applies to `Url.Action` — pass `new { area = "Admin" }` in route values.
+**Answer**
+
+Tag Helpers inherit ambient route values from the current request. From a root view, `asp-controller="Users"` generates `/Users` with no area prefix. Cross-area links require explicit `asp-area="Admin"` on every anchor targeting an area controller. The same rule applies to `Url.Action` — pass `new { area = "Admin" }` in the route values object.
 
 ---
 
 #### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
 
-**Answer:** A missing unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value — not null or empty.
+**Concepts**
+- Unchecked checkbox posting no value — binding sets non-nullable `bool` to `false`
+- `[Required]` passing validation because `false` is a valid non-null value
+- `bool?` with `[Required]` requiring explicit `true` for consent scenarios
+- Hidden-field pattern for deliberate `false` submission
 
-- Use `bool?` with `[Required]` to require an explicit true selection for consent checkboxes.
-- Or use the hidden-field pattern: hidden input `false` plus checkbox `true` so unchecked still posts `false` deliberately.
-- Server-side, verify explicit consent with a dedicated check rather than relying on `[Required]` alone.
-- This applies to both full-page forms and AJAX form posts.
+**Answer**
+
+An unchecked checkbox posts nothing, so model binding sets a non-nullable `bool` to `false`. `[Required]` passes because `false` is non-null. For explicit consent, use `bool?` with `[Required]` — null (no field posted) fails `[Required]`. The hidden-field pattern ensures the form always posts a value.
 
 ---
 
 #### Gotcha 11. Collection binding with gap indices
 
-**Answer:** Deleting a row from a dynamic form leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment — index 1 is missing and subsequent items may bind incorrectly or truncate.
+**Concepts**
+- Contiguous-index requirement for MVC form collection binding
+- Gap indices causing silent truncation or misalignment
+- Client-side reindexing after row deletion
+- Custom `IModelBinder` for non-contiguous index tolerance
 
-- Reindex client-side after row deletion so indices are contiguous starting at zero.
-- Or implement a custom `IModelBinder` that tolerates non-contiguous indices.
-- Partial views rendering collection editors must maintain consistent index naming.
-- Test add/delete row scenarios explicitly in complex form POSTs.
+**Answer**
+
+MVC's collection binder expects contiguous indices starting at zero. Gap indices cause the binder to stop so subsequent items are silently dropped. The fix is to reindex client-side after every row deletion. A custom `IModelBinder` can tolerate non-contiguous indices for complex scenarios.
 
 ---
 
 #### Gotcha 12. `@Html.Raw` with user content
 
-**Answer:** Default Razor encoding prevents XSS by HTML-encoding output. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side.
+**Concepts**
+- Razor default `@` encoding preventing XSS
+- `Html.Raw` bypassing encoding for attacker-supplied strings
+- AJAX partial HTML injection via `innerHTML` as an XSS surface
+- Content-Security-Policy as defense in depth, not a substitute
 
-- Encode first, then apply safe formatting — never wrap raw user input in HTML.
-- AJAX-loaded partials injected via `innerHTML` execute injected script the same as full pages.
-- Prefer `@Model.UserComment` (auto-encoded) or sanitize with a trusted HTML sanitizer library.
-- Content-Security-Policy limits blast radius but does not replace encoding.
+**Answer**
+
+Razor's default `@` encoding prevents XSS. `@Html.Raw(Model.UserComment)` bypasses that protection, rendering `<script>` tags and event handlers. AJAX-loaded partials injected via `innerHTML` carry the same risk. Use `@Model.UserComment` for auto-encoded output, or sanitize with a trusted HTML sanitizer library.
 
 ---
 
 #### Gotcha 13. AJAX POST without antiforgery token
 
-**Answer:** Form tag helpers emit antiforgery tokens automatically, but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` header or `__RequestVerificationToken` form field or POSTs fail with 400 antiforgery errors.
+**Concepts**
+- Antiforgery cookie-and-field/header pair preventing CSRF
+- Form Tag Helpers emitting the hidden token field automatically
+- Manual `RequestVerificationToken` header required for `fetch` and jQuery AJAX
+- `[AutoValidateAntiforgeryToken]` covering all unsafe methods on a controller
 
-- Read the hidden field value from the page and include it on every mutating AJAX request.
-- Same-origin requests send the antiforgery cookie automatically.
-- `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe methods — missing tokens fail before the action runs.
-- Do not disable antiforgery on MVC cookie-auth endpoints to "fix" AJAX — add the token instead.
+**Answer**
+
+Form Tag Helpers emit the token automatically, but `fetch` and jQuery AJAX must include it manually as the `RequestVerificationToken` header or form field. Without it, antiforgery validation returns 400 before the action executes. Disabling antiforgery on MVC cookie-auth endpoints to work around the 400 is not acceptable.
 
 ---
 
 #### Gotcha 14. Injecting Hub into MVC controller
 
-**Answer:** Hubs are not registered in DI for direct injection into controllers. Use `IHubContext<THub>` to broadcast messages from controllers, services, or background jobs.
+**Concepts**
+- Hub — per-connection transient lifecycle, not registered in DI for direct injection
+- `IHubContext<THub>` — singleton proxy for server-side broadcasting
+- Hub instance lacking connection context when activated outside SignalR
+- Redis backplane or Azure SignalR for cross-instance message fan-out
 
-- Injecting a concrete `Hub` fails activation or produces an instance without connection context.
-- `IHubContext<T>` is a singleton proxy registered by `AddSignalR()`.
-- Pair with Redis backplane or Azure SignalR for multi-instance fan-out.
-- Keep hubs thin; business logic stays in scoped or transient services.
+**Answer**
+
+Hubs are not registered in DI for direct injection — injecting a concrete `Hub` either fails activation or produces an instance without a connection context. The correct mechanism is `IHubContext<THub>`, a singleton proxy registered by `AddSignalR()`. For multi-instance deployments, pair it with a Redis backplane or Azure SignalR Service.
 
 ---
 
 #### Gotcha 15. SignalR scale-out without backplane
 
-**Answer:** Sticky sessions alone do not fan-out events across server instances. Multi-node deployments need a Redis backplane or Azure SignalR Service so messages sent from any instance reach clients on all instances.
+**Concepts**
+- In-memory connection registry local to each pod
+- Sticky sessions routing connections but not cross-instance messages
+- Redis backplane and Azure SignalR Service for full fan-out
+- Group membership and connection IDs scoped per process instance
 
-- Controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users connected to instance B without a backplane.
-- Sticky sessions route connections but do not route cross-instance messages.
-- Group membership and connection IDs are local to each instance.
-- Register `AddStackExchangeRedis` or `AddAzureSignalR` when scaling beyond a single node.
+**Answer**
 
----
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+Each process maintains its own in-memory connection registry. Sticky sessions route a client to the same pod but do not fan-out cross-instance messages — a controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users on instance B. The fix is a Redis backplane or Azure SignalR Service.
 
 ---
 
 ## Scenario-Based Questions (Karat Format)
+
+---
 
 #### Q1. (R) After a successful save, users sometimes see no success banner. Review the POST action, redirect, layout, and detail view.
 
@@ -466,37 +524,27 @@ public IActionResult Edit(int id, ProductEditModel model)
 }
 ```
 
----
+**Concepts**
+- TempData consume-on-read — first indexer access marks the key for deletion
+- Layout executing before the child view — first consumer wins
+- `TempData.Peek()` reading without consuming
+- Single ownership pattern — one partial responsible for all flash display
 
-**Answer:**
+**Answer**
 
-**Answer:** TempData is **read-once by default** — the layout consumes `SuccessMessage` on the first read, so the detail view's second read returns null and the banner disappears or appears inconsistently depending on render order.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| TempData semantics | Two reads of same key in one request | First consumer wins; second gets null |
-| UX | Layout + view both display flash | Message missing in one location |
-| Design | Implicit consumption without coordination | Intermittent "no banner" bug reports |
-
-**Fix (priority order):**
-
-1. Read once — only the layout **or** the view displays the message, not both.
-2. Or use `TempData.Peek("SuccessMessage")` in the layout so the value stays available for the same request; use `Keep()` only if you need it on the **next** request too.
-3. Prefer a single partial `_FlashMessages.cshtml` invoked from the layout that owns all TempData keys.
-
-**Production takeaway:** TempData looks like session state but behaves like a one-shot queue — double-read in one round-trip is a classic Karat trap.
-
----
+TempData is consumed on the first indexer read — the layout reads `TempData["SuccessMessage"]` during render, which marks the key for deletion, so the child view's second read returns null. Depending on layout render order and caching, the banner appears in one location or neither. The fix is to read the key exactly once. The simplest approach is to use `TempData.Peek("SuccessMessage")` in the layout so the value is still present when the child view reads it. A cleaner long-term pattern is a single `_FlashMessages.cshtml` partial invoked once from the layout, which owns all TempData flash keys and reads each exactly once — eliminating the double-read problem for every view in the application.
 
 ---
 
 #### Q2. (P) A team deploys to three Kubernetes pods behind a round-robin load balancer. They use **session-based** TempData (`AddSession()` + default `SessionStateTempDataProvider`). Flash messages intermittently disappear after redirect. What is happening, and what are the two production-viable fixes?
 
----
+**Concepts**
+- In-memory session state local to each pod
+- Round-robin routing landing redirected GET on a different pod than the POST
+- Cookie TempData as a stateless alternative requiring no server-side session store
+- Distributed session (Redis, SQL Server) sharing session across all pods
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -504,9 +552,13 @@ _Answer not found._
 
 #### Q3. (M) Compare **cookie-based** TempData (`CookieTempDataProvider`) vs **session-based** TempData. For each, name one advantage and one failure mode in production (scale-out, size, security, or ops).
 
----
+**Concepts**
+- Cookie TempData — stateless, no server store, works across pods without sticky sessions
+- Session TempData — server-side storage, larger payload capacity
+- Cookie size limit (~4 KB) as cookie TempData failure mode
+- Missing distributed session store as session TempData failure mode in multi-node deployments
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -528,9 +580,13 @@ public IActionResult Profile()
 <p>Last login: @ViewBag.LastLogin</p>
 ```
 
----
+**Concepts**
+- Dynamic `ViewBag` resolving at runtime — typo `UsreName` silently returns null
+- No compile-time error for misspelled `ViewBag` properties
+- Strongly typed ViewModel preventing this class of runtime blank-output bug
+- IntelliSense coverage as a practical advantage of ViewModel over ViewBag
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -538,9 +594,13 @@ _Answer not found._
 
 #### Q5. (P) Implement the correct **Post-Redirect-Get (PRG)** flow for a "Create Order" form. Validation errors must survive the redirect; success must not re-POST on browser refresh. Sketch controller actions and where TempData vs ModelState belong.
 
----
+**Concepts**
+- PRG — POST mutates then redirects, GET displays
+- `return View(model)` on validation failure — no redirect, `ModelState` intact
+- TempData carrying success message across the redirect, not entity data
+- Reload entity from service on GET using the route id from the redirect
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -548,9 +608,13 @@ _Answer not found._
 
 #### Q6. (D) A junior developer passes a 40-field `CustomerEditViewModel` through `ViewData["Customer"]` instead of a strongly typed view. When should `ViewData`/`ViewBag` be acceptable, and when should you insist on a ViewModel — especially for PRG and validation?
 
----
+**Concepts**
+- `ViewData`/`ViewBag` appropriate for incidental metadata, not primary form models
+- `asp-for` and `asp-validation-for` requiring strongly typed `@model` declaration
+- PRG round-trip — ViewModel on both POST and GET actions for validation consistency
+- Runtime cast errors and missing IntelliSense from untyped `ViewData["Customer"]`
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -558,9 +622,13 @@ _Answer not found._
 
 #### Q7. (M) After switching to cookie TempData, POST → redirect intermittently throws `InvalidOperationException` about cookie size or request headers. The team stores a full `OrderSummaryViewModel` (line items + audit trail) in TempData for the confirmation page. What is the limit, and what pattern fixes it?
 
----
+**Concepts**
+- Cookie TempData serialized into a single cookie — ~4 KB per-cookie browser limit
+- Total request header size budget shared with auth cookies and antiforgery tokens
+- Store identifiers in TempData, reload full data from services on GET
+- Compressed or chunked TempData as impractical alternatives vs the redirect id pattern
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -581,9 +649,13 @@ public IActionResult Approve(int id)
 // Layout toast reads TempData on full page loads only
 ```
 
----
+**Concepts**
+- TempData designed for POST → redirect → GET cycle, not same-request AJAX responses
+- Layout not re-executing during AJAX partial HTML injection
+- TempData written during AJAX POST deferred to the next full-page GET
+- JSON response body or toast element in returned partial as the AJAX-native flash channel
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -591,9 +663,13 @@ _Answer not found._
 
 #### Q9. (M) Explain **`TempData.Keep()`** vs **`TempData.Peek()`** with a scenario where the layout reads a flash key once and a child view must read the same key on the **same** request without losing it on the **next** request.
 
----
+**Concepts**
+- `Peek()` — same-request read without consuming
+- `Keep()` — reverse deletion mark so key survives to next request
+- Both operating on different time horizons — same request vs next request
+- Layout as appropriate `Peek` caller, child view as final consumer
 
-**Answer:**
+**Answer**
 
 _Answer not found._
 
@@ -621,7 +697,13 @@ public IActionResult Register() => View();
 
 What breaks for PRG, refresh safety, and cross-request messaging — and what is the prioritized fix?
 
-**Answer:**
+**Concepts**
+- `return View("Confirmation")` after POST — browser last request is POST, refresh re-submits
+- `ViewBag.Message` request-scoped — lost on redirect, not suitable for cross-request flash
+- PRG pattern — redirect to a GET confirmation action after success
+- TempData replacing `ViewBag.Message` for the redirect flash channel
+
+**Answer**
 
 _Answer not found._
 

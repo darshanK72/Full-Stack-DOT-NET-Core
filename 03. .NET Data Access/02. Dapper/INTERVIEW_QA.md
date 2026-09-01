@@ -42,502 +42,627 @@
 
 ## Chapter 01. Introduction to Dapper
 
-### Q1. What is Dapper?
+---
 
-What is Dapper?
+## Q1. What is Dapper?
 
-**Answer:** Dapper is a lightweight .NET library that extends `IDbConnection` with extension methods for executing SQL and mapping result rows to plain C# objects. It sits on top of ADO.NET (ActiveX Data Objects for .NET) and keeps you in control of the SQL while removing most manual reader and parameter boilerplate.
+**Concepts**
+- IDbConnection extension method surface
+- ADO.NET abstraction layer
+- result-row-to-POCO materialization
+- micro-ORM positioning
+- provider-agnostic design
 
-- Created by Stack Overflow and distributed as the `Dapper` NuGet package.
-- Works with any ADO.NET provider — SQL Server, PostgreSQL, MySQL, SQLite, and others.
-- Maps query results to classes, structs, value tuples, and dynamic types with minimal configuration.
-- Does not own connection lifetime — you still open, dispose, and pool connections through the underlying provider.
+**Answer**
+
+Dapper is a lightweight .NET library that extends `IDbConnection` with extension methods for executing SQL and mapping result rows to plain C# objects. It sits directly on top of ADO.NET, which means it works with any ADO.NET provider — SQL Server, PostgreSQL, MySQL, SQLite, and others — without locking you into a specific database. Stack Overflow created and distributes it as the `Dapper` NuGet package. Its key design point is that you retain full control over SQL while it removes the manual `SqlDataReader` boilerplate of creating commands, indexing columns, and copying values property by property. It maps results to classes, structs, value tuples, and dynamic types with minimal configuration, and it intentionally leaves connection lifetime management to you — you open, pool, and dispose connections through the underlying provider.
 
 ---
 
-### Q2. What type of library is Dapper (ORM, micro-ORM, or something else)?
+## Q2. What type of library is Dapper (ORM, micro-ORM, or something else)?
 
-What type of library is Dapper (ORM, micro-ORM, or something else)?
+**Concepts**
+- micro-ORM classification
+- object-relational mapping scope boundary
+- absence of change tracking and migrations
+- contrast with full ORM
+- SQL visibility as a design goal
 
-**Answer:** Dapper is a micro-ORM (Object-Relational Mapper) — it maps rows to objects but does not model relationships, change tracking, or schema migrations like a full ORM. You write the SQL; Dapper handles parameter binding and materialization.
+**Answer**
 
-- A full ORM like Entity Framework Core generates SQL from LINQ and tracks entity state across a unit of work.
-- Dapper deliberately avoids those features to stay fast and predictable for hand-tuned queries.
-- It is often described as an object mapper rather than a complete persistence framework.
-- Teams pick it when SQL visibility and performance matter more than convention-based modeling.
-
----
-
-### Q3. What problem does Dapper solve compared to raw ADO.NET?
-
-What problem does Dapper solve compared to raw ADO.NET?
-
-**Answer:** Raw ADO.NET requires repetitive code to create commands, add parameters, open readers, and copy column values into object properties row by row. Dapper collapses that into one call such as `connection.Query<Product>(sql, param)` while still using your SQL and connection.
-
-- Eliminates manual `SqlDataReader` indexing and null-checking for every column.
-- Binds anonymous objects, `DynamicParameters`, or expando objects to SQL parameters automatically.
-- Supports async methods (`QueryAsync`, `ExecuteAsync`) with the same concise surface area.
-- Keeps full access to transactions, stored procedures, and provider-specific features underneath.
+Dapper is a micro-ORM — it maps result rows to objects but deliberately stops short of modeling relationships, tracking entity state across a unit of work, or managing schema migrations. You write the SQL; Dapper handles parameter binding and materialization. A full ORM like Entity Framework Core goes further by generating SQL from LINQ expressions and tracking which properties changed so it can emit targeted updates. Dapper avoids those features by design, keeping its behavior fast and predictable for hand-tuned queries. Teams often describe it as an object mapper rather than a complete persistence framework, and they reach for it when SQL visibility and throughput matter more than convention-based modeling.
 
 ---
 
-### Q4. What problem does Dapper solve compared to Entity Framework Core?
+## Q3. What problem does Dapper solve compared to raw ADO.NET?
 
-What problem does Dapper solve compared to Entity Framework Core?
+**Concepts**
+- SqlDataReader column-indexing elimination
+- parameter binding from anonymous objects
+- command and reader boilerplate reduction
+- async surface area
+- full ADO.NET feature access retained
 
-**Answer:** Entity Framework Core adds abstraction overhead — LINQ translation, change tracking, migrations, and relationship fix-up — that can be unnecessary for simple, performance-sensitive read paths. Dapper gives you direct SQL execution with near-ADO.NET speed and no hidden queries.
+**Answer**
 
-- You always see the exact SQL sent to the database, which simplifies tuning and index work.
-- No change tracker means lower memory use on large read-only result sets.
-- No migration or model configuration layer — schema changes are managed in SQL or external tools.
-- Trade-off: you manually handle joins, updates, and relationship shaping that EF Core automates.
-
----
-
-### Q5. When would you choose Dapper over EF Core?
-
-When would you choose Dapper over EF Core?
-
-**Answer:** Choose Dapper when you need hand-written SQL, maximum read throughput, or integration with legacy stored procedures where EF Core's LINQ translation adds little value. It fits reporting, bulk reads, and microservices that treat the database as the source of truth for complex queries.
-
-- Hot paths where every millisecond and every round-trip are profiled and fixed in SQL.
-- Teams with strong database administrators who prefer procedures and tuned statements in source control.
-- Scenarios where EF Core would generate inefficient joins, cartesian explosions, or untranslatable LINQ.
-- Read-heavy APIs that only need Data Transfer Objects (DTOs) without entity graphs or change tracking.
+Raw ADO.NET requires repetitive ceremony to create commands, add parameters, open readers, and copy column values into object properties row by row. Dapper collapses all of that into a single call like `connection.Query<Product>(sql, param)` while still using your SQL and your connection. It eliminates manual `SqlDataReader` indexing and null-checking for every column, and it binds anonymous objects, `DynamicParameters`, or expando objects to SQL parameters automatically. Async methods like `QueryAsync` and `ExecuteAsync` expose the same concise surface area. Underneath, you retain full access to transactions, stored procedures, and provider-specific features — Dapper simply removes the plumbing.
 
 ---
 
-### Q6. When would you choose EF Core over Dapper?
+## Q4. What problem does Dapper solve compared to Entity Framework Core?
 
-When would you choose EF Core over Dapper?
+**Concepts**
+- change tracker overhead on reads
+- SQL transparency for tuning
+- LINQ translation cost
+- read-only result set efficiency
+- schema management responsibility
 
-**Answer:** Choose Entity Framework Core when you want convention-based mapping, LINQ composability, migrations, and change tracking for typical create-read-update-delete (CRUD) workflows. EF Core 8 reduces the gap on bulk operations but still excels at model-driven application development.
+**Answer**
 
-- Greenfield applications where C# entity classes should drive schema evolution through migrations.
-- Complex object graphs with relationships, eager loading, and automatic relationship fix-up.
-- When `SaveChanges` unit-of-work semantics and concurrency tokens are simpler than manual SQL per operation.
-- When you need provider-agnostic LINQ that EF Core translates rather than maintaining SQL per database.
-
----
-
-### Q7. What are the main advantages and limitations of Dapper?
-
-What are the main advantages and limitations of Dapper?
-
-**Answer:** Dapper's main advantages are speed, simplicity, and full SQL control with minimal mapping code. Its limitations are the absence of change tracking, migrations, relationship navigation, and automatic SQL generation — every query and schema change is your responsibility.
-
-- Advantage: among the fastest mappers in .NET benchmarks because it avoids heavy metadata and proxy layers.
-- Advantage: tiny API surface — learn `Query`, `Execute`, and parameters rather than an entire ORM stack.
-- Limitation: no built-in way to detect dirty entities or batch updates without writing SQL yourself.
-- Limitation: multi-table object graphs require manual joins, multi-mapping, or multiple queries.
-- Limitation: schema drift is not caught at compile time the way a strongly configured EF Core model can be.
+Entity Framework Core adds layers — LINQ translation, change tracking, relationship fix-up, and migration infrastructure — that are unnecessary for simple, performance-sensitive read paths. Dapper executes the exact SQL you provide and returns mapped objects with near-ADO.NET overhead. Because you always see the SQL sent to the database, tuning indexes and diagnosing slow queries is straightforward. Removing the change tracker also reduces memory use significantly on large read-only result sets, since EF Core snapshots every property for potential dirty detection. The trade-off is that you lose EF Core's automation for joins, cascade updates, and relationship navigation — every query and data-modification statement becomes your responsibility.
 
 ---
 
-### Q8. Does Dapper generate SQL for you?
+## Q5. When would you choose Dapper over EF Core?
 
-Does Dapper generate SQL for you?
+**Concepts**
+- hot-path throughput requirements
+- stored procedure integration
+- inefficient LINQ translation scenarios
+- read-heavy DTO-only APIs
+- DBA-owned SQL management
 
-**Answer:** No. Dapper never generates SQL — you supply the complete statement as a string (or procedure name). It only binds parameters, executes the command through ADO.NET, and maps the result set to your types.
+**Answer**
 
-- Inserts, updates, and deletes require explicit `INSERT`, `UPDATE`, or `DELETE` text or stored procedures.
-- There is no LINQ provider or expression tree translator in Dapper itself.
-- Third-party extensions such as Dapper.Contrib offer optional CRUD helpers but still emit fixed SQL templates, not dynamic LINQ translation.
-- This design is intentional: predictable SQL is a feature, not a missing ORM capability.
+I choose Dapper when I need hand-written SQL, maximum read throughput, or tight integration with legacy stored procedures where EF Core's LINQ translation adds little value. Hot paths where every round-trip and every millisecond are profiled and fixed at the SQL level benefit from Dapper's minimal overhead. Teams with strong database administrators who prefer stored procedures and tuned statements in source control also tend to prefer Dapper. Scenarios where EF Core would generate inefficient joins, cartesian explosions, or simply cannot translate certain expressions are exactly where Dapper's explicit SQL shines. Read-heavy APIs that only need flat DTOs — no entity graphs, no change tracking — are another natural fit.
+
+---
+
+## Q6. When would you choose EF Core over Dapper?
+
+**Concepts**
+- migration-driven schema evolution
+- LINQ composability
+- change tracking unit of work
+- relationship navigation and eager loading
+- provider-agnostic query translation
+
+**Answer**
+
+I choose Entity Framework Core when I want convention-based mapping, LINQ composability, automated migrations, and change tracking for typical CRUD workflows. Greenfield applications where C# entity classes should drive schema evolution through migrations are exactly where EF Core excels. Complex object graphs with relationships, eager loading, and automatic fix-up are far easier to manage with EF Core's navigation properties than with hand-written joins. When `SaveChanges` unit-of-work semantics and optimistic concurrency tokens simplify the code compared to writing `UPDATE` SQL per operation, EF Core is the better choice. Provider-agnostic LINQ — writing one query that EF Core translates to SQL Server, PostgreSQL, or SQLite — also avoids maintaining database-specific SQL dialects.
+
+---
+
+## Q7. What are the main advantages and limitations of Dapper?
+
+**Concepts**
+- benchmark performance advantage
+- minimal API surface
+- absence of dirty-entity detection
+- manual relationship shaping requirement
+- schema drift risk
+
+**Answer**
+
+Dapper's main advantage is speed: it is consistently among the fastest .NET mappers in benchmarks because it avoids the heavy metadata, proxy generation, and change-tracking layers that full ORMs carry. Its API is intentionally small — you learn `Query`, `Execute`, and how to pass parameters, rather than a complete ORM stack. On the limitation side, there is no built-in mechanism to detect dirty entities or batch updates without writing SQL yourself. Multi-table object graphs require manual joins, multi-mapping overloads, or multiple queries that you assemble in code. Schema drift is also not caught at compile time the way a strongly configured EF Core model can signal mismatches through failed migrations or model validation.
+
+---
+
+## Q8. Does Dapper generate SQL for you?
+
+**Concepts**
+- explicit SQL requirement
+- no LINQ provider or expression tree translator
+- Dapper.Contrib optional CRUD helpers
+- predictable SQL as a design principle
+- INSERT/UPDATE/DELETE require explicit text
+
+**Answer**
+
+Dapper never generates SQL. You supply the complete statement as a string or the name of a stored procedure, and Dapper binds parameters, executes the command through ADO.NET, and maps the result set to your types — nothing more. Inserts, updates, and deletes require explicit `INSERT`, `UPDATE`, or `DELETE` statements. There is no LINQ provider or expression tree translator in Dapper itself. Third-party extensions like Dapper.Contrib offer optional CRUD helpers that emit fixed SQL templates, but even those do not perform dynamic LINQ translation. This is a deliberate design choice: predictable, visible SQL is a feature that distinguishes Dapper from full ORMs.
 
 ---
 
 ## Chapter 02. Queries, Execute & Async Methods
 
-### Q1. What is the difference between Dapper's `Query` and `Execute` methods?
+---
 
-What is the difference between Dapper's `Query` and `Execute` methods?
+## Q1. What is the difference between Dapper's `Query` and `Execute` methods?
 
-**Answer:** `Query` and its generic overloads run a statement that returns rows and materialize them into objects or scalars. `Execute` runs a statement that does not return a result set — inserts, updates, deletes — and returns the number of rows affected.
+**Concepts**
+- Query materializes result rows
+- Execute maps to ExecuteNonQuery
+- integer rows-affected return from Execute
+- SELECT vs DML use case distinction
+- shared parameter and transaction support
 
-- `Query<T>(sql, param)` yields zero or more mapped instances of `T`.
-- `Execute(sql, param)` maps to ADO.NET `ExecuteNonQuery` and returns an `int` row count.
-- Use `Query` for `SELECT` statements and `Execute` for data manipulation language (DML) without result grids.
-- Both accept the same parameter objects and honor the connection's current transaction.
+**Answer**
+
+`Query` and its generic overloads run statements that return rows and materialize them into objects or scalars. `Execute` runs statements that do not return a result set — inserts, updates, deletes — and returns an integer count of rows affected, matching ADO.NET's `ExecuteNonQuery` semantics. `Query<T>(sql, param)` yields zero or more mapped instances of `T`, while `Execute(sql, param)` gives back a row count for diagnostic or validation purposes. Both accept the same parameter objects and honor the connection's current transaction, so the choice is purely about whether your statement produces rows.
 
 ---
 
-### Q2. When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?
+## Q2. When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?
 
-When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?
+**Concepts**
+- zero-or-many row expectation for Query
+- single-row optional lookup for QueryFirstOrDefault
+- IEnumerable deferred vs immediate execution
+- QuerySingle strict uniqueness requirement
+- absence as valid outcome
 
-**Answer:** Use `Query<T>` when you expect zero or many rows and want a sequence to iterate or materialize. Use `QueryFirstOrDefault<T>` when you want at most one row — it returns the first match or `default(T)` if the result set is empty.
+**Answer**
 
-- `Query<T>` returns `IEnumerable<T>` (deferred unless buffered) for lists and filters.
-- `QueryFirstOrDefault<T>` executes immediately for single-row lookups such as "get by id when row may not exist."
-- `QuerySingle<T>` throws if zero or more than one row exists — use only when uniqueness is guaranteed.
-- Picking `QuerySingle` for optional lookups is a common bug; prefer `QueryFirstOrDefault` when absence is valid.
-
----
-
-### Q3. What does `Execute` return, and when is it used?
-
-What does `Execute` return, and when is it used?
-
-**Answer:** `Execute` returns an integer count of rows affected by the command, matching ADO.NET `ExecuteNonQuery` semantics. Use it for inserts, updates, deletes, and any non-query stored procedure that does not return a grid.
-
-- A return value of `0` means no rows matched the statement — often expected for idempotent deletes, sometimes a bug for updates.
-- Does not return generated keys; use `ExecuteScalar` or an `OUTPUT` clause when you need the new identity value.
-- Participates in an ambient transaction when the connection has an active `IDbTransaction`.
-- Async counterpart `ExecuteAsync` is preferred in ASP.NET Core request handlers to avoid blocking threads.
+I use `Query<T>` when I expect zero or many rows and want a sequence to iterate or materialize into a list. I use `QueryFirstOrDefault<T>` when I want at most one row — it returns the first match or `default(T)` if the result set is empty. `Query<T>` returns `IEnumerable<T>` (deferred unless buffered) and suits filters, catalog queries, and any endpoint returning a collection. `QueryFirstOrDefault<T>` executes immediately for single-row lookups such as "get user by id when the row may not exist." `QuerySingle<T>` is a stricter variant that throws if zero or more than one row exists — use it only when exactly one row is guaranteed by a unique key. Reaching for `QuerySingle` on optional lookups is a common bug; prefer `QueryFirstOrDefault` when absence is a valid outcome.
 
 ---
 
-### Q4. Does Dapper open the connection if it is closed when you call `Query`?
+## Q3. What does `Execute` return, and when is it used?
 
-Does Dapper open the connection if it is closed when you call `Query`?
+**Concepts**
+- rows-affected integer return
+- ExecuteNonQuery equivalence
+- identity retrieval via OUTPUT clause
+- transaction participation
+- ExecuteAsync preference in ASP.NET Core
 
-**Answer:** Yes. Dapper checks `ConnectionState` and calls `Open()` (or `OpenAsync()` for async methods) before executing if the connection is closed. You are still responsible for disposing the connection so it returns to the pool.
+**Answer**
 
-- Opening inside Dapper does not bypass pooling — `SqlConnection` still draws from the pool when configured.
-- If you manage connection lifetime externally, you may open once and reuse for multiple Dapper calls in the same scope.
-- Dapper does not close the connection after the call unless you use helper overloads that accept `commandBehavior` with auto-close semantics in specific scenarios.
-- Best practice remains `await using var connection = new SqlConnection(...)` and let disposal close the connection back to the pool.
-
----
-
-### Q5. What is the difference between buffered and unbuffered queries in Dapper?
-
-What is the difference between buffered and unbuffered queries in Dapper?
-
-**Answer:** By default Dapper buffers query results — it reads the entire result set into memory before returning, then closes the reader. With `buffered: false`, Dapper streams rows through a live `IDataReader` as you enumerate, using less memory but holding the connection open until enumeration completes.
-
-- Buffered (default): safe to return results from the method and enumerate later; connection can be disposed after `.ToList()`.
-- Unbuffered: lower memory for very large result sets but enumeration must finish before the connection is disposed.
-- Returning deferred `IEnumerable<T>` from an unbuffered query after leaving the `using` block causes "connection is closed" errors.
-- Always materialize with `.ToList()` inside the connection scope unless you deliberately stream within that scope.
+`Execute` returns an integer count of the rows affected by the command. I use it for inserts, updates, deletes, and any non-query stored procedure that does not return a grid. A return value of zero means no rows matched — often expected for idempotent deletes, but sometimes a bug for update statements where a matching row was assumed. `Execute` does not return generated keys; use `ExecuteScalar` or an `OUTPUT` clause in the SQL when you need the new identity value. It participates in an ambient transaction when the connection has an active `IDbTransaction`, and `ExecuteAsync` is preferred in ASP.NET Core request handlers so threads are not blocked during database I/O.
 
 ---
 
-### Q6. What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)?
+## Q4. Does Dapper open the connection if it is closed when you call `Query`?
 
-What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)?
+**Concepts**
+- ConnectionState auto-check before execute
+- pool-transparent open behavior
+- external connection lifetime management
+- Dapper non-close guarantee after execute
+- await using disposal pattern
 
-**Answer:** Dapper mirrors its synchronous API with async counterparts that accept optional `CancellationToken` values: `QueryAsync`, `QueryFirstAsync`, `QueryFirstOrDefaultAsync`, `QuerySingleAsync`, `QuerySingleOrDefaultAsync`, `ExecuteAsync`, `ExecuteScalarAsync`, and `QueryMultipleAsync`. They use the underlying provider's async ADO.NET methods.
+**Answer**
 
-- Prefer async variants in ASP.NET Core so request threads are not blocked during network I/O to the database.
-- `QueryAsync` still supports buffered and unbuffered modes — the same deferred-enumeration rules apply when unbuffered.
-- `ExecuteScalarAsync` returns the first column of the first row for aggregates and identity retrieval.
-- Cancellation tokens propagate to the provider when supported, allowing request aborts to cancel long-running queries.
+Yes — Dapper checks `ConnectionState` before executing and calls `Open()` (or `OpenAsync()` for async variants) if the connection is closed. This does not bypass ADO.NET connection pooling; `SqlConnection.Open` still draws from the pool as configured. If you manage connection lifetime externally — for example, sharing one open connection across multiple Dapper calls inside a transaction — you can open once and reuse without interference. Dapper does not close the connection after the call finishes. Best practice is to use `await using var connection = new SqlConnection(...)` so disposal handles returning the connection to the pool reliably even when exceptions occur.
+
+---
+
+## Q5. What is the difference between buffered and unbuffered queries in Dapper?
+
+**Concepts**
+- buffered default reads entire result set into memory
+- unbuffered streams through live IDataReader
+- connection lifetime during enumeration
+- deferred enumeration risk after disposal
+- safe ToList() materialization pattern
+
+**Answer**
+
+By default Dapper buffers query results, reading the entire result set into memory before returning and then closing the reader. The returned `IEnumerable<T>` is safe to enumerate multiple times and the connection can be disposed immediately after the call. With `buffered: false`, Dapper streams rows through a live `IDataReader` as the caller enumerates, using significantly less memory for very large result sets but keeping the connection open until enumeration completes. The danger with unbuffered queries is returning a deferred `IEnumerable<T>` from a method after the `using` block has closed the connection — enumeration then fails with "connection is closed" errors. Always materialize with `.ToList()` inside the connection scope unless you deliberately stream within that scope and control the full enumeration lifetime.
+
+---
+
+## Q6. What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)?
+
+**Concepts**
+- async API mirroring sync surface
+- CancellationToken support
+- provider async ADO.NET delegation
+- thread release during I/O
+- QueryAsync buffered and unbuffered modes
+
+**Answer**
+
+Dapper mirrors its synchronous API with async counterparts that accept optional `CancellationToken` values: `QueryAsync`, `QueryFirstAsync`, `QueryFirstOrDefaultAsync`, `QuerySingleAsync`, `QuerySingleOrDefaultAsync`, `ExecuteAsync`, `ExecuteScalarAsync`, and `QueryMultipleAsync`. They delegate to the underlying provider's async ADO.NET methods, so database I/O releases the thread to the pool while waiting. I prefer async variants in ASP.NET Core so request threads are not blocked during network round-trips. `QueryAsync` still supports both buffered and unbuffered modes — the deferred-enumeration rules apply equally. Cancellation tokens propagate to the provider when supported, allowing a client disconnect or request timeout to abort long-running queries at the database level. `ExecuteScalarAsync` returns the first column of the first row, which is useful for aggregates and identity retrieval.
 
 ---
 
 ## Chapter 03. Parameters, Stored Procedures & QueryMultiple
 
-### Q1. How do you pass parameters to a Dapper query?
+---
 
-How do you pass parameters to a Dapper query?
+## Q1. How do you pass parameters to a Dapper query?
 
-**Answer:** Pass parameters as the second argument using an anonymous object, a `DynamicParameters` bag, a `Dictionary<string, object>`, or any object whose public properties match `@Name` placeholders in the SQL. Dapper maps property names to parameter names case-insensitively.
+**Concepts**
+- anonymous object parameter binding
+- DynamicParameters for output and typed params
+- case-insensitive name matching
+- @-prefixed SQL placeholders
+- property-to-parameter alignment
 
-- Anonymous object: `new { Id = 42, Name = "Widget" }` binds `@Id` and `@Name`.
-- `DynamicParameters` supports output parameters, table-valued parameters, and explicit database types.
-- Positional names in SQL use `@` prefix for SQL Server; syntax follows the target provider.
-- Property names must align with parameter names — `UserId` maps to `@UserId`, not `@user_id`, unless you alias in SQL.
+**Answer**
+
+I pass parameters as the second argument to any Dapper method using an anonymous object, a `DynamicParameters` bag, a `Dictionary<string, object>`, or any object whose public properties match `@Name` placeholders in the SQL. Dapper maps property names to SQL parameter names case-insensitively. An anonymous object like `new { Id = 42, Name = "Widget" }` binds `@Id` and `@Name` without any additional configuration. `DynamicParameters` supports output parameters, table-valued parameters, and explicit database types for cases where the anonymous object pattern is insufficient. Property names must align with the SQL placeholder names exactly — `UserId` maps to `@UserId`, not `@user_id`, unless you alias the column or use a custom convention.
 
 ---
 
-### Q2. How does Dapper prevent SQL injection?
+## Q2. How does Dapper prevent SQL injection?
 
-How does Dapper prevent SQL injection?
+**Concepts**
+- ADO.NET parameterized execution
+- user values separated from SQL text
+- @-placeholder binding safety
+- string interpolation as injection vector
+- DynamicParameters also parameterizes
 
-**Answer:** Dapper sends user values as ADO.NET parameters separate from the SQL text, so input is never interpreted as executable SQL syntax. As long as you use `@placeholders` with parameter objects and do not concatenate user input into the SQL string, injection is prevented.
+**Answer**
 
-- Safe: `"SELECT * FROM Users WHERE Email = @Email", new { Email = userInput }`.
-- Unsafe: `$"SELECT * FROM Users WHERE Email = '{userInput}'"` — Dapper cannot fix inlined strings.
-- `DynamicParameters.Add("Email", value)` still parameterizes even when building SQL dynamically with fixed structure.
-- Stored procedure names should be fixed literals; only parameter values come from user input.
-
----
-
-### Q3. How do you call a stored procedure with Dapper?
-
-How do you call a stored procedure with Dapper?
-
-**Answer:** Set `commandType: CommandType.StoredProcedure` and pass the procedure name as the SQL argument, with parameters bound the same way as ad hoc queries. Dapper routes the call through ADO.NET's stored procedure execution path.
-
-- Example: `connection.Query<Product>("usp_GetProductsByCategory", new { CategoryId = 5 }, commandType: CommandType.StoredProcedure)`.
-- Output and return-value parameters require `DynamicParameters` with `ParameterDirection.Output` or `ReturnValue`.
-- `Execute` and `ExecuteAsync` work for non-query procedures that do not return rowsets.
-- Result shape must still match the mapped type's properties — Dapper does not infer procedure result metadata beyond column names.
+Dapper prevents SQL injection by sending user values as ADO.NET parameters separate from the SQL text, so input is never interpreted as executable SQL syntax by the database engine. As long as you use `@placeholders` with a parameter object and do not concatenate user input into the SQL string, injection is prevented — `"SELECT * FROM Users WHERE Email = @Email", new { Email = userInput }` is safe. The unsafe pattern is `$"SELECT * FROM Users WHERE Email = '{userInput}'"` — Dapper cannot protect against injected strings because it never sees user input embedded that way; it only parameterizes the values you pass in the param argument. `DynamicParameters.Add("Email", value)` still produces a proper parameter even when building SQL dynamically with a fixed structure. Stored procedure names should always be fixed string literals; only parameter values should come from user input.
 
 ---
 
-### Q4. What is `QueryMultiple`, and when is it used?
+## Q3. How do you call a stored procedure with Dapper?
 
-What is `QueryMultiple`, and when is it used?
+**Concepts**
+- CommandType.StoredProcedure flag
+- procedure name as SQL argument
+- DynamicParameters for output and return values
+- Execute for non-query procedures
+- result type matching from procedure output
 
-**Answer:** `QueryMultiple` executes one batch or stored procedure that returns multiple result grids and exposes them through a `GridReader`. Use it when a single round-trip should return related datasets — for example, a header row plus detail lines — instead of two separate queries.
+**Answer**
 
-- Reduces network latency by combining multiple `SELECT` statements or a multi-result procedure.
-- Returns `SqlMapper.GridReader` (via `using var multi = connection.QueryMultiple(...)`).
-- Each result set is read sequentially — you cannot skip ahead arbitrarily without reading or skipping rows in order.
-- Dispose the `GridReader` promptly to release the underlying reader and connection for reuse.
-
----
-
-### Q5. How do you read multiple result sets from `QueryMultiple`?
-
-How do you read multiple result sets from `QueryMultiple`?
-
-**Answer:** After `QueryMultiple`, call `Read<T>()`, `ReadFirst<T>()`, or `ReadFirstOrDefault<T>()` on the `GridReader` once per result set, in the order SQL Server returns them. Each `Read` consumes one grid and maps rows to `T`.
-
-- First `multi.Read<Order>()` maps the first result set; second `multi.Read<OrderLine>()` maps the second.
-- Mismatch between read order and SQL result order causes wrong-type mapping or empty sequences.
-- Materialize each `Read` with `.ToList()` if you need the data after disposing the grid reader.
-- Async equivalent: `QueryMultipleAsync` followed by `ReadAsync<T>()`.
+I set `commandType: CommandType.StoredProcedure` and pass the procedure name as the SQL argument, with parameters bound the same way as ad hoc queries. For example: `connection.Query<Product>("usp_GetProductsByCategory", new { CategoryId = 5 }, commandType: CommandType.StoredProcedure)`. Output and return-value parameters require `DynamicParameters` with `ParameterDirection.Output` or `ParameterDirection.ReturnValue`. `Execute` and `ExecuteAsync` work for non-query procedures that do not return rowsets. The result shape must still match the mapped type's properties — Dapper uses the column names from the procedure's result set to bind, so the usual naming rules apply.
 
 ---
 
-### Q6. When would you prefer `QueryMultiple` over separate round-trips?
+## Q4. What is `QueryMultiple`, and when is it used?
 
-When would you prefer `QueryMultiple` over separate round-trips?
+**Concepts**
+- multi-result-set batch execution
+- GridReader sequential consumption
+- single round-trip for related datasets
+- network latency reduction
+- prompt GridReader disposal
 
-**Answer:** Prefer `QueryMultiple` when two or more result sets are always needed together and combining them saves measurable latency, especially over high-latency networks. Separate round-trips are simpler when result sets are optional, independently cacheable, or large enough that sequential reads would block connection reuse.
+**Answer**
 
-- Dashboard endpoints that always load summary plus detail in one stored procedure benefit from one trip.
-- High-latency cloud database links amplify the cost of each additional round-trip.
-- Separate queries allow parallel execution on different connections when the database supports it and logic is independent.
-- Very large second result sets may be better streamed in a dedicated query rather than held behind the first grid reader.
+`QueryMultiple` executes one batch or stored procedure that returns multiple result grids and exposes them through a `GridReader`. I use it when a single round-trip should return related datasets — for example, a header row plus detail lines — rather than two separate queries. It reduces network latency by combining multiple `SELECT` statements or a multi-result procedure into one database call. It returns `SqlMapper.GridReader`, which I hold open with `using var multi = connection.QueryMultiple(...)` while reading each set in order. Result sets are consumed sequentially — you cannot skip ahead — and I dispose the `GridReader` promptly to release the underlying reader and make the connection available for reuse.
+
+---
+
+## Q5. How do you read multiple result sets from `QueryMultiple`?
+
+**Concepts**
+- sequential Read calls per result set
+- forward-only GridReader consumption
+- result-set order dependency
+- materialization before GridReader disposal
+- ReadAsync equivalent
+
+**Answer**
+
+After `QueryMultiple`, I call `Read<T>()`, `ReadFirst<T>()`, or `ReadFirstOrDefault<T>()` on the `GridReader` once per result set, in the order the database returns them. The first `multi.Read<Order>()` consumes the first result set; the second `multi.Read<OrderLine>()` consumes the second. A mismatch between read order and SQL result order causes wrong-type mapping or empty sequences — the reader is forward-only and there is no way to rewind. I materialize each `Read` with `.ToList()` if I need the data after disposing the `GridReader`. The async equivalent is `QueryMultipleAsync` followed by `ReadAsync<T>()`.
+
+---
+
+## Q6. When would you prefer `QueryMultiple` over separate round-trips?
+
+**Concepts**
+- latency amplification on high-latency links
+- always-needed related datasets
+- parallel independent queries as alternative
+- large second result set streaming consideration
+- optional vs required data trade-off
+
+**Answer**
+
+I prefer `QueryMultiple` when two or more result sets are always needed together and combining them saves measurable latency, especially over high-latency network links to cloud databases. Dashboard endpoints that always load a summary alongside detail rows in one stored procedure are a natural fit. Separate round-trips are simpler when result sets are optional, independently cacheable, or can be fetched in parallel on different connections when the database supports concurrent execution. Very large second result sets may be better streamed in a dedicated query rather than held behind the first grid reader while it is being processed.
 
 ---
 
 ## Chapter 04. Mapping, Multi-Mapping & Advanced Patterns
 
-### Q1. How does Dapper map column names to property names by default?
+---
 
-How does Dapper map column names to property names by default?
+## Q1. How does Dapper map column names to property names by default?
 
-**Answer:** Dapper matches result column names to public properties (and fields) on the target type using case-insensitive name equality. The first column value maps to the property with the same name regardless of column order in the `SELECT` list.
+**Concepts**
+- case-insensitive name equality matching
+- public property and field targeting
+- column order independence
+- underscore naming not auto-mapped
+- nullable value type NULL handling
 
-- `ProductName` column maps to `ProductName` property; `productname` also matches.
-- Underscore naming such as `product_name` does not auto-map to `ProductName` without aliases or custom maps.
-- Value types map directly; nullable value types accept database `NULL` as `null`.
-- Column-to-member mapping is convention-based — no attributes required unless you add a custom type map.
+**Answer**
+
+Dapper matches result column names to public properties and fields on the target type using case-insensitive name equality. The first column value maps to the property with the same name regardless of column order in the SELECT list, so `ProductName` and `productname` both map to a `ProductName` property. Underscore naming such as `product_name` does not auto-map to `ProductName` without SQL aliases or custom type maps — the names must be equal after case normalization, not just similar. Value types map directly; nullable value types accept database NULL as `null`. No attributes are required unless you add a custom type map or use a mapping extension.
 
 ---
 
-### Q2. What happens when column names do not match property names?
+## Q2. What happens when column names do not match property names?
 
-What happens when column names do not match property names?
+**Concepts**
+- silent partial object population
+- unmatched columns ignored
+- unmatched properties at default values
+- SQL alias as fix
+- SetTypeMap custom mapping
 
-**Answer:** Unmatched columns are ignored, and unmatched properties remain at their default values (`null`, `0`, `false`). Dapper does not throw for missing mappings — silent partial objects are a common source of bugs.
+**Answer**
 
-- Fix with SQL aliases: `SELECT FirstName AS GivenName` to match `GivenName` property.
-- Register custom column maps with `SqlMapper.SetTypeMap` or implement `ITypeHandler` for special conversions.
-- Use `[Column("DbColumnName")]` when using Dapper.FluentMap or similar mapping extensions.
-- Verify mappings in integration tests — empty strings where data exists often indicate a name mismatch.
-
----
-
-### Q3. What is multi-mapping in Dapper?
-
-What is multi-mapping in Dapper?
-
-**Answer:** Multi-mapping lets one row with columns from a join map into multiple nested objects in a single `Query` call, using a delegate to assemble the parent-child graph. Overloads like `Query<Order, Customer, Order>` accept two or more types plus a `Func` that combines them.
-
-- Typical pattern: `SELECT o.*, c.* FROM Orders o JOIN Customers c ...` mapped to `Order` with nested `Customer`.
-- The split point between object types is controlled by the `splitOn` parameter.
-- Dapper invokes the mapping function once per row — you decide how to attach the child to the parent.
-- Useful for avoiding N+1 queries without loading flat DTOs and grouping manually in memory.
+Unmatched columns are silently ignored, and unmatched properties remain at their default values — `null`, `0`, or `false` — without any exception. This silent partial population is a common source of bugs because Dapper never throws for missing mappings; you get back objects that look valid but are missing data. The straightforward fix is a SQL alias: `SELECT FirstName AS GivenName` to match a `GivenName` property. For more systematic mapping, `SqlMapper.SetTypeMap` accepts a custom type map, or you can implement `ITypeHandler` for special conversions. Integration tests that assert specific property values are the most reliable way to catch name mismatches before production.
 
 ---
 
-### Q4. What is the `splitOn` parameter in multi-mapping?
+## Q3. What is multi-mapping in Dapper?
 
-What is the `splitOn` parameter in multi-mapping?
+**Concepts**
+- single-row multi-type decomposition
+- join result graph assembly delegate
+- Query generic type overloads
+- splitOn boundary column
+- N+1 avoidance pattern
 
-**Answer:** `splitOn` names the column where the next object's properties begin in each row. Dapper maps columns before that name to the first type, columns from that name onward to the second type, and so on for additional generic type parameters.
+**Answer**
 
-- Default `splitOn` is `"Id"` — works when the second entity's first mapped column is `Id` and appears after the first entity's columns.
-- Duplicate `Id` columns in a join require explicit aliases and a matching `splitOn` such as `"CustomerId"`.
-- Wrong `splitOn` silently maps NULL or wrong values into nested objects instead of throwing.
-- Column order in the `SELECT` list must align with the generic type order and split boundaries.
-
----
-
-### Q5. How does Dapper handle nested object graphs compared to EF Core `Include`?
-
-How does Dapper handle nested object graphs compared to EF Core `Include`?
-
-**Answer:** Dapper has no navigation properties or automatic graph loading — you shape graphs explicitly with SQL joins, multi-mapping, or multiple queries. EF Core `Include` and `ThenInclude` translate into join or split queries from declared relationships on the model.
-
-- Dapper: you write the join, choose flat or multi-map, and merge duplicates in code if one parent row repeats per child.
-- EF Core: relationship metadata drives eager loading; change tracker deduplicates parent instances during fix-up.
-- Dapper does not lazy-load — absent columns mean absent data with no hidden round-trips.
-- EF Core cartesian explosion from multiple collection includes has no Dapper equivalent unless you write the wide join yourself.
-- Dapper offers precise control; EF Core offers declarative relationship traversal at the cost of translation complexity.
+Multi-mapping lets a single row with columns from a JOIN decompose into multiple nested objects in one `Query` call, using a delegate to assemble the parent-child graph. Overloads like `Query<Order, Customer, Order>` accept two or more type parameters plus a `Func` that combines them into the return type. A typical pattern is `SELECT o.*, c.* FROM Orders o JOIN Customers c ...` mapped to an `Order` instance with a nested `Customer` property. The split point between object types is controlled by the `splitOn` parameter. Dapper invokes the mapping function once per row, so you decide how to attach the child object to the parent. This approach avoids N+1 queries without forcing you to load flat DTOs and then manually group by parent ID in memory.
 
 ---
 
----
+## Q4. What is the `splitOn` parameter in multi-mapping?
 
-## Gotchas — .NET Data Access (Interview Traps)
+**Concepts**
+- column boundary for object type split
+- default "Id" splitOn behavior
+- duplicate Id column aliasing requirement
+- silent wrong-value risk on incorrect splitOn
+- SELECT column order alignment
 
-#### Gotcha 1. String concatenation instead of parameters
+**Answer**
 
-**Answer:** Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM.
-
-- ADO.NET and Dapper require explicit parameters — never embed raw user strings in SQL text.
-- EF Core `FromSqlInterpolated` is safe; passing an ordinary interpolated string to `FromSqlRaw` is not.
-- Code review should treat any dynamic SQL without placeholders as a blocking defect.
-
----
-
-#### Gotcha 2. Open DataReader blocks second command
-
-**Answer:** Running another `SqlCommand` on the same connection while a `SqlDataReader` is still open fails on SQL Server unless Multiple Active Result Sets (MARS) is enabled in the connection string.
-
-- Always dispose or finish reading the `DataReader` before issuing the next command on that connection.
-- A common bug loads a header row then tries to load detail rows on the same connection without closing the reader.
-- EF Core manages readers internally, but raw ADO.NET code in the same request must respect this rule.
+`splitOn` names the column in the result row where the next object type's properties begin. Dapper maps all columns before that column name to the first generic type, and all columns from that name onward to the second type, repeating for additional type parameters. The default is `"Id"` — this works when the second entity's first mapped column is literally named `Id` and appears in the SELECT after the first entity's columns. Duplicate `Id` columns in a join require explicit SQL aliases and a matching `splitOn` value such as `"CustomerId"` to point at the right split boundary. An incorrect `splitOn` silently maps NULL or wrong values into nested objects rather than throwing, making integration tests that assert nested property values essential.
 
 ---
 
-#### Gotcha 3. `AddWithValue` and wrong SQL types
+## Q5. How does Dapper handle nested object graphs compared to EF Core `Include`?
 
-**Answer:** `SqlParameter.AddWithValue` infers parameter types from CLR values, which may not match the database column type — causing implicit conversions, index scans, and poor plan cache behavior.
+**Concepts**
+- explicit SQL join requirement
+- absence of navigation properties
+- multi-mapping vs Include/ThenInclude
+- no lazy loading
+- precise control vs declarative relationship traversal
 
-- Prefer explicit `SqlParameter` with `SqlDbType`, size, and precision matching the column definition.
-- String inference often picks oversized `nvarchar` lengths, preventing optimal index seeks on narrower columns.
-- Dapper and EF Core parameterize with more predictable typing but custom ADO.NET still needs explicit types.
+**Answer**
 
----
-
-#### Gotcha 4. Leaked connections exhaust the pool
-
-**Answer:** Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load.
-
-- Always use `await using` for connections and readers so disposal runs on exceptions too.
-- Symptoms appear only under concurrent load, making this a classic production-only failure mode.
-- Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+Dapper has no navigation properties or automatic graph loading — I shape graphs explicitly with SQL joins, multi-mapping overloads, or multiple queries. EF Core's `Include` and `ThenInclude` translate declared relationship metadata into join or split queries automatically, with the change tracker deduplicating parent instances during fix-up. With Dapper, I write the join, choose whether to use multi-map or separate queries, and merge duplicate parent rows in code when a one-parent-to-many-children join produces repeated parent columns. Dapper does not lazy-load — if columns are absent from the SELECT, the properties simply stay at default values with no hidden round-trips. EF Core's cartesian explosion from loading multiple collection includes has no Dapper equivalent unless I write the wide join myself, so Dapper gives me precise control over both what data is fetched and how it is assembled.
 
 ---
 
-#### Gotcha 5. Transaction started after first command
-
-**Answer:** Beginning a `SqlTransaction` only after the first statement already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first.
-
-- Call `BeginTransaction` immediately after opening the connection, before any DML.
-- EF Core `SaveChanges` without an explicit transaction auto-commits each call — wrap multi-step work explicitly.
-- Integration tests with single-user data often miss this race because implicit commits appear to "work."
+## Gotchas
 
 ---
 
-#### Gotcha 6. Dapper `Query` without `using` on connection
+## Gotcha 1. String concatenation instead of parameters
 
-**Answer:** Returning deferred `IEnumerable<T>` from Dapper before disposing the connection postpones execution until enumeration, failing at runtime or holding connections open until garbage collection.
+**Concepts**
+- SQL injection via string interpolation
+- parameterization bypass
+- FromSqlInterpolated vs FromSqlRaw distinction
+- ADO.NET and Dapper explicit parameter requirement
 
-- Materialize inside the connection scope with `.ToList()` or `.ToArray()` before returning from the method.
-- Deferred execution means SQL runs when the caller iterates — often after the `using` block closed the connection.
-- Async variants (`QueryAsync`) still require materialization before leaving the connection lifetime.
+**Answer**
 
----
-
-#### Gotcha 7. `QuerySingle` when zero or many rows exist
-
-**Answer:** Dapper's `QuerySingle` throws if zero rows or more than one row match, while optional lookups typically need `QueryFirstOrDefault` which returns default when empty.
-
-- Use `QuerySingle` only when exactly one row is a domain invariant enforced by a unique key.
-- Duplicate data turns `QuerySingle` into a hard failure that `QueryFirstOrDefault` would handle differently — choose based on whether duplicates indicate bugs.
-- EF Core mirrors the same distinction between `SingleOrDefault` and `FirstOrDefault`.
+Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM. ADO.NET and Dapper require explicit parameters — `@Id` with a bound value — and never automatically sanitize concatenated strings. EF Core's `FromSqlInterpolated` is safe because it internally converts the interpolation holes to parameters; passing an ordinary interpolated string to `FromSqlRaw` is not safe. Code review should treat any dynamic SQL without parameter placeholders as a blocking defect.
 
 ---
 
-#### Gotcha 8. Multi-map `splitOn` wrong column
+## Gotcha 2. Open DataReader blocks second command
 
-**Answer:** Dapper multi-mapping uses `splitOn` to name the column where the next object type begins; an incorrect column splits at the wrong boundary, silently mapping NULL or wrong values into nested objects.
+**Concepts**
+- SqlDataReader exclusive connection use
+- MARS opt-in requirement
+- sequential reader disposal before next command
+- EF Core internal reader management
 
-- `splitOn` defaults to `"Id"` — duplicate column names in SELECT lists require explicit aliases and matching `splitOn` values.
-- Align SELECT column order with the generic type order in `Query<TFirst, TSecond, TReturn>`.
-- Integration tests asserting nested property values catch splitOn mistakes that unit tests on flat rows miss.
+**Answer**
 
----
-
-#### Gotcha 9. Scoped `DbContext` captured in a singleton
-
-**Answer:** Registering a singleton service that holds a scoped `DbContext` creates a captive dependency — the context may be disposed while the singleton lives, or state leaks across HTTP requests.
-
-- `DbContext` is scoped per request in ASP.NET Core — singletons must not store it in fields.
-- Inject `IDbContextFactory<TContext>` into singletons when long-lived services need occasional database access.
-- Symptoms include "Cannot access a disposed context" or cross-user data contamination in tracked entities.
+Running another `SqlCommand` on the same connection while a `SqlDataReader` is still open fails on SQL Server unless Multiple Active Result Sets (MARS) is explicitly enabled in the connection string. A common version of this bug loads a header row and then tries to load detail rows on the same connection without closing the first reader. The fix is to always dispose or finish reading the `DataReader` before issuing the next command on that connection. EF Core manages its readers internally and largely shields you from this rule, but raw ADO.NET or Dapper code sharing a connection in the same request must respect it.
 
 ---
 
-#### Gotcha 10. Lazy loading after the context is disposed
+## Gotcha 3. `AddWithValue` and wrong SQL types
 
-**Answer:** Lazy loading triggers SQL when navigation properties are accessed — if that happens after the request-scoped `DbContext` is disposed, EF Core throws or the serializer triggers hidden queries that fail mid-response.
+**Concepts**
+- CLR-to-SQL type inference risk
+- nvarchar length overestimation
+- index scan vs seek degradation
+- explicit SqlParameter type and size
+- Dapper default typing behavior
 
-- ASP.NET Core disposes scoped contexts at the end of the request pipeline — serialization often runs near that boundary.
-- Prefer explicit includes or projections inside the request scope instead of returning entity graphs with unresolved lazy navigations.
-- Proxy types plus disposed contexts produce intermittent failures depending on property access order.
+**Answer**
 
----
-
-#### Gotcha 11. N+1 from lazy load or missing Include
-
-**Answer:** Listing parent entities then accessing navigation properties in a loop without eager loading or projection fires one SQL query per parent row — classic N+1 performance collapse in EF Core APIs.
-
-- One query for N orders plus N queries for each order's lines equals N+1 round-trips per request.
-- Fix with `Include`/`ThenInclude`, split queries, or `Select` projections that join needed data in one statement.
-- EF Core command logging revealing identical query templates with different IDs signals N+1 immediately.
+`SqlParameter.AddWithValue` infers parameter types from CLR values, and the inference may not match the database column type — leading to implicit conversions, index scans, and poor plan cache behavior. String inference often picks oversized `nvarchar` lengths that prevent optimal index seeks on narrower columns. The fix is to prefer explicit `SqlParameter` declarations with `SqlDbType`, size, and precision matching the column definition. Dapper and EF Core parameterize with more predictable typing in most cases, but custom ADO.NET code still needs explicit type declarations for performance-critical queries.
 
 ---
 
-#### Gotcha 12. Cartesian explosion with multiple Includes
+## Gotcha 4. Leaked connections exhaust the pool
 
-**Answer:** Eager-loading two or more collection navigations in one SQL query multiplies result rows by the product of collection sizes, spiking memory and network use even though parent entity count is modest.
+**Concepts**
+- connection pool slot exhaustion
+- undisposed SqlConnection leak
+- await using disposal pattern
+- DbContext long-lived instance
+- load-only failure mode
 
-- EF Core deduplicates parents during fix-up, but SQL Server already sent the inflated rowset across the wire.
-- Use `AsSplitQuery()` to fetch collections with separate SELECT statements instead of one giant join.
-- Projection to DTOs avoids loading full collection graphs when only counts or summaries are needed.
+**Answer**
 
----
-
-#### Gotcha 13. Client-side evaluation of LINQ
-
-**Answer:** Calling `ToList()` before filtering or using non-translatable C# logic in `Where` forces EF Core to pull entire tables into application memory — acceptable in development with small seeds, catastrophic in production at scale.
-
-- EF Core 3+ throws on many accidental client evaluations instead of silently downloading whole tables.
-- `AsEnumerable()` explicitly switches to LINQ to Objects — any following `Where` runs in memory.
-- Rewrite with translatable expressions, `EF.Functions`, database-side filtering, or raw SQL for unsupported logic.
+Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots. Those slots remain occupied until they time out, eventually causing "timeout expired obtaining connection from pool" errors under concurrent load. The fix is to always use `await using` for connections and readers so disposal runs even when exceptions occur. The symptoms typically appear only under concurrent load — a classic production-only failure mode that passes all local tests. Long-lived undisposed `DbContext` instances cause the same pool exhaustion pattern.
 
 ---
 
-#### Gotcha 14. Tracking overhead on read-only queries
+## Gotcha 5. Transaction started after first command
 
-**Answer:** Omitting `AsNoTracking()` on large read-only lists makes EF Core snapshot every entity for change detection that will never run, wasting memory and CPU on GET endpoints.
+**Concepts**
+- autocommit implicit semantics
+- BeginTransaction timing requirement
+- unit-of-work atomicity boundary
+- EF Core SaveChanges per-call commit
+- integration test masking
 
-- Tracking stores original and current values per property for each row materialized.
-- ASP.NET Core read services should default to `AsNoTracking()` plus DTO projection.
-- Global `QueryTrackingBehavior.NoTracking` with explicit tracking on command paths prevents accidental overhead.
+**Answer**
 
----
-
-#### Gotcha 15. `SaveChanges` without a transaction for multi-step updates
-
-**Answer:** Multiple `SaveChanges` calls or separate database operations that must succeed together commit independently by default, allowing partial updates that leave data in an inconsistent state when a later step fails.
-
-- Wrap related saves and raw SQL in `BeginTransactionAsync`/`CommitAsync` on one `DbContext`.
-- Prefer one `SaveChanges` per unit of work when all changes are tracked together on the same context.
-- Retry logic after failure cannot assume earlier steps rolled back unless they shared a transaction boundary.
+Beginning a `SqlTransaction` only after the first statement has already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first. `BeginTransaction` must be called immediately after opening the connection, before any DML. EF Core's `SaveChanges` without an explicit transaction auto-commits each call — wrapping multi-step work in an explicit transaction is necessary when all-or-nothing semantics are required. Integration tests with single-user data often miss this race because implicit commits appear to work correctly in isolation.
 
 ---
 
+## Gotcha 6. Dapper `Query` without `using` on connection
+
+**Concepts**
+- deferred IEnumerable execution timing
+- connection lifetime vs enumeration lifetime
+- ToList() materialization inside scope
+- QueryAsync same requirement
+- ObjectDisposedException on late iteration
+
+**Answer**
+
+Returning deferred `IEnumerable<T>` from Dapper before the connection is disposed postpones SQL execution until the caller iterates — which often happens after the `using` block has already closed the connection. The result is an `ObjectDisposedException` or "connection is closed" error at runtime, not at the point of the `Query` call. The fix is to materialize inside the connection scope with `.ToList()` or `.ToArray()` before returning from the method. Async variants like `QueryAsync` have the same requirement — `await` is not enough if the connection is disposed before the caller enumerates the returned `IEnumerable`.
+
 ---
 
-## Scenario-Based Answers (Karat Format)
+## Gotcha 7. `QuerySingle` when zero or many rows exist
+
+**Concepts**
+- QuerySingle strict uniqueness assertion
+- QueryFirstOrDefault optional absence handling
+- unique key invariant requirement
+- duplicate data producing hard failures
+- EF Core SingleOrDefault vs FirstOrDefault parallel
+
+**Answer**
+
+Dapper's `QuerySingle` throws `InvalidOperationException` if zero rows or more than one row match. `QueryFirstOrDefault` returns `default(T)` when the result set is empty, making it the correct choice for lookups where absence is a valid outcome. I use `QuerySingle` only when exactly one row is a domain invariant enforced by a unique key. When duplicate data exists — even if it shouldn't — `QuerySingle` becomes a hard failure that `QueryFirstOrDefault` would handle differently. The choice should be driven by whether duplicates indicate a programming error or a legitimate business condition.
+
+---
+
+## Gotcha 8. Multi-map `splitOn` wrong column
+
+**Concepts**
+- forward-only splitOn matching
+- default "Id" ambiguity in JOINs
+- silent NULL or wrong value mapping
+- SELECT column order requirement
+- integration test assertion necessity
+
+**Answer**
+
+Dapper multi-mapping uses `splitOn` to name the column where the next object type begins. An incorrect column causes the split to land at the wrong boundary, silently mapping NULL or wrong values into nested objects without throwing an exception. The `splitOn` default of `"Id"` requires that the second type's first mapped column is literally named `Id` — duplicate column names in SELECT lists require explicit aliases and matching `splitOn` values. Column order in the SELECT must align with the generic type order in `Query<TFirst, TSecond, TReturn>`. Integration tests that assert nested property values are the reliable way to catch split errors.
+
+---
+
+## Gotcha 9. Scoped `DbContext` captured in a singleton
+
+**Concepts**
+- captive dependency anti-pattern
+- singleton service lifetime
+- scoped DbContext per HTTP request
+- IDbContextFactory for long-lived services
+- disposed context cross-request contamination
+
+**Answer**
+
+Registering a singleton service that holds a scoped `DbContext` creates a captive dependency — the context may be disposed while the singleton remains alive, or its tracked state leaks across HTTP requests from different users. `DbContext` is scoped per request in ASP.NET Core, so singletons must never store it in fields. When a long-lived service genuinely needs database access, inject `IDbContextFactory<TContext>` instead, which lets the singleton create and dispose short-lived context instances on demand. Symptoms include "Cannot access a disposed context" exceptions or cross-user data contamination in tracked entities.
+
+---
+
+## Gotcha 10. Lazy loading after the context is disposed
+
+**Concepts**
+- lazy load SQL trigger on property access
+- disposed context boundary
+- JSON serialization as lazy load trigger
+- eager loading as prevention
+- proxy type interaction with disposal
+
+**Answer**
+
+Lazy loading triggers SQL when navigation properties are accessed. If that access happens after the request-scoped `DbContext` has been disposed — which frequently occurs when a JSON serializer traverses the entity graph near the end of the request pipeline — EF Core throws or the serializer triggers hidden queries that fail mid-response. The fix is to prefer explicit `Include` calls or DTO projections inside the request scope, ensuring all data is loaded before the context is disposed. Proxy types plus disposed contexts produce intermittent failures because the property access order determines which navigations are hit before vs after disposal.
+
+---
+
+## Gotcha 11. N+1 from lazy load or missing Include
+
+**Concepts**
+- N+1 query pattern
+- navigation property loop access
+- eager loading with Include/ThenInclude
+- split queries
+- EF Core command logging detection
+
+**Answer**
+
+Listing parent entities and then accessing navigation properties in a loop without eager loading fires one SQL query per parent row — the classic N+1 performance collapse. One query for N orders plus N queries for each order's lines equals N+1 round-trips per request, which compounds into catastrophic latency and database load at scale. The fix is `Include`/`ThenInclude`, split query mode, or `Select` projections that join the needed data in one statement. EF Core command logging revealing identical query templates with different ID parameters is the diagnostic signal that N+1 is occurring.
+
+---
+
+## Gotcha 12. Cartesian explosion with multiple Includes
+
+**Concepts**
+- cross-join row multiplication
+- multiple collection include inflation
+- AsSplitQuery separation
+- EF Core change tracker deduplication
+- DTO projection as avoidance strategy
+
+**Answer**
+
+Eager-loading two or more collection navigations in one SQL query multiplies result rows by the product of collection sizes — an order with 10 lines and 5 notes produces 50 rows, spiking memory and network use even though the parent entity count is modest. EF Core deduplicates parent instances during fix-up, but SQL Server has already transmitted the inflated rowset across the wire. The fix is `AsSplitQuery()`, which fetches collections with separate SELECT statements that each return only the rows they need. Projecting to DTOs is another avoidance strategy when only summaries or counts are needed rather than full collection graphs.
+
+---
+
+## Gotcha 13. Client-side evaluation of LINQ
+
+**Concepts**
+- ToList() before filter full-table pull
+- non-translatable C# logic in Where
+- EF Core 3+ exception on unsupported translation
+- AsEnumerable() explicit in-memory switch
+- database-side filtering alternatives
+
+**Answer**
+
+Calling `ToList()` before filtering or using non-translatable C# logic in `Where` forces EF Core to pull entire tables into application memory before filtering. This is acceptable in development with small seed data and catastrophic in production at scale. EF Core 3 and later throw on many accidental client evaluations instead of silently downloading whole tables, which helps catch the problem in development. `AsEnumerable()` explicitly switches to LINQ to Objects, meaning any following `Where` runs in memory — it should appear only when that is intentional. The fix for non-translatable expressions is to rewrite them using translatable predicates, `EF.Functions` helpers, database-side filtering, or raw SQL.
+
+---
+
+## Gotcha 14. Tracking overhead on read-only queries
+
+**Concepts**
+- change tracker snapshot per property
+- AsNoTracking performance gain
+- read-only GET endpoint pattern
+- global QueryTrackingBehavior
+- memory and CPU waste on tracked reads
+
+**Answer**
+
+Omitting `AsNoTracking()` on large read-only lists makes EF Core snapshot every entity for change detection that will never run, wasting memory and CPU on endpoints that only serve GET responses. The change tracker stores original and current values per property for each row materialized. Read services in ASP.NET Core should default to `AsNoTracking()` combined with DTO projection. Setting `QueryTrackingBehavior.NoTracking` globally and enabling explicit tracking only on command paths prevents accidental overhead from spreading as the codebase grows.
+
+---
+
+## Gotcha 15. `SaveChanges` without a transaction for multi-step updates
+
+**Concepts**
+- multiple SaveChanges independent commits
+- partial update inconsistency risk
+- BeginTransactionAsync explicit scope
+- single SaveChanges unit of work
+- retry logic assumption violation
+
+**Answer**
+
+Multiple `SaveChanges` calls or separate database operations that must succeed together commit independently by default, allowing partial updates that leave data in an inconsistent state when a later step fails. Wrapping related saves and raw SQL in `BeginTransactionAsync`/`CommitAsync` on one `DbContext` ensures they are atomic. When all changes are tracked on the same context, a single `SaveChanges` call is itself a transaction and is the simplest solution. Retry logic after a failure cannot assume earlier committed steps were rolled back unless they shared a transaction boundary.
 
 ---
 
 ## Scenario-Based Questions (Karat Format)
 
-#### Q1. (R) A junior ports the chapter's `GetActiveProducts` into an ASP.NET Core API. Review the repository method:
+---
+
+## Q1. (R) A junior ports `GetActiveProducts` into an ASP.NET Core API. Integration tests pass locally. What breaks under load or refactoring, and how would you fix it?
 
 ```csharp
 public IEnumerable<Product> GetActiveProducts()
@@ -553,53 +678,35 @@ public IEnumerable<Product> GetActiveProducts()
 }
 ```
 
-The controller calls `return Ok(_repo.GetActiveProducts());` and integration tests pass locally. What breaks under load or refactoring, and how would you fix it to match the pattern in this chapter's `ProductRepository`?
+**Concepts**
+- undisposed SqlConnection pool leak
+- deferred IEnumerable outliving connection
+- pool exhaustion under concurrent load
+- using block disposal guarantee
+- ToList() materialization inside connection scope
 
----
+**Answer**
 
-**Answer:**
+The method returns a deferred `IEnumerable<Product>` tied to a connection that is never disposed. The connection stays open and un-pooled until garbage collection reclaims it, leaking a slot from the connection pool on every request. Under concurrent load this exhausts the pool and triggers "timeout expired obtaining connection" errors — a failure that local tests never expose because enumeration happens immediately on the same thread before GC pressure builds.
+
+The fix is to wrap the connection in `using IDbConnection connection = new SqlConnection(_connectionString)` so disposal is guaranteed on any code path, and to call `.ToList()` before returning so the result is fully materialized inside the connection's lifetime. Changing the return type to `IReadOnlyList<Product>` signals to callers that the sequence is already materialized. There is also no need to call `Open()` manually — Dapper opens a closed connection automatically before executing.
 
 ```csharp
-public IEnumerable<Product> GetActiveProducts()
+public IReadOnlyList<Product> GetActiveProducts()
 {
-    var connection = new SqlConnection(_connectionString);
-    connection.Open();
+    using IDbConnection connection = new SqlConnection(_connectionString);
     const string sql = """
         SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate
         FROM dbo.Products
         WHERE DiscontinuedDate IS NULL;
         """;
-    return connection.Query<Product>(sql);
+    return connection.Query<Product>(sql).ToList();
 }
 ```
 
-The controller calls `return Ok(_repo.GetActiveProducts());` and integration tests pass locally. What breaks under load or refactoring, and how would you fix it to match the pattern in this chapter's `ProductRepository`?
-
-**Answer:** The method returns a deferred `IEnumerable<Product>` tied to a connection that is never disposed and will eventually be closed or garbage-collected while enumeration may still be pending. That causes connection leaks, pool exhaustion under load, and intermittent `ObjectDisposedException` when the serializer enumerates after the connection is gone.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Connection lifetime | Connection opened but never disposed (`using` missing) | Leaked connections; SQL connection pool starvation under traffic |
-| Runtime / correctness | Returns lazy `IEnumerable` without materializing inside the connection scope | Enumeration after dispose/close throws or returns partial data |
-| Design | Caller owns enumeration timing | Fragile across controllers, middleware, and JSON serialization order |
-| Scalability | One leaked connection per request | Production outages when pool max is hit; passes in low-concurrency local tests |
-
-**Fix (priority order):**
-
-1. Wrap the connection in `using IDbConnection connection = new SqlConnection(_connectionString);` so it returns to the pool reliably.
-2. Materialize before return: `return connection.Query<Product>(sql).ToList();` — same pattern as this chapter's `ProductRepository.GetActiveProducts`.
-3. Change the return type to `IReadOnlyList<Product>` so callers cannot accidentally defer enumeration past the connection lifetime.
-4. Do not call `Open()` manually unless sharing an open connection inside a transaction; Dapper opens a closed connection automatically.
-
-**Production takeaway:** Dapper's default `Query<T>` is buffered when you call `ToList()`, which is why the chapter materializes inside the `using` block. Returning raw `IEnumerable<T>` from a disposed connection is one of the most common Dapper production failures — local tests hide it because enumeration often happens immediately on the same thread.
-
 ---
 
----
-
-#### Q2. (R) A search endpoint accepts a product name from the query string. Review:
+## Q2. (R) A search endpoint accepts a product name from the query string. What are the problems — security, correctness, maintainability — and what is the Dapper-native fix?
 
 ```csharp
 public Product? FindByName(string productName)
@@ -614,108 +721,73 @@ public Product? FindByName(string productName)
 }
 ```
 
-What are the problems (security, correctness, maintainability), and what is the Dapper-native fix this chapter previews for `GetById`?
+**Concepts**
+- SQL injection via string interpolation
+- @-placeholder parameterization pattern
+- unescaped single-quote correctness failure
+- Dapper anonymous object binding
+- input validation as defense-in-depth only
 
----
+**Answer**
 
-**Answer:**
+Interpolating user input into the SQL string is a critical SQL injection vulnerability — an attacker can append arbitrary SQL after the closing quote to read, modify, or drop data. Beyond security, a legitimate product name containing a single quote — like `O'Brien` — breaks the query with a syntax error. The interpolation also undermines the primary reason to use Dapper, which is parameterized SQL.
+
+The fix is to use a `@productName` placeholder and pass the value as a parameter:
 
 ```csharp
 public Product? FindByName(string productName)
 {
     using IDbConnection db = new SqlConnection(_connectionString);
-    string sql = $"""
+    const string sql = """
         SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate
         FROM dbo.Products
-        WHERE ProductName = '{productName}';
+        WHERE ProductName = @productName;
         """;
-    return db.QueryFirstOrDefault<Product>(sql);
+    return db.QueryFirstOrDefault<Product>(sql, new { productName });
 }
 ```
 
-What are the problems (security, correctness, maintainability), and what is the Dapper-native fix this chapter previews for `GetById`?
+Dapper only parameterizes values you pass through its param argument — any string concatenated or interpolated into the SQL text before Dapper sees it is not protected. Input length validation at the API boundary adds defense-in-depth but is not a substitute for parameterization.
 
-**Answer:** Interpolating user input into SQL is a critical SQL-injection vulnerability; Dapper's value is parameterized SQL with anonymous objects (or `DynamicParameters` in later chapters), exactly like `GetById`'s `new { productId }` pattern.
+---
 
-**Issues:**
+## Q3. (M) Two developers debate connection handling. Developer A uses a short-lived `using IDbConnection` per method and never calls `Open()`. Developer B opens once in a unit-of-work class and passes the open connection into repositories sharing a transaction. Under what conditions is each correct, and what is the connection state after `Query<T>` completes when it started closed?
 
-| Category | Problem | Impact |
-|---|---|---|
-| Security | String interpolation embeds `productName` in SQL | SQL injection — attacker can read, modify, or drop data |
-| Correctness | Unescaped quotes in legitimate names (`O'Brien`) break the query | Syntax errors or wrong matches for valid input |
-| Maintainability | Dynamic SQL string built by concatenation | Hard to audit, test, and reuse; bypasses Dapper's parameter binding |
-| Design | Uses `$"""...'{productName}'..."""` despite Dapper parameter support | Negates a core reason to use Dapper over raw ADO.NET |
+**Concepts**
+- per-operation short-lived connection pattern
+- shared connection for transaction scope
+- Dapper auto-open on closed connection
+- connection state Open after execute
+- ownership and disposal responsibility
 
-**Fix (priority order):**
+**Answer**
 
-1. Replace interpolation with a parameter placeholder and anonymous object:
+Developer A's pattern is the default for standalone reads and writes — one short-lived connection per operation, disposed via `using`, which is pool-friendly and the standard pattern for independent queries. Developer B's pattern is correct when multiple commands must share one connection and one transaction; repositories accept the already-open `IDbConnection` instead of creating their own so all operations can commit or roll back together.
+
+When Dapper executes on a closed connection it calls `Open()` before the command, and after `Query<T>` completes the connection state is `Open`. The `using` block's dispose then closes it and returns it to the pool. The wrong hybrid is opening per method inside a transaction scope but disposing between calls — that breaks atomicity. Creating a new connection per call inside a transaction block also fails because each call may autocommit separately unless explicitly enlisted. The deciding factor is transactional scope, not performance preference. Per-request `using` plus `.ToList()` scales cleanly in ASP.NET Core; a shared open connection belongs exclusively inside explicit transaction boundaries.
+
+---
+
+## Q4. (D) Your team builds an order microservice. Writes use EF Core with migrations. A product catalog read endpoint needs hand-tuned SQL with specific indexes and no change-tracker overhead. A teammate proposes using EF Core everywhere for consistency. What do you recommend?
+
+**Concepts**
+- hybrid EF Core and Dapper architecture
+- write model vs read model tool selection
+- change tracker overhead on read paths
+- Dapper micro-ORM sweet spot
+- consistency through boundaries not single-tool mandate
+
+**Answer**
+
+I recommend using EF Core for the write model and schema evolution while adding Dapper for the catalog read path with explicit SQL. EF Core simplifies order creation and inventory reservation through migrations, relationships, unit-of-work, and change tracking — all appropriate for a write model. The catalog read path has specific SQL, targeted indexes, and projections that Dapper executes with minimal overhead and no tracker allocations. Both paths share the same database and connection string configuration.
+
+Forcing EF Core on the hand-tuned read path means fighting the LINQ translator for exact SQL, adding `AsNoTracking` everywhere, and losing fine-grained control over hints and covering index projections. Teams using EF Core on hot read paths often encounter N+1 issues or over-fetching that require progressively awkward workarounds. Consistency belongs in API contract design, error shapes, and logging conventions — not in forcing one ORM for every access pattern. Document when to reach for EF Core versus Dapper in an Architecture Decision Record so the team applies each tool intentionally.
+
+---
+
+## Q5. (R) A legacy `dbo.Products` table uses snake_case column names. A new Dapper DTO maps cleanly in tests against LocalDB seed data, but staging returns rows with empty names and zero prices. No exceptions are thrown. Diagnose the failure and give two production-safe fixes.
 
 ```csharp
-const string sql = """
-    SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate
-    FROM dbo.Products
-    WHERE ProductName = @productName;
-    """;
-return db.QueryFirstOrDefault<Product>(sql, new { productName });
-```
-
-2. Validate or length-limit `productName` at the API boundary if business rules require it — validation is not a substitute for parameterization.
-3. Log and map "not found" at the service layer rather than treating SQL exceptions as control flow.
-
-**Production takeaway:** Dapper does not prevent injection if you inject strings yourself — parameters are mandatory for any user-supplied value. The chapter's `GetById` already shows the correct pattern; search endpoints are the usual place teams regress to concatenation.
-
----
-
----
-
-#### Q3. (M) Two developers debate connection handling before a code review. Developer A writes every repository method with `using IDbConnection db = new SqlConnection(_cs);` and never calls `Open()`. Developer B opens the connection once in a unit-of-work class and passes the open `IDbConnection` into repository methods that run inside a transaction. Both patterns appear in this chapter's demos (`ConnectionBehaviorDemo`). Under what conditions is each correct, and what state is the connection in after `Query<T>` completes when it started closed?
-
----
-
-**Answer:**
-
-**Answer:** Developer A's pattern is the default for standalone reads and writes — one short-lived connection per operation, disposed via `using`, which is pool-friendly and matches this chapter's `ProductRepository`. Developer B's pattern is correct when multiple commands must share one connection and one transaction; repositories accept the already-open `IDbConnection` instead of creating their own.
-
-- **Developer A (closed start, per-method `using`):** Correct for independent queries with no shared transaction. Dapper opens a closed connection before executing. After `Query<T>` completes, the connection is **Open** (same ADO.NET command behavior noted in `ConnectionBehaviorDemo`). The `using` dispose closes it and returns it to the pool.
-- **Developer B (caller-opened, shared connection):** Correct inside `IDbTransaction` or a unit-of-work where several `Execute`/`Query` calls must commit or roll back together. Repositories must **not** dispose a connection they did not create — only the owner disposes.
-- **Wrong hybrid:** Opening per method inside a transaction scope but disposing between calls — breaks atomicity. Creating a new connection per call inside a transaction block — each call may auto-commit separately unless enlisted correctly.
-
-**Production takeaway:** `ConnectionBehaviorDemo` shows both states are valid entry points; the decision is transactional scope, not performance superstition. Per-request `using` + `ToList()` scales cleanly in ASP.NET Core; shared open connections belong inside explicit transaction boundaries (covered further in ADO.NET ch06 and Dapper ch02 async/transaction patterns).
-
----
-
----
-
-#### Q4. (D) Your team is building an order microservice. Writes (create order, reserve inventory) will use EF Core with migrations. A product catalog read endpoint must return hand-tuned SQL with specific indexes and no change-tracker overhead. A teammate proposes "just use EF Core everywhere for consistency." What do you recommend, how would Dapper fit, and what breaks if you force EF Core on the read path?
-
----
-
-**Answer:**
-
-**Answer:** Use EF Core for the write model and schema evolution; add Dapper for the catalog read path with explicit SQL — the hybrid pattern described in `DapperConcepts.ExplainStackComparison`. Forcing EF Core on hand-tuned reads sacrifices control and adds change-tracker overhead without benefit.
-
-- **EF Core for writes:** Migrations, relationships, unit-of-work, and change tracking simplify order creation and inventory reservation — the team's existing choice is sound.
-- **Dapper for catalog reads:** Inject the connection string (or factory), implement a thin repository like this chapter's `ProductRepository`, and keep SQL with the exact indexes and projections the read SLA requires. No tracker, minimal allocations — Dapper's micro-ORM sweet spot.
-- **Shared infrastructure:** Same database, same connection string configuration; optional read replica connection string for reporting/catalog if scale demands it.
-- **What breaks with EF-only reads:** LINQ may emit suboptimal SQL; `AsNoTracking` helps but you still lack fine-grained control over hints, covering indexes, and projections; teams often fight N+1 or over-fetching on hot paths.
-- **Consistency argument:** Consistency belongs in boundaries (DTO contracts, error shape, logging), not in forcing one ORM for every access pattern. Document when to reach for EF vs Dapper in the repo README or ADR.
-
-**Production takeaway:** Many production systems combine EF Core and Dapper on one database — this chapter's comparison table is the decision framework Karat expects, not a single-tool mandate.
-
----
-
----
-
-#### Q5. (R) A legacy `dbo.Products` table uses snake_case column names. A new Dapper DTO maps cleanly in tests against LocalDB seed data, but staging returns rows with empty names and zero prices:
-
-```csharp
-public sealed class ProductListItem
-{
-    public int ProductId { get; init; }
-    public string ProductName { get; init; } = string.Empty;
-    public decimal UnitPrice { get; init; }
-}
-
 public IReadOnlyList<ProductListItem> GetCatalog()
 {
     using IDbConnection db = new SqlConnection(_connectionString);
@@ -728,48 +800,18 @@ public IReadOnlyList<ProductListItem> GetCatalog()
 }
 ```
 
-No exceptions are thrown. Diagnose the failure mode and give two production-safe fixes (one SQL-side, one mapping-side for later chapters).
+**Concepts**
+- case-insensitive name equality mapping
+- underscore vs PascalCase mismatch
+- silent default value on unmapped properties
+- SQL alias fix
+- custom type map for global convention
 
----
+**Answer**
 
-**Answer:**
+Dapper maps by case-insensitive name equality. `product_id` may coincidentally match `ProductId` in some environments, but `product_name` does not match `ProductName` and `unit_price` does not match `UnitPrice`, so those properties stay at their default values — empty string and zero — with no exception. The LocalDB seed used PascalCase column names, hiding the mismatch; the staging schema uses legacy snake_case. No error is thrown because Dapper never requires all columns to map.
 
-```csharp
-public sealed class ProductListItem
-{
-    public int ProductId { get; init; }
-    public string ProductName { get; init; } = string.Empty;
-    public decimal UnitPrice { get; init; }
-}
-
-public IReadOnlyList<ProductListItem> GetCatalog()
-{
-    using IDbConnection db = new SqlConnection(_connectionString);
-    const string sql = """
-        SELECT product_id, product_name, unit_price
-        FROM dbo.Products
-        WHERE discontinued_date IS NULL;
-        """;
-    return db.Query<ProductListItem>(sql).ToList();
-}
-```
-
-No exceptions are thrown. Diagnose the failure mode and give two production-safe fixes (one SQL-side, one mapping-side for later chapters).
-
-**Answer:** Dapper maps by column name to property name (case-insensitive by default). `product_id` may map to `ProductId`, but `product_name` and `unit_price` do not match `ProductName` and `UnitPrice`, so those properties stay at default values — silent data loss with no exception, exactly the convention-mapping gotcha in `Models/Product.cs` and the chapter quick reference.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Mapping / correctness | Snake_case columns vs PascalCase properties | `ProductName` empty, `UnitPrice` 0 — API returns garbage data |
-| Observability | No exception on mismatch | Bug reaches production; hard to spot without assertion tests |
-| Environment | LocalDB seed used PascalCase columns; staging legacy schema differs | "Works on my machine" — schema drift between environments |
-| Design | Assumes convention mapping without verifying column names | Fragile when integrating legacy databases |
-
-**Fix (priority order):**
-
-1. **SQL-side (preferred for reads):** Alias columns to match properties:
+The SQL-side fix, preferred for reads, is to alias columns to match the property names:
 
 ```sql
 SELECT product_id AS ProductId,
@@ -779,53 +821,32 @@ FROM dbo.Products
 WHERE discontinued_date IS NULL;
 ```
 
-2. **Mapping-side (later chapter):** Custom column maps or underscore matching rules in Dapper ch04 — register a map so `product_name` → `ProductName` globally for legacy schemas.
-3. Add integration tests against a schema that mirrors staging, asserting non-default `ProductName` and `UnitPrice` for seeded rows.
-4. Optionally project to a dynamic or intermediate type during migration — short-term bridge only.
-
-**Production takeaway:** Dapper's silent default on unmapped columns is worse than a thrown exception — always verify column/property alignment when connecting to legacy schemas. SQL aliases are the fastest production fix; custom maps pay off when many queries hit the same legacy naming.
+The mapping-side fix for a codebase with many queries against the same legacy schema is to register a custom type map using `SqlMapper.SetTypeMap` or a naming convention handler so `product_name` maps globally to `ProductName`. Add integration tests against a schema that mirrors staging, asserting non-default `ProductName` and `UnitPrice` values for seeded rows, so schema drift is caught before production.
 
 ---
 
----
-
-#### Q6. (P) You register data access in ASP.NET Core DI for a Dapper-based `ProductRepository` like the one in this chapter. A teammate submits:
+## Q6. (P) A teammate registers a Dapper `ProductRepository` in ASP.NET Core DI. What fails at startup or under concurrent traffic, and how should connection strings, repository lifetime, and `IDbConnection` be wired instead?
 
 ```csharp
-// Program.cs
 builder.Services.AddSingleton<ProductRepository>();
 builder.Services.AddSingleton<IDbConnection>(_ =>
     new SqlConnection(builder.Configuration.GetConnectionString("AdoNetTutorial")!));
 
-// ProductRepository.cs — refactored constructor
 public ProductRepository(IDbConnection connection) => _connection = connection;
 ```
 
-What fails at startup or under concurrent traffic, and how should connection strings, repository lifetime, and `IDbConnection` be wired instead?
+**Concepts**
+- singleton SqlConnection thread-safety violation
+- captive dependency lifetime mismatch
+- connection-string injection pattern
+- scoped or transient repository lifetime
+- per-method using IDbConnection creation
 
----
+**Answer**
 
-**Answer:**
+A singleton `IDbConnection` is not thread-safe for concurrent requests. Multiple threads executing Dapper calls on the same `SqlConnection` instance produce undefined behavior — interleaved commands, timeouts, and corrupted result reads. Even if thread safety were somehow handled, a long-lived connection bypasses connection pooling best practices and breaks the per-operation disposal semantics that make Dapper's pool behavior predictable.
 
-```csharp
-// Program.cs
-builder.Services.AddSingleton<ProductRepository>();
-builder.Services.AddSingleton<IDbConnection>(_ =>
-    new SqlConnection(builder.Configuration.GetConnectionString("AdoNetTutorial")!));
-
-// ProductRepository.cs — refactored constructor
-public ProductRepository(IDbConnection connection) => _connection = connection;
-```
-
-What fails at startup or under concurrent traffic, and how should connection strings, repository lifetime, and `IDbConnection` be wired instead?
-
-**Answer:** A singleton `IDbConnection` is not thread-safe for concurrent requests — multiple threads executing Dapper calls on one shared `SqlConnection` cause undefined behavior, timeouts, and corrupted reads. Even if thread safety were solved, a long-lived connection bypasses pooling best practices and breaks per-operation dispose semantics this chapter teaches.
-
-- **Singleton `SqlConnection`:** SQL Server connections are not designed for concurrent multi-threaded use on one instance. Under parallel API requests, queries interleave on shared state — intermittent failures that load tests expose immediately.
-- **Singleton repository holding connection:** Same captive dependency problem — repository lifetime extends connection lifetime across all users and requests.
-- **Missing dispose:** A singleton connection is never disposed until shutdown; if it drops, the whole app shares one broken connection.
-- **Correct lifetime:** Register `ProductRepository` as **scoped** (per request) or **transient**; do **not** register `IDbConnection` in DI for typical per-query usage.
-- **Correct wiring:** Inject `IConfiguration` or `IOptions<ConnectionStrings>` (or a small `IDbConnectionFactory`) and create `using IDbConnection db = new SqlConnection(_cs)` inside each method — identical to this chapter's repository. For tests, inject a connection string pointing at LocalDB or accept `IDbConnection` only in test doubles.
+The correct approach is to register `ProductRepository` as scoped (per request) or transient, never singleton, and to not register `IDbConnection` in DI at all for typical per-query usage. Instead, inject `IConfiguration` or an `IOptions<DatabaseOptions>` wrapper that holds the connection string, then create `using IDbConnection db = new SqlConnection(_connectionString)` inside each repository method:
 
 ```csharp
 builder.Services.AddScoped<ProductRepository>();
@@ -837,83 +858,41 @@ public ProductRepository(IOptions<DatabaseOptions> options)
 }
 ```
 
-**Production takeaway:** Dapper's simplicity is "create connection, query, dispose per operation." DI should inject **configuration**, not a shared connection — the chapter's constructor-stores-connection-string pattern scales correctly into ASP.NET Core.
+For integration tests, inject a connection string pointing at LocalDB. Reserve `IDbConnection` injection only for test doubles where you need to control what the connection returns.
 
 ---
 
----
-
-#### Q7. (R) A developer coming from EF Core "fixes" update logic using Dapper. Review:
+## Q7. (R) A developer coming from EF Core writes an update method. Identify compile/runtime/DI issues and explain why the price never persists.
 
 ```csharp
 public void UpdatePrice(int productId, decimal newPrice)
 {
-    var product = GetById(productId);          // QueryFirstOrDefault<Product>
+    var product = GetById(productId);
     if (product is null) return;
-    product = product with { UnitPrice = newPrice };  // record copy — Product is not a record here
-    // "Dapper tracks changes like EF" — no Execute call
+    product = product with { UnitPrice = newPrice }; // Product is not a record
+    // no Execute call
 }
 
 public Product? GetById(int id)
 {
     IDbConnection db = new SqlConnection(_connectionString);
     return db.QueryFirstOrDefault<Product>(
-        "SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate FROM dbo.Products WHERE ProductId = @id",
-        new { id });
+        "SELECT ... FROM dbo.Products WHERE ProductId = @id", new { id });
 }
 ```
 
-Identify compile/runtime/DI issues and explain why the price never persists — tying back to what Dapper actually is in this chapter.
+**Concepts**
+- Dapper stateless micro-ORM design
+- absence of change tracking
+- with expression on non-record type compile error
+- explicit UPDATE SQL requirement
+- connection leak in GetById
 
----
+**Answer**
 
-### 02. Queries, Execute & Async Methods
+The price never persists because Dapper is a stateless micro-ORM — it maps query rows to POCOs and executes explicit commands, but it has no change tracker. Modifying an in-memory object without calling `Execute` with an UPDATE statement makes no database round-trip at all. There is also a compile error: `product with { UnitPrice = newPrice }` is a `with` expression, which is only valid on `record` types — if `Product` is a sealed class, this does not build (CS8858). Additionally, `GetById` creates a `SqlConnection` without a `using` block, leaking a connection on every lookup.
 
-# Karat — Interview Questions
-
-> **Folder:** `04. .NET Data Access/02. Dapper/02. Queries, Execute & Async Methods`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-public void UpdatePrice(int productId, decimal newPrice)
-{
-    var product = GetById(productId);          // QueryFirstOrDefault<Product>
-    if (product is null) return;
-    product = product with { UnitPrice = newPrice };  // record copy — Product is not a record here
-    // "Dapper tracks changes like EF" — no Execute call
-}
-
-public Product? GetById(int id)
-{
-    IDbConnection db = new SqlConnection(_connectionString);
-    return db.QueryFirstOrDefault<Product>(
-        "SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate FROM dbo.Products WHERE ProductId = @id",
-        new { id });
-}
-```
-
-Identify compile/runtime/DI issues and explain why the price never persists — tying back to what Dapper actually is in this chapter.
-
-**Answer:** Dapper is a stateless micro-ORM — it maps query rows to POCOs and executes explicit commands; there is no change tracker, so modifying an in-memory object without an `Execute`/`UPDATE` never touches the database. The snippet also fails to compile (`with` on a non-record) and leaks connections in `GetById`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `product with { ... }` on `Product` sealed class (not `record`) | CS8858 — does not build |
-| Correctness | No `Execute`/`UPDATE` after in-memory mutation | Price never persisted — functional bug invisible in unit tests that mock the repo |
-| Design | Assumes EF-style change tracking | Violates Dapper's model — queries are read-only projections unless followed by explicit SQL |
-| Connection lifetime | `GetById` creates `SqlConnection` without `using` | Connection leak on every read |
-| Maintainability | Read-modify-write without transaction | Race conditions under concurrent price updates even after adding `Execute` |
-
-**Fix (priority order):**
-
-1. Replace the EF mental model with an explicit update:
+The fix is to replace the EF mental model with explicit SQL:
 
 ```csharp
 public void UpdatePrice(int productId, decimal newPrice)
@@ -924,27 +903,15 @@ public void UpdatePrice(int productId, decimal newPrice)
 }
 ```
 
-2. Fix `GetById` with `using IDbConnection` — same as this chapter's implementation.
-3. If read-modify-write is required (validation rules on current row), wrap read + update in a transaction on one open connection.
-4. On the mutation path, mutate properties directly if needed (`product.UnitPrice = newPrice` won't compile with `init` — another signal the EF pattern was copied blindly); prefer parameter-only updates without loading the entity when possible.
-
-**Production takeaway:** The chapter quick reference lists "Expect EF-style change tracking" as a common mistake — Dapper returns disconnected POCOs. Updates require explicit `Execute` SQL; that is a feature (predictable SQL, no hidden round-trips), not a missing feature.
+Fix `GetById` with `using IDbConnection` as well. If a read-then-modify pattern is genuinely required for business logic, wrap the read and update in a transaction on a single open connection to prevent concurrent price updates from racing.
 
 ---
 
-### 02. Queries, Execute & Async Methods
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `04. .NET Data Access/02. Dapper/02. Queries, Execute & Async Methods`
+## Chapter 02 Karat Scenarios
 
 ---
 
----
-
-#### Q1. (R) A catalog API exposes "get product by category." A teammate ships this repository method. Review it — what breaks in production as the catalog grows, and what Dapper API would you use instead?
+## Q1. (R) A catalog API exposes "get product by category." A teammate ships this repository method. What breaks in production as the catalog grows, and what Dapper API would you use instead?
 
 ```csharp
 public Product GetByCategory(SqlConnection connection, int categoryId)
@@ -954,89 +921,59 @@ public Product GetByCategory(SqlConnection connection, int categoryId)
         FROM dbo.Products
         WHERE CategoryId = @categoryId;
         """;
-
     return connection.QuerySingle<Product>(sql, new { categoryId });
 }
 ```
 
----
+**Concepts**
+- QuerySingle strict one-row assertion
+- non-unique CategoryId filter
+- one-to-many relationship contract mismatch
+- Query<T> for collection return
+- QueryFirst as duplicate-hiding alternative
 
-**Answer:**
+**Answer**
 
-**Answer:** `QuerySingle` throws `InvalidOperationException` when more than one row matches — fine for PK lookups, wrong for a non-unique `CategoryId` filter once a category has two or more products.
+`QuerySingle` throws `InvalidOperationException` when more than one row matches — it is correct for primary key lookups but wrong for a `CategoryId` filter once any category has two or more products. As the catalog grows and categories accumulate products, every call to this method for a populated category crashes with a 500 error. The return type `Product` also signals a broken contract: a category-to-products relationship is one-to-many, so the method should return `IReadOnlyList<Product>`.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime / correctness | `QuerySingle` on a non-unique key | Intermittent 500s when a second product shares the category |
-| API design | Returns one `Product` for a one-to-many relationship | Wrong contract — callers cannot list or choose among matches |
-| Dapper semantics | Misapplied `QuerySingle` vs `QueryFirst` | `QueryFirst` would hide duplicates silently; neither fixes the domain model |
-
-**Fix (priority order):**
-
-1. Change the contract: return `IReadOnlyList<Product>` via `Query<Product>` (or `QueryAsync` + `ToList()`) when many rows are valid.
-2. If the business rule is truly "one product per category," enforce it in the database (unique constraint on `CategoryId`) and keep `QuerySingle` — or use `QuerySingleOrDefault` when absence is acceptable.
-3. If you only need an arbitrary representative row, use `QueryFirst` with explicit `TOP 1` and `ORDER BY` — document that choice in the API.
-
-**Production takeaway:** Karat tests whether you match Dapper's single-row helpers to **SQL uniqueness guarantees** — PK/`QuerySingle`, `TOP 1`/`QueryFirst`, many rows/`Query<T>`.
+The fix is to change the return type and use `Query<Product>` (or `QueryAsync` plus `.ToList()`). If the business rule genuinely requires at most one product per category, enforce it with a unique constraint in the database and keep `QuerySingle` — or use `QuerySingleOrDefault` when absence is acceptable. `QueryFirst` with `TOP 1 ORDER BY` is a valid choice only when you explicitly want an arbitrary representative row and document that intent.
 
 ---
 
----
-
-#### Q2. (R) An export endpoint needs to stream millions of product rows with minimal memory. A developer refactors the repository like this. Review the full path — what fails at runtime, and why does the bug pass unit tests that mock `IEnumerable<Product>`?
+## Q2. (R) An export endpoint needs to stream millions of product rows with minimal memory. A developer refactors the repository to use `buffered: false`. The bug passes unit tests that mock `IEnumerable<Product>`. What fails at runtime?
 
 ```csharp
 public IEnumerable<Product> StreamAllActive()
 {
     using var connection = new SqlConnection(_connectionString);
     connection.Open();
-    return connection.Query<Product>(
-        """
-        SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate
-        FROM dbo.Products
-        WHERE DiscontinuedDate IS NULL;
-        """,
-        buffered: false);
+    return connection.Query<Product>(sql, buffered: false);
 }
 
 // Controller
 public IActionResult Export()
 {
     var rows = _repository.StreamAllActive();
-    return Ok(rows.Select(p => MapToDto(p))); // deferred LINQ over deferred Dapper query
+    return Ok(rows.Select(p => MapToDto(p)));
 }
 ```
 
----
+**Concepts**
+- unbuffered query live SqlDataReader dependency
+- using block disposal before enumeration
+- deferred LINQ over deferred Dapper sequence
+- mock IEnumerable hiding real connection coupling
+- streaming within vs across connection lifetime
 
-**Answer:**
+**Answer**
 
-**Answer:** `buffered: false` keeps a live `SqlDataReader` tied to the connection; disposing the connection inside `StreamAllActive` before the controller enumerates causes read failures — mocks never open a real reader, so tests stay green.
+`buffered: false` keeps a live `SqlDataReader` tied to the connection. The `using var connection` block in `StreamAllActive` disposes the connection when the method returns, before the controller enumerates the deferred sequence. When the JSON serializer later calls `MoveNext` on the LINQ chain, the underlying reader is closed — producing `InvalidOperationException` or "Invalid attempt to call Read when reader is closed." Mocks return an in-memory list that never opens a real reader, so tests stay green while the production path fails.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Connection lifetime | `using` closes connection before deferred enumeration | `InvalidOperationException` or "Invalid attempt to call Read when reader is closed" in production |
-| Deferred execution | Dapper SQL runs on first `MoveNext`, not at `Query` call | Failure happens in the controller, far from the repository — hard to diagnose |
-| Testability | Mock `IEnumerable<Product>` returns an in-memory list | Hides the connection/reader coupling entirely |
-| API / hosting | Returning deferred `IEnumerable` across layer boundaries | ASP.NET serialization may force full enumeration on a dead connection |
-
-**Fix (priority order):**
-
-1. Keep the connection open for the entire enumeration — e.g., pass an open scoped connection into the repository and enumerate inside the same request scope, **or** materialize inside the method with `buffered: true` / `.ToList()` when the set is bounded.
-2. For true streaming at scale, use `buffered: false` but consume rows **inside** the repository or a dedicated streaming abstraction (`IAsyncEnumerable<Product>` with `await foreach`, connection open until the stream completes).
-3. Add an integration test that uses a real `SqlConnection` and defers enumeration past the repository return — catches this class of bug.
-
-**Production takeaway:** Unbuffered Dapper queries are a **connection-lifetime contract** — the tutorial's `DemonstrateUnbufferedConnectionRequirement` pitfall exactly; default `buffered: true` is safer unless you control the full read pipeline.
+For typical API list endpoints, the fix is to materialize inside the method with `.ToList()` and return `IReadOnlyList<Product>`. For genuine large-result streaming, use `buffered: false` with `IAsyncEnumerable<Product>` and `await foreach`, keeping the connection open throughout the entire enumeration by managing it at the same level as the consumer so the connection is not disposed until the async stream completes.
 
 ---
 
----
-
-#### Q3. (R) A health-check endpoint reports inventory count. Review this action — identify compile-time, runtime, and scalability issues:
+## Q3. (R) A health-check endpoint reports inventory count. Identify compile-time, runtime, and scalability issues.
 
 ```csharp
 [HttpGet("inventory/count")]
@@ -1050,34 +987,37 @@ public IActionResult GetActiveProductCount()
 }
 ```
 
+**Concepts**
+- sync-over-async deadlock risk
+- thread-pool starvation under load
+- async action method requirement
+- CancellationToken for cooperative abort
+- ExecuteScalarAsync proper await pattern
+
+**Answer**
+
+Calling `.Result` on `ExecuteScalarAsync` blocks the calling thread while waiting for database I/O — this is sync-over-async. In ASP.NET Core under load, blocking the thread pool with synchronous waits can cause thread starvation: orchestrators polling a health check endpoint repeatedly can exhaust available threads before requests for application work can be serviced. There is also no cancellation support, so a slow database call continues running even after the client disconnects or the health check times out.
+
+The fix is to make the action async, `await` the Dapper call, and pass the cancellation token:
+
+```csharp
+[HttpGet("inventory/count")]
+public async Task<IActionResult> GetActiveProductCount(CancellationToken ct)
+{
+    using var connection = new SqlConnection(_configuration.GetConnectionString("AdoNetTutorial"));
+    var cmd = new CommandDefinition(
+        "SELECT COUNT(*) FROM dbo.Products WHERE DiscontinuedDate IS NULL;",
+        cancellationToken: ct);
+    int count = await connection.ExecuteScalarAsync<int>(cmd);
+    return Ok(new { count });
+}
+```
+
+Prefer injecting a scoped repository or service rather than opening `SqlConnection` inline in the controller for better testability and separation of concerns.
+
 ---
 
-**Answer:**
-
-**Answer:** Blocking on `.Result` for `ExecuteScalarAsync` defeats async I/O, risks thread-pool starvation under load, and offers no cancellation — the sync `using` connection also fights ASP.NET Core's async request model.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Async | `.Result` on `ExecuteScalarAsync` | Sync-over-async; thread blocked during network I/O |
-| Scalability | Sync action + blocked thread per health probe | Orchestrator polling can saturate the thread pool |
-| Hosting | `using var connection` in sync action | Works locally; composes poorly with async middleware and `CancellationToken` |
-| Resilience | No `CancellationToken` passed to Dapper | Hung SQL calls cannot abort when the client disconnects |
-
-**Fix (priority order):**
-
-1. Make the action async: `public async Task<IActionResult> GetActiveProductCount(CancellationToken ct)` and `await connection.ExecuteScalarAsync<int>(sql, cancellationToken: ct)` (via `CommandDefinition` when you need token support — see Dapper ch03).
-2. Prefer injecting a scoped repository/service rather than opening `SqlConnection` inline in the controller.
-3. Remove `.Result` / `.Wait()` entirely — async end-to-end from controller through Dapper.
-
-**Production takeaway:** Dapper's `*Async` siblings exist for the same reason as ADO.NET async — use `await ExecuteScalarAsync`, not `.Result`. See C# Module 06 — sync-over-async in ASP.NET actions.
-
----
-
----
-
-#### Q4. (M) Two junior developers argue about the right Dapper call for these operations. For each snippet, name the **correct** Dapper method (`Query`, `QueryFirst`, `Execute`, or `ExecuteScalar`) and what goes wrong if they ship as written:
+## Q4. (M) For each snippet, name the correct Dapper method and explain what goes wrong if shipped as written.
 
 ```csharp
 // A — needs rows affected after UPDATE
@@ -1092,94 +1032,87 @@ decimal avg = connection.Query<decimal>(
 
 // C — needs to confirm INSERT succeeded (1 row)
 var result = connection.Query<int>(
-    """
-    INSERT INTO dbo.Products (ProductId, ProductName, UnitPrice, StockQuantity)
-    VALUES (@id, @name, @price, @stock);
-    """,
-    new { id = 99, name = "Cable", price = 9.99m, stock = 50 });
+    "INSERT INTO dbo.Products ... VALUES ...;",
+    new { ... });
 bool inserted = result.Any();
 ```
 
+**Concepts**
+- Execute for DML rows-affected return
+- ExecuteScalar<T> for single-cell aggregates
+- Query<T> for SELECT result sets only
+- INSERT returns no rows to map
+- method-to-SQL-semantics alignment
+
+**Answer**
+
+Each snippet uses the wrong Dapper entry point. For snippet A, `ExecuteScalar` returns the first column of the first row from a result set — a plain `UPDATE` produces no result set, so the return is often `null` and casting to `int` throws a null reference exception. The correct method is `Execute`, which returns the integer count of rows affected directly.
+
+For snippet B, `Query<decimal>` materializes a result set and `.First()` throws `InvalidOperationException` on an empty table. Single aggregate values belong on the scalar path — `ExecuteScalar<decimal>` returns the value directly and handles the empty case correctly.
+
+For snippet C, a bare `INSERT` statement returns no rows. `Query<int>` expects a SELECT result set mapped to `int` — since the insert returns nothing, `result` is always an empty sequence, so `inserted` is always `false` even when the row was successfully inserted. The correct approach is `Execute` and comparing `rowsAffected == 1`.
+
+The rule: `Execute` is for DML row counts; `ExecuteScalar<T>` is for one cell (COUNT, AVG, `SCOPE_IDENTITY()`); `Query<T>` is for many mapped rows from SELECT statements.
+
 ---
 
-**Answer:**
-
-**Answer:** Each snippet uses the wrong Dapper entry point — `Execute`/`ExecuteScalar`/`Query` are not interchangeable; picking the wrong one yields cast exceptions, empty sequences, or silent logic bugs.
-
-- **A — UPDATE rows affected:** Use **`Execute`**. `ExecuteScalar` returns the first column of the first row — for a plain `UPDATE` that is often `NULL` or meaningless, and casting to `int` is fragile. `Execute` returns `rows affected` directly.
-- **B — single aggregate:** Use **`ExecuteScalar<decimal>`** (or `ExecuteScalar<decimal?>` with null-coalescing when no rows match). `Query<decimal>` materializes a result set and `.First()` throws on empty sets; aggregates belong on the scalar path.
-- **C — INSERT success:** Use **`Execute`** and compare `rowsAffected == 1`. `Query<int>` expects a `SELECT` result set mapping to `int`; a bare `INSERT` returns no rows to map — `result` is empty, so `inserted` is always `false` even when the insert succeeded.
-
-**Production takeaway:** **`Execute`** = DML rows affected; **`ExecuteScalar<T>`** = one cell (COUNT, AVG, `SCOPE_IDENTITY()`); **`Query<T>`** = many mapped rows. Mixing them "because it compiles" is a common Karat trap.
-
----
-
----
-
-#### Q5. (P) Your ASP.NET Core API uses scoped `SqlConnection` per request. A repository method mirrors the tutorial's async list load but returns `IEnumerable<Product>` directly from `QueryAsync`. Under load, callers intermittently see `InvalidOperationException` ("There is already an open DataReader…"). Explain the mechanism and show the production-safe pattern (including when to materialize vs stream).
+## Q5. (P) An ASP.NET Core API uses scoped `SqlConnection` per request. A repository method returns `IEnumerable<Product>` from `QueryAsync`. Under load, callers see `InvalidOperationException` ("There is already an open DataReader…"). Explain the mechanism and show the production-safe pattern.
 
 ```csharp
 public async Task<IEnumerable<Product>> GetAllActiveAsync(SqlConnection connection)
 {
-    const string sql = """
-        SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate
-        FROM dbo.Products
-        WHERE DiscontinuedDate IS NULL
-        ORDER BY ProductName;
-        """;
-
     return await connection.QueryAsync<Product>(sql);
 }
 ```
 
----
+**Concepts**
+- deferred IEnumerable from QueryAsync
+- open DataReader holding connection
+- MARS disabled by default
+- materialization before second command
+- IReadOnlyList return type enforcement
 
-**Answer:**
+**Answer**
 
-**Answer:** `QueryAsync` returns a deferred sequence backed by an open reader on the shared scoped connection; if anything else uses that connection (second query, retry, logging) before enumeration finishes, SQL Server rejects overlapping readers on one connection.
+`QueryAsync` returns a deferred sequence backed by an open `SqlDataReader` on the shared scoped connection. When the caller receives the `IEnumerable<Product>` and does not enumerate it before issuing another Dapper call on the same connection — a second query, a logging interceptor, or middleware — SQL Server rejects the overlapping reader because MARS is disabled by default. Mocks return in-memory lists with no real reader, hiding the coupling entirely in tests.
 
-- **Mechanism:** Default MARS off on many connection strings — one active reader per connection. Returning deferred `IEnumerable` from a repository exports the reader lifetime to unknown callers.
-- **Production-safe (typical API list):** Materialize before returning, matching the tutorial's `GetAllActiveAsync`:
+The production-safe fix is to materialize before returning, so the reader is closed before the method gives up control:
 
 ```csharp
 public async Task<IReadOnlyList<Product>> GetAllActiveAsync(SqlConnection connection)
 {
-    const string sql = "...";
     IEnumerable<Product> rows = await connection.QueryAsync<Product>(sql);
-    return rows.ToList(); // reader closed before caller runs another command
+    return rows.ToList();
 }
 ```
 
-- **When to stream:** Use `buffered: false` or `IAsyncEnumerable<Product>` only when the **same** code path owns the connection until enumeration completes (export job, manual `await foreach`), not when returning bare `IEnumerable` to controllers or other services.
-- **Alternative:** Separate connection for the streaming read, or enable MARS deliberately — still prefer explicit materialization for small/medium result sets.
-
-**Production takeaway:** Treat `Query`/`QueryAsync` return values like ADO.NET readers — either finish reading inside the repository or hand back a fully materialized collection.
+Returning `IReadOnlyList<Product>` instead of `IEnumerable<Product>` signals to callers that the sequence is already materialized. Use `buffered: false` with `IAsyncEnumerable` only when the same code path owns the connection until enumeration completes — not when returning across layer boundaries.
 
 ---
 
----
-
-#### Q6. (D) The tutorial's `InsertProductReturningId` uses `MAX(ProductId) + 1` inside a batch and returns the new id via `ExecuteScalar<int>`. A teammate says "works in dev, ship it." Two API instances insert products concurrently under load. What breaks, and what pattern replaces both the id generation **and** the Dapper call sequence?
+## Q6. (D) A tutorial method uses `MAX(ProductId) + 1` for ID generation and `ExecuteScalar<int>` to return the new ID. A teammate says "works in dev, ship it." Two API instances insert concurrently. What breaks, and what pattern replaces both the ID generation and the Dapper call?
 
 ```csharp
 const string sql = """
     DECLARE @NextId INT = (SELECT ISNULL(MAX(ProductId), 0) + 1 FROM dbo.Products);
-    INSERT INTO dbo.Products (ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate)
-    VALUES (@NextId, @productName, @unitPrice, @stockQuantity, NULL);
+    INSERT INTO dbo.Products (ProductId, ...) VALUES (@NextId, ...);
     SELECT @NextId;
     """;
-int newId = connection.ExecuteScalar<int>(sql, new { productName, unitPrice, stockQuantity });
+int newId = connection.ExecuteScalar<int>(sql, param);
 ```
 
----
+**Concepts**
+- concurrent MAX+1 race condition
+- primary key violation under parallel inserts
+- IDENTITY column for database-assigned IDs
+- SCOPE_IDENTITY() for post-insert retrieval
+- ExecuteScalar correct use for identity return
 
-**Answer:**
+**Answer**
 
-**Answer:** Concurrent transactions can compute the same `@NextId`, causing primary-key violations or lost updates — `ExecuteScalar` is fine for returning an id, but **`MAX + 1` is not a safe id strategy** under concurrency.
+Two concurrent requests can both read the same `MAX(ProductId)` before either commits, then both attempt to insert the same `ProductId`. One request fails with a primary key violation — or worse, under weaker isolation the insert silently produces duplicate IDs. The `MAX + 1` pattern is not safe under any concurrent workload.
 
-- **What breaks:** Two requests read the same `MAX(ProductId)` before either commits → duplicate `ProductId` insert → one request fails with PK violation, or worse behavior under weaker isolation.
-- **Replace id generation:** Use an **`IDENTITY`** (or **`SEQUENCE`**) column on `ProductId` and let SQL Server allocate ids — remove manual `MAX + 1`.
-- **Replace Dapper sequence:** Single batch with **`ExecuteScalar<int>`**:
+`ExecuteScalarAsync` is the right Dapper call for returning a single identity value from an insert, but the ID generation must be delegated to the database. The fix is to use an `IDENTITY` column on `ProductId` and let SQL Server allocate IDs atomically, then return the new value with `SCOPE_IDENTITY()`:
 
 ```csharp
 const string sql = """
@@ -1190,35 +1123,52 @@ const string sql = """
 int newId = await connection.ExecuteScalarAsync<int>(sql, param);
 ```
 
-- Prefer **`SCOPE_IDENTITY()`** over `@@IDENTITY` (trigger-safe in scope). Wrap insert + follow-up DML in an explicit **`IDbTransaction`** passed to `Execute`/`ExecuteScalar` when multiple statements must commit together.
-
-**Production takeaway:** Dapper does not fix application-level race conditions — **`ExecuteScalar` returns whatever your SQL makes atomic**; id generation must be delegated to the database or a serialized sequence.
+Prefer `SCOPE_IDENTITY()` over `@@IDENTITY` because it is scope-safe when triggers exist. Wrap the insert plus any follow-up DML in an explicit `IDbTransaction` when multiple statements must succeed atomically.
 
 ---
 
+## Q7. (P) A batch job must insert a product and read the new `ProductId` in one round trip, then update a related audit row — all-or-nothing. The developer runs two separate Dapper calls on the same open connection without an explicit transaction. When does that silently corrupt data, and how do you wire `Execute`/`ExecuteScalar` correctly with `IDbTransaction`?
+
+**Concepts**
+- implicit autocommit between separate calls
+- IDbTransaction shared across Dapper calls
+- atomic insert-then-update pattern
+- rollback on partial failure
+- connection reuse with transaction parameter
+
+**Answer**
+
+Without an explicit transaction, each Dapper call commits independently under autocommit semantics. If the insert succeeds and the audit update then fails — due to a constraint violation, a network error, or a concurrent modification — the product row is permanently committed with no corresponding audit entry, leaving the data in an inconsistent state that no retry can detect or fix retroactively.
+
+The fix is to begin a transaction before either call and pass it to both Dapper methods via the `transaction` parameter:
+
+```csharp
+using IDbConnection connection = new SqlConnection(_connectionString);
+connection.Open();
+using IDbTransaction tx = connection.BeginTransaction();
+try
+{
+    int newId = connection.ExecuteScalar<int>(insertSql, insertParams, tx);
+    connection.Execute(auditSql, new { ProductId = newId }, tx);
+    tx.Commit();
+    return newId;
+}
+catch
+{
+    tx.Rollback();
+    throw;
+}
+```
+
+Both calls share the same open connection and transaction, so if either fails the rollback undoes both. The Dapper `transaction` overload parameter is available on all `Execute`, `ExecuteScalar`, and `Query` variants.
+
 ---
 
-#### Q7. (P) A batch job must insert a product **and** read the new `ProductId` in one round trip, then update a related audit row — all-or-nothing. The developer runs two separate Dapper calls on the same open connection without an explicit transaction. When does that silently corrupt data, and how do you wire `Execute` / `ExecuteScalar` correctly with `IDbTransaction`?
+## Chapter 03 Karat Scenarios
 
 ---
 
-### 03. Parameters, Stored Procedures & QueryMultiple
-
-# Karat — Interview Questions
-
-> **Folder:** `04. .NET Data Access/02. Dapper/03. Parameters, Stored Procedures & QueryMultiple`
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-_Answer not found._
-
----
-
-#### Q1. (R) A junior developer ships a product search endpoint backed by this Dapper repository method. Security review flags it before deploy. What is wrong, and how do you fix it without changing the public method signature?
+## Q1. (R) A junior developer ships a product search endpoint. Security review flags it before deploy. What is wrong, and how do you fix it without changing the public method signature?
 
 ```csharp
 public IEnumerable<Product> SearchByName(string searchTerm)
@@ -1234,33 +1184,38 @@ public IEnumerable<Product> SearchByName(string searchTerm)
 }
 ```
 
+**Concepts**
+- LIKE clause SQL injection via interpolation
+- @Pattern parameter for LIKE predicate
+- C#-side wildcard composition
+- deferred IEnumerable without materialization
+- parameter value vs SQL structure distinction
+
+**Answer**
+
+The SQL is built with C# string interpolation, so `searchTerm` is concatenated into the command text. An attacker can inject arbitrary SQL — `'; DROP TABLE dbo.Products; --` — to read, modify, or destroy data. Dapper parameterizes only what you pass through its param argument; interpolated strings bypass the parameter channel entirely. The method also returns a deferred `IEnumerable<Product>` from inside a `using` block, which will fail if the caller enumerates after disposal.
+
+The fix uses a `@Pattern` placeholder and composes the wildcard in C# before passing it as a parameter value:
+
+```csharp
+public IReadOnlyList<Product> SearchByName(string searchTerm)
+{
+    using var connection = new SqlConnection(_connectionString);
+    const string sql = """
+        SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate
+        FROM dbo.Products
+        WHERE ProductName LIKE @Pattern
+        ORDER BY ProductName;
+        """;
+    return connection.Query<Product>(sql, new { Pattern = $"%{searchTerm}%" }).ToList();
+}
+```
+
+The wildcard characters `%` are part of the parameter value, not SQL syntax, so they are fully parameterized. Input length validation at the API layer adds defense-in-depth but is not a substitute.
+
 ---
 
-**Answer:**
-
-**Answer:** The SQL is built with C# string interpolation, so user input is concatenated into the command text — classic SQL injection (`'; DROP TABLE dbo.Products; --`). Dapper only parameterizes when you pass a separate param object; interpolated values are literal T-SQL.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security | `searchTerm` embedded in SQL via `$"..."` | SQL injection; attacker can read/modify data |
-| Correctness | No `@searchTerm` token bound by Dapper | Provider sends one non-parameterized batch |
-| Design | Looks like Dapper but bypasses parameter API | False sense of safety in code review |
-
-**Fix (priority order):**
-
-1. Replace interpolation with a parameterized predicate: `WHERE ProductName LIKE @Pattern` and pass `new { Pattern = $"%{searchTerm}%" }` (or `'%' + @term + '%'` pattern built in C# as the **parameter value**, not in SQL text).
-2. Optionally add input length/character validation at the API layer — defense in depth, not a substitute for parameters.
-3. Log and monitor for suspicious search strings; consider `CommandDefinition` with a fixed timeout for search endpoints.
-
-**Production takeaway:** Dapper does not auto-sanitize interpolated SQL — only named parameters (`new { ... }`, `DynamicParameters`) get sent as `SqlParameter` values. See ADO.NET ch.03 SqlCommand & Parameters for the same rule on raw ADO.NET.
-
----
-
----
-
-#### Q2. (R) Code review on a stored-procedure insert path that mirrors `DynamicParameterRepository.InsertProduct`. The author claims it works in a one-off SSMS test. What breaks at runtime or in production, and in what order do you fix it?
+## Q2. (R) Code review on a stored-procedure insert path. The author claims it works in a one-off SSMS test. What breaks at runtime or in production?
 
 ```csharp
 public int InsertProduct(string productName, decimal unitPrice, int stockQuantity)
@@ -1272,38 +1227,28 @@ public int InsertProduct(string productName, decimal unitPrice, int stockQuantit
     dp.Add("@StockQuantity", stockQuantity);
     dp.Add("@NewProductId", direction: ParameterDirection.Output);
 
-    int newId = dp.Get<int>("@NewProductId"); // read identity before execute
+    int newId = dp.Get<int>("@NewProductId"); // read before execute
 
-    connection.Execute(
-        "dbo.usp_InsertProduct",
-        dp,
+    connection.Execute("dbo.usp_InsertProduct", dp,
         commandType: CommandType.StoredProcedure);
-
     return newId;
 }
 ```
 
----
+**Concepts**
+- OUTPUT parameter populated after execute
+- DynamicParameters.Get read timing
+- explicit DbType for output parameters
+- zero-default return propagating as real ID
+- ADO.NET execute-then-read semantics
 
-**Answer:**
+**Answer**
 
-**Answer:** OUTPUT parameters are populated **after** `Execute` completes; reading `@NewProductId` beforehand returns default `0`. The `Add` call also omits `dbType: DbType.Int32`, which can cause provider inference issues for Output parameters.
+OUTPUT parameters are populated by the database engine after the command executes — reading `@NewProductId` before calling `Execute` always returns the CLR default `0`. The method returns `0` as the new product ID on every call, regardless of what the stored procedure actually inserts. Any downstream code that uses this ID to build foreign key relationships will silently create corrupt data.
 
-**Issues:**
+The `Add` call also omits `dbType: DbType.Int32`, which can cause provider inference issues for Output parameters on some configurations.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime / correctness | `dp.Get<int>("@NewProductId")` before `Execute` | Always returns 0; wrong IDs returned to callers |
-| ADO.NET semantics | Output without explicit `DbType` | Possible type/size mismatch on some providers |
-| Data integrity | Caller may attach downstream FKs to id `0` | Silent corruption or constraint violations |
-
-**Fix (priority order):**
-
-1. Move `dp.Get<int>("@NewProductId")` to **after** `connection.Execute(...)`.
-2. Declare Output explicitly: `dp.Add("@NewProductId", dbType: DbType.Int32, direction: ParameterDirection.Output)`.
-3. Add a guard: if `newId <= 0` after execute, treat as failure and log — do not propagate bogus keys.
-
-Correct pattern (matches this chapter's `DynamicParameterRepository`):
+The correct order is to declare the output parameter with an explicit type, execute, then read:
 
 ```csharp
 dp.Add("@NewProductId", dbType: DbType.Int32, direction: ParameterDirection.Output);
@@ -1311,785 +1256,409 @@ connection.Execute("dbo.usp_InsertProduct", dp, commandType: CommandType.StoredP
 return dp.Get<int>("@NewProductId");
 ```
 
-**Production takeaway:** SSMS manual runs hide ordering bugs — Dapper mirrors ADO.NET "execute then read Output/ReturnValue." Karat often stacks direction + read-timing traps in one snippet.
+SSMS manual runs hide this ordering bug because SSMS does not read output parameters before the batch executes — the ADO.NET model is explicit about the execute-then-read contract.
 
 ---
 
----
-
-#### Q3. (R) A dashboard API calls `usp_GetProductDashboard` but returns wrong totals after a DBA reorders the SELECT statements inside the procedure. Review this consumer — what fails silently vs throws, and how do you harden it?
+## Q3. (R) A dashboard API calls `usp_GetProductDashboard` but returns wrong totals after a DBA reorders the SELECT statements inside the procedure. What fails silently vs throws, and how do you harden it?
 
 ```csharp
 public DashboardDto GetDashboard()
 {
     using var connection = new SqlConnection(_connectionString);
     using var multi = connection.QueryMultiple(
-        "dbo.usp_GetProductDashboard",
-        commandType: CommandType.StoredProcedure);
+        "dbo.usp_GetProductDashboard", commandType: CommandType.StoredProcedure);
 
-    int totalCount = multi.Read<int>().Single();           // expects COUNT(*) first
-    var products = multi.Read<Product>().AsList();         // expects product rows second
-    string topName = multi.ReadFirst<string>();            // expects TOP 1 name third
-
+    int totalCount = multi.Read<int>().Single();
+    var products = multi.Read<Product>().AsList();
+    string topName = multi.ReadFirst<string>();
     return new DashboardDto(products, totalCount, topName);
 }
 ```
 
----
+**Concepts**
+- GridReader forward-only order dependency
+- result-set reorder silent wrong mapping
+- CLR type mismatch on wrong set throwing
+- proc-consumer contract versioning
+- documented read-order integration test
 
-**Answer:**
+**Answer**
 
-**Answer:** `GridReader.Read<T>()` is **order-dependent** and forward-only — it always consumes the next result set in the batch. Reordering proc result sets maps columns to the wrong CLR types; some mismatches throw at read time, others produce garbage counts or empty strings silently.
+`GridReader.Read<T>()` is forward-only and order-dependent — it always consumes the next result set in sequence. When the DBA reorders the stored procedure's SELECT statements, the consumer reads a product-shaped result set where it expects a count integer, and vice versa. Some type mismatches throw at read time; others produce garbage values silently — if the first set happens to be mappable to `int` by accident, `totalCount` gets a nonsense value and the dashboard shows wrong numbers without any exception.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Assumes fixed result-set order (count → products → name) | Wrong dashboard numbers after harmless proc change |
-| Contract | No versioned proc/consumer agreement | DBA refactor breaks API without compile error |
-| Resilience | `Read<int>()` on a product-shaped first set | Mapping exceptions or nonsense `int` values |
-
-**Fix (priority order):**
-
-1. Align consumer read order with the **documented** proc contract — match this chapter's `QueryMultipleRepository.GetDashboardFromProcedure` (products → count → name).
-2. Document result-set order in proc header comment and integration test (assert column counts/shapes per `Read` call).
-3. Prefer stable column aliases in each SELECT (`AS TotalCount`, `AS MostExpensive`) and consider separate procs or JSON single-result if order churn is frequent.
-4. On shape mismatch, catch read exceptions, log proc name + set index, return 503 — do not silently show wrong totals.
-
-**Production takeaway:** `QueryMultiple` saves round trips but couples client and server on **set order** — same constraint as `SqlDataReader.NextResult()` in ADO.NET ch.04. `StoredProcedureRepository.GetAllViaStoredProcedure` shows `Query<T>` only reads the **first** set — a related footgun.
+To harden this, align the consumer read order with the documented procedure contract and never leave that contract implicit. Add an integration test that asserts column shapes and values for each `Read` call. Document the expected result-set order in the procedure's header comment, and treat any change to that order as a breaking API change requiring a coordinated consumer update. For dashboards where the order is likely to change, consider a single result set with fixed column aliases, separate endpoints, or a JSON-typed return value from the procedure.
 
 ---
 
----
-
-#### Q4. (M) A filter query returns every row instead of the intended price band. The SQL and anonymous object look correct at a glance. What is the binding bug?
+## Q4. (M) A filter query returns every row instead of the intended price band. The SQL and anonymous object look correct at a glance. What is the binding bug?
 
 ```csharp
-const string sql = """
-    SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate
-    FROM dbo.Products
-    WHERE UnitPrice >= @MinPrice AND UnitPrice <= @MaxPrice
-    ORDER BY UnitPrice;
-    """;
-
-using var connection = new SqlConnection(_connectionString);
 return connection.Query<Product>(sql, new { MinimumPrice = minPrice, MaximumPrice = maxPrice });
+// SQL: WHERE UnitPrice >= @MinPrice AND UnitPrice <= @MaxPrice
 ```
 
----
+**Concepts**
+- property-to-placeholder exact name alignment
+- case-insensitive but exact-name matching
+- unbound parameters treated as unconstrained
+- full table scan from missing predicate
+- anonymous object property naming discipline
 
-**Answer:**
+**Answer**
 
-**Answer:** Dapper binds by **name**: SQL tokens `@MinPrice` and `@MaxPrice` require properties `MinPrice` and `MaxPrice`. The anonymous object uses `MinimumPrice` / `MaximumPrice`, so those parameters are never supplied — SQL Server may treat missing predicates as unconstrained or error depending on plan, often returning all rows.
+Dapper binds parameters by name: the SQL tokens `@MinPrice` and `@MaxPrice` require an object with properties named `MinPrice` and `MaxPrice`. The anonymous object uses `MinimumPrice` and `MaximumPrice`, so those parameters are never supplied to the SQL command. SQL Server may treat the unbound predicates as always-true, returning all rows — a full table scan with wrong business data and no error.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Property names ≠ `@MinPrice` / `@MaxPrice` | Filter ignored; full table scan |
-| Performance | Unfiltered query | Memory pressure, slow API, wrong business results |
-| Maintainability | "Looks parameterized" but misbound | Hard to spot in review |
-
-**Fix (priority order):**
-
-1. Rename properties to match SQL: `new { MinPrice = minPrice, MaxPrice = maxPrice }` — as in `AnonymousParameterRepository.GetByPriceRange`.
-2. Or alias in SQL: `@MinimumPrice` / `@MaximumPrice` to match the object.
-3. Add an integration test with known seed data asserting row count within band.
-
-**Production takeaway:** Parameterization prevents injection but **name alignment** is still required — case-insensitive match, exact token names. See ADO.NET ch.03 parameter naming and this chapter's Section 2 comments.
+The fix is to rename the properties to match the SQL placeholders exactly: `new { MinPrice = minPrice, MaxPrice = maxPrice }`. Alternatively, rename the SQL tokens to `@MinimumPrice` and `@MaximumPrice` to match the object. An integration test with known seed data asserting the exact row count within a price band is the most reliable way to catch this class of name-alignment bug.
 
 ---
 
----
-
-#### Q5. (P) An ASP.NET Core endpoint wraps a long-running report stored procedure. The controller passes `HttpContext.RequestAborted` as cancellation. Review the repository — what is missing for timeout and cooperative cancellation, and how would you wire `CommandDefinition` correctly?
+## Q5. (P) An ASP.NET Core endpoint wraps a long-running report stored procedure. The controller passes `HttpContext.RequestAborted` as cancellation. What is missing for timeout and cooperative cancellation?
 
 ```csharp
 public async Task<IReadOnlyList<Product>> GetSlowReportAsync(CancellationToken cancellationToken)
 {
     using var connection = new SqlConnection(_connectionString);
     await connection.OpenAsync(cancellationToken);
-
     return (await connection.QueryAsync<Product>(
         "dbo.usp_SlowProductReport",
         commandType: CommandType.StoredProcedure)).AsList();
 }
 ```
 
----
+**Concepts**
+- CommandDefinition as Dapper cancellation carrier
+- command timeout explicit override
+- CancellationToken propagation to ADO.NET
+- thread and connection exhaustion under slow procs
+- OperationCanceledException mapping
 
-**Answer:**
+**Answer**
 
-**Answer:** The snippet uses default command timeout (often 30s on `SqlConnection`) and does not pass `CancellationToken` into Dapper — client disconnect will not cancel the SQL command, and long procs can hold pool connections until default timeout.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Hosting / scalability | No `commandTimeout` override | Report exceeds 30s → SqlException; pool exhaustion under load |
-| Async / cancellation | `QueryAsync` without token in `CommandDefinition` | Request aborted but DB work continues |
-| Operations | No explicit timeout policy per report | Unpredictable SLA; hung requests |
-
-**Fix (priority order):**
-
-1. Build a `CommandDefinition` with explicit timeout and cancellation:
+The cancellation token is passed to `OpenAsync` but not to the `QueryAsync` call itself. If the client disconnects or the request is aborted after the connection opens, the SQL command continues running until the default connection timeout elapses. Under load, slow report procedures hold pool connections open and eventually exhaust the pool. `CommandDefinition` is the Dapper hook for supplying both a command timeout and a cancellation token to a single call:
 
 ```csharp
 var cmd = new CommandDefinition(
     "dbo.usp_SlowProductReport",
     parameters: null,
-    commandTimeout: 120, // seconds — tune to SLA
+    commandTimeout: 120,
     commandType: CommandType.StoredProcedure,
     cancellationToken: cancellationToken);
-
 return (await connection.QueryAsync<Product>(cmd)).AsList();
 ```
 
-2. Open connection with `OpenAsync(cancellationToken)` (already present) and ensure the controller passes `HttpContext.RequestAborted`.
-3. Map `OperationCanceledException` / `SqlException` timeout number `-2` to 499/504 with structured logging.
-4. For very heavy reports, switch to async job + polling rather than stretching timeout indefinitely.
-
-**Production takeaway:** `CommandDefinition` is the Dapper hook for timeout, `CommandType`, transaction, flags, and **cancellation** — same bundle this chapter's `CommandDefinitionRepository` uses for `commandTimeout: 30`. See Dapper ch.02 for async overloads.
+Set the timeout to the report's measured SLA rather than relying on the connection default. Map `OperationCanceledException` and SQL timeout exceptions (number `-2`) to appropriate HTTP status codes (499 or 504) with structured logging. For very heavy reports, an async job-plus-polling pattern is preferable to stretching the synchronous timeout indefinitely.
 
 ---
 
----
-
-#### Q6. (D) A teammate refactors `GetProductCountViaReturnValue` to use an anonymous object because "ReturnValue is just another int param." They change the proc caller to:
+## Q6. (D) A teammate refactors `GetProductCountViaReturnValue` to use `ExecuteScalar` and another method tries to read a T-SQL `RETURN` value via an `OUTPUT` parameter. Explain what each approach gets wrong about `RETURN` vs `OUTPUT`, and what Dapper API is correct for each.
 
 ```csharp
-var count = connection.ExecuteScalar<int>(
-    "dbo.usp_GetProductCount",
+// Attempt 1 — proc uses RETURN, not SELECT
+var count = connection.ExecuteScalar<int>("dbo.usp_GetProductCount",
     commandType: CommandType.StoredProcedure);
-```
 
-Separately, another method tries to read a T-SQL `RETURN` with:
-
-```csharp
+// Attempt 2 — proc uses RETURN 0/RETURN 1, not OUTPUT @Status
 var dp = new DynamicParameters(new { ProductId = id });
 dp.Add("@Status", dbType: DbType.Int32, direction: ParameterDirection.Output);
 connection.Execute("dbo.usp_TryGetProductName", dp, commandType: CommandType.StoredProcedure);
-int status = dp.Get<int>("@Status"); // proc uses RETURN 0 / RETURN 1, not OUTPUT @Status
+int status = dp.Get<int>("@Status");
 ```
 
-Explain what each approach gets wrong about T-SQL `RETURN` vs `OUTPUT`, and what Dapper API you use for each.
+**Concepts**
+- T-SQL RETURN value as ReturnValue parameter
+- OUTPUT parameter distinct from RETURN
+- ExecuteScalar reads first result set column only
+- DynamicParameters ParameterDirection.ReturnValue
+- anonymous object Input-only limitation
 
----
+**Answer**
 
-**Answer:**
+T-SQL `RETURN` sends an integer through a dedicated ReturnValue channel in ADO.NET — it does not go through result sets or arbitrary OUTPUT parameters. `ExecuteScalar` reads the first column of the first row of a result set; a procedure that only executes `RETURN COUNT(*)` with no SELECT produces no result set, so `ExecuteScalar` returns `null` or zero rather than the count.
+
+Attempt 2 adds an `@Status` OUTPUT parameter, but the procedure uses `RETURN 0` and `RETURN 1` — those values flow through ReturnValue, not through any OUTPUT parameter. `dp.Get<int>("@Status")` always returns zero because nothing ever sets that output.
+
+The correct Dapper approach for `RETURN` values is a `DynamicParameters` entry with `ParameterDirection.ReturnValue`:
 
 ```csharp
-var count = connection.ExecuteScalar<int>(
-    "dbo.usp_GetProductCount",
-    commandType: CommandType.StoredProcedure);
-```
-
-Separately, another method tries to read a T-SQL `RETURN` with:
-
-```csharp
-var dp = new DynamicParameters(new { ProductId = id });
-dp.Add("@Status", dbType: DbType.Int32, direction: ParameterDirection.Output);
+var dp = new DynamicParameters();
+dp.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
 connection.Execute("dbo.usp_TryGetProductName", dp, commandType: CommandType.StoredProcedure);
-int status = dp.Get<int>("@Status"); // proc uses RETURN 0 / RETURN 1, not OUTPUT @Status
+int status = dp.Get<int>("@ReturnValue");
 ```
 
-Explain what each approach gets wrong about T-SQL `RETURN` vs `OUTPUT`, and what Dapper API you use for each.
-
-**Answer:** T-SQL `RETURN` sends an integer through a **ReturnValue** parameter, not through result sets or arbitrary OUTPUT params. `ExecuteScalar` reads the first result set's first column — `usp_GetProductCount` has no SELECT, so scalar is wrong. The second snippet treats `RETURN 1` as `@Status OUTPUT`, which never receives the return code.
-
-- **`RETURN` (status code):** `DynamicParameters` with `direction: ParameterDirection.ReturnValue` and a dummy name like `@ReturnValue`, then `dp.Get<int>("@ReturnValue")` after `Execute` — as in `DynamicParameterRepository.GetProductCountViaReturnValue` and `TryGetProductName`.
-- **`OUTPUT` parameter:** `@NewProductId INT OUTPUT` or `@ProductName NVARCHAR(100) OUTPUT` — `dp.Add` with `ParameterDirection.Output`, explicit `DbType` and **size for strings** (`size: 100`), read after execute — as in `InsertProduct` / `GetProductName`.
-- **`ExecuteScalar`:** Use when the proc or batch **SELECTs** a single value (e.g. `SELECT COUNT(*)`), not for `RETURN`.
-- **Anonymous objects:** Fine for **Input** only — cannot declare Output/ReturnValue direction; use `DynamicParameters` or `AddDynamicParams` plus directional adds (see `TryGetProductName` merging input via `AddDynamicParams`).
-
-**Production takeaway:** Karat tests whether you know ADO.NET parameter directions under Dapper syntax — `RETURN`, `OUTPUT`, and result sets are three different channels. Confusing them passes compile and fails in QA with status always 0.
+For a procedure that SELECTs a single value, use `ExecuteScalar`. For OUTPUT parameters, use `ParameterDirection.Output` with an explicit `DbType` and size for strings. Anonymous objects can only supply Input parameters — directional parameters always require `DynamicParameters`.
 
 ---
 
----
-
-#### Q7. (R) A batch import service loads a dashboard in one round trip but intermittently throws `InvalidOperationException` under load. Review the method — identify lifetime/reader issues and the fix.
+## Q7. (R) A batch import service loads a dashboard in one round trip but intermittently throws `InvalidOperationException` under load. Identify lifetime and reader issues and the fix.
 
 ```csharp
 public (IEnumerable<Product> Products, int Total, string TopName) GetDashboardLazy()
 {
     var connection = new SqlConnection(_connectionString);
     connection.Open();
-
-    var multi = connection.QueryMultiple(
-        """
-        SELECT ProductId, ProductName, UnitPrice, StockQuantity, DiscontinuedDate FROM dbo.Products;
-        SELECT COUNT(*) FROM dbo.Products;
-        SELECT TOP 1 ProductName FROM dbo.Products ORDER BY UnitPrice DESC;
-        """);
-
-    var products = multi.Read<Product>();  // deferred IEnumerable — connection still open
+    var multi = connection.QueryMultiple(sql);
+    var products = multi.Read<Product>(); // deferred
     int total = multi.Read<int>().Single();
     string top = multi.ReadFirst<string>();
-
-    return (products, total, top); // caller enumerates products after method returns
+    return (products, total, top);
 }
 ```
 
----
+**Concepts**
+- GridReader forward-only deferred sequence
+- connection and GridReader undisposed
+- deferred IEnumerable outliving reader
+- materialization inside using scope
+- IReadOnlyList as safe return type
 
-### 04. Mapping, Multi-Mapping & Advanced Patterns
+**Answer**
 
-# Karat — Interview Questions
+The method returns a deferred `IEnumerable<Product>` from `multi.Read<Product>()`. When the caller enumerates `products`, the underlying `GridReader` and connection may already be in use by other concurrent calls or may have been released — causing "invalid operation" errors. The connection is also never disposed, leaking a pool slot on every invocation.
 
-> **Folder:** `04. .NET Data Access/02. Dapper/04. Mapping, Multi-Mapping & Advanced Patterns`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** The method returns a **deferred** `IEnumerable<Product>` from `multi.Read<Product>()` while the `GridReader`, connection, and reader are disposed when the method exits. When the caller enumerates `products`, the underlying reader is closed — classic "reader is closed" / invalid operation intermittently depending on timing.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | No `using` on connection / `GridReader` | Connection leak under load; pool starvation |
-| Reader lifetime | Deferred `IEnumerable` outlives `multi` | `InvalidOperationException` on enumeration |
-| QueryMultiple rules | Must finish all `Read` calls and materialize before dispose | Partial reads leave reader in bad state |
-
-**Fix (priority order):**
-
-1. Wrap connection and grid reader in `using` — pattern from `QueryMultipleRepository.GetDashboardFromInlineBatch`.
-2. Materialize before return: `var products = multi.Read<Product>().AsList();` (or `.ToList()`).
-3. Complete all `Read` calls in order before leaving the `using` block.
-4. Return `IReadOnlyList<Product>` (or DTO) — not live `IEnumerable` tied to SQL reader.
+The three-part fix is to wrap both the connection and GridReader in `using` blocks, materialize every `Read` call before leaving the `using` scope, and return materialized collections:
 
 ```csharp
-using var connection = new SqlConnection(_connectionString);
-using var multi = connection.QueryMultiple(sql);
-var products = multi.Read<Product>().AsList();
-int total = multi.Read<int>().Single();
-string top = multi.ReadFirst<string>();
-return (products, total, top);
+public (IReadOnlyList<Product> Products, int Total, string TopName) GetDashboardMaterialized()
+{
+    using var connection = new SqlConnection(_connectionString);
+    using var multi = connection.QueryMultiple(sql);
+    var products = multi.Read<Product>().AsList();
+    int total = multi.Read<int>().Single();
+    string top = multi.ReadFirst<string>();
+    return (products, total, top);
+}
 ```
 
-**Production takeaway:** Dapper's default `Query` buffering does not apply the same way if you return unmaterialized sequences from `QueryMultiple`. Forward-only `GridReader` semantics match ADO.NET `NextResult` — consume and buffer inside the `using` scope.
+Complete all `Read` calls in order before the `using` block exits — the forward-only `GridReader` mirrors `SqlDataReader.NextResult` semantics, and leaving it mid-way puts the reader in an undefined state.
 
 ---
 
-### 04. Mapping, Multi-Mapping & Advanced Patterns
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `04. .NET Data Access/02. Dapper/04. Mapping, Multi-Mapping & Advanced Patterns`
+## Chapter 04 Karat Scenarios
 
 ---
 
----
-
-#### Q1. (R) A teammate ships a "fix" to `GetOrdersWithCustomers` that removes the explicit `splitOn` because both sides have an `Id`-like key. Review the change:
+## Q1. (R) A teammate removes the explicit `splitOn` from `GetOrdersWithCustomers` because "both sides have an Id-like key." Orders load in QA but `Customer.Name` is null and `Customer.CustomerId` equals `Order.OrderId`. What is wrong and how do you fix it?
 
 ```csharp
-public IReadOnlyList<Order> GetOrdersWithCustomers()
-{
-    const string sql = """
-        SELECT
-            o.OrderId,
-            o.OrderDate,
-            o.TotalAmount,
-            o.CustomerId,
-            c.CustomerId,
-            c.Name,
-            c.Email
-        FROM dbo.Orders o
-        INNER JOIN dbo.Customers c ON o.CustomerId = c.CustomerId
-        ORDER BY o.OrderId;
-        """;
-
-    using SqlConnection connection = new SqlConnection(_connectionString);
-
-    return connection.Query<Order, Customer, Order>(
-        sql,
-        (order, customer) =>
-        {
-            order.Customer = customer;
-            return order;
-        }).ToList(); // splitOn removed — Dapper defaults to "Id"
-}
+return connection.Query<Order, Customer, Order>(
+    sql,
+    (order, customer) => { order.Customer = customer; return order; }
+).ToList(); // splitOn removed — defaults to "Id"
 ```
 
-Orders load in QA, but `Customer.Name` is null and `Customer.CustomerId` equals `Order.OrderId` on several rows. What is wrong, and how do you fix it with minimal SQL change?
+**Concepts**
+- splitOn default "Id" column matching
+- duplicate CustomerId boundary ambiguity
+- wrong split silently mismapping columns
+- explicit splitOn on unique second-type column
+- SQL alias as alternative disambiguation
+
+**Answer**
+
+Dapper's default `splitOn` is `"Id"` — it splits at the first column matching that name. In the JOIN query, `CustomerId` appears twice: once as `o.CustomerId` (a foreign key on Order) and once as `c.CustomerId` (the primary key on Customer). Without an explicit `splitOn`, Dapper finds the first `CustomerId` column — which belongs to Order — and starts mapping Customer from there. Everything after Order's `CustomerId` maps into the Customer type, but the Customer primary key never appears at the correct boundary, so `Customer.Name` and `Customer.Email` never bind.
+
+The fix is an explicit `splitOn` pointing to a column unique to the Customer portion of the row — for example, `splitOn: "Name"` if Orders have no `Name` column, or a SQL alias like `c.CustomerId AS CustCustomerId` with `splitOn: "CustCustomerId"`. Column order must be maintained: all Order columns first, then all Customer columns. Never rely on default `splitOn` for real JOIN queries with shared column name patterns.
 
 ---
 
-**Answer:**
+## Q2. (R) Another developer models order lines without the dictionary lookup. The API returns three lines for order 1 but `TotalAmount` and `Lines.Count` disagree depending on which element the caller uses. Diagnose and describe the production-safe aggregation pattern.
 
 ```csharp
-public IReadOnlyList<Order> GetOrdersWithCustomers()
-{
-    const string sql = """
-        SELECT
-            o.OrderId,
-            o.OrderDate,
-            o.TotalAmount,
-            o.CustomerId,
-            c.CustomerId,
-            c.Name,
-            c.Email
-        FROM dbo.Orders o
-        INNER JOIN dbo.Customers c ON o.CustomerId = c.CustomerId
-        ORDER BY o.OrderId;
-        """;
-
-    using SqlConnection connection = new SqlConnection(_connectionString);
-
-    return connection.Query<Order, Customer, Order>(
-        sql,
-        (order, customer) =>
-        {
-            order.Customer = customer;
-            return order;
-        }).ToList(); // splitOn removed — Dapper defaults to "Id"
-}
+List<Order> orders = connection.Query<Order, OrderLine, Order>(
+    sql,
+    (order, line) => { order.Lines.Add(line); return order; },
+    new { orderId }, splitOn: "OrderLineId").ToList();
+return orders.FirstOrDefault();
 ```
 
-Orders load in QA, but `Customer.Name` is null and `Customer.CustomerId` equals `Order.OrderId` on several rows. What is wrong, and how do you fix it with minimal SQL change?
+**Concepts**
+- delegate called once per JOIN row
+- new Order instance per row in map delegate
+- dictionary deduplication for parent aggregation
+- one-to-many multi-map pattern
+- FirstOrDefault hiding fragmentation
 
-**Answer:** Dapper splits at the **first column whose name matches `splitOn`** — default `"Id"` is not present, so the next ambiguous match is the **first `CustomerId`**, which belongs to `Order`, not `Customer`. Everything after that column is mapped into `Customer`, so `Name`/`Email` never bind and `Customer.CustomerId` receives the wrong slice of the row.
+**Answer**
 
-**Issues:**
+Dapper's map delegate runs once per row returned by the JOIN. Each invocation receives a freshly materialized `Order` and `OrderLine` — they are not the same `Order` instance across rows. Calling `order.Lines.Add(line)` modifies a brand-new `Order` object each time, so the list ultimately contains one partial `Order` per line rather than one aggregated Order with all lines. `FirstOrDefault()` returns the first of these partial objects, which has exactly one line regardless of how many lines the order has.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime / mapping | Omitted `splitOn` with duplicate `CustomerId` columns | Split point lands on Order's FK, not Customer's columns |
-| Correctness | `Customer` object partially or wrongly populated | Silent data corruption in API responses |
-| Maintainability | Implicit default `"Id"` on JOIN queries | Breaks when schema adds/removes `Id`-named columns |
-
-**Fix (priority order):**
-
-1. Restore an explicit `splitOn` on a **Customer-only** column — as in **MultiMapRepository.cs**: `splitOn: "Name"` (Orders have no `Name` column).
-2. Alternatively, alias the second key: `c.CustomerId AS CustCustomerId` and use `splitOn: "CustCustomerId"`.
-3. Keep column order: all `Order` columns first, then all `Customer` columns — never rely on default `splitOn` for JOINs.
-
-**Production takeaway:** `splitOn` is not optional on real JOINs; duplicate column names are the most common multi-map production bug. Prefer a unique TSecond column or SQL alias over guessing defaults.
-
----
-
----
-
-#### Q2. (R) Another developer models order lines without the dictionary lookup from this chapter:
+The production-safe pattern is a dictionary that tracks `Order` instances by primary key:
 
 ```csharp
-public Order? GetOrderWithLines(int orderId)
-{
-    const string sql = """
-        SELECT o.OrderId, o.CustomerId, o.OrderDate, o.TotalAmount,
-               ol.OrderLineId, ol.OrderId, ol.ProductId, ol.Quantity, ol.LineTotal
-        FROM dbo.Orders o
-        INNER JOIN dbo.OrderLines ol ON o.OrderId = ol.OrderId
-        WHERE o.OrderId = @orderId
-        ORDER BY ol.OrderLineId;
-        """;
-
-    using SqlConnection connection = new SqlConnection(_connectionString);
-
-    List<Order> orders = connection.Query<Order, OrderLine, Order>(
-        sql,
-        (order, line) =>
-        {
-            order.Lines.Add(line);
-            return order;
-        },
-        new { orderId },
-        splitOn: "OrderLineId").ToList();
-
-    return orders.FirstOrDefault();
-}
+var lookup = new Dictionary<int, Order>();
+connection.Query<Order, OrderLine, Order>(
+    sql,
+    (order, line) =>
+    {
+        if (!lookup.TryGetValue(order.OrderId, out var existing))
+            lookup[order.OrderId] = existing = order;
+        existing.Lines.Add(line);
+        return existing;
+    },
+    new { orderId }, splitOn: "OrderLineId");
+return lookup.TryGetValue(orderId, out var result) ? result : null;
 ```
 
-The API returns three lines for order 1, but `TotalAmount` and `Lines.Count` disagree depending on which list element the caller uses. Diagnose the bug and describe the production-safe aggregation pattern.
+Multi-mapping handles column splitting, not aggregation — one-to-many relationships always need explicit parent deduplication.
 
 ---
 
-**Answer:**
+## Q3. (R) A new microservice copies `ColumnMappedProduct` and `DateOnlyTypeHandler` but omits the `RegisterDapperExtensions` call. `Price` is always `0` in some test runs; `QuerySingleAsync<DateOnly>` throws `DataException` in others. What is missing and why does test order matter?
+
+**Concepts**
+- Dapper global static type registration
+- SqlMapper.AddTypeHandler startup requirement
+- SqlMapper.SetTypeMap column attribute mapping
+- test fixture one-time registration
+- test-order-dependent flakiness from shared static state
+
+**Answer**
+
+`SqlMapper.AddTypeHandler` and `SqlMapper.SetTypeMap` modify global static dictionaries in Dapper. They must be called once before any query that uses those types. Without the registration call in `Program.cs`, the `[Column("UnitPrice")]` attribute is never applied so `Price` stays at its default zero, and `DateTime` from a `DATE` column cannot convert to `DateOnly` without the type handler — causing `DataException` at read time.
+
+Test order matters because Dapper's static state persists across tests in the same process. If a test that indirectly triggers registration runs first — perhaps through a `WebApplicationFactory` — the handler is already registered and the test passes. Run the tests in a different order and registration never happens, so the test fails. This is the classic shared-static-state flakiness pattern.
+
+The fix is to call the registration in a single guaranteed-to-run location: `Program.cs` for production, and a shared `IClassFixture` or `[ModuleInitializer]` for tests. Where SQL aliases can cover the rename (`UnitPrice AS Price`), prefer them over global type maps to keep configuration local and explicit.
+
+---
+
+## Q4. (P) Production needs `DiscontinuedDate` mapped to `DateOnly?`. A junior registers a type handler, but under load some NULL rows throw and parameterized inserts sometimes fail. What should `Parse` and `SetValue` handle?
 
 ```csharp
-public Order? GetOrderWithLines(int orderId)
-{
-    const string sql = """
-        SELECT o.OrderId, o.CustomerId, o.OrderDate, o.TotalAmount,
-               ol.OrderLineId, ol.OrderId, ol.ProductId, ol.Quantity, ol.LineTotal
-        FROM dbo.Orders o
-        INNER JOIN dbo.OrderLines ol ON o.OrderId = ol.OrderId
-        WHERE o.OrderId = @orderId
-        ORDER BY ol.OrderLineId;
-        """;
+public override DateOnly? Parse(object value) =>
+    value is DateTime dt ? DateOnly.FromDateTime(dt) : null;
 
-    using SqlConnection connection = new SqlConnection(_connectionString);
-
-    List<Order> orders = connection.Query<Order, OrderLine, Order>(
-        sql,
-        (order, line) =>
-        {
-            order.Lines.Add(line);
-            return order;
-        },
-        new { orderId },
-        splitOn: "OrderLineId").ToList();
-
-    return orders.FirstOrDefault();
-}
+public override void SetValue(IDbDataParameter parameter, DateOnly? value) =>
+    parameter.Value = value?.ToDateTime(TimeOnly.MinValue);
 ```
 
-The API returns three lines for order 1, but `TotalAmount` and `Lines.Count` disagree depending on which list element the caller uses. Diagnose the bug and describe the production-safe aggregation pattern.
+**Concepts**
+- DBNull.Value distinct from C# null in ADO.NET
+- Parse DBNull explicit handling
+- SetValue DBNull.Value for SQL NULL
+- IDbDataParameter.Value null vs DBNull
+- TypeHandler vs SQL CAST/CONVERT trade-off
 
-**Answer:** Dapper's map delegate runs **once per JOIN row**. Each row materializes a **new** `Order` instance; mutating `order.Lines` on one row does not merge siblings. `.ToList()` therefore returns **one partial `Order` per line** — `FirstOrDefault()` keeps only the first line's parent shell.
+**Answer**
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime / correctness | No `Dictionary<int, Order>` collapse | Duplicate parent objects; fragmented `Lines` collections |
-| API contract | `FirstOrDefault()` hides duplicates | Callers see 1 line while DB has N |
-| Design | Treating multi-map like single `Query<Order>` | One-to-many JOIN semantics misunderstood |
-
-**Fix (priority order):**
-
-1. Use the **lookup dictionary idiom** from **MultiMapRepository.GetOrderWithLines** — `TryGetValue(order.OrderId, …)`, initialize `Lines` once, `Add(line)` on the tracked instance.
-2. Return `lookup.TryGetValue(orderId, out var result) ? result : null` — not the raw `IEnumerable` from `Query`.
-3. Keep `splitOn: "OrderLineId"` — first column that starts `OrderLine`.
-
-**Production takeaway:** Multi-map solves column splitting, not aggregation; one-to-many always needs explicit parent deduplication (dictionary, `Lookup`, or `GroupBy` after materialization).
-
----
-
----
-
-#### Q3. (R) A new microservice copies `ColumnMappedProduct` and `DateOnlyTypeHandler` into a Web API project. Integration tests fail intermittently:
+ADO.NET surfaces database NULL values as `DBNull.Value`, not as C# `null`. The `Parse` method's `value is DateTime dt` pattern never matches `DBNull.Value`, so NULL database columns can fall through and throw `InvalidCastException` in some provider implementations. The explicit safe guard is:
 
 ```csharp
-// Program.cs — no RegisterDapperExtensions call
-var app = builder.Build();
-app.MapGet("/products/{id}", async (int id, IProductRepo repo) =>
-    await repo.GetByIdAsync(id));
-
-// ProductRepository.cs
-public async Task<ColumnMappedProduct?> GetByIdAsync(int id)
+public override DateOnly? Parse(object value)
 {
-    const string sql = "SELECT ProductId, ProductName, UnitPrice FROM dbo.Products WHERE ProductId = @id;";
-    await using var conn = new SqlConnection(_cs);
-    return await conn.QuerySingleOrDefaultAsync<ColumnMappedProduct>(sql, new { id });
-}
-
-// OrderSummaryRepository.cs — added for a new endpoint
-public async Task<OrderSummaryDto> GetSummaryAsync(int orderId)
-{
-    const string sql = "SELECT OrderDate FROM dbo.Orders WHERE OrderId = @orderId;";
-    await using var conn = new SqlConnection(_cs);
-    var date = await conn.QuerySingleAsync<DateOnly>(sql, new { orderId });
-    return new OrderSummaryDto { OrderDate = date };
+    if (value is null or DBNull) return null;
+    return value is DateTime dt ? DateOnly.FromDateTime(dt) : DateOnly.Parse(value.ToString()!);
 }
 ```
 
-`Price` is always `0` in some test runs; `QuerySingleAsync<DateOnly>` throws `DataException` in others. What is missing, where should it live, and why does test order matter?
-
----
-
-**Answer:**
+For `SetValue`, assigning `parameter.Value = null` (from `value?.ToDateTime(...)` when `value` is null) may not properly signal SQL NULL to the provider — `IDbDataParameter.Value` must be set to `DBNull.Value` explicitly:
 
 ```csharp
-// Program.cs — no RegisterDapperExtensions call
-var app = builder.Build();
-app.MapGet("/products/{id}", async (int id, IProductRepo repo) =>
-    await repo.GetByIdAsync(id));
-
-// ProductRepository.cs
-public async Task<ColumnMappedProduct?> GetByIdAsync(int id)
-{
-    const string sql = "SELECT ProductId, ProductName, UnitPrice FROM dbo.Products WHERE ProductId = @id;";
-    await using var conn = new SqlConnection(_cs);
-    return await conn.QuerySingleOrDefaultAsync<ColumnMappedProduct>(sql, new { id });
-}
-
-// OrderSummaryRepository.cs — added for a new endpoint
-public async Task<OrderSummaryDto> GetSummaryAsync(int orderId)
-{
-    const string sql = "SELECT OrderDate FROM dbo.Orders WHERE OrderId = @orderId;";
-    await using var conn = new SqlConnection(_cs);
-    var date = await conn.QuerySingleAsync<DateOnly>(sql, new { orderId });
-    return new OrderSummaryDto { OrderDate = date };
-}
+public override void SetValue(IDbDataParameter parameter, DateOnly? value) =>
+    parameter.Value = value.HasValue ? (object)value.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value;
 ```
 
-`Price` is always `0` in some test runs; `QuerySingleAsync<DateOnly>` throws `DataException` in others. What is missing, where should it live, and why does test order matter?
-
-**Answer:** Dapper extension registration (`SqlMapper.AddTypeHandler`, `SqlMapper.SetTypeMap`) is **global static state** and must run **once before any query** using those types. Without **RegisterDapperExtensions** from **Program.cs**, `UnitPrice` never maps to `Price` (stays default `0`), and `DateTime` from SQL cannot convert to `DateOnly` without **DateOnlyTypeHandler**.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | Missing `ColumnAttributeTypeMap.RegisterOnce()` | `[Column("UnitPrice")]` ignored — silent zero prices |
-| Runtime | Missing `SqlMapper.AddTypeHandler(new DateOnlyTypeHandler())` | `Parse` fails on `DateTime` from `DATE` columns |
-| Startup / tests | Registration not in host startup | Tests pass only if another test registered handlers first — order-dependent flakiness |
-| Design | Per-request registration absent but also not centralized | Easy to forget when copying repository code |
-
-**Fix (priority order):**
-
-1. Call a single `RegisterDapperExtensions()` at application startup — mirror **Program.cs** lines 67 and 93–97: TypeHandler first, then TypeMap.
-2. In tests, invoke the same registration in a **one-time fixture** (`IClassFixture`, `[ModuleInitializer]`, or `WebApplicationFactory` host build) — not per test method.
-3. Prefer **SQL aliases** (`UnitPrice AS Price`) for simple renames when you want zero global config; keep TypeHandlers for true type mismatches (`DateOnly`, enums, JSON).
-
-**Production takeaway:** Global Dapper configuration belongs next to composition root setup (`Program.cs` / host builder), shared by production and tests — never assume a tutorial's `Main` ran.
+Use a TypeHandler when the conversion recurs across many queries or has both read and write directions. For a one-off read-only DTO against a single query, a SQL `CAST(DiscontinuedDate AS date)` alias with a `DateTime?` property avoids the registration overhead entirely.
 
 ---
 
----
+## Q5. (D) An order-details endpoint loops over 200 orders fetching customer and lines per order. A proposal replaces the loop with JOIN queries using multi-mapping. Compare N+1 queries, two JOIN queries, and one wide JOIN with dictionary aggregation. What would you ship for a paginated admin grid vs a single-order detail page?
 
-#### Q4. (P) Production needs `DiscontinuedDate` mapped to `DateOnly?` on `ProductRow` — the column is often `NULL`. A junior registers this handler:
+**Concepts**
+- N+1 latency and connection scaling
+- JOIN multi-map eliminating round-trips
+- cartesian row duplication in wide JOINs
+- paginated grid shallow hydration pattern
+- single-detail deep hydration pattern
 
-```csharp
-public sealed class NullableDateOnlyHandler : SqlMapper.TypeHandler<DateOnly?>
-{
-    public override DateOnly? Parse(object value) =>
-        value is DateTime dt ? DateOnly.FromDateTime(dt) : null;
+**Answer**
 
-    public override void SetValue(IDbDataParameter parameter, DateOnly? value) =>
-        parameter.Value = value?.ToDateTime(TimeOnly.MinValue);
-}
-```
+N+1 is wrong for any hot endpoint: 200 orders triggering 400 additional queries produces 401 round-trips per request and collapses under concurrent load. The question is which JOIN strategy fits which page.
 
-Under load, some rows with `DiscontinuedDate = NULL` still throw; parameterized inserts sometimes send `DBNull` incorrectly. What should `Parse` and `SetValue` handle, and when do you prefer a TypeHandler over a SQL `CAST`/`CONVERT` alias in the SELECT?
+For a paginated admin grid showing 200 orders with customer name only, I ship one JOIN — `Query<Order, Customer, Order>` with explicit `splitOn` — and skip loading lines entirely. The grid never displays lines, so loading them wastes memory and widens rows unnecessarily.
 
----
+For a single-order detail page, I ship two queries: one JOIN for order plus customer, and one multi-map with dictionary aggregation for that order's lines. Two queries keeps mapping simple, avoids duplicating order and customer columns per line row, and remains fast because the dataset is narrow. A single wide JOIN of order plus customer plus lines also works when line count is bounded — use the dictionary aggregation pattern and never return the duplicated flat rows directly to the client.
 
-**Answer:**
-
-```csharp
-public sealed class NullableDateOnlyHandler : SqlMapper.TypeHandler<DateOnly?>
-{
-    public override DateOnly? Parse(object value) =>
-        value is DateTime dt ? DateOnly.FromDateTime(dt) : null;
-
-    public override void SetValue(IDbDataParameter parameter, DateOnly? value) =>
-        parameter.Value = value?.ToDateTime(TimeOnly.MinValue);
-}
-```
-
-Under load, some rows with `DiscontinuedDate = NULL` still throw; parameterized inserts sometimes send `DBNull` incorrectly. What should `Parse` and `SetValue` handle, and when do you prefer a TypeHandler over a SQL `CAST`/`CONVERT` alias in the SELECT?
-
-**Answer:** The handler must treat **`DBNull.Value` and `null` explicitly** on read, and assign **`DBNull.Value`** (not C# `null`) to `IDbDataParameter.Value` when writing SQL NULLs. The ternary `value is DateTime` branch never runs for NULL database values if ADO.NET surfaces them as `DBNull`, and `parameter.Value = value?.…` leaves the parameter unset when `value` is null.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Parse` ignores `DBNull` | InvalidCastException or DataException on nullable columns |
-| Runtime | `SetValue` uses C# null for parameter | SQL INSERT/UPDATE may omit NULL binding correctly only with `DBNull.Value` |
-| Design | Handler registered for `DateOnly?` but entity uses non-nullable `DateOnly` elsewhere | Wrong handler generic — register matching open/nullable type |
-
-**Fix (priority order):**
-
-1. **Parse:** `if (value is null or DBNull) return null;` then handle `DateTime` / `DateOnly` like **DateOnlyTypeHandler.cs**.
-2. **SetValue:** `parameter.Value = value.HasValue ? value.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value;`
-3. Register with `SqlMapper.AddTypeHandler(new NullableDateOnlyHandler())` before queries — same startup rule as Section 6.
-
-**When to use TypeHandler vs SQL alias:**
-
-- **TypeHandler:** reuse across many queries, both directions (read/write), domain types (`DateOnly`, value objects, bool as char).
-- **SQL alias/CAST:** one-off reporting query, read-only DTO, no insert path — e.g. `SELECT CAST(DiscontinuedDate AS date) AS DiscontinuedDate` into a `DateTime?` property without custom handler.
-
-**Production takeaway:** Nullable value-type mapping fails on `DBNull` edge cases more often than on happy-path dates — mirror ADO.NET null semantics explicitly.
+One wide JOIN for a list of 200 orders with lines is inappropriate: it duplicates order and customer columns once per line, multiplying data transfer and memory. Multi-mapping eliminates N+1 round-trips but does not replace pagination discipline — always constrain how deep each endpoint hydrates.
 
 ---
 
----
-
-#### Q5. (D) An order-details endpoint currently loads 200 orders, then loops:
-
-```csharp
-foreach (var order in orders)
-{
-    order.Customer = await _repo.GetCustomerAsync(order.CustomerId); // N round-trips
-    order.Lines = (await _repo.GetLinesAsync(order.OrderId)).ToList();
-}
-```
-
-A proposal replaces the loop with one JOIN query using the chapter's `Query<Order, Customer, Order>` plus a second `GetOrderWithLines`-style multi-map. Compare **N+1 queries**, **two JOIN queries** (header + lines), and **one wide JOIN** with dictionary aggregation. What would you ship for a paginated admin grid vs a single-order detail page?
-
----
-
-**Answer:**
-
-```csharp
-foreach (var order in orders)
-{
-    order.Customer = await _repo.GetCustomerAsync(order.CustomerId); // N round-trips
-    order.Lines = (await _repo.GetLinesAsync(order.OrderId)).ToList();
-}
-```
-
-A proposal replaces the loop with one JOIN query using the chapter's `Query<Order, Customer, Order>` plus a second `GetOrderWithLines`-style multi-map. Compare **N+1 queries**, **two JOIN queries** (header + lines), and **one wide JOIN** with dictionary aggregation. What would you ship for a paginated admin grid vs a single-order detail page?
-
-**Answer:** N+1 explodes latency and connection use under load; JOIN + multi-map collapses round-trips but trades **wider rows and mapping complexity**. The right shape depends on **payload depth** and **pagination**, not a universal rule.
-
-- **Paginated admin grid (200 orders, customer name only):** Ship **one JOIN** — `Query<Order, Customer, Order>` with explicit `splitOn` (see **GetOrdersWithCustomers**). Skip lines entirely; do not multi-map children you will not display. Avoid N+1; also avoid loading all lines for every row.
-- **Single-order detail page:** Ship **two queries** — (1) order + customer JOIN, (2) lines multi-map with dictionary for that `orderId` — or **one** order+lines JOIN if line count is bounded (tens, not thousands). Two queries keeps mapping simpler and avoids a cartesian explosion when lines grow.
-- **One wide JOIN (order + customer + lines):** Acceptable for **one order id**; for lists it duplicates order/customer columns per line and increases memory — use dictionary aggregation and never return raw duplicated rows to the client.
-- **N+1:** Reserve for small graphs, background jobs, or when cache hits dominate — not for hot list endpoints.
-
-**Production takeaway:** Multi-map eliminates N+1 **when you fetch the graph in one SQL round-trip**; it does not replace pagination discipline or choosing how deep each endpoint hydrates.
-
----
-
----
-
-#### Q6. (R) A developer migrates manual INSERT SQL to Dapper.Contrib on the same `Products` table (`ProductId` is **not** IDENTITY — keys are assigned manually):
+## Q6. (R) A developer migrates INSERT logic to Dapper.Contrib. `ProductId` is not IDENTITY — keys are assigned manually. Insert appears to succeed but `Get` returns null. SQL Profiler shows an INSERT without `ProductId`. What went wrong with Contrib attributes?
 
 ```csharp
 [Table("Products")]
 public sealed class ProductEntity
 {
-    [Key] // was [ExplicitKey] in the tutorial sample
+    [Key] // should be [ExplicitKey]
     public int ProductId { get; set; }
     public string ProductName { get; set; } = "";
     public decimal UnitPrice { get; set; }
     public int StockQuantity { get; set; }
 }
-
-// Insert path
-entity.ProductId = await conn.ExecuteScalarAsync<int>(
-    "SELECT ISNULL(MAX(ProductId), 0) + 1 FROM dbo.Products;");
-await conn.InsertAsync(entity);
-var loaded = await conn.GetAsync<ProductEntity>(entity.ProductId); // null
 ```
 
-Insert appears to succeed but `Get` returns null; SQL Profiler shows an INSERT without `ProductId`. What went wrong with Contrib attributes, and what concurrency risk remains even after fixing the attribute?
+**Concepts**
+- Contrib [Key] vs [ExplicitKey] distinction
+- IDENTITY column assumption in [Key]
+- INSERT column exclusion for auto-generated keys
+- [ExplicitKey] for manually assigned keys
+- MAX+1 concurrency risk regardless of attribute
+
+**Answer**
+
+`[Key]` tells Dapper.Contrib that `ProductId` is an identity column — the database generates its value, so Contrib excludes it from the INSERT statement. When the application assigns the ID manually and marks it `[Key]`, Contrib emits an INSERT with no `ProductId` column. The insert either fails on a NOT NULL constraint, inserts a zero or default value, or inserts with the wrong key — hence `GetAsync` returning null because the row is not findable by the expected ID.
+
+The fix is to change `[Key]` to `[ExplicitKey]`, which tells Contrib that the application supplies the key value and it must be included in the INSERT. Verify the generated SQL in SQL Profiler after the change to confirm `ProductId` appears in the INSERT.
+
+The `MAX(ProductId) + 1` approach for ID generation remains a concurrency risk even after fixing the attribute: two concurrent transactions can compute the same next ID and race to insert, producing a primary key violation. For production, delegate ID generation to a database `SEQUENCE` or `IDENTITY` column, or wrap the max-computation and insert in a serialized transaction with appropriate locking.
 
 ---
 
-**Answer:**
+## Q7. (R) A search API builds product filters with string concatenation. Security review flags SQL injection on `category` and `sortColumn`. Refactor toward Dapper.SqlBuilder with parameterized fragments.
 
 ```csharp
-[Table("Products")]
-public sealed class ProductEntity
-{
-    [Key] // was [ExplicitKey] in the tutorial sample
-    public int ProductId { get; set; }
-    public string ProductName { get; set; } = "";
-    public decimal UnitPrice { get; set; }
-    public int StockQuantity { get; set; }
-}
-
-// Insert path
-entity.ProductId = await conn.ExecuteScalarAsync<int>(
-    "SELECT ISNULL(MAX(ProductId), 0) + 1 FROM dbo.Products;");
-await conn.InsertAsync(entity);
-var loaded = await conn.GetAsync<ProductEntity>(entity.ProductId); // null
+var sql = "SELECT ... WHERE 1=1";
+if (!string.IsNullOrEmpty(category))
+    sql += $" AND Category = '{category}'";
+if (minPrice.HasValue)
+    sql += $" AND UnitPrice >= {minPrice.Value}";
+sql += $" ORDER BY {sortColumn}";
 ```
 
-Insert appears to succeed but `Get` returns null; SQL Profiler shows an INSERT without `ProductId`. What went wrong with Contrib attributes, and what concurrency risk remains even after fixing the attribute?
+**Concepts**
+- user value injection via filter concatenation
+- sort column identifier injection
+- SqlBuilder parameterized WHERE fragments
+- column name whitelist for ORDER BY
+- values vs identifiers in SQL injection model
 
-**Answer:** `[Key]` tells Contrib the column is an **identity** key — Contrib **excludes it from INSERT** and expects the database to generate it. Manual keys require **`[ExplicitKey]`** as in **ContribProduct.cs** so assigned `ProductId` is included in the INSERT statement.
+**Answer**
 
-**Issues:**
+Both `category` and `sortColumn` are injected directly into SQL as string literals. For `category`, an attacker can close the string with a quote and append arbitrary SQL. For `sortColumn`, identifier injection is equally dangerous — `'; DROP TABLE dbo.Products; --` appended to `ORDER BY` can execute arbitrary statements.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `[Key]` on non-identity column | INSERT omits `ProductId`; row may fail constraints or get wrong key |
-| Runtime | `Get<T>(id)` after bad insert | Returns null — key mismatch or no row |
-| Concurrency | `MAX(ProductId) + 1` without transaction/sequence | Duplicate keys under concurrent inserts — race even with correct attribute |
-
-**Fix (priority order):**
-
-1. Change to `[ExplicitKey]` on `ProductId` — matches **ContribPreviewRepository** pattern.
-2. Replace `MAX+1` with **`SEQUENCE`**, **`IDENTITY`**, or insert inside a **transaction** with **`UPDLOCK, HOLDLOCK`** on the key range — or use a dedicated key table.
-3. Verify generated SQL in Profiler: INSERT must list `ProductId` when manually assigned.
-
-**Production takeaway:** Contrib's `[Key]` vs `[ExplicitKey]` distinction is not cosmetic — it controls INSERT shape. Manual key generation still needs database-level uniqueness strategy.
-
----
-
----
-
-#### Q7. (R) A search API builds product filters with string concatenation instead of the chapter's SqlBuilder preview pattern:
-
-```csharp
-public IReadOnlyList<ProductRow> SearchProducts(string? category, decimal? minPrice, string sortColumn)
-{
-    var sql = "SELECT ProductId, ProductName, UnitPrice, StockQuantity FROM dbo.Products WHERE 1=1";
-    if (!string.IsNullOrEmpty(category))
-        sql += $" AND Category = '{category}'";
-    if (minPrice.HasValue)
-        sql += $" AND UnitPrice >= {minPrice.Value}";
-    sql += $" ORDER BY {sortColumn}";
-
-    using var conn = new SqlConnection(_connectionString);
-    return conn.Query<ProductRow>(sql).ToList();
-}
-```
-
-Security review flags SQL injection on `category` and `sortColumn`. Refactor toward **Dapper.SqlBuilder** (or equivalent) with parameterized fragments. What must never be passed as a raw interpolated string, and how do whitelist + parameters split responsibility?
-
-**Answer:**
-
-```csharp
-public IReadOnlyList<ProductRow> SearchProducts(string? category, decimal? minPrice, string sortColumn)
-{
-    var sql = "SELECT ProductId, ProductName, UnitPrice, StockQuantity FROM dbo.Products WHERE 1=1";
-    if (!string.IsNullOrEmpty(category))
-        sql += $" AND Category = '{category}'";
-    if (minPrice.HasValue)
-        sql += $" AND UnitPrice >= {minPrice.Value}";
-    sql += $" ORDER BY {sortColumn}";
-
-    using var conn = new SqlConnection(_connectionString);
-    return conn.Query<ProductRow>(sql).ToList();
-}
-```
-
-Security review flags SQL injection on `category` and `sortColumn`. Refactor toward **Dapper.SqlBuilder** (or equivalent) with parameterized fragments. What must never be passed as a raw interpolated string, and how do whitelist + parameters split responsibility?
-
-**Answer:** **User-supplied values** (`category`, prices, ids) must always flow through **Dapper parameters** (`@category`, `@minPrice`). **Identifiers** (column names, sort direction, table names) cannot be parameterized in T-SQL — `sortColumn` must be chosen from a **fixed whitelist**, not concatenated from the request string.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security | `$" AND Category = '{category}'"` | Classic SQL injection on filter values |
-| Security | `$" ORDER BY {sortColumn}"` | Injection via sort field — attacker can inject subqueries or stack statements |
-| Maintainability | Ad-hoc string building | Optional clauses error-prone; hard to audit |
-
-**Fix (priority order):**
-
-1. Replace value filters with parameterized fragments — pattern from **SqlBuilderPreview.cs**:
+The solution splits responsibility between parameters and whitelisting. User-supplied values like `category` and `minPrice` flow through Dapper parameters; column names cannot be parameterized in T-SQL and must come from a fixed whitelist:
 
 ```csharp
 var builder = new SqlBuilder();
 var template = builder.AddTemplate(
-    "SELECT /**select**/ FROM dbo.Products /**where**/ /**orderby**/",
-    new { Category = category, MinPrice = minPrice });
+    "SELECT ProductId, ProductName, UnitPrice FROM dbo.Products /**where**/ /**orderby**/");
 
-builder.Select("ProductId, ProductName, UnitPrice, StockQuantity");
 if (!string.IsNullOrEmpty(category))
     builder.Where("Category = @Category", new { Category = category });
 if (minPrice.HasValue)
     builder.Where("UnitPrice >= @MinPrice", new { MinPrice = minPrice });
 
-var sort = sortColumn switch
+var sortCol = sortColumn switch
 {
     "Name" => "ProductName",
     "Price" => "UnitPrice",
     _ => "ProductId"
 };
-builder.OrderBy(sort);
+builder.OrderBy(sortCol);
 
 return conn.Query<ProductRow>(template.RawSql, template.Parameters).ToList();
 ```
 
-2. Never whitelist-sort with user raw strings — map `"price"` → `"UnitPrice"` internally.
-3. Keep `minPrice` as a parameter even though decimal is less exploitable — plan cache and typing consistency.
-
-**Production takeaway:** Dapper parameters secure **values**; SqlBuilder (or manual fragment lists) secure **optional SQL structure**. Identifier injection is still injection — whitelist columns, parameterize everything else.
-
----
+The whitelist maps the user's sort request to a literal column name chosen by the application — an attacker who passes an unsupported sort key gets the default `ProductId` ordering, never their injected SQL. Parameters protect value predicates; the whitelist protects identifier-position values.

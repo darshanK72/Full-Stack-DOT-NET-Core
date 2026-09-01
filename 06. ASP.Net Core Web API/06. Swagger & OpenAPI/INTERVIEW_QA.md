@@ -26,409 +26,485 @@
 
 ## Q1. What is OpenAPI?
 
-What is OpenAPI?
+**Concepts**
+- OpenAPI specification — machine-readable REST API contract
+- OpenAPI 3.x — JSON or YAML document format
+- Paths, operations, components, schemas, security schemes
+- Code generation — TypeScript, C#, Java client SDKs from a single source
+- ASP.NET Core integration via Swashbuckle or `Microsoft.AspNetCore.OpenApi`
 
-**Answer:** OpenAPI (formerly Swagger Specification) is a machine-readable standard for describing REST HTTP APIs — endpoints, parameters, request bodies, response schemas, authentication, and metadata. OpenAPI 3.x documents are JSON or YAML files consumed by tools for documentation, client generation, and testing.
+**Answer**
 
-- Defines paths, operations, components (schemas), security schemes, and tags in a structured format.
-- Enables code generation of TypeScript, C#, Java, and other client SDKs from a single source of truth.
-- ASP.NET Core 8 can produce OpenAPI documents via Swashbuckle or the built-in `Microsoft.AspNetCore.OpenApi` package.
-- The spec describes the contract — it does not execute or validate requests at runtime.
+OpenAPI (formerly Swagger Specification) is a machine-readable standard for describing REST HTTP APIs — endpoints, parameters, request bodies, response schemas, authentication, and metadata — in a JSON or YAML document. The key value is that a single OpenAPI document drives documentation, TypeScript and C# client generation, API gateway configuration, and contract testing without duplication. ASP.NET Core 8 can produce OpenAPI documents via Swashbuckle or the built-in `Microsoft.AspNetCore.OpenApi` package, which reflects endpoint metadata at startup into the OpenAPI format. The spec describes the contract at a point in time — it does not execute or validate requests at runtime.
 
 ---
 
 ## Q2. What is Swagger in the context of ASP.NET Core?
 
-What is Swagger in the context of ASP.NET Core?
+**Concepts**
+- Swashbuckle — NuGet package bridging ApiExplorer to OpenAPI
+- `AddSwaggerGen()` — registers document generation services
+- `UseSwagger()` — serves the JSON document
+- `UseSwaggerUI()` — serves the interactive browser UI
+- Built-in `AddOpenApi()` / `MapOpenApi()` — .NET 8 lightweight alternative
 
-**Answer:** In ASP.NET Core, "Swagger" commonly refers to the OpenAPI document generation and Swagger UI tooling integrated via Swashbuckle.AspNetCore or the built-in OpenAPI support. It auto-discovers endpoints and produces interactive API documentation.
+**Answer**
 
-- `AddSwaggerGen()` configures Swashbuckle to generate an OpenAPI document from ApiExplorer metadata.
-- `UseSwagger()` serves the JSON document; `UseSwaggerUI()` serves the interactive browser UI.
-- .NET 8 also offers `AddOpenApi()` and `MapOpenApi()` as a lighter built-in alternative to Swashbuckle.
-- Swagger UI lets developers explore and test endpoints without writing separate documentation.
+In ASP.NET Core, "Swagger" refers to the combination of OpenAPI document generation and the Swagger UI browser interface, typically integrated via the Swashbuckle.AspNetCore NuGet package. `AddSwaggerGen()` registers Swashbuckle services that build an OpenAPI document from ApiExplorer metadata at startup, `UseSwagger()` serves the JSON document at `/swagger/v1/swagger.json`, and `UseSwaggerUI()` serves the interactive browser interface. .NET 8 also offers `AddOpenApi()` and `MapOpenApi()` as a lighter built-in alternative that generates the document without the full Swashbuckle UI stack — useful when only the JSON document is needed for CI tooling. The Swagger UI lets developers explore and test endpoints without writing separate documentation.
 
 ---
 
 ## Q3. What is the difference between OpenAPI and Swagger UI?
 
-What is the difference between OpenAPI and Swagger UI?
+**Concepts**
+- OpenAPI — machine-readable JSON/YAML contract document
+- Swagger UI — human-facing interactive browser renderer
+- Document generation vs document presentation
+- Serving JSON only — for CI and gateway tooling without UI
 
-**Answer:** OpenAPI is the specification format — the `swagger.json` or `openapi.yaml` document describing the API contract. Swagger UI is a browser-based interactive tool that renders that document for exploration and testing.
+**Answer**
 
-- The OpenAPI document is machine-readable — consumed by code generators, gateways, and API management platforms.
-- Swagger UI is human-facing — displays endpoints, schemas, and a "Try it out" feature for sending requests.
-- You can serve the OpenAPI JSON without Swagger UI — for example, only exposing the document to CI pipelines.
-- Swagger UI depends on a valid OpenAPI document — an empty or malformed document produces an empty UI.
+OpenAPI is the specification format — the `swagger.json` or `openapi.yaml` document that describes the API contract in a structured, machine-readable form. Swagger UI is a browser-based tool that renders that document for human exploration and testing, with a "Try it out" feature for sending real requests. The two are independent — I can serve the OpenAPI JSON document without exposing Swagger UI, which is the correct setup for production where CI pipelines and API management platforms consume the document but the interactive UI should not be publicly accessible. Swagger UI depends entirely on a valid OpenAPI document — an empty or malformed document produces an empty or broken interface.
 
 ---
 
 ## Q4. What does `AddEndpointsApiExplorer` do?
 
-What does `AddEndpointsApiExplorer` do?
+**Concepts**
+- `IApiDescriptionGroupCollectionProvider` — endpoint metadata discovery interface
+- Minimal API discovery — requires `AddEndpointsApiExplorer`
+- Controller ApiExplorer — complemented by `AddMvcCore().AddApiExplorer()`
+- Service registration order — must precede Swashbuckle registration
 
-**Answer:** `AddEndpointsApiExplorer` registers the endpoint metadata explorer service that discovers minimal API routes and controller actions for OpenAPI generation. It implements `IApiDescriptionGroupCollectionProvider` consumed by Swashbuckle and the built-in OpenAPI generator.
+**Answer**
 
-- Required alongside `AddSwaggerGen()` or `AddOpenApi()` for minimal API endpoint discovery.
-- Controller-based projects also benefit — it complements `AddMvcCore().AddApiExplorer()` for full ApiExplorer coverage.
-- Without it, minimal API endpoints may be absent from the generated OpenAPI document.
-- Call it during service registration: `builder.Services.AddEndpointsApiExplorer();`.
+`AddEndpointsApiExplorer` registers the endpoint metadata explorer service that discovers minimal API routes for OpenAPI generation. Without it, minimal API `MapGet`, `MapPost`, and similar endpoint registrations are invisible to Swashbuckle and the built-in OpenAPI generator. Controller-based projects benefit from it as well since it complements the `AddMvcCore().AddApiExplorer()` path for full endpoint coverage. I call it in service registration — `builder.Services.AddEndpointsApiExplorer()` — before `AddSwaggerGen()` since Swashbuckle depends on the `IApiDescriptionGroupCollectionProvider` it registers.
 
 ---
 
 ## Q5. What does `AddSwaggerGen` do?
 
-What does `AddSwaggerGen` do?
+**Concepts**
+- `ISwaggerProvider` — builds `OpenApiDocument` objects per document name
+- Schema generation from DTO types — properties, nullability, data annotations
+- Customization hooks — `CustomSchemaIds`, `IncludeXmlComments`, `DocInclusionPredicate`
+- Document caching — generated on first request, cached thereafter
+- `SwaggerDoc("v1", ...)` — names and metadata for each document
 
-**Answer:** `AddSwaggerGen` registers Swashbuckle services that build an OpenAPI document at runtime from ApiExplorer endpoint metadata, action parameters, return types, and serializer schema generators. Configuration callbacks customize documents, schemas, security, and XML comments.
+**Answer**
 
-- Registers `ISwaggerProvider` that produces `OpenApiDocument` objects per registered document name (e.g., `"v1"`).
-- Schema generation reflects DTO property types, nullability, and data annotation constraints.
-- Customization hooks include `CustomSchemaIds`, `IncludeXmlComments`, `DocInclusionPredicate`, and security definitions.
-- The document is generated on first request to `/swagger/{docName}/swagger.json` and cached thereafter.
+`AddSwaggerGen` registers Swashbuckle services that build an OpenAPI document at runtime by reflecting over ApiExplorer endpoint metadata, action parameters, return types, and schema generators for DTO types. The document is generated on the first request to `/swagger/v1/swagger.json` and cached for subsequent requests. The configuration callback on `AddSwaggerGen(options => ...)` is where I set document title and version, customize schema IDs to avoid collisions, include XML comments for property descriptions, register security definitions for Bearer JWT, and add `DocInclusionPredicate` for multi-version APIs. Schema generation reflects DTO property types, nullability annotations from nullable reference types, and DataAnnotations constraints like `[Range]` and `[StringLength]`.
 
 ---
 
 ## Q6. What is a Swagger document (`swagger.json`)?
 
-What is a Swagger document (`swagger.json`)?
+**Concepts**
+- `swagger.json` — serialized OpenAPI specification
+- Served at `/swagger/v1/swagger.json` by default
+- Multiple documents — separate JSON per API version
+- ApiExplorer discovery — undocumented endpoints produce incomplete schemas
+- Consumed by NSwag, OpenAPI Generator, API management platforms
 
-**Answer:** A Swagger document is the serialized OpenAPI specification — typically `swagger.json` — listing all API paths, HTTP methods, parameters, request/response schemas, and security requirements. It is the machine-readable contract exported by Swashbuckle or `MapOpenApi()`.
+**Answer**
 
-- Served at `/swagger/v1/swagger.json` by default when using Swashbuckle with document name `"v1"`.
-- Consumed by Swagger UI, NSwag, OpenAPI Generator, and API management platforms for SDK generation.
-- Multiple documents can coexist for API versioning — separate `v1` and `v2` JSON files.
-- The document reflects what ApiExplorer discovers — undocumented endpoints or missing attributes produce incomplete schemas.
+A Swagger document is the serialized OpenAPI specification — listing all API paths, HTTP methods, parameters, request and response schemas, and security requirements in JSON format. Swashbuckle serves it at `/swagger/{docName}/swagger.json`, typically `/swagger/v1/swagger.json` for a single-version API. The document is the machine-readable source of truth that drives SDK generation, Swagger UI rendering, and API gateway configuration, so its accuracy matters — endpoints missing `[HttpGet]` attributes, actions without `[ProducesResponseType]`, and types excluded from ApiExplorer produce incomplete or misleading schemas. Multiple documents can coexist for versioned APIs, each with its own JSON file reflecting a distinct set of operations.
 
 ---
 
 ## Q7. What is Swashbuckle?
 
-What is Swashbuckle?
+**Concepts**
+- Swashbuckle.AspNetCore — NuGet package for OpenAPI generation
+- Bridges ApiExplorer to OpenAPI 3.x documents
+- XML comment integration, custom schema filters, multi-document versioning
+- `Microsoft.AspNetCore.OpenApi` — built-in .NET 8 alternative without UI
 
-**Answer:** Swashbuckle.AspNetCore is the popular NuGet package that integrates Swagger/OpenAPI document generation and Swagger UI into ASP.NET Core applications. It bridges ApiExplorer metadata to OpenAPI 3.x documents with extensive customization options.
+**Answer**
 
-- Provides `AddSwaggerGen`, `UseSwagger`, and `UseSwaggerUI` extension methods.
-- Generates schemas from .NET types using System.Text.Json or Newtonsoft.Json schema generators.
-- Supports XML comment integration, custom schema filters, security definitions, and multi-document versioning.
-- Alternative: .NET 8's built-in `Microsoft.AspNetCore.OpenApi` for document generation without the full Swashbuckle UI stack.
+Swashbuckle.AspNetCore is the NuGet package that integrates OpenAPI document generation and Swagger UI into ASP.NET Core applications. It bridges ApiExplorer metadata — the same metadata used for routing and binding — to OpenAPI 3.x documents with support for XML comment enrichment, custom schema filters, security definitions, and multi-document versioning. The main alternative in .NET 8 is the built-in `Microsoft.AspNetCore.OpenApi` package, which generates OpenAPI documents without the full Swashbuckle UI stack — useful for projects that serve the JSON document to CI pipelines or API gateways but present documentation through a separate portal. I choose Swashbuckle when I need the interactive Swagger UI during development, and the built-in package when I only need the document artifact.
 
 ---
 
 ## Q8. How does Swagger discover API endpoints?
 
-How does Swagger discover API endpoints?
+**Concepts**
+- ApiExplorer infrastructure — `IApiDescriptionGroupCollectionProvider`
+- Controller discovery — `[Route]`, `[HttpGet]` attribute reflection
+- Minimal API discovery — requires `AddEndpointsApiExplorer()` and `.WithOpenApi()`
+- `[ApiExplorerSettings(IgnoreApi = true)]` — excludes endpoints
+- Startup reflection — no runtime execution of controllers
 
-**Answer:** Swagger discovers endpoints through the ASP.NET Core ApiExplorer infrastructure — `IApiDescriptionGroupCollectionProvider` collects metadata from controller actions and minimal API routes registered during application startup.
+**Answer**
 
-- Controller actions are discovered via `[Route]`, `[HttpGet]`, and related attributes plus parameter and return type metadata.
-- Minimal API routes require `AddEndpointsApiExplorer()` and benefit from `.WithOpenApi()` for rich metadata.
-- `[ApiExplorerSettings(IgnoreApi = true)]` excludes endpoints from the document.
-- Discovery is reflection-based at startup — it does not execute controllers or inspect runtime behavior.
+Swagger discovers endpoints through the ASP.NET Core ApiExplorer infrastructure — `IApiDescriptionGroupCollectionProvider` collects metadata from controller actions and minimal API routes registered during application startup. Controller actions are discovered via `[Route]`, `[HttpGet]`, and similar attributes combined with parameter types and return type metadata. Minimal API routes are invisible to ApiExplorer without `AddEndpointsApiExplorer()`, and benefit from `.WithOpenApi()` on the route registration for richer metadata like summaries and tags. I use `[ApiExplorerSettings(IgnoreApi = true)]` on internal utility actions that should not appear in the public document. Discovery is entirely reflection-based at startup — Swashbuckle does not execute controllers or make real HTTP calls during document generation.
 
 ---
 
 ## Q9. What is a schema in OpenAPI?
 
-What is a schema in OpenAPI?
+**Concepts**
+- OpenAPI schema — describes data type structure and constraints
+- `components.schemas` — shared schema definitions referenced by `$ref`
+- Generated from .NET DTO types via schema generation
+- Nullable reference types — affect `nullable: true` in OpenAPI 3
+- Schema ID collision — two types with the same short name
 
-**Answer:** An OpenAPI schema describes the structure of a data type — properties, types, formats, nullability, required fields, and constraints. Schemas appear in request bodies, response payloads, and parameter definitions within the `components.schemas` section.
+**Answer**
 
-- Generated from .NET DTO types — `string`, `int`, `DateTime`, nested objects, arrays, and enums.
-- Nullable reference types and `bool?` affect `nullable: true` in OpenAPI 3 schemas when NRT is enabled.
-- Schema `$ref` pointers reference shared component schemas to avoid duplication across operations.
-- Schema ID collisions occur when two types share the same short name — resolved with `CustomSchemaIds`.
+An OpenAPI schema describes the structure of a data type — properties, their types, formats, nullability, required fields, and constraints like minimum and maximum values. Schemas appear in request body definitions, response payload definitions, and parameter definitions, with shared schemas stored in `components.schemas` and referenced via `$ref` to avoid duplication. Swashbuckle generates schemas by reflecting over the .NET DTO types used in action parameters and return types, mapping C# `string` to `{ "type": "string" }`, `int?` to `{ "type": "integer", "nullable": true }`, and so on. Nullable reference types enable in the project affect whether `nullable: true` appears in schemas, which matters for generated client code. Schema ID collisions occur when two types share the same short class name — resolved with `CustomSchemaIds`.
 
 ---
 
 ## Q10. What does `[ProducesResponseType]` contribute to OpenAPI?
 
-What does `[ProducesResponseType]` contribute to OpenAPI?
+**Concepts**
+- `[ProducesResponseType]` — adds status code and type metadata to ApiExplorer
+- Multiple attributes — documents 200, 400, 404, 409 on one action
+- `IActionResult` without generic — incomplete schema without `[ProducesResponseType]`
+- Generated client accuracy — error response shapes alongside success
 
-**Answer:** `[ProducesResponseType]` adds response metadata to ApiExplorer — HTTP status code, response type, and content type — which Swashbuckle maps to OpenAPI response definitions with accurate schemas.
+**Answer**
 
-- Example: `[ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]` documents the 200 response schema.
-- Multiple attributes document different status codes — 200, 400, 404, 409 — on the same action.
-- Without it, Swashbuckle may infer return types incompletely — especially for `IActionResult` without generic type info.
-- Improves generated client SDKs by documenting error response shapes alongside success responses.
+`[ProducesResponseType]` adds response metadata to ApiExplorer — the HTTP status code, the CLR response type, and optionally the content type — which Swashbuckle maps to OpenAPI response definitions with typed schemas. For example, `[ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]` produces a 200 response schema that references `OrderDto` in the OpenAPI document. Without it, Swashbuckle may infer the return type incompletely from `IActionResult` return signatures, leaving the schema as `object` or omitted entirely. Multiple attributes on the same action document different status codes — 200 with the success type, 400 with `ValidationProblemDetails`, and 404 with `ProblemDetails` — which improves generated client SDKs by giving typed error handling rather than an untyped error branch.
 
 ---
 
 ## Q11. What is the purpose of Swagger UI?
 
-What is the purpose of Swagger UI?
+**Concepts**
+- Swagger UI — interactive browser interface for the OpenAPI document
+- "Try it out" — sends real requests from the browser
+- Authentication flows — Bearer token entry, OAuth2 PKCE support
+- Multiple document versions — dropdown for versioned APIs
+- Development and staging only — should be restricted in production
 
-**Answer:** Swagger UI is an interactive browser interface that renders the OpenAPI document — listing endpoints, schemas, and providing a "Try it out" feature to send test requests. It accelerates development, QA, and partner integration without separate API documentation.
+**Answer**
 
-- Displays request parameters, body schemas, and response examples per operation.
-- Supports authentication flows — Bearer token entry or OAuth2 authorization code with PKCE.
-- Useful in Development and Staging — should be restricted or disabled in Production to avoid exposing the full API surface.
-- Multiple documents appear as a dropdown when several SwaggerDoc versions are registered.
+Swagger UI is an interactive browser interface that renders the OpenAPI document — listing endpoints with their parameters, request body schemas, and expected response shapes — and provides a "Try it out" feature that sends actual HTTP requests from the browser. It replaces manual documentation and reduces the friction of onboarding new team members and partners since they can explore the API surface and test calls without a separate tool. It supports authentication flows including Bearer token entry and OAuth2 authorization code with PKCE, so developers can test authenticated endpoints directly. I restrict Swagger UI to Development and Staging environments because in production it exposes the full API surface to anyone who can reach the URL, aiding reconnaissance.
 
 ---
 
 ## Q12. What is a security scheme in OpenAPI?
 
-What is a security scheme in OpenAPI?
+**Concepts**
+- Security scheme — documents authentication method in OpenAPI
+- `components.securitySchemes` — named scheme definitions
+- Bearer JWT scheme — `SecuritySchemeType.Http` with scheme `"bearer"`
+- `AddSecurityRequirement` — global requirement applies to all operations
+- Swagger UI "Authorize" button — rendered from registered schemes
 
-**Answer:** A security scheme defines how clients authenticate to the API — Bearer JWT, API key, OAuth2 flows, or basic auth. Defined in `components.securitySchemes` and referenced globally or per-operation in the OpenAPI document.
+**Answer**
 
-- Bearer scheme: `AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer" })`.
-- Global `AddSecurityRequirement` applies authentication to all operations unless overridden.
-- Swagger UI renders an "Authorize" button based on registered security definitions.
-- Security schemes describe authentication method — they do not store or validate actual credentials.
+A security scheme defines how clients authenticate to the API — Bearer JWT, API key, OAuth2 flows, or basic auth — documented in the `components.securitySchemes` section and referenced per-operation or globally in the OpenAPI document. I add a Bearer scheme with `AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT" })` and then apply it globally with `AddSecurityRequirement` so every operation in the document shows the lock icon in Swagger UI. The Swagger UI "Authorize" dialog renders based on registered security definitions, allowing developers to enter a token once and have it applied to all "Try it out" requests. Security schemes describe the authentication method — they do not store or validate credentials.
 
 ---
 
 ## Q13. What is schema ID collision in Swagger generation?
 
-What is schema ID collision in Swagger generation?
+**Concepts**
+- Schema ID collision — two types with the same short name produce one schema
+- Default schema ID — short type name without namespace
+- `CustomSchemaIds` — resolves collisions with unique identifiers
+- Versioned parallel types — common source of collisions
+- Silent overwrite — wrong properties in generated clients
 
-**Answer:** Schema ID collision occurs when Swashbuckle generates the same schema identifier for two different .NET types with the same short name — for example, `ProductDto` in two namespaces. One schema overwrites the other, producing wrong properties in the OpenAPI document and broken client generation.
+**Answer**
 
-- Default schema IDs use the short type name without namespace.
-- Fix with `options.CustomSchemaIds(type => type.FullName?.Replace("+", "."))` for unique IDs.
-- Common when internal and public DTOs share names or when versioning introduces parallel types.
-- Collisions are silent until client SDK regeneration fails or returns wrong models.
+Schema ID collision occurs when Swashbuckle generates the same schema identifier for two different .NET types that share a short class name — for example, `ProductDto` in both `Acme.Api.Contracts.v1` and `Acme.Api.Contracts.v2` namespaces. The default schema ID is the short type name without namespace, so both types map to the schema ID `"ProductDto"`, and one silently overwrites the other. The OpenAPI document then contains a `ProductDto` schema with wrong or merged properties, which breaks TypeScript and C# clients generated from it. The fix is `options.CustomSchemaIds(type => type.FullName?.Replace("+", "."))` in `AddSwaggerGen`, which produces fully qualified unique IDs. Collisions are silent during generation and only surface when a client SDK fails to compile or returns unexpected data shapes at runtime.
 
 ---
 
 ## Q14. What does `IncludeXmlComments` do?
 
-What does `IncludeXmlComments` do?
+**Concepts**
+- `IncludeXmlComments` — reads XML documentation files into OpenAPI
+- `<GenerateDocumentationFile>true</GenerateDocumentationFile>` — required in `.csproj`
+- `///` summary comments — mapped to operation descriptions and property docs
+- Multiple XML files — controllers, models, and shared contract assemblies
+- Human-readable descriptions beyond reflection metadata
 
-**Answer:** `IncludeXmlComments` configures Swashbuckle to read XML documentation files generated from `///` summary comments and attach them to OpenAPI operation descriptions, parameter docs, and property descriptions.
+**Answer**
 
-- Requires `<GenerateDocumentationFile>true</GenerateDocumentationFile>` in the `.csproj` to emit the `.xml` file.
-- Call `c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "MyApi.xml"))` in `AddSwaggerGen`.
-- Enriches the OpenAPI document with human-readable descriptions beyond what reflection provides.
-- Multiple XML files can be included for controllers, models, and shared contract assemblies.
+`IncludeXmlComments` configures Swashbuckle to read the XML documentation file generated from `///` summary comments and attach the descriptions to OpenAPI operation summaries, parameter descriptions, and schema property descriptions. This enriches the Swagger UI and generated client code with human-readable documentation beyond what reflection alone can provide — type names and parameter types are available from reflection, but the intent and usage guidance come from the XML comments. I enable it by adding `<GenerateDocumentationFile>true</GenerateDocumentationFile>` to the `.csproj`, then calling `c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "MyApi.xml"))` in `AddSwaggerGen`. Multiple XML files can be included for separate controller, model, and contract assemblies.
 
 ---
 
 ## Q15. What is the difference between documenting controllers vs minimal APIs in Swagger?
 
-What is the difference between documenting controllers vs minimal APIs in Swagger?
+**Concepts**
+- Controller discovery — convention-driven via `[Route]`, `[HttpGet]`, attributes
+- Minimal API discovery — requires explicit `.WithOpenApi()` and metadata
+- `[AsParameters]` — binds complex parameter types in minimal API route handlers
+- `AddEndpointsApiExplorer()` — required for minimal API endpoint visibility
+- Lambda return type inference — untyped without explicit `.Produces<T>(200)`
 
-**Answer:** Controller-based APIs inherit conventions from `[Route]`, `[HttpGet]`, parameter attributes, and `[ProducesResponseType]` — Swashbuckle discovers metadata automatically. Minimal APIs require explicit metadata via `.WithOpenApi()`, `[AsParameters]`, `[FromBody]`, and `.Produces<T>()` because lambda signatures lack convention-based inference.
+**Answer**
 
-- Controllers: `[ApiController]` + attribute routing provides rich default metadata with minimal extra configuration.
-- Minimal APIs: `app.MapGet(...).WithOpenApi()` adds summaries, tags, and response types; complex parameters need `[AsParameters]` or explicit binding attributes.
-- Both require `AddEndpointsApiExplorer()` for minimal API discovery.
-- Minimal API lambda return types may appear as untyped or generic schemas without explicit `.Produces<T>(200)` metadata.
+Controller-based APIs inherit rich default metadata from `[Route]`, `[HttpGet]`, `[ProducesResponseType]`, and parameter binding attributes — Swashbuckle discovers all of this automatically, so a well-attributed controller produces a complete OpenAPI document with minimal extra work. Minimal APIs use lambda handlers that lack the convention-based metadata framework that controllers provide, so I must be explicit: `.WithOpenApi()` adds the operation to the document, `.Produces<OrderDto>(200)` documents the success response type, `.ProducesProblem(400)` documents validation error responses, and `[AsParameters]` or explicit `[FromBody]` attributes tell the framework how to bind complex parameters. Both require `AddEndpointsApiExplorer()`. For a greenfield API I lean toward controllers for the documentation completeness they provide by convention; for lightweight internal APIs I use minimal APIs with explicit metadata.
 
 ---
 
 ## Q16. Why should Swagger UI be restricted in production?
 
-Why should Swagger UI be restricted in production?
+**Concepts**
+- API surface exposure — every endpoint, schema, and auth scheme visible
+- Reconnaissance aid — field names and enum values useful for attacks
+- `IsDevelopment()` environment check — standard gate
+- OpenAPI JSON vs UI — document can serve CI without exposing UI
+- IP restriction or auth-protected `/swagger` route
 
-**Answer:** Public Swagger UI exposes the full API surface — every endpoint, parameter, schema, and authentication scheme — to anyone who can reach the URL. This aids reconnaissance and targeted attacks against misconfigured or undocumented endpoints.
+**Answer**
 
-- Gate behind environment checks: `if (app.Environment.IsDevelopment()) { app.UseSwaggerUI(); }`.
-- Production alternatives: internal VPN docs portal, IP-restricted access via reverse proxy, or auth-protected `/swagger` route.
-- Even with `[Authorize]` on endpoints, Swagger documents their existence and parameter shapes.
-- OpenAPI JSON can be served to CI/CD pipelines without exposing the interactive UI publicly.
+Swagger UI exposes the full API surface — every endpoint, parameter name, schema, enum value, and authentication scheme — to anyone who can reach the URL, which provides useful information for targeted attacks against misconfigured or undocumented endpoints. Even with all endpoints protected by `[Authorize]`, the Swagger UI documents their existence and parameter shapes, reducing the effort needed to craft a valid attack request. I gate Swagger UI behind `if (app.Environment.IsDevelopment())` so it never activates in production deployments. When internal developers need the OpenAPI document in production for SDK generation I serve the JSON document through a reverse proxy path behind an IP allowlist or require authentication on the `/swagger` route, keeping the interactive UI private while the document artifact remains accessible to tooling.
 
 ---
 
 ## Q17. What is `DocInclusionPredicate` in Swagger?
 
-What is `DocInclusionPredicate` in Swagger?
+**Concepts**
+- `DocInclusionPredicate` — `(docName, apiDescription) => bool` filter
+- Multi-version APIs — routes v1 and v2 operations to separate documents
+- `ApiDescription.GroupName` — matches ApiExplorer version group names
+- `SwaggerDoc("v1", ...)` / `SwaggerDoc("v2", ...)` — separate document registrations
+- Without predicate — all actions appear in all documents or only the default
 
-**Answer:** `DocInclusionPredicate` is a Swashbuckle filter function `(docName, apiDescription) => bool` that determines which API descriptions appear in which OpenAPI document. Essential for multi-version APIs where v1 and v2 operations must land in separate Swagger documents.
+**Answer**
 
-- Example: `(docName, apiDesc) => apiDesc.GroupName == docName` maps ApiExplorer group names to document names.
-- Used with `Asp.Versioning.Mvc.ApiExplorer` where each API version produces a distinct group name (e.g., `"v1"`, `"v2"`).
-- Without a predicate, all actions appear in every registered document or only in the default document.
-- Pair with separate `SwaggerDoc("v1", ...)` and `SwaggerDoc("v2", ...)` registrations and matching Swagger UI endpoints.
+`DocInclusionPredicate` is a Swashbuckle filter function `(docName, apiDescription) => bool` that decides which API descriptions appear in which OpenAPI document. It is essential for multi-version APIs where v1 and v2 operations must land in separate `swagger.json` files rather than all appearing in every document. With `Asp.Versioning.Mvc`, each API version produces a distinct ApiExplorer group name such as `"v1"` or `"v2"`, and the predicate `(docName, apiDesc) => apiDesc.GroupName == docName` routes each action to the document matching its version. Without a predicate, all actions may appear in all registered documents simultaneously, producing duplicate operations and wrong schemas. I pair it with separate `SwaggerDoc("v1", ...)` and `SwaggerDoc("v2", ...)` registrations and matching Swagger UI endpoint configurations.
 
 ---
 
 ## Q18. What is the relationship between DTOs and OpenAPI schemas?
 
-What is the relationship between DTOs and OpenAPI schemas?
+**Concepts**
+- DTOs as public contract — OpenAPI schema reflects DTO shape
+- EF entity exposure — leaks internal columns and navigation properties
+- `[ProducesResponseType(typeof(OrderResponseDto), 200)]` — pins schema to correct type
+- DTO renames and removals — breaking schema changes requiring versioning
+- Stable intentional schemas — only approved fields, no database columns
 
-**Answer:** OpenAPI schemas are generated from the .NET types used in action parameters and return types — typically response and request DTOs. The DTO defines the public API contract; the OpenAPI schema is the machine-readable representation of that contract.
+**Answer**
 
-- Exposing EF entities generates schemas reflecting database columns — internal fields, navigation properties, and circular references leak into the document.
-- Response DTOs produce stable, intentional schemas with only approved fields — map entities to DTOs before returning.
-- `[ProducesResponseType(typeof(OrderResponseDto), 200)]` ensures the documented schema matches the actual response shape.
-- DTO renames and removals are breaking API changes reflected in schema diffs — version DTOs per API version to keep schemas accurate.
-
----
+OpenAPI schemas are generated from the .NET types used in action parameters and return types — typically request and response DTOs. The DTO defines the public API contract and the OpenAPI schema is the machine-readable representation of that contract, so they must stay in sync. Exposing EF Core entities directly generates schemas that reflect the database column structure including internal fields, navigation properties, and circular references, which leaks implementation details to clients and breaks schema generation. I always map entities to response DTOs before returning from actions — `[ProducesResponseType(typeof(OrderResponseDto), 200)]` ensures the documented schema matches the actual response shape. DTO renames and property removals are breaking API changes that break generated clients, so I version DTOs alongside API versions rather than modifying them in place.
 
 ---
 
 ## Gotchas — ASP.NET Core Web API (Interview Traps)
 
+---
+
 #### Gotcha 1. POST returning 200 instead of 201
 
-**Answer:** A successful resource creation with POST should return HTTP 201 Created and tell the client where the new resource lives — returning 200 OK omits that contract and breaks REST clients that rely on status codes and the Location header.
+**Concepts**
+- HTTP 201 Created — correct status for resource creation
+- Location header — URI of the new resource
+- `CreatedAtAction` — sets both status and Location
 
-- Use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with a Location header pointing at the new resource URL.
-- Include the created representation or a minimal payload in the response body when clients need immediate data without a follow-up GET.
-- Returning 200 for create operations hides the new resource URL from standard HTTP client libraries and OpenAPI-generated SDKs.
+**Answer**
+
+A POST that creates a resource must return 201 Created with a Location header pointing at the new resource's URI, not 200 OK. I use `CreatedAtAction(nameof(Get), new { id = newEntity.Id }, newEntity)` since it sets both the correct status code and the Location header in one call. Returning 200 hides the resource location from HTTP client libraries and OpenAPI-generated SDKs.
 
 ---
 
 #### Gotcha 2. GET that mutates state
 
-**Answer:** GET must be safe and idempotent — performing deletes or updates on GET violates HTTP semantics, breaks caching proxies, and creates security holes when URLs are prefetched, logged, or opened in email clients.
+**Concepts**
+- HTTP GET — safe and idempotent
+- Browser prefetch and CDN cache replay
+- POST/PUT/PATCH/DELETE — correct verbs for mutations
 
-- Browsers, CDNs, and link-preview crawlers may invoke GET URLs without user intent, so side effects run unintentionally.
-- Cached GET responses can replay destructive operations or stale mutations across clients.
-- Use POST, PUT, PATCH, or DELETE for state changes and keep GET read-only.
+**Answer**
+
+GET must be safe and idempotent — calling it any number of times must have no side effects. Browsers prefetch URLs, CDNs cache and replay GET responses, and crawlers follow links without user intent, so a side-effecting GET runs its mutation uncontrollably. I keep GET strictly read-only and use the appropriate mutation verb for all state changes.
 
 ---
 
 #### Gotcha 3. `{ success: false }` with HTTP 200
 
-**Answer:** Business failures must map to appropriate 4xx or 5xx status codes — a 200 response with an error flag forces every client to parse the body instead of using standard HTTP semantics, retries, and monitoring.
+**Concepts**
+- HTTP status codes — semantic failure signaling
+- `ProblemDetails` / `ValidationProblemDetails` — RFC 7807 error bodies
+- 200 masking failures — invisible in APM and gateways
 
-- Return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures and 404, 409, or 422 for domain errors.
-- HTTP status codes drive client retry logic, API gateways, and APM alerting; a 200 masks failures in dashboards.
-- Envelope patterns like `{ success: false }` require custom handling in every consumer and break OpenAPI contract expectations.
+**Answer**
+
+Returning 200 with a failure flag forces every consumer to parse the body to detect failure rather than using standard HTTP status code semantics. I return `ValidationProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for domain violations so status codes carry the failure signal.
 
 ---
 
 #### Gotcha 4. Returning EF entities from API actions
 
-**Answer:** EF Core entities expose navigation properties, shadow fields, and circular references that are not meant for public contracts — serialize DTOs with explicit shapes and never leak database schema to clients.
+**Concepts**
+- EF navigation properties — lazy-load triggers during serialization
+- Circular references — serializer loop risk
+- DTOs — explicit public contract, no schema leakage
 
-- Lazy-loaded navigations trigger N+1 queries during serialization and can pull entire object graphs into the response.
-- Circular references between entities cause JSON serializer loops or require fragile reference-handling settings.
-- DTOs decouple the API contract from schema migrations and let you expose only the fields clients need.
+**Answer**
+
+EF Core entities expose internal columns, navigation properties, and circular references not meant for clients. Lazy-loaded navigations trigger additional SQL queries during JSON serialization, and circular references cause serializer loops. I map entities to response DTOs before returning from actions to decouple the public contract from the database schema.
 
 ---
 
 #### Gotcha 5. PascalCase JSON with default camelCase policy
 
-**Answer:** ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json` — PascalCase property names from some clients bind as missing properties, leaving model properties at default values and causing silent data loss on POST and PUT.
+**Concepts**
+- `System.Text.Json` camelCase default
+- Silent binding failure — PascalCase keys arrive as null
+- `PropertyNameCaseInsensitive` — migration compatibility
 
-- `[JsonPropertyName("PropertyName")]` or a custom `PropertyNamingPolicy` aligns server expectations with legacy client payloads.
-- Enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)` when you must accept mixed casing.
-- Silent binding failures produce 201/204 success responses with partially saved data and no validation error.
+**Answer**
+
+ASP.NET Core 8 defaults to camelCase JSON with case-sensitive matching, so a legacy client sending PascalCase keys gets null bindings and a success response with silently wrong data. The migration fix is `PropertyNameCaseInsensitive = true` in `AddJsonOptions`; the permanent fix is for the client to adopt camelCase.
 
 ---
 
 #### Gotcha 6. GET with `[FromBody]`
 
-**Answer:** Many HTTP clients, proxies, and caches ignore or strip GET request bodies — filters sent as JSON in GET requests fail silently or never reach the action in ASP.NET Core 8 Web API.
+**Concepts**
+- GET body — stripped by clients and proxies
+- `[FromQuery]` — correct source for GET filters
+- `POST /search` — for complex filter payloads
 
-- Model binding for `[FromBody]` on GET is not reliably supported across the HTTP ecosystem.
-- Use query strings with `[FromQuery]` for simple filters or POST to a dedicated search endpoint for complex filter objects.
-- OpenAPI tools and browser fetch also discourage or block GET bodies, making the pattern fragile in production.
+**Answer**
+
+Most HTTP clients, proxies, and CDNs ignore GET request bodies, so `[FromBody]` on GET actions fails silently with null models. I use `[FromQuery]` for filter parameters on GET endpoints, and for complex objects a `POST /search` endpoint.
 
 ---
 
 #### Gotcha 7. CORS as server security
 
-**Answer:** CORS is enforced by browsers only — it does not stop curl, Postman, server-to-server calls, or direct API requests; authentication and authorization still protect the API.
+**Concepts**
+- CORS — browser-only enforcement
+- Non-browser clients — unaffected
+- Authentication and authorization — real API security boundary
 
-- CORS headers tell a browser whether JavaScript on one origin may read a cross-origin response; they do not authenticate callers.
-- A public API without auth remains fully accessible to any non-browser client regardless of CORS policy.
-- Register `AddCors` and `UseCors` for browser SPA access, and enforce JWT, cookies, or API keys separately for real security.
+**Answer**
+
+CORS is a browser policy that controls whether JavaScript can read cross-origin responses — curl, Postman, and server-to-server clients are unaffected. Authentication and authorization middleware protect the API from all unauthorized callers regardless of CORS configuration.
 
 ---
 
 #### Gotcha 8. `AllowAnyOrigin` with credentials
 
-**Answer:** Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers — you must specify explicit origins with `WithOrigins` and call `AllowCredentials`.
+**Concepts**
+- `AllowAnyOrigin()` — wildcard origin, incompatible with credentials
+- CORS specification — forbids wildcard + credentials combination
+- `WithOrigins` — explicit allowlist for credentialed requests
 
-- `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined; ASP.NET Core will not emit a valid CORS response for credentialed requests.
-- List every trusted frontend origin explicitly, including local dev URLs and production domains.
-- Credentialed cross-origin calls require both matching origins and `Access-Control-Allow-Credentials: true`.
+**Answer**
+
+The CORS specification forbids combining `Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials: true`. Browsers reject this combination. When the SPA sends cookies or an Authorization header I use `WithOrigins("https://app.example.com").AllowCredentials()` instead of `AllowAnyOrigin()`.
 
 ---
 
 #### Gotcha 9. Swagger UI exposed in Production
 
-**Answer:** Public Swagger UI discloses the full API surface, schemas, and try-it-out access — gate it behind authentication or disable it outside Development and Staging in ASP.NET Core 8.
+**Concepts**
+- Swagger UI in production — full API surface exposed publicly
+- `IsDevelopment()` environment check — standard gate
+- OpenAPI JSON for CI vs interactive UI for developers
 
-- `MapSwagger` and `UseSwaggerUI` in `Program.cs` should be wrapped in environment checks or authorization middleware.
-- Exposed OpenAPI documents reveal internal endpoints, field names, and enum values useful for reconnaissance.
-- Production APIs typically serve OpenAPI only to authenticated developers or internal tooling, not the public internet.
+**Answer**
+
+Swagger UI in production exposes every endpoint and schema for reconnaissance. I gate `UseSwagger()` and `UseSwaggerUI()` behind `if (app.Environment.IsDevelopment())`. In production I serve the OpenAPI JSON through an IP-restricted reverse proxy path for CI tooling but never the interactive UI publicly.
 
 ---
 
 #### Gotcha 10. Missing `[ApiController]` on some controllers
 
-**Answer:** Without `[ApiController]`, automatic 400 `ValidationProblemDetails`, binding source inference, and attribute routing behaviors differ — mixed controllers in the same Web API produce inconsistent error contracts.
+**Concepts**
+- `[ApiController]` — automatic validation, binding inference
+- Inconsistent error contracts — mixed controller setup
+- `ValidationProblemDetails` — automatic 400 response
 
-- `[ApiController]` enables automatic model-state validation responses and `[FromBody]` inference for complex types.
-- Controllers missing the attribute may return 200 with invalid models or require manual `ModelState` checks.
-- Apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions.
+**Answer**
+
+Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses and binding source inference do not apply, causing inconsistent error contracts across the Web API. I apply `[ApiController]` at the assembly level so every controller shares the same API conventions.
 
 ---
 
 #### Gotcha 11. Blocking on `.Result` in async actions
 
-**Answer:** Blocking on `.Result` or `.Wait()` in async API actions causes thread-pool starvation and deadlocks under load — always `await` async service and database calls in ASP.NET Core 8.
+**Concepts**
+- `.Result` / `.Wait()` — sync-over-async blocking
+- Thread-pool starvation — blocked threads reduce throughput
+- `async Task<IActionResult>` — correct signature
 
-- Sync-over-async ties up request threads while I/O completes, reducing throughput on Kestrel under concurrent load.
-- Deadlocks occur when the blocked thread holds a synchronization context the continuation needs to resume.
-- Mark controller actions `async Task<IActionResult>` and propagate `await` through the service layer to EF Core and HTTP clients.
+**Answer**
+
+Blocking on `.Result` or `.Wait()` ties up thread-pool threads, reducing concurrent request capacity and creating deadlock risk under load. I mark actions `async Task<IActionResult>` and propagate `await` through the entire service layer.
 
 ---
 
 #### Gotcha 12. Liveness probe includes SQL check
 
-**Answer:** If the liveness probe fails when SQL is down, Kubernetes restarts pods that cannot fix the dependency — put SQL, Redis, and external service checks on readiness only.
+**Concepts**
+- Liveness probe — pod restart signal
+- Readiness probe — load balancer exclusion
+- SQL down — dependency failure, not pod failure
 
-- Liveness answers whether the process should be killed and restarted; a down database is not healed by restarting the app.
-- Readiness removes the pod from the load balancer until dependencies recover without unnecessary restarts.
-- Map `/health/live` to a lightweight self-check and `/health/ready` to `AddDbContextCheck` or custom dependency tags.
+**Answer**
+
+A failed liveness probe causes Kubernetes to restart the pod — SQL being down cannot be healed by restarting the app. The SQL check belongs on the readiness probe, which removes the pod from the load balancer until the dependency recovers without unnecessary restarts.
 
 ---
 
 #### Gotcha 13. N+1 queries in list endpoints
 
-**Answer:** Returning entities with lazy-loaded navigation properties triggers one SQL query per row — use projection with `Select`, explicit `Include`, or DTO mapping to fetch list data in a bounded number of queries.
+**Concepts**
+- N+1 query problem — one SQL per row for related data
+- DTO projection with `Select` — single query
+- `Include` / `ThenInclude` — eager load
 
-- Serializing a list of `Order` entities with `Customer` navigation can execute 1 + N queries under default lazy loading.
-- Project directly to DTOs in LINQ so EF Core generates a single query with only the columns needed.
-- For graphs that must be included, use `Include`/`ThenInclude` or split queries deliberately rather than relying on lazy load during JSON output.
+**Answer**
+
+Serializing entities with lazy-loaded navigation properties triggers one SQL query per row during JSON writing. I fix this by projecting directly to DTOs in LINQ for a single JOIN query, or using `Include`/`ThenInclude` for object graphs that must be included.
 
 ---
 
 #### Gotcha 14. Unstable pagination with Skip/Take
 
-**Answer:** Concurrent inserts and deletes between offset pages cause duplicate or skipped rows — use keyset or cursor pagination ordered by a stable, indexed key for large datasets in Web API list endpoints.
+**Concepts**
+- Offset pagination — shifts on concurrent mutations
+- Keyset pagination — stable cursor on indexed key
+- Cursor tokens in response metadata
 
-- `Skip((page - 1) * pageSize).Take(pageSize)` shifts the window when rows are added or removed between requests.
-- Keyset pagination uses `WHERE id > @lastId ORDER BY id LIMIT @pageSize` with the last seen key from the previous response.
-- Offset pagination remains acceptable for small, mostly static tables; expose cursor tokens in link headers or response metadata for high-churn data.
+**Answer**
+
+`Skip`/`Take` calculates an offset that shifts when rows are inserted or deleted concurrently, causing duplicates and skips. Keyset pagination anchors on the last seen key — `WHERE id > @lastId ORDER BY id LIMIT @pageSize` — which is stable under concurrent mutations.
 
 ---
 
 #### Gotcha 15. GraphQL N+1 without DataLoader
 
-**Answer:** Field resolvers in HotChocolate or other GraphQL servers that query the database per parent row explode SQL under load — batch related loads with DataLoader or resolve joins at the root query.
+**Concepts**
+- Field resolvers — per-parent-row execution by default
+- DataLoader — batches and deduplicates sub-queries
+- HotChocolate DataLoader in DI
 
-- A list of 100 authors each resolving `books` individually executes 101 queries instead of one batched query.
-- Register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips.
-- Eager-load or project at the root query when the client always requests nested fields together.
+**Answer**
+
+Field resolvers in HotChocolate execute independently per parent row — 100 authors with a `books` resolver executes 101 queries. DataLoader collects all keys within a request execution phase and batches them into one query, deduplicating repeated keys. I register DataLoader classes in DI scoped to the request.
 
 ---
 
 #### Gotcha 16. gRPC in browser without gRPC-Web
 
-**Answer:** Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript — browser clients need gRPC-Web middleware plus CORS configuration in ASP.NET Core 8.
+**Concepts**
+- Native gRPC — HTTP/2 binary framing inaccessible to browsers
+- gRPC-Web — browser-compatible translation protocol
+- `AddGrpcWeb()` / `EnableGrpcWeb()` and CORS
 
-- Standard `@grpc/grpc-js` in Node or .NET clients works server-to-server; Blazor WASM and SPA browsers require the gRPC-Web protocol.
-- Add `AddGrpcWeb()` and `EnableGrpcWeb()` on mapped gRPC services to translate between gRPC-Web and native gRPC.
-- Configure CORS for the browser origin alongside gRPC-Web, since cross-origin browser calls still enforce CORS on preflight and response headers.
+**Answer**
 
----
-
-## Gotchas — ASP.NET Core Web API (Interview Traps)
-
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+Browsers cannot access the HTTP/2 trailer and binary framing native gRPC requires. gRPC-Web wraps messages in a format browsers can use via Fetch, enabled by `AddGrpcWeb()` and `EnableGrpcWeb()` in the ASP.NET Core pipeline. Cross-origin browser calls also require CORS configuration.
 
 ---
 
 ## Scenario-Based Questions (Karat Format)
+
+---
 
 #### Q1. (R) Review this `Program.cs` from a production Web API. Swagger UI is reachable at `/swagger` in all environments; security review flagged it before go-live.
 
@@ -453,9 +529,17 @@ Deployment: public internet, no IP allowlist, JWT-protected endpoints documented
 
 ---
 
-**Answer:**
+**Concepts**
+- Swagger UI in all environments — exposes full API surface publicly
+- `IsDevelopment()` — standard environment gate
+- Real tokens in `appsettings.Development.json` — secret management failure
+- OpenAPI JSON vs interactive UI — separate concerns for production tooling
 
-_Answer not found._
+**Answer**
+
+The immediate risk is that `UseSwagger()` and `UseSwaggerUI()` run unconditionally, so every deployment including production exposes the full API surface — every endpoint, parameter, schema, and auth scheme — to anyone with the URL. For a payments API on the public internet this is a significant reconnaissance aid, giving an attacker documented request shapes for every endpoint.
+
+The fix is to wrap both calls in `if (app.Environment.IsDevelopment())`. If the OpenAPI document is needed in staging for SDK generation or QA tooling, I serve `UseSwagger()` in staging but not `UseSwaggerUI()`, and protect the document endpoint behind an IP allowlist at the reverse proxy layer. The secondary issue — real example tokens in `appsettings.Development.json` — is a credential leak risk if that file is committed to source control. Development secrets belong in `dotnet user-secrets` or environment variables, never in committed configuration files.
 
 ---
 
@@ -475,9 +559,17 @@ Both types appear on different controller actions exposed in the same document.
 
 ---
 
-**Answer:**
+**Concepts**
+- Schema ID collision — short type name without namespace
+- `CustomSchemaIds` — unique schema identifiers from full type name
+- Internal DTO exposure — `Acme.Api.Internal.ProductDto` should not be in public document
+- TypeScript client compile failure — merged wrong schema breaks generated types
 
-_Answer not found._
+**Answer**
+
+The default schema ID is the short class name without namespace, so both `ProductDto` types map to the same schema ID. The second one processed silently overwrites the first in the OpenAPI document's `components.schemas`, producing a `ProductDto` schema with a mix of properties from both types. The TypeScript client generated from this document has a `ProductDto` type that does not match either actual API response, causing compile errors or runtime mismatches.
+
+There are two problems to fix. First, I add `options.CustomSchemaIds(type => type.FullName?.Replace("+", "."))` in `AddSwaggerGen` to produce unique fully qualified schema IDs. Second, I investigate why `Acme.Api.Internal.ProductDto` is exposed in the public API document at all — internal DTOs should never appear on public controller actions. The `Acme.Api.Internal` namespace suggests it is an implementation detail that should be mapped to a proper public DTO before being returned from the action. Removing the internal type from the public contract eliminates the collision and the leakage simultaneously.
 
 ---
 
@@ -485,9 +577,18 @@ _Answer not found._
 
 ---
 
-**Answer:**
+**Concepts**
+- Nullable reference types — affect `nullable: true` in generated schemas
+- `bool?` and `DateOnly?` — OpenAPI must show `nullable: true` for these
+- `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]` — omit nulls from responses
+- NSwag schema generation — reads nullability from type annotations
+- `[Required]` on nullable property — incorrect, forces required in schema
 
-_Answer not found._
+**Answer**
+
+The schema accuracy problem has two common causes. First, if the project does not have `<Nullable>enable</Nullable>` in the `.csproj`, Swashbuckle cannot read nullability annotations from the type system and may treat all reference types as required. Enabling nullable reference types lets Swashbuckle emit `nullable: true` for `bool?` and `DateOnly?` automatically. Second, any `[Required]` annotation on a nullable property contradicts the intent — `[Required]` marks the field as mandatory in the schema, but a PATCH field with `bool?` is explicitly optional. I remove `[Required]` from patch DTO properties that are meant to be omittable.
+
+For NSwag-generated clients, the schema must also carry `"nullable": true` in the OpenAPI 3.0 format or `"x-nullable": true` in Swagger 2.0. I verify the generated document at `/swagger/v1/swagger.json` to confirm the nullable flags are present before regenerating clients. I also configure `JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull` so null patch properties are omitted from serialized responses, keeping the response contract consistent with the nullable-optional intent.
 
 ---
 
@@ -508,9 +609,37 @@ What do you add to OpenAPI and Swagger UI, and what must stay out of source cont
 
 ---
 
-**Answer:**
+**Concepts**
+- `AddSecurityDefinition` — registers Bearer scheme in OpenAPI
+- `AddSecurityRequirement` — applies scheme globally to all operations
+- Swagger UI "Authorize" button — renders from registered security definitions
+- `dotnet user-secrets` — development JWT configuration
+- `appsettings.{Environment}.json` — secrets must not be committed
 
-_Answer not found._
+**Answer**
+
+To enable the "Authorize" button in Swagger UI I add a security definition and a global security requirement in `AddSwaggerGen`:
+
+```csharp
+c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+{
+    Type = SecuritySchemeType.Http,
+    Scheme = "bearer",
+    BearerFormat = "JWT",
+    Description = "Enter the JWT Bearer token"
+});
+c.AddSecurityRequirement(new OpenApiSecurityRequirement
+{
+    {
+        new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+        Array.Empty<string>()
+    }
+});
+```
+
+This produces a lock icon on every operation in Swagger UI and an "Authorize" dialog where developers enter a token once — it is then applied automatically to all "Try it out" requests via the `Authorization: Bearer <token>` header.
+
+What must stay out of source control: the JWT signing key, issuer URIs, audience values, and any token examples. These belong in `dotnet user-secrets` for local development (`dotnet user-secrets set "JwtSettings:Key" "..."`) and in environment variables or Azure Key Vault for deployed environments. The `appsettings.json` file can contain non-secret configuration like token validation parameters referencing the key by name, but the key material itself never goes into a committed file.
 
 ---
 
@@ -539,9 +668,30 @@ app.Run();
 
 ---
 
-**Answer:**
+**Concepts**
+- `AddEndpointsApiExplorer()` — required for minimal API discovery
+- `.WithOpenApi()` — enriches minimal API endpoints with operation metadata
+- Missing `AddControllers()` — minimal APIs do not need it but controllers do
+- Lambda parameter binding inference — may not emit ApiExplorer metadata without hints
 
-_Answer not found._
+**Answer**
+
+The Swagger document is empty because minimal API route handlers do not automatically emit rich ApiExplorer metadata the way controller actions do — they need explicit opt-in. The `AddEndpointsApiExplorer()` call is present and correct, but the endpoints are missing `.WithOpenApi()` which registers them with ApiExplorer so Swashbuckle can discover them.
+
+The fix is to chain `.WithOpenApi()` on each route registration:
+
+```csharp
+app.MapGet("/health", () => Results.Ok("healthy"))
+    .WithOpenApi();
+
+app.MapPost("/orders", ([FromBody] CreateOrderRequest req) =>
+    Results.Created($"/orders/{req.Id}", req))
+    .WithOpenApi()
+    .Produces<CreateOrderRequest>(201)
+    .ProducesProblem(400);
+```
+
+I also add explicit `[FromBody]` on `CreateOrderRequest` so Swashbuckle knows the binding source for schema generation — without it the parameter may appear as a query parameter in the document. The `Produces<T>` call documents the response type so the TypeScript client gets a typed success schema.
 
 ---
 
@@ -560,9 +710,18 @@ OpenAPI generates full `Order` schema including all mapped columns.
 
 ---
 
-**Answer:**
+**Concepts**
+- Schema leakage — internal columns in public OpenAPI document
+- Client coupling to database schema — DTO changes become breaking API changes
+- Navigation property schemas — recursive schemas, circular references
+- `InternalNotes`, `CostPrice` — sensitive business data exposed in schema
+- DTO stability — protects clients from database schema migrations
 
-_Answer not found._
+**Answer**
+
+Exposing `Order` entities directly creates four compounding problems. First, the OpenAPI schema includes every mapped column — `InternalNotes`, `CostPrice`, `RowVersion`, and `SupplierId` — fields that clients should never see. Once documented in the public OpenAPI spec and distributed in TypeScript client packages, these field names become part of the public contract even if never intentionally used. Second, any database schema migration that adds, renames, or removes an `Order` column is an unintentional breaking API change for all clients that generated their models from the schema. Third, navigation properties like `LineItems` create recursive schemas that may cause circular reference problems in Swashbuckle's schema generation. Fourth, lazy-loaded navigations included via `Include` in one version of the endpoint may be absent in another, producing inconsistent response shapes.
+
+The correct approach is to create a dedicated `OrderResponse` DTO containing only the fields clients need, map the entity to it before returning, and use `[ProducesResponseType(typeof(OrderResponse), 200)]`. The DTO is stable and intentional — database schema changes are internal implementation details that only cause API changes when explicitly promoted to the DTO. This takes a few minutes longer today but prevents a category of breaking changes and security incidents across the entire API lifetime.
 
 ---
 
@@ -570,9 +729,20 @@ _Answer not found._
 
 ---
 
-**Answer:**
+**Concepts**
+- `AddSwaggerGen` at startup — registers services, not the document itself
+- Document generation at first request — on-demand, then cached
+- `IncludeXmlComments` — enriches operation and schema descriptions from XML file
+- `CustomSchemaIds` — prevents schema ID collision in larger codebases
+- Polymorphic `$ref` — discriminator requires unique schema IDs
 
-_Answer not found._
+**Answer**
+
+`AddSwaggerGen` runs during service registration at startup and registers the `ISwaggerProvider`, schema generators, and configuration options — it does not actually build the OpenAPI document at this stage. The document is generated lazily on the first HTTP request to `/swagger/v1/swagger.json`, at which point Swashbuckle calls `IApiDescriptionGroupCollectionProvider` to enumerate endpoints, reflects over parameter and return types to generate schemas, and serializes the result to JSON. The document is then cached so subsequent requests return the cached version without re-reflecting.
+
+`IncludeXmlComments` reads the `.xml` documentation file generated from `///` summary comments and attaches the text to corresponding operations, parameters, and schema properties in the document. This happens during document generation, so any endpoint or property without a summary comment gets no description in the OpenAPI schema.
+
+`CustomSchemaIds(type => type.FullName)` exists because the default schema ID is the short type name, and in larger APIs with multiple versioned DTOs or types from different assemblies, name collisions are common — `ProductDto` in v1 and v2 namespaces map to the same ID and one silently overwrites the other. Full type names produce unique IDs at the cost of verbose schema names in the document. For polymorphic types using OpenAPI discriminators, unique schema IDs are required because the `$ref` chain from a base type to its derived types depends on each discriminated type having a distinct schema component name — a collision breaks the polymorphic schema entirely and generated clients cannot deserialize derived types correctly.
 
 ---
 
@@ -596,8 +766,24 @@ app.UseSwaggerUI(c =>
 
 No `DocInclusionPredicate` or `ConfigureSwaggerOptions` ties actions to documents.
 
-**Answer:**
-
-_Answer not found._
-
 ---
+
+**Concepts**
+- `DocInclusionPredicate` — routes actions to the correct versioned document
+- Missing Swagger UI endpoint for v2 — UI cannot switch to v2 document
+- `Asp.Versioning.Mvc` ApiExplorer group names — `"v1"`, `"v2"` per version
+- `CustomSchemaIds` — required when v1 and v2 share DTO names
+- `ConfigureSwaggerOptions` — conventional setup with `Asp.Versioning`
+
+**Answer**
+
+Two separate issues explain the symptoms. First, Swagger UI only shows v1 because the v2 `SwaggerEndpoint` is missing from `UseSwaggerUI`. Adding `c.SwaggerEndpoint("/swagger/v2/swagger.json", "v2")` makes the v2 document accessible in the UI dropdown. Second, without a `DocInclusionPredicate`, Swashbuckle puts all actions in all registered documents — v2 controller actions appear in both the v1 and v2 documents simultaneously — so the v1 document is polluted with v2 operations and the v2 document is polluted with v1 operations.
+
+The fix is to add a `DocInclusionPredicate` that maps actions to their version document:
+
+```csharp
+options.DocInclusionPredicate((docName, apiDesc) =>
+    apiDesc.GroupName == docName);
+```
+
+With `Asp.Versioning.Mvc`, each controller's `[ApiVersion("2.0")]` populates `apiDesc.GroupName` as `"v2"`, and the predicate routes v2 actions to the `"v2"` document only. For shared DTO names across versions I add `options.CustomSchemaIds(type => type.FullName?.Replace("+", "."))` to prevent the schema collision that produces wrong schemas in the v2 document.

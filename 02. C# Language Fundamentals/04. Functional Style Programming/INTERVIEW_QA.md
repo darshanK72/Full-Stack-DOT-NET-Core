@@ -1,4 +1,4 @@
-# 04. Functional Style Programming — Interview Q&A
+# 04. Functional Style Programming â€" Interview Q&A
 > Back to [README](../README.md)
 
 ## Table of Contents
@@ -22,7 +22,7 @@
   - [Q2. What is the difference between an expression lambda and a statement lambda?](#q2-what-is-the-difference-between-an-expression-lambda-and-a-statement-lambda)
   - [Q3. When can parameter types be omitted in a lambda, and when must they be explicit?](#q3-when-can-parameter-types-be-omitted-in-a-lambda-and-when-must-they-be-explicit)
   - [Q4. What are target-typed lambdas (C# 10+)? In what contexts does the compiler infer the delegate type?](#q4-what-are-target-typed-lambdas-c-10-in-what-contexts-does-the-compiler-infer-the-delegate-type)
-  - [Q5. What is the natural type of a lambda — when does the compiler infer `Func`/`Action` vs require an explicit target type?](#q5-what-is-the-natural-type-of-a-lambda-when-does-the-compiler-infer-funcaction-vs-require-an-explicit-target-type)
+  - [Q5. What is the natural type of a lambda â€" when does the compiler infer `Func`/`Action` vs require an explicit target type?](#q5-what-is-the-natural-type-of-a-lambda-when-does-the-compiler-infer-funcaction-vs-require-an-explicit-target-type)
   - [Q6. How do lambda expressions differ from anonymous methods in syntax, capabilities, and compiler output?](#q6-how-do-lambda-expressions-differ-from-anonymous-methods-in-syntax-capabilities-and-compiler-output)
   - [Q7. Can a lambda expression access `ref`, `out`, or `in` parameters from the enclosing method?](#q7-can-a-lambda-expression-access-ref-out-or-in-parameters-from-the-enclosing-method)
   - [Q8. Can a lambda be converted to an expression tree? What syntax or API constraints apply?](#q8-can-a-lambda-be-converted-to-an-expression-tree-what-syntax-or-api-constraints-apply)
@@ -36,6 +36,7 @@
   - [Q3. Can anonymous methods omit parameter lists? When is that useful?](#q3-can-anonymous-methods-omit-parameter-lists-when-is-that-useful)
   - [Q4. What outer scope variables can anonymous methods access, and how does capture work?](#q4-what-outer-scope-variables-can-anonymous-methods-access-and-how-does-capture-work)
   - [Q5. In modern C# code, when (if ever) would you still choose an anonymous method over a lambda?](#q5-in-modern-c-code-when-if-ever-would-you-still-choose-an-anonymous-method-over-a-lambda)
+  - [Q6. A teammate argues that anonymous methods in `RunAllRules` should stay inline because "they are only five lines," but QA cannot unit-test individual rules without running the whole pipeline.](#q6-a-teammate-argues-that-anonymous-methods-in-runallrules-should-stay-inline-because-they-are-only-five-lines-but-qa-cannot-unit-test-individual-rules-without-running-the-whole-pipeline)
 
 - [04. Extension Methods](#04-extension-methods)
   - [Q1. What are extension methods in C#? How do they appear to the caller vs how they are implemented?](#q1-what-are-extension-methods-in-c-how-do-they-appear-to-the-caller-vs-how-they-are-implemented)
@@ -74,119 +75,36 @@
   - [Q11. How do you avoid side effects when passing lambdas to APIs that store or invoke them later?](#q11-how-do-you-avoid-side-effects-when-passing-lambdas-to-apis-that-store-or-invoke-them-later)
   - [Q12. When should you copy loop values to a local inside the loop before capturing (`var copy = item`)?](#q12-when-should-you-copy-loop-values-to-a-local-inside-the-loop-before-capturing-var-copy-item)
   - [Q13. How do local functions compare to lambdas regarding capture and allocation behavior?](#q13-how-do-local-functions-compare-to-lambdas-regarding-capture-and-allocation-behavior)
-  - [Q14. **Closure captures the variable, not the value** — Loop lambda prints `3, 3, 3`, not `0, 1, 2`.](#q14-closure-captures-the-variable-not-the-value-loop-lambda-prints-3-3-3-not-0-1-2)
-  - [Q15. **Same trap in LINQ and tasks** — Capturing loop variables inside `.Where()` / `Task.Run` produces identical bugs.](#q15-same-trap-in-linq-and-tasks-capturing-loop-variables-inside-where-taskrun-produces-identical-bugs)
-  - [Q16. **Multicast delegate short-circuit on exception** — Later subscribers may not run if an early one throws.](#q16-multicast-delegate-short-circuit-on-exception-later-subscribers-may-not-run-if-an-early-one-throws)
-  - [Q17. **Extension method not in scope** — Missing `using` for the static class namespace.](#q17-extension-method-not-in-scope-missing-using-for-the-static-class-namespace)
-  - [Q18. **Instance method wins over extension** — An instance method hides the extension; you cannot "override" with an extension.](#q18-instance-method-wins-over-extension-an-instance-method-hides-the-extension-you-cannot-override-with-an-extension)
-  - [Q19. **Shared captured storage** — Multiple lambdas share one slot for the same outer variable.](#q19-shared-captured-storage-multiple-lambdas-share-one-slot-for-the-same-outer-variable)
-  - [Q20. **Target-typed lambda ambiguity** — Without a clear target type, lambda expressions may fail to compile.](#q20-target-typed-lambda-ambiguity-without-a-clear-target-type-lambda-expressions-may-fail-to-compile)
-  - [Q21. **Expression tree vs delegate** — Expression-tree lambdas cannot contain many C# constructs that delegate lambdas allow.](#q21-expression-tree-vs-delegate-expression-tree-lambdas-cannot-contain-many-c-constructs-that-delegate-lambdas-allow)
-  - [Q22. **Capturing `this` implicitly** — Instance lambdas capture `this`, extending object lifetime.](#q22-capturing-this-implicitly-instance-lambdas-capture-this-extending-object-lifetime)
-  - [Q23. **Extension on null reference** — Extension methods can be called on null receivers; may throw inside the method.](#q23-extension-on-null-reference-extension-methods-can-be-called-on-null-receivers-may-throw-inside-the-method)
-  - [Q1. (R) A pricing microservice chains discount calculators on a returning delegate and logs the "final adjusted price." Review the pipeline:](#q1-r-a-pricing-microservice-chains-discount-calculators-on-a-returning-delegate-and-logs-the-final-adjusted-price-review-the-pipeline)
-  - [Q2. (R) An order service exposes an optional audit hook as a nullable delegate. After a handler throws, downstream code never runs and later calls crash:](#q2-r-an-order-service-exposes-an-optional-audit-hook-as-a-nullable-delegate-after-a-handler-throws-downstream-code-never-runs-and-later-calls-crash)
-  - [Q3. (R) A teammate exposes notification wiring as a public delegate field "so integrators can subscribe without boilerplate." Review cross-team usage:](#q3-r-a-teammate-exposes-notification-wiring-as-a-public-delegate-field-so-integrators-can-subscribe-without-boilerplate-review-cross-team-usage)
-  - [Q4. (P) A warehouse API raises audit notifications from background worker threads while HTTP middleware subscribes and unsubscribes handlers per request. The publisher uses direct multicast invoke:](#q4-p-a-warehouse-api-raises-audit-notifications-from-background-worker-threads-while-http-middleware-subscribes-and-unsubscribes-handlers-per-request-the-publisher-uses-direct-multicast-invoke)
-  - [Q5. (P) An ASP.NET Core app registers a **Singleton** `ShippingCalculator` that takes a `Func<decimal, decimal>` built at startup from a **Scoped** `TaxRateProvider`:](#q5-p-an-aspnet-core-app-registers-a-singleton-shippingcalculator-that-takes-a-funcdecimal-decimal-built-at-startup-from-a-scoped-taxrateprovider)
-  - [Q6. (D) Your team is extending `OrderFulfillmentService` to support pluggable shipping and price adjustment. Two proposals:](#q6-d-your-team-is-extending-orderfulfillmentservice-to-support-pluggable-shipping-and-price-adjustment-two-proposals)
-  - [Q7. (M) A reporting job wires a covariant factory delegate and then fails when accessing derived-only data:](#q7-m-a-reporting-job-wires-a-covariant-factory-delegate-and-then-fails-when-accessing-derived-only-data)
-
-- [02. Lambda Expressions](#02-lambda-expressions-1)
-
-- [02. Lambda Expressions](#02-lambda-expressions-2)
-  - [Q1. (R) A pricing microservice builds per-SKU discount rules at startup and applies them later during checkout. QA reports every SKU gets the same discount as the last item in the catalog. Review this registration code:](#q1-r-a-pricing-microservice-builds-per-sku-discount-rules-at-startup-and-applies-them-later-during-checkout-qa-reports-every-sku-gets-the-same-discount-as-the-last-item-in-the-catalog-review-this-registration-code)
-  - [Q2. (R) A teammate refactors price validation from a statement lambda to an "expression" lambda for readability. The project fails to compile. Review the change:](#q2-r-a-teammate-refactors-price-validation-from-a-statement-lambda-to-an-expression-lambda-for-readability-the-project-fails-to-compile-review-the-change)
-  - [Q3. (R) An order API caches a `PriceTransform` delegate per tenant so repeated requests skip rebuilding markup logic. Review the scoped service:](#q3-r-an-order-api-caches-a-pricetransform-delegate-per-tenant-so-repeated-requests-skip-rebuilding-markup-logic-review-the-scoped-service)
-  - [Q4. (P) An EF Core repository exposes two overloads for filtering products. In production, one path translates to SQL; the other loads the entire table into memory. Review:](#q4-p-an-ef-core-repository-exposes-two-overloads-for-filtering-products-in-production-one-path-translates-to-sql-the-other-loads-the-entire-table-into-memory-review)
-  - [Q5. (R) A background price-sync job fires work with `Task.Run` and an async lambda. Failures never reach Application Insights. Review:](#q5-r-a-background-price-sync-job-fires-work-with-taskrun-and-an-async-lambda-failures-never-reach-application-insights-review)
-  - [Q6. (M) A developer chains LINQ over an in-memory price list and assumes the filter runs once at definition time. Review:](#q6-m-a-developer-chains-linq-over-an-in-memory-price-list-and-assumes-the-filter-runs-once-at-definition-time-review)
-  - [Q7. (D) A hot-path checkout endpoint transforms thousands of line items per second. The team debates three filter styles:](#q7-d-a-hot-path-checkout-endpoint-transforms-thousands-of-line-items-per-second-the-team-debates-three-filter-styles)
-
-- [03. Anonymous Methods](#03-anonymous-methods-1)
-
-- [03. Anonymous Methods](#03-anonymous-methods-2)
-  - [Q1. (R) A legacy WinForms order screen leaks memory after users open and close detail dialogs dozens of times. Review this maintenance patch that still uses anonymous methods:](#q1-r-a-legacy-winforms-order-screen-leaks-memory-after-users-open-and-close-detail-dialogs-dozens-of-times-review-this-maintenance-patch-that-still-uses-anonymous-methods)
-  - [Q2. (R) A developer modernizes a validation pipeline by replacing anonymous methods with lambdas but leaves one factory unchanged. Review both versions — what breaks at runtime in the combined pipeline?](#q2-r-a-developer-modernizes-a-validation-pipeline-by-replacing-anonymous-methods-with-lambdas-but-leaves-one-factory-unchanged-review-both-versions-what-breaks-at-runtime-in-the-combined-pipeline)
-  - [Q3. (R) A code review flags this void delegate wiring in a long-lived `StringBuilder` audit helper. Identify compile-time and lifetime issues:](#q3-r-a-code-review-flags-this-void-delegate-wiring-in-a-long-lived-stringbuilder-audit-helper-identify-compile-time-and-lifetime-issues)
-  - [Q4. (P) Your team inherits a .NET Framework 4.x WinForms/WPF codebase full of `delegate { … }` event handlers, `List<T>.FindAll(delegate …)`, and `ThreadPool.QueueUserWorkItem(delegate …)`. Product wants incremental modernization — no big-bang rewrite. Describe a safe migration strategy from anonymous methods to lambdas (or local functions), including what you verify before merging each touched file.](#q4-p-your-team-inherits-a-net-framework-4x-winformswpf-codebase-full-of-delegate-event-handlers-listtfindalldelegate-and-threadpoolqueueuserworkitemdelegate-product-wants-incremental-modernization-no-big-bang-rewrite-describe-a-safe-migration-strategy-from-anonymous-methods-to-lambdas-or-local-functions-including-what-you-verify-before-merging-each-touched-file)
-  - [Q5. (M) Explain where captured locals from an anonymous method live after the enclosing method returns. A junior developer claims `int matchCount = 0` stays on the stack because it is a value type. Review this snippet from an order-filter utility:](#q5-m-explain-where-captured-locals-from-an-anonymous-method-live-after-the-enclosing-method-returns-a-junior-developer-claims-int-matchcount-0-stays-on-the-stack-because-it-is-a-value-type-review-this-snippet-from-an-order-filter-utility)
-  - [Q6. (D) A teammate argues that anonymous methods in `RunAllRules` should stay inline because "they are only five lines," but QA cannot unit-test individual rules without running the whole pipeline. The pipeline today:](#q6-d-a-teammate-argues-that-anonymous-methods-in-runallrules-should-stay-inline-because-they-are-only-five-lines-but-qa-cannot-unit-test-individual-rules-without-running-the-whole-pipeline-the-pipeline-today)
-
-- [04. Extension Methods](#04-extension-methods-1)
-
-- [04. Extension Methods](#04-extension-methods-2)
-  - [Q1. (R) A teammate nests extension helpers inside an existing service class to "keep related code together." Review this addition:](#q1-r-a-teammate-nests-extension-helpers-inside-an-existing-service-class-to-keep-related-code-together-review-this-addition)
-  - [Q2. (R) After splitting helpers into a shared library, API controllers fail to build. Review the controller and library layout:](#q2-r-after-splitting-helpers-into-a-shared-library-api-controllers-fail-to-build-review-the-controller-and-library-layout)
-  - [Q3. (R) A null-safe helper was added for optional promo codes on checkout. Review the extension and its first production call:](#q3-r-a-null-safe-helper-was-added-for-optional-promo-codes-on-checkout-review-the-extension-and-its-first-production-call)
-  - [Q4. (R) Two NuGet packages ship extensions on `string` with the same signature. After adding both, CI builds but behavior flipped in staging:](#q4-r-two-nuget-packages-ship-extensions-on-string-with-the-same-signature-after-adding-both-ci-builds-but-behavior-flipped-in-staging)
-  - [Q5. (P) A logging extension on `IEnumerable<T>` looks convenient but skews metrics under load. Review:](#q5-p-a-logging-extension-on-ienumerablet-looks-convenient-but-skews-metrics-under-load-review)
-  - [Q6. (D) Your team debates where pricing rules belong for `OrderLine`. Option A adds extensions; Option B keeps methods on the type:](#q6-d-your-team-debates-where-pricing-rules-belong-for-orderline-option-a-adds-extensions-option-b-keeps-methods-on-the-type)
-  - [Q7. (P) An ASP.NET Core teammate models custom middleware as extension methods on `IApplicationBuilder`, mirroring `UseRouting` / `UseAuthentication`. Review this registration block:](#q7-p-an-aspnet-core-teammate-models-custom-middleware-as-extension-methods-on-iapplicationbuilder-mirroring-userouting-useauthentication-review-this-registration-block)
-  - [Q8. (M) Unit tests for a service that uses string extensions pass locally but fail in CI with `NullReferenceException`. Review the test setup:](#q8-m-unit-tests-for-a-service-that-uses-string-extensions-pass-locally-but-fail-in-ci-with-nullreferenceexception-review-the-test-setup)
-
-- [05. Func Action & Predicate](#05-func-action-predicate-1)
-
-- [05. Func Action & Predicate](#05-func-action-predicate-2)
-  - [Q1. (R) A warehouse API reuses a shared filter delegate across `List<T>` and LINQ. The build fails after a refactor. What is wrong, and how do you fix it without duplicating filter logic?](#q1-r-a-warehouse-api-reuses-a-shared-filter-delegate-across-listt-and-linq-the-build-fails-after-a-refactor-what-is-wrong-and-how-do-you-fix-it-without-duplicating-filter-logic)
-  - [Q2. (R) A teammate wires logging callbacks into a pick-list pipeline. Review the registration and invocation:](#q2-r-a-teammate-wires-logging-callbacks-into-a-pick-list-pipeline-review-the-registration-and-invocation)
-  - [Q3. (R) After making a filter optional, production throws intermittently when a branch has no active rule. Review:](#q3-r-after-making-a-filter-optional-production-throws-intermittently-when-a-branch-has-no-active-rule-review)
-  - [Q4. (P) An ASP.NET Core app registers a `Func<IServiceProvider, decimal>` factory in DI to read tax rate per request. Review startup:](#q4-p-an-aspnet-core-app-registers-a-funciserviceprovider-decimal-factory-in-di-to-read-tax-rate-per-request-review-startup)
-  - [Q5. (R) A pricing service accepts `Func<Product, decimal>` so callers can plug in "async catalog lookups." Review usage from a minimal API endpoint:](#q5-r-a-pricing-service-accepts-funcproduct-decimal-so-callers-can-plug-in-async-catalog-lookups-review-usage-from-a-minimal-api-endpoint)
-  - [Q6. (D) A team replaces every inventory rule interface with `Func<Product, bool>` parameters "to reduce boilerplate." Tests now require copying lambdas from production code. Compare:](#q6-d-a-team-replaces-every-inventory-rule-interface-with-funcproduct-bool-parameters-to-reduce-boilerplate-tests-now-require-copying-lambdas-from-production-code-compare)
-  - [Q7. (P) An API adds a custom endpoint filter using a predicate delegate. Review registration and behavior:](#q7-p-an-api-adds-a-custom-endpoint-filter-using-a-predicate-delegate-review-registration-and-behavior)
-  - [Q8. (M) A generic helper tries to widen a discontinued-SKU predicate for use on the full catalog. Review:](#q8-m-a-generic-helper-tries-to-widen-a-discontinued-sku-predicate-for-use-on-the-full-catalog-review)
-
-- [06. Closures](#06-closures-1)
-
-- [06. Closures](#06-closures-2)
-  - [Q1. (R) A batch job queues three background tasks to process order IDs 0, 1, and 2. In production every task logs `Processing order 3`. Review the scheduling code:](#q1-r-a-batch-job-queues-three-background-tasks-to-process-order-ids-0-1-and-2-in-production-every-task-logs-processing-order-3-review-the-scheduling-code)
-  - [Q2. (R) A price-filter service builds deferred LINQ queries inside a loop and stores them for later execution. Review this helper:](#q2-r-a-price-filter-service-builds-deferred-linq-queries-inside-a-loop-and-stores-them-for-later-execution-review-this-helper)
-  - [Q3. (R) After users navigate away from detail views, memory stays high. Review this WinForms-style panel:](#q3-r-after-users-navigate-away-from-detail-views-memory-stays-high-review-this-winforms-style-panel)
-  - [Q4. (P) A singleton `RetryScheduler` registers one-shot timers that retry failed HTTP calls. Review the registration:](#q4-p-a-singleton-retryscheduler-registers-one-shot-timers-that-retry-failed-http-calls-review-the-registration)
-  - [Q5. (R) A team parallelizes CSV row validation with `Parallel.ForEach`. Under load, totals and error lists are wrong. Review:](#q5-r-a-team-parallelizes-csv-row-validation-with-parallelforeach-under-load-totals-and-error-lists-are-wrong-review)
-  - [Q6. (M) An API endpoint filters products on every request using a closure factory. A junior dev argues "it's just a lambda — no allocation concern." Review the hot path:](#q6-m-an-api-endpoint-filters-products-on-every-request-using-a-closure-factory-a-junior-dev-argues-its-just-a-lambda-no-allocation-concern-review-the-hot-path)
-  - [Q7. (D) You inherit a service that mixes lambdas and local functions for deferred work:](#q7-d-you-inherit-a-service-that-mixes-lambdas-and-local-functions-for-deferred-work)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+  - [Q14. Closure captures the variable, not the value — Loop lambda prints `3, 3, 3`, not `0, 1, 2`.](#q14-closure-captures-the-variable-not-the-value--loop-lambda-prints-3-3-3-not-0-1-2)
+  - [Q15. Same trap in LINQ and tasks — Capturing loop variables inside `.Where()` / `Task.Run` produces identical bugs.](#q15-same-trap-in-linq-and-tasks--capturing-loop-variables-inside-where--taskrun-produces-identical-bugs)
+  - [Q16. Multicast delegate short-circuit on exception — Later subscribers may not run if an early one throws.](#q16-multicast-delegate-short-circuit-on-exception--later-subscribers-may-not-run-if-an-early-one-throws)
+  - [Q17. Extension method not in scope — Missing `using` for the static class namespace.](#q17-extension-method-not-in-scope--missing-using-for-the-static-class-namespace)
+  - [Q18. Instance method wins over extension — An instance method hides the extension; you cannot "override" with an extension.](#q18-instance-method-wins-over-extension--an-instance-method-hides-the-extension-you-cannot-override-with-an-extension)
+  - [Q19. Shared captured storage — Multiple lambdas share one slot for the same outer variable.](#q19-shared-captured-storage--multiple-lambdas-share-one-slot-for-the-same-outer-variable)
+  - [Q20. Target-typed lambda ambiguity — Without a clear target type, lambda expressions may fail to compile.](#q20-target-typed-lambda-ambiguity--without-a-clear-target-type-lambda-expressions-may-fail-to-compile)
+  - [Q21. Expression tree vs delegate — Expression-tree lambdas cannot contain many C# constructs that delegate lambdas allow.](#q21-expression-tree-vs-delegate--expression-tree-lambdas-cannot-contain-many-c-constructs-that-delegate-lambdas-allow)
+  - [Q22. Capturing `this` implicitly — Instance lambdas capture `this`, extending object lifetime.](#q22-capturing-this-implicitly--instance-lambdas-capture-this-extending-object-lifetime)
+  - [Q23. Extension on null reference — Extension methods can be called on null receivers; may throw inside the method.](#q23-extension-on-null-reference--extension-methods-can-be-called-on-null-receivers-may-throw-inside-the-method)
 
 ---
 
 ### 01. Delegates
 
-#### Q1. What is Functional Programming, and how does C# support it without being a purely functional language?
+---
 
-(R) A pricing microservice chains discount calculators on a returning delegate and logs the "final adjusted price." Review the pipeline:
+## Q1. What is Functional Programming, and how does C# support it without being a purely functional language?
 
-```csharp
-public delegate decimal PriceAdjuster(decimal price);
+**Concepts**
+- Functional programming support in C# via delegates and lambdas
+- Multicast delegate return-value semantics (last value only)
+- `GetInvocationList()` for explicit pipeline enumeration
+- Function pipeline vs void notification chain design
+- Explicit value fold via loop or `Aggregate`
+- First-class function assignment and composition
 
-PriceAdjuster pipeline = ApplyTenPercentOff;
-pipeline += ApplyLoyaltyTierDiscount;
-pipeline += ApplyPromoCode;
+**Answer**
 
-decimal listPrice = 200.00m;
-decimal finalPrice = pipeline(listPrice);
-_logger.LogInformation("Final price after {Count} adjustments: {Price}",
-    pipeline.GetInvocationList().Length, finalPrice);
-```
-
-`ApplyTenPercentOff` returns 180, `ApplyLoyaltyTierDiscount` returns 153, and `ApplyPromoCode` returns 137.70 — but production logs show `Final price: 137.70` while finance expects a step-by-step audit of each stage. What is wrong with this multicast design, and how would you fix it?
-
-**Answer:** Multicast on a returning delegate runs every handler but keeps only the last handler's return value — earlier adjustments are silently discarded, so a chained `PriceAdjuster` cannot produce an audited step-by-step pipeline without a different design.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Delegate semantics | Returning multicast keeps last return only | Intermediate prices lost; finance audit trail wrong |
-| Design | `+=` used for sequential price transforms | Reads as "pipeline" but CLR does not fold returns |
-| Observability | `GetInvocationList().Length` implies all stages contributed to `finalPrice` | Misleading logs — count ≠ cumulative calculation |
-
-**Fix (priority order):**
-
-1. Replace multicast with an explicit loop or LINQ fold that threads the decimal through each adjuster and logs after each step.
-2. If you only need side effects (audit logging), use a `void` multicast delegate (`Action<decimal>` per stage) separate from the single `PriceAdjuster` that computes the final value.
-3. For production pricing, prefer a list of `IPriceAdjuster` or `Func<decimal, decimal>` in a collection invoked sequentially — testable and deterministic.
+C# supports functional programming through delegates, lambdas, higher-order functions, and LINQ while remaining an imperative language at its core. A sharp distinction appears with multicast delegates that have non-void return types: the runtime runs every subscriber but silently discards all but the last return value, so `pipeline += step1; pipeline += step2;` looks like sequential composition but only `step2`'s result reaches the caller. Since the intermediate prices are never threaded forward, a chained `PriceAdjuster` cannot produce an audited step-by-step result without a different design. I fix this by iterating `GetInvocationList()` and threading the value through each cast handler explicitly, which is the correct functional fold pattern:
 
 ```csharp
 decimal price = listPrice;
@@ -195,56 +113,26 @@ foreach (PriceAdjuster step in pipeline.GetInvocationList().Cast<PriceAdjuster>(
     price = step(price);
     _logger.LogInformation("After {Step}: {Price}", step.Method.Name, price);
 }
-decimal finalPrice = price;
 ```
 
-**Production takeaway:** Multicast delegates are for void notification chains (audit, UI) — not accumulating return values. See **Program.cs** Sections 5 and Quick Reference — "only LAST handler's return value kept."
+Alternatively I keep an explicit `List<Func<decimal, decimal>>` folded with `Aggregate`. Multicast delegates belong in void notification chains; functional value pipelines require explicit chaining.
 
 ---
 
-#### Q2. What are the key principles of Functional Programming (immutability, pure functions, first-class functions, higher-order functions, referential transparency)?
+## Q2. What are the key principles of Functional Programming (immutability, pure functions, first-class functions, higher-order functions, referential transparency)?
 
-(R) An order service exposes an optional audit hook as a nullable delegate. After a handler throws, downstream code never runs and later calls crash:
+**Concepts**
+- Null-conditional delegate invocation (`?.Invoke`)
+- Multicast fault isolation via per-handler try/catch
+- `GetInvocationList()` for resilient subscriber enumeration
+- `event` vs public delegate field for access control
+- Exception propagation from audit handlers blocking business logic
 
-```csharp
-public sealed class OrderProcessor
-{
-    public OrderAuditHandler? OnOrderProcessed { get; set; }
+**Answer**
 
-    public void CompleteOrder(string orderId, decimal total)
-    {
-        _repository.Save(orderId, total);
-
-        OnOrderProcessed.Invoke($"Completed {orderId}: {total:C}");
-
-        _metrics.Increment("orders.completed");
-    }
-}
-```
-
-One audit handler throws `IOException` on a full disk; the next order raises `NullReferenceException` because `OnOrderProcessed` was set to null by a test teardown. Identify the problems and prioritize fixes.
-
-**Answer:** The method invokes a nullable delegate without null-conditional syntax and lets a throwing audit handler abort the rest of `CompleteOrder` — stacked null-safety and exception-isolation bugs that pass happy-path tests.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `OnOrderProcessed.Invoke(...)` without `?.` | `NullReferenceException` when hook is unset |
-| Correctness | Unhandled exception in audit handler | `_metrics.Increment` never runs; order saved but marked incomplete downstream |
-| Design | Public setter allows `= null` from tests/other modules | Entire multicast chain wiped — same risk as public delegate fields (Q3) |
-| Multicast | One failing handler stops the chain | Remaining audit targets never run |
-
-**Fix (priority order):**
-
-1. Use null-conditional invoke: `OnOrderProcessed?.Invoke(...)`.
-2. Wrap multicast invocation in per-handler try/catch (or invoke via `GetInvocationList()` individually) so audit failures cannot break order completion.
-3. Replace the public setter with `event` or controlled `+=`/`-=` API so external code cannot assign `= null`.
-4. Ensure `_metrics.Increment` runs in `finally` or before audit if audit is best-effort.
+The five core FP principles all point toward predictable, isolated behavior. In C# event wiring, two common violations compound each other: invoking a nullable delegate without `?.Invoke` causes `NullReferenceException` when no subscribers are registered, and letting one throwing subscriber propagate unhandled aborts every subsequent subscriber in the chain. Because the disk-full `IOException` in an audit handler can prevent the metrics increment that must always run after saving, the ordering and fault isolation of the callback chain matter. I address both by using `?.Invoke` for the null check and by iterating `GetInvocationList()` with individual try/catch blocks so a failing handler is logged without aborting the rest:
 
 ```csharp
-_repository.Save(orderId, total);
-
 if (OnOrderProcessed is not null)
 {
     foreach (OrderAuditHandler handler in OnOrderProcessed.GetInvocationList())
@@ -253,275 +141,209 @@ if (OnOrderProcessed is not null)
         catch (Exception ex) { _logger.LogWarning(ex, "Audit handler failed"); }
     }
 }
-
 _metrics.Increment("orders.completed");
 ```
 
-**Production takeaway:** Optional callbacks need `?.Invoke` and fault isolation — Karat stacks null delegate + exception propagation in one snippet. See **Program.cs** Section 4 — null-safe invoke.
+Replacing the public setter with `event` prevents external code from assigning `= null` and wiping all subscribers.
 
 ---
 
-#### Q3. What is the difference between imperative and declarative programming styles? Give a C# example of each.
+## Q3. What is the difference between imperative and declarative programming styles? Give a C# example of each.
 
-(R) A teammate exposes notification wiring as a public delegate field "so integrators can subscribe without boilerplate." Review cross-team usage:
+**Concepts**
+- Imperative style (explicit step-by-step mutation)
+- Declarative style (what, not how)
+- Public delegate field vs `event` access control
+- External invocation risk from exposed delegate
+- Test teardown corrupting shared subscriber chains
 
-```csharp
-public class InventorySyncService
-{
-    public OrderAuditHandler SyncCompleted;  // public field, not event
-}
+**Answer**
 
-// Module A — startup wiring:
-sync.SyncCompleted += msg => _audit.Log(msg);
-
-// Module B — test reset before each case:
-sync.SyncCompleted = null;
-
-// Module C — "helpful" shortcut when no listeners yet:
-if (sync.SyncCompleted == null)
-    sync.SyncCompleted = DefaultNoOpHandler;
-
-// Module D — integration test simulates a sync without the service:
-sync.SyncCompleted?.Invoke("SKU-991 restocked — trigger reorder");
-```
-
-What production risks does this create compared to wrapping the multicast chain in an `event`, and what would you change?
-
-**Answer:** A public delegate field lets any caller invoke the chain, replace it with `=`, or spoof notifications — `event` restricts outsiders to `+=`/`-=` only and keeps `Invoke` on the publisher.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | Public field exposes invocation list | Module D fakes sync completion → spurious downstream reorder jobs |
-| Lifetime | `SyncCompleted = null` (Module B) | Silently drops all subscribers — Module A's audit never fires again |
-| API contract | External `Invoke` allowed | Violates publisher/subscriber boundary; hard to reason about order of handlers |
-| Testability | Tests mutate production wiring globally | Flaky cross-test interference |
-
-**Fix (priority order):**
-
-1. Change to `public event OrderAuditHandler? SyncCompleted` — external code can only subscribe/unsubscribe.
-2. Add a `protected` or `private` `RaiseSyncCompleted(string message)` that performs `SyncCompleted?.Invoke(message)` inside the service.
-3. For test reset, expose `ClearSyncHandlersForTesting()` internally or use fresh service instances — never public `= null` on shared singletons.
-4. Document that multicast order follows registration order (**Program.cs** Section 5).
-
-**Production takeaway:** Delegate *mechanics* belong in this chapter; `event` adds access control on top (**Program.cs** Section 12). Karat tests whether you know why "flexible public delegate" is worse than `event` in shared services.
+Imperative code spells out every step of execution explicitly; declarative code states the desired outcome and lets the runtime determine how to achieve it. Exposing a notification hook as a public delegate field is an imperative anti-pattern because it gives every consumer the ability to replace the entire chain with `= null`, invoke it externally to simulate publisher behavior, or drop all subscribers without the publisher knowing. The `event` keyword restricts outside code to `+=` and `-=` only, which is the declarative contract: callers declare their intent to subscribe or unsubscribe, and the publisher controls invocation. Concretely, `sync.SyncCompleted = null` in a test teardown silently destroys all other modules' subscriptions, while `public event OrderAuditHandler? SyncCompleted` makes that assignment a compile error outside the owning class.
 
 ---
 
-#### Q4. What does it mean for functions to be first-class citizens in C#?
+## Q4. What does it mean for functions to be first-class citizens in C#?
 
-(P) A warehouse API raises audit notifications from background worker threads while HTTP middleware subscribes and unsubscribes handlers per request. The publisher uses direct multicast invoke:
+**Concepts**
+- First-class functions: assigned, passed, and returned
+- Delegate field as shared mutable reference
+- Thread-safe raise via local delegate copy
+- Non-atomicity of null check followed by `Invoke`
+- Immutable invocation list snapshot in local variable
 
-```csharp
-private OrderAuditHandler? _auditChain;
+**Answer**
 
-public void RaiseAudit(string message)
-{
-    _auditChain?.Invoke(message);
-}
-```
-
-Under load, handlers are occasionally skipped or you see rare `NullReferenceException` when the last subscriber unsubscribes during the raise. Explain the race on the multicast invocation list and show the thread-safe raise pattern for delegate chains.
-
-**Answer:** Multicast delegate fields can change between the null check and `Invoke`, and `?.Invoke` still invokes a snapshot that may differ from the live field — copying the delegate reference to a local before invoking makes the raise atomic for that notification.
-
-- **Race:** Thread A reads `_auditChain` (non-null). Thread B unsubscribes the last handler, setting `_auditChain` to null. Thread A calls `Invoke` on a delegate whose invocation list was mutated — on older paths or with torn reads, this surfaces as skipped handlers or `NullReferenceException`.
-- **Pattern:** `var chain = _auditChain; chain?.Invoke(message);` — the local holds the invocation list as it existed at copy time; unsubscribes during the raise do not affect this invocation.
-- For long-running handlers, iterate `chain.GetInvocationList()` and invoke each target separately with try/catch so one failing subscriber does not abort the rest.
-- Prefer `event` with the same local-copy raise inside the owning class; do not expose the multicast field publicly.
+Functions are first-class citizens when they can be assigned to variables, passed as arguments, and returned from other functions—in C# this means delegates and lambdas are values just like `int` or `string`. The threading consequence of storing a delegate in a field is that reading the field and invoking it are not atomic: a concurrent unsubscribe between the null check and the `Invoke` call can replace the field with `null`, causing `NullReferenceException` even with the `?.` operator if the read and the call are not protected. I copy the delegate reference to a local before the check—the local holds the invocation list as it existed at copy time, so any unsubscribes during the raise do not affect the current notification round:
 
 ```csharp
-public void RaiseAudit(string message)
+var chain = _auditChain;
+if (chain is null) return;
+foreach (OrderAuditHandler handler in chain.GetInvocationList())
 {
-    var chain = _auditChain;
-    if (chain is null) return;
-
-    foreach (OrderAuditHandler handler in chain.GetInvocationList())
-    {
-        try { handler(message); }
-        catch (Exception ex) { _logger.LogError(ex, "Audit handler failed"); }
-    }
+    try { handler(message); }
+    catch (Exception ex) { _logger.LogError(ex, "Audit handler failed"); }
 }
 ```
-
-**Production takeaway:** Thread-safe delegate raise = copy to local, then invoke — same mechanism underlying event raises. Events chapter covers subscriber lifetime; this chapter owns multicast invocation semantics.
 
 ---
 
-#### Q5. What is a delegate in C#? How does it differ from a method group and from an interface with a single method?
+## Q5. What is a delegate in C#? How does it differ from a method group and from an interface with a single method?
 
-(P) An ASP.NET Core app registers a **Singleton** `ShippingCalculator` that takes a `Func<decimal, decimal>` built at startup from a **Scoped** `TaxRateProvider`:
+**Concepts**
+- Delegate as type-safe function pointer
+- Method group as pre-conversion method reference expression
+- Single-method interface requiring full implementation class
+- Captive dependency via delegate closure in singleton
+- `ValidateOnBuild`/`ValidateScopes` for DI lifetime detection
 
-```csharp
-builder.Services.AddScoped<TaxRateProvider>();
-builder.Services.AddSingleton<ShippingCalculator>(sp =>
-{
-    var taxProvider = sp.GetRequiredService<TaxRateProvider>();
-    Func<decimal, decimal> applyTax = amount => amount * (1 + taxProvider.CurrentRate);
-    return new ShippingCalculator(applyTax);
-});
+**Answer**
 
-public sealed class ShippingCalculator
-{
-    private readonly Func<decimal, decimal> _applyTax;
-    public ShippingCalculator(Func<decimal, decimal> applyTax) => _applyTax = applyTax;
-    public decimal Calculate(decimal baseShipping) => _applyTax(baseShipping);
-}
-```
-
-Requests intermittently use stale tax rates or throw `ObjectDisposedException`. What is wrong with this delegate wiring in DI, and how do you fix it?
-
-**Answer:** The singleton captures a delegate that closes over a scoped `TaxRateProvider` from the root provider at startup — a captive dependency that outlives the scope and reads wrong or disposed state on later requests.
-
-- `GetRequiredService<TaxRateProvider>()` inside the singleton factory resolves one scope's instance (or throws at validation) and embeds it in the lambda's closure for the app lifetime.
-- Delegates make the capture invisible — the signature `Func<decimal, decimal>` looks stateless but holds the scoped service reference.
-- **Fix options:** (1) Make `ShippingCalculator` scoped and inject `TaxRateProvider` directly. (2) Keep singleton but pass `IServiceScopeFactory` and resolve `TaxRateProvider` per `Calculate` call inside the method — not inside a cached delegate. (3) Inject `IOptionsMonitor<TaxSettings>` or a singleton rate cache updated by a background refresh — no scoped capture.
-- Enable `ValidateOnBuild` and `ValidateScopes` in development to catch this at startup.
-
-```csharp
-builder.Services.AddScoped<ShippingCalculator>();
-builder.Services.AddScoped<TaxRateProvider>();
-
-public sealed class ShippingCalculator
-{
-    private readonly TaxRateProvider _taxProvider;
-    public ShippingCalculator(TaxRateProvider taxProvider) => _taxProvider = taxProvider;
-    public decimal Calculate(decimal baseShipping) =>
-        baseShipping * (1 + _taxProvider.CurrentRate);
-}
-```
-
-**Production takeaway:** `Func<T>`/`Action<T>` in DI hide captured lifetimes — Karat pairs delegate syntax with ASP.NET Core scope rules. Prefer injecting the service or factory interface explicitly over a pre-built closure on a singleton.
+A delegate is a type-safe object that references a method matching its signature; a method group is an expression naming one or more overloads before the compiler selects the matching delegate type; a single-method interface is a reference contract requiring a full implementation class. The critical difference from a DI perspective is that a delegate closes over its captured state at creation time—so a `Func<decimal, decimal>` built from a scoped `TaxRateProvider` during singleton construction captures that one scoped instance for the application lifetime. Later requests use a stale or disposed provider because the closure hides the captured lifetime from DI's lifetime validation. The fix is either to make `ShippingCalculator` scoped so it matches `TaxRateProvider`, or to inject `IServiceScopeFactory` and resolve a fresh provider per call rather than embedding one in a cached closure. Enabling `ValidateOnBuild` and `ValidateScopes` in development catches this class of captive dependency at startup.
 
 ---
 
-#### Q6. How do you declare, instantiate, and invoke a custom delegate type?
+## Q6. How do you declare, instantiate, and invoke a custom delegate type?
 
-(D) Your team is extending `OrderFulfillmentService` to support pluggable shipping and price adjustment. Two proposals:
+**Concepts**
+- Custom delegate declaration syntax
+- Method group vs lambda instantiation
+- `?.Invoke` for nullable delegate invocation
+- Delegate vs interface for single-method callback slots
+- Multicast chain lifetime and mandatory unsubscribe on dispose
 
-- **Option A:** `ShippingRule` and `PriceAdjuster` delegates (as in this chapter's pipeline demo)
-- **Option B:** `IShippingStrategy` and `IPriceAdjuster` interfaces injected via DI
+**Answer**
 
-When would you choose delegates vs interfaces for each hook in a production ASP.NET Core app, and what unsubscribe or lifetime rules apply if you keep multicast delegate chains in-process?
-
-**Answer:** Use delegates for single, swappable callbacks with optional multicast (in-process audit/logging); use interfaces for multi-operation contracts, DI registration, and test doubles in ASP.NET Core services.
-
-- **Delegates (`ShippingRule`, `PriceAdjuster`):** Fit when you need one method slot swapped at runtime — e.g., choosing `StandardShipping` vs `ExpressShipping` via method group assignment (**Program.cs** Section 9). Good for strategy passed into a single method call, local plugin hooks, or short-lived multicast audit chains. Downside: no discoverable contract, harder to mock without wrapping in an interface, and multicast lifetime must be managed manually (`-=` on dispose).
-- **Interfaces (`IShippingStrategy`, `IPriceAdjuster`):** Fit when the consumer needs a named capability registered in DI, multiple related members, or unit tests with fakes (**Program.cs** Section 8). ASP.NET Core already resolves `IPriceAdjuster` per request or as keyed services — preferred for domain services shared across controllers.
-- **Lifetime rule for multicast chains:** Publisher must outlive subscribers or subscribers must `-=` in `Dispose`/`IAsyncDisposable`. Never store per-request lambdas on a singleton delegate field. For web apps, avoid in-process multicast for cross-request notification — use `IHostedService`, message bus, or `Channel<T>` instead.
-- **Practical split:** `ShippingRule` as a delegate parameter to `CalculateShipping(baseRate, rule)` is fine; registering global `OrderAuditHandler` multicast on a singleton without `event` is not.
-
-**Production takeaway:** Chapter demo delegates excel at algorithm slots and audit chains; production ASP.NET Core domain code usually registers interfaces in DI and keeps multicast delegate chains local and short-lived.
+I declare a custom delegate with `public delegate TReturn TypeName(params);`, instantiate it via method group assignment (`ShippingRule rule = StandardShipping;`) or lambda, and invoke it with `instance(args)` or `instance?.Invoke(args)` for nullable delegates. For a pluggable strategy in ASP.NET Core, delegates suit single-method algorithm slots passed directly into one method call—a `ShippingRule` or `PriceAdjuster` parameter to a single method. Interfaces suit multi-method contracts that need DI registration, test doubles, or domain meaning beyond one callback. When multicast delegate chains live in-process, every subscriber must remove itself on dispose because the publisher holds a GC root; for web apps I avoid cross-request multicast chains entirely and prefer `IHostedService`, channels, or keyed DI services rather than in-process `+=`/`-=` wiring.
 
 ---
 
-#### Q7. What is a multicast delegate? How does `+=` and `-=` work on delegate instances?
+## Q7. What is a multicast delegate? How does `+=` and `-=` work on delegate instances?
 
-(M) A reporting job wires a covariant factory delegate and then fails when accessing derived-only data:
+**Concepts**
+- Multicast delegate invocation list immutability
+- `+=` and `-=` creating new delegate instances
+- Delegate return-type covariance
+- Static vs runtime type of a covariant delegate return
+- Pattern matching for safe downcast after covariant assignment
+
+**Answer**
+
+A multicast delegate holds an ordered invocation list; `+=` creates a new delegate combining the existing list with the new target, and `-=` creates a new delegate with the matching target removed—both operations produce a new immutable delegate instance rather than mutating the original field. Covariance lets a method returning `DetailedReport` satisfy a `SummaryFactory` delegate typed to return `ReportSummary`, but the compiler types `factory()` as `ReportSummary` because that is the declared return type. If a later assignment swaps in a method returning a plain `ReportSummary`, a direct cast to `DetailedReport` throws `InvalidCastException` at runtime. I use pattern matching to handle both cases safely:
 
 ```csharp
-public delegate ReportSummary SummaryFactory();
-
-SummaryFactory factory = ReportBuilders.BuildDetailedReport;
 ReportSummary summary = factory();
-
-// Later — production code expects page count for PDF pagination:
-int pages = ((DetailedReport)summary).PageCount;  // InvalidCastException in some builds
-```
-
-The assignment compiles and `summary.Title` works. Why does the cast fail at runtime, and what pattern safely preserves `DetailedReport` through the callback chain?
-
-**Answer:** Covariant delegate assignment only widens the compile-time return type — `factory()` is typed as `ReportSummary`, and the compiler treats the return as the base type unless you downcast from the known runtime type or change the delegate signature.
-
-- `BuildDetailedReport` returns `DetailedReport`, which satisfies `SummaryFactory` because return types are covariant on delegates (**Program.cs** Section 7).
-- The variable `summary` is statically typed as `ReportSummary`; the actual object may still be `DetailedReport` at runtime — but if the factory is swapped for `BuildSummaryStub()` returning plain `ReportSummary`, the cast throws `InvalidCastException`.
-- **Safe patterns:** (1) Declare `SummaryFactory` as returning `DetailedReport` when all consumers need derived data. (2) Use pattern matching: `if (summary is DetailedReport detailed) { ... }`. (3) Prefer `Func<DetailedReport>` or a generic `Func<TReport>` with constraint when wiring DI. (4) As in **Program.cs** demo: `DetailedReport? detailed = summary as DetailedReport;` and handle null.
-- Do not assume covariant assignment preserves derived type through subsequent indirection — only the method's declared return at the call site matters for the static type of `factory()`.
-
-```csharp
-SummaryFactory factory = ReportBuilders.BuildDetailedReport;
-ReportSummary summary = factory();
-
 if (summary is DetailedReport detailed)
     _pdfPaginator.Configure(detailed.PageCount);
 else
     _pdfPaginator.Configure(defaultPageCount: 1);
 ```
 
-**Production takeaway:** Covariance lets you *assign* a derived-return method to a base-return delegate — it does not guarantee every future target returns the derived type; production code must match or pattern-match on the runtime type.
+When all callers need derived members, I narrow the delegate type to `Func<DetailedReport>` to eliminate the downcast entirely.
 
 ---
 
-#### Q8. What is the difference between single-cast and multicast delegates at invocation time?
+## Q8. What is the difference between single-cast and multicast delegates at invocation time?
 
-_Answer not found._
+**Concepts**
+- Single-cast delegate holds one target
+- Multicast invocation list sequential execution
+- Last non-void return value propagated to caller
+- Exception short-circuit stops remaining subscribers
+- `GetInvocationList()` for per-target control
 
----
+**Answer**
 
-#### Q9. What happens when you invoke a multicast delegate and one subscriber throws an exception?
-
-_Answer not found._
-
----
-
-#### Q10. What is delegate covariance and contravariance in C#?
-
-_Answer not found._
+A single-cast delegate holds exactly one target; invoking it runs that target and returns its result directly. A multicast delegate holds two or more targets in an ordered list; invoking it runs each target sequentially, discards all but the last non-void return value, and stops immediately if any target throws an unhandled exception—later targets in the list never run. Because of this sequential short-circuit behavior and the discard of intermediate returns, multicast delegates are appropriate for void notification chains (events, logging hooks) but not for pipelines where every step must contribute or return values must accumulate.
 
 ---
 
-#### Q11. When would you prefer a named delegate type over `Func`/`Action` in a public API?
+## Q9. What happens when you invoke a multicast delegate and one subscriber throws an exception?
 
-_Answer not found._
+**Concepts**
+- Exception from one subscriber propagates to call site
+- Subsequent subscribers skipped after exception
+- `GetInvocationList()` for resilient per-handler invocation
+- Per-handler try/catch pattern for independent subscribers
+- Void notification chains as the primary multicast use case
+
+**Answer**
+
+When one subscriber in a multicast chain throws, the exception propagates immediately to the invoker and all subsequent subscribers are skipped—their handlers never run. Since independently-owned audit hooks, UI updaters, or logging callbacks should not fail together, I iterate `GetInvocationList()`, cast each element to the delegate type, and invoke each in its own try/catch block so a failing subscriber is logged without aborting the others:
+
+```csharp
+foreach (OrderAuditHandler h in OnOrderProcessed.GetInvocationList().Cast<OrderAuditHandler>())
+{
+    try { h(message); }
+    catch (Exception ex) { _logger.LogWarning(ex, "Audit handler failed"); }
+}
+```
+
+This pattern is essential for any event chain where subscribers are written by different teams and failure in one must not cascade.
 
 ---
 
-#### Q12. What are the advantages and limitations of adopting a functional style in typical enterprise C# codebases?
+## Q10. What is delegate covariance and contravariance in C#?
 
-_Answer not found._
+**Concepts**
+- Return-type covariance on delegates
+- Parameter-type contravariance on delegates
+- `out`/`in` variance modifiers on generic `Func`/`Action`
+- Compile-time widening vs runtime type after covariant assignment
+- Pattern matching over direct cast for safe downcast
+
+**Answer**
+
+Delegate return-type covariance means a method returning a derived type satisfies a delegate expecting a base return type—`BuildDetailedReport` returning `DetailedReport` can be assigned to a `SummaryFactory` that returns `ReportSummary`. Contravariance is the inverse for parameters: a method accepting a base-type parameter can satisfy a delegate declaring a derived-type parameter. Both forms are supported on generic `Func`/`Action` through the `out` and `in` modifiers on type parameters. The key limitation is that covariance only widens the static return type; if a different implementation later returns a plain `ReportSummary`, a hard cast to `DetailedReport` throws at runtime. I always use `is`-pattern matching rather than a direct cast after covariant assignment, since the actual runtime type depends on which concrete method was last assigned to the delegate.
+
+---
+
+## Q11. When would you prefer a named delegate type over `Func`/`Action` in a public API?
+
+**Concepts**
+- Named delegate for domain-meaningful parameter intent
+- `Func`/`Action` for generic utilities and LINQ pipelines
+- XML doc discoverability on named delegates
+- Stable API contract via named type
+- Attribute support on named delegate parameters
+
+**Answer**
+
+I prefer a named delegate type in a public API when the callback carries domain meaning that `Func` obscures—`OrderAuditHandler`, `ShippingRule`, and `PriceAdjuster` tell a reader what the delegate represents and allow XML documentation that describes expected behavior, preconditions, and threading contract clearly. A public extension point named `Func<string, string, decimal>` forces callers to inspect every overload to understand what the three parameters mean. Named delegates also provide stable API contracts: I can attach attributes, refine documentation, or add overloads to the delegate type without breaking every call site already supplying a lambda. For private helpers and LINQ chains where context is obvious, generic `Func`/`Action` reduce boilerplate without losing clarity.
+
+---
+
+## Q12. What are the advantages and limitations of adopting a functional style in typical enterprise C# codebases?
+
+**Concepts**
+- Functional style benefits (composability, immutability, reduced mutable state)
+- Closure allocation overhead on hot paths
+- Captured-lifetime surprises in ASP.NET Core scoped services
+- Cultural mismatch with OOP-oriented teams
+- Incremental adoption strategy (LINQ, records, pure helpers first)
+
+**Answer**
+
+Functional style in C# yields clearer data transformations—LINQ pipelines, pure projection functions, and immutable `record` types compose well and reduce the mutable-state bugs common in threaded enterprise code. The main operational limitations are hidden allocation and lifetime costs: closures introduce heap-allocated display classes and captured-lifetime surprises that surface as memory pressure or scoped-service captive dependencies in ASP.NET Core—problems that a plain service class with explicit constructor injection would have made visible. There is also a cultural cost: teams accustomed to stateful OOP patterns find heavy closure use and functional composition harder to reason about in production crash dumps and profiler traces. I adopt functional style incrementally, starting with LINQ projections, pure helpers, and `record` value objects, and introduce more advanced patterns only where they measurably reduce defect surface.
 
 ---
 
 ### 02. Lambda Expressions
 
-#### Q1. What is a lambda expression in C#? What problem does it solve compared to named methods?
+---
 
-(R) A pricing microservice builds per-SKU discount rules at startup and applies them later during checkout. QA reports every SKU gets the same discount as the last item in the catalog. Review this registration code:
+## Q1. What is a lambda expression in C#? What problem does it solve compared to named methods?
 
-```csharp
-public sealed class DiscountRuleRegistry
-{
-    private readonly List<Func<decimal, decimal>> _rules = new();
+**Concepts**
+- Lambda as inline anonymous delegate
+- `foreach` closure capture by variable reference
+- Per-iteration variable snapshot via inner local copy
+- Display class generation for captured variables
+- Deferred invocation vs creation-time value
 
-    public void RegisterRules(IEnumerable<(string Sku, decimal Rate)> catalog)
-    {
-        foreach (var item in catalog)
-        {
-            _rules.Add(price => price * (1m - item.Rate));
-        }
-    }
+**Answer**
 
-    public decimal ApplyAll(decimal price) =>
-        _rules.Aggregate(price, (current, rule) => rule(current));
-}
-```
-
-What is wrong with the lambdas, and how do you fix it without changing the public API shape?
-
-**Answer:** Each stored lambda captures the **same** loop variable `item` by reference, not a snapshot of each iteration's rate. When rules run later, every delegate reads `item.Rate` from the final loop value — the classic foreach closure bug previewed in **Program.cs** Section 11 and detailed in **06. Closures**.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Closure | `item` captured by reference across iterations | All rules apply the last SKU's discount rate |
-| Correctness | Deferred invocation of loop-created lambdas | Passes small manual tests; fails full catalog |
-| Design | No per-iteration copy of `Rate` | Silent revenue/pricing bug in production |
-
-**Fix (priority order):**
-
-1. Copy loop values into locals before creating the lambda so each delegate closes over its own snapshot:
+A lambda expression is an anonymous function defined inline using `=>` syntax, solving the ceremony of declaring a separate named method for short, single-use callbacks. The tradeoff is that lambdas close over outer variables by reference rather than by value, which means each lambda stored in a collection from a `foreach` loop shares the same loop variable—when the delegates execute later, they all read the variable's current (final) value rather than the value at the iteration when they were created. I fix this by copying the iteration value to a local inside the loop so each delegate closes over an independent snapshot:
 
 ```csharp
 foreach (var item in catalog)
@@ -531,577 +353,300 @@ foreach (var item in catalog)
 }
 ```
 
-2. Alternatively use a `for` loop with an indexed copy, or build rules with a factory: `_rules.Add(MakeRule(item.Rate))` where `MakeRule(decimal rate)` returns `price => price * (1m - rate)`.
-3. Add a unit test that registers ≥3 distinct rates and asserts each rule returns a different multiplier.
+---
 
-**Production takeaway:** Karat embeds this in realistic service code — the lambda syntax looks per-item, but closure semantics share one slot until you copy. See **06. Closures** for foreach/`for` pitfalls.
+## Q2. What is the difference between an expression lambda and a statement lambda?
+
+**Concepts**
+- Expression lambda (no braces, implicit return)
+- Statement lambda (block body, explicit `return`)
+- CS0834 compiler error for invalid block in expression position
+- CS0161 not-all-code-paths-return error
+- When to keep block body over expression form
+
+**Answer**
+
+An expression lambda contains a single expression and implicitly returns its value—`price => price * 0.9m`. A statement lambda uses a block body with braces and requires an explicit `return` for non-void delegates—`price => { if (price <= 0m) return false; return true; }`. Attempting `price => { price > 0m && price <= 999_999m }` fails because the braces declare a statement block containing only an expression statement with no `return`, causing CS0834 or CS0161. Multi-step validation with branching belongs in a statement lambda; I only use the expression form when the entire logic fits on one line without control flow. If the statement body is complex enough to warrant a name, I prefer a named method or local function assigned via method group.
 
 ---
 
-#### Q2. What is the difference between an expression lambda and a statement lambda?
+## Q3. When can parameter types be omitted in a lambda, and when must they be explicit?
 
-(R) A teammate refactors price validation from a statement lambda to an "expression" lambda for readability. The project fails to compile. Review the change:
+**Concepts**
+- Type inference from target delegate context
+- Explicit types required for ambiguous overloads
+- `??=` caching a closure over a per-call parameter
+- Stale delegate when parameter changes after first call
+- When not to cache lambdas that close over call-site arguments
 
-```csharp
-PriceFilter isValidUnitPrice = price =>
-{
-    if (price <= 0m) return false;
-    if (price > 999_999m) return false;
-    return true;
-};
+**Answer**
 
-// Refactor attempt:
-PriceFilter isValidUnitPrice = price => { price > 0m && price <= 999_999m };
-```
-
-What compile errors or design mistakes appear, and when should you keep a statement (block) lambda instead of forcing an expression form?
-
-**Answer:** The refactor uses `{ }` in what must be a single expression — that is a **statement** lambda body, not an expression lambda, and the block does not return a value. The compiler reports **CS0834** (statements not allowed in expression lambda) or **CS0161** (not all code paths return) depending on how braces are parsed. Multi-step validation with `if` chains belongs in a **statement lambda** with explicit `return`, as shown in **Program.cs** Section 4 and Section 9.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `{ price > 0m && ... }` is a block, not one expression | Build fails — CS0834 / CS0161 |
-| Design | Forcing expression form for branching logic | Wrong tool; harder to read than statement body |
-| Correctness | Even `price => price > 0m && price <= 999_999m` omits `<= 0` guard clarity | Logic drift vs original three-path check |
-
-**Fix (priority order):**
-
-1. Keep the statement lambda when you need multiple checks or locals:
-
-```csharp
-PriceFilter isValidUnitPrice = price =>
-{
-    if (price <= 0m) return false;
-    if (price > 999_999m) return false;
-    return true;
-};
-```
-
-2. If truly one expression suffices, drop braces: `price => price > 0m && price <= 999_999m`.
-3. For reused validation, prefer a named method or local function and assign via method group — **Program.cs** Section 7.
-
-**Production takeaway:** Expression lambdas are for one-liners; block bodies need explicit `return` for non-void delegates. Karat tests whether you recognize CS0834/CS0161 from real refactors, not from memorizing error numbers alone.
+Parameter types can be omitted when the compiler infers them from the target delegate type—assigning `price => price * 1.08m` to a `Func<decimal, decimal>` variable lets the compiler infer `price` as `decimal`. Types must be explicit when inference is ambiguous, when using parameter attributes (C# 10+), or when two applicable delegate overloads exist at the call site. A related pitfall arises when a lambda closes over a method parameter and is cached with `??=`: the first call populates the cached delegate with the current argument's value, and subsequent calls with different arguments still invoke the original closure because the delegate is never rebuilt—caching freezes the captured value, not the calculation pattern. I fix this by computing inline or by keying the cache on the argument value rather than storing a closure over a per-call parameter.
 
 ---
 
-#### Q3. When can parameter types be omitted in a lambda, and when must they be explicit?
+## Q4. What are target-typed lambdas (C# 10+)? In what contexts does the compiler infer the delegate type?
 
-(R) An order API caches a `PriceTransform` delegate per tenant so repeated requests skip rebuilding markup logic. Review the scoped service:
+**Concepts**
+- Target-typed lambda delegate inference from assignment context
+- `Expression<Func<T, bool>>` for IQueryable SQL translation
+- `Func<T, bool>` forces client-side evaluation (table scan)
+- EF Core provider inspects expression tree structure
+- `AsEnumerable()` to intentionally switch to in-memory evaluation
 
-```csharp
-public sealed class TenantPricingService
-{
-    private Func<decimal, decimal>? _cachedTransform;
+**Answer**
 
-    public decimal GetMarkedUpPrice(decimal basePrice, decimal tenantMarkupPercent)
-    {
-        _cachedTransform ??= price => price * (1m + tenantMarkupPercent);
-        return _cachedTransform(basePrice);
-    }
-}
-```
-
-The service is registered **Scoped**, but finance reports wrong markups when tenants change rates at runtime. What closure/capture bug is embedded here, and what is the correct fix?
-
-**Answer:** The cached lambda captures `tenantMarkupPercent` from the **first** call that populated `_cachedTransform`. Later calls with a different markup still invoke the old closure — caching the delegate freezes the captured rate, not the calculation pattern.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Closure | `tenantMarkupPercent` captured on first `??=` | Subsequent calls use stale markup |
-| Caching | Delegate cache ignores parameter changes | Wrong prices after tenant config updates |
-| Correctness | Looks like a performance win | Silent financial discrepancy |
-
-**Fix (priority order):**
-
-1. Do not cache a lambda that closes over a per-call parameter — compute inline or cache keyed by rate:
-
-```csharp
-public decimal GetMarkedUpPrice(decimal basePrice, decimal tenantMarkupPercent) =>
-    basePrice * (1m + tenantMarkupPercent);
-```
-
-2. If caching is required, key by `(tenantId, tenantMarkupPercent)` or store the rate in a field updated from configuration, and rebuild the delegate when the rate changes.
-3. Use `static` lambda only when no outer state is needed: `static price => price * 1.08m` for a fixed global tax — see **Program.cs** Section 9 (`static lambda` cannot capture locals).
-
-**Production takeaway:** Closures capture **variables**, not parameter **values at each call** once the delegate is created. Caching + capture is a common Karat stack: scoped lifetime does not fix stale captured locals.
+Target-typed lambdas (C# 10+) allow the compiler to infer the delegate type from the assignment target, return type, or parameter type. The distinction between `Expression<Func<T, bool>>` and `Func<T, bool>` is critical for EF Core: `IQueryable.Where` takes an expression tree, so the provider inspects the lambda's structure and generates SQL; passing a compiled `Func<T, bool>` forces `IQueryable` to fall back to client evaluation, materializing the entire table before filtering in memory. The same `=>` syntax compiles to fundamentally different runtime behavior depending on the declared parameter type. I always use `Expression<Func<T, bool>>` in repository filter parameters and compile to `Func` only after an explicit `.AsEnumerable()` call when switching intentionally to in-memory processing.
 
 ---
 
-#### Q4. What are target-typed lambdas (C# 10+)? In what contexts does the compiler infer the delegate type?
+## Q5. What is the natural type of a lambda — when does the compiler infer `Func`/`Action` vs require an explicit target type?
 
-(P) An EF Core repository exposes two overloads for filtering products. In production, one path translates to SQL; the other loads the entire table into memory. Review:
+**Concepts**
+- Async lambda natural type as `Func<Task>` or `Func<Task<T>>`
+- Discarding the returned `Task` hides exceptions
+- Unobserved task exceptions never reach logging infrastructure
+- `foreach` closure capture in async fan-out
+- `Task.WhenAll` for observable aggregated completion
 
-```csharp
-public async Task<List<Product>> GetExpensiveAsync(
-    decimal minPrice,
-    CancellationToken ct)
-{
-    Expression<Func<Product, bool>> predicate =
-        p => p.UnitPrice >= minPrice;
+**Answer**
 
-    return await _db.Products
-        .Where(predicate)
-        .ToListAsync(ct);
-}
-
-public async Task<List<Product>> GetExpensiveInMemoryAsync(
-    decimal minPrice,
-    CancellationToken ct)
-{
-    Func<Product, bool> predicate =
-        p => p.UnitPrice >= minPrice;
-
-    return await _db.Products
-        .Where(predicate)
-        .ToListAsync(ct);
-}
-```
-
-Explain why `Expression<Func<T, bool>>` vs `Func<T, bool>` matters for EF Core, and what breaks if you standardize on `Func` everywhere "because lambdas look the same."
-
-**Answer:** EF Core's `IQueryable.Where` accepts `Expression<Func<T, bool>>` so the provider can **inspect the lambda tree** and translate `p.UnitPrice >= minPrice` to SQL. `Func<Product, bool>` is a compiled delegate — `Where` on `IQueryable` cannot translate it and falls back to **client evaluation** (often materializing the whole table first), which destroys performance and can pull logic out of the database incorrectly.
-
-- Use `Expression<Func<T, bool>>` (or inline lambda) for **IQueryable** / EF filters, includes, projections that must run on the server.
-- Use `Func<T, bool>` for **in-memory** `IEnumerable` / LINQ-to-Objects after materialization (`AsEnumerable()`, lists, arrays) — matches **Program.cs** `PricePipeline.FilterPrices` eager loops.
-- API design: expose expression-based filters in repositories; compile to `Func` only after `.AsEnumerable()` when necessary.
-- `minPrice` is captured as a constant in the expression tree parameter — EF parameterizes it correctly when the expression is built per call.
-
-**Production takeaway:** Same `=>` syntax, different delegate type — Karat tests whether you know **Expression trees vs delegates**, not lambda syntax. Standardizing on `Func` in EF repositories is a common production foot-gun.
-
----
-
-#### Q5. What is the natural type of a lambda — when does the compiler infer `Func`/`Action` vs require an explicit target type?
-
-(R) A background price-sync job fires work with `Task.Run` and an async lambda. Failures never reach Application Insights. Review:
-
-```csharp
-public void ScheduleCatalogRefresh(IEnumerable<string> skus)
-{
-    foreach (var sku in skus)
-    {
-        Task.Run(async () =>
-        {
-            var price = await _gateway.FetchPriceAsync(sku);
-            _cache.Set(sku, price);
-        });
-    }
-}
-```
-
-What async/lambda issues stack here (including the classic loop capture), and how do you fix observability and correctness?
-
-**Answer:** This code combines **unobserved async void-like fire-and-forget** (exceptions inside `Task.Run(async () => …)` are stored on the returned `Task` but never awaited), the **foreach `sku` capture bug** (every task may fetch the last SKU), and **unbounded parallel fan-out** with no throttling or cancellation.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Async | Returned `Task` discarded | Exceptions never observed → silent sync failures |
-| Closure | `sku` captured by reference in loop | Wrong SKU updated or duplicate work |
-| Scalability | Unbounded `Task.Run` per item | Thread-pool stampede; gateway rate limits hit |
-| Hosting | No `CancellationToken` propagation | Shutdown mid-run leaves partial cache |
-
-**Fix (priority order):**
-
-1. Capture the loop variable: `var currentSku = sku;` before the lambda, or use `foreach` with a local copy inside the loop body passed to a named async method.
-2. Await and handle errors — e.g. `await Task.WhenAll(tasks)` with try/catch logging, or use a channel/worker with explicit exception logging to Application Insights.
-3. Prefer `async Task ScheduleCatalogRefreshAsync(...)` end-to-end instead of `void` + fire-and-forget; pass `CancellationToken`.
-4. Throttle concurrency (`SemaphoreSlim`, `Parallel.ForEachAsync`, or TPL Dataflow) for thousands of SKUs.
+A lambda's natural type in C# 10+ is the `Func` or `Action` overload whose parameter and return types match—an explicit target type is required when inference is ambiguous (e.g., standalone `x => x` with no surrounding context). An `async () => { ... }` lambda has natural type `Func<Task>`, so `Task.Run` wraps it and returns a `Task`—but if that task is discarded without awaiting, any exception stored on the task is unobserved and never reaches Application Insights. Combined with a `foreach` closure where every async lambda captures the same `sku` variable, the result is tasks that all process the last SKU and swallow their errors. I fix both by capturing a local copy of `sku` and awaiting all tasks:
 
 ```csharp
 public async Task ScheduleCatalogRefreshAsync(IEnumerable<string> skus, CancellationToken ct)
 {
     var tasks = skus.Select(async sku =>
     {
-        try
-        {
-            var price = await _gateway.FetchPriceAsync(sku, ct);
-            _cache.Set(sku, price);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Price sync failed for {Sku}", sku);
-            throw;
-        }
+        try { var price = await _gateway.FetchPriceAsync(sku, ct); _cache.Set(sku, price); }
+        catch (Exception ex) { _logger.LogError(ex, "Price sync failed for {Sku}", sku); throw; }
     });
     await Task.WhenAll(tasks);
 }
 ```
 
-**Production takeaway:** `async` lambdas return `Task`; discarding that task hides failures. Karat stacks async traps with closure capture — same pattern as Q1 in a hosting context.
+---
+
+## Q6. How do lambda expressions differ from anonymous methods in syntax, capabilities, and compiler output?
+
+**Concepts**
+- Lambda vs anonymous method syntactic differences
+- Expression tree conversion available only on lambdas
+- Deferred LINQ pipeline re-evaluation on each enumeration
+- Closure capture causing count vs foreach mismatch
+- `.ToList()` snapshot before mutating captured outer variable
+
+**Answer**
+
+Lambda expressions (`=>`) are syntactically lighter than anonymous methods (`delegate (T x) { ... }`) and support expression-tree conversion—a lambda assigned to `Expression<Func<T,bool>>` becomes an inspectable tree rather than compiled IL. Both forms capture outer variables by reference and share identical closure semantics; the syntax difference is cosmetic for most purposes. In deferred LINQ pipelines both exhibit the same execution-time surprise: `Count()` and a subsequent `foreach` on the same query each re-run the pipeline, reading the captured outer variable at their respective execution times. If `minPromoPrice` is mutated between the two, the count and the foreach results use different thresholds—an inconsistent financial report. I materialize the query once with `.ToList()` before mutating any captured outer variable.
 
 ---
 
-#### Q6. How do lambda expressions differ from anonymous methods in syntax, capabilities, and compiler output?
+## Q7. Can a lambda expression access `ref`, `out`, or `in` parameters from the enclosing method?
 
-(M) A developer chains LINQ over an in-memory price list and assumes the filter runs once at definition time. Review:
+**Concepts**
+- `ref`/`out`/`in` parameters not capturable in lambdas
+- Stack lifetime incompatibility with heap-allocated display class
+- `static` lambda keyword (C# 9+) enforces no capture at compile time
+- Method group allocation characteristics for static methods
+- Hoisting delegate to `static readonly` field for hot-path reuse
 
-```csharp
-decimal minPromoPrice = 25m;
-var promoSkus = catalog
-    .Where(p => p >= minPromoPrice)
-    .Select(p => p * 0.90m);
+**Answer**
 
-Console.WriteLine($"Eligible count: {promoSkus.Count()}");
-
-minPromoPrice = 50m;
-
-foreach (var price in promoSkus)
-{
-    Console.WriteLine(price);
-}
-```
-
-What does deferred execution plus closure capture imply for the printed count vs the foreach output? How would you make the pipeline deterministic for a report snapshot?
-
-**Answer:** `Where`/`Select` on `IEnumerable` build a **deferred pipeline** — nothing runs until enumeration. `Count()` executes the filter with `minPromoPrice == 25m`, so the count reflects the ≥ $25 threshold. The lambda **captures** `minPromoPrice` by reference, so the later `foreach` re-runs the pipeline with `minPromoPrice == 50m` — fewer items and different discounted values than the count implied. This mirrors **Program.cs** Section 11 capture preview plus LINQ preview (Section 11b): same lambda, updated outer variable at execution time.
-
-- **Count vs foreach mismatch:** Count is computed at 25m; iteration uses 50m — report looks inconsistent.
-- **Snapshot fix:** Materialize once: `var promoSkus = catalog.Where(...).Select(...).ToList();` before mutating `minPromoPrice`.
-- **Capture fix for reports:** Copy to a local before the query: `decimal threshold = minPromoPrice;` then `p => p >= threshold`.
-- **Eager alternative:** Use array helpers like `PricePipeline.FilterPrices` from **Program.cs** Section 10 when you want immediate execution and no surprise re-evaluation.
-
-**Production takeaway:** Deferred LINQ + captured locals means "definition time" and "execution time" differ — Karat tests whether you materialize when building financial snapshots.
+A lambda cannot capture `ref`, `out`, or `in` parameters from the enclosing method because those parameters have stack-bound lifetimes that the compiler cannot lift to the heap-allocated display class—the compiler reports an error. If by-reference data is needed, I copy it to a local first. For hot-path code where allocation matters, three styles offer different trade-offs: an inline capturing lambda allocates a display class per creation site; a method group to a static method allows the compiler to cache the same delegate instance; a `static` lambda (C# 9+) enforces at compile time that no outer locals or `this` are captured, making it safe to hoist to a `static readonly` field. I use `static` lambdas or method groups for fixed transforms and inline capturing lambdas only when the closure lifetime is scoped and the per-request allocation cost is acceptable.
 
 ---
 
-#### Q7. Can a lambda expression access `ref`, `out`, or `in` parameters from the enclosing method?
+## Q8. Can a lambda be converted to an expression tree? What syntax or API constraints apply?
 
-(D) A hot-path checkout endpoint transforms thousands of line items per second. The team debates three filter styles:
+**Concepts**
+- `Expression<TDelegate>` target type triggers tree construction
+- Expression tree body constraints (single expression, no async/statements/ref)
+- `Compile()` to obtain executable delegate from tree
+- LINQ provider traversal of expression node types
+- Caching compiled delegates to amortize `Compile()` cost
 
-```csharp
-// A — expression lambda inline
-var result = PricePipeline.ApplyToAll(prices, p => p * 1.08m);
+**Answer**
 
-// B — method group
-var result = PricePipeline.ApplyToAll(prices, ApplyTax);
-
-// C — static lambda (C# 9+)
-var result = PricePipeline.ApplyToAll(prices, static p => p * 1.08m);
-```
-
-When would you choose A vs B vs C for production throughput and maintainability, and what allocation/closure trade-offs should you mention in a design review?
-
-**Answer:** All three compile to delegate calls, but closure and reuse semantics differ. For a fixed 8% tax with no captured state, **C (`static` lambda)** or **B (method group to a static method)** avoids allocating a closure object; **A** may still avoid capture here because `1.08m` is a constant in the expression, but any outer local (e.g. `taxRate` from config) forces a display class allocation per creation site.
-
-- **Choose B (method group)** when logic is reused, unit-tested, or complex enough to name — aligns with **Program.cs** Section 7 (`RoundToNearestDollar` vs equivalent lambda).
-- **Choose C (`static` lambda)** for short, call-site-specific logic that must **not** capture instance or locals — enforces no accidental capture at compile time (**Program.cs** Section 9).
-- **Choose A (inline lambda)** for one-off, readable transforms at a single call when capture is intentional (e.g. `p => p * (1m + tenantRate)`) or the delegate is not stored long-term.
-- **Performance note:** Creating a new delegate instance inside a tight loop on every request allocates; hoist to `static readonly` field or cache when the transform is fixed. Method groups to static methods and `static` lambdas are equivalent for "no closure" scenarios.
-- **Maintainability:** Prefer named methods for tax rules that change with regulation; lambdas excel at local filters as in **Program.cs** Section 10 pipeline demos.
-
-**Production takeaway:** Karat uses design choice, not syntax trivia — `static` lambda vs method group signals "no capture, safe to reuse"; inline lambdas that close over request state belong in scoped code, not cached singleton fields (see Q3).
+A lambda converts to an expression tree when assigned to `Expression<TDelegate>`—the compiler emits abstract syntax tree construction code rather than IL for the lambda body. The constraints are significant: the body must be a single expression (no block, no `if`, no loops, no `await`, no `ref`/`out` parameters), and pointer types and unbound generic methods are not allowed. The expression tree is traversable at runtime through `Body`, `Parameters`, and node types in `System.Linq.Expressions`, which is how EF Core translates predicates to SQL. Calling `.Compile()` on the expression returns a regular invocable delegate, though this compilation is expensive and the result should be cached. When complex logic is needed in a filter that must translate to SQL, I split it: an expression tree for the translatable parts and a delegate for any remaining in-memory refinement after `AsEnumerable()`.
 
 ---
 
-#### Q8. Can a lambda be converted to an expression tree? What syntax or API constraints apply?
+## Q9. What is the difference between a lambda that captures no locals vs one that captures outer variables?
 
-_Answer not found._
+**Concepts**
+- Capture-free lambda compiled as reusable singleton delegate
+- Capturing lambda allocates display class and new delegate per creation
+- `static` lambda keyword prevents accidental capture
+- Allocation impact on high-throughput endpoints
+- Hoisting `static readonly` delegate for non-capturing transforms
 
----
+**Answer**
 
-#### Q9. What is the difference between a lambda that captures no locals vs one that captures outer variables?
-
-_Answer not found._
-
----
-
-#### Q10. How do async lambdas work (`async x => ...`)? What delegate types can they target?
-
-_Answer not found._
+A lambda that captures no outer variables or `this` is effectively a static method—the compiler can cache it as a singleton delegate instance, avoiding allocation on repeated calls. A capturing lambda triggers the compiler to generate a display class holding the captured variables and to allocate a new delegate instance pointing to it each time the enclosing code runs. On hot endpoints processing thousands of requests per second, creating a new closure object on each request inflates Gen0 allocation and increases GC pressure. I use `static` lambdas (`static p => p * 1.08m`) when the transform is constant to enforce no capture at compile time, hoist delegates to `static readonly` fields when possible, and reserve capturing lambdas for code paths where per-call closure allocation is justified by the need to close over request-specific state.
 
 ---
 
-#### Q11. What happens if you use a lambda where a `Expression<TDelegate>` is expected vs where a `TDelegate` is expected?
+## Q10. How do async lambdas work (`async x => ...`)? What delegate types can they target?
 
-_Answer not found._
+**Concepts**
+- Async lambda compiles to state machine
+- Target types: `Func<Task>`, `Func<Task<T>>`, `Func<CancellationToken, Task>`
+- `async void` lambda swallows exceptions — avoid
+- Fire-and-forget task discard hides failures
+- `Task.WhenAll` for observable concurrent async batches
+
+**Answer**
+
+An `async` lambda compiles to a state machine the same way a named `async` method does, and it can target `Func<Task>` (no result) or `Func<Task<T>>` (with result). It should not target `Action` because `async void` swallows exceptions—there is no `Task` to observe the fault. When passing an `async` lambda to `Task.Run`, the returned `Task` represents the async work and must be awaited or aggregated with `Task.WhenAll` to surface exceptions. Combining an `async` lambda with a fire-and-forget discard (`_ = Task.Run(async () => ...)` or simply not awaiting) is the most common source of silent background failures in .NET services, since the exception is stored on the unreferenced task and never observed.
+
+---
+
+## Q11. What happens if you use a lambda where a `Expression<TDelegate>` is expected vs where a `TDelegate` is expected?
+
+**Concepts**
+- Expression tree compilation (no IL, tree objects emitted)
+- Delegate compilation (IL emitted, immediately executable)
+- IQueryable provider uses expression tree for SQL translation
+- Delegate parameter forces client-side evaluation
+- Overload resolution between expression and delegate overloads
+
+**Answer**
+
+When a lambda is assigned to `Expression<Func<T, bool>>`, the compiler emits expression-tree construction code—no IL for the lambda body runs until `Compile()` is called. When assigned to `Func<T, bool>`, the compiler emits IL for the lambda body directly and the result is immediately invocable. For `IQueryable.Where`, the expression-tree overload lets the provider translate the predicate to SQL; the delegate overload forces client-side evaluation because the provider cannot inspect compiled IL, which means the entire table is materialized first. If both overloads are available and the call is ambiguous, the compiler picks the more specific one or raises an ambiguity error. I declare repository filter methods with `Expression<Func<T, bool>>` parameters and compile to delegates only when explicitly switching to in-memory processing with `.AsEnumerable()`.
 
 ---
 
 ### 03. Anonymous Methods
 
-#### Q1. What are anonymous methods in C#? Why were they introduced, and what largely replaced them?
+---
 
-(R) A legacy WinForms order screen leaks memory after users open and close detail dialogs dozens of times. Review this maintenance patch that still uses anonymous methods:
+## Q1. What are anonymous methods in C#? Why were they introduced, and what largely replaced them?
 
-```csharp
-public sealed class OrderDetailDialog : Form
-{
-    private readonly OrderService _service;
+**Concepts**
+- Anonymous method `delegate (T x) { ... }` syntax
+- Event subscription without paired unsubscription
+- Implicit `this` capture via instance method call
+- Long-lived publisher as GC root into subscriber
+- Stored handler in field for `-=` on dispose
 
-    public OrderDetailDialog(OrderService service, int orderId)
-    {
-        _service = service;
-        int retryCount = 0;
+**Answer**
 
-        _service.OrderUpdated += delegate (object sender, OrderUpdatedEventArgs e)
-        {
-            if (e.OrderId == orderId)
-            {
-                retryCount++;
-                RefreshGrid(e.Order);
-            }
-        };
-    }
-
-    protected override void OnFormClosed(FormClosedEventArgs e)
-    {
-        base.OnFormClosed(e);
-        // dialog removed from screen
-    }
-}
-```
-
-What keeps each closed dialog alive, and how do you fix it without changing the event contract?
-
-**Answer:** The long-lived `OrderService` holds the multicast delegate chain; the anonymous method captures `this` (via `RefreshGrid`) and `orderId`, so every closed dialog remains reachable from the publisher until the handler is removed. Fix by storing the delegate instance and unsubscribing in `OnFormClosed`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Lifetime | `+=` in constructor, no `-=` on close | Publisher retains every dialog instance → memory leak |
-| Capture | Anonymous body calls instance method `RefreshGrid` | Implicit capture of `this` pins the entire `Form` |
-| Capture | `orderId` and `retryCount` captured in display class | Extra heap state per dialog; harmless alone but part of leak graph |
-| Legacy pattern | WinForms-style `delegate { }` event wiring | Common in pre-lambda codebases — easy to miss during UI refactors |
-
-**Fix (priority order):**
-
-1. Store the handler in a field so `-=` matches the same delegate instance (required for anonymous methods and lambdas alike).
-2. Unsubscribe in `OnFormClosed`: `_service.OrderUpdated -= _orderUpdatedHandler;`.
-3. Prefer a named instance method handler when the body is more than one line — easier to match on unsubscribe and to debug in crash dumps.
-4. If migrating to lambdas, same rule applies: field + unsubscribe; syntax change alone does not fix the leak.
+Anonymous methods were introduced in C# 2.0 to write short delegate implementations inline without declaring a named method. Lambda expressions (C# 3.0) replaced them for most uses because lambdas are terser, support expression trees, and allow parameter type inference. Both forms share identical closure semantics. The critical lifetime issue that remains regardless of syntax is that subscribing to a long-lived event without unsubscribing creates a GC root from the publisher to the subscriber—when an anonymous method captures `this` via an instance method call like `RefreshGrid`, the entire form and all its fields remain reachable. I store the delegate in a field and call `-=` in `OnFormClosed`:
 
 ```csharp
-private EventHandler<OrderUpdatedEventArgs>? _orderUpdatedHandler;
+private EventHandler<OrderUpdatedEventArgs>? _handler;
 
 public OrderDetailDialog(OrderService service, int orderId)
 {
     _service = service;
-    _orderUpdatedHandler = delegate (object sender, OrderUpdatedEventArgs e)
+    _handler = delegate (object sender, OrderUpdatedEventArgs e)
     {
-        if (e.OrderId == orderId)
-            RefreshGrid(e.Order);
+        if (e.OrderId == orderId) RefreshGrid(e.Order);
     };
-    _service.OrderUpdated += _orderUpdatedHandler;
+    _service.OrderUpdated += _handler;
 }
 
 protected override void OnFormClosed(FormClosedEventArgs e)
 {
-    if (_orderUpdatedHandler != null)
-        _service.OrderUpdated -= _orderUpdatedHandler;
+    _service.OrderUpdated -= _handler;
     base.OnFormClosed(e);
 }
 ```
 
-**Production takeaway:** Anonymous event handlers are a top legacy leak vector — Karat tests whether you treat capture + missing `-=` as one problem, not "lambda vs delegate syntax." See **Program.cs** Section 11 — WinForms/WPF legacy hotspots and Section 7 — outer variable capture.
+---
+
+## Q2. What is the syntax for an anonymous method, and how does it compare to lambda syntax?
+
+**Concepts**
+- Anonymous method vs lambda syntactic equivalence
+- Identical closure capture semantics in both forms
+- Config snapshot captured at delegate creation time
+- Cached rule array unaffected by runtime config changes
+- `IOptionsMonitor<T>` for live configuration reads
+
+**Answer**
+
+An anonymous method is written as `delegate (T x) { ... }`; the equivalent lambda is `x => { ... }` or `x => expr`. Beyond syntax they generate the same compiler display class and capture outer variables by reference—migrating from one to the other is purely cosmetic unless the capture intent changes. The shared closure pitfall is that when a rule delegate is built from a config value at construction time, later config changes do not affect cached delegates because the closure captured the value that existed at creation. Both the anonymous-method version and the lambda version of the same factory have this bug; blaming the syntax wastes time. I fix it by subscribing to `IOptionsMonitor<T>` reload events and rebuilding the rule set, or by capturing the options accessor rather than the resolved value so each invocation reads current config.
 
 ---
 
-#### Q2. What is the syntax for an anonymous method, and how does it compare to lambda syntax?
+## Q3. Can anonymous methods omit parameter lists? When is that useful?
 
-(R) A developer modernizes a validation pipeline by replacing anonymous methods with lambdas but leaves one factory unchanged. Review both versions — what breaks at runtime in the combined pipeline?
+**Concepts**
+- Parameter-list omission with `delegate { ... }` (any signature match)
+- Lambda requires explicit parameter declaration
+- CS0126: `return value` in void delegate body
+- Captured `StringBuilder` lives on heap after factory returns
+- Thread-safety of shared mutable captures under concurrency
 
-```csharp
-public delegate bool OrderRule(Order o);
+**Answer**
 
-public static OrderRule BuildMaxLineItemsRule(int maxAllowedItems)
-{
-    return delegate (Order o)
-    {
-        return o.LineItemCount <= maxAllowedItems;
-    };
-}
-
-// "Modernized" sibling — same intent, different capture:
-public static OrderRule BuildMaxLineItemsLambda(int maxAllowedItems)
-{
-    int limit = maxAllowedItems;
-    return o => o.LineItemCount <= limit;
-}
-
-// Caller caches rules once at startup, then changes config at runtime:
-OrderRule[] pipeline = { BuildMaxLineItemsRule(_config.MaxItems) };
-// ... later, admin updates _config.MaxItems from 10 → 25 ...
-// pipeline still rejects orders with 15 line items
-```
-
-Is this an anonymous-method vs lambda difference, or something shared? What is the correct fix?
-
-**Answer:** This is not an anonymous-method vs lambda difference — both forms capture `maxAllowedItems` (or `limit`) by closure at factory invocation time. The bug is caching a delegate built from a snapshot of config while expecting live reads from `_config` later.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Rule array built once from `_config.MaxItems` at startup | Runtime config changes do not affect cached delegate |
-| Misdiagnosis | Blaming anonymous methods vs lambdas | Wasted refactor; same closure semantics either way |
-| Design | Long-lived delegate + mutable config without refresh | Stale validation in production after admin updates |
-
-**Fix (priority order):**
-
-1. Rebuild the `OrderRule[]` (or the whole pipeline) when `_config` changes — subscribe to `IOptionsMonitor` / config reload events in ASP.NET Core, or invalidate cache on save in desktop apps.
-2. If the rule must always read live config, capture `_config` (or an `IOptions` accessor) instead of the int snapshot: `o => o.LineItemCount <= _config.MaxItems`.
-3. When migrating anonymous → lambda, preserve capture intent line-for-line; run tests that change outer variables after delegate creation.
-4. Document whether each factory returns a snapshot rule or a live-config rule — both are valid, but callers must know which.
-
-**Production takeaway:** Anonymous methods and lambdas share identical capture semantics — migration is stylistic unless you accidentally change what gets captured. See **Program.cs** Section 8 — migration steps and Section 7 — capture preview.
+An anonymous method can omit its parameter list with `delegate { ... }`, which matches any delegate signature regardless of parameters—useful for event handlers where the sender and args are irrelevant and naming them adds noise. A lambda cannot do this and must declare all parameters. The compile error CS0126 occurs when a void-return delegate body attempts `return value`—a `void` `OrderNotifier` body that tries `return message.Length > 0` does not compile because the delegate declares no return type. A bare `return;` for early exit is legal. Independently, capturing a `StringBuilder` by reference means the same buffer instance is mutated by every invocation, which is fine for single-threaded use but corrupts state under concurrent access since `StringBuilder` is not thread-safe.
 
 ---
 
-#### Q3. Can anonymous methods omit parameter lists? When is that useful?
+## Q4. What outer scope variables can anonymous methods access, and how does capture work?
 
-(R) A code review flags this void delegate wiring in a long-lived `StringBuilder` audit helper. Identify compile-time and lifetime issues:
+**Concepts**
+- Captured scope: locals, parameters, and implicit `this`
+- Display class heap allocation promotes captured locals off stack
+- Incremental migration preserving capture intent
+- Omitted parameter list uniqueness to anonymous methods
+- Event handler field-plus-unsubscribe verification before merge
 
-```csharp
-public delegate void OrderNotifier(string message);
+**Answer**
 
-public OrderNotifier BuildAuditLogger(StringBuilder auditLog)
-{
-    OrderNotifier logFailure = delegate (string message)
-    {
-        auditLog.AppendLine(message);
-        return message.Length > 0;  // highlight failed orders in red downstream
-    };
-
-    return logFailure;
-}
-
-// Consumer:
-var notifier = BuildAuditLogger(sharedAuditLog);
-notifier("REJECT order 1002");
-// sharedAuditLog passed to background export task that outlives the factory call
-```
-
-What is wrong, and what happens to `auditLog` after `BuildAuditLogger` returns?
-
-**Answer:** The void `OrderNotifier` body cannot return a value — that is a compile error (CS0126). If the erroneous return were removed, the anonymous method would still capture `auditLog` on the heap inside a compiler-generated display class, so the returned delegate remains valid after `BuildAuditLogger` returns and mutates the same `StringBuilder` instance the caller passed in.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `return message.Length > 0` in void delegate body | CS0126 — blocks build |
-| Lifetime | Captured `auditLog` reference | Delegate works after factory returns — intended here, but surprises devs who expect stack locals to die |
-| Concurrency | Shared `StringBuilder` + background export | `StringBuilder` is not thread-safe — parallel `notifier` calls can corrupt audit text |
-| Design | Side-effect-only void delegate | Correct pattern for logging (see **Program.cs** Section 6) once return is removed |
-
-**Fix (priority order):**
-
-1. Remove the return statement — void anonymous methods run statements only (bare `return;` allowed for early exit).
-2. Keep capture of `auditLog` if the delegate must append to the caller's buffer; document shared-mutation contract.
-3. If background export runs concurrently, synchronize access or queue messages to a thread-safe channel instead of mutating one `StringBuilder`.
-4. Lambda equivalent: `msg => auditLog.AppendLine(msg)` — same void semantics and same capture.
-
-```csharp
-OrderNotifier logFailure = delegate (string message)
-{
-    auditLog.AppendLine(message);
-};
-```
-
-**Production takeaway:** Void anonymous methods are the legacy twin of `Action<T>` — the trap is mixing return values with void delegates, not the `delegate` keyword itself. See **Program.cs** Section 6 and QUICK REFERENCE — "return value in void delegate body → CS0126."
+Both anonymous methods and lambdas can capture any variable in scope at the point of definition—local variables, method parameters, and implicitly `this` for instance member access. The compiler lifts captured variables into a heap-allocated display class, so they outlive the enclosing method's stack frame for as long as any delegate referencing them remains alive. For incremental migration from `delegate { ... }` to lambdas in a legacy codebase, I touch only files already being changed, verify that captured variables are identical before and after, confirm that handlers using the omitted parameter list (`delegate { ... }`) become `(_, _) => { ... }` or similar rather than accidentally naming parameters that then require the right types, and run existing tests plus a memory profile on dialogs with event subscriptions to confirm no new leaks appear.
 
 ---
 
-#### Q4. What outer scope variables can anonymous methods access, and how does capture work?
+## Q5. In modern C# code, when (if ever) would you still choose an anonymous method over a lambda?
 
-(P) Your team inherits a .NET Framework 4.x WinForms/WPF codebase full of `delegate { … }` event handlers, `List<T>.FindAll(delegate …)`, and `ThreadPool.QueueUserWorkItem(delegate …)`. Product wants incremental modernization — no big-bang rewrite. Describe a safe migration strategy from anonymous methods to lambdas (or local functions), including what you verify before merging each touched file.
+**Concepts**
+- Anonymous method parameter-list omission as unique feature
+- Value types on heap when captured (display class field)
+- Closure mutation through display class field
+- Lambda vs anonymous method allocation equivalence
+- `int` captured local not stack-only after closure creation
 
-**Answer:** Touch only files you are already changing for a feature or bugfix; replace anonymous methods with lambdas or local functions in place, run existing tests, and add targeted tests wherever capture or event subscription is involved — never mass-convert unrelated legacy code without coverage.
+**Answer**
 
-- **Inventory per change:** Identify delegate type (`EventHandler`, custom delegate, `Action`/`Func`), explicit vs omitted parameter lists, and captured outer variables — omitted lists on non-void delegates must become explicit lambda parameters in modern Roslyn (see **Program.cs** Section 5).
-- **Mechanical rewrite rules:** `delegate (T x) { return expr; }` → `x => expr`; multi-statement bodies → `(x) => { … }`; void handlers → `(s, e) => { … }` or statement lambda; `ThreadPool`/`Task` callbacks → prefer `Task.Run` / `async` with named local functions when stack traces matter.
-- **Preserve behavior:** Capture semantics are equivalent — verify rules that depend on outer locals, especially config snapshots vs live reads (Q2). Event handlers: keep field-stored handler for `-=` if the type is disposable.
-- **When to prefer local functions over lambdas:** Recursive helpers, `async` bodies needing clear names in logs, or rules that deserve unit tests (`static local function` or private named method).
-- **Verify before merge:** Full build, UI smoke on affected forms, memory profile on open/close dialogs with event handlers, and any golden-file or integration tests for filtered lists previously using `FindAll(delegate …)`.
-
-**Production takeaway:** Karat rewards incremental, test-backed migration — "prefer lambdas in new code; read `delegate { }` when maintaining older projects" (**Program.cs** Section 8 and Section 11), not blanket regex replacement.
+In modern C# I choose an anonymous method over a lambda only when I need to omit the parameter list entirely—`delegate { ... }` matches any delegate type without naming parameters, which is convenient for subscribing to events where the args are irrelevant and verbose naming adds noise. For all other uses, lambdas are cleaner. The separate misconception that `int matchCount = 0` stays on the stack is wrong the moment the anonymous method captures it: the compiler generates a display class with a `matchCount` field, and the local variable becomes an alias to that field. The `int` lives on the heap inside the display class for as long as any delegate referencing it remains alive, regardless of it being a value type. Mutations inside the anonymous method update the heap field, which is why the count increments correctly across invocations.
 
 ---
 
-#### Q5. In modern C# code, when (if ever) would you still choose an anonymous method over a lambda?
+## Q6. A teammate argues that anonymous methods in `RunAllRules` should stay inline because "they are only five lines," but QA cannot unit-test individual rules without running the whole pipeline.
 
-(M) Explain where captured locals from an anonymous method live after the enclosing method returns. A junior developer claims `int matchCount = 0` stays on the stack because it is a value type. Review this snippet from an order-filter utility:
+**Concepts**
+- Testability via named delegates or local functions
+- Single-responsibility applied at anonymous-method level
+- Pipeline dependency reduction through rule extraction
+- `static` local function to prevent accidental capture
+- Five-line inline vs independently verifiable unit
 
-```csharp
-public static int CountMatchingOrders(List<Order> orders, OrderRule rule)
-{
-    int matchCount = 0;
+**Answer**
 
-    OrderRule countIfMatch = delegate (Order o)
-    {
-        bool passes = rule(o);
-        if (passes)
-            matchCount++;
-        return passes;
-    };
-
-    foreach (Order o in orders)
-        countIfMatch(o);
-
-    return matchCount;
-}
-```
-
-Where does `matchCount` actually live once `CountMatchingOrders` returns but callers still hold `countIfMatch`? Does an equivalent lambda change capture semantics?
-
-**Answer:** When the anonymous method references `matchCount`, the compiler lifts it into a heap-allocated display class field — value type or not, captured locals are not stack-only after closure creation. An equivalent lambda mutates the same display-class field; capture semantics are identical.
-
-- **While `CountMatchingOrders` runs:** `matchCount` may live on the stack frame, but the act of capturing copies it into a display class instance referenced by the delegate.
-- **After return if delegate survives:** The display class (holding `matchCount`, and here also `rule`) lives on the heap until the delegate is unreachable — not on the stack.
-- **Mutation:** `matchCount++` inside the anonymous method mutates the captured field, which is why the count updates correctly across invocations within the method — same pattern as **Program.cs** Section 7.
-- **Lambda equivalent:** `o => { … matchCount++; … }` generates the same display class pattern; no behavioral difference.
-- **Contrast with non-captured locals:** A local never referenced from the anonymous body truly stays stack-only and dies with the frame.
-
-**Production takeaway:** "Value types live on the stack" is wrong for closures — Karat uses this to test closure mechanics before the dedicated Closures chapter. See **06. Closures** for loop-variable pitfalls; see **Program.cs** Section 7 — "compiler generates a display class."
+The "five lines" argument favors brevity but ignores that inline anonymous methods cannot be independently tested, named in call stacks, or reused outside the pipeline. I extract each rule to either a named private method (best for complex logic), a `static` local function (scoped to the enclosing method, compile-time enforcement of no accidental capture), or a stored `Func<Order, bool>` field so QA can inject individual rules in isolation. The pipeline orchestrator then holds a list of extracted delegates, making each rule a separate, testable unit. This is the same argument against god classes applied at the anonymous-method level: brevity at the definition site costs testability and discoverability, and the trade-off is rarely worth it for rules that carry business meaning.
 
 ---
 
 ### 04. Extension Methods
 
-#### Q1. What are extension methods in C#? How do they appear to the caller vs how they are implemented?
+---
 
-(R) A teammate nests extension helpers inside an existing service class to "keep related code together." Review this addition:
+## Q1. What are extension methods in C#? How do they appear to the caller vs how they are implemented?
 
-```csharp
-public sealed class OrderPricingService
-{
-    public decimal CalculateTotal(IEnumerable<OrderLine> lines) =>
-        lines.Sum(l => l.LineTotal);
+**Concepts**
+- Extension method as static method with `this`-prefixed first parameter
+- Caller sees instance-style syntax; compiler emits static call
+- Non-nested top-level static class requirement
+- CS1110/CS1106 for extension in nested class
+- Dedicated `*.Extensions` namespace and class placement
 
-    public static class LineExtensions
-    {
-        public string ToReceiptLine(this OrderLine line) =>
-            $"{line.Sku} x{line.Quantity} = {line.LineTotal:C}";
-    }
-}
+**Answer**
 
-// Caller in another file (using OrderServices;):
-var text = line.ToReceiptLine(); // CS1061 — 'OrderLine' does not contain a definition for 'ToReceiptLine'
-```
-
-What compile-time rules block this pattern, and how should the extension be relocated?
-
-**Answer:** Extension methods must live in a **non-nested** static class at namespace scope — a nested `static class` inside `OrderPricingService` cannot host extensions (CS1110 / CS1106), so the compiler never registers `ToReceiptLine` as an extension even if the nested class compiles.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile rules | Nested static class hosts extension | CS1110 — extension not in scope for instance-style calls |
-| Discovery | Extension tied to service type, not `OrderLine` | Callers cannot find method via normal `using` on extension namespace |
-| Design | Mixes domain service with syntactic sugar API | Violates separation — extensions belong in dedicated `*.Extensions` types |
-
-**Fix (priority order):**
-
-1. Move `ToReceiptLine` to a top-level `public static class OrderLineExtensions` in its own file (or at namespace root), matching **Program.cs** Section 2 and Section 5.
-2. Place it in a namespace imported by callers — e.g. `Acme.Ordering.Extensions` — and add `using Acme.Ordering.Extensions;`.
-3. Keep `OrderPricingService` as a normal instance/service class with no nested extension containers.
+An extension method is a static method in a non-nested static class whose first parameter is prefixed with `this`—this signals the compiler to allow instance-style invocation on that type. The caller sees `line.ToReceiptLine()` but the compiler emits the static call `OrderLineExtensions.ToReceiptLine(line)`. The extension must live in a non-nested, top-level static class at namespace scope; placing it inside another class (even a nested `static class`) produces CS1110 or CS1106 because the compiler does not search nested types for extension candidates. I relocate it to a dedicated `public static class OrderLineExtensions` at the appropriate namespace root:
 
 ```csharp
 namespace Acme.Ordering.Extensions;
@@ -1113,474 +658,302 @@ public static class OrderLineExtensions
 }
 ```
 
-**Production takeaway:** Karat uses nested-class extensions to test whether you know the static-class rule set — not just `this` syntax. Relocate to a top-level static class every time.
+---
+
+## Q2. What are the language rules for declaring an extension method (static class, `this` parameter, accessibility)?
+
+**Concepts**
+- Extension discovered by namespace `using`, not assembly reference alone
+- `using static` imports static members but not extension binding
+- `this` as first parameter position requirement
+- Public static class accessibility requirement
+- `GlobalUsings.cs` for project-wide extension namespace imports
+
+**Answer**
+
+An extension method requires a public static class at namespace scope, with the extended type as the first parameter marked `this`, and accessible visibility matching the caller's context. Discovery at the call site depends on a plain `using` directive for the extension class's namespace—without it, even a referenced assembly's extensions are invisible for instance-style calls. `using static Acme.Common.Extensions.StringExtensions` imports static members for direct-call syntax (`StringExtensions.ToDisplayLabel(id)`) but does not enable instance-style extension binding (`id.ToDisplayLabel()`), which is a common source of confusion. I add `using Acme.Common.Extensions;` to every file that needs instance-style syntax, or I add it globally in `GlobalUsings.cs` for widely used helpers.
 
 ---
 
-#### Q2. What are the language rules for declaring an extension method (static class, `this` parameter, accessibility)?
+## Q3. How does the compiler resolve an extension method call at compile time?
 
-(R) After splitting helpers into a shared library, API controllers fail to build. Review the controller and library layout:
+**Concepts**
+- Extension call compiled to static call — null receiver allowed
+- No NullReferenceException at call site for null receiver
+- Exception originates inside method body on null dereference
+- `this string?` for null-safe extension annotation
+- Nullable reference type flow analysis for extension parameters
 
-```csharp
-// File: Acme.WebApi/Controllers/OrdersController.cs
-using Acme.Domain;
+**Answer**
 
-public class OrdersController : ControllerBase
-{
-    [HttpGet("{id}")]
-    public IActionResult Get(string id)
-    {
-        string label = id.ToDisplayLabel(); // CS1061
-        return Ok(label);
-    }
-}
-
-// File: Acme.Common/StringExtensions.cs
-namespace Acme.Common.Extensions;
-
-public static class StringExtensions
-{
-    public static string ToDisplayLabel(this string value) => $"[{value}]";
-}
-```
-
-The domain models compile fine; only the controller breaks. What is missing, and why does `using static Acme.Common.Extensions.StringExtensions;` not fix it?
-
-**Answer:** Extension methods are discovered by the namespace of the **static extension class**, not the extended type — the controller needs `using Acme.Common.Extensions;`. `using static` imports static members for direct calls (`ToDisplayLabel(id)`) but does **not** import extension methods for instance-style syntax.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Missing `using Acme.Common.Extensions;` | CS1061 — method not found on `string` |
-| Misconception | `using static StringExtensions` expected to enable `id.ToDisplayLabel()` | Instance-style extension syntax still fails |
-| API surface | Extensions hidden from IntelliSense in WebApi layer | Team thinks library reference alone is enough |
-
-**Fix (priority order):**
-
-1. Add `using Acme.Common.Extensions;` to the controller (or a global `GlobalUsings.cs` in the WebApi project).
-2. Alternatively call explicitly: `StringExtensions.ToDisplayLabel(id)` — no extension `using` required.
-3. Do **not** rely on `using static` for extension discovery — it only lifts static members, not extension method binding.
-
-**Production takeaway:** Shared helper libraries fail at the call site, not the definition — Karat tests namespace import rules from **Program.cs** Section 8c. Convention: `*.Extensions` namespaces + document required `using` in README or analyzer.
-
----
-
-#### Q3. How does the compiler resolve an extension method call at compile time?
-
-(R) A null-safe helper was added for optional promo codes on checkout. Review the extension and its first production call:
-
-```csharp
-public static class StringExtensions
-{
-    public static string RequirePromoCode(this string code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new InvalidOperationException("Promo code required.");
-        return code.Trim().ToUpperInvariant();
-    }
-}
-
-// CheckoutService:
-string? promo = request.PromoCode; // may be null when omitted
-string normalized = promo.RequirePromoCode(); // no compiler warning
-```
-
-The developer assumed "extension methods behave like instance methods on null." What actually happens at runtime, and how should the API be shaped for optional promo codes?
-
-**Answer:** Unlike a true instance method, an extension **can** be invoked when the receiver is `null` — the compiler emits a static call and passes `null` as the first argument. `RequirePromoCode` then throws inside the method body (from `IsNullOrWhiteSpace`), but the developer lost nullable flow analysis because `this string` (non-nullable) does not warn on a `string?` receiver.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Null semantics | Extension call allowed on null receiver | Differs from instance-method NRE at call site |
-| Nullable | `this string` on nullable receiver | No CS8602/CS8604 — silent null reaches helper |
-| API design | `Require*` throws on missing optional field | 500s for valid "no promo" checkout paths |
-
-**Fix (priority order):**
-
-1. For optional promos, use a null-tolerant extension with `this string?` — mirror **Program.cs** `IsNullOrBlank` (Section 8d).
-2. Split APIs: `NormalizePromoCode(this string code)` (non-null precondition) vs `TryNormalizePromo(this string? code, out string normalized)`.
-3. At the call site, guard before require: `if (!promo.IsNullOrBlank()) { … }` or pattern-match nullable promo in the service layer.
-4. Enable nullable reference types project-wide so `this string` vs `this string?` documents intent.
+The compiler resolves an extension method call by searching in-scope `using` namespaces for static methods whose `this`-prefixed parameter type is compatible with the receiver type. Because the call compiles to a static invocation, a null receiver is passed as the first argument without a null check at the call site—no `NullReferenceException` at the call site, but the method body throws when it dereferences the argument. This differs from instance method dispatch, which throws immediately before entering the method body. I annotate the `this` parameter as `string?` in extensions designed to handle null gracefully and document non-null preconditions with `string` (non-nullable) when the method legitimately throws on null input, enabling nullable flow analysis to warn callers who pass a `string?` without a guard:
 
 ```csharp
 public static string? NormalizePromoOrNull(this string? code) =>
     string.IsNullOrWhiteSpace(code) ? null : code.Trim().ToUpperInvariant();
 ```
 
-**Production takeaway:** Extensions on reference types are a common null trap — Karat checks whether you know null is passed **into** the static method, not blocked at the call site like instance dispatch.
+---
+
+## Q4. What is the difference in resolution order between an instance method and an extension method with the same signature?
+
+**Concepts**
+- Instance method always wins over extension method
+- Extension tie-break by `this` type specificity then namespace order
+- Silent rebind when duplicate extension is added by a new package
+- Explicit static call to disambiguate
+- Security-critical call sites require explicit disambiguation
+
+**Answer**
+
+Instance methods always win over extension methods with the same signature—the compiler never considers an extension when an applicable instance method exists. Among competing extension methods, the compiler picks the most specific match by `this` type; if still tied, namespace ordering and internal tie-break rules apply, and one extension wins at compile time without a runtime error. A silent rebind happens when tie-breaking changes after adding a second NuGet package with an identically-named extension method—`userInput.Sanitize()` now calls a different implementation than before without any compile-time warning. I disambiguate by calling the static form explicitly: `StringJsonExtensions.Sanitize(userInput)`. At integration boundaries involving security or serialization, I always use explicit static calls rather than relying on implicit extension resolution.
 
 ---
 
-#### Q4. What is the difference in resolution order between an instance method and an extension method with the same signature?
+## Q5. Can extension methods access `private` members of the extended type? Why or why not?
 
-(R) Two NuGet packages ship extensions on `string` with the same signature. After adding both, CI builds but behavior flipped in staging:
+**Concepts**
+- Extension method sees only public/internal members
+- Encapsulation preserved because extension is an external static call
+- `yield return` deferred enumeration in extension methods
+- Multiple enumeration of deferred pipeline (double DB round-trip)
+- `.ToList()` snapshot for stable multi-pass aggregation
 
-```csharp
-// Package A — Acme.Text.JsonHelpers
-namespace Acme.Text.JsonHelpers;
-public static class StringJsonExtensions
-{
-    public static string Sanitize(this string input) =>
-        input.Trim().Replace("\"", "'");
-}
+**Answer**
 
-// Package B — Contoso.Security
-namespace Contoso.Security;
-public static class StringSecurityExtensions
-{
-    public static string Sanitize(this string input) =>
-        input.Trim().ToLowerInvariant();
-}
-
-// Startup (both usings present):
-using Acme.Text.JsonHelpers;
-using Contoso.Security;
-
-var safe = userInput.Sanitize(); // now calls Contoso's version
-```
-
-What binding rule caused the silent behavior change, and what are your options to make the call explicit and stable?
-
-**Answer:** When multiple extension methods match, the compiler picks the **most specific** `this` type match; if still tied, **namespace/usings order** and internal tie-break rules apply — one extension wins at compile time with no runtime error. Adding a second package with the same signature can silently rebind the call.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Binding | Duplicate extension signatures in scope | Behavior change without compile failure |
-| Maintainability | `Sanitize` name collision across packages | Staging/prod diverge when usings reorder |
-| Security | Wrong sanitizer (JSON vs security) | Data corruption or missed normalization |
-
-**Fix (priority order):**
-
-1. Call explicitly via static syntax: `StringJsonExtensions.Sanitize(userInput)` — unambiguous, refactor-safe.
-2. Remove one `using` and fully-qualify the chosen extension class.
-3. Rename internal extensions to domain-specific names (`SanitizeForJson`, `SanitizeForLog`) — avoid BCL-style generic names on `string`.
-4. Remember: **instance methods always beat extensions** with the same signature — extensions never override existing instance API (**Program.cs** Section 8e).
-
-**Production takeaway:** Extension conflicts do not throw — they compile and swap implementations. Prefer explicit static calls at integration boundaries (security, serialization).
+Extension methods cannot access `private` or `protected` members because they are static methods in a separate class and the compiler emits ordinary static calls—they see only the same members accessible to any external caller. This is intentional: extensions extend behavior without breaking encapsulation. A separate concern with extension methods on `IEnumerable<T>` using `yield return` is that they are deferred—each enumeration of the result re-executes the full pipeline from the source. When a caller uses `.Sum()` and then `.Count()` on a non-materialized pipeline backed by a database query with per-element logging, both the database round-trip and the logging fire twice. I materialize with `.ToList()` before multiple passes when the source is expensive or has observable side effects.
 
 ---
 
-#### Q5. Can extension methods access `private` members of the extended type? Why or why not?
+## Q6. What are the limitations of extension methods?
 
-(P) A logging extension on `IEnumerable<T>` looks convenient but skews metrics under load. Review:
+**Concepts**
+- No access to private or protected members
+- Cannot override virtual instance methods
+- No polymorphic dispatch (resolved by static type)
+- Domain logic in instance methods for owned types
+- Extension as syntactic adapter for unowned or BCL types
 
-```csharp
-public static class EnumerableDiagnosticsExtensions
-{
-    public static IEnumerable<T> Tap<T>(
-        this IEnumerable<T> source,
-        Action<T> onEach)
-    {
-        foreach (var item in source)
-        {
-            onEach(item);           // logs every element
-            yield return item;
-        }
-    }
-}
+**Answer**
 
-// OrderReportService:
-var premiumLines = _cache.GetLines(orderId)
-    .Where(l => l.UnitPrice >= 50m)
-    .Tap(l => _logger.LogDebug("Premium line {Sku}", l.Sku))
-    .ToList();
-
-decimal total = premiumLines.Sum(l => l.LineTotal);
-int count = premiumLines.Count(); // second pass — but source was already materialized
-```
-
-Assume `_cache.GetLines` returns a deferred `IEnumerable` backed by a live database query. A developer later removes `.ToList()` to "avoid an extra allocation." What breaks in production, and when should this extension materialize vs stay deferred?
-
-**Answer:** `Tap` uses `yield return`, so it is **deferred** — the database query and logging run only when the pipeline is enumerated. Removing `.ToList()` while still calling `Sum` and `Count` (or any two consumers) re-executes the entire chain twice: double DB round-trips, double side effects in `Tap`, and inconsistent snapshots if data changes between enumerations.
-
-- With `.ToList()`, enumeration happens once; `Sum`/`Count` operate on an in-memory list — correct for reporting totals.
-- Without materialization, each terminal operator (`Sum`, `Count`, `foreach`) re-walks the deferred chain from `_cache.GetLines`.
-- `Tap` side effects (logging) fire once per enumeration — log volume and DB load multiply with chained consumers.
-
-**When to materialize vs defer:**
-
-- **Materialize** (`ToList`, `ToArray`) when you need a stable snapshot, multiple passes, or bounded side effects — typical for report aggregation after filtering.
-- **Stay deferred** when a single downstream consumer streams once (export pipeline, single `foreach`) and the source is cheap/idempotent.
-
-**Production takeaway:** IEnumerable extensions compose like LINQ — deferred by default (**Program.cs** Sections 7 and 8h). Karat pairs extensions with enumeration cost, not just syntax.
+Extension methods cannot access private or protected members, cannot override virtual instance methods, and do not participate in polymorphic dispatch—the method is resolved by the static type of the variable, not the runtime type. They do not belong to the type's contract, so discoverability relies on the caller importing the right namespace. For domain types I own with core business rules like `ApplyBulkDiscount` and `ApplyRegionalTax`, I prefer instance methods because they appear with the type in documentation, are visible in derived types, and do not pollute IntelliSense for callers who never import the extension namespace. I reserve extensions for cross-cutting syntactic helpers, formatting adapters (`ToReceiptLine`), and operations on types I cannot modify—BCL types, third-party sealed types, and interfaces.
 
 ---
 
-#### Q6. What are the limitations of extension methods?
+## Q7. How do extension methods work on interfaces? What are design implications (e.g., LINQ)?
 
-(D) Your team debates where pricing rules belong for `OrderLine`. Option A adds extensions; Option B keeps methods on the type:
+**Concepts**
+- Extension on interface attaches behavior to all implementors
+- LINQ `Select`/`Where` as interface extension methods
+- `IApplicationBuilder` fluent middleware registration pattern
+- `HttpContext.Items` for per-request correlation state
+- `ILogger` scope for structured log correlation
 
-```csharp
-// Option A — OrderLineExtensions.cs
-public static decimal ApplyBulkDiscount(this OrderLine line, int tier) { /* 40 lines */ }
-public static decimal ApplyRegionalTax(this OrderLine line, string region) { /* … */ }
+**Answer**
 
-// Option B — OrderLine.cs (sealed domain type)
-public decimal ApplyBulkDiscount(int tier) { /* same logic */ }
-```
-
-The type is **sealed**, owned by your team, and referenced from API, tests, and a reporting job. When do extensions earn their place vs polluting discoverability, and what is your rule of thumb for third-party `HttpRequest`/`string` helpers vs domain types?
-
-**Answer:** For **owned domain types** with core business rules (`ApplyBulkDiscount`, tax), prefer **instance methods on the type** (Option B) — discoverability, single place for behavior, and clearer unit tests. Reserve extensions for cross-cutting syntactic helpers that should not bloat the domain model, or when you **cannot** modify the type.
-
-- **Use extensions on owned types sparingly:** formatting (`ToReceiptLine`), small adapters, or keeping `OrderLine` a pure data record while rules live in a policy service injected via DI.
-- **Use extensions on BCL/third-party types:** `string`, `DateTime`, `HttpRequest`, `IEnumerable<T>` — you cannot add instance methods to sealed framework types (**Program.cs** Sections 3–4).
-- **Avoid** putting 40-line pricing rules in extensions — they hide domain logic, bypass constructor/DI seams, and appear everywhere IntelliSense lists `OrderLine` methods.
-- **Middle ground:** `OrderLine` stays immutable data; `IPricingPolicy` or domain service applies discounts — testable and mockable without static extension soup.
-
-**Production takeaway:** Extensions extend surface area without extending responsibility — Karat tests judgment: `ToReceiptLine` on `OrderLine` fits; `ApplyRegionalTax` belongs on the type or a service, not a static helper class.
+Extension methods on interfaces attach behavior to any type implementing the interface without modifying the interface's contract—this is how LINQ's `Select`, `Where`, and `OrderBy` work on `IEnumerable<T>`, and how `UseRouting` and `UseAuthentication` work on `IApplicationBuilder`. The extension is discovered for all implementors when the right `using` is imported. For middleware, `app.UseCorrelationId()` reads naturally as pipeline registration, returns `IApplicationBuilder` for chaining, and keeps registration API in a separate static class from the middleware logic. A common mistake is echoing the correlation ID to the response header but forgetting to store it in `HttpContext.Items` and an `ILogger` scope—downstream middleware and controllers never see the ID because the header goes to the client, not to in-process logging infrastructure.
 
 ---
 
-#### Q7. How do extension methods work on interfaces? What are design implications (e.g., LINQ)?
+## Q8. What happens when two namespaces define extensions with the same name and signature for the same type?
 
-(P) An ASP.NET Core teammate models custom middleware as extension methods on `IApplicationBuilder`, mirroring `UseRouting` / `UseAuthentication`. Review this registration block:
+**Concepts**
+- Extension static dispatch not mockable with standard test frameworks
+- Missing `using` causes CI discovery failure
+- Duplicate extension silent rebind on package addition
+- Interface injection for swappable per-environment behavior
+- Pure extension vs policy extension testability distinction
 
-```csharp
-public static class CorrelationIdExtensions
-{
-    public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
-    {
-        app.Use(async (context, next) =>
-        {
-            var id = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
-                     ?? Guid.NewGuid().ToString("N");
-            context.Response.Headers["X-Correlation-Id"] = id;
-            await next(); // forgot to push id into HttpContext.Items / ILogger scope
-        });
-        return app;
-    }
-}
+**Answer**
 
-// Program.cs:
-app.UseHttpsRedirection();
-app.UseCorrelationId();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-```
-
-Logs still cannot be correlated across services. What is wrong with the middleware body, and why is the extension-method shape (`this IApplicationBuilder`) the standard pattern here even though it is "just syntactic sugar"?
-
-**Answer:** The middleware echoes a correlation ID on the **response** but never stores it in `HttpContext.Items`, `Activity`/OpenTelemetry baggage, or an `ILogger` scope — downstream middleware, controllers, and `ILogger` output never see the ID. The extension-method shape is standard because it attaches fluent, discoverable pipeline entry points to `IApplicationBuilder` without modifying the framework type — same mechanism as `StringExtensions.ToDisplayLabel(this string)`.
-
-- **Fix the body:** after resolving `id`, set `context.Items["CorrelationId"] = id` and wrap `await next()` in `using (_logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = id }))` or `Activity.Current?.SetTag(...)`.
-- **Order:** correlation middleware should run **early** (before auth/logging-heavy middleware) so all subsequent components share the same ID — often immediately after `UseForwardedHeaders` / before `UseAuthentication`.
-- **Why extension on `IApplicationBuilder`:** reads as `app.UseCorrelationId()` in `Program.cs`; groups middleware registration API in one static class; returns `IApplicationBuilder` for chaining — identical compiler rewrite to `CorrelationIdExtensions.UseCorrelationId(app)`.
-
-**Production takeaway:** ASP.NET `Use*` methods are extension methods — Karat connects the C# feature to production pipeline ergonomics. Fixing the sugar without fixing `HttpContext`/logging scope leaves observability broken.
+When two namespaces define extensions with the same name and signature, the compiler may silently choose one based on namespace specificity or raise an ambiguity error requiring explicit disambiguation. Adding a package can silently rebind extension calls—a maintenance hazard with no runtime signal. A related discoverability issue is that extension methods require the correct `using` directive in every file that uses them; CI builds may fail when a file references an extension whose namespace is not imported, while local builds pass because a `GlobalUsings.cs` or file-level `using` already exists there. For validation or transformation logic that must be swappable by environment, I extract behavior behind an interface and inject it—extensions are static dispatch and cannot be mocked with Moq or NSubstitute, while interfaces enable per-environment substitution without `#if DEBUG` forks.
 
 ---
 
-#### Q8. What happens when two namespaces define extensions with the same name and signature for the same type?
+## Q9. Can you define generic extension methods? How does type inference work at the call site?
 
-(M) Unit tests for a service that uses string extensions pass locally but fail in CI with `NullReferenceException`. Review the test setup:
+**Concepts**
+- Generic `this` parameter for type-parameterized extensions
+- Type inference from receiver type at call site
+- Explicit type argument when inference is ambiguous
+- Generic constraints narrowing extension applicability
+- LINQ built on generic extension methods with inferred type parameters
 
-```csharp
-// Production code — Acme.Common.Extensions
-public static class StringExtensions
-{
-    public static bool IsNullOrBlank(this string? value) =>
-        string.IsNullOrWhiteSpace(value);
-}
+**Answer**
 
-// Test project — no reference usings to Acme.Common.Extensions
-public class CheckoutValidatorTests
-{
-    [Fact]
-    public void Missing_promo_is_treated_as_blank()
-    {
-        string? promo = null;
-        Assert.True(promo.IsNullOrBlank()); // fails in CI — CS1061 or runtime?
-    }
-}
-```
-
-The test project references the production assembly. Explain why extension methods are harder to mock than injected services, and what you would change if the team needs to swap validation rules per environment without `#if DEBUG` forks.
-
-**Answer:** With the production assembly referenced but no `using Acme.Common.Extensions;`, the test fails at **compile time** with CS1061 — extension methods are not instance members of `string`. If a duplicate local extension exists in the test project, CI may bind differently. Extensions are **static dispatch** — you cannot mock `promo.IsNullOrBlank()` with Moq/NSubstitute the way you mock `ICheckoutValidator.IsBlank(promo)`.
-
-- **Why hard to mock:** extensions compile to static calls on a fixed class; no interface, no virtual slot, no DI seam.
-- **Fix immediate CI failure:** add `using Acme.Common.Extensions;` or call `StringExtensions.IsNullOrBlank(promo)` explicitly.
-- **Swappable rules per environment:** extract behavior behind an interface — `IStringNormalizer` / `ICheckoutValidator` injected into the service; keep thin extensions as one-liner wrappers over injected services only at the edges (API binding), not core validation.
-- **Testing extensions directly:** unit-test the static extension class with plain xUnit/NUnit tests — no mocking needed for pure functions like `IsNullOrBlank`.
-
-**Production takeaway:** Extensions are ideal for pure, stateless helpers on types you do not own; inject interfaces when behavior must vary, be mocked, or carry policy — Karat stacks syntax discovery (Q2) with testability judgment here.
+Generic extension methods use a type parameter on the `this`-prefixed parameter—`public static T Tap<T>(this T source, Action<T> action)`. At the call site, the compiler infers `T` from the receiver type without requiring explicit type arguments. When the receiver type uniquely constrains inference (e.g., `source` is `List<int>`), inference succeeds; when ambiguous, I supply the type argument explicitly. Constraints (`where T : class`, `where T : IEnumerable<TItem>`) narrow applicability and improve IntelliSense by filtering out irrelevant suggestions. LINQ is built entirely on generic extension methods—`Select<TSource, TResult>`, `Where<TSource>`—where inference from the source sequence type drives the entire pipeline without visible type arguments at the call site.
 
 ---
 
-#### Q9. Can you define generic extension methods? How does type inference work at the call site?
+## Q10. What are anti-patterns with extension methods (god extensions, violating encapsulation)?
 
-_Answer not found._
+**Concepts**
+- God extension class (many unrelated methods on one type)
+- Domain logic in extensions bypasses DI and constructor seams
+- IntelliSense pollution from oversized extension classes
+- Extensions shadowing or duplicating instance members
+- Owned type behavior belongs on the type or a domain service
 
----
+**Answer**
 
-#### Q10. What are anti-patterns with extension methods (god extensions, violating encapsulation)?
-
-_Answer not found._
+The primary extension method anti-patterns are god extension classes that accumulate dozens of unrelated helpers on a single type—breaking single responsibility and making IntelliSense lists unmanageable—and placing domain-critical behavior like pricing algorithms in extensions on owned types when an instance method would be clearer. Extensions that patch behavior on third-party or BCL types are the legitimate use case; extensions adding 40-line pricing algorithms to domain types obscure the domain model, bypass constructor and DI seams, and make the logic uninjectableand harder to test in isolation. I also avoid extensions that duplicate or slightly shadow public instance members with different behavior, since the instance always wins in resolution and the extension becomes invisible once the instance method exists.
 
 ---
 
 ### 05. Func, Action & Predicate
 
-#### Q1. What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family?
+---
 
-What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family?
+## Q1. What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family?
 
-**Answer:** `Func` delegates are generic templates in `System` for functions that return a value. `Func<TResult>` takes no parameters and returns `TResult`; `Func<T, TResult>` takes one `T` and returns `TResult`; the family extends up to 16 input type parameters with the last type parameter always being the return type.
+**Concepts**
+- `Func` generic delegate family for value-returning callbacks
+- Zero-to-sixteen input type parameters
+- Last type parameter always the return type (`TResult`)
+- Method group assignment compatibility
+- Replaces boilerplate custom delegate declarations for internal helpers
 
-- `Func<DateTime> now = () => DateTime.UtcNow;` — zero inputs.
-- `Func<string, int> len = s => s.Length;` — one input, `int` result.
-- Method group assignment works when signatures align: `Func<int, int> abs = Math.Abs;`
-- `Func` replaces many custom `delegate` declarations for computational callbacks.
+**Answer**
+
+`Func` delegates are generic built-in types in `System` representing functions that return a value. `Func<TResult>` takes no parameters and returns `TResult`; `Func<T, TResult>` takes one argument; the family extends to sixteen input type parameters, with the last parameter always being the return type. I use `Func<string, int>` to store `s => s.Length` or assign a method group like `Math.Abs` to `Func<int, int>`. For private helpers and LINQ pipelines, `Func` removes the boilerplate of declaring a named delegate type while preserving type safety and allowing method group assignment when a compatible static or instance method exists.
 
 ---
 
-#### Q2. What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?
+## Q2. What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?
 
-What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?
+**Concepts**
+- `Action` as void-returning delegate family
+- Zero-to-sixteen parameter overloads
+- Side-effect callbacks: logging, notifications, UI updates
+- `Action` fills the void-return role that `Func<void>` cannot
 
-**Answer:** `Action` delegates represent void-returning callbacks. Plain `Action` takes no parameters; `Action<T>` takes one parameter; multi-parameter forms mirror `Func` arity up to 16 parameters, all returning void.
+**Answer**
 
-- `Action log = () => Console.WriteLine("done");`
-- `Action<string> print = msg => Console.WriteLine(msg);`
-- Use `Action` when side effects matter and no return value is needed — logging, notifications, UI updates.
-- `Func<T>` with return type `void` does not exist — `Action` fills that role.
-
----
-
-#### Q3. What is `Predicate<T>`, and how does it relate to `Func<T, bool>`?
-
-What is `Predicate<T>`, and how does it relate to `Func<T, bool>`?
-
-**Answer:** `Predicate<T>` is a legacy built-in delegate that takes one argument and returns `bool`, semantically identical to `Func<T, bool>`. Modern APIs and LINQ prefer `Func<T, bool>`, but older BCL methods like `List<T>.FindAll` still accept `Predicate<T>`.
-
-- `Predicate<int> isEven = n => n % 2 == 0;` — same shape as `Func<int, bool>`.
-- Lambdas convert to either type when the target parameter expects it.
-- Choose `Func<T, bool>` in new public APIs for consistency with LINQ.
-- `Array.TrueForAll` and similar methods may still name `Predicate<T>` in signatures.
+`Action` delegates represent void-returning callbacks. Plain `Action` takes no parameters; `Action<T>` takes one; multi-parameter overloads extend to sixteen inputs, all returning void. I use `Action` when the callback is purely for side effects—logging, UI updates, notifications—where no value needs to propagate back to the caller. `Func` with a void return type does not exist in the BCL, so `Action` fills that role, and confusing the two causes compile errors when passing a callback to an API that expects one and not the other.
 
 ---
 
-#### Q4. When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate?
+## Q3. What is `Predicate<T>`, and how does it relate to `Func<T, bool>`?
 
-When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate?
+**Concepts**
+- `Predicate<T>` as legacy single-argument bool-returning delegate
+- Semantic equivalence with `Func<T, bool>`
+- Legacy BCL APIs: `List<T>.FindAll`, `Array.TrueForAll`
+- Prefer `Func<T, bool>` in new APIs for LINQ alignment
+- Trivial lambda/method-group conversion between both types
 
-**Answer:** Use `Func` when the callback returns a value, `Action` for void side effects, and `Func<T, bool>` (or `Predicate<T>` for legacy BCL) for filters. Use a custom named delegate when the signature carries domain meaning important to public API consumers.
+**Answer**
 
-- Private helpers and LINQ chains: generic `Func`/`Action` reduce boilerplate.
-- Public plugin points like `ShippingRule`: custom delegate or dedicated type documents intent.
-- `Predicate<T>` only when calling APIs that require it — otherwise prefer `Func<T, bool>`.
-- Identical signatures for different concepts should not share one `Func` typedef — use distinct delegate names.
-
----
-
-#### Q5. What are higher-order functions? Give C# examples using `Func` and `Action`.
-
-What are higher-order functions? Give C# examples using `Func` and `Action`.
-
-**Answer:** Higher-order functions take other functions as parameters or return functions as results. C# expresses them through delegate-typed parameters and return types.
-
-- `ApplyToAll(decimal[] prices, Func<decimal, decimal> transform)` — passes a transform function.
-- `Factory` methods returning `Func<int, int>` create configured behaviors at runtime.
-- LINQ `Select` and `Where` are higher-order — they accept `Func` delegates.
-- Higher-order style enables strategy injection without subclass explosion.
+`Predicate<T>` is a legacy built-in delegate type taking one argument and returning `bool`—semantically identical to `Func<T, bool>`. It predates generic `Func` delegates and is still required by older BCL methods like `List<T>.FindAll` and `Array.TrueForAll`. In new code I use `Func<T, bool>` because it aligns with LINQ's `Where` signature and avoids a distinct type that callers must convert from when composing with LINQ. Lambdas and method groups bind to either type when context demands it, so conversion at call sites is trivial when wrapping legacy BCL methods.
 
 ---
 
-#### Q6. What is function composition, and how can it be achieved in C#?
+## Q4. When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate?
 
-What is function composition, and how can it be achieved in C#?
+**Concepts**
+- `Func` for value-returning callbacks
+- `Action` for void side-effect callbacks
+- `Func<T, bool>` as modern predicate standard
+- Named delegate for public domain-meaningful API contracts
+- `Predicate<T>` only for legacy BCL interop
 
-**Answer:** Function composition chains functions so the output of one becomes the input of the next: `(f ∘ g)(x) = f(g(x))`. C# has no built-in compose operator, but you implement it with a small helper or nested calls.
+**Answer**
 
-```csharp
-Func<int, int> h = x => f(g(x));
-// or: Func<Func<T,R>, Func<T,T>, Func<T,R>> Compose = (f, g) => x => f(g(x));
-```
-
-- LINQ pipelines compose declaratively: `source.Select(g).Select(f)` equivalent to mapping `f(g(x))`.
-- Method chaining on fluent APIs achieves similar sequencing for object transformations.
-- Pure functional libraries may supply `Compose`/`Pipe` extension methods.
-- Composition preserves deferred execution when built on `IEnumerable` operators.
+I use `Func` when the callback returns a value, `Action` for void side effects, and `Func<T, bool>` for filter predicates in new code. A custom named delegate earns its place in a public API when the signature carries domain meaning that a generic `Func` obscures—`ShippingRule`, `OrderAuditHandler`, and `PriceAdjuster` document intent and can carry XML documentation that `Func<decimal, decimal>` cannot. I avoid `Predicate<T>` except when calling legacy BCL methods that require it, and I do not use custom delegates for private helpers where `Func`/`Action` reduce boilerplate without losing clarity.
 
 ---
 
-#### Q7. How many generic parameters do `Func` and `Action` support, and which parameter is always the return type for `Func`?
+## Q5. What are higher-order functions? Give C# examples using `Func` and `Action`.
 
-How many generic parameters do `Func` and `Action` support, and which parameter is always the return type for `Func`?
+**Concepts**
+- Higher-order function definition (takes or returns functions)
+- `Func` as parameter type for strategy injection
+- Factory methods returning `Func` as higher-order producers
+- LINQ `Select`/`Where` as built-in higher-order functions
+- Strategy injection via delegate parameter vs subclass explosion
 
-**Answer:** Both families support up to 16 type parameters for inputs in their longest overloads. For `Func`, the last type parameter is always `TResult` — the return type; all preceding parameters are input types. `Action` overloads have no return type parameter — all type parameters are inputs.
+**Answer**
 
-- `Func<T1, T2, T3, T4, TResult>` — three inputs, `TResult` return.
-- `Action<T1, T2, T3, T4>` — four inputs, void return.
-- Arity counting includes only type parameters, not the implicit void of `Action`.
-- Very long arities exist for completeness; most code uses zero to three parameters.
-
----
-
-#### Q8. How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, etc.)?
-
-How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, etc.)?
-
-**Answer:** LINQ extension methods on `IEnumerable<T>` take `Func` delegates: `Where` accepts `Func<T, bool>`, `Select` accepts `Func<T, TResult>`, `Aggregate` accepts funcs with varying arity. The caller supplies lambdas or method groups matching those shapes.
-
-- `orders.Where(o => o.Total > 100)` — `Func<Order, bool>` predicate.
-- `orders.Select(o => o.Customer)` — `Func<Order, string>` projector.
-- `IQueryable` overloads use `Expression<Func<...>>` for translation — same logical roles, different compile target.
-- Deferred execution means funcs run during enumeration, not when `Where`/`Select` are called.
+A higher-order function either takes a function as a parameter or returns a function as a result. In C#, `ApplyToAll(decimal[] prices, Func<decimal, decimal> transform)` is higher-order because it accepts a function for the transform. Factory methods returning `Func<int, int>` are higher-order because they produce functions configured at creation time. LINQ `Select` and `Where` are higher-order—they accept `Func` delegates and apply them across sequences lazily. This style enables strategy injection without subclass explosion: instead of subclassing `PricingService` for each pricing rule, I pass a different `Func<decimal, decimal>` at the call site, keeping the algorithm and the orchestration cleanly separated.
 
 ---
 
-#### Q9. When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API clarity?
+## Q6. What is function composition, and how can it be achieved in C#?
 
-When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API clarity?
+**Concepts**
+- Function composition: output of one is input of next
+- Nested lambda composition (`x => f(g(x))`)
+- `Aggregate` for folding a list of functions
+- LINQ `Select` chaining as compositional pipeline
+- Custom `Compose`/`Pipe` extension method pattern
 
-**Answer:** `Func<T, bool>` improves clarity and consistency in new code because it aligns with LINQ and modern BCL additions; `Predicate<T>` hurts cross-API uniformity when mixed arbitrarily but remains required when calling legacy methods that name `Predicate<T>` explicitly.
+**Answer**
 
-- Public new APIs should standardize on `Func<T, bool>` unless wrapping `List.FindAll` signatures.
-- Converting between them is trivial at call sites — lambdas bind to both.
-- XML docs read clearer when filter parameters use the same `Func` pattern as `Enumerable.Where`.
-- Keeping `Predicate<T>` in a wrapper method isolates legacy types from new code.
+Function composition chains two functions so the output of one becomes the input of the next—mathematically `(f ∘ g)(x) = f(g(x))`. C# has no built-in composition operator, so I compose by nesting: `Func<int, int> h = x => f(g(x));`. For longer chains I fold a list of `Func<decimal, decimal>` using `Aggregate`: `decimal result = steps.Aggregate(input, (acc, fn) => fn(acc))`. LINQ pipelines compose declaratively when chaining `Select` calls—`.Select(g).Select(f)` maps `f(g(x))` over the sequence. Deferred execution means neither function runs until the pipeline is enumerated, which is the correct behavior for composing transformations that are defined separately from where data flows through them.
+
+---
+
+## Q7. How many generic parameters do `Func` and `Action` support, and which parameter is always the return type for `Func`?
+
+**Concepts**
+- `Func` arity: up to sixteen input parameters plus one return type
+- `Action` arity: up to sixteen input parameters, no return type parameter
+- Last type parameter in `Func` is always `TResult`
+- Practical arity rarely exceeds three in production code
+- High arity signals refactoring opportunity
+
+**Answer**
+
+Both `Func` and `Action` have overloads supporting up to sixteen input type parameters. For `Func`, the last type parameter is always `TResult`—the return type—so `Func<T1, T2, T3, TResult>` has three inputs and one return. `Action` overloads have no return type parameter since all return void. In practice, most code uses zero to three parameters; very high arities suggest the function takes too many arguments and the signature should be refactored, perhaps by grouping related parameters into a dedicated type.
+
+---
+
+## Q8. How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, etc.)?
+
+**Concepts**
+- `Where` takes `Func<T, bool>` predicate
+- `Select` takes `Func<T, TResult>` projector
+- Deferred execution: delegates run during enumeration not registration
+- `IQueryable` overloads take `Expression<Func<...>>` for provider translation
+- Same lambda syntax compiles to different behavior based on declared parameter type
+
+**Answer**
+
+LINQ extension methods on `IEnumerable<T>` accept `Func` delegates: `Where` takes `Func<T, bool>`, `Select` takes `Func<T, TResult>`, and `Aggregate` takes `Func<TAccumulate, T, TAccumulate>`. The caller supplies lambdas or method groups matching those shapes, and the delegates are invoked lazily during enumeration rather than when `Where` or `Select` is called. For `IQueryable`, the overloads accept `Expression<Func<...>>` so the provider can translate to SQL; the syntactic appearance at the call site is identical, which is why accidentally passing a compiled `Func` to an `IQueryable` pipeline is such a common source of full-table scans in production.
+
+---
+
+## Q9. When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API clarity?
+
+**Concepts**
+- `Func<T, bool>` aligns with LINQ `Where` for composability
+- `Predicate<T>` required by legacy BCL methods
+- Mixed usage increases mental overhead for callers
+- Standardization on `Func<T, bool>` in new APIs
+- Isolation of `Predicate<T>` conversions at legacy BCL call sites
+
+**Answer**
+
+`Func<T, bool>` improves API clarity and consistency in new code because it aligns with `IEnumerable.Where`, making filters composable with LINQ pipelines without conversion. Using `Predicate<T>` alongside `Func<T, bool>` in the same API hurts clarity because callers must track which overload requires which type and occasionally adapt lambdas. The only time `Predicate<T>` improves clarity is when wrapping legacy BCL methods like `List<T>.FindAll`—matching the BCL's own naming signals the adapter's purpose. In all other new code I standardize on `Func<T, bool>` and isolate `Predicate<T>` conversions to the thin wrappers that call legacy BCL APIs directly.
 
 ---
 
 ### 06. Closures
 
-#### Q1. What is a closure in C#?
+---
 
-(R) A batch job queues three background tasks to process order IDs 0, 1, and 2. In production every task logs `Processing order 3`. Review the scheduling code:
+## Q1. What is a closure in C#?
 
-```csharp
-public void ScheduleOrderProcessors(IOrderService orders)
-{
-    for (int i = 0; i < 3; i++)
-    {
-        Task.Run(() => orders.ProcessOrder(i));
-    }
-}
-```
+**Concepts**
+- Closure as function plus captured variable environment
+- `for` loop single shared variable slot
+- Deferred task execution reads final variable value
+- Inner local copy to snapshot per-iteration value
+- `foreach` C# 5+ per-iteration variable semantics
 
-What is wrong, why does it pass a quick local smoke test sometimes, and how do you fix it?
+**Answer**
 
-**Answer:** Each `Task.Run` lambda captures the **same** loop variable `i`, not the value at scheduling time. When the thread pool runs the tasks, the loop has usually finished and `i` is `3`, so every callback sees `3`. A fast local run can accidentally process the "right" IDs if tasks start before the loop increments — masking the bug until production load defers execution.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Capture semantics | `for` declares one shared `i` | All deferred lambdas read final loop value |
-| Correctness | Wrong order IDs processed | Duplicate work, skipped orders, bad audit trail |
-| Testability | Race with loop completion | Flaky passes locally, fails under thread-pool delay |
-
-**Fix (priority order):**
-
-1. Copy to an inner local each iteration — the pattern from **Program.cs** Section 8a:
+A closure is a function (lambda or anonymous method) together with the environment of outer variables it references—those variables are captured by reference into a compiler-generated display class, not copied by value. In a `for` loop, all iterations share one `i` variable, so every lambda stored during the loop captures a reference to the same field. When `Task.Run` callbacks execute after the loop finishes, `i` has reached its final value and every callback processes the same (wrong) order ID. A fast local smoke test can mask this bug if tasks start before the loop increments, which is why it reaches production. I fix it by copying `i` to an inner local at each iteration:
 
 ```csharp
 for (int i = 0; i < 3; i++)
@@ -1590,120 +963,35 @@ for (int i = 0; i < 3; i++)
 }
 ```
 
-2. Pass `i` as a parameter to a helper so each lambda captures a distinct parameter slot (**Section 8b** — `AddPrinter` pattern):
+---
 
-```csharp
-for (int i = 0; i < 3; i++)
-    ScheduleOne(orders, i);
+## Q2. How does the compiler implement variable capture for lambdas and anonymous methods?
 
-static void ScheduleOne(IOrderService orders, int orderId) =>
-    Task.Run(() => orders.ProcessOrder(orderId));
-```
+**Concepts**
+- Display class generated for each captured scope
+- Single display class field shared by all lambdas in same scope
+- Deferred delegate invocation reads field at invocation time
+- Inner local copy creates per-iteration display class field
+- Factory helper method as alternative to force per-call scope
 
-3. Prefer `foreach` only when iterating a collection — `foreach` gets a per-iteration variable on C# 5+, but **`for` still needs the copy fix** (**Section 9**).
+**Answer**
 
-**Production takeaway:** This is the classic closure loop bug Karat embeds in `Task.Run`, timers, and event handlers — capture is by reference to shared storage, not a snapshot. See **Program.cs** QUICK REFERENCE — `for (int i ...)` → deferred λ sees final `i`.
+When a lambda captures an outer variable, the compiler generates a display class—a heap-allocated object with a field for each captured variable. The lambda's body becomes a method on this class, and all lambdas created within the same scope sharing the same variable use one display class instance and therefore one field. In a `for` loop, all iterations share a single `tier` field; every `filters.Add(price => price >= thresholds[tier])` stores a delegate that reads the same field at execution time. When the list executes later, `tier` holds its final post-loop value and all filters behave identically. I introduce a per-iteration local—`int capturedTier = tier;`—so each iteration's lambda gets its own display class field, or I extract a helper method whose parameter creates a fresh scope per call.
 
 ---
 
-#### Q2. How does the compiler implement variable capture for lambdas and anonymous methods?
+## Q3. What is the difference between capturing a variable vs capturing a value at closure creation time?
 
-(R) A price-filter service builds deferred LINQ queries inside a loop and stores them for later execution. Review this helper:
+**Concepts**
+- Variable capture: reference to display class field (live updates visible)
+- Value capture: copy to local before lambda (independent snapshot)
+- Implicit `this` capture via instance method call in lambda
+- Event subscription GC root from publisher to subscriber
+- Unsubscribe in `Dispose` to release subscriber from root chain
 
-```csharp
-public List<Func<decimal, bool>> BuildTierFilters(decimal[] thresholds)
-{
-    var filters = new List<Func<decimal, bool>>();
-    for (int tier = 0; tier < thresholds.Length; tier++)
-    {
-        filters.Add(price => price >= thresholds[tier]);
-    }
-    return filters;
-}
+**Answer**
 
-// Caller runs all filters later against the same quote:
-foreach (var filter in BuildTierFilters(new[] { 10m, 50m, 100m }))
-    Console.WriteLine(filter(75m));
-```
-
-Every filter uses the same threshold at runtime. Diagnose the capture bug and show two safe fixes from this chapter.
-
-**Answer:** `tier` is a single loop variable reused across iterations. Every stored lambda closes over the same display-class field, so when filters run later they all read the final `tier` index (`3` if length is 3) — out of range or comparing against the wrong threshold. Deferred execution does not snapshot the index at `Add` time.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Capture | Shared `tier` across all lambdas | All filters behave identically at runtime |
-| Correctness | Wrong tier boundaries | Pricing rules, eligibility, or alerts misfire |
-| Deferred LINQ | Same rules as stored delegates (**Section 10**) | Bug survives refactoring to `IQueryable` deferred queries |
-
-**Fix (priority order):**
-
-1. Inner copy per iteration:
-
-```csharp
-for (int tier = 0; tier < thresholds.Length; tier++)
-{
-    int capturedTier = tier;
-    filters.Add(price => price >= thresholds[capturedTier]);
-}
-```
-
-2. Parameter snapshot via helper (**Section 8b**):
-
-```csharp
-for (int tier = 0; tier < thresholds.Length; tier++)
-    AddTierFilter(filters, thresholds, tier);
-
-static void AddTierFilter(List<Func<decimal, bool>> sink, decimal[] thresholds, int tier) =>
-    sink.Add(price => price >= thresholds[tier]);
-```
-
-3. If tiers are known at compile time or small, consider building predicates eagerly without deferred capture — evaluate threshold into a local `decimal floor = thresholds[tier]` inside the copy block when the array slot is the real shared concern.
-
-**Production takeaway:** Factory methods that return lambdas are closure-heavy — always ask "which variable slot does each delegate share?" before shipping deferred filter lists.
-
----
-
-#### Q3. What is the difference between capturing a variable vs capturing a value at closure creation time?
-
-(R) After users navigate away from detail views, memory stays high. Review this WinForms-style panel:
-
-```csharp
-public sealed class TradeDetailPanel : IDisposable
-{
-    private readonly byte[] _quoteBuffer = new byte[512 * 1024];
-    private readonly MarketDataFeed _feed;
-
-    public TradeDetailPanel(MarketDataFeed feed)
-    {
-        _feed = feed;
-        _feed.TickReceived += (_, tick) =>
-            UpdateChart(tick, _quoteBuffer);
-    }
-
-    public void Dispose() { /* removed from parent */ }
-
-    private void UpdateChart(Tick tick, byte[] scratch) { /* UI update */ }
-}
-```
-
-What keeps `TradeDetailPanel` and the 512 KB buffer alive, and how do you refactor to break the capture?
-
-**Answer:** The event handler is a long-lived delegate on the singleton/static `MarketDataFeed`. The lambda captures `this` (implicitly, to call `UpdateChart`) and `_quoteBuffer`, so the GC root chain is: feed → multicast delegate → display class → panel + buffer. `Dispose` removes the UI but never `-=` the handler, so every closed panel stays reachable (**Program.cs** Sections 6–7).
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Lifetime | Subscribe in ctor, no unsubscribe in `Dispose` | Panels accumulate across navigation |
-| Capture | Lambda captures `this` + `_quoteBuffer` | 512 KB buffer pinned per panel instance |
-| GC roots | Long-lived publisher holds delegate | Memory climb; Gen2 pressure in desktop and server UI |
-
-**Fix (priority order):**
-
-1. Store the handler and unsubscribe in `Dispose`:
+Capturing a variable means the lambda holds a reference to the display class field—any mutation of that field is immediately visible to the lambda. Capturing a value requires copying to a local before the lambda, so the closure holds a snapshot independent of subsequent changes. In the `TradeDetailPanel` example, the event handler implicitly captures `this` by calling the instance method `UpdateChart`, and the publisher's multicast delegate then holds a GC root into the panel and its 512 KB buffer. Since `Dispose` does not call `-=`, every closed panel accumulates in the event chain. I store the handler in a field and unsubscribe in `Dispose`:
 
 ```csharp
 private readonly EventHandler<TickEventArgs> _tickHandler;
@@ -1715,183 +1003,53 @@ public TradeDetailPanel(MarketDataFeed feed)
     _feed.TickReceived += _tickHandler;
 }
 
-public void Dispose()
-{
-    _feed.TickReceived -= _tickHandler;
-}
+public void Dispose() => _feed.TickReceived -= _tickHandler;
 ```
-
-2. Break the large capture — pass only what the handler needs (tick id, small struct), not the whole scratch buffer; allocate scratch inside `UpdateChart` or a pool if needed (**Section 7** — capture small identifiers).
-
-3. Prefer a named instance method handler when it avoids extra display-class fields: `_feed.TickReceived += OnTickReceived;`
-
-**Production takeaway:** Capturing `this` in a long-lived event handler is a silent leak — Karat pairs events chapter unsubscribe rules with closure capture of instance state and large graphs.
 
 ---
 
-#### Q4. What is the classic `for` loop closure bug, and how did C# 5 change loop variable capture semantics?
+## Q4. What is the classic `for` loop closure bug, and how did C# 5 change loop variable capture semantics?
 
-(P) A singleton `RetryScheduler` registers one-shot timers that retry failed HTTP calls. Review the registration:
+**Concepts**
+- `for` loop single variable slot unchanged in C# 5
+- C# 5 `foreach` per-iteration variable (fixes the equivalent foreach bug)
+- Timer as long-lived closure host with minimal-capture pattern
+- Capturing identifiers only, not full object graphs
+- `Timer.Dispose()` after callback completes to release GC root
 
-```csharp
-public sealed class RetryScheduler
-{
-    private readonly List<Timer> _timers = new();
+**Answer**
 
-    public void ScheduleRetry(HttpCallContext context, TimeSpan delay)
-    {
-        var timer = new Timer(_ =>
-        {
-            context.RetryCount++;
-            _httpClient.PostAsync(context.Url, context.Body);
-        }, null, delay, Timeout.InfiniteTimeSpan);
-
-        _timers.Add(timer);
-    }
-}
-```
-
-What memory and correctness issues come from this closure, and what production pattern replaces capturing the whole `context` graph?
-
-**Answer:** The timer callback closes over the entire `HttpCallContext` (URL, body, mutable retry state) and likely `this` on the scheduler. Timers and their delegates stay reachable in `_timers` until explicitly disposed, pinning large request payloads and preventing GC. Fire-and-forget `PostAsync` inside the callback adds async correctness issues on top of the capture leak.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | Timer + list holds closure over `context` | Request bodies and headers linger for app lifetime |
-| Lifetime | No `timer.Dispose()` after fire | `_timers` grows without bound on busy systems |
-| Correctness | Mutating shared `context` from timer thread | Race if same context retried or logged elsewhere |
-| Async | Unobserved `PostAsync` Task | Swallowed exceptions; no cancellation |
-
-**Fix (priority order):**
-
-1. Capture **identifiers only** — copy `contextId`, `url`, and retry count primitives into locals before creating the timer; load fresh state from a store when the timer fires:
-
-```csharp
-var callId = context.Id;
-var url = context.Url;
-var timer = new Timer(async _ =>
-{
-    await _retryService.RetryAsync(callId, url, ct);
-    // dispose timer after success/final failure
-}, null, delay, Timeout.InfiniteTimeSpan);
-```
-
-2. Remove completed timers from `_timers` and call `timer.Dispose()` — break the GC root (**Section 7** — release delegate when work completes).
-
-3. Use `IHostedService` + `Channel<T>` or a proper job scheduler (Hangfire, Quartz, Azure Service Bus delayed messages) instead of ad-hoc `Timer` lists for production retry.
-
-**Production takeaway:** Timers are long-lived closure hosts — treat them like event subscriptions: minimal capture, explicit disposal, and no unbounded collector lists.
+The classic `for` loop closure bug occurs because a `for` statement declares one loop variable shared across all iterations—lambdas captured inside the loop all reference the same field, so deferred invocations read the final post-loop value. In C# 5, `foreach` was changed so each iteration gets its own copy of the iteration variable, fixing the parallel bug for `foreach` without requiring an inner-local workaround. The `for` loop was not changed—it still needs the explicit copy. Timers are a particularly dangerous closure host because they stay alive in a list and fire on thread-pool threads; I capture only primitive identifiers, load fresh state from a service on each callback invocation rather than closing over a full request object, and call `timer.Dispose()` after success or final failure to break the GC root.
 
 ---
 
-#### Q5. How does the same capture bug appear in `foreach`, LINQ, and `Task.Run` callbacks?
+## Q5. How does the same capture bug appear in `foreach`, LINQ, and `Task.Run` callbacks?
 
-(R) A team parallelizes CSV row validation with `Parallel.ForEach`. Under load, totals and error lists are wrong. Review:
+**Concepts**
+- Same capture mechanics in `foreach`/LINQ/`Task.Run`
+- Parallel closure mutation of shared locals as data race
+- `Interlocked.Increment` for atomic counter under parallelism
+- `ConcurrentBag<T>` for thread-safe collection under parallelism
+- `Parallel.ForEach` local-init/finally for lock-free aggregation
 
-```csharp
-public ValidationSummary ValidateRows(IEnumerable<CsvRow> rows)
-{
-    int invalidCount = 0;
-    var errors = new List<string>();
+**Answer**
 
-    Parallel.ForEach(rows, row =>
-    {
-        if (!row.IsValid)
-        {
-            invalidCount++;
-            errors.Add($"Row {row.LineNumber}: {row.Error}");
-        }
-    });
-
-    return new ValidationSummary(invalidCount, errors);
-}
-```
-
-What closure-related defects are present, and how do you fix them without abandoning parallelism?
-
-**Answer:** The parallel lambda **captures** `invalidCount` and `errors` from the outer scope and mutates them from multiple threads concurrently. Closure gives every iteration the same shared fields — `++` on `invalidCount` and `List<T>.Add` are not thread-safe, producing lost updates and corrupted list internal state.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Shared captured mutable state | Wrong invalid counts; `List<T>` corruption / exceptions |
-| Closure semantics | One display-class field for `invalidCount` | Parallel bodies fight over same storage |
-| Design | Closure used as implicit shared accumulator | Non-deterministic results under load |
-
-**Fix (priority order):**
-
-1. Use thread-local or concurrent accumulators — do not mutate captured locals from parallel bodies:
-
-```csharp
-var errors = new ConcurrentBag<string>();
-var invalidCount = 0;
-
-Parallel.ForEach(rows, row =>
-{
-    if (!row.IsValid)
-    {
-        Interlocked.Increment(ref invalidCount);
-        errors.Add($"Row {row.LineNumber}: {row.Error}");
-    }
-});
-```
-
-2. Prefer `Parallel.ForEach` with **local init / local finally** to aggregate without locking hot paths:
-
-```csharp
-Parallel.ForEach(rows,
-    () => (Invalid: 0, Errors: new List<string>()),
-    (row, _, local) =>
-    {
-        if (!row.IsValid)
-            return (local.Invalid + 1,
-                local.Errors.Append($"Row {row.LineNumber}: {row.Error}").ToList());
-        return local;
-    },
-    local => { /* merge local into global summary under lock or concurrent structure */ });
-```
-
-3. If order must be preserved, use `AsParallel().AsOrdered()` with immutable aggregation or sequential validation — parallelism is not free when closure sharing is involved.
-
-**Production takeaway:** Closures over mutable outer locals are fine on a single thread (**Program.cs** Section 4) but become data races the moment the delegate runs on multiple threads — Karat stacks closure capture with `Parallel.ForEach` and async callbacks.
+The same capture mechanic that causes the `for` loop bug appears in `foreach` loops (before C# 5), LINQ deferred queries that re-evaluate after a variable changes, and `Task.Run` callbacks that run after the enclosing method returns. In all cases the lambda captures a reference rather than a snapshot. The parallel variant is worse: `Parallel.ForEach` runs iterations concurrently, so two threads can both read `invalidCount`, compute `count + 1`, and write back the same value—a lost update. `List<T>.Add` under concurrent access corrupts internal state. I replace `List<T>` with `ConcurrentBag<T>` and `invalidCount++` with `Interlocked.Increment(ref invalidCount)`, or I use the per-partition local-state overload of `Parallel.ForEach` to accumulate without shared mutation.
 
 ---
 
-#### Q6. What problems arise when multiple closures share the same captured variable?
+## Q6. What problems arise when multiple closures share the same captured variable?
 
-(M) An API endpoint filters products on every request using a closure factory. A junior dev argues "it's just a lambda — no allocation concern." Review the hot path:
+**Concepts**
+- Shared display class field: mutations visible across all sharing lambdas
+- Shared mutable state as data race under parallelism
+- Per-request closure allocation on hot API endpoints
+- 50 display classes plus 50 delegates per request = GC pressure
+- Inline range check or local function to eliminate per-iteration allocation
 
-```csharp
-app.MapGet("/products", (decimal minPrice, ProductRepository repo) =>
-{
-    var filters = new List<Func<Product, bool>>();
-    for (int i = 0; i < 50; i++)
-    {
-        decimal floor = minPrice + i;
-        filters.Add(p => p.UnitPrice >= floor);
-    }
-    return repo.GetAll().Where(p => filters.Any(f => f(p))).ToList();
-});
-```
+**Answer**
 
-Explain what the compiler generates per request (display classes, delegate allocations) and how you would refactor for readability **and** capture control.
-
-**Answer:** Each `p => p.UnitPrice >= floor` that captures `floor` becomes a compiler-generated display class instance plus a delegate allocation — roughly 50 display classes and 50 delegates **per HTTP request**, plus the `List<Func<...>>` and the outer lambda's own captures (`minPrice`, `repo`). This is correct but wasteful on a hot endpoint; the junior dev conflated "small syntax" with "zero cost."
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Allocation | 50 closures × per request | Gen0/Gen1 churn; GC pressure at scale |
-| Capture | Each iteration correctly captures distinct `floor` | Correctness is fine; cost is the issue |
-| Readability | Nested lambdas + `Any` over delegate list | Hard to test and profile |
-
-**Fix (priority order):**
-
-1. Replace 50 closures with one predicate or a numeric range check — no per-tier delegate:
+When multiple lambdas share a captured variable, they all read and write the same display class field—mutations from one lambda are visible to others, which is intentional for accumulators but a race condition under parallelism. The secondary problem is allocation: each capturing lambda creates a display class instance plus a delegate instance, so a loop creating 50 lambdas per HTTP request produces roughly 50 display classes and 50 delegates on every request, inflating Gen0 pressure. I eliminate this by replacing the 50 closures with a single inline range check capturing only `minPrice`, or by extracting the predicate to a local function or static method so no per-iteration heap allocation occurs:
 
 ```csharp
 app.MapGet("/products", (decimal minPrice, ProductRepository repo) =>
@@ -1903,50 +1061,20 @@ app.MapGet("/products", (decimal minPrice, ProductRepository repo) =>
 });
 ```
 
-2. If tier logic is required, use a **local function** with explicit parameters (no hidden display class per tier) or a static method:
-
-```csharp
-bool InAnyTier(Product p, decimal minPrice, int tierCount)
-{
-    for (int i = 0; i < tierCount; i++)
-        if (p.UnitPrice >= minPrice + i) return true;
-    return false;
-}
-```
-
-3. Cache immutable filter delegates at startup if thresholds are fixed — closures belong in factory/setup code, not per-request loops.
-
-**Production takeaway:** Closures allocate heap display classes; capture control means choosing local functions, static methods, or inlined logic when lambdas would multiply allocations on hot paths. See **Program.cs** — display class promotion to heap on capture.
-
 ---
 
-#### Q7. What is a display class (compiler-generated closure type), and what performance cost does capture introduce?
+## Q7. What is a display class (compiler-generated closure type), and what performance cost does capture introduce?
 
-(D) You inherit a service that mixes lambdas and local functions for deferred work:
+**Concepts**
+- Display class as compiler-generated heap-allocated closure type
+- One display class instance per factory call (per-call isolation)
+- Mutable captured state hidden from API surface
+- Named `RuleState` class for testable explicit state
+- `static` local function with explicit parameters for zero hidden capture
 
-```csharp
-public Func<int, bool> CreateRule(int threshold)
-{
-    int hits = 0;
-    return value =>
-    {
-        bool pass = value >= threshold;
-        if (pass) hits++;
-        return pass && hits <= 3;
-    };
-}
+**Answer**
 
-// New requirement: same logic but no hidden mutable capture — test must assert
-// each invocation independently without shared `hits` state leaking between rules.
-```
-
-Compare refactoring with (A) a closure over `hits`, (B) a local function with explicit state object, and (C) a small named class. When do you prefer local functions over lambdas for capture control in production code?
-
-**Answer:** Option (A) is intentional shared mutable capture — correct for a single stateful rule instance but opaque to tests and callers because `hits` is hidden inside the display class. Options (B) and (C) make state explicit and are easier to unit test, serialize, and reason about in code review.
-
-- **(A) Closure over `hits`:** Minimal code; state is shared across invocations of **one** returned delegate (**Program.cs** Sections 4–5). Poor fit when tests need isolated counters or when multiple rules must not share accidental state — each `CreateRule` call still gets its **own** display class, but the mutable `hits` is invisible on the API surface.
-
-- **(B) Local function + explicit state object:** Return a lambda that closes over a `RuleState` instance you define in the factory — same semantics, visible type:
+A display class is the heap-allocated type the compiler generates when a lambda captures outer variables; it holds one field per captured variable and exposes the lambda body as a method. Each `CreateRule` call produces its own display class instance, so the mutable `hits` counter is per-factory-call rather than globally shared—the captures are isolated per returned delegate. The performance cost is one heap allocation per closure creation plus ongoing GC pressure proportional to delegate lifetime. For the mutable `hits` counter, I can keep the closure if the semantics are well understood, but testability improves by extracting a named `RuleState` class whose properties tests inspect directly, or by using a `static` local function with explicit state parameters so no hidden capture exists:
 
 ```csharp
 public Func<int, bool> CreateRule(int threshold)
@@ -1954,3093 +1082,251 @@ public Func<int, bool> CreateRule(int threshold)
     var state = new RuleState();
     return value => Evaluate(value, threshold, state);
 
-    static bool Evaluate(int value, int threshold, RuleState state)
+    static bool Evaluate(int value, int threshold, RuleState s)
     {
         bool pass = value >= threshold;
-        if (pass) state.Hits++;
-        return pass && state.Hits <= 3;
+        if (pass) s.Hits++;
+        return pass && s.Hits <= 3;
     }
 }
 ```
 
-  Local functions can be `static` to avoid capturing `this`; capture is deliberate and named.
-
-- **(C) Named class:** Best when rules are long-lived, configured from DI, or need interfaces — `IRule.TryApply(int value)` with instance field `Hits`. Clearest lifetime and test seams for production services.
-
-**When to prefer local functions over lambdas:**
-
-- Hot paths where you want **`static` local functions** to guarantee no accidental `this` or outer local capture.
-- Readability when a lambda nests multiple levels — extract to a local function with parameters instead of deepening closure chains.
-- When the same factory needs both a closure (returned delegate) and helper logic that should **not** share capture — locals/functions separate "what is returned" from "how it works."
-
-Keep lambdas for short LINQ/`Task.Run`/event one-liners; switch to local functions or small types when mutable capture, test isolation, or allocation visibility matters.
-
-**Production takeaway:** Closures vs local functions is a **capture-control and readability** choice, not syntax sugar — Karat expects you to name what is shared, who owns it, and how long it lives. See **Program.cs** Sections 3, 5, and 6 — modified outer locals, shared capture, and heap promotion.
-
----
-
-#### Q8. What is a pure function? Give an example in C# and explain what makes it pure.
-
-_Answer not found._
-
----
-
-#### Q9. What is immutability, and why is it important in functional and concurrent programming?
-
-_Answer not found._
-
----
-
-#### Q10. How can immutability be achieved in C# (`readonly`, `record`, avoiding mutable captures)?
-
-_Answer not found._
-
----
-
-#### Q11. How do you avoid side effects when passing lambdas to APIs that store or invoke them later?
-
-_Answer not found._
-
----
-
-#### Q12. When should you copy loop values to a local inside the loop before capturing (`var copy = item`)?
-
-_Answer not found._
-
----
-
-#### Q13. How do local functions compare to lambdas regarding capture and allocation behavior?
-
-_Answer not found._
-
----
-
-#### Q14. **Closure captures the variable, not the value** — Loop lambda prints `3, 3, 3`, not `0, 1, 2`.
-
-_Answer not found._
-
----
-
-#### Q15. **Same trap in LINQ and tasks** — Capturing loop variables inside `.Where()` / `Task.Run` produces identical bugs.
-
-_Answer not found._
-
----
-
-#### Q16. **Multicast delegate short-circuit on exception** — Later subscribers may not run if an early one throws.
-
-_Answer not found._
-
----
-
-#### Q17. **Extension method not in scope** — Missing `using` for the static class namespace.
-
-_Answer not found._
-
----
-
-#### Q18. **Instance method wins over extension** — An instance method hides the extension; you cannot "override" with an extension.
-
-_Answer not found._
-
----
-
-#### Q19. **Shared captured storage** — Multiple lambdas share one slot for the same outer variable.
-
-_Answer not found._
-
----
-
-#### Q20. **Target-typed lambda ambiguity** — Without a clear target type, lambda expressions may fail to compile.
-
-_Answer not found._
-
----
-
-#### Q21. **Expression tree vs delegate** — Expression-tree lambdas cannot contain many C# constructs that delegate lambdas allow.
-
-_Answer not found._
-
----
-
-#### Q22. **Capturing `this` implicitly** — Instance lambdas capture `this`, extending object lifetime.
-
-_Answer not found._
-
----
-
-#### Q23. **Extension on null reference** — Extension methods can be called on null receivers; may throw inside the method.
-
-_Answer not found._
-
----
-
-## Scenario-Based Questions (Karat Format)
-
-#### Q1. (R) A pricing microservice chains discount calculators on a returning delegate and logs the "final adjusted price." Review the pipeline:
-
-```csharp
-public delegate decimal PriceAdjuster(decimal price);
-
-PriceAdjuster pipeline = ApplyTenPercentOff;
-pipeline += ApplyLoyaltyTierDiscount;
-pipeline += ApplyPromoCode;
-
-decimal listPrice = 200.00m;
-decimal finalPrice = pipeline(listPrice);
-_logger.LogInformation("Final price after {Count} adjustments: {Price}",
-    pipeline.GetInvocationList().Length, finalPrice);
-```
-
-`ApplyTenPercentOff` returns 180, `ApplyLoyaltyTierDiscount` returns 153, and `ApplyPromoCode` returns 137.70 — but production logs show `Final price: 137.70` while finance expects a step-by-step audit of each stage. What is wrong with this multicast design, and how would you fix it?
-
----
-
-**Answer:**
-
-```csharp
-public delegate decimal PriceAdjuster(decimal price);
-
-PriceAdjuster pipeline = ApplyTenPercentOff;
-pipeline += ApplyLoyaltyTierDiscount;
-pipeline += ApplyPromoCode;
-
-decimal listPrice = 200.00m;
-decimal finalPrice = pipeline(listPrice);
-_logger.LogInformation("Final price after {Count} adjustments: {Price}",
-    pipeline.GetInvocationList().Length, finalPrice);
-```
-
-`ApplyTenPercentOff` returns 180, `ApplyLoyaltyTierDiscount` returns 153, and `ApplyPromoCode` returns 137.70 — but production logs show `Final price: 137.70` while finance expects a step-by-step audit of each stage. What is wrong with this multicast design, and how would you fix it?
-
-**Answer:** Multicast on a returning delegate runs every handler but keeps only the last handler's return value — earlier adjustments are silently discarded, so a chained `PriceAdjuster` cannot produce an audited step-by-step pipeline without a different design.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Delegate semantics | Returning multicast keeps last return only | Intermediate prices lost; finance audit trail wrong |
-| Design | `+=` used for sequential price transforms | Reads as "pipeline" but CLR does not fold returns |
-| Observability | `GetInvocationList().Length` implies all stages contributed to `finalPrice` | Misleading logs — count ≠ cumulative calculation |
-
-**Fix (priority order):**
-
-1. Replace multicast with an explicit loop or LINQ fold that threads the decimal through each adjuster and logs after each step.
-2. If you only need side effects (audit logging), use a `void` multicast delegate (`Action<decimal>` per stage) separate from the single `PriceAdjuster` that computes the final value.
-3. For production pricing, prefer a list of `IPriceAdjuster` or `Func<decimal, decimal>` in a collection invoked sequentially — testable and deterministic.
-
-```csharp
-decimal price = listPrice;
-foreach (PriceAdjuster step in pipeline.GetInvocationList().Cast<PriceAdjuster>())
-{
-    price = step(price);
-    _logger.LogInformation("After {Step}: {Price}", step.Method.Name, price);
-}
-decimal finalPrice = price;
-```
-
-**Production takeaway:** Multicast delegates are for void notification chains (audit, UI) — not accumulating return values. See **Program.cs** Sections 5 and Quick Reference — "only LAST handler's return value kept."
-
----
-
----
-
-#### Q2. (R) An order service exposes an optional audit hook as a nullable delegate. After a handler throws, downstream code never runs and later calls crash:
-
-```csharp
-public sealed class OrderProcessor
-{
-    public OrderAuditHandler? OnOrderProcessed { get; set; }
-
-    public void CompleteOrder(string orderId, decimal total)
-    {
-        _repository.Save(orderId, total);
-
-        OnOrderProcessed.Invoke($"Completed {orderId}: {total:C}");
-
-        _metrics.Increment("orders.completed");
-    }
-}
-```
-
-One audit handler throws `IOException` on a full disk; the next order raises `NullReferenceException` because `OnOrderProcessed` was set to null by a test teardown. Identify the problems and prioritize fixes.
-
----
-
-**Answer:**
-
-```csharp
-public sealed class OrderProcessor
-{
-    public OrderAuditHandler? OnOrderProcessed { get; set; }
-
-    public void CompleteOrder(string orderId, decimal total)
-    {
-        _repository.Save(orderId, total);
-
-        OnOrderProcessed.Invoke($"Completed {orderId}: {total:C}");
-
-        _metrics.Increment("orders.completed");
-    }
-}
-```
-
-One audit handler throws `IOException` on a full disk; the next order raises `NullReferenceException` because `OnOrderProcessed` was set to null by a test teardown. Identify the problems and prioritize fixes.
-
-**Answer:** The method invokes a nullable delegate without null-conditional syntax and lets a throwing audit handler abort the rest of `CompleteOrder` — stacked null-safety and exception-isolation bugs that pass happy-path tests.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `OnOrderProcessed.Invoke(...)` without `?.` | `NullReferenceException` when hook is unset |
-| Correctness | Unhandled exception in audit handler | `_metrics.Increment` never runs; order saved but marked incomplete downstream |
-| Design | Public setter allows `= null` from tests/other modules | Entire multicast chain wiped — same risk as public delegate fields (Q3) |
-| Multicast | One failing handler stops the chain | Remaining audit targets never run |
-
-**Fix (priority order):**
-
-1. Use null-conditional invoke: `OnOrderProcessed?.Invoke(...)`.
-2. Wrap multicast invocation in per-handler try/catch (or invoke via `GetInvocationList()` individually) so audit failures cannot break order completion.
-3. Replace the public setter with `event` or controlled `+=`/`-=` API so external code cannot assign `= null`.
-4. Ensure `_metrics.Increment` runs in `finally` or before audit if audit is best-effort.
-
-```csharp
-_repository.Save(orderId, total);
-
-if (OnOrderProcessed is not null)
-{
-    foreach (OrderAuditHandler handler in OnOrderProcessed.GetInvocationList())
-    {
-        try { handler.Invoke($"Completed {orderId}: {total:C}"); }
-        catch (Exception ex) { _logger.LogWarning(ex, "Audit handler failed"); }
-    }
-}
-
-_metrics.Increment("orders.completed");
-```
-
-**Production takeaway:** Optional callbacks need `?.Invoke` and fault isolation — Karat stacks null delegate + exception propagation in one snippet. See **Program.cs** Section 4 — null-safe invoke.
-
----
-
----
-
-#### Q3. (R) A teammate exposes notification wiring as a public delegate field "so integrators can subscribe without boilerplate." Review cross-team usage:
-
-```csharp
-public class InventorySyncService
-{
-    public OrderAuditHandler SyncCompleted;  // public field, not event
-}
-
-// Module A — startup wiring:
-sync.SyncCompleted += msg => _audit.Log(msg);
-
-// Module B — test reset before each case:
-sync.SyncCompleted = null;
-
-// Module C — "helpful" shortcut when no listeners yet:
-if (sync.SyncCompleted == null)
-    sync.SyncCompleted = DefaultNoOpHandler;
-
-// Module D — integration test simulates a sync without the service:
-sync.SyncCompleted?.Invoke("SKU-991 restocked — trigger reorder");
-```
-
-What production risks does this create compared to wrapping the multicast chain in an `event`, and what would you change?
-
----
-
-**Answer:**
-
-```csharp
-public class InventorySyncService
-{
-    public OrderAuditHandler SyncCompleted;  // public field, not event
-}
-
-// Module A — startup wiring:
-sync.SyncCompleted += msg => _audit.Log(msg);
-
-// Module B — test reset before each case:
-sync.SyncCompleted = null;
-
-// Module C — "helpful" shortcut when no listeners yet:
-if (sync.SyncCompleted == null)
-    sync.SyncCompleted = DefaultNoOpHandler;
-
-// Module D — integration test simulates a sync without the service:
-sync.SyncCompleted?.Invoke("SKU-991 restocked — trigger reorder");
-```
-
-What production risks does this create compared to wrapping the multicast chain in an `event`, and what would you change?
-
-**Answer:** A public delegate field lets any caller invoke the chain, replace it with `=`, or spoof notifications — `event` restricts outsiders to `+=`/`-=` only and keeps `Invoke` on the publisher.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | Public field exposes invocation list | Module D fakes sync completion → spurious downstream reorder jobs |
-| Lifetime | `SyncCompleted = null` (Module B) | Silently drops all subscribers — Module A's audit never fires again |
-| API contract | External `Invoke` allowed | Violates publisher/subscriber boundary; hard to reason about order of handlers |
-| Testability | Tests mutate production wiring globally | Flaky cross-test interference |
-
-**Fix (priority order):**
-
-1. Change to `public event OrderAuditHandler? SyncCompleted` — external code can only subscribe/unsubscribe.
-2. Add a `protected` or `private` `RaiseSyncCompleted(string message)` that performs `SyncCompleted?.Invoke(message)` inside the service.
-3. For test reset, expose `ClearSyncHandlersForTesting()` internally or use fresh service instances — never public `= null` on shared singletons.
-4. Document that multicast order follows registration order (**Program.cs** Section 5).
-
-**Production takeaway:** Delegate *mechanics* belong in this chapter; `event` adds access control on top (**Program.cs** Section 12). Karat tests whether you know why "flexible public delegate" is worse than `event` in shared services.
-
----
-
----
-
-#### Q4. (P) A warehouse API raises audit notifications from background worker threads while HTTP middleware subscribes and unsubscribes handlers per request. The publisher uses direct multicast invoke:
-
-```csharp
-private OrderAuditHandler? _auditChain;
-
-public void RaiseAudit(string message)
-{
-    _auditChain?.Invoke(message);
-}
-```
-
-Under load, handlers are occasionally skipped or you see rare `NullReferenceException` when the last subscriber unsubscribes during the raise. Explain the race on the multicast invocation list and show the thread-safe raise pattern for delegate chains.
-
----
-
-**Answer:**
-
-```csharp
-private OrderAuditHandler? _auditChain;
-
-public void RaiseAudit(string message)
-{
-    _auditChain?.Invoke(message);
-}
-```
-
-Under load, handlers are occasionally skipped or you see rare `NullReferenceException` when the last subscriber unsubscribes during the raise. Explain the race on the multicast invocation list and show the thread-safe raise pattern for delegate chains.
-
-**Answer:** Multicast delegate fields can change between the null check and `Invoke`, and `?.Invoke` still invokes a snapshot that may differ from the live field — copying the delegate reference to a local before invoking makes the raise atomic for that notification.
-
-- **Race:** Thread A reads `_auditChain` (non-null). Thread B unsubscribes the last handler, setting `_auditChain` to null. Thread A calls `Invoke` on a delegate whose invocation list was mutated — on older paths or with torn reads, this surfaces as skipped handlers or `NullReferenceException`.
-- **Pattern:** `var chain = _auditChain; chain?.Invoke(message);` — the local holds the invocation list as it existed at copy time; unsubscribes during the raise do not affect this invocation.
-- For long-running handlers, iterate `chain.GetInvocationList()` and invoke each target separately with try/catch so one failing subscriber does not abort the rest.
-- Prefer `event` with the same local-copy raise inside the owning class; do not expose the multicast field publicly.
-
-```csharp
-public void RaiseAudit(string message)
-{
-    var chain = _auditChain;
-    if (chain is null) return;
-
-    foreach (OrderAuditHandler handler in chain.GetInvocationList())
-    {
-        try { handler(message); }
-        catch (Exception ex) { _logger.LogError(ex, "Audit handler failed"); }
-    }
-}
-```
-
-**Production takeaway:** Thread-safe delegate raise = copy to local, then invoke — same mechanism underlying event raises. Events chapter covers subscriber lifetime; this chapter owns multicast invocation semantics.
-
----
-
----
-
-#### Q5. (P) An ASP.NET Core app registers a **Singleton** `ShippingCalculator` that takes a `Func<decimal, decimal>` built at startup from a **Scoped** `TaxRateProvider`:
-
-```csharp
-builder.Services.AddScoped<TaxRateProvider>();
-builder.Services.AddSingleton<ShippingCalculator>(sp =>
-{
-    var taxProvider = sp.GetRequiredService<TaxRateProvider>();
-    Func<decimal, decimal> applyTax = amount => amount * (1 + taxProvider.CurrentRate);
-    return new ShippingCalculator(applyTax);
-});
-
-public sealed class ShippingCalculator
-{
-    private readonly Func<decimal, decimal> _applyTax;
-    public ShippingCalculator(Func<decimal, decimal> applyTax) => _applyTax = applyTax;
-    public decimal Calculate(decimal baseShipping) => _applyTax(baseShipping);
-}
-```
-
-Requests intermittently use stale tax rates or throw `ObjectDisposedException`. What is wrong with this delegate wiring in DI, and how do you fix it?
-
----
-
-**Answer:**
-
-```csharp
-builder.Services.AddScoped<TaxRateProvider>();
-builder.Services.AddSingleton<ShippingCalculator>(sp =>
-{
-    var taxProvider = sp.GetRequiredService<TaxRateProvider>();
-    Func<decimal, decimal> applyTax = amount => amount * (1 + taxProvider.CurrentRate);
-    return new ShippingCalculator(applyTax);
-});
-
-public sealed class ShippingCalculator
-{
-    private readonly Func<decimal, decimal> _applyTax;
-    public ShippingCalculator(Func<decimal, decimal> applyTax) => _applyTax = applyTax;
-    public decimal Calculate(decimal baseShipping) => _applyTax(baseShipping);
-}
-```
-
-Requests intermittently use stale tax rates or throw `ObjectDisposedException`. What is wrong with this delegate wiring in DI, and how do you fix it?
-
-**Answer:** The singleton captures a delegate that closes over a scoped `TaxRateProvider` from the root provider at startup — a captive dependency that outlives the scope and reads wrong or disposed state on later requests.
-
-- `GetRequiredService<TaxRateProvider>()` inside the singleton factory resolves one scope's instance (or throws at validation) and embeds it in the lambda's closure for the app lifetime.
-- Delegates make the capture invisible — the signature `Func<decimal, decimal>` looks stateless but holds the scoped service reference.
-- **Fix options:** (1) Make `ShippingCalculator` scoped and inject `TaxRateProvider` directly. (2) Keep singleton but pass `IServiceScopeFactory` and resolve `TaxRateProvider` per `Calculate` call inside the method — not inside a cached delegate. (3) Inject `IOptionsMonitor<TaxSettings>` or a singleton rate cache updated by a background refresh — no scoped capture.
-- Enable `ValidateOnBuild` and `ValidateScopes` in development to catch this at startup.
-
-```csharp
-builder.Services.AddScoped<ShippingCalculator>();
-builder.Services.AddScoped<TaxRateProvider>();
-
-public sealed class ShippingCalculator
-{
-    private readonly TaxRateProvider _taxProvider;
-    public ShippingCalculator(TaxRateProvider taxProvider) => _taxProvider = taxProvider;
-    public decimal Calculate(decimal baseShipping) =>
-        baseShipping * (1 + _taxProvider.CurrentRate);
-}
-```
-
-**Production takeaway:** `Func<T>`/`Action<T>` in DI hide captured lifetimes — Karat pairs delegate syntax with ASP.NET Core scope rules. Prefer injecting the service or factory interface explicitly over a pre-built closure on a singleton.
-
----
-
----
-
-#### Q6. (D) Your team is extending `OrderFulfillmentService` to support pluggable shipping and price adjustment. Two proposals:
-
-- **Option A:** `ShippingRule` and `PriceAdjuster` delegates (as in this chapter's pipeline demo)
-- **Option B:** `IShippingStrategy` and `IPriceAdjuster` interfaces injected via DI
-
-When would you choose delegates vs interfaces for each hook in a production ASP.NET Core app, and what unsubscribe or lifetime rules apply if you keep multicast delegate chains in-process?
-
----
-
-**Answer:**
-
-- **Option A:** `ShippingRule` and `PriceAdjuster` delegates (as in this chapter's pipeline demo)
-- **Option B:** `IShippingStrategy` and `IPriceAdjuster` interfaces injected via DI
-
-When would you choose delegates vs interfaces for each hook in a production ASP.NET Core app, and what unsubscribe or lifetime rules apply if you keep multicast delegate chains in-process?
-
-**Answer:** Use delegates for single, swappable callbacks with optional multicast (in-process audit/logging); use interfaces for multi-operation contracts, DI registration, and test doubles in ASP.NET Core services.
-
-- **Delegates (`ShippingRule`, `PriceAdjuster`):** Fit when you need one method slot swapped at runtime — e.g., choosing `StandardShipping` vs `ExpressShipping` via method group assignment (**Program.cs** Section 9). Good for strategy passed into a single method call, local plugin hooks, or short-lived multicast audit chains. Downside: no discoverable contract, harder to mock without wrapping in an interface, and multicast lifetime must be managed manually (`-=` on dispose).
-- **Interfaces (`IShippingStrategy`, `IPriceAdjuster`):** Fit when the consumer needs a named capability registered in DI, multiple related members, or unit tests with fakes (**Program.cs** Section 8). ASP.NET Core already resolves `IPriceAdjuster` per request or as keyed services — preferred for domain services shared across controllers.
-- **Lifetime rule for multicast chains:** Publisher must outlive subscribers or subscribers must `-=` in `Dispose`/`IAsyncDisposable`. Never store per-request lambdas on a singleton delegate field. For web apps, avoid in-process multicast for cross-request notification — use `IHostedService`, message bus, or `Channel<T>` instead.
-- **Practical split:** `ShippingRule` as a delegate parameter to `CalculateShipping(baseRate, rule)` is fine; registering global `OrderAuditHandler` multicast on a singleton without `event` is not.
-
-**Production takeaway:** Chapter demo delegates excel at algorithm slots and audit chains; production ASP.NET Core domain code usually registers interfaces in DI and keeps multicast delegate chains local and short-lived.
-
----
-
----
-
-#### Q7. (M) A reporting job wires a covariant factory delegate and then fails when accessing derived-only data:
-
-```csharp
-public delegate ReportSummary SummaryFactory();
-
-SummaryFactory factory = ReportBuilders.BuildDetailedReport;
-ReportSummary summary = factory();
-
-// Later — production code expects page count for PDF pagination:
-int pages = ((DetailedReport)summary).PageCount;  // InvalidCastException in some builds
-```
-
-The assignment compiles and `summary.Title` works. Why does the cast fail at runtime, and what pattern safely preserves `DetailedReport` through the callback chain?
-
----
-
-### 02. Lambda Expressions
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/02. Lambda Expressions`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-public delegate ReportSummary SummaryFactory();
-
-SummaryFactory factory = ReportBuilders.BuildDetailedReport;
-ReportSummary summary = factory();
-
-// Later — production code expects page count for PDF pagination:
-int pages = ((DetailedReport)summary).PageCount;  // InvalidCastException in some builds
-```
-
-The assignment compiles and `summary.Title` works. Why does the cast fail at runtime, and what pattern safely preserves `DetailedReport` through the callback chain?
-
-**Answer:** Covariant delegate assignment only widens the compile-time return type — `factory()` is typed as `ReportSummary`, and the compiler treats the return as the base type unless you downcast from the known runtime type or change the delegate signature.
-
-- `BuildDetailedReport` returns `DetailedReport`, which satisfies `SummaryFactory` because return types are covariant on delegates (**Program.cs** Section 7).
-- The variable `summary` is statically typed as `ReportSummary`; the actual object may still be `DetailedReport` at runtime — but if the factory is swapped for `BuildSummaryStub()` returning plain `ReportSummary`, the cast throws `InvalidCastException`.
-- **Safe patterns:** (1) Declare `SummaryFactory` as returning `DetailedReport` when all consumers need derived data. (2) Use pattern matching: `if (summary is DetailedReport detailed) { ... }`. (3) Prefer `Func<DetailedReport>` or a generic `Func<TReport>` with constraint when wiring DI. (4) As in **Program.cs** demo: `DetailedReport? detailed = summary as DetailedReport;` and handle null.
-- Do not assume covariant assignment preserves derived type through subsequent indirection — only the method's declared return at the call site matters for the static type of `factory()`.
-
-```csharp
-SummaryFactory factory = ReportBuilders.BuildDetailedReport;
-ReportSummary summary = factory();
-
-if (summary is DetailedReport detailed)
-    _pdfPaginator.Configure(detailed.PageCount);
-else
-    _pdfPaginator.Configure(defaultPageCount: 1);
-```
-
-**Production takeaway:** Covariance lets you *assign* a derived-return method to a base-return delegate — it does not guarantee every future target returns the derived type; production code must match or pattern-match on the runtime type.
-
----
-
-### 02. Lambda Expressions
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/02. Lambda Expressions`
-
----
-
----
-
-#### Q1. (R) A pricing microservice builds per-SKU discount rules at startup and applies them later during checkout. QA reports every SKU gets the same discount as the last item in the catalog. Review this registration code:
-
-```csharp
-public sealed class DiscountRuleRegistry
-{
-    private readonly List<Func<decimal, decimal>> _rules = new();
-
-    public void RegisterRules(IEnumerable<(string Sku, decimal Rate)> catalog)
-    {
-        foreach (var item in catalog)
-        {
-            _rules.Add(price => price * (1m - item.Rate));
-        }
-    }
-
-    public decimal ApplyAll(decimal price) =>
-        _rules.Aggregate(price, (current, rule) => rule(current));
-}
-```
-
-What is wrong with the lambdas, and how do you fix it without changing the public API shape?
-
----
-
-**Answer:**
-
-```csharp
-public sealed class DiscountRuleRegistry
-{
-    private readonly List<Func<decimal, decimal>> _rules = new();
-
-    public void RegisterRules(IEnumerable<(string Sku, decimal Rate)> catalog)
-    {
-        foreach (var item in catalog)
-        {
-            _rules.Add(price => price * (1m - item.Rate));
-        }
-    }
-
-    public decimal ApplyAll(decimal price) =>
-        _rules.Aggregate(price, (current, rule) => rule(current));
-}
-```
-
-What is wrong with the lambdas, and how do you fix it without changing the public API shape?
-
-**Answer:** Each stored lambda captures the **same** loop variable `item` by reference, not a snapshot of each iteration's rate. When rules run later, every delegate reads `item.Rate` from the final loop value — the classic foreach closure bug previewed in **Program.cs** Section 11 and detailed in **06. Closures**.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Closure | `item` captured by reference across iterations | All rules apply the last SKU's discount rate |
-| Correctness | Deferred invocation of loop-created lambdas | Passes small manual tests; fails full catalog |
-| Design | No per-iteration copy of `Rate` | Silent revenue/pricing bug in production |
-
-**Fix (priority order):**
-
-1. Copy loop values into locals before creating the lambda so each delegate closes over its own snapshot:
-
-```csharp
-foreach (var item in catalog)
-{
-    decimal rate = item.Rate;
-    _rules.Add(price => price * (1m - rate));
-}
-```
-
-2. Alternatively use a `for` loop with an indexed copy, or build rules with a factory: `_rules.Add(MakeRule(item.Rate))` where `MakeRule(decimal rate)` returns `price => price * (1m - rate)`.
-3. Add a unit test that registers ≥3 distinct rates and asserts each rule returns a different multiplier.
-
-**Production takeaway:** Karat embeds this in realistic service code — the lambda syntax looks per-item, but closure semantics share one slot until you copy. See **06. Closures** for foreach/`for` pitfalls.
-
----
-
----
-
-#### Q2. (R) A teammate refactors price validation from a statement lambda to an "expression" lambda for readability. The project fails to compile. Review the change:
-
-```csharp
-PriceFilter isValidUnitPrice = price =>
-{
-    if (price <= 0m) return false;
-    if (price > 999_999m) return false;
-    return true;
-};
-
-// Refactor attempt:
-PriceFilter isValidUnitPrice = price => { price > 0m && price <= 999_999m };
-```
-
-What compile errors or design mistakes appear, and when should you keep a statement (block) lambda instead of forcing an expression form?
-
----
-
-**Answer:**
-
-```csharp
-PriceFilter isValidUnitPrice = price =>
-{
-    if (price <= 0m) return false;
-    if (price > 999_999m) return false;
-    return true;
-};
-
-// Refactor attempt:
-PriceFilter isValidUnitPrice = price => { price > 0m && price <= 999_999m };
-```
-
-What compile errors or design mistakes appear, and when should you keep a statement (block) lambda instead of forcing an expression form?
-
-**Answer:** The refactor uses `{ }` in what must be a single expression — that is a **statement** lambda body, not an expression lambda, and the block does not return a value. The compiler reports **CS0834** (statements not allowed in expression lambda) or **CS0161** (not all code paths return) depending on how braces are parsed. Multi-step validation with `if` chains belongs in a **statement lambda** with explicit `return`, as shown in **Program.cs** Section 4 and Section 9.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `{ price > 0m && ... }` is a block, not one expression | Build fails — CS0834 / CS0161 |
-| Design | Forcing expression form for branching logic | Wrong tool; harder to read than statement body |
-| Correctness | Even `price => price > 0m && price <= 999_999m` omits `<= 0` guard clarity | Logic drift vs original three-path check |
-
-**Fix (priority order):**
-
-1. Keep the statement lambda when you need multiple checks or locals:
-
-```csharp
-PriceFilter isValidUnitPrice = price =>
-{
-    if (price <= 0m) return false;
-    if (price > 999_999m) return false;
-    return true;
-};
-```
-
-2. If truly one expression suffices, drop braces: `price => price > 0m && price <= 999_999m`.
-3. For reused validation, prefer a named method or local function and assign via method group — **Program.cs** Section 7.
-
-**Production takeaway:** Expression lambdas are for one-liners; block bodies need explicit `return` for non-void delegates. Karat tests whether you recognize CS0834/CS0161 from real refactors, not from memorizing error numbers alone.
-
----
-
----
-
-#### Q3. (R) An order API caches a `PriceTransform` delegate per tenant so repeated requests skip rebuilding markup logic. Review the scoped service:
-
-```csharp
-public sealed class TenantPricingService
-{
-    private Func<decimal, decimal>? _cachedTransform;
-
-    public decimal GetMarkedUpPrice(decimal basePrice, decimal tenantMarkupPercent)
-    {
-        _cachedTransform ??= price => price * (1m + tenantMarkupPercent);
-        return _cachedTransform(basePrice);
-    }
-}
-```
-
-The service is registered **Scoped**, but finance reports wrong markups when tenants change rates at runtime. What closure/capture bug is embedded here, and what is the correct fix?
-
----
-
-**Answer:**
-
-```csharp
-public sealed class TenantPricingService
-{
-    private Func<decimal, decimal>? _cachedTransform;
-
-    public decimal GetMarkedUpPrice(decimal basePrice, decimal tenantMarkupPercent)
-    {
-        _cachedTransform ??= price => price * (1m + tenantMarkupPercent);
-        return _cachedTransform(basePrice);
-    }
-}
-```
-
-The service is registered **Scoped**, but finance reports wrong markups when tenants change rates at runtime. What closure/capture bug is embedded here, and what is the correct fix?
-
-**Answer:** The cached lambda captures `tenantMarkupPercent` from the **first** call that populated `_cachedTransform`. Later calls with a different markup still invoke the old closure — caching the delegate freezes the captured rate, not the calculation pattern.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Closure | `tenantMarkupPercent` captured on first `??=` | Subsequent calls use stale markup |
-| Caching | Delegate cache ignores parameter changes | Wrong prices after tenant config updates |
-| Correctness | Looks like a performance win | Silent financial discrepancy |
-
-**Fix (priority order):**
-
-1. Do not cache a lambda that closes over a per-call parameter — compute inline or cache keyed by rate:
-
-```csharp
-public decimal GetMarkedUpPrice(decimal basePrice, decimal tenantMarkupPercent) =>
-    basePrice * (1m + tenantMarkupPercent);
-```
-
-2. If caching is required, key by `(tenantId, tenantMarkupPercent)` or store the rate in a field updated from configuration, and rebuild the delegate when the rate changes.
-3. Use `static` lambda only when no outer state is needed: `static price => price * 1.08m` for a fixed global tax — see **Program.cs** Section 9 (`static lambda` cannot capture locals).
-
-**Production takeaway:** Closures capture **variables**, not parameter **values at each call** once the delegate is created. Caching + capture is a common Karat stack: scoped lifetime does not fix stale captured locals.
-
----
-
----
-
-#### Q4. (P) An EF Core repository exposes two overloads for filtering products. In production, one path translates to SQL; the other loads the entire table into memory. Review:
-
-```csharp
-public async Task<List<Product>> GetExpensiveAsync(
-    decimal minPrice,
-    CancellationToken ct)
-{
-    Expression<Func<Product, bool>> predicate =
-        p => p.UnitPrice >= minPrice;
-
-    return await _db.Products
-        .Where(predicate)
-        .ToListAsync(ct);
-}
-
-public async Task<List<Product>> GetExpensiveInMemoryAsync(
-    decimal minPrice,
-    CancellationToken ct)
-{
-    Func<Product, bool> predicate =
-        p => p.UnitPrice >= minPrice;
-
-    return await _db.Products
-        .Where(predicate)
-        .ToListAsync(ct);
-}
-```
-
-Explain why `Expression<Func<T, bool>>` vs `Func<T, bool>` matters for EF Core, and what breaks if you standardize on `Func` everywhere "because lambdas look the same."
-
----
-
-**Answer:**
-
-```csharp
-public async Task<List<Product>> GetExpensiveAsync(
-    decimal minPrice,
-    CancellationToken ct)
-{
-    Expression<Func<Product, bool>> predicate =
-        p => p.UnitPrice >= minPrice;
-
-    return await _db.Products
-        .Where(predicate)
-        .ToListAsync(ct);
-}
-
-public async Task<List<Product>> GetExpensiveInMemoryAsync(
-    decimal minPrice,
-    CancellationToken ct)
-{
-    Func<Product, bool> predicate =
-        p => p.UnitPrice >= minPrice;
-
-    return await _db.Products
-        .Where(predicate)
-        .ToListAsync(ct);
-}
-```
-
-Explain why `Expression<Func<T, bool>>` vs `Func<T, bool>` matters for EF Core, and what breaks if you standardize on `Func` everywhere "because lambdas look the same."
-
-**Answer:** EF Core's `IQueryable.Where` accepts `Expression<Func<T, bool>>` so the provider can **inspect the lambda tree** and translate `p.UnitPrice >= minPrice` to SQL. `Func<Product, bool>` is a compiled delegate — `Where` on `IQueryable` cannot translate it and falls back to **client evaluation** (often materializing the whole table first), which destroys performance and can pull logic out of the database incorrectly.
-
-- Use `Expression<Func<T, bool>>` (or inline lambda) for **IQueryable** / EF filters, includes, projections that must run on the server.
-- Use `Func<T, bool>` for **in-memory** `IEnumerable` / LINQ-to-Objects after materialization (`AsEnumerable()`, lists, arrays) — matches **Program.cs** `PricePipeline.FilterPrices` eager loops.
-- API design: expose expression-based filters in repositories; compile to `Func` only after `.AsEnumerable()` when necessary.
-- `minPrice` is captured as a constant in the expression tree parameter — EF parameterizes it correctly when the expression is built per call.
-
-**Production takeaway:** Same `=>` syntax, different delegate type — Karat tests whether you know **Expression trees vs delegates**, not lambda syntax. Standardizing on `Func` in EF repositories is a common production foot-gun.
-
----
-
----
-
-#### Q5. (R) A background price-sync job fires work with `Task.Run` and an async lambda. Failures never reach Application Insights. Review:
-
-```csharp
-public void ScheduleCatalogRefresh(IEnumerable<string> skus)
-{
-    foreach (var sku in skus)
-    {
-        Task.Run(async () =>
-        {
-            var price = await _gateway.FetchPriceAsync(sku);
-            _cache.Set(sku, price);
-        });
-    }
-}
-```
-
-What async/lambda issues stack here (including the classic loop capture), and how do you fix observability and correctness?
-
----
-
-**Answer:**
-
-```csharp
-public void ScheduleCatalogRefresh(IEnumerable<string> skus)
-{
-    foreach (var sku in skus)
-    {
-        Task.Run(async () =>
-        {
-            var price = await _gateway.FetchPriceAsync(sku);
-            _cache.Set(sku, price);
-        });
-    }
-}
-```
-
-What async/lambda issues stack here (including the classic loop capture), and how do you fix observability and correctness?
-
-**Answer:** This code combines **unobserved async void-like fire-and-forget** (exceptions inside `Task.Run(async () => …)` are stored on the returned `Task` but never awaited), the **foreach `sku` capture bug** (every task may fetch the last SKU), and **unbounded parallel fan-out** with no throttling or cancellation.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Async | Returned `Task` discarded | Exceptions never observed → silent sync failures |
-| Closure | `sku` captured by reference in loop | Wrong SKU updated or duplicate work |
-| Scalability | Unbounded `Task.Run` per item | Thread-pool stampede; gateway rate limits hit |
-| Hosting | No `CancellationToken` propagation | Shutdown mid-run leaves partial cache |
-
-**Fix (priority order):**
-
-1. Capture the loop variable: `var currentSku = sku;` before the lambda, or use `foreach` with a local copy inside the loop body passed to a named async method.
-2. Await and handle errors — e.g. `await Task.WhenAll(tasks)` with try/catch logging, or use a channel/worker with explicit exception logging to Application Insights.
-3. Prefer `async Task ScheduleCatalogRefreshAsync(...)` end-to-end instead of `void` + fire-and-forget; pass `CancellationToken`.
-4. Throttle concurrency (`SemaphoreSlim`, `Parallel.ForEachAsync`, or TPL Dataflow) for thousands of SKUs.
-
-```csharp
-public async Task ScheduleCatalogRefreshAsync(IEnumerable<string> skus, CancellationToken ct)
-{
-    var tasks = skus.Select(async sku =>
-    {
-        try
-        {
-            var price = await _gateway.FetchPriceAsync(sku, ct);
-            _cache.Set(sku, price);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Price sync failed for {Sku}", sku);
-            throw;
-        }
-    });
-    await Task.WhenAll(tasks);
-}
-```
-
-**Production takeaway:** `async` lambdas return `Task`; discarding that task hides failures. Karat stacks async traps with closure capture — same pattern as Q1 in a hosting context.
-
----
-
----
-
-#### Q6. (M) A developer chains LINQ over an in-memory price list and assumes the filter runs once at definition time. Review:
-
-```csharp
-decimal minPromoPrice = 25m;
-var promoSkus = catalog
-    .Where(p => p >= minPromoPrice)
-    .Select(p => p * 0.90m);
-
-Console.WriteLine($"Eligible count: {promoSkus.Count()}");
-
-minPromoPrice = 50m;
-
-foreach (var price in promoSkus)
-{
-    Console.WriteLine(price);
-}
-```
-
-What does deferred execution plus closure capture imply for the printed count vs the foreach output? How would you make the pipeline deterministic for a report snapshot?
-
----
-
-**Answer:**
-
-```csharp
-decimal minPromoPrice = 25m;
-var promoSkus = catalog
-    .Where(p => p >= minPromoPrice)
-    .Select(p => p * 0.90m);
-
-Console.WriteLine($"Eligible count: {promoSkus.Count()}");
-
-minPromoPrice = 50m;
-
-foreach (var price in promoSkus)
-{
-    Console.WriteLine(price);
-}
-```
-
-What does deferred execution plus closure capture imply for the printed count vs the foreach output? How would you make the pipeline deterministic for a report snapshot?
-
-**Answer:** `Where`/`Select` on `IEnumerable` build a **deferred pipeline** — nothing runs until enumeration. `Count()` executes the filter with `minPromoPrice == 25m`, so the count reflects the ≥ $25 threshold. The lambda **captures** `minPromoPrice` by reference, so the later `foreach` re-runs the pipeline with `minPromoPrice == 50m` — fewer items and different discounted values than the count implied. This mirrors **Program.cs** Section 11 capture preview plus LINQ preview (Section 11b): same lambda, updated outer variable at execution time.
-
-- **Count vs foreach mismatch:** Count is computed at 25m; iteration uses 50m — report looks inconsistent.
-- **Snapshot fix:** Materialize once: `var promoSkus = catalog.Where(...).Select(...).ToList();` before mutating `minPromoPrice`.
-- **Capture fix for reports:** Copy to a local before the query: `decimal threshold = minPromoPrice;` then `p => p >= threshold`.
-- **Eager alternative:** Use array helpers like `PricePipeline.FilterPrices` from **Program.cs** Section 10 when you want immediate execution and no surprise re-evaluation.
-
-**Production takeaway:** Deferred LINQ + captured locals means "definition time" and "execution time" differ — Karat tests whether you materialize when building financial snapshots.
-
----
-
----
-
-#### Q7. (D) A hot-path checkout endpoint transforms thousands of line items per second. The team debates three filter styles:
-
-```csharp
-// A — expression lambda inline
-var result = PricePipeline.ApplyToAll(prices, p => p * 1.08m);
-
-// B — method group
-var result = PricePipeline.ApplyToAll(prices, ApplyTax);
-
-// C — static lambda (C# 9+)
-var result = PricePipeline.ApplyToAll(prices, static p => p * 1.08m);
-```
-
-When would you choose A vs B vs C for production throughput and maintainability, and what allocation/closure trade-offs should you mention in a design review?
-
----
-
-### 03. Anonymous Methods
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/03. Anonymous Methods`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-// A — expression lambda inline
-var result = PricePipeline.ApplyToAll(prices, p => p * 1.08m);
-
-// B — method group
-var result = PricePipeline.ApplyToAll(prices, ApplyTax);
-
-// C — static lambda (C# 9+)
-var result = PricePipeline.ApplyToAll(prices, static p => p * 1.08m);
-```
-
-When would you choose A vs B vs C for production throughput and maintainability, and what allocation/closure trade-offs should you mention in a design review?
-
-**Answer:** All three compile to delegate calls, but closure and reuse semantics differ. For a fixed 8% tax with no captured state, **C (`static` lambda)** or **B (method group to a static method)** avoids allocating a closure object; **A** may still avoid capture here because `1.08m` is a constant in the expression, but any outer local (e.g. `taxRate` from config) forces a display class allocation per creation site.
-
-- **Choose B (method group)** when logic is reused, unit-tested, or complex enough to name — aligns with **Program.cs** Section 7 (`RoundToNearestDollar` vs equivalent lambda).
-- **Choose C (`static` lambda)** for short, call-site-specific logic that must **not** capture instance or locals — enforces no accidental capture at compile time (**Program.cs** Section 9).
-- **Choose A (inline lambda)** for one-off, readable transforms at a single call when capture is intentional (e.g. `p => p * (1m + tenantRate)`) or the delegate is not stored long-term.
-- **Performance note:** Creating a new delegate instance inside a tight loop on every request allocates; hoist to `static readonly` field or cache when the transform is fixed. Method groups to static methods and `static` lambdas are equivalent for "no closure" scenarios.
-- **Maintainability:** Prefer named methods for tax rules that change with regulation; lambdas excel at local filters as in **Program.cs** Section 10 pipeline demos.
-
-**Production takeaway:** Karat uses design choice, not syntax trivia — `static` lambda vs method group signals "no capture, safe to reuse"; inline lambdas that close over request state belong in scoped code, not cached singleton fields (see Q3).
-
----
-
-### 03. Anonymous Methods
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/03. Anonymous Methods`
-
----
-
----
-
-#### Q1. (R) A legacy WinForms order screen leaks memory after users open and close detail dialogs dozens of times. Review this maintenance patch that still uses anonymous methods:
-
-```csharp
-public sealed class OrderDetailDialog : Form
-{
-    private readonly OrderService _service;
-
-    public OrderDetailDialog(OrderService service, int orderId)
-    {
-        _service = service;
-        int retryCount = 0;
-
-        _service.OrderUpdated += delegate (object sender, OrderUpdatedEventArgs e)
-        {
-            if (e.OrderId == orderId)
-            {
-                retryCount++;
-                RefreshGrid(e.Order);
-            }
-        };
-    }
-
-    protected override void OnFormClosed(FormClosedEventArgs e)
-    {
-        base.OnFormClosed(e);
-        // dialog removed from screen
-    }
-}
-```
-
-What keeps each closed dialog alive, and how do you fix it without changing the event contract?
-
----
-
-**Answer:**
-
-```csharp
-public sealed class OrderDetailDialog : Form
-{
-    private readonly OrderService _service;
-
-    public OrderDetailDialog(OrderService service, int orderId)
-    {
-        _service = service;
-        int retryCount = 0;
-
-        _service.OrderUpdated += delegate (object sender, OrderUpdatedEventArgs e)
-        {
-            if (e.OrderId == orderId)
-            {
-                retryCount++;
-                RefreshGrid(e.Order);
-            }
-        };
-    }
-
-    protected override void OnFormClosed(FormClosedEventArgs e)
-    {
-        base.OnFormClosed(e);
-        // dialog removed from screen
-    }
-}
-```
-
-What keeps each closed dialog alive, and how do you fix it without changing the event contract?
-
-**Answer:** The long-lived `OrderService` holds the multicast delegate chain; the anonymous method captures `this` (via `RefreshGrid`) and `orderId`, so every closed dialog remains reachable from the publisher until the handler is removed. Fix by storing the delegate instance and unsubscribing in `OnFormClosed`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Lifetime | `+=` in constructor, no `-=` on close | Publisher retains every dialog instance → memory leak |
-| Capture | Anonymous body calls instance method `RefreshGrid` | Implicit capture of `this` pins the entire `Form` |
-| Capture | `orderId` and `retryCount` captured in display class | Extra heap state per dialog; harmless alone but part of leak graph |
-| Legacy pattern | WinForms-style `delegate { }` event wiring | Common in pre-lambda codebases — easy to miss during UI refactors |
-
-**Fix (priority order):**
-
-1. Store the handler in a field so `-=` matches the same delegate instance (required for anonymous methods and lambdas alike).
-2. Unsubscribe in `OnFormClosed`: `_service.OrderUpdated -= _orderUpdatedHandler;`.
-3. Prefer a named instance method handler when the body is more than one line — easier to match on unsubscribe and to debug in crash dumps.
-4. If migrating to lambdas, same rule applies: field + unsubscribe; syntax change alone does not fix the leak.
-
-```csharp
-private EventHandler<OrderUpdatedEventArgs>? _orderUpdatedHandler;
-
-public OrderDetailDialog(OrderService service, int orderId)
-{
-    _service = service;
-    _orderUpdatedHandler = delegate (object sender, OrderUpdatedEventArgs e)
-    {
-        if (e.OrderId == orderId)
-            RefreshGrid(e.Order);
-    };
-    _service.OrderUpdated += _orderUpdatedHandler;
-}
-
-protected override void OnFormClosed(FormClosedEventArgs e)
-{
-    if (_orderUpdatedHandler != null)
-        _service.OrderUpdated -= _orderUpdatedHandler;
-    base.OnFormClosed(e);
-}
-```
-
-**Production takeaway:** Anonymous event handlers are a top legacy leak vector — Karat tests whether you treat capture + missing `-=` as one problem, not "lambda vs delegate syntax." See **Program.cs** Section 11 — WinForms/WPF legacy hotspots and Section 7 — outer variable capture.
-
----
-
----
-
-#### Q2. (R) A developer modernizes a validation pipeline by replacing anonymous methods with lambdas but leaves one factory unchanged. Review both versions — what breaks at runtime in the combined pipeline?
-
-```csharp
-public delegate bool OrderRule(Order o);
-
-public static OrderRule BuildMaxLineItemsRule(int maxAllowedItems)
-{
-    return delegate (Order o)
-    {
-        return o.LineItemCount <= maxAllowedItems;
-    };
-}
-
-// "Modernized" sibling — same intent, different capture:
-public static OrderRule BuildMaxLineItemsLambda(int maxAllowedItems)
-{
-    int limit = maxAllowedItems;
-    return o => o.LineItemCount <= limit;
-}
-
-// Caller caches rules once at startup, then changes config at runtime:
-OrderRule[] pipeline = { BuildMaxLineItemsRule(_config.MaxItems) };
-// ... later, admin updates _config.MaxItems from 10 → 25 ...
-// pipeline still rejects orders with 15 line items
-```
-
-Is this an anonymous-method vs lambda difference, or something shared? What is the correct fix?
-
----
-
-**Answer:**
-
-```csharp
-public delegate bool OrderRule(Order o);
-
-public static OrderRule BuildMaxLineItemsRule(int maxAllowedItems)
-{
-    return delegate (Order o)
-    {
-        return o.LineItemCount <= maxAllowedItems;
-    };
-}
-
-// "Modernized" sibling — same intent, different capture:
-public static OrderRule BuildMaxLineItemsLambda(int maxAllowedItems)
-{
-    int limit = maxAllowedItems;
-    return o => o.LineItemCount <= limit;
-}
-
-// Caller caches rules once at startup, then changes config at runtime:
-OrderRule[] pipeline = { BuildMaxLineItemsRule(_config.MaxItems) };
-// ... later, admin updates _config.MaxItems from 10 → 25 ...
-// pipeline still rejects orders with 15 line items
-```
-
-Is this an anonymous-method vs lambda difference, or something shared? What is the correct fix?
-
-**Answer:** This is not an anonymous-method vs lambda difference — both forms capture `maxAllowedItems` (or `limit`) by closure at factory invocation time. The bug is caching a delegate built from a snapshot of config while expecting live reads from `_config` later.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Rule array built once from `_config.MaxItems` at startup | Runtime config changes do not affect cached delegate |
-| Misdiagnosis | Blaming anonymous methods vs lambdas | Wasted refactor; same closure semantics either way |
-| Design | Long-lived delegate + mutable config without refresh | Stale validation in production after admin updates |
-
-**Fix (priority order):**
-
-1. Rebuild the `OrderRule[]` (or the whole pipeline) when `_config` changes — subscribe to `IOptionsMonitor` / config reload events in ASP.NET Core, or invalidate cache on save in desktop apps.
-2. If the rule must always read live config, capture `_config` (or an `IOptions` accessor) instead of the int snapshot: `o => o.LineItemCount <= _config.MaxItems`.
-3. When migrating anonymous → lambda, preserve capture intent line-for-line; run tests that change outer variables after delegate creation.
-4. Document whether each factory returns a snapshot rule or a live-config rule — both are valid, but callers must know which.
-
-**Production takeaway:** Anonymous methods and lambdas share identical capture semantics — migration is stylistic unless you accidentally change what gets captured. See **Program.cs** Section 8 — migration steps and Section 7 — capture preview.
-
----
-
----
-
-#### Q3. (R) A code review flags this void delegate wiring in a long-lived `StringBuilder` audit helper. Identify compile-time and lifetime issues:
-
-```csharp
-public delegate void OrderNotifier(string message);
-
-public OrderNotifier BuildAuditLogger(StringBuilder auditLog)
-{
-    OrderNotifier logFailure = delegate (string message)
-    {
-        auditLog.AppendLine(message);
-        return message.Length > 0;  // highlight failed orders in red downstream
-    };
-
-    return logFailure;
-}
-
-// Consumer:
-var notifier = BuildAuditLogger(sharedAuditLog);
-notifier("REJECT order 1002");
-// sharedAuditLog passed to background export task that outlives the factory call
-```
-
-What is wrong, and what happens to `auditLog` after `BuildAuditLogger` returns?
-
----
-
-**Answer:**
-
-```csharp
-public delegate void OrderNotifier(string message);
-
-public OrderNotifier BuildAuditLogger(StringBuilder auditLog)
-{
-    OrderNotifier logFailure = delegate (string message)
-    {
-        auditLog.AppendLine(message);
-        return message.Length > 0;  // highlight failed orders in red downstream
-    };
-
-    return logFailure;
-}
-
-// Consumer:
-var notifier = BuildAuditLogger(sharedAuditLog);
-notifier("REJECT order 1002");
-// sharedAuditLog passed to background export task that outlives the factory call
-```
-
-What is wrong, and what happens to `auditLog` after `BuildAuditLogger` returns?
-
-**Answer:** The void `OrderNotifier` body cannot return a value — that is a compile error (CS0126). If the erroneous return were removed, the anonymous method would still capture `auditLog` on the heap inside a compiler-generated display class, so the returned delegate remains valid after `BuildAuditLogger` returns and mutates the same `StringBuilder` instance the caller passed in.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `return message.Length > 0` in void delegate body | CS0126 — blocks build |
-| Lifetime | Captured `auditLog` reference | Delegate works after factory returns — intended here, but surprises devs who expect stack locals to die |
-| Concurrency | Shared `StringBuilder` + background export | `StringBuilder` is not thread-safe — parallel `notifier` calls can corrupt audit text |
-| Design | Side-effect-only void delegate | Correct pattern for logging (see **Program.cs** Section 6) once return is removed |
-
-**Fix (priority order):**
-
-1. Remove the return statement — void anonymous methods run statements only (bare `return;` allowed for early exit).
-2. Keep capture of `auditLog` if the delegate must append to the caller's buffer; document shared-mutation contract.
-3. If background export runs concurrently, synchronize access or queue messages to a thread-safe channel instead of mutating one `StringBuilder`.
-4. Lambda equivalent: `msg => auditLog.AppendLine(msg)` — same void semantics and same capture.
-
-```csharp
-OrderNotifier logFailure = delegate (string message)
-{
-    auditLog.AppendLine(message);
-};
-```
-
-**Production takeaway:** Void anonymous methods are the legacy twin of `Action<T>` — the trap is mixing return values with void delegates, not the `delegate` keyword itself. See **Program.cs** Section 6 and QUICK REFERENCE — "return value in void delegate body → CS0126."
-
----
-
----
-
-#### Q4. (P) Your team inherits a .NET Framework 4.x WinForms/WPF codebase full of `delegate { … }` event handlers, `List<T>.FindAll(delegate …)`, and `ThreadPool.QueueUserWorkItem(delegate …)`. Product wants incremental modernization — no big-bang rewrite. Describe a safe migration strategy from anonymous methods to lambdas (or local functions), including what you verify before merging each touched file.
-
----
-
-**Answer:**
-
-**Answer:** Touch only files you are already changing for a feature or bugfix; replace anonymous methods with lambdas or local functions in place, run existing tests, and add targeted tests wherever capture or event subscription is involved — never mass-convert unrelated legacy code without coverage.
-
-- **Inventory per change:** Identify delegate type (`EventHandler`, custom delegate, `Action`/`Func`), explicit vs omitted parameter lists, and captured outer variables — omitted lists on non-void delegates must become explicit lambda parameters in modern Roslyn (see **Program.cs** Section 5).
-- **Mechanical rewrite rules:** `delegate (T x) { return expr; }` → `x => expr`; multi-statement bodies → `(x) => { … }`; void handlers → `(s, e) => { … }` or statement lambda; `ThreadPool`/`Task` callbacks → prefer `Task.Run` / `async` with named local functions when stack traces matter.
-- **Preserve behavior:** Capture semantics are equivalent — verify rules that depend on outer locals, especially config snapshots vs live reads (Q2). Event handlers: keep field-stored handler for `-=` if the type is disposable.
-- **When to prefer local functions over lambdas:** Recursive helpers, `async` bodies needing clear names in logs, or rules that deserve unit tests (`static local function` or private named method).
-- **Verify before merge:** Full build, UI smoke on affected forms, memory profile on open/close dialogs with event handlers, and any golden-file or integration tests for filtered lists previously using `FindAll(delegate …)`.
-
-**Production takeaway:** Karat rewards incremental, test-backed migration — "prefer lambdas in new code; read `delegate { }` when maintaining older projects" (**Program.cs** Section 8 and Section 11), not blanket regex replacement.
-
----
-
----
-
-#### Q5. (M) Explain where captured locals from an anonymous method live after the enclosing method returns. A junior developer claims `int matchCount = 0` stays on the stack because it is a value type. Review this snippet from an order-filter utility:
-
-```csharp
-public static int CountMatchingOrders(List<Order> orders, OrderRule rule)
-{
-    int matchCount = 0;
-
-    OrderRule countIfMatch = delegate (Order o)
-    {
-        bool passes = rule(o);
-        if (passes)
-            matchCount++;
-        return passes;
-    };
-
-    foreach (Order o in orders)
-        countIfMatch(o);
-
-    return matchCount;
-}
-```
-
-Where does `matchCount` actually live once `CountMatchingOrders` returns but callers still hold `countIfMatch`? Does an equivalent lambda change capture semantics?
-
----
-
-**Answer:**
-
-```csharp
-public static int CountMatchingOrders(List<Order> orders, OrderRule rule)
-{
-    int matchCount = 0;
-
-    OrderRule countIfMatch = delegate (Order o)
-    {
-        bool passes = rule(o);
-        if (passes)
-            matchCount++;
-        return passes;
-    };
-
-    foreach (Order o in orders)
-        countIfMatch(o);
-
-    return matchCount;
-}
-```
-
-Where does `matchCount` actually live once `CountMatchingOrders` returns but callers still hold `countIfMatch`? Does an equivalent lambda change capture semantics?
-
-**Answer:** When the anonymous method references `matchCount`, the compiler lifts it into a heap-allocated display class field — value type or not, captured locals are not stack-only after closure creation. An equivalent lambda mutates the same display-class field; capture semantics are identical.
-
-- **While `CountMatchingOrders` runs:** `matchCount` may live on the stack frame, but the act of capturing copies it into a display class instance referenced by the delegate.
-- **After return if delegate survives:** The display class (holding `matchCount`, and here also `rule`) lives on the heap until the delegate is unreachable — not on the stack.
-- **Mutation:** `matchCount++` inside the anonymous method mutates the captured field, which is why the count updates correctly across invocations within the method — same pattern as **Program.cs** Section 7.
-- **Lambda equivalent:** `o => { … matchCount++; … }` generates the same display class pattern; no behavioral difference.
-- **Contrast with non-captured locals:** A local never referenced from the anonymous body truly stays stack-only and dies with the frame.
-
-**Production takeaway:** "Value types live on the stack" is wrong for closures — Karat uses this to test closure mechanics before the dedicated Closures chapter. See **06. Closures** for loop-variable pitfalls; see **Program.cs** Section 7 — "compiler generates a display class."
-
----
-
----
-
-#### Q6. (D) A teammate argues that anonymous methods in `RunAllRules` should stay inline because "they are only five lines," but QA cannot unit-test individual rules without running the whole pipeline. The pipeline today:
-
-```csharp
-public static List<string> RunAllRules(
-    List<Order> orders,
-    OrderRule[] rules,
-    OrderNotifier notify)
-{
-    foreach (Order order in orders)
-        foreach (OrderRule rule in rules)
-            if (!rule(order))
-                notify($"Order {order.Id} failed rule {rule.Method?.Name ?? "anonymous"}");
-    // ...
-}
-
-// Inline rules at call site:
-rules = new OrderRule[]
-{
-    HasPositiveTotal,
-    delegate (Order o) { return o.LineItemCount <= _config.MaxItems; },
-    delegate (Order o) { return o.Total >= _config.MinCorporateTotal; }
-};
-```
-
-When do you refactor anonymous (or lambda) inline rules to named methods or local functions for testability, and when is inline closure capture the right trade-off?
-
----
-
-### 04. Extension Methods
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/04. Extension Methods`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-public static List<string> RunAllRules(
-    List<Order> orders,
-    OrderRule[] rules,
-    OrderNotifier notify)
-{
-    foreach (Order order in orders)
-        foreach (OrderRule rule in rules)
-            if (!rule(order))
-                notify($"Order {order.Id} failed rule {rule.Method?.Name ?? "anonymous"}");
-    // ...
-}
-
-// Inline rules at call site:
-rules = new OrderRule[]
-{
-    HasPositiveTotal,
-    delegate (Order o) { return o.LineItemCount <= _config.MaxItems; },
-    delegate (Order o) { return o.Total >= _config.MinCorporateTotal; }
-};
-```
-
-When do you refactor anonymous (or lambda) inline rules to named methods or local functions for testability, and when is inline closure capture the right trade-off?
-
-**Answer:** Extract to named `static` methods (or testable factory methods) when the rule encodes business policy QA must assert independently; keep inline anonymous methods or lambdas only for one-off glue, UI wiring, or rules already covered by integration tests — and accept that `rule.Method?.Name` will read `"anonymous"` for diagnostics.
-
-- **Refactor to named methods when:** The rule is stable business logic (corporate minimum, line-item cap), needs table-driven tests with edge orders, appears in multiple pipelines, or must show up in logs/metrics by name — mirror **Program.cs** `HasPositiveTotal` + `BuildMaxLineItemsRule` split.
-- **Use factory + lambda/anonymous when:** The rule is parameterized (`maxAllowedItems`) and you will test the factory once with varied inputs rather than each call site — `BuildCorporateMinimumRule` pattern.
-- **Keep inline closure when:** The behavior is truly local to one screen, throwaway, or purely orchestration; cost of extraction exceeds value — but document that `RunAllRules` failure messages will say `"anonymous"` for those entries.
-- **Local function middle ground:** `OrderRule MaxItemsRule() => o => o.LineItemCount <= _config.MaxItems;` inside a testable static helper gives a name in stack traces without polluting class surface — good for ASP.NET Core private validation builders.
-- **Do not refactor solely for syntax:** Replacing `delegate { }` with `=>` without extraction does not improve testability — extraction to named/testable members does.
-
-**Production takeaway:** Anonymous methods are a maintainability signal, not a performance choice — Karat tests judgment on test seams vs brevity. Prefer lambdas or named methods in new code (**Program.cs** Section 8); use anonymous syntax only to match surrounding legacy style.
-
----
-
-### 04. Extension Methods
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/04. Extension Methods`
-
----
-
----
-
-#### Q1. (R) A teammate nests extension helpers inside an existing service class to "keep related code together." Review this addition:
-
-```csharp
-public sealed class OrderPricingService
-{
-    public decimal CalculateTotal(IEnumerable<OrderLine> lines) =>
-        lines.Sum(l => l.LineTotal);
-
-    public static class LineExtensions
-    {
-        public string ToReceiptLine(this OrderLine line) =>
-            $"{line.Sku} x{line.Quantity} = {line.LineTotal:C}";
-    }
-}
-
-// Caller in another file (using OrderServices;):
-var text = line.ToReceiptLine(); // CS1061 — 'OrderLine' does not contain a definition for 'ToReceiptLine'
-```
-
-What compile-time rules block this pattern, and how should the extension be relocated?
-
----
-
-**Answer:**
-
-```csharp
-public sealed class OrderPricingService
-{
-    public decimal CalculateTotal(IEnumerable<OrderLine> lines) =>
-        lines.Sum(l => l.LineTotal);
-
-    public static class LineExtensions
-    {
-        public string ToReceiptLine(this OrderLine line) =>
-            $"{line.Sku} x{line.Quantity} = {line.LineTotal:C}";
-    }
-}
-
-// Caller in another file (using OrderServices;):
-var text = line.ToReceiptLine(); // CS1061 — 'OrderLine' does not contain a definition for 'ToReceiptLine'
-```
-
-What compile-time rules block this pattern, and how should the extension be relocated?
-
-**Answer:** Extension methods must live in a **non-nested** static class at namespace scope — a nested `static class` inside `OrderPricingService` cannot host extensions (CS1110 / CS1106), so the compiler never registers `ToReceiptLine` as an extension even if the nested class compiles.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile rules | Nested static class hosts extension | CS1110 — extension not in scope for instance-style calls |
-| Discovery | Extension tied to service type, not `OrderLine` | Callers cannot find method via normal `using` on extension namespace |
-| Design | Mixes domain service with syntactic sugar API | Violates separation — extensions belong in dedicated `*.Extensions` types |
-
-**Fix (priority order):**
-
-1. Move `ToReceiptLine` to a top-level `public static class OrderLineExtensions` in its own file (or at namespace root), matching **Program.cs** Section 2 and Section 5.
-2. Place it in a namespace imported by callers — e.g. `Acme.Ordering.Extensions` — and add `using Acme.Ordering.Extensions;`.
-3. Keep `OrderPricingService` as a normal instance/service class with no nested extension containers.
-
-```csharp
-namespace Acme.Ordering.Extensions;
-
-public static class OrderLineExtensions
-{
-    public static string ToReceiptLine(this OrderLine line) =>
-        $"{line.Sku} x{line.Quantity} = {line.LineTotal:C}";
-}
-```
-
-**Production takeaway:** Karat uses nested-class extensions to test whether you know the static-class rule set — not just `this` syntax. Relocate to a top-level static class every time.
-
----
-
----
-
-#### Q2. (R) After splitting helpers into a shared library, API controllers fail to build. Review the controller and library layout:
-
-```csharp
-// File: Acme.WebApi/Controllers/OrdersController.cs
-using Acme.Domain;
-
-public class OrdersController : ControllerBase
-{
-    [HttpGet("{id}")]
-    public IActionResult Get(string id)
-    {
-        string label = id.ToDisplayLabel(); // CS1061
-        return Ok(label);
-    }
-}
-
-// File: Acme.Common/StringExtensions.cs
-namespace Acme.Common.Extensions;
-
-public static class StringExtensions
-{
-    public static string ToDisplayLabel(this string value) => $"[{value}]";
-}
-```
-
-The domain models compile fine; only the controller breaks. What is missing, and why does `using static Acme.Common.Extensions.StringExtensions;` not fix it?
-
----
-
-**Answer:**
-
-```csharp
-// File: Acme.WebApi/Controllers/OrdersController.cs
-using Acme.Domain;
-
-public class OrdersController : ControllerBase
-{
-    [HttpGet("{id}")]
-    public IActionResult Get(string id)
-    {
-        string label = id.ToDisplayLabel(); // CS1061
-        return Ok(label);
-    }
-}
-
-// File: Acme.Common/StringExtensions.cs
-namespace Acme.Common.Extensions;
-
-public static class StringExtensions
-{
-    public static string ToDisplayLabel(this string value) => $"[{value}]";
-}
-```
-
-The domain models compile fine; only the controller breaks. What is missing, and why does `using static Acme.Common.Extensions.StringExtensions;` not fix it?
-
-**Answer:** Extension methods are discovered by the namespace of the **static extension class**, not the extended type — the controller needs `using Acme.Common.Extensions;`. `using static` imports static members for direct calls (`ToDisplayLabel(id)`) but does **not** import extension methods for instance-style syntax.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | Missing `using Acme.Common.Extensions;` | CS1061 — method not found on `string` |
-| Misconception | `using static StringExtensions` expected to enable `id.ToDisplayLabel()` | Instance-style extension syntax still fails |
-| API surface | Extensions hidden from IntelliSense in WebApi layer | Team thinks library reference alone is enough |
-
-**Fix (priority order):**
-
-1. Add `using Acme.Common.Extensions;` to the controller (or a global `GlobalUsings.cs` in the WebApi project).
-2. Alternatively call explicitly: `StringExtensions.ToDisplayLabel(id)` — no extension `using` required.
-3. Do **not** rely on `using static` for extension discovery — it only lifts static members, not extension method binding.
-
-**Production takeaway:** Shared helper libraries fail at the call site, not the definition — Karat tests namespace import rules from **Program.cs** Section 8c. Convention: `*.Extensions` namespaces + document required `using` in README or analyzer.
-
----
-
----
-
-#### Q3. (R) A null-safe helper was added for optional promo codes on checkout. Review the extension and its first production call:
-
-```csharp
-public static class StringExtensions
-{
-    public static string RequirePromoCode(this string code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new InvalidOperationException("Promo code required.");
-        return code.Trim().ToUpperInvariant();
-    }
-}
-
-// CheckoutService:
-string? promo = request.PromoCode; // may be null when omitted
-string normalized = promo.RequirePromoCode(); // no compiler warning
-```
-
-The developer assumed "extension methods behave like instance methods on null." What actually happens at runtime, and how should the API be shaped for optional promo codes?
-
----
-
-**Answer:**
-
-```csharp
-public static class StringExtensions
-{
-    public static string RequirePromoCode(this string code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new InvalidOperationException("Promo code required.");
-        return code.Trim().ToUpperInvariant();
-    }
-}
-
-// CheckoutService:
-string? promo = request.PromoCode; // may be null when omitted
-string normalized = promo.RequirePromoCode(); // no compiler warning
-```
-
-The developer assumed "extension methods behave like instance methods on null." What actually happens at runtime, and how should the API be shaped for optional promo codes?
-
-**Answer:** Unlike a true instance method, an extension **can** be invoked when the receiver is `null` — the compiler emits a static call and passes `null` as the first argument. `RequirePromoCode` then throws inside the method body (from `IsNullOrWhiteSpace`), but the developer lost nullable flow analysis because `this string` (non-nullable) does not warn on a `string?` receiver.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Null semantics | Extension call allowed on null receiver | Differs from instance-method NRE at call site |
-| Nullable | `this string` on nullable receiver | No CS8602/CS8604 — silent null reaches helper |
-| API design | `Require*` throws on missing optional field | 500s for valid "no promo" checkout paths |
-
-**Fix (priority order):**
-
-1. For optional promos, use a null-tolerant extension with `this string?` — mirror **Program.cs** `IsNullOrBlank` (Section 8d).
-2. Split APIs: `NormalizePromoCode(this string code)` (non-null precondition) vs `TryNormalizePromo(this string? code, out string normalized)`.
-3. At the call site, guard before require: `if (!promo.IsNullOrBlank()) { … }` or pattern-match nullable promo in the service layer.
-4. Enable nullable reference types project-wide so `this string` vs `this string?` documents intent.
-
-```csharp
-public static string? NormalizePromoOrNull(this string? code) =>
-    string.IsNullOrWhiteSpace(code) ? null : code.Trim().ToUpperInvariant();
-```
-
-**Production takeaway:** Extensions on reference types are a common null trap — Karat checks whether you know null is passed **into** the static method, not blocked at the call site like instance dispatch.
-
----
-
----
-
-#### Q4. (R) Two NuGet packages ship extensions on `string` with the same signature. After adding both, CI builds but behavior flipped in staging:
-
-```csharp
-// Package A — Acme.Text.JsonHelpers
-namespace Acme.Text.JsonHelpers;
-public static class StringJsonExtensions
-{
-    public static string Sanitize(this string input) =>
-        input.Trim().Replace("\"", "'");
-}
-
-// Package B — Contoso.Security
-namespace Contoso.Security;
-public static class StringSecurityExtensions
-{
-    public static string Sanitize(this string input) =>
-        input.Trim().ToLowerInvariant();
-}
-
-// Startup (both usings present):
-using Acme.Text.JsonHelpers;
-using Contoso.Security;
-
-var safe = userInput.Sanitize(); // now calls Contoso's version
-```
-
-What binding rule caused the silent behavior change, and what are your options to make the call explicit and stable?
-
----
-
-**Answer:**
-
-```csharp
-// Package A — Acme.Text.JsonHelpers
-namespace Acme.Text.JsonHelpers;
-public static class StringJsonExtensions
-{
-    public static string Sanitize(this string input) =>
-        input.Trim().Replace("\"", "'");
-}
-
-// Package B — Contoso.Security
-namespace Contoso.Security;
-public static class StringSecurityExtensions
-{
-    public static string Sanitize(this string input) =>
-        input.Trim().ToLowerInvariant();
-}
-
-// Startup (both usings present):
-using Acme.Text.JsonHelpers;
-using Contoso.Security;
-
-var safe = userInput.Sanitize(); // now calls Contoso's version
-```
-
-What binding rule caused the silent behavior change, and what are your options to make the call explicit and stable?
-
-**Answer:** When multiple extension methods match, the compiler picks the **most specific** `this` type match; if still tied, **namespace/usings order** and internal tie-break rules apply — one extension wins at compile time with no runtime error. Adding a second package with the same signature can silently rebind the call.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Binding | Duplicate extension signatures in scope | Behavior change without compile failure |
-| Maintainability | `Sanitize` name collision across packages | Staging/prod diverge when usings reorder |
-| Security | Wrong sanitizer (JSON vs security) | Data corruption or missed normalization |
-
-**Fix (priority order):**
-
-1. Call explicitly via static syntax: `StringJsonExtensions.Sanitize(userInput)` — unambiguous, refactor-safe.
-2. Remove one `using` and fully-qualify the chosen extension class.
-3. Rename internal extensions to domain-specific names (`SanitizeForJson`, `SanitizeForLog`) — avoid BCL-style generic names on `string`.
-4. Remember: **instance methods always beat extensions** with the same signature — extensions never override existing instance API (**Program.cs** Section 8e).
-
-**Production takeaway:** Extension conflicts do not throw — they compile and swap implementations. Prefer explicit static calls at integration boundaries (security, serialization).
-
----
-
----
-
-#### Q5. (P) A logging extension on `IEnumerable<T>` looks convenient but skews metrics under load. Review:
-
-```csharp
-public static class EnumerableDiagnosticsExtensions
-{
-    public static IEnumerable<T> Tap<T>(
-        this IEnumerable<T> source,
-        Action<T> onEach)
-    {
-        foreach (var item in source)
-        {
-            onEach(item);           // logs every element
-            yield return item;
-        }
-    }
-}
-
-// OrderReportService:
-var premiumLines = _cache.GetLines(orderId)
-    .Where(l => l.UnitPrice >= 50m)
-    .Tap(l => _logger.LogDebug("Premium line {Sku}", l.Sku))
-    .ToList();
-
-decimal total = premiumLines.Sum(l => l.LineTotal);
-int count = premiumLines.Count(); // second pass — but source was already materialized
-```
-
-Assume `_cache.GetLines` returns a deferred `IEnumerable` backed by a live database query. A developer later removes `.ToList()` to "avoid an extra allocation." What breaks in production, and when should this extension materialize vs stay deferred?
-
----
-
-**Answer:**
-
-```csharp
-public static class EnumerableDiagnosticsExtensions
-{
-    public static IEnumerable<T> Tap<T>(
-        this IEnumerable<T> source,
-        Action<T> onEach)
-    {
-        foreach (var item in source)
-        {
-            onEach(item);           // logs every element
-            yield return item;
-        }
-    }
-}
-
-// OrderReportService:
-var premiumLines = _cache.GetLines(orderId)
-    .Where(l => l.UnitPrice >= 50m)
-    .Tap(l => _logger.LogDebug("Premium line {Sku}", l.Sku))
-    .ToList();
-
-decimal total = premiumLines.Sum(l => l.LineTotal);
-int count = premiumLines.Count(); // second pass — but source was already materialized
-```
-
-Assume `_cache.GetLines` returns a deferred `IEnumerable` backed by a live database query. A developer later removes `.ToList()` to "avoid an extra allocation." What breaks in production, and when should this extension materialize vs stay deferred?
-
-**Answer:** `Tap` uses `yield return`, so it is **deferred** — the database query and logging run only when the pipeline is enumerated. Removing `.ToList()` while still calling `Sum` and `Count` (or any two consumers) re-executes the entire chain twice: double DB round-trips, double side effects in `Tap`, and inconsistent snapshots if data changes between enumerations.
-
-- With `.ToList()`, enumeration happens once; `Sum`/`Count` operate on an in-memory list — correct for reporting totals.
-- Without materialization, each terminal operator (`Sum`, `Count`, `foreach`) re-walks the deferred chain from `_cache.GetLines`.
-- `Tap` side effects (logging) fire once per enumeration — log volume and DB load multiply with chained consumers.
-
-**When to materialize vs defer:**
-
-- **Materialize** (`ToList`, `ToArray`) when you need a stable snapshot, multiple passes, or bounded side effects — typical for report aggregation after filtering.
-- **Stay deferred** when a single downstream consumer streams once (export pipeline, single `foreach`) and the source is cheap/idempotent.
-
-**Production takeaway:** IEnumerable extensions compose like LINQ — deferred by default (**Program.cs** Sections 7 and 8h). Karat pairs extensions with enumeration cost, not just syntax.
-
----
-
----
-
-#### Q6. (D) Your team debates where pricing rules belong for `OrderLine`. Option A adds extensions; Option B keeps methods on the type:
-
-```csharp
-// Option A — OrderLineExtensions.cs
-public static decimal ApplyBulkDiscount(this OrderLine line, int tier) { /* 40 lines */ }
-public static decimal ApplyRegionalTax(this OrderLine line, string region) { /* … */ }
-
-// Option B — OrderLine.cs (sealed domain type)
-public decimal ApplyBulkDiscount(int tier) { /* same logic */ }
-```
-
-The type is **sealed**, owned by your team, and referenced from API, tests, and a reporting job. When do extensions earn their place vs polluting discoverability, and what is your rule of thumb for third-party `HttpRequest`/`string` helpers vs domain types?
-
----
-
-**Answer:**
-
-```csharp
-// Option A — OrderLineExtensions.cs
-public static decimal ApplyBulkDiscount(this OrderLine line, int tier) { /* 40 lines */ }
-public static decimal ApplyRegionalTax(this OrderLine line, string region) { /* … */ }
-
-// Option B — OrderLine.cs (sealed domain type)
-public decimal ApplyBulkDiscount(int tier) { /* same logic */ }
-```
-
-The type is **sealed**, owned by your team, and referenced from API, tests, and a reporting job. When do extensions earn their place vs polluting discoverability, and what is your rule of thumb for third-party `HttpRequest`/`string` helpers vs domain types?
-
-**Answer:** For **owned domain types** with core business rules (`ApplyBulkDiscount`, tax), prefer **instance methods on the type** (Option B) — discoverability, single place for behavior, and clearer unit tests. Reserve extensions for cross-cutting syntactic helpers that should not bloat the domain model, or when you **cannot** modify the type.
-
-- **Use extensions on owned types sparingly:** formatting (`ToReceiptLine`), small adapters, or keeping `OrderLine` a pure data record while rules live in a policy service injected via DI.
-- **Use extensions on BCL/third-party types:** `string`, `DateTime`, `HttpRequest`, `IEnumerable<T>` — you cannot add instance methods to sealed framework types (**Program.cs** Sections 3–4).
-- **Avoid** putting 40-line pricing rules in extensions — they hide domain logic, bypass constructor/DI seams, and appear everywhere IntelliSense lists `OrderLine` methods.
-- **Middle ground:** `OrderLine` stays immutable data; `IPricingPolicy` or domain service applies discounts — testable and mockable without static extension soup.
-
-**Production takeaway:** Extensions extend surface area without extending responsibility — Karat tests judgment: `ToReceiptLine` on `OrderLine` fits; `ApplyRegionalTax` belongs on the type or a service, not a static helper class.
-
----
-
----
-
-#### Q7. (P) An ASP.NET Core teammate models custom middleware as extension methods on `IApplicationBuilder`, mirroring `UseRouting` / `UseAuthentication`. Review this registration block:
-
-```csharp
-public static class CorrelationIdExtensions
-{
-    public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
-    {
-        app.Use(async (context, next) =>
-        {
-            var id = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
-                     ?? Guid.NewGuid().ToString("N");
-            context.Response.Headers["X-Correlation-Id"] = id;
-            await next(); // forgot to push id into HttpContext.Items / ILogger scope
-        });
-        return app;
-    }
-}
-
-// Program.cs:
-app.UseHttpsRedirection();
-app.UseCorrelationId();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-```
-
-Logs still cannot be correlated across services. What is wrong with the middleware body, and why is the extension-method shape (`this IApplicationBuilder`) the standard pattern here even though it is "just syntactic sugar"?
-
----
-
-**Answer:**
-
-```csharp
-public static class CorrelationIdExtensions
-{
-    public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
-    {
-        app.Use(async (context, next) =>
-        {
-            var id = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
-                     ?? Guid.NewGuid().ToString("N");
-            context.Response.Headers["X-Correlation-Id"] = id;
-            await next(); // forgot to push id into HttpContext.Items / ILogger scope
-        });
-        return app;
-    }
-}
-
-// Program.cs:
-app.UseHttpsRedirection();
-app.UseCorrelationId();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-```
-
-Logs still cannot be correlated across services. What is wrong with the middleware body, and why is the extension-method shape (`this IApplicationBuilder`) the standard pattern here even though it is "just syntactic sugar"?
-
-**Answer:** The middleware echoes a correlation ID on the **response** but never stores it in `HttpContext.Items`, `Activity`/OpenTelemetry baggage, or an `ILogger` scope — downstream middleware, controllers, and `ILogger` output never see the ID. The extension-method shape is standard because it attaches fluent, discoverable pipeline entry points to `IApplicationBuilder` without modifying the framework type — same mechanism as `StringExtensions.ToDisplayLabel(this string)`.
-
-- **Fix the body:** after resolving `id`, set `context.Items["CorrelationId"] = id` and wrap `await next()` in `using (_logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = id }))` or `Activity.Current?.SetTag(...)`.
-- **Order:** correlation middleware should run **early** (before auth/logging-heavy middleware) so all subsequent components share the same ID — often immediately after `UseForwardedHeaders` / before `UseAuthentication`.
-- **Why extension on `IApplicationBuilder`:** reads as `app.UseCorrelationId()` in `Program.cs`; groups middleware registration API in one static class; returns `IApplicationBuilder` for chaining — identical compiler rewrite to `CorrelationIdExtensions.UseCorrelationId(app)`.
-
-**Production takeaway:** ASP.NET `Use*` methods are extension methods — Karat connects the C# feature to production pipeline ergonomics. Fixing the sugar without fixing `HttpContext`/logging scope leaves observability broken.
-
----
-
----
-
-#### Q8. (M) Unit tests for a service that uses string extensions pass locally but fail in CI with `NullReferenceException`. Review the test setup:
-
-```csharp
-// Production code — Acme.Common.Extensions
-public static class StringExtensions
-{
-    public static bool IsNullOrBlank(this string? value) =>
-        string.IsNullOrWhiteSpace(value);
-}
-
-// Test project — no reference usings to Acme.Common.Extensions
-public class CheckoutValidatorTests
-{
-    [Fact]
-    public void Missing_promo_is_treated_as_blank()
-    {
-        string? promo = null;
-        Assert.True(promo.IsNullOrBlank()); // fails in CI — CS1061 or runtime?
-    }
-}
-```
-
-The test project references the production assembly. Explain why extension methods are harder to mock than injected services, and what you would change if the team needs to swap validation rules per environment without `#if DEBUG` forks.
-
----
-
-### 05. Func Action & Predicate
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/05. Func Action & Predicate`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-// Production code — Acme.Common.Extensions
-public static class StringExtensions
-{
-    public static bool IsNullOrBlank(this string? value) =>
-        string.IsNullOrWhiteSpace(value);
-}
-
-// Test project — no reference usings to Acme.Common.Extensions
-public class CheckoutValidatorTests
-{
-    [Fact]
-    public void Missing_promo_is_treated_as_blank()
-    {
-        string? promo = null;
-        Assert.True(promo.IsNullOrBlank()); // fails in CI — CS1061 or runtime?
-    }
-}
-```
-
-The test project references the production assembly. Explain why extension methods are harder to mock than injected services, and what you would change if the team needs to swap validation rules per environment without `#if DEBUG` forks.
-
-**Answer:** With the production assembly referenced but no `using Acme.Common.Extensions;`, the test fails at **compile time** with CS1061 — extension methods are not instance members of `string`. If a duplicate local extension exists in the test project, CI may bind differently. Extensions are **static dispatch** — you cannot mock `promo.IsNullOrBlank()` with Moq/NSubstitute the way you mock `ICheckoutValidator.IsBlank(promo)`.
-
-- **Why hard to mock:** extensions compile to static calls on a fixed class; no interface, no virtual slot, no DI seam.
-- **Fix immediate CI failure:** add `using Acme.Common.Extensions;` or call `StringExtensions.IsNullOrBlank(promo)` explicitly.
-- **Swappable rules per environment:** extract behavior behind an interface — `IStringNormalizer` / `ICheckoutValidator` injected into the service; keep thin extensions as one-liner wrappers over injected services only at the edges (API binding), not core validation.
-- **Testing extensions directly:** unit-test the static extension class with plain xUnit/NUnit tests — no mocking needed for pure functions like `IsNullOrBlank`.
-
-**Production takeaway:** Extensions are ideal for pure, stateless helpers on types you do not own; inject interfaces when behavior must vary, be mocked, or carry policy — Karat stacks syntax discovery (Q2) with testability judgment here.
-
----
-
-### 05. Func Action & Predicate
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/05. Func Action & Predicate`
-
----
-
----
-
-#### Q1. (R) A warehouse API reuses a shared filter delegate across `List<T>` and LINQ. The build fails after a refactor. What is wrong, and how do you fix it without duplicating filter logic?
-
-```csharp
-public class InventoryService
-{
-    private readonly Func<Product, bool> _inStockFilter = p => p.IsActive && p.StockQty > 0;
-
-    public List<Product> GetPickList(List<Product> items) =>
-        items.FindAll(_inStockFilter); // CS1503
-
-    public IEnumerable<Product> GetPickListLinq(IEnumerable<Product> items) =>
-        items.Where(_inStockFilter);
-}
-```
-
----
-
-**Answer:**
-
-**Answer:** `List<T>.FindAll` requires `Predicate<T>`, not `Func<T, bool>` — they have identical invoke shapes but are different delegate types with no implicit conversion. Store one shape and wrap at the boundary, or use lambdas at call sites so the compiler infers the expected type.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `FindAll(_inStockFilter)` — `Func<Product, bool>` → `Predicate<Product>` | CS1503; build fails |
-| Design | Assumed semantic equivalence implies type equivalence | Refactors break when crossing BCL APIs |
-| Maintainability | Duplicating filter logic in two delegate variables | Drift between List and LINQ paths |
-
-**Fix (priority order):**
-
-1. Pick a canonical stored type — usually `Func<Product, bool>` for LINQ-heavy code — and wrap for List APIs: `items.FindAll(p => _inStockFilter(p))` or `new Predicate<Product>(_inStockFilter.Invoke)`.
-2. Alternatively store `Predicate<Product>` and wrap for LINQ: `items.Where(p => _predicate(p))`.
-3. Extract the condition once: `private static bool IsInStock(Product p) => p.IsActive && p.StockQty > 0;` then method-group into either delegate type at each call site.
-4. Prefer a single domain method or small `IProductFilter` when the rule is shared across many APIs — avoids delegate-type friction entirely.
-
-**Production takeaway:** Karat embeds the **Program.cs** lesson — lambdas infer the parameter type at the call site, but **stored** delegates do not convert between `Predicate<T>` and `Func<T, bool>`. See Section 7 and QUICK REFERENCE.
-
----
-
----
-
-#### Q2. (R) A teammate wires logging callbacks into a pick-list pipeline. Review the registration and invocation:
-
-```csharp
-public static void ProcessPickList(
-    List<Product> items,
-    Func<Product, decimal> lineTotal,
-    Func<string> logHeader)   // intended: print banner once, return nothing
-{
-    logHeader(); // CS0029 — cannot convert void to decimal
-    items.ForEach(p => Console.WriteLine($"{p.Sku}: {lineTotal(p):C}"));
-}
-
-// Startup:
-ProcessPickList(
-    catalog,
-    CalculateLineTotal,
-    () => Console.WriteLine("=== Pick list ==="));
-```
-
-What are the compile-time mistakes, and which built-in delegate types belong here?
-
----
-
-**Answer:**
-
-```csharp
-public static void ProcessPickList(
-    List<Product> items,
-    Func<Product, decimal> lineTotal,
-    Func<string> logHeader)   // intended: print banner once, return nothing
-{
-    logHeader(); // CS0029 — cannot convert void to decimal
-    items.ForEach(p => Console.WriteLine($"{p.Sku}: {lineTotal(p):C}"));
-}
-```
-
-What are the compile-time mistakes, and which built-in delegate types belong here?
-
-**Answer:** `logHeader` is declared as `Func<string>` (returns `string`) but the lambda returns `void`, and the call site treats it like a side-effect callback. Void-returning work belongs on `Action` or `Action<string>`, not `Func`.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Compile | `Func<string>` assigned `() => Console.WriteLine(...)` | CS0123 / CS0029 — void is not a valid `Func` return |
-| API design | `Func<string>` implies a computed header string | Misleading contract; callers expect a return value |
-| Invoke | `logHeader()` used for effect only | Wrong type family — `Action` expresses intent |
-
-**Fix (priority order):**
-
-1. Change the parameter to `Action printHeader` (zero parameters, void return): `printHeader();`
-2. If the banner string is needed elsewhere, use `Func<string> headerFactory = () => "=== Pick list ===";` and pass that separately from `Action<string> emit`.
-3. Keep `Func<Product, decimal> lineTotal` — it returns a value; that is the correct choice.
-4. Match **Program.cs** Section 4: side effects → `Action`; computations → `Func`.
-
-**Production takeaway:** Using `Func` for void methods is one of the most common compile errors in callback-heavy code — Karat tests whether you reach for `Action` immediately. See QUICK REFERENCE — "Using Func for void method → CS0123."
-
----
-
----
-
-#### Q3. (R) After making a filter optional, production throws intermittently when a branch has no active rule. Review:
-
-```csharp
-public IEnumerable<Product> FilterCatalog(
-    IEnumerable<Product> items,
-    Func<Product, bool>? rule)
-{
-    return items.Where(rule); // sometimes NullReferenceException at runtime
-}
-
-// Caller when no custom rule configured:
-var visible = FilterCatalog(catalog, null);
-```
-
-What breaks at runtime, why does it pass some code paths, and what is the production-safe fix?
-
----
-
-**Answer:**
-
-```csharp
-public IEnumerable<Product> FilterCatalog(
-    IEnumerable<Product> items,
-    Func<Product, bool>? rule)
-{
-    return items.Where(rule);
-}
-```
-
-What breaks at runtime, why does it pass some code paths, and what is the production-safe fix?
-
-**Answer:** LINQ's `Where` invokes the predicate for every element — passing `null` throws `NullReferenceException` on the first item, not at the call to `Where`. Branches that always supply a rule appear fine until configuration omits one.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Runtime | `Where(null)` — predicate invoked per element | NRE on first enumeration; looks like "random" prod failure |
-| Nullability | Nullable parameter without default | Optional filter contract is unsafe |
-| API | Deferred execution hides failure until `foreach`/materialization | Fails in reporting job, not at startup |
-
-**Fix (priority order):**
-
-1. Apply a default before LINQ: `rule ??= _ => true;` or `return items.Where(rule ?? (_ => true));`
-2. Short-circuit when absent: `if (rule is null) return items;`
-3. For optional callbacks in custom APIs, use `?.Invoke` pattern from **Program.cs** Section 6 — but LINQ operators require a non-null delegate; guard at the API boundary.
-4. Add a unit test with `rule: null` that forces enumeration (`ToList()`) — catches deferred-execution traps.
-
-**Production takeaway:** Null-safe invoke (`?.Invoke`) works for your own optional `Action`/`Func` fields; BCL LINQ methods never accept null predicates. See **Program.cs** Section 6 and Section 11 preview.
-
----
-
----
-
-#### Q4. (P) An ASP.NET Core app registers a `Func<IServiceProvider, decimal>` factory in DI to read tax rate per request. Review startup:
-
-```csharp
-builder.Services.AddSingleton<Func<IServiceProvider, decimal>>(sp =>
-{
-    var options = sp.GetRequiredService<IOptions<TaxOptions>>();
-    return () => options.Value.Rate; // Func<decimal> closed over IOptions snapshot
-});
-
-builder.Services.AddScoped<ProductPricingService>();
-
-public class ProductPricingService
-{
-    private readonly Func<decimal> _taxRate;
-
-    public ProductPricingService(Func<decimal> taxRate) => _taxRate = taxRate;
-
-    public decimal PriceWithTax(Product p) => p.UnitPrice * (1m + _taxRate());
-}
-```
-
-What lifetime and resolution problems appear under load or with `IOptionsMonitor`, and how should factories be registered instead?
-
----
-
-**Answer:**
-
-```csharp
-builder.Services.AddSingleton<Func<IServiceProvider, decimal>>(sp => { /* … */ });
-builder.Services.AddScoped<ProductPricingService>();
-// ProductPricingService ctor: Func<decimal> taxRate
-```
-
-What lifetime and resolution problems appear under load or with `IOptionsMonitor`, and how should factories be registered instead?
-
-**Answer:** Registering the outer factory as singleton while resolving scoped or monitor-backed options inside it captures stale configuration and blurs request scope. Inject `IOptionsMonitor<TaxOptions>` or `Func<decimal>` via a scoped factory registration so each request gets current values.
-
-- **Singleton factory + scoped dependencies:** `GetRequiredService` inside a singleton delegate can resolve scoped services from the root provider — invalid outside a scope (may throw or return wrong instance depending on version/options).
-- **Closed-over `IOptions` vs `IOptionsMonitor`:** snapshot `IOptions<T>` inside a singleton `Func<decimal>` never sees updated `appsettings` or key-vault reloads.
-- **`Func<decimal>` in scoped service:** acceptable when the func is registered scoped or when it reads from `IOptionsMonitor` per invocation, not once at singleton creation.
-
-**Fix (priority order):**
-
-1. Register per-request factory: `builder.Services.AddScoped<Func<decimal>>(sp => () => sp.GetRequiredService<IOptionsMonitor<TaxOptions>>().CurrentValue.Rate);`
-2. Better: inject `IOptionsMonitor<TaxOptions>` directly into `ProductPricingService` — clearer than func indirection for a single value.
-3. Reserve `Func<IServiceProvider, T>` singleton factories for truly stateless object creation (e.g., `Func<IServiceProvider, ILogger>` patterns) — not for request-scoped configuration reads.
-4. Enable scope validation in development: `builder.Host.UseDefaultServiceProvider(o => o.ValidateScopes = true);` — surfaces captive dependencies early.
-
-**Production takeaway:** Func factories in DI are convenient but do not bypass lifetime rules — Karat stacks delegate typing with DI scope traps. Aligns with **Program.cs** Section 2 — `Func<decimal>` as testable configuration reader, but lifetime must match how often the value may change.
-
----
-
----
-
-#### Q5. (R) A pricing service accepts `Func<Product, decimal>` so callers can plug in "async catalog lookups." Review usage from a minimal API endpoint:
-
-```csharp
-public decimal GetExtendedPrice(Product p, Func<Product, decimal> unitPriceLookup)
-{
-    decimal unit = unitPriceLookup(p); // blocks
-    return unit * 1.0825m;
-}
-
-app.MapGet("/price/{sku}", async (string sku, CatalogClient catalog) =>
-{
-    Func<Product, decimal> lookup = product =>
-        catalog.GetUnitPriceAsync(product.Sku).Result;
-
-    var product = new Product(sku, "Item", 0m, 1, true);
-    return Results.Ok(pricing.GetExtendedPrice(product, lookup));
-});
-```
-
-What are the async, scalability, and delegate-signature problems, and what signature should replace `Func<Product, decimal>`?
-
 ---
 
-**Answer:**
+## Q8. What is a pure function? Give an example in C# and explain what makes it pure.
 
-```csharp
-Func<Product, decimal> lookup = product =>
-    catalog.GetUnitPriceAsync(product.Sku).Result;
-```
+**Concepts**
+- Deterministic output for identical inputs
+- No observable side effects (no shared state mutation, no I/O)
+- Referential transparency: call replaceable with its return value
+- Thread safety without synchronization
+- Composability in LINQ pipelines
 
-What are the async, scalability, and delegate-signature problems, and what signature should replace `Func<Product, decimal>`?
+**Answer**
 
-**Answer:** `Func<Product, decimal>` cannot represent asynchronous work — forcing `.Result` blocks a thread and causes sync-over-async under load. The API should accept `Func<Product, CancellationToken, Task<decimal>>` (or a dedicated service interface) and `await` end-to-end.
+A pure function always produces the same output for the same inputs and produces no observable side effects—it does not modify shared state, write to I/O, or depend on mutable external data. `static decimal ApplyDiscount(decimal price, decimal rate) => price * (1m - rate);` is pure because it reads only its parameters, returns a computed value, and leaves no trace outside the call. I can call it from multiple threads simultaneously without synchronization, substitute its call with its return value in reasoning about the program (referential transparency), and compose it freely in LINQ pipelines without worrying about execution order. Pure functions belong at the leaf nodes of a pipeline; side effects—database writes, logging, time reads—are isolated at the boundary where they are unavoidable.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Async | `.Result` on `GetUnitPriceAsync` | Thread-pool starvation; potential deadlocks |
-| Signature | Sync `Func` for I/O-bound lookup | Misleading contract hides async requirement |
-| Scalability | Blocking minimal API delegate | Reduced throughput on catalog-bound endpoints |
-| Design | Func used to smuggle async into sync shape | Callers repeat `.Result` at every site |
-
-**Fix (priority order):**
-
-1. Change to async API: `public async Task<decimal> GetExtendedPriceAsync(Product p, Func<Product, CancellationToken, Task<decimal>> unitPriceLookup, CancellationToken ct)` and `await unitPriceLookup(p, ct)`.
-2. Prefer injecting `ICatalogClient` into the service instead of passing func per call — func parameter is for pluggable algorithms, not HTTP clients.
-3. Endpoint: `return Results.Ok(await pricing.GetExtendedPriceAsync(product, catalog.GetUnitPriceAsync, ct));` — method group to compatible func or direct service call.
-4. Never register `Func<Product, decimal>` in DI when the implementation performs I/O — use typed client + async methods.
-
-**Production takeaway:** Func/Action/Predicate are synchronous delegate shapes — async work needs `Func<..., Task<T>>` and `await`, or an interface. See C# Module 06 — sync-over-async; this question stacks it with delegate choice.
-
----
-
----
-
-#### Q6. (D) A team replaces every inventory rule interface with `Func<Product, bool>` parameters "to reduce boilerplate." Tests now require copying lambdas from production code. Compare:
-
-```csharp
-// Before
-public interface IProductFilter { bool Include(Product p); }
-
-// After
-public class InventoryReport
-{
-    public decimal TotalValue(IEnumerable<Product> items, Func<Product, bool> include) { /* … */ }
-}
-```
-
-What testability and design seams do you lose, and when is `Func<Product, bool>` still the right API surface?
-
----
-
-**Answer:**
-
-```csharp
-public interface IProductFilter { bool Include(Product p); }
-// After: Func<Product, bool> include everywhere
-```
-
-What testability and design seams do you lose, and when is `Func<Product, bool>` still the right API surface?
-
-**Answer:** A named `IProductFilter` (or small record rule type) is a stable, mockable contract with discoverable implementations; bare `Func<Product, bool>` hides intent, prevents polymorphic composition, and pushes test doubles toward duplicating lambda logic instead of substituting a fake rule.
-
-- **Lost seams:** no `Mock<IProductFilter>` / `FakeActiveOnlyFilter`; tests pass inline lambdas that mirror production conditions — refactors break tests silently.
-- **Lost composition:** interfaces support chaining decorators (`AndFilter`, `OrFilter`); func parameters encourage copy-paste boolean expressions.
-- **Lost discoverability:** "implements `IProductFilter`" is grep-friendly; anonymous funcs are not.
-- **When `Func<Product, bool>` is right:** local helpers (`ProcessInventory` in **Program.cs** Section 9), LINQ-shaped APIs (`Where`), one-off pipeline parameters where the caller owns the logic and tests assert on outputs not filter identity.
-
-**Fix (priority order):**
-
-1. Keep domain rules as `IProductFilter` or static named methods (`IsActiveInStock`) method-grouped into funcs at boundaries.
-2. Use `Func<Product, bool>` at the **pipeline edge** only — convert `filter.Include` to func internally if needed.
-3. For Karat-style judgment: prefer named types on public service contracts; func for internal utility parameters.
-
-**Production takeaway:** Func reduces ceremony but is not a free replacement for interfaces on bounded contexts — Karat tests whether you preserve test seams. **Program.cs** Section 8 — named `LineTotalCalculator` vs `Func` when the name is part of the contract.
-
----
-
 ---
-
-#### Q7. (P) An API adds a custom endpoint filter using a predicate delegate. Review registration and behavior:
 
-```csharp
-builder.Services.AddSingleton<Func<HttpContext, bool>>(_ =>
-    ctx => ctx.Request.Headers.ContainsKey("X-Warehouse-Id"));
+## Q9. What is immutability, and why is it important in functional and concurrent programming?
 
-app.MapGet("/pick-list", (IInventoryService svc) => svc.GetPickList())
-   .AddEndpointFilter(async (ctx, next) =>
-   {
-       var gate = ctx.HttpContext.RequestServices
-           .GetRequiredService<Func<HttpContext, bool>>();
+**Concepts**
+- Immutability: state cannot change after construction
+- Thread safety without locks for immutable objects
+- Predictable function composition with unchanging inputs
+- `record` and `with` expressions for non-destructive mutation
+- Eliminating shared-state race conditions
 
-       if (!gate(ctx.HttpContext))
-           return Results.Unauthorized();
+**Answer**
 
-       return await next(ctx);
-   });
-```
+Immutability means an object's state cannot change after construction—every "mutation" produces a new object rather than modifying the original. Immutable objects are inherently thread-safe because no thread can corrupt another's view of the data, which eliminates entire classes of race conditions without locks. In functional composition, passing immutable values through a pipeline guarantees that each step receives undisturbed input, making the behavior of each function predictable regardless of execution order or scheduler interleaving. In C# I express immutability with `readonly` fields, `init`-only properties, and `record` types whose `with` expressions create modified copies—`var updated = original with { Price = newPrice }` returns a new record without mutating `original`.
 
-What breaks for multi-tenant routing, testing, and filter ordering compared to `IEndpointFilter` or a typed authorization requirement?
-
 ---
-
-**Answer:**
-
-```csharp
-builder.Services.AddSingleton<Func<HttpContext, bool>>(_ =>
-    ctx => ctx.Request.Headers.ContainsKey("X-Warehouse-Id"));
-```
-
-What breaks for multi-tenant routing, testing, and filter ordering compared to `IEndpointFilter` or a typed authorization requirement?
-
-**Answer:** A singleton `Func<HttpContext, bool>` encodes authorization as an untyped header check with no access to route data, user claims, or scoped tenant services — it is hard to test in isolation, runs late if registered inside an ad hoc filter, and cannot participate in policy-based auth.
-
-- **Multi-tenant:** header presence ≠ valid warehouse; no correlation to route `{warehouseId}`, claim, or scoped `ITenantContext` — wrong tenant data can still be served if the header is spoofed without validation.
-- **Testing:** must spin `HttpContext` and service provider to test a func pulled from DI; `IAuthorizationService` / policy tests are standard.
-- **Ordering:** custom inline filter runs after routing but competes with auth middleware — warehouse checks belong in authorization policy or early middleware, not a one-off func gate duplicated per endpoint.
-- **Singleton:** cannot inject scoped tenant/store services into the predicate without captive dependency.
 
-**Fix (priority order):**
+## Q10. How can immutability be achieved in C# (`readonly`, `record`, avoiding mutable captures)?
 
-1. Replace with policy: `[Authorize(Policy = "WarehouseAccess")]` and `AddAuthorization` handler reading claim + route.
-2. If endpoint-specific, implement `IEndpointFilter` as a typed class injecting `ITenantValidator` (scoped) — unit-test the filter class directly.
-3. Use built-in `RequireAuthorization()` / `AddEndpointFilter<WarehouseFilter>()` — consistent ordering via `MapGroup` filters.
-4. Drop singleton `Func<HttpContext, bool>` from DI — it hides security rules and blocks scoped dependencies.
+**Concepts**
+- `readonly` fields settable only in constructor or initializer
+- `init`-only properties for object initialization expressions
+- `record` and `record struct` with structural equality
+- `with` expressions for non-destructive copy
+- `static` lambda to enforce no mutable capture at compile time
 
-**Production takeaway:** Func fits local predicates (`Predicate<Product>` on in-memory lists); HTTP gates need typed filters, policies, and scoped services — not a global bool func. Connects to **Program.cs** pipeline pattern (Section 9) at the wrong abstraction layer for ASP.NET.
+**Answer**
 
----
+I achieve immutability through multiple mechanisms. `readonly` fields can be set only in constructors or field initializers, preventing reassignment afterward. `init`-only properties (C# 9+) allow setting during object initialization but block later assignment. `record` types provide structural equality and generate `with` expressions for non-destructive copies—so callers get a new instance with one property changed rather than mutating the original. For lambdas, I avoid capturing mutable outer variables when the lambda outlives the enclosing scope: I copy required values to locals and capture those, or I use `static` lambdas to enforce at compile time that no mutable state is captured. These mechanisms compose: a `record` type with `readonly` fields and a `static` lambda that processes it gives me end-to-end immutability from data through transformation.
 
 ---
-
-#### Q8. (M) A generic helper tries to widen a discontinued-SKU predicate for use on the full catalog. Review:
-
-```csharp
-public sealed class DiscontinuedProduct : Product
-{
-    public DateTime? EndOfLifeDate { get; init; }
-}
-
-Predicate<DiscontinuedProduct> discontinuedOnly =
-    p => p.EndOfLifeDate.HasValue;
 
-Predicate<Product> catalogFilter = discontinuedOnly; // CS0029
-
-List<Product> items = GetFullCatalog();
-items.RemoveAll(catalogFilter);
-```
-
-Why does assignment fail despite `DiscontinuedProduct : Product`, and how does delegate variance differ from `IEnumerable<T>` assignment?
-
----
+## Q11. How do you avoid side effects when passing lambdas to APIs that store or invoke them later?
 
-### 06. Closures
+**Concepts**
+- Mutable captured variable as shared communication channel
+- Immutable snapshot capture via local copy before lambda
+- Capturing factory or `IServiceScopeFactory` for live state
+- `static` lambda keyword enforces no capture at compile time
+- Documenting snapshot vs live-read semantics on stored delegates
 
-# Karat — Interview Questions
+**Answer**
 
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/06. Closures`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
+When a lambda is stored and invoked later, any mutable outer variable it captures becomes a shared channel between the lambda and the code running between creation and invocation—this is the root of most closure bugs. I avoid side effects by capturing only immutable values: I copy primitives and `record` values to locals before the lambda so the closure holds a snapshot that is independent of subsequent changes. When the lambda must read live state, I capture a factory or `IServiceScopeFactory` and resolve fresh dependencies per invocation rather than capturing a stale resolved instance. I mark lambdas as `static` when they should not capture anything, and I document clearly whether a stored delegate takes a snapshot or reads live state so callers reason correctly about deferred execution.
 
 ---
 
-**Answer:**
+## Q12. When should you copy loop values to a local inside the loop before capturing (`var copy = item`)?
 
-```csharp
-Predicate<DiscontinuedProduct> discontinuedOnly =
-    p => p.EndOfLifeDate.HasValue;
+**Concepts**
+- Per-iteration local creates distinct display class field per iteration
+- `for` loop single-slot variable always needs copy for deferred lambdas
+- `foreach` C# 5+ per-iteration variable (copy usually redundant)
+- Custom enumerator reusing struct `Current` as exception requiring copy
+- Copy pattern applies identically to LINQ, `Task.Run`, and timer callbacks
 
-Predicate<Product> catalogFilter = discontinuedOnly; // CS0029
-```
+**Answer**
 
-Why does assignment fail despite `DiscontinuedProduct : Product`, and how does delegate variance differ from `IEnumerable<T>` assignment?
+I copy a loop value to a local—`var copy = item;`—whenever I create a lambda or anonymous method inside a loop and that lambda is invoked after the loop's current iteration ends. This applies to `for` loops unconditionally, since the loop variable is a single shared slot. For `foreach` loops in C# 5+, the compiler creates a per-iteration variable, so copying is usually redundant—but I still copy when iterating over a custom enumerator that reuses a single struct `Current`, or when the loop variable is a reference type whose referenced object mutates between loop and invocation. The copy works because each iteration's local results in a distinct display class field, giving each lambda its own independent snapshot.
 
-**Answer:** `Predicate<T>` is declared contravariant (`in T`) — you may assign a **wider** input predicate (`Predicate<Product>`) to a **narrower** slot (`Predicate<DiscontinuedProduct>`), but not the reverse. Widening `Predicate<DiscontinuedProduct>` to `Predicate<Product>` would let `RemoveAll` invoke the rule with plain `Product` instances that are not `DiscontinuedProduct`, so accessing `EndOfLifeDate` would be unsound.
-
-- **`Predicate<in T>` (contravariant):** valid direction — `Predicate<Product> wide = p => p.IsActive; Predicate<DiscontinuedProduct> narrow = wide;` (callers pass `DiscontinuedProduct`, handler accepts any `Product`).
-- **Invalid direction (this snippet):** `Predicate<DiscontinuedProduct>` → `Predicate<Product>` — catalog list can contain non-discontinued SKUs; the delegate body assumes derived-only members.
-- **vs `IEnumerable<out T>` (covariant):** `IEnumerable<DiscontinuedProduct>` → `IEnumerable<Product>` works because you only **read** items out; delegate parameters are **inputs**, so variance flips.
-
-**Fix (priority order):**
-
-1. Keep the narrow predicate on `List<DiscontinuedProduct>` only; do not widen the delegate type.
-2. For mixed catalogs, filter with a lambda that pattern-matches: `items.RemoveAll(p => p is DiscontinuedProduct d && d.EndOfLifeDate.HasValue);`
-3. Or extract a safe `Product`-level rule that uses only `Product` members: `Predicate<Product> catalogFilter = p => !p.IsActive;`
-4. Reuse `Predicate<Product>` on derived lists via contravariance: `List<DiscontinuedProduct> disc; disc.RemoveAll(wideProductPredicate);` — valid when the stored delegate is `Predicate<Product>`.
-
-**Production takeaway:** Inheritance intuition from collections does not transfer to input delegates — Karat tests contravariance direction, not just "same shape." See **Program.cs** Section 5 — `Predicate<in T>`; variance governs which stored predicate can be reused across base/derived lists.
-
 ---
 
-### 06. Closures
+## Q13. How do local functions compare to lambdas regarding capture and allocation behavior?
 
-# Karat — Interview Answers
+**Concepts**
+- `static` local function: stack allocation when no capture, enforced no-capture
+- Non-static capturing local function: same display class as lambda
+- Lambda always allocates delegate instance; local function may not
+- Local function supports recursion and named stack frames
+- `static` modifier on local function makes zero-allocation verifiable
 
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
+**Answer**
 
-> **Folder:** `02. C# Language Fundamentals/04. Functional Style Programming/06. Closures`
+Local functions declared without capturing any outer variables are compiled as direct method calls—no display class, no delegate allocation. When they do capture, the compiler lifts them to a display class the same way it does for lambdas, incurring heap allocation. The `static` modifier on a local function prevents any capture (compile-time error if capture is attempted), making the zero-allocation guarantee explicit and auditable at code review. Lambdas always produce at least a delegate instance and, when capturing, a display class; there is no equivalent `static` enforcement on a lambda that produces zero allocation. Local functions also support recursion naturally, appear in stack traces with readable names, and can be declared with `async`—making them preferable to lambdas for deferred work that benefits from clear stack frames and explicit capture control.
 
 ---
 
----
+## Q14. Closure captures the variable, not the value — Loop lambda prints `3, 3, 3`, not `0, 1, 2`.
 
-#### Q1. (R) A batch job queues three background tasks to process order IDs 0, 1, and 2. In production every task logs `Processing order 3`. Review the scheduling code:
+**Concepts**
+- Variable capture as reference to storage location
+- Value at creation vs value at invocation distinction
+- `for` loop single field, all lambdas share it
+- Inner local copy as the canonical fix
+- Deferred invocation after loop completion
 
-```csharp
-public void ScheduleOrderProcessors(IOrderService orders)
-{
-    for (int i = 0; i < 3; i++)
-    {
-        Task.Run(() => orders.ProcessOrder(i));
-    }
-}
-```
+**Answer**
 
-What is wrong, why does it pass a quick local smoke test sometimes, and how do you fix it?
+A closure captures the variable itself—a reference to the storage location—not the value stored in that location at creation time. When I write `for (int i = 0; i < 3; i++) { actions.Add(() => Console.WriteLine(i)); }` and invoke all three actions after the loop, every action reads `i` from the single shared field, which holds `3` after the loop exits. Printing `3, 3, 3` rather than `0, 1, 2` is the expected behavior given capture-by-reference semantics—it is not a bug in the runtime, it is a misunderstanding of what was captured. The fix is `int copy = i;` inside the loop body before the lambda, so each action closes over a distinct field initialized to the loop's value at that iteration.
 
 ---
-
-**Answer:**
-
-```csharp
-public void ScheduleOrderProcessors(IOrderService orders)
-{
-    for (int i = 0; i < 3; i++)
-    {
-        Task.Run(() => orders.ProcessOrder(i));
-    }
-}
-```
 
-What is wrong, why does it pass a quick local smoke test sometimes, and how do you fix it?
+## Q15. Same trap in LINQ and tasks — Capturing loop variables inside `.Where()` / `Task.Run` produces identical bugs.
 
-**Answer:** Each `Task.Run` lambda captures the **same** loop variable `i`, not the value at scheduling time. When the thread pool runs the tasks, the loop has usually finished and `i` is `3`, so every callback sees `3`. A fast local run can accidentally process the "right" IDs if tasks start before the loop increments — masking the bug until production load defers execution.
+**Concepts**
+- Deferred LINQ query re-evaluated with captured loop variable
+- `Task.Run` callback executes after loop completes
+- `foreach` C# 5+ creates per-iteration variable (avoids the bug)
+- Inner copy pattern identical across LINQ, `Task.Run`, and timers
+- Deferred execution as the common thread across all three contexts
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Capture semantics | `for` declares one shared `i` | All deferred lambdas read final loop value |
-| Correctness | Wrong order IDs processed | Duplicate work, skipped orders, bad audit trail |
-| Testability | Race with loop completion | Flaky passes locally, fails under thread-pool delay |
+The same capture mechanics apply in `Task.Run` callbacks and LINQ deferred queries built inside loops. `tasks.Add(Task.Run(() => Process(i)))` stores a delegate that reads `i` when the task runs, not when `Add` is called—if the loop finishes before any task starts, all tasks read the final `i`. Similarly, building a list of deferred predicates inside a loop with `queries.Add(db.Orders.Where(o => o.Region == region))` produces queries that all filter on the final `region` value. The fix is identical in both contexts: copy the loop variable to a local before the lambda, or use `foreach` in C# 5+ which creates per-iteration variables automatically. The pattern extends uniformly to `Timer` callbacks, `ThreadPool.QueueUserWorkItem`, and any deferred execution mechanism.
 
-**Fix (priority order):**
-
-1. Copy to an inner local each iteration — the pattern from **Program.cs** Section 8a:
-
-```csharp
-for (int i = 0; i < 3; i++)
-{
-    int orderId = i;
-    Task.Run(() => orders.ProcessOrder(orderId));
-}
-```
-
-2. Pass `i` as a parameter to a helper so each lambda captures a distinct parameter slot (**Section 8b** — `AddPrinter` pattern):
-
-```csharp
-for (int i = 0; i < 3; i++)
-    ScheduleOne(orders, i);
-
-static void ScheduleOne(IOrderService orders, int orderId) =>
-    Task.Run(() => orders.ProcessOrder(orderId));
-```
-
-3. Prefer `foreach` only when iterating a collection — `foreach` gets a per-iteration variable on C# 5+, but **`for` still needs the copy fix** (**Section 9**).
-
-**Production takeaway:** This is the classic closure loop bug Karat embeds in `Task.Run`, timers, and event handlers — capture is by reference to shared storage, not a snapshot. See **Program.cs** QUICK REFERENCE — `for (int i ...)` → deferred λ sees final `i`.
-
 ---
-
----
-
-#### Q2. (R) A price-filter service builds deferred LINQ queries inside a loop and stores them for later execution. Review this helper:
-
-```csharp
-public List<Func<decimal, bool>> BuildTierFilters(decimal[] thresholds)
-{
-    var filters = new List<Func<decimal, bool>>();
-    for (int tier = 0; tier < thresholds.Length; tier++)
-    {
-        filters.Add(price => price >= thresholds[tier]);
-    }
-    return filters;
-}
-
-// Caller runs all filters later against the same quote:
-foreach (var filter in BuildTierFilters(new[] { 10m, 50m, 100m }))
-    Console.WriteLine(filter(75m));
-```
-
-Every filter uses the same threshold at runtime. Diagnose the capture bug and show two safe fixes from this chapter.
-
----
-
-**Answer:**
-
-```csharp
-public List<Func<decimal, bool>> BuildTierFilters(decimal[] thresholds)
-{
-    var filters = new List<Func<decimal, bool>>();
-    for (int tier = 0; tier < thresholds.Length; tier++)
-    {
-        filters.Add(price => price >= thresholds[tier]);
-    }
-    return filters;
-}
-
-// Caller runs all filters later against the same quote:
-foreach (var filter in BuildTierFilters(new[] { 10m, 50m, 100m }))
-    Console.WriteLine(filter(75m));
-```
 
-Every filter uses the same threshold at runtime. Diagnose the capture bug and show two safe fixes from this chapter.
+## Q16. Multicast delegate short-circuit on exception — Later subscribers may not run if an early one throws.
 
-**Answer:** `tier` is a single loop variable reused across iterations. Every stored lambda closes over the same display-class field, so when filters run later they all read the final `tier` index (`3` if length is 3) — out of range or comparing against the wrong threshold. Deferred execution does not snapshot the index at `Add` time.
+**Concepts**
+- Sequential multicast invocation
+- First-throwing subscriber aborts remaining targets
+- `GetInvocationList()` for isolated per-handler invocation
+- Per-handler try/catch pattern
+- Independently-owned subscribers must not fail together
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Capture | Shared `tier` across all lambdas | All filters behave identically at runtime |
-| Correctness | Wrong tier boundaries | Pricing rules, eligibility, or alerts misfire |
-| Deferred LINQ | Same rules as stored delegates (**Section 10**) | Bug survives refactoring to `IQueryable` deferred queries |
+The CLR invokes multicast delegate targets sequentially, and if one throws an unhandled exception, the exception propagates to the call site immediately—all subsequent targets in the invocation list are skipped. Since independently-owned audit handlers, logging subscribers, or UI updaters should not fail together, I iterate `GetInvocationList()`, cast each element to the delegate type, and invoke each inside a try/catch block, logging failures without aborting the remaining subscribers. This pattern should be standard for any notification delegate where subscribers are independently owned and not expected to coordinate failure handling.
 
-**Fix (priority order):**
-
-1. Inner copy per iteration:
-
-```csharp
-for (int tier = 0; tier < thresholds.Length; tier++)
-{
-    int capturedTier = tier;
-    filters.Add(price => price >= thresholds[capturedTier]);
-}
-```
-
-2. Parameter snapshot via helper (**Section 8b**):
-
-```csharp
-for (int tier = 0; tier < thresholds.Length; tier++)
-    AddTierFilter(filters, thresholds, tier);
-
-static void AddTierFilter(List<Func<decimal, bool>> sink, decimal[] thresholds, int tier) =>
-    sink.Add(price => price >= thresholds[tier]);
-```
-
-3. If tiers are known at compile time or small, consider building predicates eagerly without deferred capture — evaluate threshold into a local `decimal floor = thresholds[tier]` inside the copy block when the array slot is the real shared concern.
-
-**Production takeaway:** Factory methods that return lambdas are closure-heavy — always ask "which variable slot does each delegate share?" before shipping deferred filter lists.
-
 ---
 
----
-
-#### Q3. (R) After users navigate away from detail views, memory stays high. Review this WinForms-style panel:
-
-```csharp
-public sealed class TradeDetailPanel : IDisposable
-{
-    private readonly byte[] _quoteBuffer = new byte[512 * 1024];
-    private readonly MarketDataFeed _feed;
-
-    public TradeDetailPanel(MarketDataFeed feed)
-    {
-        _feed = feed;
-        _feed.TickReceived += (_, tick) =>
-            UpdateChart(tick, _quoteBuffer);
-    }
+## Q17. Extension method not in scope — Missing `using` for the static class namespace.
 
-    public void Dispose() { /* removed from parent */ }
+**Concepts**
+- Extension discovery requires namespace `using`, not just assembly reference
+- `using static` enables direct static calls but not instance-style extension binding
+- `GlobalUsings.cs` for project-wide extension namespace imports
+- Explicit static call as always-available fallback
+- CS1061 as the typical compile error for undiscovered extensions
 
-    private void UpdateChart(Tick tick, byte[] scratch) { /* UI update */ }
-}
-```
+**Answer**
 
-What keeps `TradeDetailPanel` and the 512 KB buffer alive, and how do you refactor to break the capture?
+Referencing an assembly is not enough for extension method discovery—the compiler also requires a `using` directive for the namespace of the static class that declares the extension. Without it, `value.ToDisplayLabel()` fails with CS1061 even if the extension class is in a referenced assembly. `using static Acme.Common.Extensions.StringExtensions` imports static members for direct calls but does not enable instance-style extension binding. I add `using Acme.Common.Extensions;` per file or globally in `GlobalUsings.cs`. As a fallback I can always call the extension as a static method—`StringExtensions.ToDisplayLabel(value)`—without importing the namespace.
 
 ---
-
-**Answer:**
-
-```csharp
-public sealed class TradeDetailPanel : IDisposable
-{
-    private readonly byte[] _quoteBuffer = new byte[512 * 1024];
-    private readonly MarketDataFeed _feed;
-
-    public TradeDetailPanel(MarketDataFeed feed)
-    {
-        _feed = feed;
-        _feed.TickReceived += (_, tick) =>
-            UpdateChart(tick, _quoteBuffer);
-    }
-
-    public void Dispose() { /* removed from parent */ }
 
-    private void UpdateChart(Tick tick, byte[] scratch) { /* UI update */ }
-}
-```
+## Q18. Instance method wins over extension — An instance method hides the extension; you cannot "override" with an extension.
 
-What keeps `TradeDetailPanel` and the 512 KB buffer alive, and how do you refactor to break the capture?
+**Concepts**
+- Instance method resolution priority over extensions
+- Extension never overrides instance method
+- Extension invisible when instance method signature matches
+- Library update adding instance method can silently hide extension
+- Explicit static call to force extension invocation
 
-**Answer:** The event handler is a long-lived delegate on the singleton/static `MarketDataFeed`. The lambda captures `this` (implicitly, to call `UpdateChart`) and `_quoteBuffer`, so the GC root chain is: feed → multicast delegate → display class → panel + buffer. `Dispose` removes the UI but never `-=` the handler, so every closed panel stays reachable (**Program.cs** Sections 6–7).
+**Answer**
 
-**Issues:**
+When both an instance method and an extension method have the same name and a compatible signature, the compiler always chooses the instance method—extensions are only considered when no applicable instance method exists. This means I cannot use an extension to "override" or "patch" instance behavior on a type I own; the extension is invisible when the instance method matches. For types I do not own, extensions add behavior without risk of conflict with existing instance methods as long as names are chosen carefully. If an extension is silently ignored after a library update, I check whether the type has acquired an instance method with the same signature, which can happen when a library adds behavior that matches my extension.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Lifetime | Subscribe in ctor, no unsubscribe in `Dispose` | Panels accumulate across navigation |
-| Capture | Lambda captures `this` + `_quoteBuffer` | 512 KB buffer pinned per panel instance |
-| GC roots | Long-lived publisher holds delegate | Memory climb; Gen2 pressure in desktop and server UI |
-
-**Fix (priority order):**
-
-1. Store the handler and unsubscribe in `Dispose`:
-
-```csharp
-private readonly EventHandler<TickEventArgs> _tickHandler;
-
-public TradeDetailPanel(MarketDataFeed feed)
-{
-    _feed = feed;
-    _tickHandler = (_, tick) => UpdateChart(tick, _quoteBuffer);
-    _feed.TickReceived += _tickHandler;
-}
-
-public void Dispose()
-{
-    _feed.TickReceived -= _tickHandler;
-}
-```
-
-2. Break the large capture — pass only what the handler needs (tick id, small struct), not the whole scratch buffer; allocate scratch inside `UpdateChart` or a pool if needed (**Section 7** — capture small identifiers).
-
-3. Prefer a named instance method handler when it avoids extra display-class fields: `_feed.TickReceived += OnTickReceived;`
-
-**Production takeaway:** Capturing `this` in a long-lived event handler is a silent leak — Karat pairs events chapter unsubscribe rules with closure capture of instance state and large graphs.
-
----
-
 ---
-
-#### Q4. (P) A singleton `RetryScheduler` registers one-shot timers that retry failed HTTP calls. Review the registration:
 
-```csharp
-public sealed class RetryScheduler
-{
-    private readonly List<Timer> _timers = new();
+## Q19. Shared captured storage — Multiple lambdas share one slot for the same outer variable.
 
-    public void ScheduleRetry(HttpCallContext context, TimeSpan delay)
-    {
-        var timer = new Timer(_ =>
-        {
-            context.RetryCount++;
-            _httpClient.PostAsync(context.Url, context.Body);
-        }, null, delay, Timeout.InfiniteTimeSpan);
+**Concepts**
+- Single display class per scope shared by all lambdas in that scope
+- Mutual visibility of mutations across lambdas sharing one field
+- Explicit per-closure state object to decouple
+- `static` lambda to prevent shared capture entirely
+- Per-iteration copy to create independent fields
 
-        _timers.Add(timer);
-    }
-}
-```
+**Answer**
 
-What memory and correctness issues come from this closure, and what production pattern replaces capturing the whole `context` graph?
+All lambdas created within the same scope that capture the same outer variable share one display class instance and one field slot. If two lambdas both capture `int count` from the same enclosing method, mutations by one are immediately visible to the other because they both read and write the same field. This is intentional for accumulators but dangerous for independent concurrent workers that must not share state. I decouple closures that should not share state by creating per-closure state objects (`var state = new Counter()` before each lambda), or by using `static` lambdas with explicit parameters when closures must not communicate through shared storage at all.
 
 ---
-
-**Answer:**
-
-```csharp
-public sealed class RetryScheduler
-{
-    private readonly List<Timer> _timers = new();
-
-    public void ScheduleRetry(HttpCallContext context, TimeSpan delay)
-    {
-        var timer = new Timer(_ =>
-        {
-            context.RetryCount++;
-            _httpClient.PostAsync(context.Url, context.Body);
-        }, null, delay, Timeout.InfiniteTimeSpan);
-
-        _timers.Add(timer);
-    }
-}
-```
 
-What memory and correctness issues come from this closure, and what production pattern replaces capturing the whole `context` graph?
+## Q20. Target-typed lambda ambiguity — Without a clear target type, lambda expressions may fail to compile.
 
-**Answer:** The timer callback closes over the entire `HttpCallContext` (URL, body, mutable retry state) and likely `this` on the scheduler. Timers and their delegates stay reachable in `_timers` until explicitly disposed, pinning large request payloads and preventing GC. Fire-and-forget `PostAsync` inside the callback adds async correctness issues on top of the capture leak.
+**Concepts**
+- Target-typed lambda natural type inference from context (C# 10+)
+- Ambiguous overload resolution when multiple delegate types match
+- Explicit `Func`/`Action` annotation to resolve ambiguity
+- Cast at call site to guide overload resolution
+- `var` with annotated parameter types for unambiguous inference
 
-**Issues:**
+**Answer**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | Timer + list holds closure over `context` | Request bodies and headers linger for app lifetime |
-| Lifetime | No `timer.Dispose()` after fire | `_timers` grows without bound on busy systems |
-| Correctness | Mutating shared `context` from timer thread | Race if same context retried or logged elsewhere |
-| Async | Unobserved `PostAsync` Task | Swallowed exceptions; no cancellation |
+In C# 10+, lambdas have a natural type inferred from their parameters and body—`var f = (int x) => x * 2;` infers `Func<int, int>`. However, when a lambda appears as an argument to an overloaded method where multiple overloads accept different delegate types, the compiler may report an ambiguity error because it cannot choose between them without more context. I resolve this by explicitly annotating the variable—`Func<int, int> f = x => x * 2;`—or by casting the lambda at the call site—`((Func<int, int>)(x => x * 2))`—to guide overload resolution unambiguously.
 
-**Fix (priority order):**
-
-1. Capture **identifiers only** — copy `contextId`, `url`, and retry count primitives into locals before creating the timer; load fresh state from a store when the timer fires:
-
-```csharp
-var callId = context.Id;
-var url = context.Url;
-var timer = new Timer(async _ =>
-{
-    await _retryService.RetryAsync(callId, url, ct);
-    // dispose timer after success/final failure
-}, null, delay, Timeout.InfiniteTimeSpan);
-```
-
-2. Remove completed timers from `_timers` and call `timer.Dispose()` — break the GC root (**Section 7** — release delegate when work completes).
-
-3. Use `IHostedService` + `Channel<T>` or a proper job scheduler (Hangfire, Quartz, Azure Service Bus delayed messages) instead of ad-hoc `Timer` lists for production retry.
-
-**Production takeaway:** Timers are long-lived closure hosts — treat them like event subscriptions: minimal capture, explicit disposal, and no unbounded collector lists.
-
----
-
 ---
 
-#### Q5. (R) A team parallelizes CSV row validation with `Parallel.ForEach`. Under load, totals and error lists are wrong. Review:
+## Q21. Expression tree vs delegate — Expression-tree lambdas cannot contain many C# constructs that delegate lambdas allow.
 
-```csharp
-public ValidationSummary ValidateRows(IEnumerable<CsvRow> rows)
-{
-    int invalidCount = 0;
-    var errors = new List<string>();
+**Concepts**
+- Expression tree compilation (no IL, tree nodes emitted)
+- Delegate lambda compiles to IL directly
+- Expression tree restrictions (no block body, async, ref/out, loops)
+- LINQ provider traversal of expression nodes for SQL translation
+- `Compile()` to obtain executable delegate from expression tree
 
-    Parallel.ForEach(rows, row =>
-    {
-        if (!row.IsValid)
-        {
-            invalidCount++;
-            errors.Add($"Row {row.LineNumber}: {row.Error}");
-        }
-    });
+**Answer**
 
-    return new ValidationSummary(invalidCount, errors);
-}
-```
+When a lambda is assigned to `Expression<TDelegate>`, the compiler emits expression-tree construction code rather than IL for the lambda body—this makes the tree inspectable at runtime so LINQ providers can translate predicates to SQL. The restriction is that expression-tree lambdas must be single expressions without block bodies, `if` statements, loops, `async`/`await`, `ref`/`out` parameters, or pointer operations. A delegate lambda compiled to IL has none of these restrictions. When I need both inspectability and complex logic, I split the predicate: an expression tree for the filterable parts (which translate to a SQL `WHERE` clause) and a delegate for any remaining in-memory logic after `.AsEnumerable()`, so the expensive filtering stays in the database.
 
-What closure-related defects are present, and how do you fix them without abandoning parallelism?
-
----
-
-**Answer:**
-
-```csharp
-public ValidationSummary ValidateRows(IEnumerable<CsvRow> rows)
-{
-    int invalidCount = 0;
-    var errors = new List<string>();
-
-    Parallel.ForEach(rows, row =>
-    {
-        if (!row.IsValid)
-        {
-            invalidCount++;
-            errors.Add($"Row {row.LineNumber}: {row.Error}");
-        }
-    });
-
-    return new ValidationSummary(invalidCount, errors);
-}
-```
-
-What closure-related defects are present, and how do you fix them without abandoning parallelism?
-
-**Answer:** The parallel lambda **captures** `invalidCount` and `errors` from the outer scope and mutates them from multiple threads concurrently. Closure gives every iteration the same shared fields — `++` on `invalidCount` and `List<T>.Add` are not thread-safe, producing lost updates and corrupted list internal state.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Shared captured mutable state | Wrong invalid counts; `List<T>` corruption / exceptions |
-| Closure semantics | One display-class field for `invalidCount` | Parallel bodies fight over same storage |
-| Design | Closure used as implicit shared accumulator | Non-deterministic results under load |
-
-**Fix (priority order):**
-
-1. Use thread-local or concurrent accumulators — do not mutate captured locals from parallel bodies:
-
-```csharp
-var errors = new ConcurrentBag<string>();
-var invalidCount = 0;
-
-Parallel.ForEach(rows, row =>
-{
-    if (!row.IsValid)
-    {
-        Interlocked.Increment(ref invalidCount);
-        errors.Add($"Row {row.LineNumber}: {row.Error}");
-    }
-});
-```
-
-2. Prefer `Parallel.ForEach` with **local init / local finally** to aggregate without locking hot paths:
-
-```csharp
-Parallel.ForEach(rows,
-    () => (Invalid: 0, Errors: new List<string>()),
-    (row, _, local) =>
-    {
-        if (!row.IsValid)
-            return (local.Invalid + 1,
-                local.Errors.Append($"Row {row.LineNumber}: {row.Error}").ToList());
-        return local;
-    },
-    local => { /* merge local into global summary under lock or concurrent structure */ });
-```
-
-3. If order must be preserved, use `AsParallel().AsOrdered()` with immutable aggregation or sequential validation — parallelism is not free when closure sharing is involved.
-
-**Production takeaway:** Closures over mutable outer locals are fine on a single thread (**Program.cs** Section 4) but become data races the moment the delegate runs on multiple threads — Karat stacks closure capture with `Parallel.ForEach` and async callbacks.
-
 ---
 
----
-
-#### Q6. (M) An API endpoint filters products on every request using a closure factory. A junior dev argues "it's just a lambda — no allocation concern." Review the hot path:
-
-```csharp
-app.MapGet("/products", (decimal minPrice, ProductRepository repo) =>
-{
-    var filters = new List<Func<Product, bool>>();
-    for (int i = 0; i < 50; i++)
-    {
-        decimal floor = minPrice + i;
-        filters.Add(p => p.UnitPrice >= floor);
-    }
-    return repo.GetAll().Where(p => filters.Any(f => f(p))).ToList();
-});
-```
-
-Explain what the compiler generates per request (display classes, delegate allocations) and how you would refactor for readability **and** capture control.
+## Q22. Capturing `this` implicitly — Instance lambdas capture `this`, extending object lifetime.
 
----
+**Concepts**
+- Implicit `this` capture when lambda accesses instance member
+- Long-lived publisher holds GC root to subscribing instance
+- Stored handler in field required for `-=` unsubscription
+- Dispose pattern for event unsubscription
+- Minimal capture: close over data, not `this`
 
-**Answer:**
-
-```csharp
-app.MapGet("/products", (decimal minPrice, ProductRepository repo) =>
-{
-    var filters = new List<Func<Product, bool>>();
-    for (int i = 0; i < 50; i++)
-    {
-        decimal floor = minPrice + i;
-        filters.Add(p => p.UnitPrice >= floor);
-    }
-    return repo.GetAll().Where(p => filters.Any(f => f(p))).ToList();
-});
-```
-
-Explain what the compiler generates per request (display classes, delegate allocations) and how you would refactor for readability **and** capture control.
-
-**Answer:** Each `p => p.UnitPrice >= floor` that captures `floor` becomes a compiler-generated display class instance plus a delegate allocation — roughly 50 display classes and 50 delegates **per HTTP request**, plus the `List<Func<...>>` and the outer lambda's own captures (`minPrice`, `repo`). This is correct but wasteful on a hot endpoint; the junior dev conflated "small syntax" with "zero cost."
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Allocation | 50 closures × per request | Gen0/Gen1 churn; GC pressure at scale |
-| Capture | Each iteration correctly captures distinct `floor` | Correctness is fine; cost is the issue |
-| Readability | Nested lambdas + `Any` over delegate list | Hard to test and profile |
-
-**Fix (priority order):**
-
-1. Replace 50 closures with one predicate or a numeric range check — no per-tier delegate:
-
-```csharp
-app.MapGet("/products", (decimal minPrice, ProductRepository repo) =>
-{
-    decimal maxFloor = minPrice + 49;
-    return repo.GetAll()
-        .Where(p => p.UnitPrice >= minPrice && p.UnitPrice <= maxFloor)
-        .ToList();
-});
-```
-
-2. If tier logic is required, use a **local function** with explicit parameters (no hidden display class per tier) or a static method:
-
-```csharp
-bool InAnyTier(Product p, decimal minPrice, int tierCount)
-{
-    for (int i = 0; i < tierCount; i++)
-        if (p.UnitPrice >= minPrice + i) return true;
-    return false;
-}
-```
-
-3. Cache immutable filter delegates at startup if thresholds are fixed — closures belong in factory/setup code, not per-request loops.
-
-**Production takeaway:** Closures allocate heap display classes; capture control means choosing local functions, static methods, or inlined logic when lambdas would multiply allocations on hot paths. See **Program.cs** — display class promotion to heap on capture.
+**Answer**
 
----
+Any lambda that references an instance method or field implicitly captures `this`—the compiler inserts `this` as a captured variable in the display class. When such a lambda is subscribed to a long-lived event or stored in a static collection, the publisher holds a GC root into the entire object, preventing garbage collection of the subscriber even after it logically goes away. The fix is to unsubscribe the handler in `Dispose`, which requires storing the lambda in a field so the same delegate instance can be removed with `-=`. Alternatively, I refactor the handler to avoid capturing `this` by passing only the data it needs as closed-over locals—closing over a string ID and a channel reference rather than the entire service instance reduces the retained object graph significantly.
 
 ---
 
-#### Q7. (D) You inherit a service that mixes lambdas and local functions for deferred work:
+## Q23. Extension on null reference — Extension methods can be called on null receivers; may throw inside the method.
 
-```csharp
-public Func<int, bool> CreateRule(int threshold)
-{
-    int hits = 0;
-    return value =>
-    {
-        bool pass = value >= threshold;
-        if (pass) hits++;
-        return pass && hits <= 3;
-    };
-}
+**Concepts**
+- Null receiver passed as first static argument (no call-site NRE)
+- Exception originates inside method body on null dereference
+- Difference from instance method dispatch (NRE before entering method)
+- `this string?` annotation for null-safe extension
+- Nullable reference type flow analysis guiding callers
 
-// New requirement: same logic but no hidden mutable capture — test must assert
-// each invocation independently without shared `hits` state leaking between rules.
-```
+**Answer**
 
-Compare refactoring with (A) a closure over `hits`, (B) a local function with explicit state object, and (C) a small named class. When do you prefer local functions over lambdas for capture control in production code?
-
-**Answer:**
-
-```csharp
-public Func<int, bool> CreateRule(int threshold)
-{
-    int hits = 0;
-    return value =>
-    {
-        bool pass = value >= threshold;
-        if (pass) hits++;
-        return pass && hits <= 3;
-    };
-}
-
-// New requirement: same logic but no hidden mutable capture — test must assert
-// each invocation independently without shared `hits` state leaking between rules.
-```
-
-Compare refactoring with (A) a closure over `hits`, (B) a local function with explicit state object, and (C) a small named class. When do you prefer local functions over lambdas for capture control in production code?
-
-**Answer:** Option (A) is intentional shared mutable capture — correct for a single stateful rule instance but opaque to tests and callers because `hits` is hidden inside the display class. Options (B) and (C) make state explicit and are easier to unit test, serialize, and reason about in code review.
-
-- **(A) Closure over `hits`:** Minimal code; state is shared across invocations of **one** returned delegate (**Program.cs** Sections 4–5). Poor fit when tests need isolated counters or when multiple rules must not share accidental state — each `CreateRule` call still gets its **own** display class, but the mutable `hits` is invisible on the API surface.
-
-- **(B) Local function + explicit state object:** Return a lambda that closes over a `RuleState` instance you define in the factory — same semantics, visible type:
-
-```csharp
-public Func<int, bool> CreateRule(int threshold)
-{
-    var state = new RuleState();
-    return value => Evaluate(value, threshold, state);
-
-    static bool Evaluate(int value, int threshold, RuleState state)
-    {
-        bool pass = value >= threshold;
-        if (pass) state.Hits++;
-        return pass && state.Hits <= 3;
-    }
-}
-```
-
-  Local functions can be `static` to avoid capturing `this`; capture is deliberate and named.
-
-- **(C) Named class:** Best when rules are long-lived, configured from DI, or need interfaces — `IRule.TryApply(int value)` with instance field `Hits`. Clearest lifetime and test seams for production services.
-
-**When to prefer local functions over lambdas:**
-
-- Hot paths where you want **`static` local functions** to guarantee no accidental `this` or outer local capture.
-- Readability when a lambda nests multiple levels — extract to a local function with parameters instead of deepening closure chains.
-- When the same factory needs both a closure (returned delegate) and helper logic that should **not** share capture — locals/functions separate "what is returned" from "how it works."
-
-Keep lambdas for short LINQ/`Task.Run`/event one-liners; switch to local functions or small types when mutable capture, test isolation, or allocation visibility matters.
-
-**Production takeaway:** Closures vs local functions is a **capture-control and readability** choice, not syntax sugar — Karat expects you to name what is shared, who owns it, and how long it lives. See **Program.cs** Sections 3, 5, and 6 — modified outer locals, shared capture, and heap promotion.
-
----
+Because the compiler rewrites `value.ToDisplayLabel()` to `StringExtensions.ToDisplayLabel(value)`, calling an extension method on a null reference does not throw `NullReferenceException` at the call site—null is simply passed as the first argument. The exception occurs inside the method body when the argument is dereferenced without a null check. This differs from instance method dispatch, where the runtime throws immediately at the call site if the receiver is null. I annotate the `this` parameter as `string?` in extensions designed to handle null gracefully, and I use `string` (non-nullable) when the method legitimately requires a non-null input—enabling nullable flow analysis to warn callers who pass a `string?` without a prior null check.

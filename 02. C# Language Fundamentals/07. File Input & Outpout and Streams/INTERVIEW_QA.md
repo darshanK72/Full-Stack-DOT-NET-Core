@@ -1,270 +1,349 @@
-# 07. File Input & Outpout and Streams — Interview Q&A
+# 07. File Input & Output and Streams — Interview Q&A
 > Back to [README](../README.md)
 
 ## Table of Contents
 
-- [01. File & Directory Operations](#01-file-directory-operations)
-  - [Q1. Explain file handling in C# and the role of the `System.IO` namespace.](#q1-explain-file-handling-in-c-and-the-role-of-the-systemio-namespace)
-  - [Q2. What is the difference between the static `File`/`Directory` classes and the instance `FileInfo`/`DirectoryInfo` classes?](#q2-what-is-the-difference-between-the-static-filedirectory-classes-and-the-instance-fileinfodirectoryinfo-classes)
-  - [Q3. When would you prefer `FileInfo` over repeated `File.*` static calls on the same path?](#q3-when-would-you-prefer-fileinfo-over-repeated-file-static-calls-on-the-same-path)
-  - [Q4. How do `Directory.GetFiles`, `Directory.GetDirectories`, and their `Enumerate*` counterparts differ in memory behavior?](#q4-how-do-directorygetfiles-directorygetdirectories-and-their-enumerate-counterparts-differ-in-memory-behavior)
-  - [Q5. What does `Directory.CreateDirectory` do when intermediate folders already exist?](#q5-what-does-directorycreatedirectory-do-when-intermediate-folders-already-exist)
-  - [Q6. What is the difference between `File.Copy` with `overwrite: false` vs `overwrite: true`, and what exception indicates a conflict?](#q6-what-is-the-difference-between-filecopy-with-overwrite-false-vs-overwrite-true-and-what-exception-indicates-a-conflict)
-  - [Q7. How does `File.Move` differ from copy-then-delete, and what happens to metadata and hard links?](#q7-how-does-filemove-differ-from-copy-then-delete-and-what-happens-to-metadata-and-hard-links)
-  - [Q8. What is `File.Replace`, and when is it preferable to manual backup-and-overwrite?](#q8-what-is-filereplace-and-when-is-it-preferable-to-manual-backup-and-overwrite)
-  - [Q9. How do you safely delete a directory tree using `Directory.Delete(path, recursive: true)`?](#q9-how-do-you-safely-delete-a-directory-tree-using-directorydeletepath-recursive-true)
-  - [Q10. What file metadata can you read via `File` static methods vs `FileInfo` instance properties?](#q10-what-file-metadata-can-you-read-via-file-static-methods-vs-fileinfo-instance-properties)
-  - [Q11. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `GetLastAccessTime` — and their `Utc` variants.](#q11-explain-filegetcreationtime-getlastwritetime-and-getlastaccesstime-and-their-utc-variants)
-  - [Q12. How do you set creation, last-write, and last-access timestamps programmatically?](#q12-how-do-you-set-creation-last-write-and-last-access-timestamps-programmatically)
-  - [Q13. What are `FileAttributes` (ReadOnly, Hidden, System, Archive)? How do you read and modify them?](#q13-what-are-fileattributes-readonly-hidden-system-archive-how-do-you-read-and-modify-them)
-  - [Q14. What is the difference between `File.Exists` and attempting to open a file that may be deleted concurrently?](#q14-what-is-the-difference-between-fileexists-and-attempting-to-open-a-file-that-may-be-deleted-concurrently)
-  - [Q15. What exceptions should you expect during file operations (`FileNotFoundException`, `DirectoryNotFoundException`, `IOException`, `UnauthorizedAccessException`)?](#q15-what-exceptions-should-you-expect-during-file-operations-filenotfoundexception-directorynotfoundexception-ioexception-unauthorizedaccessexception)
-  - [Q16. How does `File.AppendAllText` differ from opening with `FileMode.Append`?](#q16-how-does-fileappendalltext-differ-from-opening-with-filemodeappend)
-  - [Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropriate vs stream-based APIs?](#q17-when-is-filereadallbytes-filewriteallbytes-appropriate-vs-stream-based-apis)
-  - [Q18. Explain `File.Create`, `File.Open`, `File.OpenRead`, and `File.OpenWrite` — what modes and access do they imply?](#q18-explain-filecreate-fileopen-fileopenread-and-fileopenwrite-what-modes-and-access-do-they-imply)
-  - [Q19. How do you handle TOCTOU (time-of-check-time-of-use) races when checking existence before read/write?](#q19-how-do-you-handle-toctou-time-of-check-time-of-use-races-when-checking-existence-before-readwrite)
-  - [Q20. What is the difference between deleting a file and clearing its contents while keeping the path?](#q20-what-is-the-difference-between-deleting-a-file-and-clearing-its-contents-while-keeping-the-path)
-
-- [02. StreamReader & StreamWriter](#02-streamreader-streamwriter)
-  - [Q1. Explain the `Stream` base class hierarchy and where `StreamReader`/`StreamWriter` fit.](#q1-explain-the-stream-base-class-hierarchy-and-where-streamreaderstreamwriter-fit)
-  - [Q2. What is the difference between `File.ReadAllText`, `File.ReadAllLines`, and `File.ReadLines`?](#q2-what-is-the-difference-between-filereadalltext-filereadalllines-and-filereadlines)
-  - [Q3. Why can `File.ReadLines` hold a file lock until enumeration completes?](#q3-why-can-filereadlines-hold-a-file-lock-until-enumeration-completes)
-  - [Q4. How do `StreamReader.ReadLine`, `ReadToEnd`, and `ReadBlock` differ for large files?](#q4-how-do-streamreaderreadline-readtoend-and-readblock-differ-for-large-files)
-  - [Q5. What is the default encoding for `StreamReader` and `StreamWriter`, and why can that cause mojibake?](#q5-what-is-the-default-encoding-for-streamreader-and-streamwriter-and-why-can-that-cause-mojibake)
-  - [Q6. How do you specify `Encoding.UTF8`, UTF-8 with BOM, and legacy encodings (`Encoding.GetEncoding`)?](#q6-how-do-you-specify-encodingutf8-utf-8-with-bom-and-legacy-encodings-encodinggetencoding)
-  - [Q7. What does `StreamReader.DetectEncodingFromByteOrderMarks` control?](#q7-what-does-streamreaderdetectencodingfrombyteordermarks-control)
-  - [Q8. Explain async read/write methods on `StreamReader`/`StreamWriter` (`ReadLineAsync`, `WriteLineAsync`, `ReadToEndAsync`).](#q8-explain-async-readwrite-methods-on-streamreaderstreamwriter-readlineasync-writelineasync-readtoendasync)
-  - [Q9. What is `StreamWriter.AutoFlush`, and when should you call `Flush()` explicitly?](#q9-what-is-streamwriterautoflush-and-when-should-you-call-flush-explicitly)
-  - [Q10. How do you append text to an existing file with `StreamWriter` (constructor overload with `append: true`)?](#q10-how-do-you-append-text-to-an-existing-file-with-streamwriter-constructor-overload-with-append-true)
-  - [Q11. What happens if you forget to dispose a `StreamWriter` — especially on Windows file locking?](#q11-what-happens-if-you-forget-to-dispose-a-streamwriter-especially-on-windows-file-locking)
-  - [Q12. Can you use `StreamReader`/`StreamWriter` with non-file streams (memory, network)? Give examples.](#q12-can-you-use-streamreaderstreamwriter-with-non-file-streams-memory-network-give-examples)
-  - [Q13. What is the difference between `using` blocks and C# 8 `using` declarations for stream cleanup?](#q13-what-is-the-difference-between-using-blocks-and-c-8-using-declarations-for-stream-cleanup)
-  - [Q14. How do you read a file line-by-line without loading it entirely into memory?](#q14-how-do-you-read-a-file-line-by-line-without-loading-it-entirely-into-memory)
-  - [Q15. What is `TextReader`/`TextWriter`, and why do APIs often accept these abstractions?](#q15-what-is-textreadertextwriter-and-why-do-apis-often-accept-these-abstractions)
-
-- [03. FileStream & Binary Files](#03-filestream-binary-files)
-  - [Q1. What is the difference between `File`, `Stream`, and `FileStream`?](#q1-what-is-the-difference-between-file-stream-and-filestream)
-  - [Q2. Explain `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`) — when use each?](#q2-explain-filemode-createnew-create-open-openorcreate-truncate-append-when-use-each)
-  - [Q3. Explain `FileAccess` (`Read`, `Write`, `ReadWrite`) and `FileShare` (`None`, `Read`, `Write`, `ReadWrite`, `Delete`).](#q3-explain-fileaccess-read-write-readwrite-and-fileshare-none-read-write-readwrite-delete)
-  - [Q4. Why does default `FileShare.None` cause sharing violations when another process needs read access?](#q4-why-does-default-filesharenone-cause-sharing-violations-when-another-process-needs-read-access)
-  - [Q5. What are `FileStream.Position`, `Seek`, and `Length` — and when is seeking valid?](#q5-what-are-filestreamposition-seek-and-length-and-when-is-seeking-valid)
-  - [Q6. Explain `SeekOrigin` (`Begin`, `Current`, `End`) with a concrete read-modify-write scenario.](#q6-explain-seekorigin-begin-current-end-with-a-concrete-read-modify-write-scenario)
-  - [Q7. What happens if you seek on a non-seekable stream (e.g., some network streams)?](#q7-what-happens-if-you-seek-on-a-non-seekable-stream-eg-some-network-streams)
-  - [Q8. What is the difference between `FileStream.Read`/`Write` and `ReadAsync`/`WriteAsync`?](#q8-what-is-the-difference-between-filestreamreadwrite-and-readasyncwriteasync)
-  - [Q9. What do `BinaryReader` and `BinaryWriter` add over raw `FileStream` byte operations?](#q9-what-do-binaryreader-and-binarywriter-add-over-raw-filestream-byte-operations)
-  - [Q10. How does `BinaryReader` handle endianness and primitive types (`ReadInt32`, `ReadDouble`, `ReadString`)?](#q10-how-does-binaryreader-handle-endianness-and-primitive-types-readint32-readdouble-readstring)
-  - [Q11. What is the on-disk format of `BinaryWriter.Write(string)` — and why does it matter for cross-platform files?](#q11-what-is-the-on-disk-format-of-binarywriterwritestring-and-why-does-it-matter-for-cross-platform-files)
-  - [Q12. What is the difference between text and binary file handling in C#?](#q12-what-is-the-difference-between-text-and-binary-file-handling-in-c)
-  - [Q13. When should you use `MemoryStream` instead of `FileStream`?](#q13-when-should-you-use-memorystream-instead-of-filestream)
-  - [Q14. What is buffered I/O, and how do `FileStream` buffer size options affect performance?](#q14-what-is-buffered-io-and-how-do-filestream-buffer-size-options-affect-performance)
-  - [Q15. How do you read a fixed header followed by variable-length records from a binary file?](#q15-how-do-you-read-a-fixed-header-followed-by-variable-length-records-from-a-binary-file)
-  - [Q16. What is a file signature (magic bytes), and how do you validate one without trusting the extension?](#q16-what-is-a-file-signature-magic-bytes-and-how-do-you-validate-one-without-trusting-the-extension)
-
-- [04. Path & Environment Classes](#04-path-environment-classes)
-  - [Q1. What is the `Path` class, and why should you never hard-code `\` or `/` separators?](#q1-what-is-the-path-class-and-why-should-you-never-hard-code-or-separators)
-  - [Q2. How does `Path.Combine` behave with trailing slashes, rooted segments, and empty segments?](#q2-how-does-pathcombine-behave-with-trailing-slashes-rooted-segments-and-empty-segments)
-  - [Q3. What is the difference between `Path.GetFullPath` and passing a relative path directly to `File.Open`?](#q3-what-is-the-difference-between-pathgetfullpath-and-passing-a-relative-path-directly-to-fileopen)
-  - [Q4. Explain `Path.GetDirectoryName`, `GetFileName`, `GetFileNameWithoutExtension`, and `GetExtension`.](#q4-explain-pathgetdirectoryname-getfilename-getfilenamewithoutextension-and-getextension)
-  - [Q5. What do `Path.GetTempPath`, `Path.GetTempFileName`, and `Path.GetRandomFileName` return — and what are the security implications of `GetTempFileName`?](#q5-what-do-pathgettemppath-pathgettempfilename-and-pathgetrandomfilename-return-and-what-are-the-security-implications-of-gettempfilename)
-  - [Q6. How do `Path.IsPathRooted`, `HasExtension`, and `ChangeExtension` work?](#q6-how-do-pathispathrooted-hasextension-and-changeextension-work)
-  - [Q7. What invalid path characters does `Path.GetInvalidPathChars` / `GetInvalidFileNameChars` expose?](#q7-what-invalid-path-characters-does-pathgetinvalidpathchars-getinvalidfilenamechars-expose)
-  - [Q8. What is `Environment.SpecialFolder`, and how do you resolve `MyDocuments`, `ApplicationData`, and `LocalApplicationData`?](#q8-what-is-environmentspecialfolder-and-how-do-you-resolve-mydocuments-applicationdata-and-localapplicationdata)
-  - [Q9. How does `Environment.GetFolderPath` differ from hard-coding `C:\Users\...`?](#q9-how-does-environmentgetfolderpath-differ-from-hard-coding-cusers)
-  - [Q10. What is `Environment.CurrentDirectory`, and how can it differ from the executable's location?](#q10-what-is-environmentcurrentdirectory-and-how-can-it-differ-from-the-executables-location)
-  - [Q11. How do you get the application base directory in modern .NET (`AppContext.BaseDirectory`, `AppDomain.CurrentDomain.BaseDirectory`)?](#q11-how-do-you-get-the-application-base-directory-in-modern-net-appcontextbasedirectory-appdomaincurrentdomainbasedirectory)
-  - [Q12. What is the difference between absolute and relative paths in console apps vs ASP.NET Core?](#q12-what-is-the-difference-between-absolute-and-relative-paths-in-console-apps-vs-aspnet-core)
-  - [Q13. How do UNC paths (`\\server\share`) interact with `Path.Combine` and `Path.GetFullPath`?](#q13-how-do-unc-paths-servershare-interact-with-pathcombine-and-pathgetfullpath)
-  - [Q14. What cross-platform path differences matter when deploying the same code on Windows and Linux?](#q14-what-cross-platform-path-differences-matter-when-deploying-the-same-code-on-windows-and-linux)
-
-- [05. Working with CSV and Text Files](#05-working-with-csv-and-text-files)
-  - [Q1. Why is there no built-in CSV parser in the BCL, and what libraries are commonly used?](#q1-why-is-there-no-built-in-csv-parser-in-the-bcl-and-what-libraries-are-commonly-used)
-  - [Q2. What are RFC 4180 rules for CSV fields, delimiters, and record terminators?](#q2-what-are-rfc-4180-rules-for-csv-fields-delimiters-and-record-terminators)
-  - [Q3. When must a CSV field be wrapped in double quotes?](#q3-when-must-a-csv-field-be-wrapped-in-double-quotes)
-  - [Q4. How do you escape a literal double quote inside a quoted CSV field?](#q4-how-do-you-escape-a-literal-double-quote-inside-a-quoted-csv-field)
-  - [Q5. What goes wrong if you split CSV lines on `Split(',')` without a proper parser?](#q5-what-goes-wrong-if-you-split-csv-lines-on-split-without-a-proper-parser)
-  - [Q6. How do you handle embedded newlines inside quoted CSV fields?](#q6-how-do-you-handle-embedded-newlines-inside-quoted-csv-fields)
-  - [Q7. What issues arise with culture-specific decimal separators in CSV numeric columns?](#q7-what-issues-arise-with-culture-specific-decimal-separators-in-csv-numeric-columns)
-  - [Q8. How do you write CSV headers and ensure stable column ordering for downstream consumers?](#q8-how-do-you-write-csv-headers-and-ensure-stable-column-ordering-for-downstream-consumers)
-  - [Q9. What is the difference between `\n`, `\r\n`, and `Environment.NewLine` for text file line endings?](#q9-what-is-the-difference-between-n-rn-and-environmentnewline-for-text-file-line-endings)
-  - [Q10. How do you normalize line endings when reading files produced on Windows vs Linux?](#q10-how-do-you-normalize-line-endings-when-reading-files-produced-on-windows-vs-linux)
-  - [Q11. What are best practices for large CSV ingestion (streaming vs loading all rows)?](#q11-what-are-best-practices-for-large-csv-ingestion-streaming-vs-loading-all-rows)
-  - [Q12. How do you validate CSV row shape (column count) before deserializing to objects?](#q12-how-do-you-validate-csv-row-shape-column-count-before-deserializing-to-objects)
-  - [Q13. When should you use fixed-width text formats instead of CSV?](#q13-when-should-you-use-fixed-width-text-formats-instead-of-csv)
-  - [Q14. How do you properly dispose file resources across layered readers (`FileStream` → `StreamReader`)?](#q14-how-do-you-properly-dispose-file-resources-across-layered-readers-filestream-streamreader)
-  - [Q15. What logging and rotation patterns apply when appending to text log files over time?](#q15-what-logging-and-rotation-patterns-apply-when-appending-to-text-log-files-over-time)
-  - [Q16. **`ReadAllLines` vs `ReadLines`** — `ReadAllLines` loads the entire file into a `string[]`; `ReadLines` is lazy but keeps the file open until enumeration finishes or is disposed.](#q16-readalllines-vs-readlines-readalllines-loads-the-entire-file-into-a-string-readlines-is-lazy-but-keeps-the-file-open-until-enumeration-finishes-or-is-disposed)
-  - [Q17. **Undisposed streams lock files on Windows** — A finalized-but-not-disposed `FileStream`/`StreamWriter` can block deletes, renames, and antivirus scans until GC runs.](#q17-undisposed-streams-lock-files-on-windows-a-finalized-but-not-disposed-filestreamstreamwriter-can-block-deletes-renames-and-antivirus-scans-until-gc-runs)
-  - [Q18. **`FileShare` defaults to exclusive access** — Opening without `FileShare.Read` prevents other processes from reading concurrently.](#q18-fileshare-defaults-to-exclusive-access-opening-without-fileshareread-prevents-other-processes-from-reading-concurrently)
-  - [Q19. **Hard-coded path separators break cross-platform** — `"folder\\file.txt"` fails on Linux; always use `Path.Combine`.](#q19-hard-coded-path-separators-break-cross-platform-folderfiletxt-fails-on-linux-always-use-pathcombine)
-  - [Q20. **Relative paths depend on `CurrentDirectory`** — A path valid in Visual Studio may fail as a Windows Service or cron job where CWD differs.](#q20-relative-paths-depend-on-currentdirectory-a-path-valid-in-visual-studio-may-fail-as-a-windows-service-or-cron-job-where-cwd-differs)
-  - [Q21. **`Path.Combine` with an absolute second segment discards earlier parts** — `Path.Combine("C:\\a", "D:\\b")` yields `D:\b`, which surprises many candidates.](#q21-pathcombine-with-an-absolute-second-segment-discards-earlier-parts-pathcombineca-db-yields-db-which-surprises-many-candidates)
-  - [Q22. **Encoding mismatch silently corrupts text** — Default UTF-8 assumptions break on Windows-1252 or UTF-16 LE files; specify `Encoding` explicitly.](#q22-encoding-mismatch-silently-corrupts-text-default-utf-8-assumptions-break-on-windows-1252-or-utf-16-le-files-specify-encoding-explicitly)
-  - [Q23. **Seeking past EOF then writing extends the file with undefined gap bytes** — Understand sparse/hole behavior when patching binary files in place.](#q23-seeking-past-eof-then-writing-extends-the-file-with-undefined-gap-bytes-understand-sparsehole-behavior-when-patching-binary-files-in-place)
-  - [Q24. **CSV `Split(',')` breaks on quoted commas** — `"Smith, Jr.",42` becomes three fields; use a real parser or state machine.](#q24-csv-split-breaks-on-quoted-commas-smith-jr42-becomes-three-fields-use-a-real-parser-or-state-machine)
-  - [Q25. **Double-quote escaping in CSV is `""` not `\"`** — Getting escape rules wrong produces columns that shift on import.](#q25-double-quote-escaping-in-csv-is-not-getting-escape-rules-wrong-produces-columns-that-shift-on-import)
-  - [Q1. (R) A report export service must create a file only if it does not already exist. Review this helper used under concurrent load:](#q1-r-a-report-export-service-must-create-a-file-only-if-it-does-not-already-exist-review-this-helper-used-under-concurrent-load)
-  - [Q2. (R) A teammate refactors upload processing to write through a temp file, then move into place. Review the method:](#q2-r-a-teammate-refactors-upload-processing-to-write-through-a-temp-file-then-move-into-place-review-the-method)
-  - [Q3. (R) A nightly cleanup job removes old workspace folders. Review:](#q3-r-a-nightly-cleanup-job-removes-old-workspace-folders-review)
-  - [Q4. (P) A multi-process log aggregator appends audit lines from several worker threads. One worker uses `File.AppendAllText`; another opens with default sharing:](#q4-p-a-multi-process-log-aggregator-appends-audit-lines-from-several-worker-threads-one-worker-uses-fileappendalltext-another-opens-with-default-sharing)
-  - [Q5. (P) An export job stages files under `%TEMP%` on Windows, then calls `File.Move(source, dest)` into a network share. On developer laptops it works; in Azure App Service (Linux) and when crossing drive letters it fails with `IOException` or leaves duplicate files. What is happening at the OS level, and what pattern replaces naive `File.Move`?](#q5-p-an-export-job-stages-files-under-temp-on-windows-then-calls-filemovesource-dest-into-a-network-share-on-developer-laptops-it-works-in-azure-app-service-linux-and-when-crossing-drive-letters-it-fails-with-ioexception-or-leaves-duplicate-files-what-is-happening-at-the-os-level-and-what-pattern-replaces-naive-filemove)
-  - [Q6. (M) An ASP.NET Core endpoint reads a 200 MB CSV from disk on every request:](#q6-m-an-aspnet-core-endpoint-reads-a-200-mb-csv-from-disk-on-every-request)
-  - [Q7. (D) A containerized API creates per-request scratch directories under `Path.GetTempPath()` but never deletes them when handlers throw. Disk on the node fills over days; restarting the pod "fixes" it until the next deploy. Compare three cleanup strategies — `try/finally`, `IDisposable` workspace helper, and OS temp with periodic janitor — for production container deployments. What is your default and why?](#q7-d-a-containerized-api-creates-per-request-scratch-directories-under-pathgettemppath-but-never-deletes-them-when-handlers-throw-disk-on-the-node-fills-over-days-restarting-the-pod-fixes-it-until-the-next-deploy-compare-three-cleanup-strategies-tryfinally-idisposable-workspace-helper-and-os-temp-with-periodic-janitor-for-production-container-deployments-what-is-your-default-and-why)
-
-- [02. StreamReader & StreamWriter](#02-streamreader-streamwriter-1)
-
-- [02. StreamReader & StreamWriter](#02-streamreader-streamwriter-2)
-  - [Q1. (R) A nightly audit job throws on bad rows and operators report the log file stays locked until the worker restarts. Review this helper:](#q1-r-a-nightly-audit-job-throws-on-bad-rows-and-operators-report-the-log-file-stays-locked-until-the-worker-restarts-review-this-helper)
-  - [Q2. (R) A CSV export looks correct on the developer's Windows machine but the first column header fails validation after deploy to Linux containers. Review write vs read:](#q2-r-a-csv-export-looks-correct-on-the-developers-windows-machine-but-the-first-column-header-fails-validation-after-deploy-to-linux-containers-review-write-vs-read)
-  - [Q3. (R) A support dashboard calls this to show the tail of a customer log. Under load the worker process recycles with `OutOfMemoryException`. Review:](#q3-r-a-support-dashboard-calls-this-to-show-the-tail-of-a-customer-log-under-load-the-worker-process-recycles-with-outofmemoryexception-review)
-  - [Q4. (R) A long-running export writes a status file so another process can poll completion. Operators see `IN_PROGRESS` forever after a crash mid-run. Review:](#q4-r-a-long-running-export-writes-a-status-file-so-another-process-can-poll-completion-operators-see-in_progress-forever-after-a-crash-mid-run-review)
-  - [Q5. (R) A log tailer and a log writer run in the same app. The tailer intermittently throws `IOException: The process cannot access the file because it is being used by another process`. Review:](#q5-r-a-log-tailer-and-a-log-writer-run-in-the-same-app-the-tailer-intermittently-throws-ioexception-the-process-cannot-access-the-file-because-it-is-being-used-by-another-process-review)
-  - [Q6. (P) An ASP.NET Core hosted service ingests a growing feed file every few seconds. A developer keeps sync I/O "because the file is local":](#q6-p-an-aspnet-core-hosted-service-ingests-a-growing-feed-file-every-few-seconds-a-developer-keeps-sync-io-because-the-file-is-local)
-  - [Q7. (R) A tool rewrites the first line of a config file in place, then reads the remainder. After a refactor it throws `ObjectDisposedException`. Review:](#q7-r-a-tool-rewrites-the-first-line-of-a-config-file-in-place-then-reads-the-remainder-after-a-refactor-it-throws-objectdisposedexception-review)
-  - [Q8. (M) A cross-platform app parses `.env`-style files written on mixed developer machines (Windows CRLF, macOS/Linux LF). Review ingestion:](#q8-m-a-cross-platform-app-parses-env-style-files-written-on-mixed-developer-machines-windows-crlf-macoslinux-lf-review-ingestion)
-
-- [03. FileStream & Binary Files](#03-filestream-binary-files-1)
-
-- [03. FileStream & Binary Files](#03-filestream-binary-files-2)
-  - [Q1. (R) A telemetry service reads a fixed 4-byte file signature from `signature.bin`. In production, short files produce garbage signatures without throwing. Review the reader:](#q1-r-a-telemetry-service-reads-a-fixed-4-byte-file-signature-from-signaturebin-in-production-short-files-produce-garbage-signatures-without-throwing-review-the-reader)
-  - [Q2. (R) A background job appends binary audit records while a dashboard process tries to read the same file. The writer opens like this; the reader gets `IOException: The process cannot access the file`:](#q2-r-a-background-job-appends-binary-audit-records-while-a-dashboard-process-tries-to-read-the-same-file-the-writer-opens-like-this-the-reader-gets-ioexception-the-process-cannot-access-the-file)
-  - [Q3. (R) A teammate ports `inventory.bin` readers from another language and swaps field order on one record type. The file opens fine but prices and names are nonsense after the first record. Review:](#q3-r-a-teammate-ports-inventorybin-readers-from-another-language-and-swaps-field-order-on-one-record-type-the-file-opens-fine-but-prices-and-names-are-nonsense-after-the-first-record-review)
-  - [Q4. (R) A log-rotation utility reads the last 8 bytes of a growing file to verify a footer magic. It intermittently returns wrong bytes under load. Review:](#q4-r-a-log-rotation-utility-reads-the-last-8-bytes-of-a-growing-file-to-verify-a-footer-magic-it-intermittently-returns-wrong-bytes-under-load-review)
-  - [Q5. (P) Your .NET service writes `metrics.bin` consumed by a Linux C tool on big-endian ARM. A developer uses default `BinaryWriter`/`BinaryReader` for `int` and `double` fields. Locally on x64 Windows everything works; in staging the C tool reads garbage. What is the root cause, and how do you design a cross-platform binary layout?](#q5-p-your-net-service-writes-metricsbin-consumed-by-a-linux-c-tool-on-big-endian-arm-a-developer-uses-default-binarywriterbinaryreader-for-int-and-double-fields-locally-on-x64-windows-everything-works-in-staging-the-c-tool-reads-garbage-what-is-the-root-cause-and-how-do-you-design-a-cross-platform-binary-layout)
-  - [Q6. (D) A data pipeline must scan a 60 GB append-only binary archive for records matching a key — random access by fixed record index, not full sequential parse every time. A junior proposes `FileStream` + `Seek` per lookup; a senior suggests `MemoryMappedFile`. What are the trade-offs, and when would you still choose streaming?](#q6-d-a-data-pipeline-must-scan-a-60-gb-append-only-binary-archive-for-records-matching-a-key-random-access-by-fixed-record-index-not-full-sequential-parse-every-time-a-junior-proposes-filestream-seek-per-lookup-a-senior-suggests-memorymappedfile-what-are-the-trade-offs-and-when-would-you-still-choose-streaming)
-  - [Q7. (R) An export worker writes large binary batches with async I/O, then signals a downstream processor via a message queue. The processor often reads zero-length or incomplete files. Review:](#q7-r-an-export-worker-writes-large-binary-batches-with-async-io-then-signals-a-downstream-processor-via-a-message-queue-the-processor-often-reads-zero-length-or-incomplete-files-review)
-  - [Q8. (R) A cache service tries to wipe and rewrite `cache.bin` in one handle. It throws at runtime despite the path existing. Review both open attempts:](#q8-r-a-cache-service-tries-to-wipe-and-rewrite-cachebin-in-one-handle-it-throws-at-runtime-despite-the-path-existing-review-both-open-attempts)
-
-- [04. Path & Environment Classes](#04-path-environment-classes-1)
-
-- [04. Path & Environment Classes](#04-path-environment-classes-2)
-  - [Q1. (R) A report exporter works on Windows dev machines but fails on Linux CI with "Could not find a part of the path." Review this path builder:](#q1-r-a-report-exporter-works-on-windows-dev-machines-but-fails-on-linux-ci-with-could-not-find-a-part-of-the-path-review-this-path-builder)
-  - [Q2. (R) An internal admin API accepts a `fileName` query parameter and serves files from a fixed folder. Review the handler:](#q2-r-an-internal-admin-api-accepts-a-filename-query-parameter-and-serves-files-from-a-fixed-folder-review-the-handler)
-  - [Q3. (P) A worker service loads `config/settings.json` with a relative path. It passes locally from Visual Studio but fails in production when started as a Windows Service or from a systemd unit. The startup code:](#q3-p-a-worker-service-loads-configsettingsjson-with-a-relative-path-it-passes-locally-from-visual-studio-but-fails-in-production-when-started-as-a-windows-service-or-from-a-systemd-unit-the-startup-code)
-  - [Q4. (P) A containerized API writes large PDF exports using `Path.GetTempFileName()` and never deletes them. After a few days in Kubernetes, pods hit `No space left on device`. The temp folder path is `/tmp` inside the container. What breaks in this pattern, and what production approach replaces `GetTempFileName`?](#q4-p-a-containerized-api-writes-large-pdf-exports-using-pathgettempfilename-and-never-deletes-them-after-a-few-days-in-kubernetes-pods-hit-no-space-left-on-device-the-temp-folder-path-is-tmp-inside-the-container-what-breaks-in-this-pattern-and-what-production-approach-replaces-gettempfilename)
-  - [Q5. (R) A desktop-style feature is ported to a headless Linux server without changes:](#q5-r-a-desktop-style-feature-is-ported-to-a-headless-linux-server-without-changes)
-  - [Q6. (M) A path helper builds log file locations from configuration segments. Review this method called on both Windows and Linux:](#q6-m-a-path-helper-builds-log-file-locations-from-configuration-segments-review-this-method-called-on-both-windows-and-linux)
-  - [Q7. (D) Two services exchange file paths over a message queue. Service A (Windows) sends `D:\data\invoices\inv-001.pdf`. Service B (Linux) tries to open it and also needs a relative path for an audit log entry. A developer writes:](#q7-d-two-services-exchange-file-paths-over-a-message-queue-service-a-windows-sends-ddatainvoicesinv-001pdf-service-b-linux-tries-to-open-it-and-also-needs-a-relative-path-for-an-audit-log-entry-a-developer-writes)
-  - [Q8. (P) A build pipeline archives deeply nested test output on Windows agents. One test creates a folder tree exceeding 260 characters. Locally it works when long-path support is enabled; on a Linux agent the same code runs but a Windows-only integration test fails with `PathTooLongException`. What explains the platform difference, and what mitigations belong in the path-building code?](#q8-p-a-build-pipeline-archives-deeply-nested-test-output-on-windows-agents-one-test-creates-a-folder-tree-exceeding-260-characters-locally-it-works-when-long-path-support-is-enabled-on-a-linux-agent-the-same-code-runs-but-a-windows-only-integration-test-fails-with-pathtoolongexception-what-explains-the-platform-difference-and-what-mitigations-belong-in-the-path-building-code)
-
-- [05. Working with CSV and Text Files](#05-working-with-csv-and-text-files-1)
-
-- [05. Working with CSV and Text Files](#05-working-with-csv-and-text-files-2)
-  - [Q1. (R) A partner feed import worked in QA but mis-maps vendor names in production. Review this row parser used for every data line after the header:](#q1-r-a-partner-feed-import-worked-in-qa-but-mis-maps-vendor-names-in-production-review-this-row-parser-used-for-every-data-line-after-the-header)
-  - [Q2. (R) An export job writes inventory CSV on a German Windows server; a US warehouse tool rejects half the rows. Product names with accents arrive as `MÃ¼ller` when the US tool opens the file. Review the export path:](#q2-r-an-export-job-writes-inventory-csv-on-a-german-windows-server-a-us-warehouse-tool-rejects-half-the-rows-product-names-with-accents-arrive-as-mã¼ller-when-the-us-tool-opens-the-file-review-the-export-path)
-  - [Q3. (R) A nightly import job loads a 400 MB ERP export. Review the service method:](#q3-r-a-nightly-import-job-loads-a-400-mb-erp-export-review-the-service-method)
-  - [Q4. (P) A drop-folder service uses `FileSystemWatcher` to import CSV as soon as a file appears in `\\share\inbound`. Operators report random "column count" errors and duplicate SKU rows. The handler:](#q4-p-a-drop-folder-service-uses-filesystemwatcher-to-import-csv-as-soon-as-a-file-appears-in-shareinbound-operators-report-random-column-count-errors-and-duplicate-sku-rows-the-handler)
-  - [Q5. (P) Re-running the same inbound file after a network blip must not double inventory counts. A developer adds a guard:](#q5-p-re-running-the-same-inbound-file-after-a-network-blip-must-not-double-inventory-counts-a-developer-adds-a-guard)
-  - [Q6. (D) Your team must ingest partner CSV feeds with quoted commas, optional date columns, and occasional header renames (`SKU` vs `Sku`). One engineer proposes `CsvHelper`; another wants to extend the hand-rolled `SplitQuotedLine` from this chapter. When do you reach for each, and what are the trade-offs for a long-lived warehouse integration?](#q6-d-your-team-must-ingest-partner-csv-feeds-with-quoted-commas-optional-date-columns-and-occasional-header-renames-sku-vs-sku-one-engineer-proposes-csvhelper-another-wants-to-extend-the-hand-rolled-splitquotedline-from-this-chapter-when-do-you-reach-for-each-and-what-are-the-trade-offs-for-a-long-lived-warehouse-integration)
-  - [Q7. (R) Two import workers occasionally corrupt the same nightly file. Review the concurrent access pattern:](#q7-r-two-import-workers-occasionally-corrupt-the-same-nightly-file-review-the-concurrent-access-pattern)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+- [01. File & Directory Operations](#01-file--directory-operations) — Q1–Q27
+- [02. StreamReader & StreamWriter](#02-streamreader--streamwriter) — Q28–Q50
+- [03. FileStream & Binary Files](#03-filestream--binary-files) — Q51–Q74
+- [04. Path & Environment Classes](#04-path--environment-classes) — Q75–Q96
+- [05. Working with CSV and Text Files](#05-working-with-csv-and-text-files) — Q97–Q128
 
 ---
 
-### 01. File & Directory Operations
+## 01. File & Directory Operations
 
-#### Q1. Explain file handling in C# and the role of the `System.IO` namespace.
+---
 
-(R) A report export service must create a file only if it does not already exist. Review this helper used under concurrent load:
+## Q1. Explain file handling in C# and the role of the `System.IO` namespace.
 
-```csharp
-public static void EnsureReportFile(string path, string header)
-{
-    if (!File.Exists(path))
-    {
-        using var stream = File.Create(path);
-        var bytes = Encoding.UTF8.GetBytes(header);
-        stream.Write(bytes, 0, bytes.Length);
-    }
-}
-```
+**Concepts**
+- `System.IO` as the entry point for filesystem work
+- Static convenience classes (`File`, `Directory`) vs instance classes (`FileInfo`, `DirectoryInfo`)
+- `Stream` hierarchy as the underlying abstraction
+- `IDisposable` pattern for handle release
+- Text vs binary distinction at the encoding layer
 
-Two requests for the same path occasionally throw `IOException: file already exists`, and sometimes one request silently skips writing. What is wrong, and how do you fix it for production?
+**Answer**
 
-**Answer:** This is a classic TOCTOU (time-of-check to time-of-use) race: `File.Exists` and `File.Create` are not atomic, so two threads can both pass the check and one `File.Create` wins while the other throws, or one thread creates the file after another passed `Exists` and the second call skips writing entirely.
+The `System.IO` namespace provides every type needed to read, write, and navigate the filesystem. At the top sit two layers: the static classes `File` and `Directory` for one-shot operations, and the instance classes `FileInfo` and `DirectoryInfo` for repeated work on the same path since they amortize the security check at construction. Beneath those, every I/O operation ultimately flows through the `Stream` hierarchy — `FileStream` for raw bytes, `StreamReader`/`StreamWriter` for encoded text, `BinaryReader`/`BinaryWriter` for typed primitives — which means all file access shares the same async, buffering, and disposal model. Disposal is non-negotiable: on Windows an undisposed `FileStream` holds an OS file lock until the finalizer runs, so every stream type should live inside a `using` statement.
 
-**Issues:**
+---
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Check-then-act gap between `Exists` and `Create` | Duplicate create attempts → `IOException`; skipped writes when file appears between check and branch |
-| Concurrency | No synchronization or exclusive-create semantics | Intermittent failures under load — passes in single-threaded dev |
-| Design | `Exists` + `Create` mimics "create if missing" without atomicity | Wrong abstraction for idempotent report generation |
+## Q2. What is the difference between the static `File`/`Directory` classes and the instance `FileInfo`/`DirectoryInfo` classes?
 
-**Fix (priority order):**
+**Concepts**
+- Per-call security demand vs once-at-construction demand
+- Metadata caching on instance classes
+- `FileInfo.Refresh()` to re-read stale cached values
+- Appropriate use: one-shot vs repeated access
 
-1. Use an exclusive create that fails fast if the file already exists — `new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None)` — and catch `IOException` to treat "already exists" as expected, or return a conflict result.
-2. If multiple writers must coordinate, add an app-level lock keyed by path, or use a database/object-store claim — filesystem races do not scale across pods without external coordination.
-3. For idempotent content, prefer write-to-temp-then-atomic-rename (see Q2/Q5) instead of "create only if missing."
-4. Remove the silent skip path — if the file exists but is empty or stale, `Exists` returning true hides a partial write from a crashed peer.
+**Answer**
+
+`File` and `Directory` are purely static — each call opens its own handle, performs a fresh security check, and closes again, which is efficient for a single operation. `FileInfo` and `DirectoryInfo` perform the security demand once at construction and cache metadata properties like `Length`, `LastWriteTime`, and `Exists`, so reading several properties in a loop is faster because the kernel is not called again until `Refresh()` is invoked. When code only touches a path once, the static methods are simpler and equally fast; when the same path is inspected multiple times (checking size then checking attributes, for example), `FileInfo` avoids redundant round-trips to the OS.
+
+---
+
+## Q3. When would you prefer `FileInfo` over repeated `File.*` static calls on the same path?
+
+**Concepts**
+- Security check amortization at construction
+- Cached property reads until `Refresh()`
+- Fluent multi-property access on one object
+- Object lifetime matching the operation scope
+
+**Answer**
+
+I prefer `FileInfo` whenever a single method needs more than one metadata value for the same path — for example, checking `Exists`, reading `Length`, and reading `LastWriteTimeUtc` in the same block. The security demand fires once at `new FileInfo(path)` rather than three times across three static calls, and the properties share the same kernel snapshot, so results are consistent. For one-off operations like `File.Delete` or `File.ReadAllText` called once, the static methods are cleaner since there is no benefit in maintaining the object.
+
+---
+
+## Q4. How do `Directory.GetFiles`, `Directory.GetDirectories`, and their `Enumerate*` counterparts differ in memory behavior?
+
+**Concepts**
+- Eager materialization into `string[]` vs lazy `IEnumerable<string>`
+- Memory allocation proportional to directory size for `Get*` methods
+- Streaming enumeration stopping early with LINQ
+- Kernel handle held open during enumeration
+
+**Answer**
+
+`GetFiles` and `GetDirectories` scan the entire directory and return a `string[]` — the full result set is in managed memory before the caller sees the first entry, which allocates a large array on big directories. `EnumerateFiles` and `EnumerateDirectories` return an `IEnumerable<string>` backed by a lazy iterator, so items stream one at a time and the allocation stays bounded regardless of tree size. Because both implement `IEnumerable`, LINQ works on either, but `Enumerate*` pairs better with `Where`/`Take` since iteration stops as soon as enough items are found rather than loading the whole set first.
+
+---
+
+## Q5. What does `Directory.CreateDirectory` do when intermediate folders already exist?
+
+**Concepts**
+- Idempotent directory creation
+- No exception on pre-existing path
+- All missing intermediate segments created in one call
+- TOCTOU avoidance vs `Directory.Exists` check-then-create
+
+**Answer**
+
+`Directory.CreateDirectory` creates the full path including any missing intermediate segments and does not throw if any or all of them already exist, making it safe to call unconditionally before writing a file. This idempotency eliminates the `if (!Directory.Exists(path)) Directory.CreateDirectory(path)` pattern, which introduces a TOCTOU race where the directory could be created between the check and the create. The only exceptions it throws are for invalid characters, paths exceeding the OS length limit, or a path that resolves to an existing file rather than a directory.
+
+---
+
+## Q6. What is the difference between `File.Copy` with `overwrite: false` vs `overwrite: true`, and what exception indicates a conflict?
+
+**Concepts**
+- `overwrite: false` as the safe default — throws on collision
+- `overwrite: true` replaces destination atomically on NTFS
+- `IOException` as the conflict exception type
+- File content vs metadata copying behavior
+
+**Answer**
+
+With `overwrite: false` (the default), `File.Copy` throws `System.IO.IOException` if the destination already exists, preventing silent data loss. With `overwrite: true`, the destination is replaced — on Windows NTFS this uses `CopyFileEx` internally, which handles the replacement in one kernel operation, though it is not fully atomic under concurrent access on all platforms. File content is always copied but metadata such as creation time may differ from the source depending on the OS, so callers that need timestamp preservation should set them explicitly after the copy.
+
+---
+
+## Q7. How does `File.Move` differ from copy-then-delete, and what happens to metadata and hard links?
+
+**Concepts**
+- Atomic rename on same volume — no data movement
+- Cross-volume fallback to copy-then-delete
+- Metadata and hard-link preservation on rename
+- `overwrite: true` overload available since .NET 5
+
+**Answer**
+
+When source and destination share the same volume, `File.Move` is a single atomic rename system call — the directory entry is updated with no bytes moved on disk, so it completes in constant time and all metadata (creation time, attributes, hard links) is fully preserved. When paths span different volumes or network shares, .NET falls back to copy-then-delete, which is not atomic: a crash between the two steps can leave both a partial copy and the original, and hard links pointing to the source inode are not reproduced. Since .NET 5, passing `overwrite: true` avoids an intermediate `File.Delete`, which reduces the race window, but cross-volume moves remain non-atomic regardless.
+
+---
+
+## Q8. What is `File.Replace`, and when is it preferable to manual backup-and-overwrite?
+
+**Concepts**
+- Atomic destination replacement with optional backup
+- Preserves destination ACLs and security descriptors on the inode
+- Single-volume requirement
+- Contrast with delete-then-copy two-step
+
+**Answer**
+
+`File.Replace(source, destination, backupPath)` atomically replaces the destination with the source in a single kernel call on Windows NTFS, optionally moving the original destination to a backup path at the same time. Because the underlying inode of the destination survives, ACLs, security descriptors, and alternate data streams are preserved — which copy-then-delete would lose. This makes it the right choice for updating config files or reports that other processes hold handles to, since the replacement is never absent from the reader's view. All three paths must reside on the same volume; cross-volume use throws `IOException`.
+
+---
+
+## Q9. How do you safely delete a directory tree using `Directory.Delete(path, recursive: true)`?
+
+**Concepts**
+- `recursive: true` flag to remove files and subdirectories
+- `IOException` on non-empty directory without the flag
+- Open handles blocking file deletion on Windows
+- Read-only attribute clearing before delete
+
+**Answer**
+
+`Directory.Delete(path, recursive: true)` removes the directory and all its contents in one call; without the flag it throws `IOException: directory not empty` if any file or subdirectory exists, which catches many developers off guard. The common mistake — deleting files in a loop then calling non-recursive delete — still fails when subdirectories are present and is slower than the built-in recursive path. Before calling, every `FileStream`, `StreamReader`, and `StreamWriter` opened against paths inside the tree must be disposed because on Windows an open handle prevents that file's deletion, which then blocks the containing directory. Files with read-only attributes need `File.SetAttributes(path, FileAttributes.Normal)` first, or the delete throws `UnauthorizedAccessException` on those entries.
+
+---
+
+## Q10. What file metadata can you read via `File` static methods vs `FileInfo` instance properties?
+
+**Concepts**
+- Static `File.GetCreationTime`, `GetLastWriteTime`, `GetAttributes` methods
+- `FileInfo` properties: `Length`, `CreationTime`, `LastWriteTime`, `Attributes`
+- Performance difference for multiple reads on the same path
+- `FileInfo.Refresh()` to invalidate cached values
+
+**Answer**
+
+The `File` static class exposes `GetCreationTime`, `GetLastWriteTime`, `GetLastAccessTime`, `GetAttributes`, and `GetAccessControl` as standalone calls that each open a handle, read, and close. `FileInfo` exposes the same data as properties that are populated on first access and cached until `Refresh()` is called — meaning multiple property reads for the same file do not each go to the kernel. `File` is simpler when only one value is needed once; `FileInfo` wins whenever multiple metadata values are read for the same path because the kernel call is amortized across all reads within one refresh cycle.
+
+---
+
+## Q11. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `GetLastAccessTime` — and their `Utc` variants.
+
+**Concepts**
+- Three distinct filesystem timestamps and their meanings
+- Local vs UTC `DateTime` return values
+- DST ambiguity in local-time variants
+- NTFS internal UTC storage and conversion on read
+
+**Answer**
+
+`GetCreationTime` returns when the directory entry was created, `GetLastWriteTime` when content was last changed, and `GetLastAccessTime` when the file was last opened. Each returns a `DateTime` in local time; the `Utc` variants return UTC values and are preferable for logging and cross-timezone comparisons because local time is ambiguous during DST transitions — two different instants can have the same local representation when clocks fall back. NTFS stores all timestamps internally as UTC at 100-nanosecond precision and Windows converts on read, so the Utc variants avoid an extra conversion and are more precise. `LastAccessTime` is frequently disabled on performance-tuned Windows systems and on Linux filesystems, making it unreliable as a proxy for recent reads.
+
+---
+
+## Q12. How do you set creation, last-write, and last-access timestamps programmatically?
+
+**Concepts**
+- `File.SetCreationTime`, `SetLastWriteTime`, `SetLastAccessTime` static methods
+- `FileInfo` property setters for the same values
+- UTC overloads to avoid DST ambiguity
+- Write permissions required on file metadata
+
+**Answer**
+
+Timestamps are set with `File.SetCreationTime(path, datetime)`, `File.SetLastWriteTime`, and `File.SetLastAccessTime`, each accepting a `DateTime` in local time; the `Utc` overloads accept UTC values directly and avoid DST conversion errors. `FileInfo` exposes the same as settable properties — `info.LastWriteTimeUtc = DateTime.UtcNow` — which is cleaner when multiple values are set on the same file object. Setting timestamps requires write permission on the file's metadata, typically held by the file owner or an administrator, so service accounts running under restricted identities may receive `UnauthorizedAccessException` on protected system files.
+
+---
+
+## Q13. What are `FileAttributes` (ReadOnly, Hidden, System, Archive)? How do you read and modify them?
+
+**Concepts**
+- `FileAttributes` as a combinable flags enum
+- `File.GetAttributes` / `File.SetAttributes`
+- Bitwise add and remove for individual flags
+- Platform portability — most Windows flags are no-ops on Linux
+
+**Answer**
+
+`FileAttributes` is a `[Flags]` enum whose most common members are `ReadOnly`, `Hidden`, `System`, `Archive`, `Directory`, `Compressed`, and `Encrypted`. Read the current value with `File.GetAttributes(path)`, which returns the combined flags, and write it back with `File.SetAttributes(path, newValue)`, which replaces the entire set. Since it is a flags enum, add individual attributes with bitwise OR (`attrs | FileAttributes.Hidden`) and remove them with bitwise AND-NOT (`attrs & ~FileAttributes.ReadOnly`), always preserving the other flags. On Linux, `ReadOnly` maps to write-permission bits and most Windows-specific flags are silently ignored, so code that manipulates these attributes should be tested on the target platform.
+
+---
+
+## Q14. What is the difference between `File.Exists` and attempting to open a file that may be deleted concurrently?
+
+**Concepts**
+- TOCTOU race between check and use
+- `File.Exists` as a point-in-time snapshot
+- Atomic open semantics via `FileMode` + `try/catch`
+- Exception-driven vs check-driven file access
+
+**Answer**
+
+`File.Exists` is a point-in-time snapshot — another process can delete or rename the file in the window between the check returning `true` and the subsequent open, so the check is never a reliable guard. The only race-free pattern is to attempt the open directly and let the runtime throw `FileNotFoundException` if the file is absent, catching that specific exception where absence is a legitimate outcome. Check-then-act (`if (File.Exists) File.Open`) introduces a TOCTOU window that can cause intermittent failures under concurrent load without any indication of what went wrong. `File.Exists` is appropriate for user-facing validation messages where the race is acceptable, but it must never be the sole guard before a security-sensitive or correctness-critical open.
+
+---
+
+## Q15. What exceptions should you expect during file operations (`FileNotFoundException`, `DirectoryNotFoundException`, `IOException`, `UnauthorizedAccessException`)?
+
+**Concepts**
+- `FileNotFoundException` — path missing when expected to exist
+- `DirectoryNotFoundException` — intermediate directory missing
+- `IOException` as the base for disk-full, sharing violation, locked file
+- `UnauthorizedAccessException` — permissions denied
+- `PathTooLongException` — path exceeds OS limit
+
+**Answer**
+
+`FileNotFoundException` is thrown when `FileMode.Open` is used on a missing path, and `DirectoryNotFoundException` fires when an intermediate directory segment does not exist — both derive from `IOException`, which is the broad base for disk-full errors, sharing violations, and locked-file errors. `UnauthorizedAccessException` signals a permissions problem: writing to a read-only file, accessing a path where the account lacks rights, or attempting to open a directory as a file. `PathTooLongException` (surfaced as `IOException` with a specific message on .NET 5+) fires when the path exceeds the OS character limit. The correct catch structure is to handle the most specific exception first with a precise message and fall back to `IOException` as a general handler, never catching the root `Exception` and swallowing I/O failures silently.
+
+---
+
+## Q16. How does `File.AppendAllText` differ from opening with `FileMode.Append`?
+
+**Concepts**
+- One-shot open-write-close vs long-lived handle
+- Per-call `FileShare` defaults vs explicit sharing control
+- Overhead of repeated open/close cycles
+- Thread safety without a held handle
+
+**Answer**
+
+`File.AppendAllText` opens the file, appends the text, and immediately closes — a complete lifecycle in one call, which means no handle lingers between calls and the next opener sees no lock. Opening with `FileMode.Append` on a `FileStream` keeps the handle open and positions writes at EOF on each call, which is more efficient for a tight loop that appends many entries because the OS seek overhead is avoided. The open handle holds a lock governed by the `FileShare` flag specified, so callers must decide explicitly whether other processes can read or write concurrently; `AppendAllText` makes this decision internally and closes before returning. For sporadic one-off appends where no handle should linger, `AppendAllText` is simpler; for a long-running log writer in a single process, a held handle with `FileShare.Read` is more efficient.
+
+---
+
+## Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropriate vs stream-based APIs?
+
+**Concepts**
+- Whole-file allocation on the LOH for large files
+- Simplicity for small, bounded payloads
+- Stream-based chunked reads for large files
+- `async` support only available via stream APIs
+
+**Answer**
+
+`File.ReadAllBytes` is appropriate when the file is small (typically under a few megabytes), the code processes the whole buffer anyway, and simplicity matters more than memory efficiency. For large files, it allocates the entire content on the Large Object Heap — a 200 MB file produces a 200 MB `byte[]` that triggers GC pressure and can cause `OutOfMemoryException` under concurrent load. Stream-based APIs read in chunks that stay in the OS page cache rather than materializing the full content in managed memory, and they support `ReadAsync`/`WriteAsync` natively, which prevents blocking thread-pool threads on I/O-bound work. `File.WriteAllBytes` similarly suits small payloads where atomicity via temp-file-then-rename is not needed; for large writes that must not leave a partial file, write to a temp path and `File.Move` into place.
+
+---
+
+## Q18. Explain `File.Create`, `File.Open`, `File.OpenRead`, and `File.OpenWrite` — what modes and access do they imply?
+
+**Concepts**
+- `File.Create` — `FileMode.Create` + `FileAccess.ReadWrite`, truncates existing
+- `File.OpenRead` — `FileMode.Open` + `FileAccess.Read`, throws if missing
+- `File.OpenWrite` — `FileMode.OpenOrCreate` + `FileAccess.Write`, leaves tail intact
+- `File.Open` — explicit `FileMode` and `FileAccess` for full control
+
+**Answer**
+
+`File.Create(path)` opens with `FileMode.Create` and `FileAccess.ReadWrite`, creating the file if absent or truncating it to zero bytes if present, which surprises callers who expected to append. `File.OpenRead(path)` is a shortcut for `FileMode.Open` with `FileAccess.Read` — it throws `FileNotFoundException` if the path does not exist and uses `FileShare.Read` by default. `File.OpenWrite(path)` opens with `FileMode.OpenOrCreate` and `FileAccess.Write`, creating the file if missing and positioning at byte zero without truncating, so existing content beyond what is written remains on disk — a subtle trap when replacing file content. `File.Open(path, mode, access, share)` is the general-purpose overload and should be used whenever the defaults of the convenience methods do not match the intent.
+
+---
+
+## Q19. How do you handle TOCTOU (time-of-check-time-of-use) races when checking existence before read/write?
+
+**Concepts**
+- TOCTOU race class of bug
+- `FileMode.CreateNew` for atomic exclusive create
+- `FileMode.Open` + `FileNotFoundException` for atomic "open only if exists"
+- Kernel-level atomicity of `FileMode` semantics
+- `File.Exists` as user-facing validation only
+
+**Answer**
+
+The fix is to skip the existence check entirely and encode the intent in the `FileMode` parameter, which the kernel resolves atomically. For "create only if not exists," use `FileMode.CreateNew` — it throws `IOException` if the path already exists, which I catch and handle as the expected collision case. For "open only if exists," use `FileMode.Open` and catch `FileNotFoundException` when absence is a valid outcome. For "create or open," `FileMode.OpenOrCreate` handles both cases in one call. These `FileMode` values are resolved by the OS as single atomic operations, closing the window that exists between a `File.Exists` check and the subsequent open. `File.Exists` is appropriate only for pre-flight user messages where a subsequent race is acceptable.
+
+---
+
+## Q20. What is the difference between deleting a file and clearing its contents while keeping the path?
+
+**Concepts**
+- `File.Delete` removes the directory entry
+- `FileMode.Truncate` or `SetLength(0)` preserves path and metadata
+- Open-handle deferred delete on Windows
+- ACL and inode identity preserved on truncate
+
+**Answer**
+
+`File.Delete` removes the directory entry — the path ceases to exist, and on Windows any process that already has the file open causes the delete to be deferred until the last handle closes, which can confuse writers that expect the path gone immediately. Clearing contents while keeping the path uses `FileStream` opened with `FileMode.Truncate` (sets length to zero) or `stream.SetLength(0)` on an existing handle. Truncation preserves the file's ACLs, inode number on POSIX systems, creation timestamp, and any alternate data streams, which matters when downstream watchers or audit logs track the path identity rather than the content. Use truncation rather than delete-and-recreate whenever the file's identity must remain stable across the operation.
+
+---
+
+## Q21. (Scenario R) A report export service uses `File.Exists` + `File.Create` to guard concurrent writes — two threads occasionally get `IOException` or silently skip writing. What is wrong and how do you fix it?
+
+**Concepts**
+- TOCTOU race between `File.Exists` and `File.Create`
+- `FileMode.CreateNew` for atomic exclusive create
+- Catching `IOException` as the "already exists" signal
+- App-level lock or object-store claim for cross-pod coordination
+
+**Answer**
+
+The race is that `File.Exists` and `File.Create` are separate kernel calls with no atomicity guarantee between them, so two threads can both pass the check and one `File.Create` wins while the other throws, or a third process creates the file between the check and the create and the second caller skips writing silently. The fix is to remove the existence check entirely and open with `FileMode.CreateNew`, which atomically fails if the path already exists, then catch `IOException` and verify `File.Exists` in the filter to treat that outcome as an expected collision rather than an infrastructure error. For multi-instance deployments where multiple pods race on the same path, filesystem atomicity is not sufficient — use an external lock keyed by path (a database row, an object-store conditional put) because `FileMode.CreateNew` only works reliably within a single machine's filesystem.
 
 ```csharp
 try
 {
     using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-    var bytes = Encoding.UTF8.GetBytes(header);
-    stream.Write(bytes, 0, bytes.Length);
+    stream.Write(Encoding.UTF8.GetBytes(header));
 }
 catch (IOException) when (File.Exists(path))
 {
-    // Another writer won the race — handle idempotently or surface conflict
+    // another writer won the race — treat as idempotent success or surface conflict
 }
 ```
-
-**Production takeaway:** Karat uses `File.Exists` + `File.Create` to test whether you know TOCTOU — the fix is atomic open semantics (`CreateNew`) or external locking, not a tighter `if`. See **Program.cs** Section 8 — guard before read is not the same as atomic create.
 
 ---
 
-#### Q2. What is the difference between the static `File`/`Directory` classes and the instance `FileInfo`/`DirectoryInfo` classes?
+## Q22. (Scenario R) A teammate writes an upload through a temp file then moves into place, but the temp leaks on exception, the container root filesystem is read-only, and two pods race on the same final path. What is wrong?
 
-(R) A teammate refactors upload processing to write through a temp file, then move into place. Review the method:
+**Concepts**
+- Temp file leak when `CopyToAsync` throws without `try/finally`
+- Cross-volume `File.Move` degrades to non-atomic copy-then-delete
+- Container read-only root filesystem vs writable mounted volume
+- Pod-level race on shared final path requires object-store semantics
 
-```csharp
-public async Task SaveUploadAsync(IFormFile upload, string finalPath, CancellationToken ct)
-{
-    string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".bin");
-    await using (var temp = File.Create(tempPath))
-    {
-        await upload.CopyToAsync(temp, ct);
-    }
+**Answer**
 
-    if (File.Exists(finalPath))
-        File.Delete(finalPath);
-
-    File.Move(tempPath, finalPath);
-}
-```
-
-What breaks when `CopyToAsync` throws, when the app runs in a Linux container with a read-only root filesystem, and when two pods write the same `finalPath`?
-
-**Answer:** The temp-then-move pattern is right in spirit, but this version leaks temp files on failure, may write temps to an unwritable or ephemeral location in containers, and still has TOCTOU races on the final path — plus `File.Move` is not atomic across volumes.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Resource cleanup | No `try/finally` or `try/catch` to delete `tempPath` on failure | Orphaned `.bin` files fill `%TEMP%` / container overlay — see Q7 |
-| Deployment | `Path.GetTempPath()` + `finalPath` on read-only app dir | `CopyToAsync` or `Move` throws in Kubernetes/App Service when dest is not writable |
-| Concurrency | `Exists` → `Delete` → `Move` on shared `finalPath` | Two pods interleave deletes/moves — corrupt or missing final file |
-| Cross-volume | `File.Move` between temp dir and data volume | Becomes copy+delete — not atomic; crash mid-flight leaves duplicates or partial files |
-
-**Fix (priority order):**
-
-1. Wrap temp lifecycle in `try/finally` (or a `TempFile`/`TempWorkspace` disposable) that deletes the temp path on any exception.
-2. Stage temp files in the **same directory** as `finalPath` (e.g. `finalPath + ".tmp"`) so `File.Move` is a same-volume rename — atomic on POSIX and NTFS for same directory.
-3. Write to `finalPath.tmp`, flush/fsync if durability matters, then `File.Move(tmp, finalPath, overwrite: true)` (.NET 5+) — avoid separate delete step.
-4. In containers, mount a writable volume for uploads (`/app/data` or blob storage); never assume `AppContext.BaseDirectory` or root FS is writable.
-5. For multi-instance writes to one key, use object storage (S3/Azure Blob) with etag preconditions or a DB row — not shared filesystem without locking.
+The three problems compound: without a `try/finally` wrapping the temp file path, any exception from `CopyToAsync` or `File.Move` leaves an orphaned `.bin` file in `%TEMP%` that fills the container overlay over time. Staging the temp in `Path.GetTempPath()` while moving to a data volume crosses filesystem boundaries on Linux containers, so `File.Move` degrades to copy-then-delete — not atomic — meaning a crash between the two steps leaves both a partial copy and the original. The fix stages the temp in the same directory as the final path (same volume = atomic rename), wraps the entire operation in `try/finally` to delete the temp on any exception, and uses `File.Move(tmp, finalPath, overwrite: true)` (.NET 5+) to avoid the separate delete step. For multi-pod writes to the same key, object storage with etag preconditions is the correct primitive since there is no cross-pod filesystem lock.
 
 ```csharp
-string dir = Path.GetDirectoryName(finalPath)!;
-string tempPath = Path.Combine(dir, $".{Guid.NewGuid():N}.tmp");
+string tempPath = Path.Combine(Path.GetDirectoryName(finalPath)!, $".{Guid.NewGuid():N}.tmp");
 try
 {
     await using (var temp = File.Create(tempPath))
         await upload.CopyToAsync(temp, ct);
-
     File.Move(tempPath, finalPath, overwrite: true);
-    tempPath = null; // success — do not delete in finally
+    tempPath = null;
 }
 finally
 {
@@ -273,4007 +352,1569 @@ finally
 }
 ```
 
-**Production takeaway:** Temp-file staging is a production pattern only when cleanup, same-directory rename, and writable volume paths are handled — Karat stacks failure cleanup with container filesystem constraints.
+---
+
+## Q23. (Scenario R) A nightly cleanup job deletes files one-by-one then calls `Directory.Delete(root, recursive: false)`, but throws in production on non-empty directories or hidden files. What is wrong?
+
+**Concepts**
+- Non-recursive `Directory.Delete` fails on any remaining content
+- `Directory.GetFiles` loads all paths eagerly into memory
+- Partial-loop failure leaves tree inconsistent
+- `Directory.Delete(path, recursive: true)` as the correct API
+
+**Answer**
+
+The fundamental mistake is calling `Directory.Delete` without `recursive: true` after only deleting files — since the loop skips subdirectories, they remain and the delete throws `IOException: directory not empty` every time a nested folder exists. Even if the loop were extended to cover directories, hand-rolling tree deletion is slower and less reliable than the built-in recursive path, and `Directory.GetFiles(..., SearchOption.AllDirectories)` materializes the entire tree into memory before the first deletion. The correct approach is `Directory.Delete(workspaceRoot, recursive: true)`, which removes files and nested folders in one call. Before calling, dispose all open handles to files inside the tree since Windows defers deletion of files with open handles, which then blocks the containing directory's deletion.
 
 ---
 
-#### Q3. When would you prefer `FileInfo` over repeated `File.*` static calls on the same path?
+## Q24. (Scenario P) A multi-process log aggregator has workers using `File.AppendAllText` and `new FileStream(..., FileMode.Append, FileAccess.Write)` (default share), producing sharing violations and interleaved bytes. What is happening?
 
-(R) A nightly cleanup job removes old workspace folders. Review:
+**Concepts**
+- Default `FileShare.None` on `FileStream` — exclusive lock
+- `FileShare.ReadWrite` required for concurrent appenders
+- Line-level atomicity not guaranteed by `FileShare`
+- Single-writer channel or per-process log files as production alternatives
 
-```csharp
-public void PurgeWorkspace(string workspaceRoot)
-{
-    foreach (string file in Directory.GetFiles(workspaceRoot, "*", SearchOption.AllDirectories))
-    {
-        File.SetAttributes(file, FileAttributes.Normal);
-        File.Delete(file);
-    }
+**Answer**
 
-    Directory.Delete(workspaceRoot, recursive: false);
-}
-```
-
-Locally it works on small trees; in production it throws `IOException` on non-empty directories or `UnauthorizedAccessException` on hidden/system files. What is wrong with this approach, and what should you use instead?
-
-**Answer:** Manual file-by-file deletion before a non-recursive `Directory.Delete` is slower, still fails on nested subdirectories, and fights read-only/hidden attributes — while leaving the tree inconsistent if any step throws mid-loop. The API already supports recursive delete in one call.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| API misuse | `Directory.Delete(..., recursive: false)` after only deleting **files** | Subfolders remain → `IOException: directory not empty` |
-| Scalability | `GetFiles(..., AllDirectories)` loads entire tree into memory | Large workspaces → memory pressure; long lock while iterating |
-| Reliability | Partial loop then exception | Some files deleted, folder half-purged — harder to retry idempotently |
-| Permissions | `SetAttributes(Normal)` on every file | May still fail on locked files (open handles) or ACL/UAC denied paths |
-
-**Fix (priority order):**
-
-1. Use `Directory.Delete(workspaceRoot, recursive: true)` — one call removes files and nested folders (see **Program.cs** Section 9).
-2. Before delete, ensure no open `FileStream`/`StreamReader` handles — dispose all streams first (Section 7 — sharing violation on Windows).
-3. For large trees, prefer `DirectoryInfo.EnumerateFiles` with lazy enumeration if you must pre-process, but still finish with recursive delete — do not hand-roll tree walking unless you need selective retention.
-4. On permission errors, fix ACLs or run under a service account with rights to the data directory — attribute clearing is not a substitute for proper permissions in prod.
-5. Wrap in retry for transient sharing violations if antivirus/indexer holds brief locks.
-
-**Production takeaway:** `Directory.Delete` without `recursive: true` on a non-empty folder is a common tutorial pitfall scaled to production — Karat expects you to know when recursive delete is correct and when open handles block it.
+The default `FileShare` on a `FileStream` constructor that omits the parameter is `FileShare.None`, which grants an exclusive lock and blocks any other process from opening the file — causing the `IOException: sharing violation`. Even when both sides use `FileShare.ReadWrite` so they can coexist, the OS does not guarantee that individual `WriteLine` calls are atomic: two writers can interleave bytes mid-line. The minimal fix is to open with `FileShare.ReadWrite` on both sides, but line integrity then requires an app-level lock — a `SemaphoreSlim(1,1)` wrapping each append call. The production pattern that avoids all of this is a single dedicated writer thread or `Channel<string>` that serializes entries, or writing per-process log files and aggregating them externally, which is how structured logging sinks like Serilog handle high-throughput scenarios.
 
 ---
 
-#### Q4. How do `Directory.GetFiles`, `Directory.GetDirectories`, and their `Enumerate*` counterparts differ in memory behavior?
+## Q25. (Scenario P) An export job stages under `%TEMP%`, then calls `File.Move` to a network share. On Linux containers and across drive letters it fails with `IOException` or leaves duplicate files. What is happening?
 
-(P) A multi-process log aggregator appends audit lines from several worker threads. One worker uses `File.AppendAllText`; another opens with default sharing:
+**Concepts**
+- `File.Move` atomic only on same volume — degrades to copy-then-delete cross-volume
+- Linux tmpfs vs mounted data volume as separate filesystems
+- `EXDEV` errno wrapped as `IOException` on cross-mount rename
+- Stage-in-destination-directory pattern for guaranteed same-volume move
 
-```csharp
-// Worker A
-File.AppendAllText(logPath, line + Environment.NewLine);
+**Answer**
 
-// Worker B
-using var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write);
-using var writer = new StreamWriter(fs);
-writer.WriteLine(line);
-```
-
-Under load you see `IOException: sharing violation` and occasionally interleaved garbage bytes. Explain `FileShare` behavior here and show a production-safe append pattern.
-
-**Answer:** Default `FileStream` constructors use `FileShare.Read`, which excludes other writers — concurrent appenders block each other with sharing violations. Even when opens succeed, unsynchronized multi-writer appends interleave bytes at the OS level without line atomicity.
-
-- `File.AppendAllText` opens, appends, and closes per call — high overhead and still races with other writers using incompatible share flags.
-- For multiple writers on one file, open with `FileShare.ReadWrite` so other handles can coexist: `new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite)`.
-- Line atomicity is **not** guaranteed by `FileShare` — two threads can still interleave mid-line; use a `Mutex`/`SemaphoreSlim` named by path, a single dedicated writer thread/channel, or one process owning the log file.
-- Better production pattern: append to stdout and let the platform aggregate (Kubernetes logging, Azure Monitor), or write per-process log files and merge — avoid many writers to one file on Windows especially.
-- If you must share one file, wrap append in a process-wide lock and flush after each line; consider `StreamWriter` with `AutoFlush = true`.
-
-```csharp
-private static readonly SemaphoreSlim _logLock = new(1, 1);
-
-await _logLock.WaitAsync(ct);
-try
-{
-    await File.AppendAllTextAsync(logPath, line + Environment.NewLine, ct);
-}
-finally
-{
-    _logLock.Release();
-}
-```
-
-**Production takeaway:** Sharing violations mean incompatible `FileShare` flags or an undisposed handle — Karat ties **Program.cs** Section 7 (open handles block delete/write) to concurrent append design, not just "use a lock" memorization.
+`File.Move` is a cheap atomic rename when source and destination share the same filesystem, but it degrades to copy-then-delete when they differ — which means a crash after the copy but before the delete leaves both files, and a crash during the copy leaves neither in the expected state. On Linux containers, `/tmp` is typically a separate `tmpfs` mount from the persistent data volume at `/app/data`, so the kernel returns `EXDEV` (cross-device link), which .NET surfaces as `IOException`. The production fix stages the temp file in the same directory as the final destination (a hidden `.part` file alongside the target), then calls `File.Move(tmp, final, overwrite: true)` — guaranteed same-volume and atomic on POSIX and NTFS. For cross-machine delivery to a network share, bypass filesystem moves entirely and stream to object storage (Azure Blob, S3) with a server-side commit.
 
 ---
 
-#### Q5. What does `Directory.CreateDirectory` do when intermediate folders already exist?
+## Q26. (Scenario M) An ASP.NET Core endpoint reads a 200 MB CSV with `File.ReadAllText` on every request. Thread-pool queue depth grows and latency spikes even though CPU is low. What is the mechanism and fix?
 
-(P) An export job stages files under `%TEMP%` on Windows, then calls `File.Move(source, dest)` into a network share. On developer laptops it works; in Azure App Service (Linux) and when crossing drive letters it fails with `IOException` or leaves duplicate files. What is happening at the OS level, and what pattern replaces naive `File.Move`?
+**Concepts**
+- Synchronous `File.ReadAllText` blocking a thread-pool thread
+- Thread-pool starvation under concurrent I/O-bound requests
+- LOH allocation from large `string` materialization
+- `Results.File` for zero-copy streaming via OS sendfile
 
-**Answer:** `File.Move` is only a cheap atomic rename when source and destination are on the **same file system/volume**. Cross-volume or temp-to-network-share moves degrade to copy-then-delete — slow, non-atomic, and vulnerable to partial failure — and Linux container temp paths often live on a different mount than persisted data volumes.
+**Answer**
 
-- Windows: moving from `C:\Users\...\Temp` to `D:\` or `\\server\share` triggers copy+delete, not rename — crash after copy leaves both files or neither in expected state.
-- Linux containers: `/tmp` may be tmpfs while `/app/data` is a mounted volume — `File.Move` cannot rename across mounts; errno `EXDEV` → .NET wraps as `IOException`.
-- Hidden cost: large files copied twice consume disk and time; antivirus on network paths adds locks.
-- Production pattern: stage temp file in the **destination directory** (hidden `.part` suffix), fsync if required, then same-directory `File.Move` to final name — atomic replace on same volume.
-- For cross-machine delivery, skip filesystem move entirely — stream to blob storage (S3/Azure Blob) with server-side commit, or use a message queue with object key — not SMB paths from app servers.
-- Use `Path.GetPathRoot` or compare `Directory.GetDirectoryRoot` of source and dest in diagnostics; if roots differ, plan copy+verify+delete explicitly with checksum validation.
-
-**Production takeaway:** **Program.cs** Section 3 notes Move is "atomic rename on same volume" — Karat tests whether you apply that caveat when `%TEMP%` and upload folders diverge in cloud deploys.
+`File.ReadAllText` is synchronous — each call occupies a thread-pool thread for the entire duration of the disk read, so under concurrent traffic the pool exhausts its threads waiting on I/O while CPU idles, which is the same class of starvation as calling `.Result` on an async operation. Reading 200 MB into a `string` also allocates a single Large Object Heap object per request, adding GC pressure that compounds the throughput problem. The minimal fix is `Results.File(path, "text/csv", enableRangeProcessing: true)`, which streams directly from disk using `SendFileAsync` and avoids materializing the content in managed memory at all. If transformation is required before sending, use an `async` delegate with `File.OpenRead` piped through `Results.Stream` so the thread is freed during the I/O wait.
 
 ---
 
-#### Q6. What is the difference between `File.Copy` with `overwrite: false` vs `overwrite: true`, and what exception indicates a conflict?
+## Q27. (Scenario D) A containerized API creates per-request scratch directories under `Path.GetTempPath()` but never deletes them when handlers throw. Compare `try/finally`, `IDisposable` workspace, and periodic janitor. What is the default choice?
 
-(M) An ASP.NET Core endpoint reads a 200 MB CSV from disk on every request:
+**Concepts**
+- Per-request deterministic cleanup vs background sweep
+- `IAsyncDisposable` temp workspace scoped to request lifetime
+- Container `emptyDir` size limit as a backstop
+- Periodic janitor as secondary defense, not primary
 
-```csharp
-app.MapGet("/reports/{id}", (string id, IReportStore store) =>
-{
-    string path = store.GetPath(id);
-    if (!File.Exists(path))
-        return Results.NotFound();
+**Answer**
 
-    string csv = File.ReadAllText(path);
-    return Results.Content(csv, "text/csv");
-});
-```
-
-Latency spikes under concurrent traffic and thread-pool queue depth grows, even though CPU stays low. What mechanism is blocking, and what file APIs would you use instead?
-
-**Answer:** `File.ReadAllText` synchronously reads the entire 200 MB into a single `string` on a thread-pool thread — blocking async I/O throughput and allocating a huge LOH object — so concurrent requests queue behind blocked threads even though the work is I/O-bound.
-
-- The minimal API delegate is synchronous; each request ties up a thread for the full disk read — classic thread-pool starvation under load (same class of problem as `.Result` on async I/O).
-- `ReadAllText` doubles memory (file bytes + UTF-16 string) — 200 MB file can mean 400 MB+ per request peak.
-- Prefer `return Results.File(path, "text/csv", enableRangeProcessing: true)` — streams from disk with `SendFileAsync` / efficient OS sendfile where available, no full buffering in managed memory.
-- If transformation is required: `async Task<IResult>` with `await File.ReadAllTextAsync(path, ct)` or better `File.OpenRead` + `StreamReader` / pipe through `Results.Stream`.
-- Add caching (`IMemoryCache` with size limits), CDN, or object storage pre-signed URLs for large static exports — disk read per request does not scale.
-- Pass `CancellationToken` from `HttpContext.RequestAborted` so clients disconnecting abort the read.
-
-```csharp
-app.MapGet("/reports/{id}", (string id, IReportStore store) =>
-{
-    string path = store.GetPath(id);
-    return File.Exists(path)
-        ? Results.File(path, "text/csv", fileDownloadName: $"{id}.csv", enableRangeProcessing: true)
-        : Results.NotFound();
-});
-```
-
-**Production takeaway:** Sync all-at-once file helpers from **Program.cs** Section 3 (`ReadAllText`) are fine for small demo files — in web apps they block the thread pool; Karat expects streaming async APIs for large I/O.
+The default should be an `IDisposable` (or `IAsyncDisposable`) temp workspace created at request entry whose `Dispose` method calls `Directory.Delete(path, recursive: true)`, because it cleanly handles any exit path including unhandled exceptions through the `using` statement without duplicating cleanup logic across every endpoint. Inline `try/finally` works but scatters the create-and-delete responsibility into each handler, making it easy to forget in a new code path. A periodic janitor that deletes directories older than N hours is valuable as a secondary defense — it catches leaks from third-party libraries and out-of-process kills — but must never be the primary mechanism since it allows unbounded growth between sweeps and can race against active scratch directories if naming is not unique. In Kubernetes, mount scratch space with `emptyDir: {sizeLimit: "500Mi"}` so container-level disk exhaustion fails fast rather than evicting neighbors.
 
 ---
 
-#### Q7. How does `File.Move` differ from copy-then-delete, and what happens to metadata and hard links?
-
-(D) A containerized API creates per-request scratch directories under `Path.GetTempPath()` but never deletes them when handlers throw. Disk on the node fills over days; restarting the pod "fixes" it until the next deploy. Compare three cleanup strategies — `try/finally`, `IDisposable` workspace helper, and OS temp with periodic janitor — for production container deployments. What is your default and why?
-
-**Answer:** Orphaned scratch dirs are a deployment lifecycle bug, not a filesystem API quirk — the default should be deterministic per-operation cleanup via an `IDisposable` workspace scoped to the request, with a periodic janitor as a safety net in long-lived pods.
-
-| Strategy | Strengths | Weaknesses |
-|---|---|---|
-| **`try/finally` inline** | Simple; guaranteed on exit from one method | Easy to forget when logic branches across helpers; duplicated across endpoints |
-| **`IDisposable` workspace (`using var ws = new TempWorkspace(...)`)** | Centralizes create/delete; composes with `await using`; testable | Requires discipline to always `using`; nested scopes must not double-delete |
-| **OS temp + periodic janitor** | Catches leaks from third-party libs and crash kills; good backstop in K8s | Not sufficient alone — unbounded growth between sweeps fills emptyDir/volume; race if janitor deletes active dirs |
-
-- Default: **`IDisposable`/`IAsyncDisposable` temp workspace** created at request entry, deleted in `Dispose` even on exceptions — matches **Program.cs** Main's clean-slate pattern (`Directory.Delete` before recreate) but scoped per operation.
-- Implement janitor as secondary: delete directories under temp older than N hours **only if** naming includes GUID and heartbeat file — never blanket `Delete` on entire `GetTempPath()` while app runs.
-- In containers, mount scratch space with size limits (`emptyDir` sizeLimit) so leaks fail fast instead of evicting neighbors; prefer streaming to blob storage over large local scratch.
-- Log workspace path on creation at Debug level; metric `temp_workspace_bytes` for observability.
-- Avoid relying on pod restart as cleanup policy — violates 12-factor; masks handler bugs.
-
-**Production takeaway:** Karat uses container disk fill to test whether you connect **Program.cs** cleanup demos to request-scoped `using` and deployment volume limits — restart is not a cleanup strategy.
+## 02. StreamReader & StreamWriter
 
 ---
 
-#### Q8. What is `File.Replace`, and when is it preferable to manual backup-and-overwrite?
+## Q28. Explain the `Stream` base class hierarchy and where `StreamReader`/`StreamWriter` fit.
 
-_Answer not found._
+**Concepts**
+- `Stream` as the abstract byte-sequence base
+- `FileStream`, `MemoryStream`, `NetworkStream` as concrete byte streams
+- `TextReader`/`TextWriter` as the abstract text layer
+- `StreamReader`/`StreamWriter` as encoding bridge between bytes and text
 
----
+**Answer**
 
-#### Q9. How do you safely delete a directory tree using `Directory.Delete(path, recursive: true)`?
-
-_Answer not found._
-
----
-
-#### Q10. What file metadata can you read via `File` static methods vs `FileInfo` instance properties?
-
-_Answer not found._
+`Stream` is the abstract base that defines the byte-level contract: `Read`, `Write`, `Seek`, `Flush`, `Position`, `Length`, and `CanRead`/`CanWrite`/`CanSeek`. Concrete implementations — `FileStream`, `MemoryStream`, `NetworkStream`, `CryptoStream` — all inherit it and deal in raw bytes. `TextReader` and `TextWriter` sit above `Stream` as abstractions for character sequences; `StreamReader` and `StreamWriter` implement those interfaces by wrapping any `Stream` and applying an `Encoding` to convert between bytes and `char`/`string`. This layered design means I can swap the underlying stream — point a `StreamReader` at a `MemoryStream` for unit tests or a `NetworkStream` for socket I/O — without changing any parsing code, since the text API is the same regardless of where the bytes come from.
 
 ---
 
-#### Q11. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `GetLastAccessTime` — and their `Utc` variants.
+## Q29. What is the difference between `File.ReadAllText`, `File.ReadAllLines`, and `File.ReadLines`?
 
-_Answer not found._
+**Concepts**
+- `ReadAllText` — whole file as one `string`, eager
+- `ReadAllLines` — whole file as `string[]`, eager
+- `ReadLines` — lazy `IEnumerable<string>`, file handle held open
+- Memory implications for large files
 
----
+**Answer**
 
-#### Q12. How do you set creation, last-write, and last-access timestamps programmatically?
-
-_Answer not found._
-
----
-
-#### Q13. What are `FileAttributes` (ReadOnly, Hidden, System, Archive)? How do you read and modify them?
-
-_Answer not found._
+`File.ReadAllText` reads the entire file and returns it as a single `string`, which allocates the whole content on the heap before the caller sees any characters. `File.ReadAllLines` does the same but splits on line endings and returns a `string[]`, allocating both the individual line strings and the array. `File.ReadLines` is the lazy alternative — it returns an `IEnumerable<string>` that reads one line at a time, keeping memory proportional to one line rather than the entire file, but it holds the underlying file handle open for the lifetime of the enumeration. For large files, `ReadLines` is the right choice because it avoids the LOH allocation; the trade-off is that the handle stays open until the `foreach` completes or the enumerator is disposed, so the file remains locked during iteration.
 
 ---
 
-#### Q14. What is the difference between `File.Exists` and attempting to open a file that may be deleted concurrently?
+## Q30. Why can `File.ReadLines` hold a file lock until enumeration completes?
 
-_Answer not found._
+**Concepts**
+- Lazy iterator keeping `FileStream` open until disposed
+- `IEnumerator.Dispose` releasing the underlying handle
+- Breaking from `foreach` early disposes the enumerator
+- `using` on the enumerable not equivalent to `using` on the enumerator
 
----
+**Answer**
 
-#### Q15. What exceptions should you expect during file operations (`FileNotFoundException`, `DirectoryNotFoundException`, `IOException`, `UnauthorizedAccessException`)?
-
-_Answer not found._
-
----
-
-#### Q16. How does `File.AppendAllText` differ from opening with `FileMode.Append`?
-
-_Answer not found._
+`File.ReadLines` opens a `FileStream` and a `StreamReader` on the first call to `MoveNext()` and keeps them open to serve subsequent lines lazily. Because the underlying handle must remain open to read each line on demand, the file lock is held for the entire duration of enumeration. When a `foreach` loop runs to completion or breaks early, the C# compiler-generated code calls `IEnumerator.Dispose()` on the iterator, which closes the stream and releases the lock. If the caller stores the `IEnumerable<string>` in a variable and enumerates it partially without disposing the enumerator — for example using LINQ's `First()` without a `foreach` — the stream stays open until the garbage collector finalizes it, which on Windows keeps the file locked unexpectedly.
 
 ---
 
-#### Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropriate vs stream-based APIs?
+## Q31. How do `StreamReader.ReadLine`, `ReadToEnd`, and `ReadBlock` differ for large files?
 
-_Answer not found._
+**Concepts**
+- `ReadLine` — one line at a time, bounded memory
+- `ReadToEnd` — entire remaining content as one `string`, LOH risk
+- `ReadBlock` — fixed-size char buffer, predictable allocation
+- Suitable use case for each method
 
----
+**Answer**
 
-#### Q18. Explain `File.Create`, `File.Open`, `File.OpenRead`, and `File.OpenWrite` — what modes and access do they imply?
-
-_Answer not found._
-
----
-
-#### Q19. How do you handle TOCTOU (time-of-check-time-of-use) races when checking existence before read/write?
-
-_Answer not found._
+`ReadLine` reads until the next line terminator and returns one `string` at a time, keeping heap allocation proportional to the longest line regardless of file size — this is the right pattern for line-oriented parsing of large files. `ReadToEnd` reads everything from the current position to EOF into a single `string`, which is fine for small files but allocates a potentially enormous LOH object for large ones and blocks the thread for the full read duration. `ReadBlock` fills a caller-supplied `char[]` buffer up to a specified count and returns how many characters were actually read, making it suited for fixed-chunk processing or piping into another writer with minimal allocation. For anything over a few megabytes I use `ReadLine` in a loop or `ReadLineAsync` in an async context rather than `ReadToEnd`.
 
 ---
 
-#### Q20. What is the difference between deleting a file and clearing its contents while keeping the path?
+## Q32. What is the default encoding for `StreamReader` and `StreamWriter`, and why can that cause mojibake?
 
-_Answer not found._
+**Concepts**
+- `StreamReader` default: UTF-8 with BOM detection enabled
+- `StreamWriter` default: UTF-8 without BOM
+- `Encoding.Default` resolves to system code page, not UTF-8 on Windows
+- Mismatch between writer and reader encoding producing mojibake
+
+**Answer**
+
+The no-argument `StreamReader` constructor defaults to UTF-8 with `detectEncodingFromByteOrderMarks: true`, so it auto-detects the encoding from a leading BOM if present. The no-argument `StreamWriter` defaults to UTF-8 without a BOM. When code uses `Encoding.Default` on Windows it gets the system ANSI code page (often Windows-1252), which differs from UTF-8, so bytes written with the ANSI encoder are read back as garbage by a UTF-8 reader — this is mojibake. The fix is to pass the same explicit encoding to both writer and reader rather than relying on defaults; I use `new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)` for files exchanged with other systems where a BOM would be unexpected.
 
 ---
 
-### 02. StreamReader & StreamWriter
+## Q33. How do you specify `Encoding.UTF8`, UTF-8 with BOM, and legacy encodings (`Encoding.GetEncoding`)?
 
-#### Q1. Explain the `Stream` base class hierarchy and where `StreamReader`/`StreamWriter` fit.
+**Concepts**
+- `Encoding.UTF8` — static property, UTF-8 with BOM emitter
+- `new UTF8Encoding(false)` — UTF-8 without BOM
+- `Encoding.GetEncoding(1252)` for legacy Windows code pages
+- BOM detection vs explicit encoding in readers
 
-(R) A nightly audit job throws on bad rows and operators report the log file stays locked until the worker restarts. Review this helper:
+**Answer**
+
+`Encoding.UTF8` is a static property that returns a UTF-8 encoder configured to emit a BOM on write, which is what Excel on Windows expects but what most web APIs and Unix tools do not. To write UTF-8 without a BOM I construct `new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)`. Legacy encodings are accessed via `Encoding.GetEncoding(codePage)` — for example `Encoding.GetEncoding(1252)` for Windows-1252 or `Encoding.GetEncoding("iso-8859-1")` for Latin-1 — but these require the `System.Text.Encoding.CodePages` NuGet package on .NET Core since non-Unicode encodings are not registered by default. On the read side, I specify the same encoding explicitly rather than relying on BOM detection, since a missing BOM causes the reader to fall back to the constructor's default and silently produce wrong characters.
+
+---
+
+## Q34. What does `StreamReader.DetectEncodingFromByteOrderMarks` control?
+
+**Concepts**
+- BOM detection at stream start
+- Overrides the constructor-specified encoding when a BOM is found
+- Does not detect encoding without a BOM
+- UTF-8, UTF-16 LE/BE, and UTF-32 BOM signatures
+
+**Answer**
+
+`DetectEncodingFromByteOrderMarks` (defaulting to `true`) tells `StreamReader` to inspect the first few bytes of the stream for a BOM — the byte sequences that signal UTF-8 (`EF BB BF`), UTF-16 LE (`FF FE`), UTF-16 BE (`FE FF`), or UTF-32. If a matching BOM is found, the reader switches to that encoding regardless of what was passed to the constructor. When no BOM is present, the constructor-specified encoding is used without any detection, since BOM detection cannot infer encoding from arbitrary byte patterns. I set this parameter to `false` when consuming files from partners whose encoding I have verified and documented, because a spurious BOM from a misconfigured tool would otherwise silently change the decoding and corrupt the first field.
+
+---
+
+## Q35. Explain async read/write methods on `StreamReader`/`StreamWriter` (`ReadLineAsync`, `WriteLineAsync`, `ReadToEndAsync`).
+
+**Concepts**
+- Async I/O freeing thread-pool threads during disk wait
+- `CancellationToken` support on .NET 7+ overloads
+- `await using` for async disposal of the writer
+- Composition with `async Task` methods in ASP.NET Core
+
+**Answer**
+
+`ReadLineAsync`, `WriteLineAsync`, and `ReadToEndAsync` are the async counterparts of their synchronous versions — they issue the underlying I/O and `await` completion rather than blocking the calling thread, which frees the thread-pool thread to serve other requests during the disk wait. On .NET 7+ all three accept a `CancellationToken` so the operation can be aborted cleanly on request cancellation or shutdown. `StreamWriter` is `IAsyncDisposable` since .NET 5, so I use `await using` to flush and dispose asynchronously without blocking on the final flush. In hosted services or minimal API handlers, mixing synchronous `ReadLine` with an otherwise async pipeline ties up a thread-pool thread per in-flight request, which is the same throughput problem as `Task.Result` in a controller.
+
+---
+
+## Q36. What is `StreamWriter.AutoFlush`, and when should you call `Flush()` explicitly?
+
+**Concepts**
+- Internal buffer accumulating writes until explicit flush or dispose
+- `AutoFlush = true` flushing after every `Write`/`WriteLine` call
+- Performance trade-off: batched writes vs immediate disk visibility
+- `Flush()` before signaling downstream consumers
+
+**Answer**
+
+`StreamWriter` maintains an internal character buffer and batches writes to reduce the number of system calls; it only writes buffered content to the underlying stream when the buffer is full, when `Flush()` is called, or when the writer is disposed. Setting `AutoFlush = true` makes the writer flush after every `Write` or `WriteLine`, which ensures disk visibility immediately at the cost of more frequent I/O — appropriate for log files and status files that other processes poll. I call `Flush()` explicitly when I need the content visible to a reader before disposing the writer, for example after writing a status token that a downstream process or poller reads on a known schedule. Without either, an un-disposed writer can leave the last buffer of content unwritten if the process terminates abnormally.
+
+---
+
+## Q37. How do you append text to an existing file with `StreamWriter` (constructor overload with `append: true`)?
+
+**Concepts**
+- `new StreamWriter(path, append: true)` opening with `FileMode.Append`
+- Handle open for the writer's lifetime vs per-call open-close
+- `FileShare` defaults when using the path constructor
+- Using `StreamWriter` on a pre-opened `FileStream` for full control
+
+**Answer**
+
+Passing `append: true` to the `StreamWriter` path constructor opens the underlying `FileStream` with `FileMode.Append` and `FileAccess.Write`, positioning writes at the current end of file without truncating existing content. The handle stays open for the lifetime of the `StreamWriter` object, so each subsequent `WriteLine` appends efficiently without reopening. The path constructor uses `FileShare.Read` by default, which means other processes can read the file concurrently but cannot write — if concurrent writers are needed, I construct the `FileStream` explicitly with `FileShare.ReadWrite` and pass it to the `StreamWriter` constructor. Wrapping the writer in `using` is essential because `Dispose` flushes the buffer and closes the handle; without it, the last lines may never reach disk and the file lock persists on Windows.
+
+---
+
+## Q38. What happens if you forget to dispose a `StreamWriter` — especially on Windows file locking?
+
+**Concepts**
+- Unflushed buffer lost on process exit without dispose
+- OS file handle held open until GC finalizer
+- Windows file lock blocking concurrent open/delete/rename
+- `using` or `await using` as the mandatory pattern
+
+**Answer**
+
+Forgetting to dispose a `StreamWriter` has two consequences: the internal buffer may never be flushed, so the last writes are silently lost even if the process exits normally, and the underlying `FileStream` handle remains open until the garbage collector runs the finalizer. On Windows, an open handle imposes a file lock — other processes cannot delete, rename, or exclusively open the file, which causes `IOException: process cannot access the file` errors that appear intermittent because they depend on when GC happens to run. The fix is always `using var writer = new StreamWriter(...)` or `await using` for async writers so the compiler generates a `try/finally` that calls `Dispose` on every exit path including exceptions.
+
+---
+
+## Q39. Can you use `StreamReader`/`StreamWriter` with non-file streams (memory, network)? Give examples.
+
+**Concepts**
+- Constructor accepting any `Stream`, not just `FileStream`
+- `MemoryStream` for in-memory text processing and unit testing
+- `NetworkStream` / `SslStream` for socket-based text protocols
+- `leaveOpen: true` to prevent wrapper from closing the base stream
+
+**Answer**
+
+`StreamReader` and `StreamWriter` accept any `Stream` — the encoding bridge they provide is independent of where the bytes come from or go to. I use `new StreamReader(new MemoryStream(bytes))` in unit tests to feed a pre-built byte payload through the same parsing code that reads files in production, avoiding actual disk I/O. For HTTP or socket protocols, wrapping a `NetworkStream` in a `StreamReader` lets me call `ReadLine()` on a text-based protocol like SMTP or IRC. When the wrapper must not close the underlying stream on dispose (for example a `MemoryStream` whose bytes are read after the writer disposes), I pass `leaveOpen: true` to the constructor so the base stream remains open and its `Position` can be reset for reading.
+
+---
+
+## Q40. What is the difference between `using` blocks and C# 8 `using` declarations for stream cleanup?
+
+**Concepts**
+- Classic `using` block — dispose at closing brace
+- C# 8 `using` declaration — dispose at end of enclosing scope
+- Nested resource lifetimes and ordering
+- Readability vs explicit scope control
+
+**Answer**
+
+The classic `using (var r = new StreamReader(...)) { }` disposes at the explicit closing brace, giving precise control over when the handle is released. The C# 8 `using var r = new StreamReader(...)` declaration disposes at the end of the enclosing scope (the method or block it lives in), which reduces nesting for simple single-resource methods. The difference matters when multiple streams share a scope: a `using var fs = new FileStream(...)` followed by `using var r = new StreamReader(fs)` disposes `r` first at scope exit (LIFO order), which flushes and closes it before `fs` is disposed — matching the safe teardown order. Classic `using` blocks are preferable whenever the dispose boundary is not at the method end, for example to release a file handle early before continuing with expensive CPU work.
+
+---
+
+## Q41. How do you read a file line-by-line without loading it entirely into memory?
+
+**Concepts**
+- `StreamReader.ReadLine()` returning one line per call
+- Loop terminating on `null` return at EOF
+- `ReadLineAsync` for async pipelines
+- Memory bounded by longest single line
+
+**Answer**
+
+I open a `StreamReader` and call `ReadLine()` in a `while` loop, checking for `null` to detect EOF, which keeps only one line string in memory at a time regardless of file size. For async pipelines I use `await reader.ReadLineAsync(cancellationToken)` (the `CancellationToken` overload available since .NET 7) so the thread-pool thread is free during each disk read. This pattern handles files of any size within constant memory proportional to the longest line, making it the standard approach for log parsing, CSV ingestion, and config file loading in production services. `File.ReadLines` is a convenient alternative for simple LINQ queries but holds the file handle open until the enumerator is disposed, which `StreamReader` in a `using` block makes explicit and deterministic.
+
+---
+
+## Q42. What is `TextReader`/`TextWriter`, and why do APIs often accept these abstractions?
+
+**Concepts**
+- `TextReader`/`TextWriter` as the abstract character-sequence interface
+- `StringReader`/`StringWriter` as in-memory implementations
+- `StreamReader`/`StreamWriter` as stream-backed implementations
+- Testability: inject `StringReader` instead of file-backed `StreamReader`
+
+**Answer**
+
+`TextReader` defines the character-level reading contract — `Read`, `ReadLine`, `ReadToEnd`, `Peek` — without specifying where the characters come from, and `TextWriter` defines the writing contract similarly. `StreamReader` and `StreamWriter` implement these interfaces backed by a `Stream`; `StringReader` and `StringWriter` implement them backed by a `string` or `StringBuilder`. Accepting `TextReader` in a parser method rather than `StreamReader` means I can pass a `new StringReader("csv,data,here")` in a unit test without touching the filesystem, and the same method reads from a `FileStream` in production — the parsing logic is completely decoupled from the I/O source. APIs like `XmlReader.Create(TextReader)` and `JsonSerializer.Deserialize(TextReader)` use this pattern for the same reason.
+
+---
+
+## Q43. (Scenario R) A nightly audit job throws on bad rows and the log file stays locked until the worker restarts. What keeps the file locked and how do you fix it?
+
+**Concepts**
+- `StreamWriter.Dispose()` only on the happy path — handle leak on exception
+- OS file lock held until GC finalizes the undisposed writer
+- `using` statement generating `try/finally` on all exit paths
+- Validate before write vs write then validate
+
+**Answer**
+
+When the method throws after constructing `StreamWriter` but before the manual `Dispose()` call at the end, `Dispose` never runs — so the underlying `FileStream` handle stays open. On Windows, that open handle holds the file lock until the garbage collector finalizes the writer, which may not happen for minutes, causing every subsequent append attempt to get `IOException: file in use`. The fix is `using var writer = new StreamWriter(...)` so the compiler wraps the body in `try/finally` and calls `Dispose` on all exit paths including the exception path. If invalid rows must not be persisted, validate the entry before writing rather than after; if the rejected row should remain on disk (it already was written before the throw), that is intentional and the `using` pattern still ensures the handle releases.
 
 ```csharp
 public void AppendAuditEntry(string logPath, string entry)
 {
-    StreamWriter writer = new StreamWriter(logPath, append: true);
-    writer.WriteLine($"{DateTime.UtcNow:o} {entry}");
-
     if (entry.Contains("INVALID", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Audit row rejected — fix upstream feed.");
-
-    writer.Dispose();
-}
-```
-
-What keeps the file locked, and how do you fix it without losing the rejected row on disk?
-
-**Answer:** When validation throws, `Dispose()` never runs, so the `StreamWriter` keeps the underlying file handle open — on Windows the log stays locked until GC finalizes the writer. Wrap the writer in `using` (or `try/finally`) so the handle is released even on the exception path; the invalid row is already on disk because `WriteLine` ran before the throw.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Resource lifetime | No `using` / `finally`; `Dispose()` only on happy path | File handle leak; "file in use" on next append |
-| Ordering | Validate after write | Rejected rows still persisted — may be intended, but callers must know |
-| Platform | Undisposed `StreamWriter` on Windows | Lock persists until process exit or finalizer — common ops incident |
-
-**Fix (priority order):**
-
-1. Use `using (var writer = new StreamWriter(logPath, append: true)) { … }` so dispose runs on all exit paths.
-2. If invalid rows must not be written, validate **before** `WriteLine`, or write to a staging file and commit on success.
-3. For long-lived services, prefer `await using StreamWriter` with async writes if the call chain is async end-to-end.
-4. Monitor for handle leaks — repeated failures should not require worker restart to unlock the log.
-
-```csharp
-public void AppendAuditEntry(string logPath, string entry)
-{
-    if (entry.Contains("INVALID", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Audit row rejected — fix upstream feed.");
-
+        throw new InvalidOperationException("Audit row rejected.");
     using StreamWriter writer = new StreamWriter(logPath, append: true);
     writer.WriteLine($"{DateTime.UtcNow:o} {entry}");
 }
 ```
 
-**Production takeaway:** Karat pairs exception flow with I/O cleanup — `StreamWriter` is not magic; undisposed writers are production file locks. See **Program.cs** Section 6 — `using` / `Dispose` and QUICK REFERENCE — "Forgetting using / Dispose → file locked until GC."
-
 ---
 
-#### Q2. What is the difference between `File.ReadAllText`, `File.ReadAllLines`, and `File.ReadLines`?
+## Q44. (Scenario R) A CSV export written on Windows with `Encoding.Default` fails header validation on Linux containers. What is the root cause and fix?
 
-(R) A CSV export looks correct on the developer's Windows machine but the first column header fails validation after deploy to Linux containers. Review write vs read:
+**Concepts**
+- `Encoding.Default` resolving to system code page (Windows-1252 on Windows, UTF-8 on Linux)
+- Different byte sequences on disk per OS for the same text
+- Reader default not matching writer encoding
+- `new UTF8Encoding(false)` for portable no-BOM UTF-8
 
-```csharp
-// Export service (built and tested on Windows)
-using (var writer = new StreamWriter(exportPath, append: false, Encoding.Default))
-{
-    writer.WriteLine("id,name,amount");
-    writer.WriteLine("1,Alpha,42.50");
-}
+**Answer**
 
-// Import service (Linux container — default StreamReader ctor)
-using (var reader = new StreamReader(importPath))
-{
-    string? header = reader.ReadLine();
-    if (header != "id,name,amount")
-        throw new InvalidDataException($"Unexpected header: '{header}'");
-}
-```
-
-What fails in production, and how do you make the round-trip deterministic across OS boundaries?
-
-**Answer:** `Encoding.Default` is the **system code page** — Windows-1252 on Windows, often UTF-8 on modern Linux — so bytes on disk differ by environment, and the reader's default detection may decode the same bytes differently than the writer encoded them. Pin both sides to explicit `Encoding.UTF8` (typically `new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)` for no BOM) and compare headers after `ReadLine()`, which already returns decoded characters.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encoding | `Encoding.Default` on write | Different byte sequences per OS — mojibake or subtle header mismatch |
-| Encoding | Implicit reader encoding on read | Guessing wrong code page — first line may include stray BOM or wrong chars |
-| Contract | String equality on header | Fails even when visually "correct" in a GUI editor |
-
-**Fix (priority order):**
-
-1. Replace `Encoding.Default` with explicit UTF-8 on **both** writer and reader constructors.
-2. Document encoding in the file format contract; reject files whose BOM/bytes do not match.
-3. For CSV consumed by Excel on Windows, decide deliberately on UTF-8 BOM vs no BOM — do not rely on defaults.
-4. Add an integration test that round-trips on Linux CI, not only on the developer's Windows box.
+`Encoding.Default` is the system ANSI code page, which is Windows-1252 on most Windows machines and UTF-8 on modern Linux — so the bytes written on Windows differ from what the Linux reader's default expects, producing a BOM mismatch or silent character substitution that causes the string equality check on the header to fail. The fix pins both writer and reader to the same explicit encoding: `new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)` for UTF-8 without a BOM, passed identically to both `StreamWriter` and `StreamReader` constructors. For files consumed by Excel on Windows, I deliberately choose UTF-8 with BOM (`Encoding.UTF8`) and document that decision in the format contract rather than letting it vary by environment.
 
 ```csharp
 var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-
-using (var writer = new StreamWriter(exportPath, append: false, utf8))
-    writer.WriteLine("id,name,amount");
-
-using (var reader = new StreamReader(importPath, utf8))
-{
-    string? header = reader.ReadLine();
-    // ...
-}
+using var writer = new StreamWriter(exportPath, append: false, utf8);
+using var reader = new StreamReader(importPath, utf8);
 ```
-
-**Production takeaway:** "Works on my machine" for text files is almost always an encoding default mismatch — Karat expects you to name `UTF8Encoding` and match reader/writer. See **Program.cs** Section 4 — pass the same `Encoding` to matching ctors.
 
 ---
-
-#### Q3. Why can `File.ReadLines` hold a file lock until enumeration completes?
-
-(R) A support dashboard calls this to show the tail of a customer log. Under load the worker process recycles with `OutOfMemoryException`. Review:
 
-```csharp
-public string LoadCustomerLogForSupport(string logPath)
-{
-    if (!File.Exists(logPath))
-        return string.Empty;
+## Q45. (Scenario R) A support dashboard calls `StreamReader.ReadToEnd()` on customer logs that can exceed 10 GB, causing `OutOfMemoryException`. What is wrong and what replaces it?
 
-    using StreamReader reader = new StreamReader(logPath);
-    return reader.ReadToEnd();
-}
-```
+**Concepts**
+- `ReadToEnd` materializing entire file as one `string` on the LOH
+- Multi-GB LOH allocation triggering OOM under concurrent requests
+- Tail-read pattern: seek near EOF and read bounded chunk
+- Line-by-line streaming with bounded result set
 
-Customer logs can exceed 10 GB. What is wrong, and what pattern replaces `ReadToEnd` for this use case?
-
-**Answer:** `ReadToEnd()` allocates a single `string` for the entire remaining file — with 10 GB logs that forces a multi-gigabyte LOH allocation and typically terminates the process with `OutOfMemoryException`. Stream line-by-line with `ReadLine()` or `ReadLineAsync()`, seek to a tail window with `FileStream` + bounded `ReadBlock`, or use external tail tools — never materialize the whole file for a "show last lines" feature.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | `ReadToEnd()` on multi-GB file | `OutOfMemoryException`; worker recycle under concurrent support requests |
-| API misuse | Support "tail" implemented as full load | Latency and memory scale with file size, not UI need |
-| Scalability | Sync read of entire blob | Thread blocked for duration of huge I/O |
-
-**Fix (priority order):**
-
-1. For tail UI: open `FileStream` with `FileShare.ReadWrite`, seek near EOF, read last N KB/chars, split lines locally.
-2. For scanning: `while ((line = await reader.ReadLineAsync(ct)) != null)` — bounded memory regardless of file size.
-3. Cap response size returned to the dashboard (e.g., last 500 lines or 256 KB).
-4. Move huge log analytics to indexed storage — files on disk are not a query engine.
-
-```csharp
-public async Task<IReadOnlyList<string>> ReadLastLinesAsync(string logPath, int maxLines, CancellationToken ct)
-{
-    var lines = new Queue<string>(maxLines);
-    await using StreamReader reader = new StreamReader(logPath);
-    while (await reader.ReadLineAsync(ct) is { } line)
-    {
-        if (lines.Count == maxLines) lines.Dequeue();
-        lines.Enqueue(line);
-    }
-    return lines.ToArray();
-}
-```
+**Answer**
 
-**Production takeaway:** `ReadToEnd()` is for small files only — Karat uses log scale to test whether you know **Program.cs** Section 3 (`ReadLine` / `ReadBlock`) vs Section 7 (`File.ReadAllText` trap). Same mistake as `File.ReadAllText` on huge files.
+`ReadToEnd` allocates a single `string` for everything from the current position to EOF — a 10 GB log produces a 10 GB managed string, which exceeds the LOH and causes `OutOfMemoryException`, often recycling the worker process mid-request. For a "show last N lines" support view, the right pattern is to open a `FileStream`, seek to a position near EOF with `Seek(-windowBytes, SeekOrigin.End)`, read a bounded block, split on newlines, and return the last N lines — keeping allocation proportional to the window size rather than the file. For full sequential scanning, replace `ReadToEnd` with a `while (await reader.ReadLineAsync(ct) is { } line)` loop that processes one line at a time, and cap the response at a fixed maximum (for example 500 lines or 256 KB) before returning.
 
 ---
-
-#### Q4. How do `StreamReader.ReadLine`, `ReadToEnd`, and `ReadBlock` differ for large files?
-
-(R) A long-running export writes a status file so another process can poll completion. Operators see `IN_PROGRESS` forever after a crash mid-run. Review:
 
-```csharp
-string statusPath = Path.Combine(outputDir, "export.status");
-StreamWriter writer = new StreamWriter(statusPath, append: false);
-writer.WriteLine("IN_PROGRESS");
+## Q46. (Scenario R) A long-running export writes `IN_PROGRESS` then `COMPLETE` to a status file, but operators see `IN_PROGRESS` forever after a crash. What causes it and how do you harden it?
 
-RunHeavyExport(); // may take 20+ minutes; process sometimes killed by OOM killer
+**Concepts**
+- `StreamWriter` internal buffer not flushed until `Flush()` or `Dispose`
+- `AutoFlush = true` ensuring each status token reaches disk immediately
+- Lack of `using` causing handle leak and missing `COMPLETE` write on crash
+- Write-to-temp-then-atomic-move for crash-consistent status
 
-writer.WriteLine("COMPLETE");
-writer.Dispose();
+**Answer**
 
-// Poller (separate process):
-using StreamReader poller = new StreamReader(statusPath);
-string lastLine = poller.ReadToEnd().TrimEnd().Split('\n').Last();
-bool done = lastLine == "COMPLETE";
-```
-
-What causes false "stuck" exports and incomplete status files, and how do you harden write + detection?
-
-**Answer:** `StreamWriter` buffers output — `IN_PROGRESS` may not hit disk until `Flush()` or `Dispose`, so a poller can see an empty or stale file early. If the process dies mid-export, `COMPLETE` is never written and the poller correctly sees stuck state, but the writer also lacks atomic replace semantics — partial flushes can leave truncated files. Use `AutoFlush` or explicit `Flush()` after status transitions, write-temp-then-`File.Move` for atomic status, and treat absence of `COMPLETE` plus process exit as failure with timeout alerting.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Buffering | No `Flush` / `AutoFlush` after `IN_PROGRESS` | Poller reads empty or old content; false negatives |
-| Durability | Single file overwritten in place | Crash mid-write → truncated or blank status file |
-| Detection | `ReadToEnd().Split('\n').Last()` on in-progress write | May read partial buffer; race with writer |
-| Lifecycle | No `using` on writer if exception in `RunHeavyExport` | Handle leak + final status never written |
-
-**Fix (priority order):**
-
-1. Enable `writer.AutoFlush = true` or call `Flush()` immediately after each status line.
-2. Write status to a temp file and atomically replace: `File.WriteAllText(temp, status); File.Move(temp, statusPath, overwrite: true);` — or use `StreamWriter` on temp then move.
-3. Poller: check file length stability, last-write time, and explicit `FAILED`/`COMPLETE` tokens; add SLA timeout.
-4. Wrap writer in `using` and set `FAILED` in `catch`/`finally` when export aborts.
-
-```csharp
-using StreamWriter writer = new StreamWriter(statusPath, append: false) { AutoFlush = true };
-writer.WriteLine("IN_PROGRESS");
-try
-{
-    RunHeavyExport();
-    writer.WriteLine("COMPLETE");
-}
-catch
-{
-    writer.WriteLine("FAILED");
-    throw;
-}
-```
-
-**Production takeaway:** Karat stacks buffering + crash recovery — operators care about **observable** state on disk, not in-process buffers. See **Program.cs** Section 6 — `Flush`, `AutoFlush`, and dispose flushes remaining buffer.
+`StreamWriter` buffers output in memory — `IN_PROGRESS` may not reach disk until `Flush()` or `Dispose` is called, so a poller can see an empty file after the status line was written programmatically. When the process is killed mid-export, `COMPLETE` is never written and the status file stays as `IN_PROGRESS` forever because the writer was never disposed and never flushed. Setting `AutoFlush = true` on the writer ensures each `WriteLine` is immediately flushed to the OS buffer, making status tokens visible to pollers without a restart. Wrapping the writer in `using` and writing `FAILED` in a `catch`/`finally` ensures the final state is always recorded; for stronger crash safety, write the terminal status to a temp file and `File.Move` atomically, so the poller never sees a truncated or empty status file.
 
 ---
-
-#### Q5. What is the default encoding for `StreamReader` and `StreamWriter`, and why can that cause mojibake?
-
-(R) A log tailer and a log writer run in the same app. The tailer intermittently throws `IOException: The process cannot access the file because it is being used by another process`. Review:
-
-```csharp
-public IEnumerable<string> TailLines(string logPath)
-{
-    using FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read);
-    using StreamReader reader = new StreamReader(fs);
-
-    while (!reader.EndOfStream)
-    {
-        string? line = reader.ReadLine();
-        if (line != null)
-            yield return line;
-    }
-}
 
-// Elsewhere, on another thread:
-using StreamWriter writer = new StreamWriter(logPath, append: true);
-writer.WriteLine($"{DateTime.UtcNow:o} INFO  heartbeat");
-```
-
-What sharing rule is missing, and why does `StreamReader`/`StreamWriter` path constructors hide it?
-
-**Answer:** Opening `FileStream` with default `FileShare.Read` grants exclusive write access — a concurrent `StreamWriter` on the same path cannot open for append. Open the tailer's stream with `FileShare.ReadWrite` (and usually `FileMode.Open`, `FileAccess.Read`) so writers can append while you read. Path-based `StreamReader`/`StreamWriter` ctors create their own `FileStream` with sharing defaults you do not see — for tail-follow scenarios, construct `FileStream` explicitly, then wrap with `leaveOpen: true`.
-
-**Issues:**
+## Q47. (Scenario R) A log tailer and log writer in the same app produce intermittent `IOException: process cannot access the file`. What sharing rule is missing?
 
-| Category | Problem | Impact |
-|---|---|---|
-| File sharing | Default `FileShare.Read` on read stream | `IOException` when appender opens same log |
-| API visibility | `new StreamReader(path)` hides share flags | Developers miss sharing until production concurrency |
-| Iterator | `yield return` holds stream open for enumeration lifetime | Writer blocked for entire foreach duration |
+**Concepts**
+- Default `FileShare.Read` on tailer's `FileStream` — exclusive write lock
+- `FileShare.ReadWrite` required so both handles coexist
+- Path-based `StreamReader`/`StreamWriter` constructors hiding share flags
+- Explicit `FileStream` construction to control sharing
 
-**Fix (priority order):**
+**Answer**
 
-1. Tailer: `new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)`.
-2. Writer: `new StreamWriter(new FileStream(logPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite), appendEncoding) { AutoFlush = true }` or equivalent append pattern.
-3. For live tail, re-open or seek-from-end patterns with periodic reopen on `IOException` — logs rotate.
-4. Prefer structured logging sinks (Serilog file sink with shared flag) instead of hand-rolled tail+append.
+Opening the tailer's `FileStream` without specifying a share mode defaults to `FileShare.Read`, which grants the tailer exclusive write access — so when the writer tries to open the same path for append, the OS rejects it with a sharing violation even though the tailer is not writing. Both sides need to cooperate: the tailer opens with `FileShare.ReadWrite` so writers can append, and the writer opens with at least `FileShare.Read` so other readers can coexist. The path-based `StreamReader` and `StreamWriter` constructors create their own `FileStream` with sharing defaults the caller never sees, which is why the problem is invisible until load exposes the concurrency. The fix is to construct `FileStream` explicitly with the desired `FileShare` flag and then pass it to `StreamReader(fs)` or `StreamWriter(fs)`.
 
-```csharp
-using FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-using StreamReader reader = new StreamReader(fs, leaveOpen: false);
-```
-
-**Production takeaway:** Text wrappers do not remove OS file-lock rules — Karat tests whether you know when to bypass path ctors and configure `FileShare`. Preview **Program.cs** Section 2d / 3f — `FileStream` then `StreamReader`/`StreamWriter` chain.
-
 ---
-
-#### Q6. How do you specify `Encoding.UTF8`, UTF-8 with BOM, and legacy encodings (`Encoding.GetEncoding`)?
-
-(P) An ASP.NET Core hosted service ingests a growing feed file every few seconds. A developer keeps sync I/O "because the file is local":
-
-```csharp
-protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-{
-    using StreamReader reader = new StreamReader(_feedPath);
-
-    while (!stoppingToken.IsCancellationRequested)
-    {
-        string? line = reader.ReadLine(); // blocks thread pool thread
-        if (line == null)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-            continue;
-        }
-
-        await _processor.HandleLineAsync(line, stoppingToken);
-    }
-}
-```
-
-What breaks under hosting pressure, and what is the production-grade read loop?
-
-**Answer:** `ReadLine()` is synchronous — each call blocks a thread pool thread while waiting on disk I/O, which defeats the async hosting model and can contribute to thread-pool starvation when many background services do the same. Use `ReadLineAsync(stoppingToken)` (or `WaitToReadAsync` patterns on pipes) inside an async loop, combine with `FileShare.ReadWrite` if producers append, and reopen or track position when reaching EOF on a growing file.
-
-**Issues:**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Async | Sync `ReadLine()` in async host | Thread pool blocked during I/O waits |
-| EOF handling | `null` line then `Delay` on static reader | Misses new lines appending at EOF unless reposition/reopen |
-| Cancellation | Sync read ignores `stoppingToken` during block | Slow shutdown under load |
+## Q48. (Scenario P) An ASP.NET Core hosted service calls `reader.ReadLine()` (synchronous) inside an async loop. Thread-pool queue depth grows under load. What is the problem and fix?
 
-**Fix (priority order):**
+**Concepts**
+- Synchronous `ReadLine()` blocking a thread-pool thread during disk I/O
+- Thread-pool starvation identical to `.Result` in async context
+- `ReadLineAsync(CancellationToken)` freeing the thread during wait
+- EOF handling on a growing feed file
 
-1. Replace with `await reader.ReadLineAsync(stoppingToken)` in the loop.
-2. When at EOF on a growing feed, flush writer side, optionally reopen file or track `_lastPosition` with `FileStream.Position`.
-3. Mark the hosted service async end-to-end; avoid `.Result` on any related tasks.
-4. Add metrics for lag (lines behind) and backoff when file is temporarily locked.
+**Answer**
 
-```csharp
-await using StreamReader reader = new StreamReader(_feedPath);
+`ReadLine()` is synchronous — it blocks the calling thread-pool thread for the entire duration of the disk read, so each concurrent execution of the hosted service occupies a thread doing nothing but waiting, which starves other requests as the pool fills with blocked threads. Since the service is otherwise async, the fix is `await reader.ReadLineAsync(stoppingToken)`, which releases the thread during the I/O wait and only resumes when data is available. At EOF on a growing file, `ReadLineAsync` returns `null` just like the synchronous version, so the existing `Delay` loop for polling still works; for a file that is actively being appended by another process, I also need to ensure the reader opens with `FileShare.ReadWrite` so the writer's handle does not block the reader's open.
 
-while (!stoppingToken.IsCancellationRequested)
-{
-    string? line = await reader.ReadLineAsync(stoppingToken);
-    if (line is null)
-    {
-        await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-        continue;
-    }
-
-    await _processor.HandleLineAsync(line, stoppingToken);
-}
-```
-
-**Production takeaway:** Local disk does not make I/O free — sync-over-async in hosted services is the same Karat trap as `.Result` in controllers. Prefer async stream APIs even for file reads.
-
 ---
 
-#### Q7. What does `StreamReader.DetectEncodingFromByteOrderMarks` control?
+## Q49. (Scenario R) A tool patches the first line of a config file in place then reads the remainder, but throws `ObjectDisposedException` after refactoring. What is wrong?
 
-(R) A tool rewrites the first line of a config file in place, then reads the remainder. After a refactor it throws `ObjectDisposedException`. Review:
-
-```csharp
-public void PatchConfigHeader(string path, string newHeader)
-{
-    using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
-    using StreamWriter writer = new StreamWriter(fs, Encoding.UTF8, bufferSize: 1024, leaveOpen: true);
-    using StreamReader reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: false);
-
-    writer.WriteLine(newHeader);
-    writer.Flush();
-
-    fs.Seek(0, SeekOrigin.Begin);
-    string remainder = reader.ReadToEnd();
-}
-```
+**Concepts**
+- `leaveOpen: false` default on `StreamReader` closing the shared `FileStream`
+- LIFO disposal order of nested `using` statements
+- Both reader and writer must use `leaveOpen: true` when sharing one stream
+- Safer alternative: read-patch-write via temp file and atomic replace
 
-Which dispose/ownership choices are wrong, and what is the correct pattern when wrapping the same `FileStream`?
-
-**Answer:** `StreamReader` is constructed with `leaveOpen: false` (the default), so disposing the reader **closes the shared `FileStream`** when the `using` block ends — before `Seek`/`ReadToEnd` if ordering were wrong, and any later use throws `ObjectDisposedException`. Both reader and writer must use `leaveOpen: true` when sharing one stream; dispose order should flush the writer, then dispose reader, then writer, then the stream — or avoid dual wrappers on one stream and read/write in separate phases with explicit positioning.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Ownership | `StreamReader(..., leaveOpen: false)` on shared `fs` | Reader dispose closes `fs` for everyone |
-| Concurrency | Simultaneous reader/writer on same stream without clear protocol | Undefined buffering; corrupted reads |
-| Design | In-place header patch via read/write same stream | Easy to truncate file if rewrite shorter than original |
-
-**Fix (priority order):**
-
-1. Set `leaveOpen: true` on **both** `StreamWriter` and `StreamReader`; dispose `fs` last explicitly.
-2. Safer: read full content first, patch in memory, write to temp file, atomic replace — avoids length mismatch corrupting tail.
-3. After writing header, `writer.Flush()` before reading; reset position with `fs.Seek` and optionally discard reader buffer (new reader instance).
-4. Document that `StreamWriter` path ctor owns the stream unless you pass your own `FileStream`.
-
-```csharp
-using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
-using (StreamWriter writer = new StreamWriter(fs, Encoding.UTF8, leaveOpen: true))
-{
-    writer.WriteLine(newHeader);
-    writer.Flush();
-}
-fs.Seek(0, SeekOrigin.Begin);
-using (StreamReader reader = new StreamReader(fs, Encoding.UTF8, leaveOpen: true))
-{
-    _ = reader.ReadLine();
-    string remainder = reader.ReadToEnd();
-}
-```
+**Answer**
 
-**Production takeaway:** Default `leaveOpen: false` means disposing the text wrapper closes the base stream — Karat tests layered I/O ownership called out in **Program.cs** Section 2d/3f FileStream chains.
+When `StreamReader` is constructed without `leaveOpen: true` (the default is `false`), disposing the reader closes the underlying `FileStream` — which happens when the `StreamReader`'s `using` block ends, leaving the `FileStream` closed for anyone else holding a reference to it. Any subsequent call on the `FileStream` or writer that was also wrapping it throws `ObjectDisposedException`. The fix is to set `leaveOpen: true` on both the `StreamWriter` and `StreamReader` so they act as views over the shared stream without claiming ownership, then dispose the raw `FileStream` explicitly after both wrappers are done. The safer and more correct pattern for in-place header patching is to read the full content into memory, apply the edit, write to a temp file, and call `File.Replace` or `File.Move`, which avoids length-mismatch corruption when the new header is shorter than the original.
 
 ---
-
-#### Q8. Explain async read/write methods on `StreamReader`/`StreamWriter` (`ReadLineAsync`, `WriteLineAsync`, `ReadToEndAsync`).
 
-(M) A cross-platform app parses `.env`-style files written on mixed developer machines (Windows CRLF, macOS/Linux LF). Review ingestion:
+## Q50. (Scenario M) A cross-platform app parses `.env`-style files using `ReadToEnd` + `Split('\n')`. Keys with `\r` suffixes break lookups on Windows files. What is wrong and how should line-based parsing use `StreamReader`?
 
-```csharp
-public Dictionary<string, string> ParseEnvFile(string path)
-{
-    var map = new Dictionary<string, string>();
-    using StreamReader reader = new StreamReader(path);
-
-    string content = reader.ReadToEnd();
-    foreach (string rawLine in content.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-    {
-        int eq = rawLine.IndexOf('=');
-        if (eq <= 0) continue;
-        string key = rawLine[..eq].Trim();
-        string value = rawLine[(eq + 1)..].Trim();
-        map[key] = value;
-    }
-    return map;
-}
-```
+**Concepts**
+- `Split('\n')` leaving `'\r'` at end of each key on CRLF files
+- `StreamReader.ReadLine()` stripping both `\r\n` and `\n` uniformly
+- `ReadToEnd` reintroducing large-file allocation risk
+- Defensive `Trim()` on keys as belt-and-suspenders guard
 
-What breaks when files use CRLF or when keys are compared across environments, and how should line-based parsing use `StreamReader` instead?
-
-**Answer:** Splitting on `'\n'` alone leaves a trailing `'\r'` on keys when the file uses CRLF — `map["HOST"]` misses lookups for `"HOST\r"`. `ReadToEnd()` also reintroduces the large-file memory trap. Loop with `ReadLine()`, which strips platform newlines (`\r\n` or `\n`) uniformly, trim keys/values defensively, and use ordinal key comparison; skip comments with `#` per line instead of splitting the whole file.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Newlines | `Split('\n')` on CRLF content | Keys include `\r` — silent config misses in Linux-deployed apps |
-| Memory | `ReadToEnd()` for config | Unbounded allocation if `.env` grows or includes generated blocks |
-| Parsing | `RemoveEmptyEntries` | Skips intentional blank lines vs comments — may hide format errors |
-
-**Fix (priority order):**
-
-1. Replace bulk split with `while ((line = reader.ReadLine()) != null)` — `ReadLine` removes `\r\n`/`\n` per **Program.cs** Section 3.
-2. `key = key.Trim('\r', ' ', '\t')` defensively if content comes from external tools.
-3. Use `StringComparer.OrdinalIgnoreCase` only if spec requires case-insensitivity — document choice.
-4. For deployment, normalize line endings in repo via `.gitattributes` — but runtime parsing must still tolerate CRLF.
-
-```csharp
-while (reader.ReadLine() is { } line)
-{
-    line = line.Trim();
-    if (line.Length == 0 || line.StartsWith('#')) continue;
-    int eq = line.IndexOf('=');
-    if (eq <= 0) continue;
-    map[line[..eq].Trim()] = line[(eq + 1)..].Trim();
-}
-```
+**Answer**
 
-**Production takeaway:** Cross-platform text bugs often show up as `\r`-poisoned keys, not mojibake — Karat expects `ReadLine` semantics vs manual split. See **Program.cs** QUICK REFERENCE — prefer line loop over whole-file helpers for scalable parsing.
+Splitting on `'\n'` alone does not strip the `'\r'` that precedes it in Windows CRLF line endings, so keys parsed from a Windows-written file contain a trailing carriage return — `map["HOST"]` silently misses lookups for `"HOST\r"`. `StreamReader.ReadLine()` handles both `\r\n` and `\n` uniformly, stripping the terminator before returning the line, which is the correct fix. Replacing `ReadToEnd().Split('\n')` with a `while ((line = reader.ReadLine()) != null)` loop also eliminates the `ReadToEnd` LOH risk. I also add `key = key.Trim()` defensively on each parsed key since editor tools on various platforms sometimes insert invisible whitespace, and I document the encoding expectation (UTF-8) in the format contract so the reader is constructed with the matching encoding explicitly.
 
 ---
-
-#### Q9. What is `StreamWriter.AutoFlush`, and when should you call `Flush()` explicitly?
 
-_Answer not found._
+## 03. FileStream & Binary Files
 
 ---
 
-#### Q10. How do you append text to an existing file with `StreamWriter` (constructor overload with `append: true`)?
+## Q51. What is the difference between `File`, `Stream`, and `FileStream`?
 
-_Answer not found._
-
----
+**Concepts**
+- `File` — static utility class, no state, wraps `FileStream` internally
+- `Stream` — abstract base defining byte I/O contract
+- `FileStream` — concrete `Stream` implementation backed by a filesystem file
+- Lifecycle: `File` one-shot; `FileStream` held open for duration of use
 
-#### Q11. What happens if you forget to dispose a `StreamWriter` — especially on Windows file locking?
+**Answer**
 
-_Answer not found._
+`File` is a purely static helper — every method like `ReadAllText` or `Create` opens a `FileStream` internally, performs the operation, and closes it, with no persistent state. `Stream` is the abstract class that defines the byte-level contract (`Read`, `Write`, `Seek`, `Flush`, `Position`, `Length`) that all I/O types share. `FileStream` is the concrete `Stream` subclass backed by an OS file handle — it keeps the handle open for as long as the object lives, which gives fine-grained control over buffering, seeking, and sharing. I use `File` static methods for one-shot operations and `FileStream` when I need the handle open across multiple reads or writes, need to configure `FileMode`/`FileAccess`/`FileShare` precisely, or need to wrap the stream with `StreamReader`/`BinaryReader`.
 
 ---
 
-#### Q12. Can you use `StreamReader`/`StreamWriter` with non-file streams (memory, network)? Give examples.
+## Q52. Explain `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`) — when use each?
 
-_Answer not found._
+**Concepts**
+- `CreateNew` — fail if exists, exclusive atomic create
+- `Create` — truncate if exists, create if not
+- `Open` — fail if not exists
+- `OpenOrCreate` — open existing or create new
+- `Truncate` — open existing and set length to zero
+- `Append` — open or create, seek to EOF
 
----
-
-#### Q13. What is the difference between `using` blocks and C# 8 `using` declarations for stream cleanup?
+**Answer**
 
-_Answer not found._
+`CreateNew` is the atomic "create only if not exists" mode — it throws `IOException` if the path exists, making it the right choice for idempotency guards. `Create` truncates an existing file or creates a new one, so it is safe for overwrite scenarios where old content must be discarded. `Open` opens an existing file and throws `FileNotFoundException` if it does not exist, suitable when the file's prior existence is a precondition. `OpenOrCreate` opens the file if it exists or creates a new empty one if it does not, positioned at byte zero. `Truncate` opens an existing file and immediately sets its length to zero without creating a new one — used to wipe and rewrite in place. `Append` opens or creates the file and positions writes at the end-of-file, making every write an append without needing to seek.
 
 ---
 
-#### Q14. How do you read a file line-by-line without loading it entirely into memory?
+## Q53. Explain `FileAccess` (`Read`, `Write`, `ReadWrite`) and `FileShare` (`None`, `Read`, `Write`, `ReadWrite`, `Delete`).
 
-_Answer not found._
-
----
+**Concepts**
+- `FileAccess` gating what operations this handle may perform
+- `FileShare` declaring what concurrent openers are permitted
+- Most-restrictive-combination semantics when multiple handles exist
+- Mismatch between two openers causing sharing violation
 
-#### Q15. What is `TextReader`/`TextWriter`, and why do APIs often accept these abstractions?
+**Answer**
 
-_Answer not found._
+`FileAccess` is a per-handle capability flag: `Read` permits only reads, `Write` permits only writes, and `ReadWrite` permits both — attempting an operation not covered by the flag throws `NotSupportedException` or `UnauthorizedAccessException` at runtime. `FileShare` declares what the caller is willing to share with other openers of the same path: `None` is exclusive, `Read` allows other read-only openers, `Write` allows other writers, `ReadWrite` allows any combination, and `Delete` permits the file to be marked for deletion while the handle is open. The OS enforces the most-restrictive combination: if a first opener uses `FileShare.Read` and a second opener requests `FileAccess.Write`, the second open fails because the first did not allow write sharing. A sharing violation from a concurrent open always means at least one side's requested access conflicts with the other side's declared share.
 
 ---
-
-### 03. FileStream & Binary Files
-
-#### Q1. What is the difference between `File`, `Stream`, and `FileStream`?
-
-(R) A telemetry service reads a fixed 4-byte file signature from `signature.bin`. In production, short files produce garbage signatures without throwing. Review the reader:
-
-```csharp
-public static string ReadFileSignature(string path)
-{
-    byte[] buffer = new byte[4];
 
-    using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-    stream.Read(buffer, 0, buffer.Length); // signature must be exactly 4 bytes
+## Q54. Why does default `FileShare.None` cause sharing violations when another process needs read access?
 
-    return Encoding.ASCII.GetString(buffer);
-}
-```
+**Concepts**
+- `FileShare.None` — exclusive lock, no concurrent openers permitted
+- OS checking requested access against the holder's declared share
+- Production pattern: writer with `FileShare.Read` to allow concurrent readers
+- Common default trap in `FileStream` constructor overloads
 
-What is wrong, and how would you harden this for truncated or partially written files?
-
-**Answer:** `FileStream.Read` may return fewer bytes than requested — especially near EOF or on a file still being written — but the code ignores the return value and decodes the entire buffer, padding with `\0` or stale bytes. You must loop until you have 4 bytes or confirm EOF, and treat short reads as corrupt input.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Return value of `Read` ignored | Partial buffer decoded as full signature |
-| Runtime | No EOF / short-file handling | Silent garbage strings instead of explicit failure |
-| Concurrency | `FileShare.Read` while writer may still flush | Reader sees pre-flush or truncated file |
-
-**Fix (priority order):**
-
-1. Loop reads until `totalRead == 4` or `Read` returns 0 — throw `InvalidDataException` if fewer than 4 bytes after EOF.
-2. Prefer `BinaryReader.ReadBytes(4)` when you need an exact count — it throws `EndOfStreamException` on short input (see **Program.cs** Section 9).
-3. If another process writes the file, coordinate with `FileShare.ReadWrite` on the writer and validate magic before trusting content.
-4. Decode only the bytes actually read: `Encoding.ASCII.GetString(buffer, 0, totalRead)`.
-
-```csharp
-int totalRead = 0;
-while (totalRead < buffer.Length)
-{
-    int n = stream.Read(buffer, totalRead, buffer.Length - totalRead);
-    if (n == 0) break;
-    totalRead += n;
-}
-if (totalRead != buffer.Length)
-    throw new InvalidDataException($"Expected 4 signature bytes, got {totalRead}.");
-```
+**Answer**
 
-**Production takeaway:** Karat embeds the **Program.cs** Section 5 rule — always check bytes returned — inside realistic signature-reading code. A single `Read` call is not a contract for a full buffer.
+When a `FileStream` is constructed using the overload that omits the `FileShare` parameter, it defaults to `FileShare.None`, which tells the OS that no other process or thread should be allowed to open the file at all — not even for reading — while this handle is open. Since `FileShare.None` permits zero concurrent openers, any attempt by a reader or another writer to open the same path gets `IOException: sharing violation`. The fix is to specify `FileShare.Read` on a writer that does not need write exclusivity, which allows concurrent readers while still blocking other writers. For concurrent append scenarios, `FileShare.ReadWrite` on both sides is required, though that only resolves the opening conflict and does not prevent interleaved writes without additional synchronization.
 
 ---
-
-#### Q2. Explain `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`) — when use each?
-
-(R) A background job appends binary audit records while a dashboard process tries to read the same file. The writer opens like this; the reader gets `IOException: The process cannot access the file`:
-
-```csharp
-// Writer (audit service)
-using var stream = new FileStream(
-    auditPath, FileMode.Append, FileAccess.Write, FileShare.None);
-
-// Reader (dashboard — runs concurrently)
-using var readStream = new FileStream(
-    auditPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-```
-
-What locking mismatch causes the failure, and what `FileShare` flags should each side use?
 
-**Answer:** The writer holds an exclusive lock with `FileShare.None`, so no other process can open the file — even for read — until the handle is disposed. For concurrent append + read, the writer must allow shared read access (`FileShare.Read`) while the reader opens with `FileShare.ReadWrite` so both can coexist.
+## Q55. What are `FileStream.Position`, `Seek`, and `Length` — and when is seeking valid?
 
-**Issues:**
+**Concepts**
+- `Position` — current byte offset from stream start
+- `Seek(offset, SeekOrigin)` — reposition the stream pointer
+- `Length` — total size of the file in bytes
+- `CanSeek` — false on non-seekable streams like `NetworkStream`
 
-| Category | Problem | Impact |
-|---|---|---|
-| Locking | Writer uses `FileShare.None` | Exclusive lock blocks dashboard reader |
-| Design | Long-lived writer handle (service loop) | File stays locked for entire process lifetime |
-| Correctness | Reader assumes `ReadWrite` share fixes writer side | Share flags must match on **both** open calls |
+**Answer**
 
-**Fix (priority order):**
+`Position` is the byte offset at which the next read or write will occur; reads and writes advance it automatically. `Seek(offset, origin)` repositions the pointer using a `SeekOrigin` of `Begin`, `Current`, or `End` — for example `Seek(-8, SeekOrigin.End)` positions 8 bytes before the end of file. `Length` returns the current file size in bytes and may differ from `Position` if the stream was opened in append mode or if another process is writing. Seeking is only valid when `CanSeek` is `true`, which it is for `FileStream` backed by a regular file but not for `NetworkStream`, pipe streams, or `CryptoStream` in certain modes; calling `Seek` on a non-seekable stream throws `NotSupportedException`.
 
-1. Change writer to `FileShare.Read` (or `FileShare.ReadWrite` if multiple writers are coordinated): `new FileStream(auditPath, FileMode.Append, FileAccess.Write, FileShare.Read)`.
-2. Keep reader as `FileMode.Open, FileAccess.Read, FileShare.ReadWrite`.
-3. Ensure writer `Flush()` / dispose runs periodically if readers need fresh tail bytes — buffered appends may not be visible until flush.
-4. For high-concurrency append, consider one writer process or a queue instead of many exclusive handles.
-
-**Production takeaway:** `FileShare` is negotiated at open time — the most restrictive combination wins. **Program.cs** Section 4 shows `FileShare.None` for exclusive writes and `FileShare.Read` for concurrent readers; production append+tail-read patterns need the writer to grant share.
-
 ---
-
-#### Q3. Explain `FileAccess` (`Read`, `Write`, `ReadWrite`) and `FileShare` (`None`, `Read`, `Write`, `ReadWrite`, `Delete`).
-
-(R) A teammate ports `inventory.bin` readers from another language and swaps field order on one record type. The file opens fine but prices and names are nonsense after the first record. Review:
-
-```csharp
-for (int i = 0; i < recordCount; i++)
-{
-    int id = reader.ReadInt32();
-    double price = reader.ReadDouble();   // was written as int32 + string + bool
-    string name = reader.ReadString();
-    bool inStock = reader.ReadBoolean();
-    results[i] = new ProductRecord(id, name, price, inStock);
-}
-```
-
-What breaks, why does corruption spread to later records, and how do you detect or recover safely?
-
-**Answer:** Binary files have no field names — the reader consumes bytes in strict write order. Reading `double` where a length-prefixed `string` was written misaligns the stream pointer, so every subsequent field and record parses garbage until `EndOfStreamException` or absurd values appear.
 
-**Issues:**
+## Q56. Explain `SeekOrigin` (`Begin`, `Current`, `End`) with a concrete read-modify-write scenario.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Read order ≠ write order (`id`, `name`, `price`, `bool`) | First record wrong; cursor permanently offset |
-| Serialization | Treating on-disk layout like struct memory layout | Language ports assume field order matches CLR struct |
-| Recovery | No per-record checksum or length guard | One mismatch corrupts entire remainder of file |
+**Concepts**
+- `SeekOrigin.Begin` — absolute offset from file start
+- `SeekOrigin.Current` — relative to current position
+- `SeekOrigin.End` — offset from end of file (negative values read backwards)
+- Seeking to overwrite a specific record without rewriting the whole file
 
-**Fix (priority order):**
+**Answer**
 
-1. Restore exact write order from **Program.cs** `BinaryInventoryCodec`: `ReadInt32` → `ReadString` → `ReadDouble` → `ReadBoolean`.
-2. Validate magic header and `recordCount` before the loop; cap `recordCount` against `stream.Length` to reject absurd headers (corrupt/truncated files).
-3. Add optional per-record length prefix or CRC if you need partial recovery — without it, fail fast on first parse anomaly.
-4. Never use `StructLayout` / `Marshal.StructureToPtr` interchangeably with `BinaryWriter` unless you explicitly define packing and endianness.
+`SeekOrigin.Begin` sets position to an absolute byte offset from the start of the file, which is the right choice when record offsets are stored in an index. `SeekOrigin.Current` moves relative to where the pointer already is, useful when skipping a known number of bytes after parsing a header. `SeekOrigin.End` is used when offsets are measured from the end — `Seek(-8, SeekOrigin.End)` positions exactly 8 bytes before EOF to read a footer magic number. A concrete read-modify-write scenario: read a fixed 16-byte header at position 0, advance through records to find the one to update, call `Seek(recordStart, SeekOrigin.Begin)`, write the modified record bytes, then call `Flush()` — the rest of the file is untouched because seeks never reallocate file content.
 
-**Production takeaway:** BinaryReader mismatches are not localized bugs — one wrong primitive shifts the cursor for all following data. Magic bytes (**Program.cs** Section 3) catch wrong file types; they do not catch wrong field order within the right file.
-
 ---
-
-#### Q4. Why does default `FileShare.None` cause sharing violations when another process needs read access?
-
-(R) A log-rotation utility reads the last 8 bytes of a growing file to verify a footer magic. It intermittently returns wrong bytes under load. Review:
-
-```csharp
-public static byte[] ReadFooter(string path)
-{
-    using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-    byte[] footer = new byte[8];
-    stream.Seek(0, SeekOrigin.End);           // jump to end
-    stream.Read(footer, 0, footer.Length);
-    return footer;
-}
-```
-
-What Position/Seek mistakes are here, and what else should you validate before trusting the footer?
-
-**Answer:** `Seek(0, SeekOrigin.End)` moves to EOF — **after** the last byte — not to the start of an 8-byte footer. The subsequent `Read` then pulls bytes from beyond the file (zeros/partial read) or fails silently depending on length. You need a negative offset from the end, e.g. `Seek(-8, SeekOrigin.End)`, and must handle files shorter than 8 bytes.
-
-**Issues:**
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `Seek(0, End)` ≠ "last N bytes" | Reads past EOF; footer never matches |
-| Edge case | No `Length < 8` guard | Short files produce partial/garbage footers |
-| Concurrency | `FileShare.Read` while appender grows file | Footer position shifts between Seek and Read |
+## Q57. What happens if you seek on a non-seekable stream (e.g., some network streams)?
 
-**Fix (priority order):**
+**Concepts**
+- `CanSeek` property indicating seek support
+- `NotSupportedException` thrown on seek attempt
+- `NetworkStream`, pipe streams, and certain `CryptoStream` modes as non-seekable
+- Buffering workarounds when seek is needed on non-seekable source
 
-1. Replace with `stream.Seek(-footer.Length, SeekOrigin.End)` — pattern from **Program.cs** `ReadLastTwoBytes` (`Seek(-2, SeekOrigin.End)`).
-2. If `stream.Length < footer.Length`, throw or return a explicit failure — do not read.
-3. Check `Read` return value or use `ReadBytes(8)` when you require exactly 8 bytes.
-4. If the file is actively appended, re-read or use a stable snapshot (copy, or open with coordinated share + retry).
+**Answer**
 
-**Production takeaway:** `SeekOrigin.End` offsets are relative to EOF — zero means "after the last byte," not "the last byte." Karat tests whether you can translate "read tail" into signed Seek math.
+Calling `Seek` or setting `Position` on a stream where `CanSeek` returns `false` throws `NotSupportedException` — the stream has no underlying random-access store to reposition. `NetworkStream` is non-seekable because TCP delivers a forward-only byte sequence with no ability to rewind, and pipe streams are similarly one-directional. If I need to re-read part of a non-seekable stream (for example to re-parse a header after reading it), I copy the relevant bytes into a `MemoryStream` first — which is seekable — and seek within that copy. The `CanSeek`, `CanRead`, and `CanWrite` properties exist precisely so code can check capabilities at runtime rather than catching `NotSupportedException` as control flow.
 
 ---
 
-#### Q5. What are `FileStream.Position`, `Seek`, and `Length` — and when is seeking valid?
+## Q58. What is the difference between `FileStream.Read`/`Write` and `ReadAsync`/`WriteAsync`?
 
-(P) Your .NET service writes `metrics.bin` consumed by a Linux C tool on big-endian ARM. A developer uses default `BinaryWriter`/`BinaryReader` for `int` and `double` fields. Locally on x64 Windows everything works; in staging the C tool reads garbage. What is the root cause, and how do you design a cross-platform binary layout?
+**Concepts**
+- Synchronous `Read`/`Write` blocking the calling thread
+- `ReadAsync`/`WriteAsync` using OS async I/O and freeing the thread
+- `useAsync: true` flag required on `FileStream` for true async I/O on Windows
+- Performance: sync is fine for background batch work; async is required in web servers
 
-**Answer:** `BinaryWriter`/`BinaryReader` use the platform's native little-endian layout for multi-byte primitives on typical x64 Windows — the ARM C consumer expects big-endian (network) byte order, so numeric fields decode incorrectly even when field order and sizes match.
+**Answer**
 
-- Document an explicit wire format: field order, fixed sizes, and **endianness** (usually big-endian for cross-language files).
-- Write primitives with explicit byte reversal (`BinaryPrimitives.WriteInt32BigEndian`) or a known serializer (Protocol Buffers, MessagePack) instead of assuming CLR defaults match C `struct` memory.
-- Do not confuse **struct memory layout** (`StructLayout`, padding, alignment) with **BinaryWriter** layout — they are unrelated unless you carefully marshal.
-- Add a version byte and magic header; integration-test round-trip with the C reader in CI on both endian platforms.
+`Read` and `Write` are synchronous — they block the calling thread until the OS completes the I/O, which on spinning disks or network-backed storage means the thread idles for milliseconds doing nothing useful. `ReadAsync` and `WriteAsync` issue the I/O request to the OS and `await` completion asynchronously, freeing the thread to handle other work. On Windows, true async file I/O only happens when the `FileStream` is opened with `useAsync: true` (or `FileOptions.Asynchronous`); without this flag, `ReadAsync` on Windows runs synchronous I/O on a thread-pool thread, which has the same net effect but wastes a thread. In ASP.NET Core endpoints and hosted services I always use async methods and open `FileStream` with `FileOptions.Asynchronous`; in command-line batch tools where only one stream is active, synchronous I/O is simpler and equally fast.
 
-**Production takeaway:** "Same language on dev machine" hides endianness and padding issues until the first cross-platform consumer. **Program.cs** notes little-endian on typical x64 — that is an assumption, not a portable protocol.
-
 ---
-
-#### Q6. Explain `SeekOrigin` (`Begin`, `Current`, `End`) with a concrete read-modify-write scenario.
 
-(D) A data pipeline must scan a 60 GB append-only binary archive for records matching a key — random access by fixed record index, not full sequential parse every time. A junior proposes `FileStream` + `Seek` per lookup; a senior suggests `MemoryMappedFile`. What are the trade-offs, and when would you still choose streaming?
+## Q59. What do `BinaryReader` and `BinaryWriter` add over raw `FileStream` byte operations?
 
-**Answer:** `MemoryMappedFile` maps file pages into virtual memory — excellent for repeated random access on large read-mostly files without loading 60 GB into a `byte[]`, and the OS caches hot regions efficiently. Pure `FileStream` + `Seek` per lookup works but pays more syscall overhead and does not leverage page cache as naturally for scattered access patterns.
+**Concepts**
+- Typed read methods (`ReadInt32`, `ReadDouble`, `ReadString`, `ReadBoolean`)
+- Length-prefixed string encoding for `ReadString`/`Write(string)`
+- Buffering a `Stream` argument for typed access
+- `EndOfStreamException` on short reads vs silent partial buffer
 
-- **Memory-mapped pros:** Fast indexed jumps when records are fixed-size or you maintain an offset index; multiple processes can share mapped views read-only; no manual buffer management for random reads.
-- **Memory-mapped cons:** Less ideal for concurrent **writes** / append while mapped; address-space limits on 32-bit; careful handling of torn reads if writer appends without coordination; not a drop-in for variable-length records without an index.
-- **Streaming pros:** Simpler lifecycle with `using`; natural for sequential export/import; better when records are variable-length and you must parse forward anyway; async `ReadAsync` pipelines for ETL.
-- **Hybrid:** Build a sidecar index file (offset table) + mmap or seek; for one-pass full scan, sequential `FileStream` may be faster than millions of random seeks.
+**Answer**
 
-**Production takeaway:** Karat tests design judgment — mmap is not "always faster," but for **large, repeatedly indexed, read-heavy** binary archives it often beats naive per-lookup `Seek` on spinning disks and NVMe alike when record boundaries are known.
+`BinaryReader` and `BinaryWriter` layer typed primitive serialization on top of any `Stream`: instead of manually reading 4 bytes and calling `BitConverter.ToInt32`, I call `reader.ReadInt32()` and the encoding, byte order, and read-loop are handled internally. `BinaryWriter.Write(string)` encodes the string as a 7-bit-encoded length prefix followed by UTF-8 bytes, and `BinaryReader.ReadString()` reads it back — but this format is .NET-specific, so cross-language consumers cannot use it directly. `BinaryReader.ReadBytes(count)` throws `EndOfStreamException` if the stream ends before `count` bytes are read, unlike a raw `Stream.Read` that silently returns fewer bytes without throwing, which makes short-read errors explicit rather than hidden in zero-padded buffers.
 
 ---
-
-#### Q7. What happens if you seek on a non-seekable stream (e.g., some network streams)?
-
-(R) An export worker writes large binary batches with async I/O, then signals a downstream processor via a message queue. The processor often reads zero-length or incomplete files. Review:
-
-```csharp
-public async Task ExportBatchAsync(string path, byte[] payload, CancellationToken ct)
-{
-    await using FileStream stream = new FileStream(
-        path, FileMode.Create, FileAccess.Write, FileShare.Read);
-
-    await stream.WriteAsync(payload, ct);
-    // message published immediately after WriteAsync returns
-    await _queue.PublishAsync(new BatchReadyMessage(path), ct);
-}
-```
-
-What async/flush timing issue causes incomplete reads, and how do you fix it before publishing?
 
-**Answer:** `WriteAsync` returning means data reached the `FileStream` buffer — not necessarily the OS disk cache or a stable on-disk length visible to another process. Publishing immediately races the consumer, which may open the file before flush/dispose completes and see zero or partial content.
+## Q60. How does `BinaryReader` handle endianness and primitive types (`ReadInt32`, `ReadDouble`, `ReadString`)?
 
-**Issues:**
+**Concepts**
+- Little-endian byte order assumed on all platforms
+- No built-in big-endian support in `BinaryReader`/`BinaryWriter`
+- `BinaryPrimitives` for explicit endianness control
+- Cross-language interoperability requires documented byte order
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | No `FlushAsync` / dispose before signal | Consumer reads truncated file |
-| Timing | Message queue is faster than disk visibility | Intermittent "empty file" failures |
-| API | `FileShare.Read` allows concurrent open | Reader succeeds but gets stale length |
+**Answer**
 
-**Fix (priority order):**
+`BinaryReader` and `BinaryWriter` always use little-endian byte order — the least significant byte is stored first — regardless of the underlying platform's native endianness. This means files written with `BinaryWriter` on x64 Windows are readable by `BinaryReader` on any .NET platform, but a big-endian consumer written in C or Go will read numeric fields in the wrong order. When cross-language interoperability is needed, I use `BinaryPrimitives.WriteInt32BigEndian(buffer, value)` from `System.Buffers.Binary` to write in network byte order (big-endian) and document the byte order explicitly in the format specification. `ReadString` and `Write(string)` use a .NET-specific 7-bit-encoded length prefix format that has no standard equivalent in other languages, so for cross-platform binary files I write strings as a fixed-size byte length followed by raw UTF-8 bytes.
 
-1. `await stream.FlushAsync(ct)` before publishing — mirrors **Program.cs** Section 7 (`writer.Flush(); stream.Flush()`).
-2. Prefer `await using` scope: dispose (close handle) before enqueue so OS metadata reflects final length.
-3. Optionally write to a temp path and atomically `File.Move` to the final path, then publish — consumer never sees a half-written target.
-4. Consumer should retry with backoff on short reads, but the producer must not rely on that alone.
-
-```csharp
-await stream.WriteAsync(payload, ct);
-await stream.FlushAsync(ct);
-// await using dispose runs here — then publish
-await _queue.PublishAsync(new BatchReadyMessage(path), ct);
-```
-
-**Production takeaway:** Async I/O does not remove flush semantics — **Program.cs** warns that `FileInfo.Length` may be stale until flush/dispose. Queue-based pipelines need flush + atomic rename, not just `WriteAsync`.
-
 ---
 
-#### Q8. What is the difference between `FileStream.Read`/`Write` and `ReadAsync`/`WriteAsync`?
-
-(R) A cache service tries to wipe and rewrite `cache.bin` in one handle. It throws at runtime despite the path existing. Review both open attempts:
-
-```csharp
-// Attempt A — "open existing and overwrite first byte"
-using var readOnly = new FileStream(cachePath, FileMode.Open, FileAccess.Read);
-readOnly.WriteByte(0xFF);
-
-// Attempt B — "create fresh file but only pass Read access"
-using var creator = new FileStream(cachePath, FileMode.Create, FileAccess.Read);
-```
+## Q61. What is the on-disk format of `BinaryWriter.Write(string)` — and why does it matter for cross-platform files?
 
-What `FileMode`/`FileAccess` mismatches cause each failure, and what is the correct combination for in-place rewrite (**Program.cs** Section 10 — Truncate pattern)?
+**Concepts**
+- 7-bit encoded variable-length integer as length prefix
+- UTF-8 encoded string bytes following the length
+- .NET-specific format with no standard cross-language equivalent
+- Custom fixed-length-prefixed encoding for interop
 
-**Answer:** `FileAccess` must authorize every operation you perform — `Read` forbids `WriteByte`, and `FileMode.Create` with `FileAccess.Read` is an invalid combination that throws `ArgumentException` at construction. For in-place rewrite, open with write-capable access and use `FileMode.Truncate` or `ReadWrite` + explicit length reset.
+**Answer**
 
-**Issues:**
+`BinaryWriter.Write(string)` encodes the string length as a 7-bit encoded variable-length integer (1 byte for lengths 0–127, 2 bytes for 128–16383, and so on) followed by the UTF-8 encoded string bytes. `BinaryReader.ReadString()` reads this format back correctly, but no standard C, Python, or Go library knows about the 7-bit encoding scheme, so any cross-language consumer that tries to read this as a length-prefixed string will parse the prefix incorrectly and misalign every subsequent field. For binary files consumed outside .NET, I write strings with a fixed-size prefix — a 2-byte or 4-byte little-endian length in a documented byte order — followed by the raw UTF-8 bytes, avoiding the .NET-specific 7-bit encoding entirely and documenting the format in the file specification.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Attempt A: `FileAccess.Read` + `WriteByte` | `NotSupportedException` at first write |
-| API contract | Attempt B: `FileMode.Create` + `FileAccess.Read` | `ArgumentException` — Create requires Write or ReadWrite |
-| Design | Using `Open` + write when file should be cleared first | Old bytes remain if you only overwrite first byte without truncating |
+---
 
-**Fix (priority order):**
+## Q62. What is the difference between text and binary file handling in C#?
 
-1. For wipe-and-rewrite in place: `new FileStream(cachePath, FileMode.Truncate, FileAccess.Write, FileShare.None)` — **Program.cs** Section 10 sets length to 0 then writes.
-2. If you need read-then-write in one session: `FileMode.OpenOrCreate` or `Open` with `FileAccess.ReadWrite`, then `SetLength(0)` or `Truncate` semantics before writing.
-3. Match `FileMode` to intent: `Create` truncates existing path; `Append` seeks to end; do not pair write modes with read-only access.
-4. Always pair with `using` / dispose so locks release after rewrite.
+**Concepts**
+- Text mode: encoding conversion, line-ending normalization
+- Binary mode: raw bytes, no transformation
+- `StreamReader`/`StreamWriter` for text; `FileStream`/`BinaryReader` for binary
+- `\r\n` vs `\n` normalization in text reads
 
-```csharp
-using var stream = new FileStream(
-    cachePath, FileMode.Truncate, FileAccess.Write, FileShare.None);
-stream.WriteByte(0xFF);
-stream.Flush();
-```
+**Answer**
 
-**Production takeaway:** `FileMode` chooses **how the OS opens the path**; `FileAccess` gates **what this handle may do** — Karat stacks both in one snippet to see if you diagnose constructor vs first-write failures separately.
+Text file handling applies an encoding layer that converts bytes to characters and normalizes line endings — `StreamReader.ReadLine()` returns a `string` with the `\r\n` or `\n` stripped regardless of the original format, and `StreamWriter.WriteLine()` writes `Environment.NewLine` on the current platform. Binary file handling reads and writes raw bytes with no transformation; the caller is responsible for interpreting the byte sequence as typed values using `BinaryReader` or manual `BitConverter` calls. Mixing the two — reading binary data with a `StreamReader` — typically corrupts the content because the encoding conversion mangles bytes that are not valid character sequences in the assumed encoding. The mode choice is driven by the file format: structured text (CSV, log, config) uses text APIs; images, serialized records, archives, and protocol frames use binary APIs.
 
 ---
 
-#### Q9. What do `BinaryReader` and `BinaryWriter` add over raw `FileStream` byte operations?
+## Q63. When should you use `MemoryStream` instead of `FileStream`?
 
-_Answer not found._
-
----
+**Concepts**
+- In-process byte buffer without disk I/O
+- Testability: wrapping a `MemoryStream` in APIs that accept `Stream`
+- Intermediate buffer before writing to another destination
+- `ToArray()` / `GetBuffer()` for accessing accumulated bytes
 
-#### Q10. How does `BinaryReader` handle endianness and primitive types (`ReadInt32`, `ReadDouble`, `ReadString`)?
+**Answer**
 
-_Answer not found._
+I use `MemoryStream` when I need a seekable, in-memory byte buffer without touching the filesystem — for unit testing code that accepts a `Stream`, for accumulating bytes from multiple writes before sending them to a network socket or compressor in one shot, or for decoding a byte array into types via `BinaryReader` without creating a temp file. `MemoryStream` is also the right intermediate buffer when an API requires a `Stream` but I have a `byte[]` or `string` in hand: I wrap it with `new MemoryStream(bytes)` and pass the stream directly. For large payloads I prefer `FileStream` or a `PipeWriter` because `MemoryStream` grows its internal buffer on the heap, doubling it each time it fills, which can cause large LOH allocations and excessive GC for multi-megabyte data.
 
 ---
 
-#### Q11. What is the on-disk format of `BinaryWriter.Write(string)` — and why does it matter for cross-platform files?
+## Q64. What is buffered I/O, and how do `FileStream` buffer size options affect performance?
 
-_Answer not found._
+**Concepts**
+- OS-level page cache as the primary buffer
+- `FileStream` internal managed buffer reducing syscall frequency
+- Default 4096-byte buffer
+- `FileOptions.WriteThrough` and `FileOptions.SequentialScan` hints
 
----
-
-#### Q12. What is the difference between text and binary file handling in C#?
+**Answer**
 
-_Answer not found._
+Buffered I/O means that small reads and writes accumulate in an in-process buffer rather than each issuing a syscall — `FileStream`'s default 4096-byte internal buffer means 1000 one-byte writes coalesce into roughly one `Write` syscall instead of 1000, which dramatically reduces kernel transition overhead. Increasing the buffer size (for example to 65536 bytes) benefits sequential large-file reads and writes by reducing syscall frequency and aligning better with disk block sizes, but wastes memory for random-access patterns that rarely fill the buffer. `FileOptions.SequentialScan` hints the OS to pre-fetch pages ahead of the current position, which improves throughput for single-pass large file reads. `FileOptions.WriteThrough` bypasses the OS write cache and writes directly to stable storage, which increases latency per write but ensures data survives a process crash, making it appropriate for transaction logs or status files that must be durable.
 
 ---
 
-#### Q13. When should you use `MemoryStream` instead of `FileStream`?
+## Q65. How do you read a fixed header followed by variable-length records from a binary file?
 
-_Answer not found._
-
----
+**Concepts**
+- Fixed-length header parsed first with `BinaryReader` typed reads
+- Variable-length record discovered via a length field prefix
+- `Seek` to skip or re-read a record at a known offset
+- EOF detection via `EndOfStreamException` or `BaseStream.Position`
 
-#### Q14. What is buffered I/O, and how do `FileStream` buffer size options affect performance?
+**Answer**
 
-_Answer not found._
+I open the file with a `FileStream` wrapped in a `BinaryReader` and read the header fields in declaration order — `ReadInt32()` for magic number, `ReadInt16()` for version, and so on — since the header is always a fixed number of bytes at position zero. After consuming the header, I enter a loop that reads the record's length prefix (`ReadInt32()`), then reads exactly that many bytes with `ReadBytes(recordLength)` to deserialize the payload, repeating until `BaseStream.Position >= BaseStream.Length`. When I also need random access by record index, I build an in-memory offset table during the first sequential pass — storing each record's `BaseStream.Position` before the length read — so subsequent lookups use `Seek(offset, SeekOrigin.Begin)` to jump directly to any record without a full re-scan.
 
 ---
 
-#### Q15. How do you read a fixed header followed by variable-length records from a binary file?
+## Q66. What is a file signature (magic bytes), and how do you validate one without trusting the extension?
 
-_Answer not found._
+**Concepts**
+- Magic bytes as a per-format byte sequence at a known file offset
+- Extension as an unreliable hint controlled by the user
+- `ReadBytes(n)` + `SequenceEqual` for header validation
+- Defensive rejection before parsing format-specific content
 
----
-
-#### Q16. What is a file signature (magic bytes), and how do you validate one without trusting the extension?
+**Answer**
 
-_Answer not found._
+A file signature is a fixed byte sequence embedded at a known offset — typically the first few bytes — that identifies the file format independently of its extension or name. PNG files start with `89 50 4E 47 0D 0A 1A 0A`, ZIP archives with `50 4B 03 04`, and PDF with `25 50 44 46`. I validate by reading the expected number of bytes with `BinaryReader.ReadBytes(n)` and comparing with `SequenceEqual` against the known signature array; if it does not match I reject the file before any parsing begins, which prevents malformed or malicious files masquerading as the expected format. Trusting the extension alone is insufficient because a user or upstream system can rename any file and the extension check passes silently even when the content is garbage or an exploit payload.
 
 ---
-
-### 04. Path & Environment Classes
-
-#### Q1. What is the `Path` class, and why should you never hard-code `\` or `/` separators?
 
-(R) A report exporter works on Windows dev machines but fails on Linux CI with "Could not find a part of the path." Review this path builder:
+## Q67. (Scenario R) A telemetry service reads a fixed 4-byte file signature but short files produce garbage signatures without throwing. What is wrong?
 
-```csharp
-public string BuildExportPath(string customerId, string fileName)
-{
-    string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-    return baseDir + "\\Reports\\" + customerId + "\\" + fileName;
-}
+**Concepts**
+- `Stream.Read` returning fewer bytes than requested without throwing
+- `BinaryReader.ReadBytes` returning a short array on EOF
+- `EndOfStreamException` not thrown by `ReadBytes` on partial read
+- Explicit length check on the returned byte array
 
-// Called from a nightly job:
-var path = BuildExportPath("CUST-42", "summary.csv");
-Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-await File.WriteAllTextAsync(path, csvContent);
-```
-
-What is wrong, and how do you fix it for cross-platform deployment?
+**Answer**
 
-**Answer:** The method hard-codes Windows backslashes and assumes a user Documents folder exists on a headless CI agent — on Linux the concatenated path is invalid and `MyDocuments` may be empty or unsuitable for a server job.
+`BinaryReader.ReadBytes(4)` does not throw when fewer than 4 bytes remain — it returns whatever bytes are available, so a 2-byte truncated file returns a 2-element array that is then compared against the 4-byte signature, and `SequenceEqual` returns `false` rather than throwing, so the rejection path is hit by accident rather than by design. The correct pattern is to check `ReadBytes(4).Length == 4` before calling `SequenceEqual`, or to use `BinaryReader.Read` in a loop via `ReadExactly` (available since .NET 7) which throws `EndOfStreamException` if the stream ends before the count is satisfied. Catching `EndOfStreamException` explicitly and mapping it to a "file too short to be a valid signature" error gives a clear diagnostic instead of a silent false-positive rejection.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Cross-platform | `"\\"` string concatenation | Linux treats `\` as a valid filename character, not a separator — path does not resolve |
-| Design | `SpecialFolder.MyDocuments` on a server/CI worker | No interactive user profile; base path may be empty or wrong |
-| Maintainability | Manual join instead of `Path.Combine` | Every new segment repeats the separator mistake |
+---
 
-**Fix (priority order):**
+## Q68. (Scenario R) A background job appends binary audit records with `FileShare.None`; a dashboard reader gets `IOException`. What locking mismatch causes the failure?
 
-1. Replace concatenation with `Path.Combine(baseDir, "Reports", customerId, fileName)`.
-2. Do not use `MyDocuments` for server exports — read an configured output root from `IConfiguration` / environment variable (e.g. `/var/app/exports` or a mounted volume).
-3. Validate `baseDir` is non-empty before `CreateDirectory`; fail fast with a clear configuration error in CI.
-4. Sanitize `customerId` and `fileName` — reject path separators and `..` segments before combining.
+**Concepts**
+- `FileShare.None` blocking all concurrent openers
+- Dashboard reader's `FileAccess.Read` conflicting with writer's exclusive share
+- `FileShare.Read` on writer permitting simultaneous readers
+- Independent `FileShare.ReadWrite` for full concurrent access
 
-```csharp
-public string BuildExportPath(string outputRoot, string customerId, string fileName)
-{
-    ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
-    return Path.Combine(outputRoot, "Reports", customerId, fileName);
-}
-```
+**Answer**
 
-**Production takeaway:** Hard-coded backslashes pass on Windows dev boxes and fail immediately in Linux containers — Karat expects `Path.Combine` plus an explicit, configurable root instead of desktop assumptions. See **Program.cs** Section 1 and Section 8 — cross-platform rules.
+When the background job opens the file with the default or explicit `FileShare.None`, it tells the OS to deny all other opens regardless of their requested access, so the dashboard reader's open with `FileAccess.Read` is rejected and `IOException: sharing violation` is thrown. The fix is to change the writer to use `FileShare.Read` — it still holds exclusive write access (no other writer can open) but grants read-only openers permission to coexist. If the architecture requires both concurrent reads and concurrent writes from multiple processes, all openers must agree on `FileShare.ReadWrite`, but then line-level atomicity must be enforced by the application since the OS does not serialize writes.
 
 ---
-
-#### Q2. How does `Path.Combine` behave with trailing slashes, rooted segments, and empty segments?
-
-(R) An internal admin API accepts a `fileName` query parameter and serves files from a fixed folder. Review the handler:
-
-```csharp
-private readonly string _storageRoot = Path.Combine(AppContext.BaseDirectory, "uploads");
 
-public IResult Download(string fileName)
-{
-    string requested = Path.GetFullPath(Path.Combine(_storageRoot, fileName));
-    if (!File.Exists(requested))
-        return Results.NotFound();
+## Q69. (Scenario R) A teammate ports `inventory.bin` readers from another language and swaps field read order. Prices and names are nonsense after the first record. What breaks?
 
-    return Results.File(requested);
-}
+**Concepts**
+- Binary format as a strict positional contract
+- `BinaryReader` advancing position on every read
+- Field order mismatch desynchronizing all subsequent reads
+- Format documentation and magic-byte versioning
 
-// Request: GET /download?fileName=..\..\appsettings.Production.json
-```
+**Answer**
 
-What security and correctness issues exist, and what is the prioritized fix?
+`BinaryReader` advances the stream position on every read call, so reading field A before field B when the file stores B before A consumes the wrong bytes for both — and because the position is now wrong by the size of the misread fields, every subsequent record reads shifted bytes that decode as garbage. The root cause is that the format contract was undocumented or not followed exactly by the port. The fix is to define the binary layout as a versioned specification — field name, type, byte order, and byte offset within each record — and add an assertion at the read site that `BaseStream.Position` matches the expected offset after each record to catch drift early. Adding a magic byte and version field at the start of the file means the reader can reject old formats fast rather than silently misinterpreting fields.
 
-**Answer:** `Path.GetFullPath` resolves `..` segments against `_storageRoot`, so a malicious `fileName` can escape the uploads folder and read arbitrary files on the server — the existence check does not confine access to the intended directory.
+---
 
-**Issues:**
+## Q70. (Scenario R) A log-rotation utility calls `Seek(0, SeekOrigin.End)` to read the last 8 bytes. It intermittently returns wrong bytes. What is the seek mistake?
 
-| Category | Problem | Impact |
-|---|---|---|
-| Security | No verification that resolved path stays under `_storageRoot` | Path traversal — read secrets, configs, other tenants' files |
-| Input | Unsanitized user-controlled `fileName` | `..`, absolute paths, alternate separators bypass intent |
-| Correctness | `GetFullPath` alone is not a sandbox boundary | Developer assumes normalization equals authorization |
+**Concepts**
+- `SeekOrigin.End` with offset zero positions after the last byte
+- Reading after seeking to EOF returns zero bytes
+- Negative offset required to position before EOF
+- `Seek(-8, SeekOrigin.End)` for 8 bytes before end
 
-**Fix (priority order):**
+**Answer**
 
-1. Reject rooted paths and any segment containing `..` before combining — or use `Path.GetFileName(fileName)` if only flat files are allowed.
-2. After resolving, verify the full path is prefixed by the normalized storage root (case-aware on Linux):
+`Seek(0, SeekOrigin.End)` positions the stream pointer exactly at the end of the file — one byte past the last byte — so any subsequent `Read` call immediately hits EOF and returns zero bytes without throwing. To read the last 8 bytes the call must be `Seek(-8, SeekOrigin.End)`, which positions 8 bytes before the end. The intermittent behavior comes from files shorter than 8 bytes producing a negative absolute position, which causes `Seek` to clamp or throw depending on the platform, so the caller should also guard with `if (stream.Length >= 8)` before issuing the seek.
 
-```csharp
-string storageRoot = Path.GetFullPath(_storageRoot);
-string requested = Path.GetFullPath(Path.Combine(storageRoot, fileName));
+---
 
-if (!requested.StartsWith(storageRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-    && !requested.Equals(storageRoot, StringComparison.Ordinal))
-    return Results.BadRequest();
+## Q71. (Scenario P) A .NET service writes `metrics.bin` consumed by a Linux C tool on big-endian ARM. Default `BinaryWriter` fields decode as garbage. What is the root cause?
 
-if (!File.Exists(requested))
-    return Results.NotFound();
-```
+**Concepts**
+- `BinaryWriter` always writing little-endian byte order
+- Big-endian ARM expecting most-significant-byte-first layout
+- `BinaryPrimitives.WriteInt32BigEndian` for explicit byte order
+- Format specification documenting endianness as a contract
 
-3. Prefer an opaque file id mapped server-side to a stored name instead of accepting raw path fragments from the client.
-4. Log traversal attempts; return 400/404 without leaking whether the target file exists outside uploads.
+**Answer**
 
-**Production takeaway:** `GetFullPath` normalizes strings — it does not enforce trust boundaries. Always anchor to a known root and verify containment after resolution. See **Program.cs** Section 3 — GetFullPath pitfalls.
+`BinaryWriter` unconditionally uses little-endian byte order on all .NET platforms — the least significant byte is written first — so an `int32` value of 1 is stored as `01 00 00 00`. A C tool on a big-endian ARM processor expects `00 00 00 01`, reads the bytes in the wrong order, and decodes a completely different number. The fix is to abandon `BinaryWriter` for the numeric fields and instead use `BinaryPrimitives.WriteInt32BigEndian(buffer, value)` from `System.Buffers.Binary`, which fills a `Span<byte>` in network byte order (big-endian), then write that buffer to the `FileStream` directly. The format specification must document the byte order explicitly so all consumers — regardless of language or platform — know what to expect.
 
 ---
 
-#### Q3. What is the difference between `Path.GetFullPath` and passing a relative path directly to `File.Open`?
+## Q72. (Scenario D) A 60 GB append-only binary archive needs random access by fixed record index. Compare `FileStream` + `Seek` vs `MemoryMappedFile`. When do you choose each?
 
-(P) A worker service loads `config/settings.json` with a relative path. It passes locally from Visual Studio but fails in production when started as a Windows Service or from a systemd unit. The startup code:
+**Concepts**
+- `FileStream` + `Seek` — kernel handles paging, low managed footprint
+- `MemoryMappedFile` — OS virtual memory maps file pages on demand
+- `MemoryMappedFile` overhead at OS level for small record reads
+- Concurrent reader processes sharing the same memory-mapped region
 
-```csharp
-var settingsPath = Path.GetFullPath("config/settings.json");
-var json = await File.ReadAllTextAsync(settingsPath);
-```
+**Answer**
 
-Logs show `Environment.CurrentDirectory` is `C:\Windows\System32` on the server but the project folder when debugging. What is happening, and what anchor should production code use instead?
+`FileStream` with `Seek` computes `recordIndex * recordSize` to issue a targeted kernel read — the OS fetches only the relevant disk block into the page cache, managed memory stays minimal, and it works correctly in any process isolation model. `MemoryMappedFile` maps the file into the process's virtual address space so record access is a pointer dereference after the first page fault — it excels when the access pattern is dense and spread across the file (many random reads in a short window) because the OS reuses already-faulted pages without issuing repeat read syscalls. I choose `FileStream` + `Seek` when records are accessed infrequently or in isolation and when the process lifetime is short, to avoid the setup cost and virtual-address pressure of mapping 60 GB. I choose `MemoryMappedFile` when multiple reader processes need to share the mapped region (the OS backs them with the same physical pages) or when access patterns are dense enough to benefit from pointer-level latency.
 
-**Answer:** Relative paths passed to `Path.GetFullPath` resolve against `Environment.CurrentDirectory`, which follows the process working directory set by the shell, service wrapper, or scheduler — not the folder containing the published assembly.
+---
 
-- Locally, the IDE sets CWD to the project directory, so `config/settings.json` is found next to source layout.
-- Installed services and systemd units often start with CWD `/` or `System32`, so the same relative string points at the wrong tree.
-- Production code should anchor content-relative assets to `AppContext.BaseDirectory` (or `IHostEnvironment.ContentRootPath` in ASP.NET Core), which tracks the deployed app folder.
+## Q73. (Scenario R) An export worker calls `WriteAsync` then immediately publishes a message queue signal. The processor reads zero-length or incomplete files. What timing issue causes this?
 
-```csharp
-var settingsPath = Path.GetFullPath(
-    Path.Combine(AppContext.BaseDirectory, "config", "settings.json"));
-```
+**Concepts**
+- `FileStream` write buffer not flushed to OS on `WriteAsync` completion
+- `FlushAsync()` ensuring buffered bytes reach the OS file cache
+- OS page cache vs stable storage distinction
+- Signal-after-flush-and-close ordering guarantee
 
-- If settings live outside the publish folder (common for secrets), read an absolute path from configuration rather than assuming a relative layout.
-- Document and test startup from a non-project CWD in CI to catch this class of bug early.
+**Answer**
 
-**Production takeaway:** Never assume `CurrentDirectory` equals the app install location — Karat pairs this with deployment context. See **Program.cs** Section 7 — CurrentDirectory vs BaseDirectory.
+`WriteAsync` completes when the bytes are transferred to `FileStream`'s internal managed buffer — not necessarily when they reach the OS page cache or disk. The message queue signal fires while the bytes are still in the buffer, so when the processor opens the file immediately after receiving the signal it sees zero bytes or a partial file. The fix is to call `await stream.FlushAsync()` before publishing the signal, which transfers the buffer to the OS; if durability across a process crash is required, `FlushAsync` must be followed by opening the stream with `FileOptions.WriteThrough` or calling `SafeFileHandle.Flush`. Alternatively, disposing the `FileStream` before publishing the signal achieves the same flush — `DisposeAsync` calls `FlushAsync` internally.
 
 ---
-
-#### Q4. Explain `Path.GetDirectoryName`, `GetFileName`, `GetFileNameWithoutExtension`, and `GetExtension`.
 
-(P) A containerized API writes large PDF exports using `Path.GetTempFileName()` and never deletes them. After a few days in Kubernetes, pods hit `No space left on device`. The temp folder path is `/tmp` inside the container. What breaks in this pattern, and what production approach replaces `GetTempFileName`?
+## Q74. (Scenario R) A cache service opens `cache.bin` with `FileAccess.Read` then calls `WriteByte`, and separately tries `FileMode.Create` with `FileAccess.Read`. Both throw. What `FileMode`/`FileAccess` mismatches cause each failure?
 
-**Answer:** `GetTempFileName` creates a zero-byte file immediately and returns its path, but the API replaces it with a large PDF without deleting the original or subsequent temps — ephemeral container `/tmp` (often a small `emptyDir` volume) fills up because nothing cleans up and each request adds another file.
+**Concepts**
+- `FileAccess.Read` restricting handle to read-only operations
+- `NotSupportedException` on write attempt against read-only handle
+- `FileMode.Create` implying write intent — incompatible with read-only access
+- Correct pairing: `FileMode.Create` with `FileAccess.Write` or `ReadWrite`
 
-- In containers, `Path.GetTempPath()` maps to `/tmp` unless overridden by `TMPDIR` — shared across requests in the same pod with no guaranteed recycle until the pod restarts.
-- `GetTempFileName` is poor for large artifacts: it creates an extra file, uses predictable patterns, and encourages orphan leaks under load.
-- Prefer streaming the response directly to the client, writing to a configured persistent volume, or using `IBlobStorage` / object storage for exports.
-- If scratch space is required, combine `Path.GetTempPath()` with a unique name (`Guid`), wrap writes in `try/finally`, and delete in `finally`; consider `TemporaryFileStream` patterns or bounded pools.
-- Set `TMPDIR` / `TEMP` / `TMP` explicitly in the deployment manifest to a sized volume when scratch I/O is unavoidable.
-- Add disk-usage metrics and liveness checks — `/tmp` exhaustion kills all endpoints in the pod.
+**Answer**
 
-**Production takeaway:** Temp directories in containers are small and shared — treat them as bounded scratch space with explicit cleanup, not an export archive. See **Program.cs** Section 5 — GetTempPath / GetTempFileName cleanup note.
+Opening with `FileAccess.Read` grants a read-only handle — any call to `WriteByte`, `Write`, or `WriteAsync` on that handle throws `NotSupportedException` because the handle capability does not include write, regardless of file permissions on disk. `FileMode.Create` tells the OS to create the file or truncate the existing one, which is an inherently write operation — pairing it with `FileAccess.Read` is a logical contradiction and the OS rejects the open, throwing `ArgumentException` or `UnauthorizedAccessException` depending on the platform. The correct pairings are `FileMode.Create` with `FileAccess.Write` (write-only) or `FileAccess.ReadWrite` (read back what was written), and `FileMode.Open` with `FileAccess.Read` for read-only access to an existing file.
 
 ---
 
-#### Q5. What do `Path.GetTempPath`, `Path.GetTempFileName`, and `Path.GetRandomFileName` return — and what are the security implications of `GetTempFileName`?
+## 04. Path & Environment Classes
 
-(R) A desktop-style feature is ported to a headless Linux server without changes:
-
-```csharp
-public string GetDefaultExportFolder()
-{
-    string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-    return Path.Combine(desktop, "MyApp", "Exports");
-}
+---
 
-// Startup ensures folder exists:
-Directory.CreateDirectory(GetDefaultExportFolder());
-```
+## Q75. What is the `Path` class, and why should you never hard-code `\` or `/` separators?
 
-What fails on a server or container, and how should export location be chosen for server-side processing?
+**Concepts**
+- `Path` as a pure string-manipulation utility with no filesystem I/O
+- `Path.DirectorySeparatorChar` resolving to `\` on Windows and `/` on Linux
+- `Path.Combine` for safe segment joining
+- Cross-platform portability via separator abstraction
 
-**Answer:** `SpecialFolder.Desktop` assumes an interactive user profile with a Desktop directory — on headless Linux servers or minimal container images the path is often empty or points under a non-writable home directory, causing `CreateDirectory` or later writes to fail.
+**Answer**
 
-**Issues:**
+`Path` is a static utility class that manipulates path strings without touching the filesystem — it never opens a handle or checks whether a path exists. Hard-coding `\` breaks on Linux and macOS where the separator is `/`, and hard-coding `/` produces incorrect results when a Windows path component itself starts with `/` (which is interpreted as a root). `Path.Combine` joins segments using `Path.DirectorySeparatorChar`, which .NET sets to the correct value for the current OS, so the same source code produces valid paths on all platforms. `Path.AltDirectorySeparatorChar` and `Path.VolumeSeparatorChar` cover edge cases like UNC paths and drive letters.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Platform | Desktop folder on server/container | Path empty, missing, or not writable |
-| Design | UI-centric SpecialFolder on backend | Wrong abstraction for batch/API exports |
-| Operations | Silent reliance on user profile layout | Worked on developer workstation; fails in prod |
+---
 
-**Fix (priority order):**
+## Q76. How does `Path.Combine` behave with trailing slashes, rooted segments, and empty segments?
 
-1. Replace Desktop with a configured server path — environment variable, `appsettings`, or mounted volume (`/app/data/exports`).
-2. For multi-tenant SaaS, use tenant-scoped storage (database blob, S3, Azure Blob) rather than local filesystem folders.
-3. If user-specific exports are required on a desktop app, keep `SpecialFolder` — but gate server code paths separately.
-4. Validate the chosen root exists and is writable at startup; surface a clear configuration error instead of failing mid-request.
+**Concepts**
+- Rooted segment discarding all prior segments
+- Trailing separator on an earlier segment absorbed correctly
+- Empty string segment treated as current-directory component
+- `null` segment throwing `ArgumentNullException`
 
-```csharp
-public string GetDefaultExportFolder(IConfiguration config)
-{
-    var root = config["Export:RootPath"]
-        ?? Path.Combine(AppContext.BaseDirectory, "exports");
-    return Path.Combine(root, "MyApp", "Exports");
-}
-```
+**Answer**
 
-**Production takeaway:** `SpecialFolder` values encode OS/user UI conventions — server workloads need explicit configuration, not Desktop. See **Program.cs** Section 6 — SpecialFolder and Section 8 — do not assume drive letters or desktop layout.
+`Path.Combine`'s most surprising behavior is that a rooted segment (one starting with `/` or a drive letter like `C:\`) discards all previously accumulated segments — `Path.Combine("a", "b", "/absolute")` returns `/absolute`, not `a/b/absolute`. This is intentional but frequently causes path injection bugs when the second segment comes from user input. Trailing slashes on an earlier segment are absorbed without doubling: `Path.Combine("a/", "b")` returns `a/b`. Empty string segments are treated as a no-op on the combination result but do not throw. Any `null` argument throws `ArgumentNullException` immediately. I always validate that user-supplied path components are not rooted (using `Path.IsPathRooted`) before passing them to `Path.Combine` to prevent path traversal vulnerabilities.
 
 ---
-
-#### Q6. How do `Path.IsPathRooted`, `HasExtension`, and `ChangeExtension` work?
-
-(M) A path helper builds log file locations from configuration segments. Review this method called on both Windows and Linux:
-
-```csharp
-public static string BuildLogPath(string configuredRoot, string appName, string logFile)
-{
-    // configuredRoot might be "/var/log", "logs", or "C:\\Logs" from appsettings
-    return Path.Combine("ignored", "prefix", configuredRoot, appName, logFile);
-}
-```
 
-What surprising result occurs when `configuredRoot` is an absolute Unix path (`/var/log`) or a Windows drive root (`C:\Logs`), and how should callers structure segments?
+## Q77. What is the difference between `Path.GetFullPath` and passing a relative path directly to `File.Open`?
 
-**Answer:** When any segment after the first is rooted (starts with `/` on Unix or a drive/root on Windows), `Path.Combine` discards all prior segments — `"ignored"` and `"prefix"` are dropped, and the result resets to the rooted segment plus the remainder.
+**Concepts**
+- `Path.GetFullPath` resolving relative path against `Environment.CurrentDirectory`
+- `File.Open` resolving relative path at open time — also against current directory
+- Snapshot vs late-binding behavior
+- Path traversal normalization (`..` resolution) by `GetFullPath`
 
-- `Path.Combine("ignored", "prefix", "/var/log", "MyApp", "app.log")` → `/var/log/MyApp/app.log` on Linux.
-- `Path.Combine("ignored", "prefix", @"C:\Logs", "MyApp", "app.log")` → `C:\Logs\MyApp\app.log` on Windows.
-- Developers expect `"ignored/prefix"` to prefix configured roots — it silently does not when the config value is absolute.
-- Pass either all-relative segments under a known base, or treat an absolute configured root as the sole first argument: `Path.Combine(configuredRoot, appName, logFile)` without dummy prefixes.
-- Document in configuration schema whether `LogRoot` must be relative (to `BaseDirectory`) or absolute — do not mix assumptions in one Combine chain.
+**Answer**
 
-**Production takeaway:** Rooted segments in `Path.Combine` reset the path — a common misconfiguration when appsettings contains absolute paths. See **Program.cs** Section 1 — Combine with rooted segment demo.
+`Path.GetFullPath` immediately combines the relative path with `Environment.CurrentDirectory` and normalizes all `..` and `.` segments, producing an absolute canonical string that can be logged, compared, or validated before the file is opened. Passing a relative path directly to `File.Open` defers the resolution to the OS open call, which also uses the current directory — but since `CurrentDirectory` can be changed between the call to `GetFullPath` and the call to `File.Open`, the two methods may resolve to different absolute paths under concurrent code. The more important reason to use `GetFullPath` explicitly is to normalize `..` traversals before a security check: `Path.GetFullPath` collapses `"uploads/../etc/passwd"` to `"/etc/passwd"`, allowing the containment check to work correctly before the open.
 
 ---
-
-#### Q7. What invalid path characters does `Path.GetInvalidPathChars` / `GetInvalidFileNameChars` expose?
-
-(D) Two services exchange file paths over a message queue. Service A (Windows) sends `D:\data\invoices\inv-001.pdf`. Service B (Linux) tries to open it and also needs a relative path for an audit log entry. A developer writes:
-
-```csharp
-string incoming = message.FilePath; // from Windows producer
-string relative = Path.GetRelativePath(AppContext.BaseDirectory, incoming);
-await File.ReadAllTextAsync(incoming);
-```
 
-What breaks on Linux, and what contract should replace raw absolute paths between services?
+## Q78. Explain `Path.GetDirectoryName`, `GetFileName`, `GetFileNameWithoutExtension`, and `GetExtension`.
 
-**Answer:** Windows absolute paths are meaningless on Linux — `File.ReadAllTextAsync` fails because `D:\...` is not a valid path on Unix, and `Path.GetRelativePath` cannot produce a meaningful relative path across different roots or machines.
+**Concepts**
+- `GetDirectoryName` returning the parent folder string (no I/O)
+- `GetFileName` returning the last segment including extension
+- `GetFileNameWithoutExtension` stripping the final dot-extension
+- `GetExtension` returning the dot-prefixed extension or empty string
 
-- `GetRelativePath` requires both paths to share a common base on the same machine; cross-OS absolute paths have no shared root.
-- Message contracts should carry stable identifiers (blob URI, S3 key, file id, share-relative path) — not producer-local absolute paths.
-- If both services mount the same network share, agree on a **share-relative** path (`invoices/inv-001.pdf`) and each service combines with its locally configured mount point via `Path.Combine(mountRoot, relativeKey)`.
-- For audit logs, store the logical key or URI, not `GetRelativePath` output from foreign paths.
-- Use object storage (HTTPS URL + auth) for cross-platform handoff; consumers download to their own temp scratch if local file access is required.
+**Answer**
 
-**Production takeaway:** File paths are not portable across OS or hosts — exchange logical keys or URIs and resolve locally. See **Program.cs** Section 8 — Windows drive roots vs Unix single-root layout.
+All four methods are pure string operations with no filesystem access. `Path.GetDirectoryName("a/b/c.txt")` returns `"a/b"` — the parent segment without a trailing separator. `Path.GetFileName("a/b/c.txt")` returns `"c.txt"` — everything after the last separator. `Path.GetFileNameWithoutExtension("a/b/c.txt")` returns `"c"` — the last segment minus the final dot and extension. `Path.GetExtension("a/b/c.txt")` returns `".txt"` with the leading dot; it returns an empty string if there is no dot in the last segment. `GetExtension` only looks at the last segment, so `Path.GetExtension("/etc/init.d")` returns `".d"` which is sometimes unexpected — it treats the last segment's last dot as the extension boundary.
 
 ---
-
-#### Q8. What is `Environment.SpecialFolder`, and how do you resolve `MyDocuments`, `ApplicationData`, and `LocalApplicationData`?
 
-(P) A build pipeline archives deeply nested test output on Windows agents. One test creates a folder tree exceeding 260 characters. Locally it works when long-path support is enabled; on a Linux agent the same code runs but a Windows-only integration test fails with `PathTooLongException`. What explains the platform difference, and what mitigations belong in the path-building code?
+## Q79. What do `Path.GetTempPath`, `Path.GetTempFileName`, and `Path.GetRandomFileName` return — and what are the security implications of `GetTempFileName`?
 
-**Answer:** Windows historically enforced `MAX_PATH` (260 characters) unless long-path awareness is enabled at OS and application level; Linux paths are typically limited by `PATH_MAX` (often 4096 bytes) and are far more permissive — so the same deeply nested tree exceeds Windows limits while Linux succeeds.
+**Concepts**
+- `GetTempPath` returning OS temp directory path
+- `GetTempFileName` creating a zero-byte file and returning its path — TOCTOU-free
+- `GetRandomFileName` returning a random name string without creating anything
+- `GetTempFileName` leaking handles and using sequential names on old Windows
 
-- Developer machines with Windows 10+ long-path policy and .NET long-path support may hide the bug until a default-config CI Windows agent runs.
-- Linux CI passing does not prove Windows deployment safety when paths are built from repeated `Path.Combine` of user names, guids, and nested fixture folders.
-- Mitigations: shorten segment names, hash long identifiers (`SHA256` folder name instead of full title), flatten output layout, use `\\?\` prefix only as a last resort on Windows with explicit long-path enablement.
-- Read remaining length budget before creating nested dirs; fail early with a clear test message instead of `PathTooLongException` mid-run.
-- Keep artifact roots shallow — `artifacts/{buildId}/{suite}/file.ext` rather than mirroring full source tree depth.
-- In CI, run at least one Windows job without long-path overrides to match conservative production environments.
+**Answer**
 
-**Production takeaway:** Path length limits are OS- and policy-dependent — design folder layouts for the shortest common denominator (default Windows), not the most permissive agent. See **Program.cs** Section 8 — cross-platform comparison table.
+`Path.GetTempPath()` returns the OS temp directory (`%TEMP%` on Windows, `/tmp` on Linux) as a string without creating anything. `Path.GetTempFileName()` atomically creates a zero-byte file in that directory and returns its unique path, which avoids the TOCTOU race of generating a name and separately creating the file — the file exists and is owned by the caller before the path is returned. The security concern with `GetTempFileName` is that on older Windows versions the names are sequential and predictable, making symlink attacks or name guessing feasible in shared temp directories; `Path.GetRandomFileName()` generates a cryptographically random name string (8.3 format) without creating anything on disk, which I combine with `Path.Combine(Path.GetTempPath(), Path.GetRandomFileName())` and then `File.Create` to get an unpredictable path. Regardless of method, temp files must always be deleted in a `finally` block or they accumulate indefinitely.
 
 ---
 
-#### Q9. How does `Environment.GetFolderPath` differ from hard-coding `C:\Users\...`?
+## Q80. How do `Path.IsPathRooted`, `HasExtension`, and `ChangeExtension` work?
 
-_Answer not found._
-
----
+**Concepts**
+- `IsPathRooted` checking for leading separator or drive letter
+- `HasExtension` checking for a dot in the last segment
+- `ChangeExtension` swapping or removing the extension
+- All three as pure string operations, no filesystem access
 
-#### Q10. What is `Environment.CurrentDirectory`, and how can it differ from the executable's location?
+**Answer**
 
-_Answer not found._
+`Path.IsPathRooted` returns `true` when the path starts with a directory separator (`/`) or a drive letter followed by `:` on Windows — it is the correct guard before passing user-supplied path components to `Path.Combine` to prevent rooted-segment injection. `Path.HasExtension` returns `true` when the last segment contains a dot that is not the first or last character — it is a heuristic rather than a filesystem check, so `"file."` returns `true` even though the extension is empty. `Path.ChangeExtension("report.csv", ".json")` returns `"report.json"` by replacing everything after the last dot; passing `null` as the extension removes it entirely; passing an extension without a leading dot adds the dot automatically.
 
 ---
 
-#### Q11. How do you get the application base directory in modern .NET (`AppContext.BaseDirectory`, `AppDomain.CurrentDomain.BaseDirectory`)?
+## Q81. What invalid path characters does `Path.GetInvalidPathChars` / `GetInvalidFileNameChars` expose?
 
-_Answer not found._
+**Concepts**
+- `GetInvalidPathChars` listing characters illegal in the full path string
+- `GetInvalidFileNameChars` listing characters illegal in a single filename segment
+- Platform-specific character sets — Windows larger than Linux
+- Input validation before constructing paths from user data
 
----
-
-#### Q12. What is the difference between absolute and relative paths in console apps vs ASP.NET Core?
+**Answer**
 
-_Answer not found._
+`Path.GetInvalidPathChars()` returns the set of characters the OS forbids anywhere in a path string — on Windows this includes `<`, `>`, `"`, `|`, `?`, `*`, and control characters; on Linux/macOS only the null byte and `/` are truly invalid. `Path.GetInvalidFileNameChars()` returns a superset of the path-invalid characters plus the path separator itself, so it is used when validating a single file or folder name segment rather than a full path. I use these arrays to sanitize user-supplied filenames by replacing or stripping forbidden characters before constructing the path, and I use `Path.IsPathRooted` alongside them because a segment containing only valid characters can still inject an absolute path if it starts with a separator.
 
 ---
 
-#### Q13. How do UNC paths (`\\server\share`) interact with `Path.Combine` and `Path.GetFullPath`?
+## Q82. What is `Environment.SpecialFolder`, and how do you resolve `MyDocuments`, `ApplicationData`, and `LocalApplicationData`?
 
-_Answer not found._
-
----
+**Concepts**
+- `Environment.SpecialFolder` enum mapping logical folders to OS-specific paths
+- `Environment.GetFolderPath(SpecialFolder.X)` resolving to the actual path
+- `ApplicationData` for roaming user data (synced in domain environments)
+- `LocalApplicationData` for machine-local user data (not synced)
 
-#### Q14. What cross-platform path differences matter when deploying the same code on Windows and Linux?
+**Answer**
 
-_Answer not found._
+`Environment.SpecialFolder` is an enum that abstracts OS-specific well-known directory locations — `MyDocuments`, `Desktop`, `ApplicationData`, `LocalApplicationData`, `ProgramFiles`, `Windows`, and so on — so code does not need to know `C:\Users\username\Documents` on Windows vs `~/Documents` on macOS. Calling `Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)` returns the roaming profile path (`%APPDATA%`, typically `C:\Users\name\AppData\Roaming`) where settings that should follow a domain user across machines belong. `LocalApplicationData` resolves to `%LOCALAPPDATA%` (`C:\Users\name\AppData\Local`), which is machine-specific and not roamed — the better choice for caches, logs, and large app data. On Linux and macOS these methods resolve to XDG-compatible paths when available or fall back to the home directory subdirectories.
 
 ---
 
-### 05. Working with CSV and Text Files
+## Q83. How does `Environment.GetFolderPath` differ from hard-coding `C:\Users\...`?
 
-#### Q1. Why is there no built-in CSV parser in the BCL, and what libraries are commonly used?
+**Concepts**
+- Hard-coded paths encoding assumptions about username and OS version
+- `GetFolderPath` delegating to the OS to resolve the actual location
+- Roaming profiles, network homes, and redirected folder support
+- Cross-platform: same call returns valid paths on Windows, Linux, macOS
 
-(R) A partner feed import worked in QA but mis-maps vendor names in production. Review this row parser used for every data line after the header:
+**Answer**
 
-```csharp
-public static InventoryItem? ParseRow(string line, int lineNumber)
-{
-    string[] cols = line.Split(',', StringSplitOptions.TrimEntries);
+Hard-coding `C:\Users\username\AppData\Roaming\MyApp` encodes the username, the drive letter, and an assumption about the operating system — none of which are stable across users, machines, or platforms. `Environment.GetFolderPath` asks the OS at runtime where that folder actually lives for the current user, which handles redirected folders (an IT policy might move `AppData` to a network share), UWP app isolation, Linux home directories, and macOS Library paths all correctly. The username does not appear in calling code at all, so the same line `Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)` works identically in development on a Windows laptop and production on a Linux container.
 
-    if (cols.Length != 5)
-        return null;
-
-    return new InventoryItem
-    {
-        Sku = cols[0],
-        Name = cols[1],
-        Quantity = int.Parse(cols[2]),
-        UnitPrice = decimal.Parse(cols[3]),
-        RestockedOn = string.IsNullOrEmpty(cols[4]) ? null : DateTime.Parse(cols[4]),
-    };
-}
-```
+---
 
-Sample production row: `"Acme, Inc",Widget,10,9.99,2026-01-15`
+## Q84. What is `Environment.CurrentDirectory`, and how can it differ from the executable's location?
 
-What fails, and what is the prioritized fix?
+**Concepts**
+- `CurrentDirectory` as the process's working directory, set at launch
+- Shell working directory passed to child processes at creation
+- Difference from assembly location or publish output directory
+- Mutable at runtime — `Environment.CurrentDirectory = newPath`
 
-**Answer:** `Split(',')` treats the comma inside `"Acme, Inc"` as a delimiter, yielding six columns instead of five — SKU shifts into the name column and downstream fields mis-map silently when the count check is skipped or relaxed. Replace naive split with quote-aware parsing, use `TryParse` with `CultureInfo.InvariantCulture`, and return row-level errors with line numbers instead of throwing or returning null without context.
+**Answer**
 
-**Issues:**
+`Environment.CurrentDirectory` is the process's current working directory — it is the base path that the OS uses to resolve relative file paths. It is inherited from the parent process (or shell) that launched the application, so running `dotnet run` from `C:\Projects` sets `CurrentDirectory` to `C:\Projects`, not the output directory where the DLL lives. This means relative paths like `"config/settings.json"` resolve against the shell's location rather than the app's location, which causes "works on my machine" failures when running as a Windows Service (where current directory is `C:\Windows\System32`) or a systemd unit. The fix is to use `AppContext.BaseDirectory` as the anchor for app-relative paths rather than relying on `CurrentDirectory`.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Parsing | `Split(',')` on quoted fields | Wrong column count and shifted SKU/name/qty mapping |
-| Correctness | `int.Parse` / `decimal.Parse` / `DateTime.Parse` | One bad cell aborts the row via exception — or worse, if wrapped in catch-all, loses line context |
-| Validation | `return null` on count mismatch | Silent drop with no operator-visible error for the `"Acme, Inc"` shape |
-| Culture | Default-culture `Parse` | Locale-dependent decimal/date interpretation across servers |
+---
 
-**Fix (priority order):**
+## Q85. How do you get the application base directory in modern .NET (`AppContext.BaseDirectory`, `AppDomain.CurrentDomain.BaseDirectory`)?
 
-1. Parse with a quote-aware scanner (`SplitQuotedLine` from **Program.cs** Section 3) — commas inside double quotes stay in one field.
-2. Validate `columns.Count == InventoryColumnCount` and emit `Line {n}: expected 5 columns, found {m}` — matches **Program.cs** Section 4.
-3. Replace `Parse` with `TryParse(..., CultureInfo.InvariantCulture, ...)` for quantity, price, and optional date.
-4. Keep required-field checks (`sku.Length == 0`) before building `InventoryItem`.
+**Concepts**
+- `AppContext.BaseDirectory` — publish output or host directory, stable across platforms
+- `AppDomain.CurrentDomain.BaseDirectory` — equivalent but older API
+- `Assembly.Location` — path to the DLL (empty for single-file publish)
+- Preferred anchor for app-relative content files
 
-```csharp
-var columns = CsvParsing.SplitQuotedLine(line);
-if (columns.Count != CsvParsing.InventoryColumnCount)
-{
-    errors.Add($"Line {lineNumber}: expected 5 columns, found {columns.Count}.");
-    continue;
-}
-```
+**Answer**
 
-**Production takeaway:** QA files without quoted commas hide the bug; partner exports with `"Acme, Inc"` expose it immediately — Karat tests whether you know Split is not CSV parsing.
+`AppContext.BaseDirectory` returns the directory where the application's output files are published — the folder containing the entry assembly — and is the recommended anchor for loading config files, templates, and static assets that are deployed alongside the executable. It is stable across all .NET hosting models including Docker containers, Windows Services, and Lambda functions. `AppDomain.CurrentDomain.BaseDirectory` returns the same value on modern .NET (the two are equivalent) but carries the older `AppDomain` API surface. `Assembly.GetExecutingAssembly().Location` also returns the DLL path in most cases, but it returns an empty string for single-file published apps where the assembly is embedded in the host executable — making it unreliable for path resolution in deployment scenarios.
 
 ---
-
-#### Q2. What are RFC 4180 rules for CSV fields, delimiters, and record terminators?
-
-(R) An export job writes inventory CSV on a German Windows server; a US warehouse tool rejects half the rows. Review the export path:
-
-```csharp
-public static void ExportInventory(string path, IEnumerable<InventoryItem> items)
-{
-    using var writer = new StreamWriter(path);
-    writer.WriteLine("Sku,Name,Quantity,UnitPrice,RestockedOn");
 
-    foreach (var item in items)
-    {
-        writer.WriteLine(string.Join(",",
-            item.Sku,
-            item.Name,
-            item.Quantity.ToString(),
-            item.UnitPrice.ToString("F2"),
-            item.RestockedOn?.ToString("yyyy-MM-dd") ?? ""));
-    }
-}
-```
-
-Partner file snippet: `W-400,Acme spare,5,19,95,2026-02-15`  
-Accent field on disk (UTF-8): `Müller` displays as `MÃ¼ller` in Excel on a Latin-1 assumption.
+## Q86. What is the difference between absolute and relative paths in console apps vs ASP.NET Core?
 
-What breaks across environments, and how do you make the file portable?
+**Concepts**
+- Console app `CurrentDirectory` set by the launching shell
+- ASP.NET Core `IWebHostEnvironment.ContentRootPath` as the stable anchor
+- `IWebHostEnvironment.WebRootPath` for `wwwroot` static files
+- Avoid relative paths in both — use anchored absolute paths
 
-**Answer:** `decimal.ToString("F2")` and bare `string.Join` use the current thread culture — on `de-DE`, `19.95` becomes `19,95`, which naive US parsers read as two columns (`19` and `95`). Default `StreamWriter` encoding varies by platform, so UTF-8 bytes misread as Windows-1252 produce mojibake (`MÃ¼ller`). Unescaped names containing commas or quotes also break column boundaries. Format numbers and dates with `CultureInfo.InvariantCulture`, escape fields with `CsvFormatting.BuildRow`, and write UTF-8 explicitly — document encoding for partners or emit UTF-8 BOM when Excel must auto-detect.
+**Answer**
 
-**Issues:**
+In a console app, `Environment.CurrentDirectory` is whatever the shell was in when the process started — running `./myapp` from the home directory sets a different current directory than a service manager launching the same binary. In ASP.NET Core, Kestrel starts the host with `ContentRootPath` set to the application's publish directory (or `Directory.GetCurrentDirectory()` in development), exposed via `IWebHostEnvironment.ContentRootPath`. Resolving config or content file paths against `ContentRootPath` works consistently across local dev and production deployment. For web-accessible static files, `WebRootPath` points to the `wwwroot` folder. The safe rule for both models is to resolve every file path to an absolute path anchored on `AppContext.BaseDirectory` or the environment's content root at startup, store it, and use that absolute path throughout the application lifetime.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Culture | `ToString()` / `ToString("F2")` without invariant culture | Decimal comma splits one price into two CSV columns |
-| Escaping | Raw `string.Join` — no quote wrapping | Commas or `"` in `Name` corrupt row shape |
-| Encoding | Default `StreamWriter` encoding | UTF-8 read as Latin-1 → mojibake; Excel opens wrong code page |
-| Interchange | No fixed date format culture | Ambiguous date strings if culture leaks into format |
+---
 
-**Fix (priority order):**
+## Q87. How do UNC paths (`\\server\share`) interact with `Path.Combine` and `Path.GetFullPath`?
 
-1. Build each row with `CsvFormatting.BuildRow` — doubles internal quotes and wraps fields containing commas (**Program.cs** Sections 2–3).
-2. Format numbers with `ToString(CultureInfo.InvariantCulture)` or `"F2"` + invariant — same as **Program.cs** Section 4a export.
-3. Use explicit UTF-8: `new StreamWriter(path, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))` — matches **Program.cs** Section 4a; add BOM only if Excel auto-detect is required.
-4. On import, open with matching encoding (`new StreamReader(path, Encoding.UTF8)`) — avoid `Encoding.Default`; for unknown feeds, sniff BOM or validate a known header line before bulk load (full charset detection belongs in **02. StreamReader & StreamWriter**).
-5. Parse inbound numbers with the same invariant rules — `decimal.TryParse(..., CultureInfo.InvariantCulture, ...)`.
+**Concepts**
+- UNC paths treated as rooted by `Path.IsPathRooted`
+- `Path.Combine` discarding previous segments when a UNC path is an argument
+- `Path.GetFullPath` preserving UNC prefix without normalizing the host component
+- Network latency and unavailability unlike local filesystem paths
 
-```csharp
-writer.WriteLine(CsvFormatting.BuildRow(
-    item.Sku,
-    item.Name,
-    item.Quantity.ToString(CultureInfo.InvariantCulture),
-    item.UnitPrice.ToString("F2", CultureInfo.InvariantCulture),
-    item.RestockedOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? ""));
-```
+**Answer**
 
-**Production takeaway:** CSV interchange is a wire format — treat culture as fixed (Invariant) on both read and write; never inherit the server's regional settings.
+UNC paths are rooted — `Path.IsPathRooted(@"\\server\share\folder")` returns `true` — so passing one as any argument to `Path.Combine` discards all preceding segments, identical to passing a drive-rooted path. `Path.GetFullPath` accepts and returns UNC paths unchanged when they are already absolute: `\\server\share\folder` normalizes any `..` segments in the local part but does not attempt to resolve the `\\server\share` prefix against any base. The key operational difference is that `File` and `Directory` operations on UNC paths incur network I/O and can fail with network-specific exceptions (`IOException` with an underlying network error code) or extremely long timeouts when the server is unreachable, so timeouts and retry policies that are unnecessary for local disk paths become important.
 
 ---
 
-#### Q3. When must a CSV field be wrapped in double quotes?
+## Q88. What cross-platform path differences matter when deploying the same code on Windows and Linux?
 
-(R) A nightly import job loads a 400 MB ERP export. Review the service method:
-
-```csharp
-public ImportResult Import(string path)
-{
-    string[] lines = File.ReadAllLines(path);
-    var items = new List<InventoryItem>();
-    var errors = new List<string>();
-
-    for (int i = 1; i < lines.Length; i++)  // skip header at index 0
-    {
-        try
-        {
-            items.Add(ParseRow(lines[i]));
-        }
-        catch (Exception ex)
-        {
-            errors.Add(ex.Message);
-        }
-    }
-
-    return new ImportResult(items, errors);
-}
-```
+**Concepts**
+- `\` vs `/` as directory separator
+- Case sensitivity: Windows case-insensitive, Linux case-sensitive
+- Drive letters absent on Linux — paths start with `/`
+- MAX_PATH (260) on Windows vs longer limits on Linux
 
-What production problems appear at scale, and what pattern from this chapter replaces `ReadAllLines`?
+**Answer**
 
-**Answer:** `ReadAllLines` allocates a string for every row plus a large array — on a 400 MB file that spikes memory, increases GC pressure, and can OOM a constrained worker. It also assumes line index 0 is always the header, skipping comment rows and blank lines incorrectly, and `catch (Exception)` drops line numbers from error messages. Stream line-by-line with `StreamReader`/`TextReader`, skip ignorable lines, consume the first data header explicitly, and collect per-line errors while continuing the import.
+The four differences that cause production bugs are: separator character (`\` vs `/`), case sensitivity (`Config\app.json` and `config/app.json` are the same file on Windows but different files on Linux), drive letter syntax (no `C:` on Linux — paths start with `/`), and path length limits (Windows MAX_PATH is 260 characters unless long-path support is enabled; Linux allows up to 4096). Using `Path.Combine` and `Path.DirectorySeparatorChar` avoids separator issues, but case sensitivity requires discipline in the codebase — file and directory names in source code must exactly match the case on disk. Path length problems appear silently in test frameworks and build pipelines that create deeply nested output directories, failing only on Windows with `PathTooLongException` while the same paths work on Linux CI.
 
-**Issues:**
+---
 
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | `File.ReadAllLines` loads entire file | High heap use; OOM on large partner feeds |
-| Correctness | `i = 1` hard-coded header skip | `#` comment or blank first lines shift every row mapping |
-| Observability | `errors.Add(ex.Message)` | Operators cannot locate row 47,832 without line numbers |
-| Resilience | Exception per row inside generic catch | Partial imports OK, but `Parse` throws stop row detail unless TryParse used |
+## Q89. (Scenario R) A report exporter hard-codes `"\\"` separators and uses `SpecialFolder.MyDocuments` on Linux CI. What is wrong and how do you fix it for cross-platform deployment?
 
-**Fix (priority order):**
+**Concepts**
+- `\\` separators invalid as path separators on Linux
+- `SpecialFolder.MyDocuments` resolving to home-directory subfolder on Linux but often unsuitable for server output
+- `Path.Combine` for OS-agnostic joining
+- Environment-variable-configured output directory for server deployments
 
-1. Replace with `using StreamReader reader = new StreamReader(path)` and `while ((line = reader.ReadLine()) != null)` — flat memory (**Program.cs** Section 4, QUICK REFERENCE).
-2. Reuse `InventoryCsv.Import(TextReader)` logic: skip blanks/comments, consume header once, increment `lineNumber` for each physical line.
-3. Use `TryParse` + structured errors (`Line {lineNumber}: invalid quantity '{text}'`) instead of exceptions for expected bad data.
-4. Accept `TextReader` in the parser so the same code reads files, streams, and `StringReader` tests.
+**Answer**
 
-**Production takeaway:** `ReadAllLines` is fine for demos; production imports of multi-megabyte feeds should stream — Karat pairs this with row-level error reporting from the chapter's partial-import pattern.
+Hard-coded `"\\"` separators become literal characters on Linux since the only path separator is `/`, producing a single path segment with backslashes in the name rather than a hierarchy — the file ends up in the current directory rather than the intended nested path. `SpecialFolder.MyDocuments` returns `~/Documents` on Linux (if XDG directories are set) but is a desktop concept meaningless on a headless CI server, so the resulting path is both wrong and potentially inaccessible. The fix is `Path.Combine(baseDir, "reports", $"{reportId}.csv")` using the correct separator, and for server deployments the base directory should come from an environment variable or `IConfiguration` rather than a special folder — this makes the output location configurable per environment without code changes.
 
 ---
-
-#### Q4. How do you escape a literal double quote inside a quoted CSV field?
-
-(P) A drop-folder service uses `FileSystemWatcher` to import CSV as soon as a file appears in `\\share\inbound`. Operators report random "column count" errors and duplicate SKU rows. The handler:
-
-```csharp
-watcher.Created += (_, e) =>
-{
-    var (items, errors) = InventoryCsv.Import(new StreamReader(e.FullPath));
-    _repository.UpsertAll(items);
-};
-```
 
-What race conditions happen with partial writes, and how do you harden the watcher pipeline?
+## Q90. (Scenario R) An admin API accepts a `fileName` query parameter combined with `Path.GetFullPath` to serve files. `GET /download?fileName=..\..\appsettings.Production.json` succeeds. What is the vulnerability and fix?
 
-**Answer:** `Created` fires when the file is first allocated, often before the upstream copy finishes — `StreamReader` then reads a truncated file, producing short rows and column-count errors. Retries on the same growing file can also insert partial batches before the full file lands. Wait until the file size stabilizes, open with shared-read exclusion or move to a processing folder under an exclusive lock, then import once idempotently.
+**Concepts**
+- Path traversal attack via `..` in user-supplied filename
+- `Path.GetFullPath` normalizing the traversal to a valid absolute path
+- Containment check: resolved path must start with the allowed base
+- `StringComparison.OrdinalIgnoreCase` on Windows, `Ordinal` on Linux
 
-- **Stabilize before read:** Poll `FileInfo.Length` until unchanged for N seconds, or use a "ready" sentinel file (`inventory.csv.ready`) written after the main file completes.
-- **Exclusive processing:** On pickup, `File.Move` to `processing\{guid}.csv` so no second watcher event imports the same path mid-copy.
-- **Locking:** Open with `FileShare.Read` only after stable size; avoid writers still flushing — `StreamWriter` on the exporter should `Flush()` before rename (**Program.cs** Section 4a).
-- **Idempotency:** Key imports by file hash + batch id so a duplicate `Created` event does not double-count SKUs (see Q5).
-- **Error shape:** Surface parse errors with line numbers; do not call `UpsertAll` on a batch with critical structural failures unless business rules allow partial loads.
+**Answer**
 
-**Production takeaway:** FileSystemWatcher notifies early — production pipelines treat "file exists" as "file ready," never as equivalent.
+`Path.GetFullPath` does exactly what causes the vulnerability here — it resolves `..` segments to their canonical absolute path, so `Path.GetFullPath(Path.Combine(serveRoot, "../../appsettings.Production.json"))` returns a path outside `serveRoot` that `File.Open` happily opens. The fix is to compute the canonical resolved path with `Path.GetFullPath(candidatePath)` and then assert that it starts with `Path.GetFullPath(serveRoot) + Path.DirectorySeparatorChar` before opening — the trailing separator prevents a `serveRoot` of `/var/app/files` from matching a resolved path of `/var/app/files-private`. Using `string.StartsWith` with `StringComparison.OrdinalIgnoreCase` on Windows (case-insensitive filesystem) and `Ordinal` on Linux (case-sensitive) ensures the comparison matches how the OS actually resolves the path.
 
 ---
-
-#### Q5. What goes wrong if you split CSV lines on `Split(',')` without a proper parser?
 
-(P) Re-running the same inbound file after a network blip must not double inventory counts. A developer adds a guard:
+## Q91. (Scenario P) A worker service loads `config/settings.json` with a relative path. It works from Visual Studio but fails as a Windows Service because `CurrentDirectory` is `C:\Windows\System32`. What is the fix?
 
-```csharp
-public void ImportFile(string path)
-{
-    if (_repository.AnyImportedFrom(path))
-        return;
-
-    var (items, errors) = InventoryCsv.Import(new StreamReader(path));
-    _repository.InsertAll(items);
-    _repository.MarkImported(path);
-}
-```
+**Concepts**
+- `Environment.CurrentDirectory` set by service manager, not the binary location
+- `AppContext.BaseDirectory` as the stable anchor for deployed content
+- Setting `CurrentDirectory` explicitly at startup as a workaround
+- `IConfiguration.AddJsonFile` with explicit base path in .NET hosted services
 
-Halfway through a 50k-row file the database throws; the operator fixes the DB and re-runs. What goes wrong, and how do you make the import idempotent with rollback?
-
-**Answer:** If `MarkImported` runs only after full success, a mid-batch failure leaves no mark but may have inserted thousands of rows — a re-run duplicates them. If `MarkImported` runs before verification, a failed run blocks forever. Wrap the database work in a transaction, stage rows in a import-batch table keyed by file hash, and commit only when all rows validate — or delete-by-batch-id on failure before retry.
-
-- **Transactional bulk insert:** `BEGIN TRANSACTION` → insert all items with `ImportBatchId` → commit; on any failure, rollback so re-run starts clean.
-- **Two-phase mark:** Record batch as `Processing` before insert, flip to `Completed` on commit — retries detect `Processing`/`Failed` and either resume or rollback-by-batch-id first.
-- **Idempotency key:** Hash file contents (`SHA256`) — `AnyImportedFrom` should check hash, not path, so renamed re-drops are detected.
-- **Partial parse policy:** If `errors` is non-empty, decide upfront: fail entire batch (rollback) vs import valid rows — document which; do not silently mix without operator ack.
-- **Line-level staging:** Insert into `StagingInventory` via streaming parser; merge into live table in one set-based statement inside the transaction.
-
-```csharp
-await using var tx = await _db.Database.BeginTransactionAsync(ct);
-var batchId = await _staging.LoadAsync(items, fileHash, ct);
-if (errors.Count > 0) { await tx.RollbackAsync(ct); return; }
-await _repository.MergeFromStagingAsync(batchId, ct);
-await _repository.CompleteBatchAsync(fileHash, ct);
-await tx.CommitAsync(ct);
-```
+**Answer**
 
-**Production takeaway:** Idempotent import means safe retry — both "no duplicate rows" and "failed run leaves no footprint"; a path-only guard satisfies neither after a partial failure.
+When Windows Service Control Manager starts a service, it sets the current directory to `C:\Windows\System32`, so `File.Open("config/settings.json")` looks for `C:\Windows\System32\config\settings.json` rather than the service's install directory. The correct fix is to anchor the path at `AppContext.BaseDirectory`: `Path.Combine(AppContext.BaseDirectory, "config", "settings.json")` resolves to the publish directory on all hosting models. For `IConfiguration` in a .NET generic host, `hostBuilder.ConfigureAppConfiguration((ctx, cfg) => cfg.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "config/settings.json")))` achieves the same. Setting `Environment.CurrentDirectory = AppContext.BaseDirectory` at `Main` entry is a common quick fix but is a global mutation that can break libraries that also rely on current directory, so explicit absolute paths are preferable.
 
 ---
-
-#### Q6. How do you handle embedded newlines inside quoted CSV fields?
 
-(D) Your team must ingest partner CSV feeds with quoted commas, optional date columns, and occasional header renames (`SKU` vs `Sku`). One engineer proposes `CsvHelper`; another wants to extend the hand-rolled `SplitQuotedLine` from this chapter. When do you reach for each, and what are the trade-offs for a long-lived warehouse integration?
+## Q92. (Scenario P) A containerized API uses `Path.GetTempFileName()` for PDF exports and never deletes them. Pods hit `No space left on device` after days. What breaks in this pattern?
 
-**Answer:** Extend the hand-rolled parser when the format is narrow, stable, and you need zero dependencies and full control for learning or a single internal export shape — `SplitQuotedLine` plus invariant `TryParse` covers quoted commas and typed columns for fixed five-column inventory. Reach for **CsvHelper** when feeds vary (renamed headers, optional columns, class maps, multiple delimiters) and you want header binding, validation attributes, and RFC 4180 edge cases without maintaining parser state yourself.
+**Concepts**
+- `GetTempFileName` creating a new file on every call — no automatic cleanup
+- Container overlay filesystem accumulating temp files until pod eviction
+- `try/finally` guarantee for temp file deletion on all code paths
+- `IAsyncDisposable` temp file wrapper for deterministic cleanup
 
-- **Hand-rolled (this chapter):** Fixed schema (`InventoryColumnCount`), quote-aware scan, explicit row errors — minimal surface, easy to unit-test with `StringReader`, no package churn; you own multiline fields, alternate encodings, and every new partner quirk.
-- **CsvHelper:** `[Name("SKU")]`, `ClassMap`, `MissingFieldFound`, culture options, async enumeration — faster to onboard new feeds; adds dependency and team must learn mapping API; still need staging, transactions, and idempotency around it.
-- **Header drift:** Hand-rolled code often assumes first line equals `InventoryHeader` string — brittle. CsvHelper can map by index or name with case-insensitive matching; either way, validate required columns up front and fail with a clear "missing column SKU" message.
-- **Hybrid:** CsvHelper for deserialization into DTOs, then domain validation (`sku` required, qty ≥ 0) in a service layer — keeps parser concerns separate from warehouse rules (**Program.cs** `InventoryItem` pattern).
-- **When not to hand-roll:** Multiple partners, embedded newlines in fields, tab/pipe delimiters, or frequent spec changes — maintenance cost exceeds CsvHelper's learning curve.
+**Answer**
 
-**Production takeaway:** Parser choice is an integration lifecycle bet — fixed internal format favors transparent hand-rolled code; multi-partner feeds favor a library plus staging and idempotent merge either way.
+`Path.GetTempFileName()` creates a physical zero-byte file each call and returns its path — no cleanup is automatic, and OS-level temp file purge policies that exist on desktops typically do not run in containers. Each export request leaves a PDF-sized file in `/tmp`; over days the overlay filesystem fills until the pod hits disk pressure and is evicted, often mid-request. The fix wraps the temp file path in a `try/finally` that calls `File.Delete(tempPath)` in the `finally` block, ensuring cleanup on every exit path including unhandled exceptions. For a reusable pattern, an `IAsyncDisposable` wrapper that owns the temp path and deletes in `DisposeAsync` can be used with `await using`, expressing cleanup as a resource lifetime rather than manual bookkeeping. In Kubernetes, also mount `emptyDir` volumes with a `sizeLimit` as a safety backstop.
 
 ---
 
-#### Q7. What issues arise with culture-specific decimal separators in CSV numeric columns?
+## Q93. (Scenario R) A desktop feature using `SpecialFolder.Desktop` is ported to a headless Linux server and fails. What is wrong and how should server export locations be chosen?
 
-(R) Two import workers occasionally corrupt the same nightly file. Review the concurrent access pattern:
+**Concepts**
+- `SpecialFolder.Desktop` mapped to home directory subfolder — may not exist on server
+- Headless Linux containers potentially having no configured home directory
+- Configuration-driven output path for server deployments
+- `ASPNETCORE_ENVIRONMENT` or environment variables to vary output directory
 
-```csharp
-public async Task ImportAsync(string path, CancellationToken ct)
-{
-    await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-    using var reader = new StreamReader(stream);
-    var (items, errors) = InventoryCsv.Import(reader);
-    await _repository.BulkInsertAsync(items, ct);
-}
+**Answer**
 
-// Hosted service starts two overlapping imports when backlog > 1:
-_ = ImportAsync(latestFile, ct);
-_ = ImportAsync(latestFile, ct);
-```
+`Environment.GetFolderPath(Environment.SpecialFolder.Desktop)` returns an empty string on headless Linux when no desktop environment is configured or when the HOME directory is not set, so any subsequent `Path.Combine` with an empty base silently resolves to a relative path, which then resolves to the current working directory — a completely different location from the intended export destination. Desktop-oriented special folders (`Desktop`, `MyDocuments`, `SendTo`) are meaningful only in interactive user sessions; server exports should go to a path read from configuration (`IConfiguration["ExportPath"]`) or an environment variable (`EXPORT_DIR`), which can be set per environment without code changes. Mounting a named Kubernetes volume at a well-known path like `/var/app/exports` is the recommended pattern since it separates the concern of "where exports go" from the application code.
 
-Separately, a new feed omits the header row entirely. The parser assumes the first non-blank line is always the header. What fails under concurrency and header drift, and how do you fix both?
-
-**Answer:** Two workers reading the same file concurrently duplicate database inserts unless the import is idempotent — and if either process also opens with write sharing, interleaved reads can see inconsistent snapshots on some OS/network shares. Header-less feeds mis-map the first data row as column names, shifting every subsequent field. Serialize per-file processing, move files exclusively before import, and detect headers by column signature rather than blind "first line skip."
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Two `ImportAsync` on same path | Duplicate SKU rows or race on `_repository` |
-| File I/O | Default `FileStream` share mode | Writer/exporter may still hold lock; reader fails or sees partial content |
-| Correctness | First non-blank line = header | Header-less feed imports garbage first row; silent wrong types |
-| Orchestration | Fire-and-forget duplicate tasks | No single-owner guarantee for nightly drop |
-
-**Fix (priority order):**
-
-1. **Single consumer:** Queue file paths; one worker processes each file — or `File.Move` to `processing\{id}.csv` atomically so only one worker owns the path.
-2. **Open read-only with explicit share:** `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)` — document that exporters must finish before drop.
-3. **Header detection:** If first row matches header pattern (`Sku,Name,...` case-insensitive) or column count/types fail (`int.TryParse` on col 2 fails), treat line as data and use known column order — or reject with "header row missing."
-4. **Idempotency:** Combine with Q5 — file hash + batch id so a duplicate worker run does not double insert.
-5. **Optional:** `FileShare.None` during move-then-import pipeline on local disk; on SMB shares, prefer copy-to-local-temp then import.
-
-```csharp
-if (!headerConsumed && LooksLikeHeader(line))
-{
-    headerConsumed = true;
-    continue;
-}
-// if no header seen after policy check, use DefaultInventoryColumns map
-```
+---
 
-**Production takeaway:** Concurrent import is a workflow bug first and a parsing bug second — exclusive file ownership plus header validation prevents both duplicate rows and shifted columns.
+## Q94. (Scenario M) A path helper calls `Path.Combine("ignored", "prefix", configuredRoot, appName, logFile)` where `configuredRoot` is an absolute path like `/var/log`. What surprising result occurs?
 
----
+**Concepts**
+- Rooted segment discarding all prior `Path.Combine` arguments
+- Configuration-supplied rooted path silently bypassing hardcoded prefixes
+- Security implication: user-controlled rooted path can escape intended directory
+- `Path.IsPathRooted` guard before passing user-supplied values to `Combine`
 
-#### Q8. How do you write CSV headers and ensure stable column ordering for downstream consumers?
+**Answer**
 
-_Answer not found._
+When `configuredRoot` is `/var/log`, `Path.Combine` discards everything before it — `"ignored"` and `"prefix"` — because a rooted segment resets the accumulated path. The result is `/var/log/appName/logFile`, completely ignoring the intended prefix. This is the specified behavior of `Path.Combine` and is correct when the caller genuinely wants an absolute override, but it is a trap when the code assumes the earlier segments always appear in the result. When `configuredRoot` comes from configuration or user input, I check `Path.IsPathRooted(configuredRoot)` before the combine — if it is rooted I use it directly as the base (no prefix prepended), and if it is relative I combine it with my known safe base directory. This makes the behavior explicit rather than depending on whether the configured value happens to be absolute or relative.
 
 ---
 
-#### Q9. What is the difference between `\n`, `\r\n`, and `Environment.NewLine` for text file line endings?
+## Q95. (Scenario D) Two services exchange Windows absolute paths (`D:\data\invoices\inv-001.pdf`) over a message queue. Service B on Linux fails to open them. What contract should replace raw absolute paths?
 
-_Answer not found._
-
----
+**Concepts**
+- Absolute OS paths as non-portable identifiers
+- Logical identifier (key, relative path, object-store URI) as the portable contract
+- Service-local path resolution from a configured base
+- Object storage URI (`s3://`, `https://blob.core.windows.net`) as the cross-platform alternative
 
-#### Q10. How do you normalize line endings when reading files produced on Windows vs Linux?
+**Answer**
 
-_Answer not found._
+Passing raw Windows absolute paths over a message queue creates an implicit tight coupling to the source machine's drive letter, directory layout, and filesystem — the path `D:\data\invoices\inv-001.pdf` is meaningless on a Linux service that has no `D:` drive. The correct contract is a logical identifier: a relative path like `invoices/2026/inv-001.pdf` that each service resolves against its own locally configured base directory (`InvoiceBasePath`), or an object-store URI (`s3://bucket/invoices/inv-001.pdf`) that any service with storage credentials can resolve. Relative paths as message payloads decouple the services from each other's filesystem layout while remaining human-readable and allowing each service to store files wherever its deployment requires. Object-store URIs are the best choice for cross-host scenarios since they remove filesystem-sharing requirements entirely.
 
 ---
 
-#### Q11. What are best practices for large CSV ingestion (streaming vs loading all rows)?
+## Q96. (Scenario P) A build pipeline creates deeply nested test output exceeding 260 characters. It works on Linux CI but fails on Windows with `PathTooLongException`. What explains the platform difference and what mitigations apply?
 
-_Answer not found._
+**Concepts**
+- Windows MAX_PATH limit of 260 characters (legacy Win32 APIs)
+- Linux POSIX path limit of 4096 characters
+- `\\?\` extended-length path prefix bypassing MAX_PATH on Windows
+- `<LongPathsEnabled>true</LongPathsEnabled>` opt-in in app manifest or registry
 
----
+**Answer**
 
-#### Q12. How do you validate CSV row shape (column count) before deserializing to objects?
+Windows file APIs historically enforced a MAX_PATH limit of 260 characters, which Linux POSIX APIs do not — POSIX allows up to 4096 bytes per path. This is why deeply nested output directories fail on Windows CI while working identically on Linux. The mitigations are: enable long-path support system-wide via Group Policy (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled = 1`) or via the app manifest `<longPathAware>true</longPathAware>`, which allows .NET on Windows 10 version 1607+ to use paths up to about 32767 characters. The code-level fix is to prefix absolute paths with `\\?\` (the extended-length prefix) when constructing `FileStream` on Windows, though `Path.GetFullPath` does not add this prefix automatically. The structural fix is to keep test output directory names short — flatten the hierarchy or shorten component names so paths stay under 200 characters, which prevents the issue across all Windows configurations without relying on the opt-in.
 
-_Answer not found._
 
 ---
 
-#### Q13. When should you use fixed-width text formats instead of CSV?
+## Q89. (Scenario R) A report exporter hard-codes `"\\"` separators and uses `SpecialFolder.MyDocuments` on Linux CI. What is wrong and how do you fix it for cross-platform deployment?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
 
-#### Q14. How do you properly dispose file resources across layered readers (`FileStream` → `StreamReader`)?
+## Q90. (Scenario R) An admin API accepts a `fileName` query parameter combined with `Path.GetFullPath` to serve files. `GET /download?fileName=..\..\appsettings.Production.json` succeeds. What is the vulnerability and fix?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
 
-#### Q15. What logging and rotation patterns apply when appending to text log files over time?
+## Q91. (Scenario P) A worker service loads `config/settings.json` with a relative path. It works from Visual Studio but fails as a Windows Service because `CurrentDirectory` is `C:\Windows\System32`. What is the fix?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
 
-#### Q16. **`ReadAllLines` vs `ReadLines`** — `ReadAllLines` loads the entire file into a `string[]`; `ReadLines` is lazy but keeps the file open until enumeration finishes or is disposed.
+## Q92. (Scenario P) A containerized API uses `Path.GetTempFileName()` for PDF exports and never deletes them. Pods hit `No space left on device` after days. What breaks in this pattern?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
 
-#### Q17. **Undisposed streams lock files on Windows** — A finalized-but-not-disposed `FileStream`/`StreamWriter` can block deletes, renames, and antivirus scans until GC runs.
+## Q93. (Scenario R) A desktop feature using `SpecialFolder.Desktop` is ported to a headless Linux server and fails. What is wrong and how should server export locations be chosen?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
 
-#### Q18. **`FileShare` defaults to exclusive access** — Opening without `FileShare.Read` prevents other processes from reading concurrently.
+## Q94. (Scenario M) A path helper calls `Path.Combine("ignored", "prefix", configuredRoot, appName, logFile)` where `configuredRoot` is an absolute path like `/var/log`. What surprising result occurs?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
 
-#### Q19. **Hard-coded path separators break cross-platform** — `"folder\\file.txt"` fails on Linux; always use `Path.Combine`.
+## Q95. (Scenario D) Two services exchange Windows absolute paths (`D:\data\invoices\inv-001.pdf`) over a message queue. Service B on Linux fails to open them. What contract should replace raw absolute paths?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
 
-#### Q20. **Relative paths depend on `CurrentDirectory`** — A path valid in Visual Studio may fail as a Windows Service or cron job where CWD differs.
+## Q96. (Scenario P) A build pipeline creates deeply nested test output exceeding 260 characters. It works on Linux CI but fails on Windows with `PathTooLongException`. What explains the platform difference and what mitigations apply?
 
-_Answer not found._
+_[to be reformatted in pass 2]_
 
 ---
-
-#### Q21. **`Path.Combine` with an absolute second segment discards earlier parts** — `Path.Combine("C:\\a", "D:\\b")` yields `D:\b`, which surprises many candidates.
 
-_Answer not found._
+## 05. Working with CSV and Text Files
 
 ---
 
-#### Q22. **Encoding mismatch silently corrupts text** — Default UTF-8 assumptions break on Windows-1252 or UTF-16 LE files; specify `Encoding` explicitly.
+## Q97. Why is there no built-in CSV parser in the BCL, and what libraries are commonly used?
 
-_Answer not found._
-
----
+**Concepts**
+- CSV as an informal format with no single authoritative specification
+- RFC 4180 as a widely cited but not universally followed guideline
+- `CsvHelper` and `Sylvan.Data.Csv` as production-grade libraries
+- `TextFieldParser` in `Microsoft.VisualBasic` as a BCL option
 
-#### Q23. **Seeking past EOF then writing extends the file with undefined gap bytes** — Understand sparse/hole behavior when patching binary files in place.
+**Answer**
 
-_Answer not found._
+CSV is not a formally standardized format — RFC 4180 documents common conventions but many producers deviate from it (omitting trailing CRLF, using semicolons as delimiters, varying quoting rules), which makes a single correct implementation impossible to define. The BCL chose not to ship an opinionated parser, leaving the problem to libraries that can handle real-world variation. `CsvHelper` is the most widely used and handles quoting, custom delimiters, culture-aware type conversion, and class mapping out of the box. `Sylvan.Data.Csv` is a high-performance alternative that implements `IDataReader` and integrates with `SqlBulkCopy`. For simple cases, `Microsoft.VisualBasic.FileIO.TextFieldParser` is available in the BCL and handles quoted fields correctly, though its API is procedural rather than streaming.
 
 ---
 
-#### Q24. **CSV `Split(',')` breaks on quoted commas** — `"Smith, Jr.",42` becomes three fields; use a real parser or state machine.
+## Q98. What are RFC 4180 rules for CSV fields, delimiters, and record terminators?
 
-_Answer not found._
+**Concepts**
+- Comma as the field delimiter
+- CRLF (`\r\n`) as the record terminator, including after the last record
+- Optional header row identical in structure to data rows
+- Quoting required when a field contains comma, double-quote, or CRLF
 
----
-
-#### Q25. **Double-quote escaping in CSV is `""` not `\"`** — Getting escape rules wrong produces columns that shift on import.
+**Answer**
 
-_Answer not found._
+RFC 4180 specifies comma as the delimiter (though many producers use tab or semicolon in practice), CRLF as the record terminator including after the final record, and an optional first row of header names that follow the same quoting rules as data fields. Fields that contain a comma, a double-quote, or a CRLF must be enclosed in double-quote characters; the enclosing quotes are not part of the field value. Fields that do not contain these characters may optionally be quoted. A double-quote within a quoted field is represented as two consecutive double-quotes (`""`), not a backslash escape. Leading and trailing spaces within an unquoted field are part of the field value, which is a common source of subtle parsing differences between producers and consumers.
 
 ---
 
-## Scenario-Based Questions (Karat Format)
+## Q99. When must a CSV field be wrapped in double quotes?
 
-#### Q1. (R) A report export service must create a file only if it does not already exist. Review this helper used under concurrent load:
+**Concepts**
+- Mandatory quoting for fields containing the delimiter character
+- Mandatory quoting for fields containing double-quote characters
+- Mandatory quoting for fields containing embedded newlines (CRLF or LF)
+- Optional quoting for all other fields
 
-```csharp
-public static void EnsureReportFile(string path, string header)
-{
-    if (!File.Exists(path))
-    {
-        using var stream = File.Create(path);
-        var bytes = Encoding.UTF8.GetBytes(header);
-        stream.Write(bytes, 0, bytes.Length);
-    }
-}
-```
+**Answer**
 
-Two requests for the same path occasionally throw `IOException: file already exists`, and sometimes one request silently skips writing. What is wrong, and how do you fix it for production?
+Per RFC 4180, quoting is mandatory when the field value contains the delimiter (comma, or whatever delimiter the file uses), a literal double-quote character, or an embedded newline. Failing to quote a field containing a comma causes the parser to split it into multiple fields, shifting all subsequent columns. Failing to quote a field containing a newline causes the parser to treat it as a record terminator, splitting a single logical row into two. Double-quote characters inside a quoted field are escaped by doubling them (`""`), so a field containing a single `"` is written as `"""..."` with the surrounding quotes. Fields that contain none of these characters may be optionally quoted or unquoted — a robust parser accepts both forms.
 
 ---
-
-**Answer:**
 
-```csharp
-public static void EnsureReportFile(string path, string header)
-{
-    if (!File.Exists(path))
-    {
-        using var stream = File.Create(path);
-        var bytes = Encoding.UTF8.GetBytes(header);
-        stream.Write(bytes, 0, bytes.Length);
-    }
-}
-```
+## Q100. How do you escape a literal double quote inside a quoted CSV field?
 
-Two requests for the same path occasionally throw `IOException: file already exists`, and sometimes one request silently skips writing. What is wrong, and how do you fix it for production?
-
-**Answer:** This is a classic TOCTOU (time-of-check to time-of-use) race: `File.Exists` and `File.Create` are not atomic, so two threads can both pass the check and one `File.Create` wins while the other throws, or one thread creates the file after another passed `Exists` and the second call skips writing entirely.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Check-then-act gap between `Exists` and `Create` | Duplicate create attempts → `IOException`; skipped writes when file appears between check and branch |
-| Concurrency | No synchronization or exclusive-create semantics | Intermittent failures under load — passes in single-threaded dev |
-| Design | `Exists` + `Create` mimics "create if missing" without atomicity | Wrong abstraction for idempotent report generation |
-
-**Fix (priority order):**
-
-1. Use an exclusive create that fails fast if the file already exists — `new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None)` — and catch `IOException` to treat "already exists" as expected, or return a conflict result.
-2. If multiple writers must coordinate, add an app-level lock keyed by path, or use a database/object-store claim — filesystem races do not scale across pods without external coordination.
-3. For idempotent content, prefer write-to-temp-then-atomic-rename (see Q2/Q5) instead of "create only if missing."
-4. Remove the silent skip path — if the file exists but is empty or stale, `Exists` returning true hides a partial write from a crashed peer.
-
-```csharp
-try
-{
-    using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-    var bytes = Encoding.UTF8.GetBytes(header);
-    stream.Write(bytes, 0, bytes.Length);
-}
-catch (IOException) when (File.Exists(path))
-{
-    // Another writer won the race — handle idempotently or surface conflict
-}
-```
+**Concepts**
+- RFC 4180 doubling rule: `""` represents one literal `"`
+- No backslash escaping in standard CSV
+- Parser state machine distinguishing doubled-quote from closing-quote
+- Misuse of `\"` causing column-count errors in strict parsers
 
-**Production takeaway:** Karat uses `File.Exists` + `File.Create` to test whether you know TOCTOU — the fix is atomic open semantics (`CreateNew`) or external locking, not a tighter `if`. See **Program.cs** Section 8 — guard before read is not the same as atomic create.
+**Answer**
 
----
+In RFC 4180 CSV, the only escaping mechanism for a literal double-quote inside a quoted field is to write two consecutive double-quote characters — `""`. So a field containing the value `say "hello"` is written as `"say ""hello"""` in the CSV file. There is no backslash escape — `\"` is not part of the CSV standard and is interpreted by some parsers as a closing quote followed by a stray backslash character, which shifts columns. A correct stateful parser transitions from "inside quotes" to "maybe end of field" when it sees `"`, then: if the next character is another `"` it emits one `"` and stays inside the field; if it is the delimiter or a newline it ends the field. Using `\"` for escaping instead of `""` is a common error in hand-rolled writers that breaks any downstream RFC-compliant reader.
 
 ---
-
-#### Q2. (R) A teammate refactors upload processing to write through a temp file, then move into place. Review the method:
 
-```csharp
-public async Task SaveUploadAsync(IFormFile upload, string finalPath, CancellationToken ct)
-{
-    string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".bin");
-    await using (var temp = File.Create(tempPath))
-    {
-        await upload.CopyToAsync(temp, ct);
-    }
+## Q101. What goes wrong if you split CSV lines on `Split(',')` without a proper parser?
 
-    if (File.Exists(finalPath))
-        File.Delete(finalPath);
+**Concepts**
+- Quoted fields containing commas split incorrectly
+- Quoted fields containing newlines split across lines
+- Double-quote escape sequences passed through literally as `""`
+- Column count variance producing wrong mappings
 
-    File.Move(tempPath, finalPath);
-}
-```
+**Answer**
 
-What breaks when `CopyToAsync` throws, when the app runs in a Linux container with a read-only root filesystem, and when two pods write the same `finalPath`?
+`Split(',')` is a character-level split that knows nothing about quoting, so a field value like `"Smith, John"` is split into two tokens — `"Smith` and ` John"` — instead of one, shifting every subsequent column to the wrong index. This is the most common bug in hand-rolled CSV code and produces subtle data corruption that only surfaces for records with commas in text fields. Embedded newlines inside quoted fields cause `Split(',')` on a single line read from `ReadLine()` to miss the continuation, so the record is truncated. The fix is always to use a proper CSV parser (`CsvHelper`, `Sylvan.Data.Csv`, or `TextFieldParser`) rather than string splits, because the RFC 4180 state machine cannot be reproduced correctly by a regex or a `Split` call.
 
 ---
-
-**Answer:**
-
-```csharp
-public async Task SaveUploadAsync(IFormFile upload, string finalPath, CancellationToken ct)
-{
-    string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".bin");
-    await using (var temp = File.Create(tempPath))
-    {
-        await upload.CopyToAsync(temp, ct);
-    }
-
-    if (File.Exists(finalPath))
-        File.Delete(finalPath);
 
-    File.Move(tempPath, finalPath);
-}
-```
+## Q102. How do you handle embedded newlines inside quoted CSV fields?
 
-What breaks when `CopyToAsync` throws, when the app runs in a Linux container with a read-only root filesystem, and when two pods write the same `finalPath`?
-
-**Answer:** The temp-then-move pattern is right in spirit, but this version leaks temp files on failure, may write temps to an unwritable or ephemeral location in containers, and still has TOCTOU races on the final path — plus `File.Move` is not atomic across volumes.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Resource cleanup | No `try/finally` or `try/catch` to delete `tempPath` on failure | Orphaned `.bin` files fill `%TEMP%` / container overlay — see Q7 |
-| Deployment | `Path.GetTempPath()` + `finalPath` on read-only app dir | `CopyToAsync` or `Move` throws in Kubernetes/App Service when dest is not writable |
-| Concurrency | `Exists` → `Delete` → `Move` on shared `finalPath` | Two pods interleave deletes/moves — corrupt or missing final file |
-| Cross-volume | `File.Move` between temp dir and data volume | Becomes copy+delete — not atomic; crash mid-flight leaves duplicates or partial files |
-
-**Fix (priority order):**
-
-1. Wrap temp lifecycle in `try/finally` (or a `TempFile`/`TempWorkspace` disposable) that deletes the temp path on any exception.
-2. Stage temp files in the **same directory** as `finalPath` (e.g. `finalPath + ".tmp"`) so `File.Move` is a same-volume rename — atomic on POSIX and NTFS for same directory.
-3. Write to `finalPath.tmp`, flush/fsync if durability matters, then `File.Move(tmp, finalPath, overwrite: true)` (.NET 5+) — avoid separate delete step.
-4. In containers, mount a writable volume for uploads (`/app/data` or blob storage); never assume `AppContext.BaseDirectory` or root FS is writable.
-5. For multi-instance writes to one key, use object storage (S3/Azure Blob) with etag preconditions or a DB row — not shared filesystem without locking.
-
-```csharp
-string dir = Path.GetDirectoryName(finalPath)!;
-string tempPath = Path.Combine(dir, $".{Guid.NewGuid():N}.tmp");
-try
-{
-    await using (var temp = File.Create(tempPath))
-        await upload.CopyToAsync(temp, ct);
-
-    File.Move(tempPath, finalPath, overwrite: true);
-    tempPath = null; // success — do not delete in finally
-}
-finally
-{
-    if (tempPath is not null && File.Exists(tempPath))
-        File.Delete(tempPath);
-}
-```
+**Concepts**
+- Embedded newlines making a single logical row span multiple physical lines
+- `ReadLine()` breaking at the embedded newline — wrong record boundary
+- Parser tracking open-quote state to span multiple physical lines
+- `CsvHelper` handling multi-line records transparently
 
-**Production takeaway:** Temp-file staging is a production pattern only when cleanup, same-directory rename, and writable volume paths are handled — Karat stacks failure cleanup with container filesystem constraints.
+**Answer**
 
----
+A CSV record with an embedded newline in a quoted field spans two or more physical lines — a `ReadLine()` loop breaks the record at the newline inside the field, treating the continuation as a new record and producing the wrong column count. The correct approach is to use a parser that maintains a state machine: when it reads an opening quote it continues reading characters — including newline bytes — until it finds an unescaped closing quote, only then ending the field. `CsvHelper` handles this correctly by default; `TextFieldParser` also handles it. Hand-rolling a multi-line-aware parser requires reading character by character with the quote state tracked across `ReadLine` boundaries, which is why I avoid it in favor of a library.
 
 ---
 
-#### Q3. (R) A nightly cleanup job removes old workspace folders. Review:
+## Q103. What issues arise with culture-specific decimal separators in CSV numeric columns?
 
-```csharp
-public void PurgeWorkspace(string workspaceRoot)
-{
-    foreach (string file in Directory.GetFiles(workspaceRoot, "*", SearchOption.AllDirectories))
-    {
-        File.SetAttributes(file, FileAttributes.Normal);
-        File.Delete(file);
-    }
+**Concepts**
+- Culture-sensitive `ToString` and `Parse` using system locale's decimal separator
+- German locale using `,` as decimal separator — conflicting with CSV delimiter
+- `CultureInfo.InvariantCulture` for portable numeric formatting
+- Downstream parsing requiring matching `NumberStyles` and `IFormatProvider`
 
-    Directory.Delete(workspaceRoot, recursive: false);
-}
-```
+**Answer**
 
-Locally it works on small trees; in production it throws `IOException` on non-empty directories or `UnauthorizedAccessException` on hidden/system files. What is wrong with this approach, and what should you use instead?
+`double.ToString()` and `decimal.ToString()` use the current culture's number format — on a German Windows machine the decimal separator is `,` (comma), so `1.5` is formatted as `1,5`. In a comma-delimited CSV file, `1,5` parses as two separate fields rather than the decimal number `1.5`, breaking every numeric column. The fix is to always format numeric values with `CultureInfo.InvariantCulture` — `value.ToString("F2", CultureInfo.InvariantCulture)` — which uses `.` as the decimal separator regardless of the machine locale. Parsing on the read side must also use `double.Parse(field, CultureInfo.InvariantCulture)` for consistency. If the CSV is intended for Excel on a German system, the separator character itself must be documented in a format contract or a `sep=;` hint line, since that user may expect semicolons as delimiters.
 
 ---
 
-**Answer:**
+## Q104. How do you write CSV headers and ensure stable column ordering for downstream consumers?
 
-```csharp
-public void PurgeWorkspace(string workspaceRoot)
-{
-    foreach (string file in Directory.GetFiles(workspaceRoot, "*", SearchOption.AllDirectories))
-    {
-        File.SetAttributes(file, FileAttributes.Normal);
-        File.Delete(file);
-    }
+**Concepts**
+- Explicit ordered column name array rather than property reflection
+- Reflection-based ordering non-deterministic across CLR versions
+- Contract-driven stable ordering in a shared format specification
+- `CsvHelper.Configuration.RegisterClassMap` for explicit member ordering
 
-    Directory.Delete(workspaceRoot, recursive: false);
-}
-```
-
-Locally it works on small trees; in production it throws `IOException` on non-empty directories or `UnauthorizedAccessException` on hidden/system files. What is wrong with this approach, and what should you use instead?
+**Answer**
 
-**Answer:** Manual file-by-file deletion before a non-recursive `Directory.Delete` is slower, still fails on nested subdirectories, and fights read-only/hidden attributes — while leaving the tree inconsistent if any step throws mid-loop. The API already supports recursive delete in one call.
+Reflection-based header generation (iterating `typeof(T).GetProperties()`) does not guarantee stable ordering across runtime versions, JIT optimizations, or code changes that add new properties — a column added in a refactor can shift all subsequent columns and silently corrupt the downstream consumer's mappings. The correct pattern is an explicit ordered column list: define `string[] Headers = { "Id", "Name", "Price", "Currency" }` as a constant in the format contract and write the header row from that array, then write each data row by accessing fields in the same order. With `CsvHelper`, `RegisterClassMap<T>` with `Map(m => m.Field).Index(0)` declarations gives explicit, stable positions. The format contract (a shared specification or interface) is the authoritative source — the header order in code must match it exactly so any consumer written against that contract reads the correct columns regardless of how the producer's model class evolves.
 
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| API misuse | `Directory.Delete(..., recursive: false)` after only deleting **files** | Subfolders remain → `IOException: directory not empty` |
-| Scalability | `GetFiles(..., AllDirectories)` loads entire tree into memory | Large workspaces → memory pressure; long lock while iterating |
-| Reliability | Partial loop then exception | Some files deleted, folder half-purged — harder to retry idempotently |
-| Permissions | `SetAttributes(Normal)` on every file | May still fail on locked files (open handles) or ACL/UAC denied paths |
+---
 
-**Fix (priority order):**
+## Q105. What is the difference between `\n`, `\r\n`, and `Environment.NewLine` for text file line endings?
 
-1. Use `Directory.Delete(workspaceRoot, recursive: true)` — one call removes files and nested folders (see **Program.cs** Section 9).
-2. Before delete, ensure no open `FileStream`/`StreamReader` handles — dispose all streams first (Section 7 — sharing violation on Windows).
-3. For large trees, prefer `DirectoryInfo.EnumerateFiles` with lazy enumeration if you must pre-process, but still finish with recursive delete — do not hand-roll tree walking unless you need selective retention.
-4. On permission errors, fix ACLs or run under a service account with rights to the data directory — attribute clearing is not a substitute for proper permissions in prod.
-5. Wrap in retry for transient sharing violations if antivirus/indexer holds brief locks.
+**Concepts**
+- `\n` (LF) — Unix and Linux line ending
+- `\r\n` (CRLF) — Windows line ending
+- `\r` (CR) — old Mac (pre-OS X) line ending
+- `Environment.NewLine` resolving to platform default at runtime
 
-**Production takeaway:** `Directory.Delete` without `recursive: true` on a non-empty folder is a common tutorial pitfall scaled to production — Karat expects you to know when recursive delete is correct and when open handles block it.
+**Answer**
 
----
+`\n` (line feed, 0x0A) is the standard line ending on Unix, Linux, and macOS; `\r\n` (carriage return + line feed, 0x0D 0x0A) is the Windows standard. Writing files with hard-coded `\n` on Windows is technically cross-platform for most consumers but differs from what native Windows tools expect. `Environment.NewLine` resolves to `\r\n` on Windows and `\n` on Linux, so using it matches the platform default — appropriate for files intended only for the local system. For files exchanged between systems or uploaded to git repositories, I use `\n` explicitly or configure `StreamWriter.NewLine = "\n"` to force Unix endings, since CRLF in source control and config files causes diff noise on Linux systems. RFC 4180 specifies CRLF for CSV, so CSV writers should use `\r\n` regardless of platform.
 
 ---
 
-#### Q4. (P) A multi-process log aggregator appends audit lines from several worker threads. One worker uses `File.AppendAllText`; another opens with default sharing:
+## Q106. How do you normalize line endings when reading files produced on Windows vs Linux?
 
-```csharp
-// Worker A
-File.AppendAllText(logPath, line + Environment.NewLine);
+**Concepts**
+- `StreamReader.ReadLine()` stripping both `\r\n` and `\n` uniformly
+- `ReadToEnd()` + `Split('\n')` leaving `\r` on Windows-produced lines
+- Explicit `Replace("\r\n", "\n")` before `Split` as a defensive step
+- `File.ReadAllLines` also normalizing correctly via `StreamReader`
 
-// Worker B
-using var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write);
-using var writer = new StreamWriter(fs);
-writer.WriteLine(line);
-```
+**Answer**
 
-Under load you see `IOException: sharing violation` and occasionally interleaved garbage bytes. Explain `FileShare` behavior here and show a production-safe append pattern.
+`StreamReader.ReadLine()` handles all three line ending styles — `\r\n`, `\n`, and `\r` — and returns the line content without the terminator, which is the safest way to read line-by-line across platforms. When using `ReadToEnd()` combined with `Split('\n')`, Windows-produced CRLF lines leave a trailing `\r` on each entry, which is the root cause of `key\r` mismatch bugs in config parsers. The fix when `Split` is necessary is to first normalize: `content.Replace("\r\n", "\n").Replace('\r', '\n')` reduces all variants to LF before splitting. `File.ReadAllLines` uses `StreamReader` internally and normalizes correctly, so it is preferable to `ReadToEnd().Split` for line-oriented parsing.
 
 ---
-
-**Answer:**
-
-```csharp
-// Worker A
-File.AppendAllText(logPath, line + Environment.NewLine);
-
-// Worker B
-using var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write);
-using var writer = new StreamWriter(fs);
-writer.WriteLine(line);
-```
-
-Under load you see `IOException: sharing violation` and occasionally interleaved garbage bytes. Explain `FileShare` behavior here and show a production-safe append pattern.
-
-**Answer:** Default `FileStream` constructors use `FileShare.Read`, which excludes other writers — concurrent appenders block each other with sharing violations. Even when opens succeed, unsynchronized multi-writer appends interleave bytes at the OS level without line atomicity.
-
-- `File.AppendAllText` opens, appends, and closes per call — high overhead and still races with other writers using incompatible share flags.
-- For multiple writers on one file, open with `FileShare.ReadWrite` so other handles can coexist: `new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite)`.
-- Line atomicity is **not** guaranteed by `FileShare` — two threads can still interleave mid-line; use a `Mutex`/`SemaphoreSlim` named by path, a single dedicated writer thread/channel, or one process owning the log file.
-- Better production pattern: append to stdout and let the platform aggregate (Kubernetes logging, Azure Monitor), or write per-process log files and merge — avoid many writers to one file on Windows especially.
-- If you must share one file, wrap append in a process-wide lock and flush after each line; consider `StreamWriter` with `AutoFlush = true`.
-
-```csharp
-private static readonly SemaphoreSlim _logLock = new(1, 1);
-
-await _logLock.WaitAsync(ct);
-try
-{
-    await File.AppendAllTextAsync(logPath, line + Environment.NewLine, ct);
-}
-finally
-{
-    _logLock.Release();
-}
-```
 
-**Production takeaway:** Sharing violations mean incompatible `FileShare` flags or an undisposed handle — Karat ties **Program.cs** Section 7 (open handles block delete/write) to concurrent append design, not just "use a lock" memorization.
+## Q107. What are best practices for large CSV ingestion (streaming vs loading all rows)?
 
----
+**Concepts**
+- `File.ReadAllLines` materialing full file into memory — LOH risk on large files
+- `File.ReadLines` / `StreamReader.ReadLine` streaming one line at a time
+- Chunked batch inserts to bound transaction size and memory
+- `IAsyncEnumerable<T>` for async streaming ingestion in hosted services
 
----
+**Answer**
 
-#### Q5. (P) An export job stages files under `%TEMP%` on Windows, then calls `File.Move(source, dest)` into a network share. On developer laptops it works; in Azure App Service (Linux) and when crossing drive letters it fails with `IOException` or leaves duplicate files. What is happening at the OS level, and what pattern replaces naive `File.Move`?
+Large CSV ingestion should stream rows rather than materializing the file — `File.ReadAllLines` on a 400 MB CSV allocates a `string[]` with potentially millions of entries that pins a large LOH segment and causes GC pauses under concurrent traffic. `File.ReadLines` or a `StreamReader` loop keeps allocation proportional to one row at a time. Deserialized rows should be batched (for example 500 at a time) and written to the database in bulk using `SqlBulkCopy` or `DbContext.BulkInsert`, rather than inserting each row in a separate transaction, which also prevents the open database transaction growing unboundedly large. For async ingest pipelines in hosted services, I expose the file rows as `IAsyncEnumerable<T>` from a `CsvHelper.GetRecordsAsync<T>` call, which lets the consumer `await foreach` and apply backpressure through a `Channel<T>` between the reader and the writer.
 
 ---
 
-**Answer:**
+## Q108. How do you validate CSV row shape (column count) before deserializing to objects?
 
-**Answer:** `File.Move` is only a cheap atomic rename when source and destination are on the **same file system/volume**. Cross-volume or temp-to-network-share moves degrade to copy-then-delete — slow, non-atomic, and vulnerable to partial failure — and Linux container temp paths often live on a different mount than persisted data volumes.
+**Concepts**
+- Column count check against the header row count
+- Early rejection before expensive deserialization or DB insert
+- Line number tracking for actionable error messages
+- `CsvHelper` `BadDataException` and `HeaderValidationException`
 
-- Windows: moving from `C:\Users\...\Temp` to `D:\` or `\\server\share` triggers copy+delete, not rename — crash after copy leaves both files or neither in expected state.
-- Linux containers: `/tmp` may be tmpfs while `/app/data` is a mounted volume — `File.Move` cannot rename across mounts; errno `EXDEV` → .NET wraps as `IOException`.
-- Hidden cost: large files copied twice consume disk and time; antivirus on network paths adds locks.
-- Production pattern: stage temp file in the **destination directory** (hidden `.part` suffix), fsync if required, then same-directory `File.Move` to final name — atomic replace on same volume.
-- For cross-machine delivery, skip filesystem move entirely — stream to blob storage (S3/Azure Blob) with server-side commit, or use a message queue with object key — not SMB paths from app servers.
-- Use `Path.GetPathRoot` or compare `Directory.GetDirectoryRoot` of source and dest in diagnostics; if roots differ, plan copy+verify+delete explicitly with checksum validation.
+**Answer**
 
-**Production takeaway:** **Program.cs** Section 3 notes Move is "atomic rename on same volume" — Karat tests whether you apply that caveat when `%TEMP%` and upload folders diverge in cloud deploys.
-
----
+I read the header row first, count the expected columns, then on each data row check that the actual column count matches before attempting type conversion or object construction — a mismatch means the row was incorrectly parsed (typically due to an unquoted comma) and deserializing it would write wrong values to wrong fields. The check is `if (row.Length != expectedColumnCount) throw new CsvFormatException(lineNumber, row.Length, expectedColumnCount)` so the error message names the exact line and counts, making it actionable for operations teams. With `CsvHelper`, configuring `MissingFieldFound` and `BadDataFound` delegates on `CsvConfiguration` lets me log the offending raw line and skip or reject it without aborting the entire import. A tolerance policy (skip bad rows vs abort) is a business decision that should be explicit in the import specification.
 
 ---
 
-#### Q6. (M) An ASP.NET Core endpoint reads a 200 MB CSV from disk on every request:
+## Q109. When should you use fixed-width text formats instead of CSV?
 
-```csharp
-app.MapGet("/reports/{id}", (string id, IReportStore store) =>
-{
-    string path = store.GetPath(id);
-    if (!File.Exists(path))
-        return Results.NotFound();
+**Concepts**
+- Fixed-width format as delimiter-free, positional field layout
+- Suitable for legacy mainframe integrations and regulatory submissions
+- Avoids delimiter-in-value quoting complexity
+- Character counting discipline vs parser flexibility of CSV
 
-    string csv = File.ReadAllText(path);
-    return Results.Content(csv, "text/csv");
-});
-```
+**Answer**
 
-Latency spikes under concurrent traffic and thread-pool queue depth grows, even though CPU stays low. What mechanism is blocking, and what file APIs would you use instead?
+Fixed-width formats are appropriate when the consuming system is a mainframe, legacy COBOL program, or regulatory authority that specifies exact column positions in a file layout — these systems predate CSV conventions and expect each field at a known byte offset with a known length. The format avoids all quoting and delimiter ambiguity since fields are simply padded to their specified width, but it requires that field values never exceed their column width and that any truncation is acceptable. I use fixed-width when the file specification says "field Name is bytes 1–30, left-justified, space-padded" rather than "comma-separated"; for modern integrations between .NET services I prefer JSON, CSV, or Parquet depending on whether the data is document-oriented, tabular, or analytical.
 
 ---
-
-**Answer:**
 
-```csharp
-app.MapGet("/reports/{id}", (string id, IReportStore store) =>
-{
-    string path = store.GetPath(id);
-    if (!File.Exists(path))
-        return Results.NotFound();
-
-    string csv = File.ReadAllText(path);
-    return Results.Content(csv, "text/csv");
-});
-```
+## Q110. How do you properly dispose file resources across layered readers (`FileStream` → `StreamReader`)?
 
-Latency spikes under concurrent traffic and thread-pool queue depth grows, even though CPU stays low. What mechanism is blocking, and what file APIs would you use instead?
-
-**Answer:** `File.ReadAllText` synchronously reads the entire 200 MB into a single `string` on a thread-pool thread — blocking async I/O throughput and allocating a huge LOH object — so concurrent requests queue behind blocked threads even though the work is I/O-bound.
-
-- The minimal API delegate is synchronous; each request ties up a thread for the full disk read — classic thread-pool starvation under load (same class of problem as `.Result` on async I/O).
-- `ReadAllText` doubles memory (file bytes + UTF-16 string) — 200 MB file can mean 400 MB+ per request peak.
-- Prefer `return Results.File(path, "text/csv", enableRangeProcessing: true)` — streams from disk with `SendFileAsync` / efficient OS sendfile where available, no full buffering in managed memory.
-- If transformation is required: `async Task<IResult>` with `await File.ReadAllTextAsync(path, ct)` or better `File.OpenRead` + `StreamReader` / pipe through `Results.Stream`.
-- Add caching (`IMemoryCache` with size limits), CDN, or object storage pre-signed URLs for large static exports — disk read per request does not scale.
-- Pass `CancellationToken` from `HttpContext.RequestAborted` so clients disconnecting abort the read.
-
-```csharp
-app.MapGet("/reports/{id}", (string id, IReportStore store) =>
-{
-    string path = store.GetPath(id);
-    return File.Exists(path)
-        ? Results.File(path, "text/csv", fileDownloadName: $"{id}.csv", enableRangeProcessing: true)
-        : Results.NotFound();
-});
-```
+**Concepts**
+- `StreamReader` disposing the underlying `FileStream` by default
+- `leaveOpen: true` when the base stream has a longer lifetime
+- LIFO disposal order from nested `using` statements
+- `await using` for `IAsyncDisposable` writers and streams
 
-**Production takeaway:** Sync all-at-once file helpers from **Program.cs** Section 3 (`ReadAllText`) are fine for small demo files — in web apps they block the thread pool; Karat expects streaming async APIs for large I/O.
+**Answer**
 
----
+When a `StreamReader` is constructed with `leaveOpen: false` (the default), disposing the reader also disposes the underlying `FileStream` — so one `using` block covers both. Nested `using` statements dispose in LIFO order, which matches the correct teardown sequence: the inner reader is disposed before the outer stream, flushing any buffered state before the handle is released. When a `FileStream` is shared between multiple wrappers (a `StreamReader` and a `BinaryReader` on the same handle, for example), I pass `leaveOpen: true` to each wrapper and dispose the raw `FileStream` explicitly after all wrappers are done. For async code, `StreamWriter` is `IAsyncDisposable` and must be used with `await using` so the final flush is awaited rather than blocking.
 
 ---
 
-#### Q7. (D) A containerized API creates per-request scratch directories under `Path.GetTempPath()` but never deletes them when handlers throw. Disk on the node fills over days; restarting the pod "fixes" it until the next deploy. Compare three cleanup strategies — `try/finally`, `IDisposable` workspace helper, and OS temp with periodic janitor — for production container deployments. What is your default and why?
-
----
+## Q111. What logging and rotation patterns apply when appending to text log files over time?
 
-### 02. StreamReader & StreamWriter
+**Concepts**
+- Single long-lived `StreamWriter` with `AutoFlush` for append performance
+- File rotation by size, date, or sequence number
+- `FileShare.Read` on the writer so log readers and shippers can coexist
+- Structured logging sinks (Serilog, NLog) implementing rotation correctly
 
-# Karat — Interview Questions
+**Answer**
 
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/02. StreamReader & StreamWriter`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
+A long-lived append writer opened once with `FileMode.Append`, `FileShare.Read`, and `AutoFlush = true` is efficient for high-throughput logging since it avoids repeated open/close overhead and flushes each entry immediately to the OS buffer so tailing tools see entries in near real time. Rotation is triggered by checking `stream.Length` after each write (size rotation) or comparing `DateTime.UtcNow.Date` with the log file's date (daily rotation), then closing the current stream, renaming the file to include a timestamp, and opening a new stream. In production, I use Serilog or NLog's rolling file sink rather than implementing rotation manually — they handle concurrent writers, rotation-on-lock, and gzip compression of rotated files correctly across platforms, including the edge case where the file is still open in another process when rotation fires. The writer must always open with `FileShare.Read` so log shippers (Filebeat, Fluent Bit) can read the current file without a sharing violation.
 
 ---
 
-**Answer:**
+## Q112. `ReadAllLines` vs `ReadLines` — trade-offs in memory and file lock duration.
 
-**Answer:** Orphaned scratch dirs are a deployment lifecycle bug, not a filesystem API quirk — the default should be deterministic per-operation cleanup via an `IDisposable` workspace scoped to the request, with a periodic janitor as a safety net in long-lived pods.
+**Concepts**
+- `ReadAllLines` materializing `string[]` in memory, handle released before return
+- `ReadLines` streaming lazily, handle open during enumeration
+- Memory: `ReadAllLines` proportional to file size; `ReadLines` proportional to one line
+- LINQ with `ReadLines` more memory-efficient for large files
 
-| Strategy | Strengths | Weaknesses |
-|---|---|---|
-| **`try/finally` inline** | Simple; guaranteed on exit from one method | Easy to forget when logic branches across helpers; duplicated across endpoints |
-| **`IDisposable` workspace (`using var ws = new TempWorkspace(...)`)** | Centralizes create/delete; composes with `await using`; testable | Requires discipline to always `using`; nested scopes must not double-delete |
-| **OS temp + periodic janitor** | Catches leaks from third-party libs and crash kills; good backstop in K8s | Not sufficient alone — unbounded growth between sweeps fills emptyDir/volume; race if janitor deletes active dirs |
+**Answer**
 
-- Default: **`IDisposable`/`IAsyncDisposable` temp workspace** created at request entry, deleted in `Dispose` even on exceptions — matches **Program.cs** Main's clean-slate pattern (`Directory.Delete` before recreate) but scoped per operation.
-- Implement janitor as secondary: delete directories under temp older than N hours **only if** naming includes GUID and heartbeat file — never blanket `Delete` on entire `GetTempPath()` while app runs.
-- In containers, mount scratch space with size limits (`emptyDir` sizeLimit) so leaks fail fast instead of evicting neighbors; prefer streaming to blob storage over large local scratch.
-- Log workspace path on creation at Debug level; metric `temp_workspace_bytes` for observability.
-- Avoid relying on pod restart as cleanup policy — violates 12-factor; masks handler bugs.
+`ReadAllLines` opens the file, reads every line into a `string[]`, closes the handle, and returns the array — the file is unlocked before the caller processes a single line, so concurrent writers can open it immediately after the call returns. The trade-off is that the entire file lives in memory simultaneously, which is fine for small files but causes LOH pressure on large ones. `ReadLines` returns a lazy enumerator that holds the file handle open until enumeration completes or the enumerator is disposed, meaning the file is locked during the full `foreach` loop. For small files where the full content must be processed, `ReadAllLines` is simpler and its early handle release is an advantage; for large files where only a subset of lines is needed (LINQ `Where`/`Take`), `ReadLines` is more efficient because iteration stops early and the unread portion is never loaded, though the handle lifetime must be managed deliberately.
 
-**Production takeaway:** Karat uses container disk fill to test whether you connect **Program.cs** cleanup demos to request-scoped `using` and deployment volume limits — restart is not a cleanup strategy.
-
 ---
-
-### 02. StreamReader & StreamWriter
 
-# Karat — Interview Answers
+## Q113. Undisposed streams lock files on Windows — describe the mechanism and correct pattern.
 
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
+**Concepts**
+- OS file handle held by undisposed `FileStream` until GC finalizer
+- GC finalizer non-deterministic — handle released at GC time, not at scope exit
+- Windows file lock blocking concurrent open, delete, or rename operations
+- `using` / `await using` generating `try/finally` for deterministic disposal
 
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/02. StreamReader & StreamWriter`
+**Answer**
 
----
+When a `FileStream` is not disposed, the .NET runtime holds the underlying Win32 file handle open. The `FileStream` finalizer will eventually close it when the GC collects the object, but GC is non-deterministic — the handle might stay open for seconds or minutes after the stream is logically done, blocking any other process that tries to open the file exclusively, rename it, or delete it. This causes intermittent `IOException: process cannot access the file` errors that are hard to reproduce and appear unrelated to the code that holds the handle. The correct pattern is `using var fs = new FileStream(...)` which the compiler transforms into a `try/finally` block that calls `fs.Dispose()` on every exit path including exceptions, releasing the handle immediately at scope exit. For `IAsyncDisposable` streams (like async `FileStream` wrappers), `await using` must be used to avoid blocking on disposal.
 
 ---
-
-#### Q1. (R) A nightly audit job throws on bad rows and operators report the log file stays locked until the worker restarts. Review this helper:
 
-```csharp
-public void AppendAuditEntry(string logPath, string entry)
-{
-    StreamWriter writer = new StreamWriter(logPath, append: true);
-    writer.WriteLine($"{DateTime.UtcNow:o} {entry}");
+## Q114. `FileShare` defaults to exclusive access — what does that mean for concurrent readers?
 
-    if (entry.Contains("INVALID", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Audit row rejected — fix upstream feed.");
+**Concepts**
+- `FileShare.None` as the default on most `FileStream` constructor overloads
+- All other processes blocked from opening the file during the exclusive hold
+- Read-only concurrent access permitted by `FileShare.Read` on the writer
+- `FileShare` as a declaration of tolerance, not a capability grant
 
-    writer.Dispose();
-}
-```
+**Answer**
 
-What keeps the file locked, and how do you fix it without losing the rejected row on disk?
+The `FileStream` constructor overloads that accept only a path and `FileMode` default to `FileShare.None`, which grants exclusive access — no other process can open the file for reading, writing, or deletion while the handle is open. This is the correct default for write operations where intermediate state must never be seen, but it silently blocks log shippers, backup agents, and monitoring tools that try to read the file concurrently. `FileShare.Read` on the writer allows concurrent readers while still preventing other writers from opening the file, which is the right choice for log files and status files. The key mental model is that `FileShare` is a declaration of what concurrent opens the current opener is willing to tolerate — setting `FileShare.Read` does not grant readers any new capability, it simply does not block them when they request read access.
 
 ---
 
-**Answer:**
+## Q115. Hard-coded path separators break cross-platform — why and what to use instead.
 
-```csharp
-public void AppendAuditEntry(string logPath, string entry)
-{
-    StreamWriter writer = new StreamWriter(logPath, append: true);
-    writer.WriteLine($"{DateTime.UtcNow:o} {entry}");
+**Concepts**
+- `\` as a Windows separator — not recognized as separator on Linux
+- `/` universally recognized on all .NET platforms including Windows
+- `Path.Combine` and `Path.DirectorySeparatorChar` for portable joining
+- String interpolation with separators as the most common error location
 
-    if (entry.Contains("INVALID", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Audit row rejected — fix upstream feed.");
+**Answer**
 
-    writer.Dispose();
-}
-```
+On Windows the directory separator is `\`, on Linux and macOS it is `/`. Code like `var path = baseDir + "\\" + "reports" + "\\" + fileName` produces a path with backslash separators that are literal characters on Linux — the OS treats the whole string as a single path segment with backslashes in the name rather than a hierarchy. The portable fix is `Path.Combine(baseDir, "reports", fileName)`, which uses `Path.DirectorySeparatorChar` internally. Even forward slashes in string literals like `"reports/file.csv"` are cross-platform on .NET (Windows APIs accept `/`), so using `/` in string literals is acceptable as a pragmatic cross-platform default, but `Path.Combine` is still preferable because it handles edge cases like double separators and rooted segments correctly.
 
-What keeps the file locked, and how do you fix it without losing the rejected row on disk?
+---
 
-**Answer:** When validation throws, `Dispose()` never runs, so the `StreamWriter` keeps the underlying file handle open — on Windows the log stays locked until GC finalizes the writer. Wrap the writer in `using` (or `try/finally`) so the handle is released even on the exception path; the invalid row is already on disk because `WriteLine` ran before the throw.
+## Q116. Relative paths depend on `CurrentDirectory` — why does this cause production failures?
 
-**Issues:**
+**Concepts**
+- Relative path resolved against `Environment.CurrentDirectory` at time of open
+- Service manager starting process with `CurrentDirectory` set to system directory
+- `AppContext.BaseDirectory` as the stable anchor for app-relative files
+- Late-binding failure not caught in unit tests or local development
 
-| Category | Problem | Impact |
-|---|---|---|
-| Resource lifetime | No `using` / `finally`; `Dispose()` only on happy path | File handle leak; "file in use" on next append |
-| Ordering | Validate after write | Rejected rows still persisted — may be intended, but callers must know |
-| Platform | Undisposed `StreamWriter` on Windows | Lock persists until process exit or finalizer — common ops incident |
+**Answer**
 
-**Fix (priority order):**
+A relative path like `"config/settings.json"` is resolved against `Environment.CurrentDirectory` at the moment the file is opened, not against where the binary lives. In local development `CurrentDirectory` is typically the project directory so the file is found. When deployed as a Windows Service, IIS worker process, or systemd unit, the service manager sets `CurrentDirectory` to a system directory (often `C:\Windows\System32` or `/`), so the relative path resolves to a completely different location and the file is not found — but the error only appears in production when the deployment environment differs from development. Anchoring all app-relative file paths to `AppContext.BaseDirectory` at startup eliminates the dependency on `CurrentDirectory` and makes the resolution deterministic regardless of how the process was launched.
 
-1. Use `using (var writer = new StreamWriter(logPath, append: true)) { … }` so dispose runs on all exit paths.
-2. If invalid rows must not be written, validate **before** `WriteLine`, or write to a staging file and commit on success.
-3. For long-lived services, prefer `await using StreamWriter` with async writes if the call chain is async end-to-end.
-4. Monitor for handle leaks — repeated failures should not require worker restart to unlock the log.
+---
 
-```csharp
-public void AppendAuditEntry(string logPath, string entry)
-{
-    if (entry.Contains("INVALID", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Audit row rejected — fix upstream feed.");
+## Q117. `Path.Combine` with an absolute second segment discards earlier parts — explain the behavior.
 
-    using StreamWriter writer = new StreamWriter(logPath, append: true);
-    writer.WriteLine($"{DateTime.UtcNow:o} {entry}");
-}
-```
+**Concepts**
+- Absolute path segment as a complete restart, not a continuation
+- All prior `Path.Combine` arguments discarded silently
+- Security implication when second segment comes from configuration or user input
+- `Path.IsPathRooted` guard before combining user-supplied segments
 
-**Production takeaway:** Karat pairs exception flow with I/O cleanup — `StreamWriter` is not magic; undisposed writers are production file locks. See **Program.cs** Section 6 — `using` / `Dispose` and QUICK REFERENCE — "Forgetting using / Dispose → file locked until GC."
+**Answer**
 
----
+`Path.Combine` is specified to behave as a chained URI-like join: if any segment is absolute (rooted), it resets the accumulated path to that segment and discards everything before it. So `Path.Combine("/var/app", "/etc/passwd")` returns `"/etc/passwd"` — the first segment is completely discarded. This is intentional and correct when the caller wants the second segment to be an absolute override, but it is a silent bug when configuration or user input supplies a value that happens to be absolute. I always call `Path.IsPathRooted(segment)` before passing a configuration value to `Path.Combine`; if it is rooted I decide explicitly whether to use it as-is or reject it as invalid input rather than letting the discard happen silently.
 
 ---
 
-#### Q2. (R) A CSV export looks correct on the developer's Windows machine but the first column header fails validation after deploy to Linux containers. Review write vs read:
+## Q118. Encoding mismatch silently corrupts text — how does it happen and how is it prevented?
 
-```csharp
-// Export service (built and tested on Windows)
-using (var writer = new StreamWriter(exportPath, append: false, Encoding.Default))
-{
-    writer.WriteLine("id,name,amount");
-    writer.WriteLine("1,Alpha,42.50");
-}
+**Concepts**
+- Writer and reader using different encodings — bytes interpreted under wrong code page
+- `Encoding.Default` resolving differently per OS
+- UTF-8 without BOM as the portable default
+- No exception from mismatched encoding — silent character substitution or question marks
 
-// Import service (Linux container — default StreamReader ctor)
-using (var reader = new StreamReader(importPath))
-{
-    string? header = reader.ReadLine();
-    if (header != "id,name,amount")
-        throw new InvalidDataException($"Unexpected header: '{header}'");
-}
-```
+**Answer**
 
-What fails in production, and how do you make the round-trip deterministic across OS boundaries?
+Encoding mismatch produces no exception — the bytes are valid under both encodings, just interpreted as different characters. A writer using Windows-1252 writes the byte `0x92` for a right single quotation mark; a reader using UTF-8 decodes `0x92` as a C1 control character (or replacement character) since `0x92` is not a valid single-byte UTF-8 sequence, producing a garbled character in the output. The mismatch goes undetected until someone reads the file on a different machine or passes it to an external tool. Prevention requires explicit encoding on both sides: pass the same `Encoding` instance to both the `StreamWriter` and `StreamReader` constructors rather than relying on defaults. `new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)` is the portable no-BOM UTF-8 encoding that works correctly on all platforms and does not emit a BOM that confuses consumers.
 
 ---
 
-**Answer:**
+## Q119. Seeking past EOF then writing extends the file with undefined gap bytes — explain the behavior.
 
-```csharp
-// Export service (built and tested on Windows)
-using (var writer = new StreamWriter(exportPath, append: false, Encoding.Default))
-{
-    writer.WriteLine("id,name,amount");
-    writer.WriteLine("1,Alpha,42.50");
-}
+**Concepts**
+- Sparse file behavior: gap bytes are not necessarily written to disk
+- `\0` returned when reading the gap on most filesystems
+- Filesystem-dependent: NTFS sparse files vs ext4 hole punching
+- Intentional use: pre-allocating file space; unintentional use: corrupt format
 
-// Import service (Linux container — default StreamReader ctor)
-using (var reader = new StreamReader(importPath))
-{
-    string? header = reader.ReadLine();
-    if (header != "id,name,amount")
-        throw new InvalidDataException($"Unexpected header: '{header}'");
-}
-```
+**Answer**
 
-What fails in production, and how do you make the round-trip deterministic across OS boundaries?
+Seeking past the current end of file with `Seek(pastEofOffset, SeekOrigin.Begin)` and then writing creates a gap in the file — the bytes between the original EOF and the new write position. On most filesystems (NTFS with sparse support, ext4 with `FALLOC_FL_KEEP_SIZE`) this gap is represented as a "hole" that is not physically allocated on disk; reading back the gap returns null bytes (`\0`). On filesystems without sparse support, the gap bytes are physically written as zeros. An application that reads back the gap expecting valid data receives null bytes without an exception, which silently corrupts deserialization if the format is not expecting nulls. In binary record formats where each record's position is computed as `index * recordSize`, seeking to a new record position before writing is intentional and correct; doing so accidentally when a seek offset computation has an error is a subtle source of format corruption.
 
-**Answer:** `Encoding.Default` is the **system code page** — Windows-1252 on Windows, often UTF-8 on modern Linux — so bytes on disk differ by environment, and the reader's default detection may decode the same bytes differently than the writer encoded them. Pin both sides to explicit `Encoding.UTF8` (typically `new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)` for no BOM) and compare headers after `ReadLine()`, which already returns decoded characters.
+---
 
-**Issues:**
+## Q120. CSV `Split(',')` breaks on quoted commas — explain what goes wrong with a concrete example.
 
-| Category | Problem | Impact |
-|---|---|---|
-| Encoding | `Encoding.Default` on write | Different byte sequences per OS — mojibake or subtle header mismatch |
-| Encoding | Implicit reader encoding on read | Guessing wrong code page — first line may include stray BOM or wrong chars |
-| Contract | String equality on header | Fails even when visually "correct" in a GUI editor |
+**Concepts**
+- `Split(',')` as a delimiter-unaware character split
+- Quoted field containing comma parsed as two tokens
+- Column-shift corrupting all fields after the split point
+- No fix possible with `Split` — requires stateful CSV parser
 
-**Fix (priority order):**
+**Answer**
 
-1. Replace `Encoding.Default` with explicit UTF-8 on **both** writer and reader constructors.
-2. Document encoding in the file format contract; reject files whose BOM/bytes do not match.
-3. For CSV consumed by Excel on Windows, decide deliberately on UTF-8 BOM vs no BOM — do not rely on defaults.
-4. Add an integration test that round-trips on Linux CI, not only on the developer's Windows box.
+Consider a CSV row: `001,"Acme, Inc",19.99`. Correct parsing yields three fields: `001`, `Acme, Inc`, and `19.99`. `"001,\"Acme, Inc\",19.99".Split(',')` yields four tokens: `001`, `"Acme`, ` Inc"`, and `19.99` — the quoted comma split the vendor name into two tokens, shifted the price into column 4, and introduced a stray quote character at the start of column 2. Every downstream column index is wrong after the split point, so deserialized objects have price in the description field, description in the price field, and so on. There is no way to fix `Split(',')` for quoted fields — the parsing must be stateful, tracking whether the current character is inside a quoted field. Use `CsvHelper`, `TextFieldParser`, or `Sylvan.Data.Csv` instead.
 
-```csharp
-var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+---
 
-using (var writer = new StreamWriter(exportPath, append: false, utf8))
-    writer.WriteLine("id,name,amount");
+## Q121. Double-quote escaping in CSV is `""` not `\"` — why does getting this wrong shift columns?
 
-using (var reader = new StreamReader(importPath, utf8))
-{
-    string? header = reader.ReadLine();
-    // ...
-}
-```
+**Concepts**
+- RFC 4180 specifying `""` as the only double-quote escape
+- `\"` interpreted by RFC parsers as closing quote followed by stray backslash
+- Premature end-of-field causing column count to increase
+- Writer and reader escaping contract must match
 
-**Production takeaway:** "Works on my machine" for text files is almost always an encoding default mismatch — Karat expects you to name `UTF8Encoding` and match reader/writer. See **Program.cs** Section 4 — pass the same `Encoding` to matching ctors.
+**Answer**
 
----
+In RFC 4180 CSV, the only way to embed a double-quote in a quoted field is to double it: `""`. A writer that uses `\"` instead produces `"say \"hi\""`, which an RFC parser reads as: opening `"`, content `say `, closing `"` (at the `\` boundary), then two literal characters `h` and `i` followed by an extra `"` — the field ends prematurely and the remainder is parsed as a new partial field, increasing the column count by one for that row. This shifts all subsequent fields right and causes column-count validation failures or wrong data in mapped objects. The correct writer produces `"say ""hi"""` for the value `say "hi"`. When writing CSV without a library, each field value must be processed with `field.Replace("\"", "\"\"")` before wrapping in quotes.
 
 ---
 
-#### Q3. (R) A support dashboard calls this to show the tail of a customer log. Under load the worker process recycles with `OutOfMemoryException`. Review:
+## Q122. (Scenario R) A partner feed import uses `Split(',')` and mis-maps vendor names when a field contains `"Acme, Inc"`. What fails and what is the fix?
 
-```csharp
-public string LoadCustomerLogForSupport(string logPath)
-{
-    if (!File.Exists(logPath))
-        return string.Empty;
+**Concepts**
+- `Split(',')` breaking quoted fields at embedded commas
+- Column index off-by-one (or more) after the split point
+- `CsvHelper` or `TextFieldParser` as the correct replacement
+- Regression test with a fixture file containing quoted commas
 
-    using StreamReader reader = new StreamReader(logPath);
-    return reader.ReadToEnd();
-}
-```
+**Answer**
 
-Customer logs can exceed 10 GB. What is wrong, and what pattern replaces `ReadToEnd` for this use case?
+`Split(',')` splits `001,"Acme, Inc",19.99` into four tokens instead of three, so the price index becomes 3 instead of 2 — the deserialized object gets `" Inc"` as the vendor name and `19.99` as some other field, and the price field gets the default value or a parse error. The data corruption is silent on rows without quoted commas and only surfaces on rows where the vendor name contains one, which may be rare enough to escape notice in testing. The fix is to replace `Split(',')` with `CsvHelper.GetRecords<T>()` or `TextFieldParser` which maintain quoting state. After fixing, add a regression test that reads a fixture CSV file with at least one row containing a quoted comma, a quoted newline, and a double-quoted value so future changes cannot regress the parser.
 
 ---
-
-**Answer:**
 
-```csharp
-public string LoadCustomerLogForSupport(string logPath)
-{
-    if (!File.Exists(logPath))
-        return string.Empty;
-
-    using StreamReader reader = new StreamReader(logPath);
-    return reader.ReadToEnd();
-}
-```
+## Q123. (Scenario R) An export on a German Windows server formats decimal numbers with `ToString("F2")` and the US warehouse tool splits one price column into two. What breaks across environments?
 
-Customer logs can exceed 10 GB. What is wrong, and what pattern replaces `ReadToEnd` for this use case?
-
-**Answer:** `ReadToEnd()` allocates a single `string` for the entire remaining file — with 10 GB logs that forces a multi-gigabyte LOH allocation and typically terminates the process with `OutOfMemoryException`. Stream line-by-line with `ReadLine()` or `ReadLineAsync()`, seek to a tail window with `FileStream` + bounded `ReadBlock`, or use external tail tools — never materialize the whole file for a "show last lines" feature.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | `ReadToEnd()` on multi-GB file | `OutOfMemoryException`; worker recycle under concurrent support requests |
-| API misuse | Support "tail" implemented as full load | Latency and memory scale with file size, not UI need |
-| Scalability | Sync read of entire blob | Thread blocked for duration of huge I/O |
-
-**Fix (priority order):**
-
-1. For tail UI: open `FileStream` with `FileShare.ReadWrite`, seek near EOF, read last N KB/chars, split lines locally.
-2. For scanning: `while ((line = await reader.ReadLineAsync(ct)) != null)` — bounded memory regardless of file size.
-3. Cap response size returned to the dashboard (e.g., last 500 lines or 256 KB).
-4. Move huge log analytics to indexed storage — files on disk are not a query engine.
-
-```csharp
-public async Task<IReadOnlyList<string>> ReadLastLinesAsync(string logPath, int maxLines, CancellationToken ct)
-{
-    var lines = new Queue<string>(maxLines);
-    await using StreamReader reader = new StreamReader(logPath);
-    while (await reader.ReadLineAsync(ct) is { } line)
-    {
-        if (lines.Count == maxLines) lines.Dequeue();
-        lines.Enqueue(line);
-    }
-    return lines.ToArray();
-}
-```
+**Concepts**
+- `ToString("F2")` using thread's current culture for decimal separator
+- German locale formatting `1.50` as `1,50` — comma treated as CSV delimiter
+- `CultureInfo.InvariantCulture` for machine-to-machine numeric formatting
+- US consumer's parser splitting `1,50` into `1` and `50`
 
-**Production takeaway:** `ReadToEnd()` is for small files only — Karat uses log scale to test whether you know **Program.cs** Section 3 (`ReadLine` / `ReadBlock`) vs Section 7 (`File.ReadAllText` trap). Same mistake as `File.ReadAllText` on huge files.
+**Answer**
 
----
+`ToString("F2")` on a German-locale machine produces `1,50` for the decimal value 1.50, because the German `NumberFormatInfo.NumberDecimalSeparator` is `,`. In a comma-delimited CSV file this is indistinguishable from a field separator, so the US warehouse parser splits the price column into two tokens and shifts every subsequent column. The fix is `value.ToString("F2", CultureInfo.InvariantCulture)` which uses `.` as the decimal separator regardless of the server's locale. The same invariant culture must be used when parsing on the read side: `decimal.Parse(field, CultureInfo.InvariantCulture)`. If the format contract requires locale-specific formatting (for a human-readable report), the numeric columns must also be quoted so the comma is inside a quoted field, though this is a fragile design that is better avoided by using invariant formatting.
 
 ---
-
-#### Q4. (R) A long-running export writes a status file so another process can poll completion. Operators see `IN_PROGRESS` forever after a crash mid-run. Review:
-
-```csharp
-string statusPath = Path.Combine(outputDir, "export.status");
-StreamWriter writer = new StreamWriter(statusPath, append: false);
-writer.WriteLine("IN_PROGRESS");
 
-RunHeavyExport(); // may take 20+ minutes; process sometimes killed by OOM killer
+## Q124. (Scenario R) A nightly import job loads a 400 MB ERP CSV with `File.ReadAllLines`. What production problems appear at scale and what replaces it?
 
-writer.WriteLine("COMPLETE");
-writer.Dispose();
+**Concepts**
+- `string[]` from `ReadAllLines` allocating entire file on the LOH
+- GC pressure from concurrent imports materializing multiple large arrays
+- `File.ReadLines` or `CsvHelper` streaming row by row
+- Chunked batch database writes to bound per-batch memory and transaction size
 
-// Poller (separate process):
-using StreamReader poller = new StreamReader(statusPath);
-string lastLine = poller.ReadToEnd().TrimEnd().Split('\n').Last();
-bool done = lastLine == "COMPLETE";
-```
+**Answer**
 
-What causes false "stuck" exports and incomplete status files, and how do you harden write + detection?
+`File.ReadAllLines` materializes the entire 400 MB CSV as a `string[]` in managed memory before the first row is processed — under concurrent imports, several such arrays coexist on the LOH simultaneously, triggering frequent Gen 2 GC pauses and potentially `OutOfMemoryException` when memory pressure spikes. The fix is to stream with `CsvHelper.GetRecordsAsync<T>()` or a `File.ReadLines` loop so only one row is in memory at a time. Rows should be inserted in chunks — accumulate 500 records, execute a batch insert via `SqlBulkCopy` or EF Core `BulkInsert`, clear the batch list, and continue — so no single transaction spans the full 400 MB of data. This pattern keeps per-request memory at roughly one batch size regardless of file length and keeps database transaction durations short.
 
 ---
-
-**Answer:**
-
-```csharp
-string statusPath = Path.Combine(outputDir, "export.status");
-StreamWriter writer = new StreamWriter(statusPath, append: false);
-writer.WriteLine("IN_PROGRESS");
-
-RunHeavyExport(); // may take 20+ minutes; process sometimes killed by OOM killer
 
-writer.WriteLine("COMPLETE");
-writer.Dispose();
+## Q125. (Scenario P) A `FileSystemWatcher` drop-folder service imports CSV as soon as a file appears. Operators see random column-count errors and duplicate SKU rows. What race conditions exist and how do you harden the pipeline?
 
-// Poller (separate process):
-using StreamReader poller = new StreamReader(statusPath);
-string lastLine = poller.ReadToEnd().TrimEnd().Split('\n').Last();
-bool done = lastLine == "COMPLETE";
-```
-
-What causes false "stuck" exports and incomplete status files, and how do you harden write + detection?
-
-**Answer:** `StreamWriter` buffers output — `IN_PROGRESS` may not hit disk until `Flush()` or `Dispose`, so a poller can see an empty or stale file early. If the process dies mid-export, `COMPLETE` is never written and the poller correctly sees stuck state, but the writer also lacks atomic replace semantics — partial flushes can leave truncated files. Use `AutoFlush` or explicit `Flush()` after status transitions, write-temp-then-`File.Move` for atomic status, and treat absence of `COMPLETE` plus process exit as failure with timeout alerting.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Buffering | No `Flush` / `AutoFlush` after `IN_PROGRESS` | Poller reads empty or old content; false negatives |
-| Durability | Single file overwritten in place | Crash mid-write → truncated or blank status file |
-| Detection | `ReadToEnd().Split('\n').Last()` on in-progress write | May read partial buffer; race with writer |
-| Lifecycle | No `using` on writer if exception in `RunHeavyExport` | Handle leak + final status never written |
-
-**Fix (priority order):**
-
-1. Enable `writer.AutoFlush = true` or call `Flush()` immediately after each status line.
-2. Write status to a temp file and atomically replace: `File.WriteAllText(temp, status); File.Move(temp, statusPath, overwrite: true);` — or use `StreamWriter` on temp then move.
-3. Poller: check file length stability, last-write time, and explicit `FAILED`/`COMPLETE` tokens; add SLA timeout.
-4. Wrap writer in `using` and set `FAILED` in `catch`/`finally` when export aborts.
-
-```csharp
-using StreamWriter writer = new StreamWriter(statusPath, append: false) { AutoFlush = true };
-writer.WriteLine("IN_PROGRESS");
-try
-{
-    RunHeavyExport();
-    writer.WriteLine("COMPLETE");
-}
-catch
-{
-    writer.WriteLine("FAILED");
-    throw;
-}
-```
+**Concepts**
+- `Created` event firing while producer still writing — file read mid-write
+- `Changed` event firing multiple times per file — duplicate processing
+- `FileShare.None` on the writing side causing read failure
+- Retry-with-backoff, file-completion detection, and idempotency key as fixes
 
-**Production takeaway:** Karat stacks buffering + crash recovery — operators care about **observable** state on disk, not in-process buffers. See **Program.cs** Section 6 — `Flush`, `AutoFlush`, and dispose flushes remaining buffer.
+**Answer**
 
----
+`FileSystemWatcher` fires the `Created` or `Changed` event as soon as the OS reports activity, which often precedes the producer finishing its write — the importer opens a file that is still being populated and reads a truncated CSV, causing column-count errors. The same file can also fire multiple `Changed` events (one per flush), causing duplicate imports. Two hardening steps address the race: first, retry the open with `FileShare.Read` in a backoff loop — if the open fails with a sharing violation, the producer still holds the file exclusively, so wait and retry; if the column count is wrong on the first complete read, the file may be partially written. Second, record each processed file by a content hash or filename + arrival timestamp in a tracking table (an idempotency key) so re-processing the same file after a failure does not produce duplicate rows — only import rows whose idempotency key has not been committed.
 
 ---
 
-#### Q5. (R) A log tailer and a log writer run in the same app. The tailer intermittently throws `IOException: The process cannot access the file because it is being used by another process`. Review:
+## Q126. (Scenario P) Re-running the same inbound CSV file after a network blip doubles inventory counts. A path-only guard does not prevent it after a mid-batch DB failure. How do you make the import idempotent with rollback?
 
-```csharp
-public IEnumerable<string> TailLines(string logPath)
-{
-    using FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read);
-    using StreamReader reader = new StreamReader(fs);
+**Concepts**
+- Path-only guard failing after partial DB write — same path re-processes remainder
+- Content hash or file fingerprint as the durable idempotency key
+- Transactional import log recording completion, not just start
+- Two-phase commit: all rows inserted + idempotency record in one transaction
 
-    while (!reader.EndOfStream)
-    {
-        string? line = reader.ReadLine();
-        if (line != null)
-            yield return line;
-    }
-}
+**Answer**
 
-// Elsewhere, on another thread:
-using StreamWriter writer = new StreamWriter(logPath, append: true);
-writer.WriteLine($"{DateTime.UtcNow:o} INFO  heartbeat");
-```
-
-What sharing rule is missing, and why does `StreamReader`/`StreamWriter` path constructors hide it?
+A path-only guard records that processing started but not that it completed — after a mid-batch DB failure the guard is absent (it was never committed) and re-running imports the remaining rows on top of the partially-committed ones, doubling counts for the rows that succeeded before the failure. The correct pattern is a two-phase transactional import: open a single database transaction, insert all rows, insert a record in an `ImportLog` table keyed by the file's SHA-256 hash (computed before reading rows), and commit the transaction — either all rows and the idempotency record commit together or none of them do. On re-run, check the `ImportLog` first; if the hash already exists, skip the import entirely. The hash rather than the filename is the key because the same file content might be delivered under different filenames, and the same filename might be reused for a different file.
 
 ---
 
-**Answer:**
+## Q127. (Scenario D) One engineer proposes `CsvHelper`; another wants to extend a hand-rolled `SplitQuotedLine`. When do you reach for each for a long-lived warehouse integration?
 
-```csharp
-public IEnumerable<string> TailLines(string logPath)
-{
-    using FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read);
-    using StreamReader reader = new StreamReader(fs);
+**Concepts**
+- `CsvHelper` covering RFC 4180 edge cases, type conversion, and class mapping
+- Hand-rolled parser accumulated tech debt from each new edge case
+- Maintenance burden comparison over a multi-year integration lifetime
+- `CsvHelper` configurability for non-standard formats (custom delimiter, quote char)
 
-    while (!reader.EndOfStream)
-    {
-        string? line = reader.ReadLine();
-        if (line != null)
-            yield return line;
-    }
-}
+**Answer**
 
-// Elsewhere, on another thread:
-using StreamWriter writer = new StreamWriter(logPath, append: true);
-writer.WriteLine($"{DateTime.UtcNow:o} INFO  heartbeat");
-```
+I reach for `CsvHelper` for any integration expected to run for more than a few months because it handles the full RFC 4180 surface — embedded newlines, doubled-quote escapes, custom delimiters, multi-character quotes, BOM detection, culture-aware type conversion, and attribute-driven class mapping — and the maintenance is borne by the library's maintainers rather than the team. A hand-rolled `SplitQuotedLine` starts simple but accumulates `if` branches for each new edge case discovered in production: a vendor starts including newlines in description fields, another switches to semicolons, a third wraps all fields in quotes. After a year, the hand-rolled parser is harder to reason about than `CsvHelper`'s configuration API and has likely reimplemented most of it incorrectly. I accept `CsvHelper` as a dependency whenever the file format is CSV-shaped; the only exception is an extremely performance-sensitive path where `Sylvan.Data.Csv` (which implements `IDataReader` and avoids string allocation per field) is a better fit.
 
-What sharing rule is missing, and why does `StreamReader`/`StreamWriter` path constructors hide it?
-
-**Answer:** Opening `FileStream` with default `FileShare.Read` grants exclusive write access — a concurrent `StreamWriter` on the same path cannot open for append. Open the tailer's stream with `FileShare.ReadWrite` (and usually `FileMode.Open`, `FileAccess.Read`) so writers can append while you read. Path-based `StreamReader`/`StreamWriter` ctors create their own `FileStream` with sharing defaults you do not see — for tail-follow scenarios, construct `FileStream` explicitly, then wrap with `leaveOpen: true`.
+---
 
-**Issues:**
+## Q128. (Scenario R) Two import workers fire-and-forget on the same nightly file. A new feed also omits the header row. What fails under concurrency and header drift, and how do you fix both?
 
-| Category | Problem | Impact |
-|---|---|---|
-| File sharing | Default `FileShare.Read` on read stream | `IOException` when appender opens same log |
-| API visibility | `new StreamReader(path)` hides share flags | Developers miss sharing until production concurrency |
-| Iterator | `yield return` holds stream open for enumeration lifetime | Writer blocked for entire foreach duration |
+**Concepts**
+- Concurrent workers processing the same file — duplicate rows without deduplication
+- `headerRow: false` configuration in `CsvHelper` for headerless feeds
+- Column-index-based mapping as a fragile but necessary fallback without headers
+- Distributed lock (DB advisory lock, Redis SETNX) preventing concurrent same-file imports
 
-**Fix (priority order):**
+**Answer**
 
-1. Tailer: `new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)`.
-2. Writer: `new StreamWriter(new FileStream(logPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite), appendEncoding) { AutoFlush = true }` or equivalent append pattern.
-3. For live tail, re-open or seek-from-end patterns with periodic reopen on `IOException` — logs rotate.
-4. Prefer structured logging sinks (Serilog file sink with shared flag) instead of hand-rolled tail+append.
-
-```csharp
-using FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-using StreamReader reader = new StreamReader(fs, leaveOpen: false);
-```
-
-**Production takeaway:** Text wrappers do not remove OS file-lock rules — Karat tests whether you know when to bypass path ctors and configure `FileShare`. Preview **Program.cs** Section 2d / 3f — `FileStream` then `StreamReader`/`StreamWriter` chain.
-
----
-
----
-
-#### Q6. (P) An ASP.NET Core hosted service ingests a growing feed file every few seconds. A developer keeps sync I/O "because the file is local":
-
-```csharp
-protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-{
-    using StreamReader reader = new StreamReader(_feedPath);
-
-    while (!stoppingToken.IsCancellationRequested)
-    {
-        string? line = reader.ReadLine(); // blocks thread pool thread
-        if (line == null)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-            continue;
-        }
-
-        await _processor.HandleLineAsync(line, stoppingToken);
-    }
-}
-```
-
-What breaks under hosting pressure, and what is the production-grade read loop?
-
----
-
-**Answer:**
-
-```csharp
-protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-{
-    using StreamReader reader = new StreamReader(_feedPath);
-
-    while (!stoppingToken.IsCancellationRequested)
-    {
-        string? line = reader.ReadLine(); // blocks thread pool thread
-        if (line == null)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-            continue;
-        }
-
-        await _processor.HandleLineAsync(line, stoppingToken);
-    }
-}
-```
-
-What breaks under hosting pressure, and what is the production-grade read loop?
-
-**Answer:** `ReadLine()` is synchronous — each call blocks a thread pool thread while waiting on disk I/O, which defeats the async hosting model and can contribute to thread-pool starvation when many background services do the same. Use `ReadLineAsync(stoppingToken)` (or `WaitToReadAsync` patterns on pipes) inside an async loop, combine with `FileShare.ReadWrite` if producers append, and reopen or track position when reaching EOF on a growing file.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Async | Sync `ReadLine()` in async host | Thread pool blocked during I/O waits |
-| EOF handling | `null` line then `Delay` on static reader | Misses new lines appending at EOF unless reposition/reopen |
-| Cancellation | Sync read ignores `stoppingToken` during block | Slow shutdown under load |
-
-**Fix (priority order):**
-
-1. Replace with `await reader.ReadLineAsync(stoppingToken)` in the loop.
-2. When at EOF on a growing feed, flush writer side, optionally reopen file or track `_lastPosition` with `FileStream.Position`.
-3. Mark the hosted service async end-to-end; avoid `.Result` on any related tasks.
-4. Add metrics for lag (lines behind) and backoff when file is temporarily locked.
-
-```csharp
-await using StreamReader reader = new StreamReader(_feedPath);
-
-while (!stoppingToken.IsCancellationRequested)
-{
-    string? line = await reader.ReadLineAsync(stoppingToken);
-    if (line is null)
-    {
-        await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-        continue;
-    }
-
-    await _processor.HandleLineAsync(line, stoppingToken);
-}
-```
-
-**Production takeaway:** Local disk does not make I/O free — sync-over-async in hosted services is the same Karat trap as `.Result` in controllers. Prefer async stream APIs even for file reads.
-
----
-
----
-
-#### Q7. (R) A tool rewrites the first line of a config file in place, then reads the remainder. After a refactor it throws `ObjectDisposedException`. Review:
-
-```csharp
-public void PatchConfigHeader(string path, string newHeader)
-{
-    using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
-    using StreamWriter writer = new StreamWriter(fs, Encoding.UTF8, bufferSize: 1024, leaveOpen: true);
-    using StreamReader reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: false);
-
-    writer.WriteLine(newHeader);
-    writer.Flush();
-
-    fs.Seek(0, SeekOrigin.Begin);
-    string remainder = reader.ReadToEnd();
-}
-```
-
-Which dispose/ownership choices are wrong, and what is the correct pattern when wrapping the same `FileStream`?
-
----
-
-**Answer:**
-
-```csharp
-public void PatchConfigHeader(string path, string newHeader)
-{
-    using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
-    using StreamWriter writer = new StreamWriter(fs, Encoding.UTF8, bufferSize: 1024, leaveOpen: true);
-    using StreamReader reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: false);
-
-    writer.WriteLine(newHeader);
-    writer.Flush();
-
-    fs.Seek(0, SeekOrigin.Begin);
-    string remainder = reader.ReadToEnd();
-}
-```
-
-Which dispose/ownership choices are wrong, and what is the correct pattern when wrapping the same `FileStream`?
-
-**Answer:** `StreamReader` is constructed with `leaveOpen: false` (the default), so disposing the reader **closes the shared `FileStream`** when the `using` block ends — before `Seek`/`ReadToEnd` if ordering were wrong, and any later use throws `ObjectDisposedException`. Both reader and writer must use `leaveOpen: true` when sharing one stream; dispose order should flush the writer, then dispose reader, then writer, then the stream — or avoid dual wrappers on one stream and read/write in separate phases with explicit positioning.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Ownership | `StreamReader(..., leaveOpen: false)` on shared `fs` | Reader dispose closes `fs` for everyone |
-| Concurrency | Simultaneous reader/writer on same stream without clear protocol | Undefined buffering; corrupted reads |
-| Design | In-place header patch via read/write same stream | Easy to truncate file if rewrite shorter than original |
-
-**Fix (priority order):**
-
-1. Set `leaveOpen: true` on **both** `StreamWriter` and `StreamReader`; dispose `fs` last explicitly.
-2. Safer: read full content first, patch in memory, write to temp file, atomic replace — avoids length mismatch corrupting tail.
-3. After writing header, `writer.Flush()` before reading; reset position with `fs.Seek` and optionally discard reader buffer (new reader instance).
-4. Document that `StreamWriter` path ctor owns the stream unless you pass your own `FileStream`.
-
-```csharp
-using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
-using (StreamWriter writer = new StreamWriter(fs, Encoding.UTF8, leaveOpen: true))
-{
-    writer.WriteLine(newHeader);
-    writer.Flush();
-}
-fs.Seek(0, SeekOrigin.Begin);
-using (StreamReader reader = new StreamReader(fs, Encoding.UTF8, leaveOpen: true))
-{
-    _ = reader.ReadLine();
-    string remainder = reader.ReadToEnd();
-}
-```
-
-**Production takeaway:** Default `leaveOpen: false` means disposing the text wrapper closes the base stream — Karat tests layered I/O ownership called out in **Program.cs** Section 2d/3f FileStream chains.
-
----
-
----
-
-#### Q8. (M) A cross-platform app parses `.env`-style files written on mixed developer machines (Windows CRLF, macOS/Linux LF). Review ingestion:
-
-```csharp
-public Dictionary<string, string> ParseEnvFile(string path)
-{
-    var map = new Dictionary<string, string>();
-    using StreamReader reader = new StreamReader(path);
-
-    string content = reader.ReadToEnd();
-    foreach (string rawLine in content.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-    {
-        int eq = rawLine.IndexOf('=');
-        if (eq <= 0) continue;
-        string key = rawLine[..eq].Trim();
-        string value = rawLine[(eq + 1)..].Trim();
-        map[key] = value;
-    }
-    return map;
-}
-```
-
-What breaks when files use CRLF or when keys are compared across environments, and how should line-based parsing use `StreamReader` instead?
-
----
-
-### 03. FileStream & Binary Files
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/03. FileStream & Binary Files`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-public Dictionary<string, string> ParseEnvFile(string path)
-{
-    var map = new Dictionary<string, string>();
-    using StreamReader reader = new StreamReader(path);
-
-    string content = reader.ReadToEnd();
-    foreach (string rawLine in content.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-    {
-        int eq = rawLine.IndexOf('=');
-        if (eq <= 0) continue;
-        string key = rawLine[..eq].Trim();
-        string value = rawLine[(eq + 1)..].Trim();
-        map[key] = value;
-    }
-    return map;
-}
-```
-
-What breaks when files use CRLF or when keys are compared across environments, and how should line-based parsing use `StreamReader` instead?
-
-**Answer:** Splitting on `'\n'` alone leaves a trailing `'\r'` on keys when the file uses CRLF — `map["HOST"]` misses lookups for `"HOST\r"`. `ReadToEnd()` also reintroduces the large-file memory trap. Loop with `ReadLine()`, which strips platform newlines (`\r\n` or `\n`) uniformly, trim keys/values defensively, and use ordinal key comparison; skip comments with `#` per line instead of splitting the whole file.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Newlines | `Split('\n')` on CRLF content | Keys include `\r` — silent config misses in Linux-deployed apps |
-| Memory | `ReadToEnd()` for config | Unbounded allocation if `.env` grows or includes generated blocks |
-| Parsing | `RemoveEmptyEntries` | Skips intentional blank lines vs comments — may hide format errors |
-
-**Fix (priority order):**
-
-1. Replace bulk split with `while ((line = reader.ReadLine()) != null)` — `ReadLine` removes `\r\n`/`\n` per **Program.cs** Section 3.
-2. `key = key.Trim('\r', ' ', '\t')` defensively if content comes from external tools.
-3. Use `StringComparer.OrdinalIgnoreCase` only if spec requires case-insensitivity — document choice.
-4. For deployment, normalize line endings in repo via `.gitattributes` — but runtime parsing must still tolerate CRLF.
-
-```csharp
-while (reader.ReadLine() is { } line)
-{
-    line = line.Trim();
-    if (line.Length == 0 || line.StartsWith('#')) continue;
-    int eq = line.IndexOf('=');
-    if (eq <= 0) continue;
-    map[line[..eq].Trim()] = line[(eq + 1)..].Trim();
-}
-```
-
-**Production takeaway:** Cross-platform text bugs often show up as `\r`-poisoned keys, not mojibake — Karat expects `ReadLine` semantics vs manual split. See **Program.cs** QUICK REFERENCE — prefer line loop over whole-file helpers for scalable parsing.
-
----
-
-### 03. FileStream & Binary Files
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/03. FileStream & Binary Files`
-
----
-
----
-
-#### Q1. (R) A telemetry service reads a fixed 4-byte file signature from `signature.bin`. In production, short files produce garbage signatures without throwing. Review the reader:
-
-```csharp
-public static string ReadFileSignature(string path)
-{
-    byte[] buffer = new byte[4];
-
-    using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-    stream.Read(buffer, 0, buffer.Length); // signature must be exactly 4 bytes
-
-    return Encoding.ASCII.GetString(buffer);
-}
-```
-
-What is wrong, and how would you harden this for truncated or partially written files?
-
----
-
-**Answer:**
-
-```csharp
-public static string ReadFileSignature(string path)
-{
-    byte[] buffer = new byte[4];
-
-    using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-    stream.Read(buffer, 0, buffer.Length); // signature must be exactly 4 bytes
-
-    return Encoding.ASCII.GetString(buffer);
-}
-```
-
-What is wrong, and how would you harden this for truncated or partially written files?
-
-**Answer:** `FileStream.Read` may return fewer bytes than requested — especially near EOF or on a file still being written — but the code ignores the return value and decodes the entire buffer, padding with `\0` or stale bytes. You must loop until you have 4 bytes or confirm EOF, and treat short reads as corrupt input.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Return value of `Read` ignored | Partial buffer decoded as full signature |
-| Runtime | No EOF / short-file handling | Silent garbage strings instead of explicit failure |
-| Concurrency | `FileShare.Read` while writer may still flush | Reader sees pre-flush or truncated file |
-
-**Fix (priority order):**
-
-1. Loop reads until `totalRead == 4` or `Read` returns 0 — throw `InvalidDataException` if fewer than 4 bytes after EOF.
-2. Prefer `BinaryReader.ReadBytes(4)` when you need an exact count — it throws `EndOfStreamException` on short input (see **Program.cs** Section 9).
-3. If another process writes the file, coordinate with `FileShare.ReadWrite` on the writer and validate magic before trusting content.
-4. Decode only the bytes actually read: `Encoding.ASCII.GetString(buffer, 0, totalRead)`.
-
-```csharp
-int totalRead = 0;
-while (totalRead < buffer.Length)
-{
-    int n = stream.Read(buffer, totalRead, buffer.Length - totalRead);
-    if (n == 0) break;
-    totalRead += n;
-}
-if (totalRead != buffer.Length)
-    throw new InvalidDataException($"Expected 4 signature bytes, got {totalRead}.");
-```
-
-**Production takeaway:** Karat embeds the **Program.cs** Section 5 rule — always check bytes returned — inside realistic signature-reading code. A single `Read` call is not a contract for a full buffer.
-
----
-
----
-
-#### Q2. (R) A background job appends binary audit records while a dashboard process tries to read the same file. The writer opens like this; the reader gets `IOException: The process cannot access the file`:
-
-```csharp
-// Writer (audit service)
-using var stream = new FileStream(
-    auditPath, FileMode.Append, FileAccess.Write, FileShare.None);
-
-// Reader (dashboard — runs concurrently)
-using var readStream = new FileStream(
-    auditPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-```
-
-What locking mismatch causes the failure, and what `FileShare` flags should each side use?
-
----
-
-**Answer:**
-
-```csharp
-// Writer (audit service)
-using var stream = new FileStream(
-    auditPath, FileMode.Append, FileAccess.Write, FileShare.None);
-
-// Reader (dashboard — runs concurrently)
-using var readStream = new FileStream(
-    auditPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-```
-
-What locking mismatch causes the failure, and what `FileShare` flags should each side use?
-
-**Answer:** The writer holds an exclusive lock with `FileShare.None`, so no other process can open the file — even for read — until the handle is disposed. For concurrent append + read, the writer must allow shared read access (`FileShare.Read`) while the reader opens with `FileShare.ReadWrite` so both can coexist.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Locking | Writer uses `FileShare.None` | Exclusive lock blocks dashboard reader |
-| Design | Long-lived writer handle (service loop) | File stays locked for entire process lifetime |
-| Correctness | Reader assumes `ReadWrite` share fixes writer side | Share flags must match on **both** open calls |
-
-**Fix (priority order):**
-
-1. Change writer to `FileShare.Read` (or `FileShare.ReadWrite` if multiple writers are coordinated): `new FileStream(auditPath, FileMode.Append, FileAccess.Write, FileShare.Read)`.
-2. Keep reader as `FileMode.Open, FileAccess.Read, FileShare.ReadWrite`.
-3. Ensure writer `Flush()` / dispose runs periodically if readers need fresh tail bytes — buffered appends may not be visible until flush.
-4. For high-concurrency append, consider one writer process or a queue instead of many exclusive handles.
-
-**Production takeaway:** `FileShare` is negotiated at open time — the most restrictive combination wins. **Program.cs** Section 4 shows `FileShare.None` for exclusive writes and `FileShare.Read` for concurrent readers; production append+tail-read patterns need the writer to grant share.
-
----
-
----
-
-#### Q3. (R) A teammate ports `inventory.bin` readers from another language and swaps field order on one record type. The file opens fine but prices and names are nonsense after the first record. Review:
-
-```csharp
-for (int i = 0; i < recordCount; i++)
-{
-    int id = reader.ReadInt32();
-    double price = reader.ReadDouble();   // was written as int32 + string + double + bool
-    string name = reader.ReadString();
-    bool inStock = reader.ReadBoolean();
-    results[i] = new ProductRecord(id, name, price, inStock);
-}
-```
-
-What breaks, why does corruption spread to later records, and how do you detect or recover safely?
-
----
-
-**Answer:**
-
-```csharp
-for (int i = 0; i < recordCount; i++)
-{
-    int id = reader.ReadInt32();
-    double price = reader.ReadDouble();   // was written as int32 + string + bool
-    string name = reader.ReadString();
-    bool inStock = reader.ReadBoolean();
-    results[i] = new ProductRecord(id, name, price, inStock);
-}
-```
-
-What breaks, why does corruption spread to later records, and how do you detect or recover safely?
-
-**Answer:** Binary files have no field names — the reader consumes bytes in strict write order. Reading `double` where a length-prefixed `string` was written misaligns the stream pointer, so every subsequent field and record parses garbage until `EndOfStreamException` or absurd values appear.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Read order ≠ write order (`id`, `name`, `price`, `bool`) | First record wrong; cursor permanently offset |
-| Serialization | Treating on-disk layout like struct memory layout | Language ports assume field order matches CLR struct |
-| Recovery | No per-record checksum or length guard | One mismatch corrupts entire remainder of file |
-
-**Fix (priority order):**
-
-1. Restore exact write order from **Program.cs** `BinaryInventoryCodec`: `ReadInt32` → `ReadString` → `ReadDouble` → `ReadBoolean`.
-2. Validate magic header and `recordCount` before the loop; cap `recordCount` against `stream.Length` to reject absurd headers (corrupt/truncated files).
-3. Add optional per-record length prefix or CRC if you need partial recovery — without it, fail fast on first parse anomaly.
-4. Never use `StructLayout` / `Marshal.StructureToPtr` interchangeably with `BinaryWriter` unless you explicitly define packing and endianness.
-
-**Production takeaway:** BinaryReader mismatches are not localized bugs — one wrong primitive shifts the cursor for all following data. Magic bytes (**Program.cs** Section 3) catch wrong file types; they do not catch wrong field order within the right file.
-
----
-
----
-
-#### Q4. (R) A log-rotation utility reads the last 8 bytes of a growing file to verify a footer magic. It intermittently returns wrong bytes under load. Review:
-
-```csharp
-public static byte[] ReadFooter(string path)
-{
-    using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-    stream.Seek(0, SeekOrigin.End);           // jump to end
-    byte[] footer = new byte[8];
-    stream.Read(footer, 0, footer.Length);
-    return footer;
-}
-```
-
-What Position/Seek mistakes are here, and what else should you validate before trusting the footer?
-
----
-
-**Answer:**
-
-```csharp
-public static byte[] ReadFooter(string path)
-{
-    using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-    byte[] footer = new byte[8];
-    stream.Seek(0, SeekOrigin.End);           // jump to end
-    stream.Read(footer, 0, footer.Length);
-    return footer;
-}
-```
-
-What Position/Seek mistakes are here, and what else should you validate before trusting the footer?
-
-**Answer:** `Seek(0, SeekOrigin.End)` moves to EOF — **after** the last byte — not to the start of an 8-byte footer. The subsequent `Read` then pulls bytes from beyond the file (zeros/partial read) or fails silently depending on length. You need a negative offset from the end, e.g. `Seek(-8, SeekOrigin.End)`, and must handle files shorter than 8 bytes.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | `Seek(0, End)` ≠ "last N bytes" | Reads past EOF; footer never matches |
-| Edge case | No `Length < 8` guard | Short files produce partial/garbage footers |
-| Concurrency | `FileShare.Read` while appender grows file | Footer position shifts between Seek and Read |
-
-**Fix (priority order):**
-
-1. Replace with `stream.Seek(-footer.Length, SeekOrigin.End)` — pattern from **Program.cs** `ReadLastTwoBytes` (`Seek(-2, SeekOrigin.End)`).
-2. If `stream.Length < footer.Length`, throw or return a explicit failure — do not read.
-3. Check `Read` return value or use `ReadBytes(8)` when you require exactly 8 bytes.
-4. If the file is actively appended, re-read or use a stable snapshot (copy, or open with coordinated share + retry).
-
-**Production takeaway:** `SeekOrigin.End` offsets are relative to EOF — zero means "after the last byte," not "the last byte." Karat tests whether you can translate "read tail" into signed Seek math.
-
----
-
----
-
-#### Q5. (P) Your .NET service writes `metrics.bin` consumed by a Linux C tool on big-endian ARM. A developer uses default `BinaryWriter`/`BinaryReader` for `int` and `double` fields. Locally on x64 Windows everything works; in staging the C tool reads garbage. What is the root cause, and how do you design a cross-platform binary layout?
-
----
-
-**Answer:**
-
-**Answer:** `BinaryWriter`/`BinaryReader` use the platform's native little-endian layout for multi-byte primitives on typical x64 Windows — the ARM C consumer expects big-endian (network) byte order, so numeric fields decode incorrectly even when field order and sizes match.
-
-- Document an explicit wire format: field order, fixed sizes, and **endianness** (usually big-endian for cross-language files).
-- Write primitives with explicit byte reversal (`BinaryPrimitives.WriteInt32BigEndian`) or a known serializer (Protocol Buffers, MessagePack) instead of assuming CLR defaults match C `struct` memory.
-- Do not confuse **struct memory layout** (`StructLayout`, padding, alignment) with **BinaryWriter** layout — they are unrelated unless you carefully marshal.
-- Add a version byte and magic header; integration-test round-trip with the C reader in CI on both endian platforms.
-
-**Production takeaway:** "Same language on dev machine" hides endianness and padding issues until the first cross-platform consumer. **Program.cs** notes little-endian on typical x64 — that is an assumption, not a portable protocol.
-
----
-
----
-
-#### Q6. (D) A data pipeline must scan a 60 GB append-only binary archive for records matching a key — random access by fixed record index, not full sequential parse every time. A junior proposes `FileStream` + `Seek` per lookup; a senior suggests `MemoryMappedFile`. What are the trade-offs, and when would you still choose streaming?
-
----
-
-**Answer:**
-
-**Answer:** `MemoryMappedFile` maps file pages into virtual memory — excellent for repeated random access on large read-mostly files without loading 60 GB into a `byte[]`, and the OS caches hot regions efficiently. Pure `FileStream` + `Seek` per lookup works but pays more syscall overhead and does not leverage page cache as naturally for scattered access patterns.
-
-- **Memory-mapped pros:** Fast indexed jumps when records are fixed-size or you maintain an offset index; multiple processes can share mapped views read-only; no manual buffer management for random reads.
-- **Memory-mapped cons:** Less ideal for concurrent **writes** / append while mapped; address-space limits on 32-bit; careful handling of torn reads if writer appends without coordination; not a drop-in for variable-length records without an index.
-- **Streaming pros:** Simpler lifecycle with `using`; natural for sequential export/import; better when records are variable-length and you must parse forward anyway; async `ReadAsync` pipelines for ETL.
-- **Hybrid:** Build a sidecar index file (offset table) + mmap or seek; for one-pass full scan, sequential `FileStream` may be faster than millions of random seeks.
-
-**Production takeaway:** Karat tests design judgment — mmap is not "always faster," but for **large, repeatedly indexed, read-heavy** binary archives it often beats naive per-lookup `Seek` on spinning disks and NVMe alike when record boundaries are known.
-
----
-
----
-
-#### Q7. (R) An export worker writes large binary batches with async I/O, then signals a downstream processor via a message queue. The processor often reads zero-length or incomplete files. Review:
-
-```csharp
-public async Task ExportBatchAsync(string path, byte[] payload, CancellationToken ct)
-{
-    await using FileStream stream = new FileStream(
-        path, FileMode.Create, FileAccess.Write, FileShare.Read);
-
-    await stream.WriteAsync(payload, ct);
-    // message published immediately after WriteAsync returns
-    await _queue.PublishAsync(new BatchReadyMessage(path), ct);
-}
-```
-
-What async/flush timing issue causes incomplete reads, and how do you fix it before publishing?
-
----
-
-**Answer:**
-
-```csharp
-public async Task ExportBatchAsync(string path, byte[] payload, CancellationToken ct)
-{
-    await using FileStream stream = new FileStream(
-        path, FileMode.Create, FileAccess.Write, FileShare.Read);
-
-    await stream.WriteAsync(payload, ct);
-    // message published immediately after WriteAsync returns
-    await _queue.PublishAsync(new BatchReadyMessage(path), ct);
-}
-```
-
-What async/flush timing issue causes incomplete reads, and how do you fix it before publishing?
-
-**Answer:** `WriteAsync` returning means data reached the `FileStream` buffer — not necessarily the OS disk cache or a stable on-disk length visible to another process. Publishing immediately races the consumer, which may open the file before flush/dispose completes and see zero or partial content.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | No `FlushAsync` / dispose before signal | Consumer reads truncated file |
-| Timing | Message queue is faster than disk visibility | Intermittent "empty file" failures |
-| API | `FileShare.Read` allows concurrent open | Reader succeeds but gets stale length |
-
-**Fix (priority order):**
-
-1. `await stream.FlushAsync(ct)` before publishing — mirrors **Program.cs** Section 7 (`writer.Flush(); stream.Flush()`).
-2. Prefer `await using` scope: dispose (close handle) before enqueue so OS metadata reflects final length.
-3. Optionally write to a temp path and atomically `File.Move` to the final path, then publish — consumer never sees a half-written target.
-4. Consumer should retry with backoff on short reads, but the producer must not rely on that alone.
-
-```csharp
-await stream.WriteAsync(payload, ct);
-await stream.FlushAsync(ct);
-// await using dispose runs here — then publish
-await _queue.PublishAsync(new BatchReadyMessage(path), ct);
-```
-
-**Production takeaway:** Async I/O does not remove flush semantics — **Program.cs** warns that `FileInfo.Length` may be stale until flush/dispose. Queue-based pipelines need flush + atomic rename, not just `WriteAsync`.
-
----
-
----
-
-#### Q8. (R) A cache service tries to wipe and rewrite `cache.bin` in one handle. It throws at runtime despite the path existing. Review both open attempts:
-
-```csharp
-// Attempt A — "open existing and overwrite first byte"
-using var readOnly = new FileStream(cachePath, FileMode.Open, FileAccess.Read);
-readOnly.WriteByte(0xFF);
-
-// Attempt B — "create fresh file but only pass Read access"
-using var creator = new FileStream(cachePath, FileMode.Create, FileAccess.Read);
-```
-
-What `FileMode`/`FileAccess` mismatches cause each failure, and what is the correct combination for in-place rewrite (**Program.cs** Section 10 — Truncate pattern)?
-
----
-
-### 04. Path & Environment Classes
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/04. Path & Environment Classes`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-```csharp
-// Attempt A — "open existing and overwrite first byte"
-using var readOnly = new FileStream(cachePath, FileMode.Open, FileAccess.Read);
-readOnly.WriteByte(0xFF);
-
-// Attempt B — "create fresh file but only pass Read access"
-using var creator = new FileStream(cachePath, FileMode.Create, FileAccess.Read);
-```
-
-What `FileMode`/`FileAccess` mismatches cause each failure, and what is the correct combination for in-place rewrite (**Program.cs** Section 10 — Truncate pattern)?
-
-**Answer:** `FileAccess` must authorize every operation you perform — `Read` forbids `WriteByte`, and `FileMode.Create` with `FileAccess.Read` is an invalid combination that throws `ArgumentException` at construction. For in-place rewrite, open with write-capable access and use `FileMode.Truncate` or `ReadWrite` + explicit length reset.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Correctness | Attempt A: `FileAccess.Read` + `WriteByte` | `NotSupportedException` at first write |
-| API contract | Attempt B: `FileMode.Create` + `FileAccess.Read` | `ArgumentException` — Create requires Write or ReadWrite |
-| Design | Using `Open` + write when file should be cleared first | Old bytes remain if you only overwrite first byte without truncating |
-
-**Fix (priority order):**
-
-1. For wipe-and-rewrite in place: `new FileStream(cachePath, FileMode.Truncate, FileAccess.Write, FileShare.None)` — **Program.cs** Section 10 sets length to 0 then writes.
-2. If you need read-then-write in one session: `FileMode.OpenOrCreate` or `Open` with `FileAccess.ReadWrite`, then `SetLength(0)` or `Truncate` semantics before writing.
-3. Match `FileMode` to intent: `Create` truncates existing path; `Append` seeks to end; do not pair write modes with read-only access.
-4. Always pair with `using` / dispose so locks release after rewrite.
-
-```csharp
-using var stream = new FileStream(
-    cachePath, FileMode.Truncate, FileAccess.Write, FileShare.None);
-stream.WriteByte(0xFF);
-stream.Flush();
-```
-
-**Production takeaway:** `FileMode` chooses **how the OS opens the path**; `FileAccess` gates **what this handle may do** — Karat stacks both in one snippet to see if you diagnose constructor vs first-write failures separately.
-
----
-
-### 04. Path & Environment Classes
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/04. Path & Environment Classes`
-
----
-
----
-
-#### Q1. (R) A report exporter works on Windows dev machines but fails on Linux CI with "Could not find a part of the path." Review this path builder:
-
-```csharp
-public string BuildExportPath(string customerId, string fileName)
-{
-    string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-    return baseDir + "\\Reports\\" + customerId + "\\" + fileName;
-}
-
-// Called from a nightly job:
-var path = BuildExportPath("CUST-42", "summary.csv");
-Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-await File.WriteAllTextAsync(path, csvContent);
-```
-
-What is wrong, and how do you fix it for cross-platform deployment?
-
----
-
-**Answer:**
-
-```csharp
-public string BuildExportPath(string customerId, string fileName)
-{
-    string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-    return baseDir + "\\Reports\\" + customerId + "\\" + fileName;
-}
-
-// Called from a nightly job:
-var path = BuildExportPath("CUST-42", "summary.csv");
-Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-await File.WriteAllTextAsync(path, csvContent);
-```
-
-What is wrong, and how do you fix it for cross-platform deployment?
-
-**Answer:** The method hard-codes Windows backslashes and assumes a user Documents folder exists on a headless CI agent — on Linux the concatenated path is invalid and `MyDocuments` may be empty or unsuitable for a server job.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Cross-platform | `"\\"` string concatenation | Linux treats `\` as a valid filename character, not a separator — path does not resolve |
-| Design | `SpecialFolder.MyDocuments` on a server/CI worker | No interactive user profile; base path may be empty or wrong |
-| Maintainability | Manual join instead of `Path.Combine` | Every new segment repeats the separator mistake |
-
-**Fix (priority order):**
-
-1. Replace concatenation with `Path.Combine(baseDir, "Reports", customerId, fileName)`.
-2. Do not use `MyDocuments` for server exports — read an configured output root from `IConfiguration` / environment variable (e.g. `/var/app/exports` or a mounted volume).
-3. Validate `baseDir` is non-empty before `CreateDirectory`; fail fast with a clear configuration error in CI.
-4. Sanitize `customerId` and `fileName` — reject path separators and `..` segments before combining.
-
-```csharp
-public string BuildExportPath(string outputRoot, string customerId, string fileName)
-{
-    ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
-    return Path.Combine(outputRoot, "Reports", customerId, fileName);
-}
-```
-
-**Production takeaway:** Hard-coded backslashes pass on Windows dev boxes and fail immediately in Linux containers — Karat expects `Path.Combine` plus an explicit, configurable root instead of desktop assumptions. See **Program.cs** Section 1 and Section 8 — cross-platform rules.
-
----
-
----
-
-#### Q2. (R) An internal admin API accepts a `fileName` query parameter and serves files from a fixed folder. Review the handler:
-
-```csharp
-private readonly string _storageRoot = Path.Combine(AppContext.BaseDirectory, "uploads");
-
-public IResult Download(string fileName)
-{
-    string requested = Path.GetFullPath(Path.Combine(_storageRoot, fileName));
-    if (!File.Exists(requested))
-        return Results.NotFound();
-
-    return Results.File(requested);
-}
-
-// Request: GET /download?fileName=..\..\appsettings.Production.json
-```
-
-What security and correctness issues exist, and what is the prioritized fix?
-
----
-
-**Answer:**
-
-```csharp
-private readonly string _storageRoot = Path.Combine(AppContext.BaseDirectory, "uploads");
-
-public IResult Download(string fileName)
-{
-    string requested = Path.GetFullPath(Path.Combine(_storageRoot, fileName));
-    if (!File.Exists(requested))
-        return Results.NotFound();
-
-    return Results.File(requested);
-}
-
-// Request: GET /download?fileName=..\..\appsettings.Production.json
-```
-
-What security and correctness issues exist, and what is the prioritized fix?
-
-**Answer:** `Path.GetFullPath` resolves `..` segments against `_storageRoot`, so a malicious `fileName` can escape the uploads folder and read arbitrary files on the server — the existence check does not confine access to the intended directory.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Security | No verification that resolved path stays under `_storageRoot` | Path traversal — read secrets, configs, other tenants' files |
-| Input | Unsanitized user-controlled `fileName` | `..`, absolute paths, alternate separators bypass intent |
-| Correctness | `GetFullPath` alone is not a sandbox boundary | Developer assumes normalization equals authorization |
-
-**Fix (priority order):**
-
-1. Reject rooted paths and any segment containing `..` before combining — or use `Path.GetFileName(fileName)` if only flat files are allowed.
-2. After resolving, verify the full path is prefixed by the normalized storage root (case-aware on Linux):
-
-```csharp
-string storageRoot = Path.GetFullPath(_storageRoot);
-string requested = Path.GetFullPath(Path.Combine(storageRoot, fileName));
-
-if (!requested.StartsWith(storageRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-    && !requested.Equals(storageRoot, StringComparison.Ordinal))
-    return Results.BadRequest();
-
-if (!File.Exists(requested))
-    return Results.NotFound();
-```
-
-3. Prefer an opaque file id mapped server-side to a stored name instead of accepting raw path fragments from the client.
-4. Log traversal attempts; return 400/404 without leaking whether the target file exists outside uploads.
-
-**Production takeaway:** `GetFullPath` normalizes strings — it does not enforce trust boundaries. Always anchor to a known root and verify containment after resolution. See **Program.cs** Section 3 — GetFullPath pitfalls.
-
----
-
----
-
-#### Q3. (P) A worker service loads `config/settings.json` with a relative path. It passes locally from Visual Studio but fails in production when started as a Windows Service or from a systemd unit. The startup code:
-
-```csharp
-var settingsPath = Path.GetFullPath("config/settings.json");
-var json = await File.ReadAllTextAsync(settingsPath);
-```
-
-Logs show `Environment.CurrentDirectory` is `C:\Windows\System32` on the server but the project folder when debugging. What is happening, and what anchor should production code use instead?
-
----
-
-**Answer:**
-
-```csharp
-var settingsPath = Path.GetFullPath("config/settings.json");
-var json = await File.ReadAllTextAsync(settingsPath);
-```
-
-Logs show `Environment.CurrentDirectory` is `C:\Windows\System32` on the server but the project folder when debugging. What is happening, and what anchor should production code use instead?
-
-**Answer:** Relative paths passed to `Path.GetFullPath` resolve against `Environment.CurrentDirectory`, which follows the process working directory set by the shell, service wrapper, or scheduler — not the folder containing the published assembly.
-
-- Locally, the IDE sets CWD to the project directory, so `config/settings.json` is found next to source layout.
-- Installed services and systemd units often start with CWD `/` or `System32`, so the same relative string points at the wrong tree.
-- Production code should anchor content-relative assets to `AppContext.BaseDirectory` (or `IHostEnvironment.ContentRootPath` in ASP.NET Core), which tracks the deployed app folder.
-
-```csharp
-var settingsPath = Path.GetFullPath(
-    Path.Combine(AppContext.BaseDirectory, "config", "settings.json"));
-```
-
-- If settings live outside the publish folder (common for secrets), read an absolute path from configuration rather than assuming a relative layout.
-- Document and test startup from a non-project CWD in CI to catch this class of bug early.
-
-**Production takeaway:** Never assume `CurrentDirectory` equals the app install location — Karat pairs this with deployment context. See **Program.cs** Section 7 — CurrentDirectory vs BaseDirectory.
-
----
-
----
-
-#### Q4. (P) A containerized API writes large PDF exports using `Path.GetTempFileName()` and never deletes them. After a few days in Kubernetes, pods hit `No space left on device`. The temp folder path is `/tmp` inside the container. What breaks in this pattern, and what production approach replaces `GetTempFileName`?
-
----
-
-**Answer:**
-
-**Answer:** `GetTempFileName` creates a zero-byte file immediately and returns its path, but the API replaces it with a large PDF without deleting the original or subsequent temps — ephemeral container `/tmp` (often a small `emptyDir` volume) fills up because nothing cleans up and each request adds another file.
-
-- In containers, `Path.GetTempPath()` maps to `/tmp` unless overridden by `TMPDIR` — shared across requests in the same pod with no guaranteed recycle until the pod restarts.
-- `GetTempFileName` is poor for large artifacts: it creates an extra file, uses predictable patterns, and encourages orphan leaks under load.
-- Prefer streaming the response directly to the client, writing to a configured persistent volume, or using `IBlobStorage` / object storage for exports.
-- If scratch space is required, combine `Path.GetTempPath()` with a unique name (`Guid`), wrap writes in `try/finally`, and delete in `finally`; consider `TemporaryFileStream` patterns or bounded pools.
-- Set `TMPDIR` / `TEMP` / `TMP` explicitly in the deployment manifest to a sized volume when scratch I/O is unavoidable.
-- Add disk-usage metrics and liveness checks — `/tmp` exhaustion kills all endpoints in the pod.
-
-**Production takeaway:** Temp directories in containers are small and shared — treat them as bounded scratch space with explicit cleanup, not an export archive. See **Program.cs** Section 5 — GetTempPath / GetTempFileName cleanup note.
-
----
-
----
-
-#### Q5. (R) A desktop-style feature is ported to a headless Linux server without changes:
-
-```csharp
-public string GetDefaultExportFolder()
-{
-    string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-    return Path.Combine(desktop, "MyApp", "Exports");
-}
-
-// Startup ensures folder exists:
-Directory.CreateDirectory(GetDefaultExportFolder());
-```
-
-What fails on a server or container, and how should export location be chosen for server-side processing?
-
----
-
-**Answer:**
-
-```csharp
-public string GetDefaultExportFolder()
-{
-    string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-    return Path.Combine(desktop, "MyApp", "Exports");
-}
-
-// Startup ensures folder exists:
-Directory.CreateDirectory(GetDefaultExportFolder());
-```
-
-What fails on a server or container, and how should export location be chosen for server-side processing?
-
-**Answer:** `SpecialFolder.Desktop` assumes an interactive user profile with a Desktop directory — on headless Linux servers or minimal container images the path is often empty or points under a non-writable home directory, causing `CreateDirectory` or later writes to fail.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Platform | Desktop folder on server/container | Path empty, missing, or not writable |
-| Design | UI-centric SpecialFolder on backend | Wrong abstraction for batch/API exports |
-| Operations | Silent reliance on user profile layout | Worked on developer workstation; fails in prod |
-
-**Fix (priority order):**
-
-1. Replace Desktop with a configured server path — environment variable, `appsettings`, or mounted volume (`/app/data/exports`).
-2. For multi-tenant SaaS, use tenant-scoped storage (database blob, S3, Azure Blob) rather than local filesystem folders.
-3. If user-specific exports are required on a desktop app, keep `SpecialFolder` — but gate server code paths separately.
-4. Validate the chosen root exists and is writable at startup; surface a clear configuration error instead of failing mid-request.
-
-```csharp
-public string GetDefaultExportFolder(IConfiguration config)
-{
-    var root = config["Export:RootPath"]
-        ?? Path.Combine(AppContext.BaseDirectory, "exports");
-    return Path.Combine(root, "MyApp", "Exports");
-}
-```
-
-**Production takeaway:** `SpecialFolder` values encode OS/user UI conventions — server workloads need explicit configuration, not Desktop. See **Program.cs** Section 6 — SpecialFolder and Section 8 — do not assume drive letters or desktop layout.
-
----
-
----
-
-#### Q6. (M) A path helper builds log file locations from configuration segments. Review this method called on both Windows and Linux:
-
-```csharp
-public static string BuildLogPath(string configuredRoot, string appName, string logFile)
-{
-    // configuredRoot might be "/var/log", "logs", or "C:\\Logs" from appsettings
-    return Path.Combine("ignored", "prefix", configuredRoot, appName, logFile);
-}
-```
-
-What surprising result occurs when `configuredRoot` is an absolute Unix path (`/var/log`) or a Windows drive root (`C:\Logs`), and how should callers structure segments?
-
----
-
-**Answer:**
-
-```csharp
-public static string BuildLogPath(string configuredRoot, string appName, string logFile)
-{
-    // configuredRoot might be "/var/log", "logs", or "C:\\Logs" from appsettings
-    return Path.Combine("ignored", "prefix", configuredRoot, appName, logFile);
-}
-```
-
-What surprising result occurs when `configuredRoot` is an absolute Unix path (`/var/log`) or a Windows drive root (`C:\Logs`), and how should callers structure segments?
-
-**Answer:** When any segment after the first is rooted (starts with `/` on Unix or a drive/root on Windows), `Path.Combine` discards all prior segments — `"ignored"` and `"prefix"` are dropped, and the result resets to the rooted segment plus the remainder.
-
-- `Path.Combine("ignored", "prefix", "/var/log", "MyApp", "app.log")` → `/var/log/MyApp/app.log` on Linux.
-- `Path.Combine("ignored", "prefix", @"C:\Logs", "MyApp", "app.log")` → `C:\Logs\MyApp\app.log` on Windows.
-- Developers expect `"ignored/prefix"` to prefix configured roots — it silently does not when the config value is absolute.
-- Pass either all-relative segments under a known base, or treat an absolute configured root as the sole first argument: `Path.Combine(configuredRoot, appName, logFile)` without dummy prefixes.
-- Document in configuration schema whether `LogRoot` must be relative (to `BaseDirectory`) or absolute — do not mix assumptions in one Combine chain.
-
-**Production takeaway:** Rooted segments in `Path.Combine` reset the path — a common misconfiguration when appsettings contains absolute paths. See **Program.cs** Section 1 — Combine with rooted segment demo.
-
----
-
----
-
-#### Q7. (D) Two services exchange file paths over a message queue. Service A (Windows) sends `D:\data\invoices\inv-001.pdf`. Service B (Linux) tries to open it and also needs a relative path for an audit log entry. A developer writes:
-
-```csharp
-string incoming = message.FilePath; // from Windows producer
-string relative = Path.GetRelativePath(AppContext.BaseDirectory, incoming);
-await File.ReadAllTextAsync(incoming);
-```
-
-What breaks on Linux, and what contract should replace raw absolute paths between services?
-
----
-
-**Answer:**
-
-```csharp
-string incoming = message.FilePath; // from Windows producer
-string relative = Path.GetRelativePath(AppContext.BaseDirectory, incoming);
-await File.ReadAllTextAsync(incoming);
-```
-
-What breaks on Linux, and what contract should replace raw absolute paths between services?
-
-**Answer:** Windows absolute paths are meaningless on Linux — `File.ReadAllTextAsync` fails because `D:\...` is not a valid path on Unix, and `Path.GetRelativePath` cannot produce a meaningful relative path across different roots or machines.
-
-- `GetRelativePath` requires both paths to share a common base on the same machine; cross-OS absolute paths have no shared root.
-- Message contracts should carry stable identifiers (blob URI, S3 key, file id, share-relative path) — not producer-local absolute paths.
-- If both services mount the same network share, agree on a **share-relative** path (`invoices/inv-001.pdf`) and each service combines with its locally configured mount point via `Path.Combine(mountRoot, relativeKey)`.
-- For audit logs, store the logical key or URI, not `GetRelativePath` output from foreign paths.
-- Use object storage (HTTPS URL + auth) for cross-platform handoff; consumers download to their own temp scratch if local file access is required.
-
-**Production takeaway:** File paths are not portable across OS or hosts — exchange logical keys or URIs and resolve locally. See **Program.cs** Section 8 — Windows drive roots vs Unix single-root layout.
-
----
-
----
-
-#### Q8. (P) A build pipeline archives deeply nested test output on Windows agents. One test creates a folder tree exceeding 260 characters. Locally it works when long-path support is enabled; on a Linux agent the same code runs but a Windows-only integration test fails with `PathTooLongException`. What explains the platform difference, and what mitigations belong in the path-building code?
-
----
-
-### 05. Working with CSV and Text Files
-
-# Karat — Interview Questions
-
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/05. Working with CSV and Text Files`  
-> **Answers:** [KARAT_INTERVIEW_ANSWERS.md](./KARAT_INTERVIEW_ANSWERS.md)  
-> **Level:** Applied production readiness (Layer 2)
-
----
-
-**Answer:**
-
-**Answer:** Windows historically enforced `MAX_PATH` (260 characters) unless long-path awareness is enabled at OS and application level; Linux paths are typically limited by `PATH_MAX` (often 4096 bytes) and are far more permissive — so the same deeply nested tree exceeds Windows limits while Linux succeeds.
-
-- Developer machines with Windows 10+ long-path policy and .NET long-path support may hide the bug until a default-config CI Windows agent runs.
-- Linux CI passing does not prove Windows deployment safety when paths are built from repeated `Path.Combine` of user names, guids, and nested fixture folders.
-- Mitigations: shorten segment names, hash long identifiers (`SHA256` folder name instead of full title), flatten output layout, use `\\?\` prefix only as a last resort on Windows with explicit long-path enablement.
-- Read remaining length budget before creating nested dirs; fail early with a clear test message instead of `PathTooLongException` mid-run.
-- Keep artifact roots shallow — `artifacts/{buildId}/{suite}/file.ext` rather than mirroring full source tree depth.
-- In CI, run at least one Windows job without long-path overrides to match conservative production environments.
-
-**Production takeaway:** Path length limits are OS- and policy-dependent — design folder layouts for the shortest common denominator (default Windows), not the most permissive agent. See **Program.cs** Section 8 — cross-platform comparison table.
-
----
-
-### 05. Working with CSV and Text Files
-
-# Karat — Interview Answers
-
-Answers for [KARAT_INTERVIEW_QUESTIONS.md](./KARAT_INTERVIEW_QUESTIONS.md) in this folder.
-
-> **Folder:** `02. C# Language Fundamentals/07. File Input & Outpout and Streams/05. Working with CSV and Text Files`
-
----
-
----
-
-#### Q1. (R) A partner feed import worked in QA but mis-maps vendor names in production. Review this row parser used for every data line after the header:
-
-```csharp
-public static InventoryItem? ParseRow(string line, int lineNumber)
-{
-    string[] cols = line.Split(',', StringSplitOptions.TrimEntries);
-
-    if (cols.Length != 5)
-        return null;
-
-    return new InventoryItem
-    {
-        Sku = cols[0],
-        Name = cols[1],
-        Quantity = int.Parse(cols[2]),
-        UnitPrice = decimal.Parse(cols[3]),
-        RestockedOn = string.IsNullOrEmpty(cols[4]) ? null : DateTime.Parse(cols[4]),
-    };
-}
-```
-
-Sample production row: `"Acme, Inc",Widget,10,9.99,2026-01-15`
-
-What fails, and what is the prioritized fix?
-
----
-
-**Answer:**
-
-```csharp
-public static InventoryItem? ParseRow(string line, int lineNumber)
-{
-    string[] cols = line.Split(',', StringSplitOptions.TrimEntries);
-
-    if (cols.Length != 5)
-        return null;
-
-    return new InventoryItem
-    {
-        Sku = cols[0],
-        Name = cols[1],
-        Quantity = int.Parse(cols[2]),
-        UnitPrice = decimal.Parse(cols[3]),
-        RestockedOn = string.IsNullOrEmpty(cols[4]) ? null : DateTime.Parse(cols[4]),
-    };
-}
-```
-
-Sample production row: `"Acme, Inc",Widget,10,9.99,2026-01-15`
-
-What fails, and what is the prioritized fix?
-
-**Answer:** `Split(',')` treats the comma inside `"Acme, Inc"` as a delimiter, yielding six columns instead of five — SKU shifts into the name column and downstream fields mis-map silently when the count check is skipped or relaxed. Replace naive split with quote-aware parsing, use `TryParse` with `CultureInfo.InvariantCulture`, and return row-level errors with line numbers instead of throwing or returning null without context.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Parsing | `Split(',')` on quoted fields | Wrong column count and shifted SKU/name/qty mapping |
-| Correctness | `int.Parse` / `decimal.Parse` / `DateTime.Parse` | One bad cell aborts the row via exception — or worse, if wrapped in catch-all, loses line context |
-| Validation | `return null` on count mismatch | Silent drop with no operator-visible error for the `"Acme, Inc"` shape |
-| Culture | Default-culture `Parse` | Locale-dependent decimal/date interpretation across servers |
-
-**Fix (priority order):**
-
-1. Parse with a quote-aware scanner (`SplitQuotedLine` from **Program.cs** Section 3) — commas inside double quotes stay in one field.
-2. Validate `columns.Count == InventoryColumnCount` and emit `Line {n}: expected 5 columns, found {m}` — matches **Program.cs** Section 4.
-3. Replace `Parse` with `TryParse(..., CultureInfo.InvariantCulture, ...)` for quantity, price, and optional date.
-4. Keep required-field checks (`sku.Length == 0`) before building `InventoryItem`.
-
-```csharp
-var columns = CsvParsing.SplitQuotedLine(line);
-if (columns.Count != CsvParsing.InventoryColumnCount)
-{
-    errors.Add($"Line {lineNumber}: expected 5 columns, found {columns.Count}.");
-    continue;
-}
-```
-
-**Production takeaway:** QA files without quoted commas hide the bug; partner exports with `"Acme, Inc"` expose it immediately — Karat tests whether you know Split is not CSV parsing.
-
----
-
----
-
-#### Q2. (R) An export job writes inventory CSV on a German Windows server; a US warehouse tool rejects half the rows. Product names with accents arrive as `MÃ¼ller` when the US tool opens the file. Review the export path:
-
-```csharp
-public static void ExportInventory(string path, IEnumerable<InventoryItem> items)
-{
-    using var writer = new StreamWriter(path);
-    writer.WriteLine("Sku,Name,Quantity,UnitPrice,RestockedOn");
-
-    foreach (var item in items)
-    {
-        writer.WriteLine(string.Join(",",
-            item.Sku,
-            item.Name,
-            item.Quantity.ToString(),
-            item.UnitPrice.ToString("F2"),
-            item.RestockedOn?.ToString("yyyy-MM-dd") ?? ""));
-    }
-}
-```
-
-Partner file snippet: `W-400,Acme spare,5,19,95,2026-02-15`
-
-What breaks across environments, and how do you make the file portable?
-
----
-
-**Answer:**
-
-_Answer not found._
-
----
-
-#### Q3. (R) A nightly import job loads a 400 MB ERP export. Review the service method:
-
-```csharp
-public ImportResult Import(string path)
-{
-    string[] lines = File.ReadAllLines(path);
-    var items = new List<InventoryItem>();
-    var errors = new List<string>();
-
-    for (int i = 1; i < lines.Length; i++)  // skip header at index 0
-    {
-        try
-        {
-            items.Add(ParseRow(lines[i]));
-        }
-        catch (Exception ex)
-        {
-            errors.Add(ex.Message);
-        }
-    }
-
-    return new ImportResult(items, errors);
-}
-```
-
-What production problems appear at scale, and what pattern from this chapter replaces `ReadAllLines`?
-
----
-
-**Answer:**
-
-```csharp
-public ImportResult Import(string path)
-{
-    string[] lines = File.ReadAllLines(path);
-    var items = new List<InventoryItem>();
-    var errors = new List<string>();
-
-    for (int i = 1; i < lines.Length; i++)  // skip header at index 0
-    {
-        try
-        {
-            items.Add(ParseRow(lines[i]));
-        }
-        catch (Exception ex)
-        {
-            errors.Add(ex.Message);
-        }
-    }
-
-    return new ImportResult(items, errors);
-}
-```
-
-What production problems appear at scale, and what pattern from this chapter replaces `ReadAllLines`?
-
-**Answer:** `ReadAllLines` allocates a string for every row plus a large array — on a 400 MB file that spikes memory, increases GC pressure, and can OOM a constrained worker. It also assumes line index 0 is always the header, skipping comment rows and blank lines incorrectly, and `catch (Exception)` drops line numbers from error messages. Stream line-by-line with `StreamReader`/`TextReader`, skip ignorable lines, consume the first data header explicitly, and collect per-line errors while continuing the import.
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Memory | `File.ReadAllLines` loads entire file | High heap use; OOM on large partner feeds |
-| Correctness | `i = 1` hard-coded header skip | `#` comment or blank first lines shift every row mapping |
-| Observability | `errors.Add(ex.Message)` | Operators cannot locate row 47,832 without line numbers |
-| Resilience | Exception per row inside generic catch | Partial imports OK, but `Parse` throws stop row detail unless TryParse used |
-
-**Fix (priority order):**
-
-1. Replace with `using StreamReader reader = new StreamReader(path)` and `while ((line = reader.ReadLine()) != null)` — flat memory (**Program.cs** Section 4, QUICK REFERENCE).
-2. Reuse `InventoryCsv.Import(TextReader)` logic: skip blanks/comments, consume header once, increment `lineNumber` for each physical line.
-3. Use `TryParse` + structured errors (`Line {lineNumber}: invalid quantity '{text}'`) instead of exceptions for expected bad data.
-4. Accept `TextReader` in the parser so the same code reads files, streams, and `StringReader` tests.
-
-**Production takeaway:** `ReadAllLines` is fine for demos; production imports of multi-megabyte feeds should stream — Karat pairs this with row-level error reporting from the chapter's partial-import pattern.
-
----
-
----
-
-#### Q4. (P) A drop-folder service uses `FileSystemWatcher` to import CSV as soon as a file appears in `\\share\inbound`. Operators report random "column count" errors and duplicate SKU rows. The handler:
-
-```csharp
-watcher.Created += (_, e) =>
-{
-    var (items, errors) = InventoryCsv.Import(new StreamReader(e.FullPath));
-    _repository.UpsertAll(items);
-};
-```
-
-What race conditions happen with partial writes, and how do you harden the watcher pipeline?
-
----
-
-**Answer:**
-
-```csharp
-watcher.Created += (_, e) =>
-{
-    var (items, errors) = InventoryCsv.Import(new StreamReader(e.FullPath));
-    _repository.UpsertAll(items);
-};
-```
-
-What race conditions happen with partial writes, and how do you harden the watcher pipeline?
-
-**Answer:** `Created` fires when the file is first allocated, often before the upstream copy finishes — `StreamReader` then reads a truncated file, producing short rows and column-count errors. Retries on the same growing file can also insert partial batches before the full file lands. Wait until the file size stabilizes, open with shared-read exclusion or move to a processing folder under an exclusive lock, then import once idempotently.
-
-- **Stabilize before read:** Poll `FileInfo.Length` until unchanged for N seconds, or use a "ready" sentinel file (`inventory.csv.ready`) written after the main file completes.
-- **Exclusive processing:** On pickup, `File.Move` to `processing\{guid}.csv` so no second watcher event imports the same path mid-copy.
-- **Locking:** Open with `FileShare.Read` only after stable size; avoid writers still flushing — `StreamWriter` on the exporter should `Flush()` before rename (**Program.cs** Section 4a).
-- **Idempotency:** Key imports by file hash + batch id so a duplicate `Created` event does not double-count SKUs (see Q5).
-- **Error shape:** Surface parse errors with line numbers; do not call `UpsertAll` on a batch with critical structural failures unless business rules allow partial loads.
-
-**Production takeaway:** FileSystemWatcher notifies early — production pipelines treat "file exists" as "file ready," never as equivalent.
-
----
-
----
-
-#### Q5. (P) Re-running the same inbound file after a network blip must not double inventory counts. A developer adds a guard:
-
-```csharp
-public void ImportFile(string path)
-{
-    if (_repository.AnyImportedFrom(path))
-        return;
-
-    var (items, errors) = InventoryCsv.Import(new StreamReader(path));
-    _repository.InsertAll(items);
-    _repository.MarkImported(path);
-}
-```
-
-Halfway through a 50k-row file the database throws; the operator fixes the DB and re-runs. What goes wrong, and how do you make the import idempotent with rollback?
-
----
-
-**Answer:**
-
-```csharp
-public void ImportFile(string path)
-{
-    if (_repository.AnyImportedFrom(path))
-        return;
-
-    var (items, errors) = InventoryCsv.Import(new StreamReader(path));
-    _repository.InsertAll(items);
-    _repository.MarkImported(path);
-}
-```
-
-Halfway through a 50k-row file the database throws; the operator fixes the DB and re-runs. What goes wrong, and how do you make the import idempotent with rollback?
-
-**Answer:** If `MarkImported` runs only after full success, a mid-batch failure leaves no mark but may have inserted thousands of rows — a re-run duplicates them. If `MarkImported` runs before verification, a failed run blocks forever. Wrap the database work in a transaction, stage rows in a import-batch table keyed by file hash, and commit only when all rows validate — or delete-by-batch-id on failure before retry.
-
-- **Transactional bulk insert:** `BEGIN TRANSACTION` → insert all items with `ImportBatchId` → commit; on any failure, rollback so re-run starts clean.
-- **Two-phase mark:** Record batch as `Processing` before insert, flip to `Completed` on commit — retries detect `Processing`/`Failed` and either resume or rollback-by-batch-id first.
-- **Idempotency key:** Hash file contents (`SHA256`) — `AnyImportedFrom` should check hash, not path, so renamed re-drops are detected.
-- **Partial parse policy:** If `errors` is non-empty, decide upfront: fail entire batch (rollback) vs import valid rows — document which; do not silently mix without operator ack.
-- **Line-level staging:** Insert into `StagingInventory` via streaming parser; merge into live table in one set-based statement inside the transaction.
-
-```csharp
-await using var tx = await _db.Database.BeginTransactionAsync(ct);
-var batchId = await _staging.LoadAsync(items, fileHash, ct);
-if (errors.Count > 0) { await tx.RollbackAsync(ct); return; }
-await _repository.MergeFromStagingAsync(batchId, ct);
-await _repository.CompleteBatchAsync(fileHash, ct);
-await tx.CommitAsync(ct);
-```
-
-**Production takeaway:** Idempotent import means safe retry — both "no duplicate rows" and "failed run leaves no footprint"; a path-only guard satisfies neither after a partial failure.
-
----
-
----
-
-#### Q6. (D) Your team must ingest partner CSV feeds with quoted commas, optional date columns, and occasional header renames (`SKU` vs `Sku`). One engineer proposes `CsvHelper`; another wants to extend the hand-rolled `SplitQuotedLine` from this chapter. When do you reach for each, and what are the trade-offs for a long-lived warehouse integration?
-
----
-
-**Answer:**
-
-**Answer:** Extend the hand-rolled parser when the format is narrow, stable, and you need zero dependencies and full control for learning or a single internal export shape — `SplitQuotedLine` plus invariant `TryParse` covers quoted commas and typed columns for fixed five-column inventory. Reach for **CsvHelper** when feeds vary (renamed headers, optional columns, class maps, multiple delimiters) and you want header binding, validation attributes, and RFC 4180 edge cases without maintaining parser state yourself.
-
-- **Hand-rolled (this chapter):** Fixed schema (`InventoryColumnCount`), quote-aware scan, explicit row errors — minimal surface, easy to unit-test with `StringReader`, no package churn; you own multiline fields, alternate encodings, and every new partner quirk.
-- **CsvHelper:** `[Name("SKU")]`, `ClassMap`, `MissingFieldFound`, culture options, async enumeration — faster to onboard new feeds; adds dependency and team must learn mapping API; still need staging, transactions, and idempotency around it.
-- **Header drift:** Hand-rolled code often assumes first line equals `InventoryHeader` string — brittle. CsvHelper can map by index or name with case-insensitive matching; either way, validate required columns up front and fail with a clear "missing column SKU" message.
-- **Hybrid:** CsvHelper for deserialization into DTOs, then domain validation (`sku` required, qty ≥ 0) in a service layer — keeps parser concerns separate from warehouse rules (**Program.cs** `InventoryItem` pattern).
-- **When not to hand-roll:** Multiple partners, embedded newlines in fields, tab/pipe delimiters, or frequent spec changes — maintenance cost exceeds CsvHelper's learning curve.
-
-**Production takeaway:** Parser choice is an integration lifecycle bet — fixed internal format favors transparent hand-rolled code; multi-partner feeds favor a library plus staging and idempotent merge either way.
-
----
-
----
-
-#### Q7. (R) Two import workers occasionally corrupt the same nightly file. Review the concurrent access pattern:
-
-```csharp
-public async Task ImportAsync(string path, CancellationToken ct)
-{
-    await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-    using var reader = new StreamReader(stream);
-    var (items, errors) = InventoryCsv.Import(reader);
-    await _repository.BulkInsertAsync(items, ct);
-}
-
-// Hosted service starts two overlapping imports when backlog > 1:
-_ = ImportAsync(latestFile, ct);
-_ = ImportAsync(latestFile, ct);
-```
-
-Separately, a new feed omits the header row entirely. The parser assumes the first non-blank line is always the header. What fails under concurrency and header drift, and how do you fix both?
-
-**Answer:**
-
-```csharp
-public async Task ImportAsync(string path, CancellationToken ct)
-{
-    await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-    using var reader = new StreamReader(stream);
-    var (items, errors) = InventoryCsv.Import(reader);
-    await _repository.BulkInsertAsync(items, ct);
-}
-
-// Hosted service starts two overlapping imports when backlog > 1:
-_ = ImportAsync(latestFile, ct);
-_ = ImportAsync(latestFile, ct);
-```
-
-Separately, a new feed omits the header row entirely. The parser assumes the first non-blank line is always the header. What fails under concurrency and header drift, and how do you fix both?
-
-**Answer:** Two workers reading the same file concurrently duplicate database inserts unless the import is idempotent — and if either process also opens with write sharing, interleaved reads can see inconsistent snapshots on some OS/network shares. Header-less feeds mis-map the first data row as column names, shifting every subsequent field. Serialize per-file processing, move files exclusively before import, and detect headers by column signature rather than blind "first line skip."
-
-**Issues:**
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concurrency | Two `ImportAsync` on same path | Duplicate SKU rows or race on `_repository` |
-| File I/O | Default `FileStream` share mode | Writer/exporter may still hold lock; reader fails or sees partial content |
-| Correctness | First non-blank line = header | Header-less feed imports garbage first row; silent wrong types |
-| Orchestration | Fire-and-forget duplicate tasks | No single-owner guarantee for nightly drop |
-
-**Fix (priority order):**
-
-1. **Single consumer:** Queue file paths; one worker processes each file — or `File.Move` to `processing\{id}.csv` atomically so only one worker owns the path.
-2. **Open read-only with explicit share:** `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)` — document that exporters must finish before drop.
-3. **Header detection:** If first row matches header pattern (`Sku,Name,...` case-insensitive) or column count/types fail (`int.TryParse` on col 2 fails), treat line as data and use known column order — or reject with "header row missing."
-4. **Idempotency:** Combine with Q5 — file hash + batch id so a duplicate worker run does not double insert.
-5. **Optional:** `FileShare.None` during move-then-import pipeline on local disk; on SMB shares, prefer copy-to-local-temp then import.
-
-```csharp
-if (!headerConsumed && LooksLikeHeader(line))
-{
-    headerConsumed = true;
-    continue;
-}
-// if no header seen after policy check, use DefaultInventoryColumns map
-```
-
-**Production takeaway:** Concurrent import is a workflow bug first and a parsing bug second — exclusive file ownership plus header validation prevents both duplicate rows and shifted columns.
-
----
+Two workers processing the same file without coordination insert every row twice — there is no sharing violation because both open with read access, and no idempotency guard because neither checks whether the other is already processing the file. The fix is a distributed lock keyed on the file's canonical identifier (path or hash): worker A acquires the lock, checks the `ImportLog`, imports, commits, releases; worker B acquires the lock after A releases it, finds the record in `ImportLog`, and exits without re-importing. For the headerless feed, `CsvHelper` must be configured with `HasHeaderRecord = false` and the class map must use `.Index(n)` instead of `.Name("colName")` to bind columns by position — this is fragile because any column reordering in the feed breaks the mapping silently, so I request that the partner add a header row and document the column order in the integration contract as a prerequisite for the integration being considered complete.

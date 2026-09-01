@@ -79,105 +79,113 @@
 
 ### Q1. What is ADO.NET?
 
-What is ADO.NET?
+**Concepts**
+- Low-level .NET data access API over provider-specific drivers
+- Provider packages such as `Microsoft.Data.SqlClient`
+- Connected and disconnected access models
+- Foundation beneath Dapper and EF Core
 
-**Answer:** ADO.NET (ActiveX Data Objects for .NET) is the low-level data access API in .NET for talking to databases through provider-specific drivers. It exposes connections, commands, readers, and adapters so application code can execute SQL and move rows between the database and .NET without an object-relational mapper (ORM).
+**Answer**
 
-- It sits below higher-level libraries such as Dapper and Entity Framework Core (EF Core), which still use ADO.NET providers under the hood.
-- Core types live in `System.Data.Common` for provider-agnostic code and in packages like `Microsoft.Data.SqlClient` for SQL Server.
-- ADO.NET supports both connected streaming reads and disconnected in-memory snapshots depending on which types you use.
-- You write and own the SQL, which gives maximum control over statements, batching, and provider-specific features.
+ADO.NET is .NET's low-level data access API that communicates with databases through provider-specific packages. You write SQL explicitly, manage connections and transactions, and map result columns to objects manually — there is no ORM layer. Higher-level libraries like Dapper and EF Core are built on top of ADO.NET providers and use them internally.
 
 ---
 
 ### Q2. What is the difference between connected and disconnected data access in ADO.NET?
 
-What is the difference between connected and disconnected data access in ADO.NET?
+**Concepts**
+- Connected model: live connection while streaming rows
+- Disconnected model: fill DataSet then close connection
+- Memory trade-off: streaming vs in-memory snapshot
+- Use cases: APIs vs offline editing or grid binding
 
-**Answer:** Connected access keeps an open database connection while you stream or execute commands; disconnected access loads data into in-memory structures and then closes the connection. Connected mode is lean for read-heavy, forward-only scenarios; disconnected mode suits editing snapshots offline or binding UI grids without holding a live connection.
+**Answer**
 
-- Connected: open `SqlConnection`, run `SqlCommand`, read with `SqlDataReader` row by row, then close.
-- Disconnected: use `SqlDataAdapter.Fill` to populate `DataTable`/`DataSet`, close the connection, work in memory, optionally `Update` changes back.
-- Connected mode uses less memory for large result sets because only one row is live at a time.
-- Disconnected mode trades memory for convenience — the entire result set (or related tables) lives in RAM until you release it.
+Connected access keeps a live `SqlConnection` open while rows stream through a `SqlDataReader`, using minimal memory since only one row is active at a time. Disconnected access fills a `DataTable` or `DataSet` via `SqlDataAdapter.Fill`, closes the connection, and lets code work against an in-memory copy. Connected mode suits read-heavy sequential processing; disconnected mode suits offline editing or binding UI grids.
 
 ---
 
 ### Q3. What are the core building blocks of ADO.NET (connection, command, reader, adapter)?
 
-What are the core building blocks of ADO.NET (connection, command, reader, adapter)?
+**Concepts**
+- `DbConnection` — network session and pooling state
+- `DbCommand` — SQL/stored procedure, parameters, timeout, transaction
+- `DbDataReader` — forward-only, read-only row stream
+- `DbDataAdapter` — disconnected bridge for Fill and Update
 
-**Answer:** The four pillars are `DbConnection` (network session to the database), `DbCommand` (SQL or stored procedure to execute), `DbDataReader` (forward-only read stream), and `DbDataAdapter` (bridge that fills and updates disconnected `DataSet`/`DataTable` objects). Together they cover opening a session, sending text, reading results, and synchronizing in-memory data back to the server.
+**Answer**
 
-- **Connection** — holds connection string settings and pooling state; `Open`/`OpenAsync` acquires a pooled or physical connection.
-- **Command** — carries `CommandText`, parameters, timeout, and transaction; exposes `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteScalar`.
-- **Reader** — returns a read-only, forward-only cursor over result sets while the connection stays open.
-- **Adapter** — uses a `SelectCommand` (and optional insert/update/delete commands) to `Fill` tables and `Update` changed rows.
+The four ADO.NET pillars are `DbConnection` (network session), `DbCommand` (SQL or stored procedure plus parameters), `DbDataReader` (forward-only row stream), and `DbDataAdapter` (fills and updates disconnected `DataTable`/`DataSet`). Provider-specific implementations — `SqlConnection`, `SqlCommand`, etc. — wrap these base types. Together they cover every pattern from streaming reads to batched disconnected updates.
 
 ---
 
 ### Q4. What is the difference between ADO.NET and an ORM like Entity Framework Core?
 
-What is the difference between ADO.NET and an ORM like Entity Framework Core?
+**Concepts**
+- ADO.NET as thin provider API (manual SQL and mapping)
+- EF Core ORM: LINQ-to-SQL, change tracking, migrations
+- Control vs productivity trade-off
+- EF Core uses ADO.NET internally
 
-**Answer:** ADO.NET is a thin provider API: you write SQL, map columns manually, and manage connections and transactions explicitly. EF Core is an ORM that maps C# classes to tables, translates LINQ to SQL, tracks entity changes, and applies schema through migrations.
+**Answer**
 
-- ADO.NET gives full SQL control and minimal runtime overhead; EF Core trades some control for productivity and a unified domain model.
-- With ADO.NET there is no built-in change tracking, relationship navigation, or migration pipeline — you implement those yourself.
-- EF Core still opens ADO.NET connections internally when it executes generated SQL.
-- ADO.NET fits hand-tuned queries, bulk operations, and legacy stored-procedure-heavy systems; EF Core fits CRUD-heavy apps with evolving models.
+ADO.NET is a thin provider API where you write SQL, map columns manually, and manage connections and transactions explicitly. EF Core is an ORM that maps C# classes to tables, translates LINQ to SQL, tracks entity state, and manages schema through migrations. ADO.NET offers full SQL control with minimal overhead; EF Core trades some control for faster CRUD development — and still opens ADO.NET connections internally when executing generated SQL.
 
 ---
 
 ### Q5. When would you choose ADO.NET over Dapper or EF Core?
 
-When would you choose ADO.NET over Dapper or EF Core?
+**Concepts**
+- Bulk operations (`SqlBulkCopy`) with zero ORM overhead
+- Provider-specific features not exposed by higher layers
+- ETL pipelines and stored-procedure-heavy legacy systems
+- Hot paths needing predictable execution plans
 
-**Answer:** Choose raw ADO.NET when you need maximum control over SQL, provider-specific features, or bulk throughput and want zero mapping or change-tracking overhead. It is the right tool for `SqlBulkCopy`, complex multi-statement batches, fine-grained timeouts, and scenarios where every execution plan must be predictable.
+**Answer**
 
-- Bulk load or ETL (extract, transform, load) pipelines where ORM change tracking adds no value.
-- Legacy databases accessed almost entirely through stored procedures with output parameters and multiple result sets.
-- Performance-critical paths where even micro-ORM reflection and materialization cost matters.
-- Reporting or admin scripts that execute ad hoc SQL without maintaining entity classes or migrations.
+Choose raw ADO.NET when you need `SqlBulkCopy`, fine-grained command timeouts, or provider-specific APIs that ORMs do not expose. It is the right fit for ETL pipelines, legacy databases driven almost entirely through stored procedures, and performance-critical paths where even micro-ORM reflection overhead matters. Reporting or admin scripts that run ad hoc SQL without maintaining entity classes also benefit from the simplicity of plain ADO.NET.
 
 ---
 
 ### Q6. What is the connected model, and which ADO.NET types does it primarily use?
 
-What is the connected model, and which ADO.NET types does it primarily use?
+**Concepts**
+- Live `DbConnection` open during command execution
+- `SqlConnection`, `SqlCommand`, `SqlDataReader` trio
+- Dispose reader before next command (no MARS)
+- Connection returned to pool on Dispose
 
-**Answer:** The connected model keeps a live `DbConnection` open while commands run and results stream back. It primarily uses `SqlConnection`, `SqlCommand`, and `SqlDataReader` (or the provider equivalents) in a nested `using`/`await using` chain.
+**Answer**
 
-- Open the connection once per unit of work, execute one or more commands sequentially, dispose the reader before the next command on the same connection (unless Multiple Active Result Sets (MARS) is enabled).
-- Ideal for HTTP APIs that map rows to DTOs (data transfer objects) while `Read()` advances — memory stays flat for large lists.
-- Streaming exports, log tailing, and pagination that never materializes the full table fit this model.
-- The connection returns to the pool when disposed, even though the model is "connected" during the method body.
+The connected model keeps a live `SqlConnection` open while commands execute and rows stream back through `SqlDataReader`. You open once per unit of work, run commands sequentially, and dispose the reader before issuing the next command on the same connection — unless MARS is enabled. This model is ideal for HTTP APIs that map rows to DTOs while `Read()` advances, keeping memory flat regardless of result set size.
 
 ---
 
 ### Q7. What is the disconnected model, and which ADO.NET types does it primarily use?
 
-What is the disconnected model, and which ADO.NET types does it primarily use?
+**Concepts**
+- `DataSet`/`DataTable`/`DataRow` as in-memory snapshot
+- `SqlDataAdapter.Fill` pulls data, `.Update` pushes changes
+- Row states: Added, Modified, Deleted
+- Connection closed after Fill
 
-**Answer:** The disconnected model pulls data into in-memory tabular objects, closes the database connection, and lets client code read or edit rows without an active session. It centers on `DataSet`, `DataTable`, `DataRow`, and `SqlDataAdapter` (with optional `CommandBuilder` for auto-generated update commands).
+**Answer**
 
-- `SqlDataAdapter.Fill` runs the select command and populates tables; the connection can close immediately afterward.
-- Users or middle-tier code modify `DataRow` state (`Added`, `Modified`, `Deleted`); `adapter.Update` pushes changes in batches.
-- `DataSet` can hold multiple related tables and relationships for client-side join-like operations.
-- Common in older WinForms and ASP.NET WebForms apps; less common in modern stateless ASP.NET Core APIs.
+The disconnected model fills `DataTable` or `DataSet` with `SqlDataAdapter.Fill`, then closes the connection so client code can read or edit rows offline. Row state (`Added`, `Modified`, `Deleted`) tracks changes, and `adapter.Update` pushes them back in batches later. This pattern was common in WinForms and WebForms apps; modern stateless REST APIs typically use reader-based streaming instead.
 
 ---
 
 ### Q8. What are the trade-offs of hand-written SQL versus a higher-level ORM?
 
-What are the trade-offs of hand-written SQL versus a higher-level ORM?
+**Concepts**
+- SQL: precise control, predictable plans, no mapping magic
+- ORM: productivity, migrations, change tracking overhead
+- Schema evolution: manual scripts vs automated migrations
+- Hybrid approach in production systems
 
-**Answer:** Hand-written SQL through ADO.NET offers precise control, predictable execution plans, and access to every database feature, but shifts mapping, schema evolution, and relationship management to your team. An ORM accelerates development and keeps the object model and database in sync, yet can produce surprising SQL, tracking overhead, and harder-to-tune queries.
+**Answer**
 
-- SQL you write is reviewable and benchmarkable; ORM-generated SQL may need profiling to optimize.
-- Schema changes in ADO.NET require manual script coordination; EF Core migrations version schema alongside code.
-- ORMs reduce boilerplate for CRUD and relationships; ADO.NET requires explicit DTO mapping and join SQL.
-- Many production systems combine both: EF Core for domain workflows, ADO.NET or Dapper for hot paths and reports.
+Hand-written SQL offers precise control, predictable execution plans, and access to every database feature, but the team owns mapping, schema versioning, and relationship queries. An ORM like EF Core accelerates CRUD, automates migrations, and reduces boilerplate, yet can produce surprising SQL and adds tracking overhead. Most production systems combine both: EF Core for domain workflows and ADO.NET or Dapper for hot paths and reports.
 
 ---
 
@@ -185,105 +193,113 @@ What are the trade-offs of hand-written SQL versus a higher-level ORM?
 
 ### Q1. What is connection pooling in ADO.NET?
 
-What is connection pooling in ADO.NET?
+**Concepts**
+- Provider-managed cache of physical connections
+- Keyed by identical connection string
+- `Min Pool Size` / `Max Pool Size` settings
+- Dispose returns slot to pool (no teardown)
 
-**Answer:** Connection pooling is a provider-managed cache of open database connections keyed by an identical connection string. When you `Open` a `SqlConnection`, the provider reuses an idle pooled connection instead of always creating a new TCP session and logging in again.
+**Answer**
 
-- Pooling is enabled by default for SQL Server; `Pooling=false` in the connection string disables it.
-- `Min Pool Size` and `Max Pool Size` control how many connections the pool keeps warm and the upper bound under load.
-- `Close`/`Dispose` on the `SqlConnection` returns the physical connection to the pool — it does not necessarily tear down the network session.
-- Identical connection strings share one pool; even small differences (extra spaces, different attribute order) create separate pools.
+Connection pooling is a provider-managed cache of open physical connections keyed by an identical connection string. When you call `Open`, the provider returns an idle pooled connection rather than paying the cost of a new TCP session and login. `Dispose` on `SqlConnection` returns the physical connection to the pool — even minor connection string differences create separate pools.
 
 ---
 
 ### Q2. Does creating `new SqlConnection()` every time open a new physical database connection?
 
-Does creating `new SqlConnection()` every time open a new physical database connection?
+**Concepts**
+- `new SqlConnection()` allocates only a managed wrapper
+- Physical connection established on `Open`/`OpenAsync`
+- Pooling reuses existing idle physical connections
+- New physical connection only when pool has no idle slot
 
-**Answer:** Creating `new SqlConnection()` only allocates a managed wrapper; no network connection opens until you call `Open` or `OpenAsync`. With default pooling, `Open` typically grabs an existing pooled physical connection rather than establishing a brand-new one each time.
+**Answer**
 
-- Instantiating many `SqlConnection` objects per request is normal and inexpensive when each is disposed promptly.
-- A new physical connection is created only when the pool has no available connection and has not reached `Max Pool Size`.
-- Without pooling, every `Open` would pay full login and handshake cost — rarely desirable in production.
-- Always dispose the connection so the underlying slot returns to the pool for reuse.
+Creating `new SqlConnection()` allocates only a managed wrapper — no network connection opens until `Open` or `OpenAsync` is called. With default pooling, `Open` typically reuses an existing idle pooled connection rather than establishing a new one. Dispose promptly so the pooled slot is returned for other callers; without pooling every `Open` would pay full login and handshake cost.
 
 ---
 
 ### Q3. Why should you use `using` or `await using` with connections?
 
-Why should you use `using` or `await using` with connections?
+**Concepts**
+- Guaranteed Dispose on exception paths
+- Returns connection slot to pool on Dispose
+- `await using` for async disposal without blocking
+- Nested using for connection, command, and reader
 
-**Answer:** `using` and `await using` guarantee `Dispose`/`DisposeAsync` runs even when exceptions occur, which returns the connection to the pool and releases the reader and command resources tied to it. Without disposal, connections leak until the garbage collector finalizes them — often too late under load.
+**Answer**
 
-- `Dispose` on `SqlConnection` closes the logical connection and returns the physical connection to the pool.
-- Exception paths that skip manual `Close()` still dispose correctly inside a `using` block.
-- `await using` pairs with async ADO.NET methods so disposal does not block a thread pool thread.
-- Nested `using` for connection, command, and reader ensures the reader is released before the connection is returned.
+`using` and `await using` guarantee `Dispose`/`DisposeAsync` runs even when exceptions occur, returning the pooled connection and releasing command and reader resources. Without disposal, connections leak until the GC finalizes them — often too late under concurrent load. `await using` pairs with async ADO.NET methods so disposal does not block a thread pool thread.
 
 ---
 
 ### Q4. How do you store connection strings securely in ASP.NET Core?
 
-How do you store connection strings securely in ASP.NET Core?
+**Concepts**
+- `IConfiguration.GetConnectionString` as the read point
+- Environment variables, Azure Key Vault, user secrets
+- Managed identity / integrated auth to avoid passwords
+- Least-privilege database accounts
 
-**Answer:** Keep secrets out of source control: store connection strings in environment-specific configuration backed by a secret store, not hard-coded in repositories. ASP.NET Core reads them via `IConfiguration.GetConnectionString("Name")`, with production values supplied by environment variables, Azure Key Vault, AWS Secrets Manager, or user secrets during local development.
+**Answer**
 
-- Commit only non-secret templates or placeholders in `appsettings.json`; override with `appsettings.Production.json` excluded from git or with env vars such as `ConnectionStrings__Default`.
-- Use managed identity or integrated authentication where possible to avoid embedding passwords.
-- Restrict database logins to least privilege — the API account should not be `db_owner` unless required.
-- Rotate credentials in the secret store without redeploying code when the app reads configuration at startup or on reload.
+Keep connection strings out of source control and supply them through environment variables, Azure Key Vault, or user secrets — all consumed via `IConfiguration.GetConnectionString`. Use managed identity or integrated authentication to avoid embedding passwords entirely when the environment supports it. Restrict the database login to least privilege so a leaked credential limits the blast radius.
 
 ---
 
 ### Q5. What is the difference between `Microsoft.Data.SqlClient` and `System.Data.SqlClient`?
 
-What is the difference between `Microsoft.Data.SqlClient` and `System.Data.SqlClient`?
+**Concepts**
+- `Microsoft.Data.SqlClient` — active, cross-platform, modern .NET
+- `System.Data.SqlClient` — legacy .NET Framework, maintenance mode
+- Type identity conflicts when mixing both packages
+- New code targets `Microsoft.Data.SqlClient` exclusively
 
-**Answer:** Both are SQL Server ADO.NET providers, but `Microsoft.Data.SqlClient` is the actively maintained, cross-platform package for modern .NET, while `System.Data.SqlClient` is the legacy assembly shipped with .NET Framework and kept in maintenance mode. New projects should reference `Microsoft.Data.SqlClient` exclusively to avoid duplicate types and missing features.
+**Answer**
 
-- `Microsoft.Data.SqlClient` receives fixes for Azure SQL, Always Encrypted, managed identity, and TLS behavior.
-- Mixing both packages in one solution can cause type identity conflicts — `SqlConnection` from one assembly is not assignable to the other.
-- .NET Core and later templates default to `Microsoft.Data.SqlClient`; Framework apps often still reference `System.Data.SqlClient`.
-- Public libraries should target `System.Data.Common` abstractions or document a single SqlClient package dependency.
+`Microsoft.Data.SqlClient` is the actively maintained, cross-platform SQL Server provider for modern .NET, receiving ongoing fixes for Azure SQL, Always Encrypted, and managed identity. `System.Data.SqlClient` ships with .NET Framework and is in maintenance mode only. Mixing both packages in one solution causes type identity conflicts — `SqlConnection` from one assembly is not assignable to the other — so new code should reference only `Microsoft.Data.SqlClient`.
 
 ---
 
 ### Q6. What is a pool exhaustion error, and what typically causes it?
 
-What is a pool exhaustion error, and what typically causes it?
+**Concepts**
+- All pool slots checked out past timeout window
+- Undisposed connections/readers as primary cause
+- "Timeout expired obtaining connection from pool" message
+- Raising Max Pool Size masks; fixing disposal cures
 
-**Answer:** Pool exhaustion occurs when every connection in the pool is in use and the provider cannot allocate another within the timeout — SQL Server clients often report "Timeout expired. The timeout period elapsed prior to obtaining a connection from the pool." The usual cause is failing to dispose connections or readers, leaving slots checked out until the pool hits `Max Pool Size`.
+**Answer**
 
-- Long-running queries or blocked transactions hold connections for extended periods under concurrent load.
-- Opening a connection per row in a loop without disposal multiplies checkout time linearly with iteration count.
-- Default `Max Pool Size` is 100; bursty traffic with leaks exhausts it quickly.
-- Increasing `Max Pool Size` masks the symptom; fixing disposal and shortening connection lifetime addresses the root cause.
+Pool exhaustion occurs when every pooled connection is checked out and a new `Open` call times out — SQL Server clients receive "Timeout expired. The timeout period elapsed prior to obtaining a connection from the pool." The usual cause is failing to dispose connections or readers, leaving slots occupied until the pool hits `Max Pool Size`. Raising `Max Pool Size` masks the symptom; fixing disposal and shortening connection lifetime addresses the root cause.
 
 ---
 
 ### Q7. What symptoms indicate a misconfigured or exhausted connection pool?
 
-What symptoms indicate a misconfigured or exhausted connection pool?
+**Concepts**
+- Intermittent timeouts under load, clear on restart
+- Connection count pegged at Max Pool Size
+- "Pool" / "timeout obtaining connection" error messages
+- Errors absent under light load, visible under peak traffic
 
-**Answer:** Intermittent timeouts under load that clear after an app restart, rising request latency as concurrency increases, and errors mentioning "pool" or "timeout obtaining connection" point to pool stress. You may also see database-side counts of sleeping sessions matching your app's pool size ceiling while the app still cannot acquire a connection.
+**Answer**
 
-- Errors appear only under peak traffic because idle connections mask leaks during light testing.
-- Thread pool starvation can accompany sync-over-async patterns that block while holding a connection.
-- Monitoring shows open connection count pegged at `Max Pool Size` for sustained periods.
-- Health checks that open connections without `using` on every probe accelerate exhaustion in Kubernetes or load-balanced farms.
+Pool stress shows as intermittent connection timeouts under load that clear after an app restart, with database-side sleeping session counts matching your pool ceiling. The errors appear only at peak traffic because idle connections mask leaks during light testing. Monitoring connection count pegged at `Max Pool Size` for sustained periods confirms exhaustion rather than a transient spike.
 
 ---
 
 ### Q8. How do unclosed connections affect pool availability?
 
-How do unclosed connections affect pool availability?
+**Concepts**
+- Undisposed slot stays checked out until finalization
+- GC finalization too slow for production throughput
+- Leaked reader also blocks that connection slot
+- Steady leaks exhaust Max Pool Size
 
-**Answer:** An undisposed `SqlConnection` keeps its pooled slot checked out until the connection is finalized or the server-side session times out — neither is reliable for production throughput. Each leaked connection reduces the number of slots available to other requests, eventually causing new `Open` calls to block and fail.
+**Answer**
 
-- Finalizers may run minutes later under memory pressure, far too slow for a busy API.
-- A leaked reader on an open connection also blocks reuse of that connection for additional commands.
-- Under steady leak rate, the app reaches `Max Pool Size` and all database operations queue or timeout together.
-- Proper `using`/`await using` on connection, command, and reader is the primary prevention.
+An undisposed `SqlConnection` keeps its pooled slot checked out until finalization or server-side session timeout — neither is fast enough for a busy API. Each leaked connection reduces available slots, and under a steady leak rate the app exhausts `Max Pool Size`, causing all database operations to queue or timeout. A leaked reader on an open connection also prevents additional commands on that connection until disposed.
 
 ---
 
@@ -291,79 +307,85 @@ How do unclosed connections affect pool availability?
 
 ### Q1. What is the difference between `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteScalar`?
 
-What is the difference between `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteScalar`?
+**Concepts**
+- `ExecuteReader` — returns `DbDataReader` for rowsets
+- `ExecuteNonQuery` — DML/DDL, returns rows affected
+- `ExecuteScalar` — returns first column of first row
+- All honor the same parameters, transaction, and timeout
 
-**Answer:** `ExecuteReader` runs a query and returns a forward-only `DbDataReader` for one or more result sets. `ExecuteNonQuery` runs INSERT, UPDATE, DELETE, or DDL (data definition language) and returns the number of rows affected. `ExecuteScalar` returns the first column of the first row, or `null` if empty — useful for aggregates and identity lookups.
+**Answer**
 
-- Use `ExecuteReader` when you need multiple rows or columns streamed from a SELECT.
-- Use `ExecuteNonQuery` for commands that do not return a rowset — including many stored procedures that only mutate data.
-- Use `ExecuteScalar` for `SELECT COUNT(*)`, `SELECT MAX(...)`, or `SELECT SCOPE_IDENTITY()`-style single values.
-- All three honor the same `SqlCommand` parameters, transaction, and timeout settings.
+`ExecuteReader` runs a SELECT and returns a forward-only `DbDataReader` for streaming one or more result sets. `ExecuteNonQuery` runs INSERT, UPDATE, DELETE, or DDL and returns the number of rows affected — not a rowset. `ExecuteScalar` returns the first column of the first row, making it ideal for aggregates like `COUNT(*)` or identity lookups such as `SCOPE_IDENTITY()`.
 
 ---
 
 ### Q2. What is a parameterized query, and why is it preferred over string concatenation?
 
-What is a parameterized query, and why is it preferred over string concatenation?
+**Concepts**
+- SQL placeholders (`@Name`, `@Id`) with `SqlParameter` values
+- User input treated as data, not executable SQL
+- Consistent statement text enables plan caching
+- Eliminates injection, escaping, and culture bugs
 
-**Answer:** A parameterized query sends SQL with placeholders (`@Name`, `@Id`) and supplies values separately through `SqlParameter` objects. The database treats literals and user input as data, not executable text, which eliminates injection and improves plan reuse.
+**Answer**
 
-- The SQL shape stays constant; only parameter values change between executions.
-- Query plans can be cached because the statement text does not vary with each user input.
-- Formatting, culture, and escaping bugs from manual string building disappear.
-- Dynamic SQL still parameterizes values even when table or column names are composed in code (identifiers cannot be parameterized — those require strict allowlists).
+A parameterized query sends SQL with typed placeholders and supplies values separately through `SqlParameter` objects, so the database engine treats user input as data rather than executable text. The SQL shape stays constant across executions, enabling query plan caching and preventing SQL injection. Identifiers like table and column names still cannot be parameterized — those require strict server-side allowlists.
 
 ---
 
 ### Q3. What is SQL injection, and how do parameters prevent it?
 
-What is SQL injection, and how do parameters prevent it?
+**Concepts**
+- Untrusted input concatenated into SQL as executable text
+- Parameters send values out-of-band from command text
+- Applies to ADO.NET, Dapper, and EF Core raw SQL
+- Parameters protect values, not dynamic identifiers
 
-**Answer:** SQL injection is an attack where untrusted input is concatenated into SQL and interpreted as commands — for example, input `'; DROP TABLE Users;--` altering the intended statement. Parameters send values out-of-band from the command text, so the engine never parses user data as SQL syntax.
+**Answer**
 
-- Concatenation like `"WHERE Email = '" + email + "'"` lets attackers close quotes and append malicious clauses.
-- With `cmd.Parameters.Add("@email", SqlDbType.NVarChar).Value = email`, the value is bound as a string literal only.
-- Injection can occur in ADO.NET, Dapper, and EF Core whenever raw string interpolation bypasses parameter APIs.
-- Parameters protect values; they do not sanitize dynamic identifiers — never parameterize table or column names from user input.
+SQL injection is an attack where untrusted input is concatenated into SQL and interpreted as commands — for example, `'; DROP TABLE Users;--` closing the original query and appending a destructive statement. Parameters send values separately from command text so the engine treats them as data literals and never parses them as SQL. Parameters protect values only; dynamic identifiers like table names still require strict server-side allowlists.
 
 ---
 
 ### Q4. What is the difference between `AddWithValue` and explicitly typed `SqlParameter`?
 
-What is the difference between `AddWithValue` and explicitly typed `SqlParameter`?
+**Concepts**
+- `AddWithValue` infers type/size from CLR value at runtime
+- Explicit `SqlParameter` specifies `SqlDbType`, `Size`, `Precision`
+- Type mismatch prevents index seeks and bloats plan cache
+- Nullable values require `DBNull.Value` explicitly
 
-**Answer:** `AddWithValue(name, value)` infers the parameter type and size from the CLR (Common Language Runtime) value at runtime, which is convenient but can mismatch the database column. Explicit `SqlParameter` with `SqlDbType`, `Size`, and `Precision`/`Scale` ensures the provider sends exactly what the column expects.
+**Answer**
 
-- `AddWithValue("Name", longString)` may send `nvarchar(4000)` or `nvarchar(-1)` and prevent index seeks on `varchar(50)` columns.
-- Explicit typing avoids implicit conversion in SQL Server that hides index use and bloats plan cache entries.
-- For nullable value types, set `Value = DBNull.Value` explicitly when null.
-- Production code often wraps explicit parameter creation in small helpers; `AddWithValue` is acceptable for quick prototypes with known small types.
+`AddWithValue` infers the parameter type and size from the CLR value, which can mismatch the column — for example, sending `nvarchar(4000)` for a `varchar(50)` column, preventing index seeks. Explicit `SqlParameter` with `SqlDbType`, `Size`, and `Precision`/`Scale` ensures the provider sends exactly what the column expects, avoiding implicit conversions and plan cache bloat. Production code should use explicit parameters; `AddWithValue` is only acceptable for quick prototypes with well-known small types.
 
 ---
 
 ### Q5. What is the difference between `Text` and `StoredProcedure` command types?
 
-What is the difference between `Text` and `StoredProcedure` command types?
+**Concepts**
+- `CommandType.Text` — sends raw SQL/T-SQL batch
+- `CommandType.StoredProcedure` — invokes proc by name
+- Output/return parameters cleaner with StoredProcedure mode
+- Proc can encapsulate EXEC permissions on tables
 
-**Answer:** `CommandType.Text` sends `CommandText` as raw SQL or T-SQL batch text. `CommandType.StoredProcedure` tells the provider to invoke a server-side procedure by name, binding parameters to the procedure signature rather than embedding them in a SQL string.
+**Answer**
 
-- Text mode: `cmd.CommandText = "SELECT * FROM Products WHERE Id = @id"`.
-- Stored procedure mode: `cmd.CommandText = "dbo.GetProductById"` with parameters matching the proc definition.
-- Return values and output parameters require `StoredProcedure` (or explicit `EXEC` in text mode, which is less clean).
-- Stored procedures can encapsulate permissions — grant `EXEC` on the proc without exposing underlying tables.
+`CommandType.Text` sends `CommandText` as raw SQL text executed by the server. `CommandType.StoredProcedure` sets `CommandText` to the procedure name and binds parameters to its signature, letting the provider generate the correct RPC call. Output parameters and return values work cleanly in `StoredProcedure` mode, and procedures can encapsulate permissions — granting `EXEC` without exposing underlying tables.
 
 ---
 
 ### Q6. When would you use `ExecuteScalar` instead of `ExecuteReader`?
 
-When would you use `ExecuteScalar` instead of `ExecuteReader`?
+**Concepts**
+- Single-value result: COUNT, MAX, SCOPE_IDENTITY
+- Avoids reader allocation and loop overhead
+- Handle null/DBNull when zero rows possible
+- Use ExecuteReader when multiple rows or columns needed
 
-**Answer:** Use `ExecuteScalar` when the query returns exactly one value — a count, sum, flag, or newly generated identity — and you do not need to iterate rows or columns. It avoids allocating a reader and the loop overhead for a single-cell result.
+**Answer**
 
-- `SELECT COUNT(*) FROM Orders WHERE Status = @status` maps naturally to `(int)cmd.ExecuteScalar()`.
-- After INSERT, `SELECT CAST(SCOPE_IDENTITY() AS int)` retrieves the new key in one round trip.
-- If the query might return zero rows, cast carefully and handle `null`/`DBNull`.
-- If multiple columns or rows are possible, use `ExecuteReader` or `QueryFirstOrDefault` in Dapper instead.
+Use `ExecuteScalar` when the query is guaranteed to return exactly one value — a count, aggregate, flag, or newly generated identity — and iterating a reader would be unnecessary overhead. `SELECT COUNT(*) FROM Orders WHERE Status = @status` or `SELECT CAST(SCOPE_IDENTITY() AS int)` after an INSERT are classic cases. Cast the result carefully, since the return is `object?` and can be `null` or `DBNull` when no rows match.
 
 ---
 
@@ -371,92 +393,99 @@ When would you use `ExecuteScalar` instead of `ExecuteReader`?
 
 ### Q1. Why is `SqlDataReader` described as a forward-only, read-only cursor?
 
-Why is `SqlDataReader` described as a forward-only, read-only cursor?
+**Concepts**
+- `Read()`/`ReadAsync()` advances one row at a time
+- No backward movement or random row access
+- Values consumed as read-only column data
+- Efficient wire protocol: rows arrive sequentially
 
-**Answer:** The reader advances sequentially with `Read()`/`ReadAsync()` and cannot move backward or jump to arbitrary rows. It exposes data read-only — you consume column values but do not edit database rows through the reader itself.
+**Answer**
 
-- Each `Read()` call fetches the next row from the server stream (or from a client-side buffer depending on command behavior).
-- There is no `Previous` or random access API — design loops as `while (reader.Read())`.
-- To change data, issue separate INSERT/UPDATE commands; the reader is not an editable grid.
-- This model matches how SQL Server sends result sets efficiently over the wire.
+`SqlDataReader` advances sequentially — each `Read()` call fetches the next row and there is no `Previous` or random-access API. It exposes column values as read-only; to mutate data you must issue separate INSERT/UPDATE commands. This forward-only model matches how SQL Server streams result sets efficiently over the wire.
 
 ---
 
 ### Q2. What is the difference between connected streaming reads and loading everything into memory?
 
-What is the difference between connected streaming reads and loading everything into memory?
+**Concepts**
+- Streaming: one row at a time, constant memory, connection open
+- In-memory load: all rows materialized before processing
+- OOM risk with large Fill or ToList on web servers
+- Streaming: faster time-to-first-row
 
-**Answer:** Streaming through `SqlDataReader` processes one row at a time while the connection stays open, keeping memory usage roughly constant regardless of result set size. Loading into a `List<T>`, `DataTable`, or `DataSet` materializes every row into managed heap objects before processing begins.
+**Answer**
 
-- Streaming suits export pipelines, large reports, and APIs that map-and-write without retaining the full collection.
-- In-memory load suits scenarios needing random access, multiple passes over rows, or offline editing disconnected from the server.
-- A 2-million-row query may stream safely but cause out-of-memory (OOM) if `Fill` or `.ToList()` on the entire set runs on a web server.
-- Time-to-first-row is faster with streaming because processing starts before the last row arrives.
+Streaming through `SqlDataReader` processes one row at a time while the connection stays open, keeping memory constant regardless of result set size. Loading into `List<T>`, `DataTable`, or `DataSet` materializes every row as managed objects before your code runs. Streaming suits export pipelines, large reports, and APIs that map-and-write rows; in-memory load suits random access, multiple passes, or offline editing.
 
 ---
 
 ### Q3. Why must a `SqlDataReader` be closed or disposed before running another command on the same connection (without MARS)?
 
-Why must a `SqlDataReader` be closed or disposed before running another command on the same connection (without MARS)?
+**Concepts**
+- One active batch per connection without MARS
+- Open reader owns the batch, blocks second command
+- MARS (`MultipleActiveResultSets=True`) relaxes the rule
+- Nested `using` blocks enforce correct disposal order
 
-**Answer:** A single SQL Server connection without Multiple Active Result Sets (MARS) allows only one active batch at a time. An open reader still owns that batch, so a second `ExecuteReader` or `ExecuteNonQuery` on the same connection throws: "There is already an open DataReader associated with this Command."
+**Answer**
 
-- Dispose the first reader completely before issuing the next command on the same connection.
-- MARS (`MultipleActiveResultSets=True` in the connection string) relaxes this but adds complexity and server overhead — enable only when truly needed.
-- Nested `using` blocks make the sequencing explicit: header query in one block, detail query in the next.
-- This trap appears frequently when loading a master record then its line items on one shared connection.
+A single SQL Server connection allows only one active batch at a time without MARS enabled. An open reader still owns that batch, so a second `ExecuteReader` or `ExecuteNonQuery` on the same connection throws "There is already an open DataReader associated with this Command." Dispose the first reader completely before issuing the next command; enabling MARS is an option but adds server overhead and should be used only when truly needed.
 
 ---
 
 ### Q4. When is `SqlDataReader` the best choice for large result sets?
 
-When is `SqlDataReader` the best choice for large result sets?
+**Concepts**
+- Sequential row-by-row processing without full materialization
+- `CommandBehavior.SequentialAccess` for large binary/text columns
+- Combines well with server-side paging (OFFSET/FETCH)
+- Avoids Gen2 GC pressure from large DataTable loads
 
-**Answer:** Choose `SqlDataReader` when you must read many rows sequentially and can process each row without storing the entire set — exports, ETL transforms, log scanning, and streaming HTTP responses. It minimizes memory and starts processing as soon as the first row arrives.
+**Answer**
 
-- Pair with `CommandBehavior.SequentialAccess` when reading large binary or text columns to avoid buffering entire values unnecessarily.
-- Combine with server-side paging (`OFFSET`/`FETCH`) when the consumer only needs a window of rows.
-- Avoid loading into EF Core entities or `DataTable` when millions of rows would pressure Gen2 garbage collection.
-- If the consumer needs the full set in memory anyway, the reader still helps peak memory during transfer but final footprint equals any other materialization approach.
+Choose `SqlDataReader` when you must process many rows sequentially without storing the entire result set — exports, ETL transforms, log scanning, and streaming HTTP responses. Pair it with `CommandBehavior.SequentialAccess` for large binary or text columns to avoid unnecessary buffering, and combine with server-side `OFFSET`/`FETCH` paging when the consumer needs only a window of rows. Loading millions of rows into `DataTable` or EF Core entities risks Gen2 garbage collection pressure that `SqlDataReader` avoids.
 
 ---
 
 ### Q5. How do you handle NULL database values when reading from a data reader?
 
-How do you handle NULL database values when reading from a data reader?
+**Concepts**
+- Database NULL maps to `DBNull.Value` in ADO.NET
+- `reader.IsDBNull(ordinal)` check before typed getter
+- `GetFieldValue<T?>` and extension methods reduce boilerplate
+- COALESCE in SQL as alternative to C# null-handling
 
-**Answer:** Database NULL maps to `DBNull.Value` in ADO.NET; reading it directly into a value type throws. Use `reader.IsDBNull(ordinal)` or compare to `DBNull.Value`, then map to nullable CLR types or substitute defaults.
+**Answer**
 
-- Prefer `reader.GetInt32("Id")` only when the column is NOT NULL; otherwise use `reader.IsDBNull(i) ? null : reader.GetInt32(i)` for `int?`.
-- Helper methods like `GetFieldValue<T?>(ordinal)` and extension methods reduce repetitive null checks.
-- Strings may be `null` in C# when the column is NULL — distinguish empty string from NULL if the domain requires it.
-- COALESCE in SQL can reduce null-handling in C# but shifts default semantics to the database layer.
+Database NULL maps to `DBNull.Value`; calling a typed getter like `GetInt32` on a NULL column throws an `InvalidCastException`. Use `reader.IsDBNull(ordinal)` to check first, then map to a nullable CLR type (`int?`, `string?`) or substitute a default. `GetFieldValue<T?>` reduces boilerplate, and pushing defaults into SQL with `COALESCE` is another option that shifts null semantics to the database layer.
 
 ---
 
 ### Q6. What performance advantage does a reader have over filling a `DataTable`?
 
-What performance advantage does a reader have over filling a `DataTable`?
+**Concepts**
+- No DataRow/DataColumn allocation per row
+- Lower GC pressure on high-throughput APIs
+- Flat working set vs linear DataTable memory growth
+- Faster time-to-first-row vs buffered Fill
 
-**Answer:** A reader avoids creating `DataRow`, `DataColumn`, and internal indexing structures for every row and column — it reads directly into your DTO mapping loop. `DataTable.Fill` allocates a full in-memory relational snapshot with type metadata and row state tracking.
+**Answer**
 
-- Lower allocations mean less garbage collection pressure on high-throughput APIs.
-- Streaming keeps working set flat; `DataTable` memory grows linearly with row and column count.
-- Readers start returning data immediately; `Fill` waits until the adapter buffers the result set (or a large portion).
-- Use `DataTable` when you need disconnected editing, primary keys, and `AcceptChanges`/`RejectChanges` semantics — not for read-only bulk reads.
+A reader avoids allocating `DataRow`, `DataColumn`, and internal indexing structures — you map directly from column getters into DTOs, generating far fewer managed objects. `DataTable.Fill` allocates a full in-memory relational snapshot with type metadata and row-state tracking, causing memory to grow linearly with row and column count. Readers also start returning data immediately, while `Fill` waits until the adapter buffers the result set.
 
 ---
 
 ### Q7. What happens if you do not dispose a data reader?
 
-What happens if you do not dispose a data reader?
+**Concepts**
+- Connection stays in busy state blocking additional commands
+- Pool slot stays checked out until finalization
+- Contributes to pool exhaustion under concurrent load
+- `using`/`await using` guarantees disposal on exceptions
 
-**Answer:** An undisposed reader keeps the underlying connection in a busy state, blocking further commands on that connection and delaying return to the pool. The connection may remain checked out until both reader and connection are finalized, contributing to pool exhaustion.
+**Answer**
 
-- Always wrap readers in `using` or `await using` alongside their command and connection.
-- If an exception occurs mid-read, disposal still runs with `using`, releasing server-side cursor resources.
-- Some providers close the reader when the connection disposes, but relying on that order is fragile — dispose inner objects first.
-- Symptom under load: sporadic "open DataReader" errors and pool timeouts even when connection objects appear to be created correctly.
+An undisposed reader keeps the connection in a busy state, blocking additional commands on that connection and preventing the slot from returning to the pool. Under concurrent load this contributes to pool exhaustion — symptoms are sporadic "open DataReader" errors and pool timeouts even though connection objects appear created correctly. Always wrap readers in `using` or `await using` so disposal runs even when exceptions interrupt reading.
 
 ---
 
@@ -464,66 +493,71 @@ What happens if you do not dispose a data reader?
 
 ### Q1. What is the disconnected model that `DataSet`/`DataTable` support?
 
-What is the disconnected model that `DataSet`/`DataTable` support?
+**Concepts**
+- In-memory relational snapshot after connection closes
+- `DataTable`: rows, columns, constraints, row state
+- `DataSet`: multiple tables with `DataRelation` links
+- `SqlDataAdapter.Fill` (pull) and `.Update` (push)
 
-**Answer:** `DataSet` and `DataTable` hold relational data in memory after the database connection closes, letting applications browse, filter, sort, and edit rows locally. `SqlDataAdapter` transfers data between the database and these structures via `Fill` (pull) and `Update` (push).
+**Answer**
 
-- A `DataTable` is a single table with rows, columns, constraints, and row state (`Unchanged`, `Modified`, `Added`, `Deleted`).
-- A `DataSet` can contain multiple tables plus `DataRelation` objects modeling parent-child keys.
-- After `Fill`, the connection can close while users or code work against the in-memory copy.
-- `Update` applies batched changes through the adapter's insert, update, and delete commands.
+`DataSet` and `DataTable` hold relational data in memory after the database connection closes, letting code browse, filter, sort, and edit rows locally. `SqlDataAdapter.Fill` pulls rows into the in-memory structures; `adapter.Update` later pushes batched changes back through the adapter's insert, update, and delete commands. `DataSet` can hold multiple related tables with `DataRelation` objects modeling parent-child keys.
 
 ---
 
 ### Q2. What is the difference between `DataReader` streaming and `DataAdapter.Fill`?
 
-What is the difference between `DataReader` streaming and `DataAdapter.Fill`?
+**Concepts**
+- Reader: connected, forward-only, minimal per-row allocation
+- Fill: disconnected snapshot, all rows materialized upfront
+- Fill supports random row access; reader does not
+- `startRecord`/`maxRecords` for partial Fill loads
 
-**Answer:** `DataReader` streams rows through a live connection with minimal per-row allocation beyond your mapping. `DataAdapter.Fill` executes the select command and loads the entire result into a `DataTable`, building column schema and row objects before your code runs.
+**Answer**
 
-- Reader: connected, forward-only, best for large read-only sequential processing.
-- Fill: disconnected snapshot, supports random access to any row via index or `Select` filter expressions.
-- Fill pulls all rows unless you use `Fill` overloads with `startRecord`/`maxRecords` for partial loads.
-- Adapter optionally generates commands with `SqlCommandBuilder`, though production apps often define commands explicitly.
+`DataReader` streams rows through a live connection with minimal allocation — you map columns into DTOs as each row arrives. `DataAdapter.Fill` executes the select command and loads the entire result into a `DataTable`, building column schema and row objects before your code runs. Readers suit large read-only sequential processing; `Fill` suits disconnected scenarios needing random row access or multi-pass processing.
 
 ---
 
 ### Q3. When would you still use `DataSet`/`DataTable` in modern .NET applications?
 
-When would you still use `DataSet`/`DataTable` in modern .NET applications?
+**Concepts**
+- Ad hoc reporting and Excel-like grid editing
+- Third-party controls or integration APIs requiring DataTable
+- Untyped tabular payloads with runtime-variable schema
+- Legacy interop and middle-tier merge scenarios
 
-**Answer:** They remain useful for ad hoc reporting tools, Excel-like grid editing, legacy interop, and scenarios requiring in-memory relational operations without pulling in EF Core. Some third-party controls and integration APIs still bind directly to `DataTable`.
+**Answer**
 
-- Quick admin utilities that load a table, let an operator edit cells, and push updates with one `Update` call.
-- Accepting untyped tabular payloads where schema varies at runtime.
-- Middle-tier merge scenarios comparing a client snapshot to server state before reconciling conflicts.
-- Greenfield ASP.NET Core REST APIs more often return `IEnumerable<T>` DTOs from readers or EF Core projections instead.
+`DataSet` and `DataTable` remain useful for ad hoc reporting tools, legacy interop, admin utilities that let operators edit rows and push one batch update, and third-party controls that bind directly to `DataTable`. They also suit scenarios accepting untyped tabular payloads where schema varies at runtime. Greenfield ASP.NET Core REST APIs usually return `IEnumerable<T>` DTOs from readers or EF Core projections instead.
 
 ---
 
 ### Q4. What are the memory implications of filling a large table into a `DataSet`?
 
-What are the memory implications of filling a large table into a `DataSet`?
+**Concepts**
+- Each row is a `DataRow` with boxed values and version history
+- Memory: row count × column count, often multiples of raw payload
+- Gen2 GC pressure from large fills on server machines
+- Streaming, paging, or projection as alternatives
 
-**Answer:** Every row becomes a `DataRow` with boxed values, version history, and state flags; every column carries `DataColumn` metadata. Memory usage is roughly proportional to row count × column count and often several times larger than the raw SQL payload.
+**Answer**
 
-- Large text and binary columns duplicate fully in managed memory.
-- Multiple tables in one `DataSet` multiply footprint; relations do not share row storage.
-- Gen2 collections from big fills cause long garbage collection pauses on server-class machines under load.
-- Prefer streaming, paging, or projection when result sets exceed comfortable RAM for the process bitness and concurrent requests.
+Every row becomes a `DataRow` with boxed values, version history, and state flags; every column carries `DataColumn` metadata — memory grows proportional to row count × column count and is often several times larger than the raw SQL payload. Large text or binary columns duplicate fully in managed memory. Gen2 garbage collections from big fills cause long pauses under load, so prefer streaming, server-side paging, or DTO projection when result sets are large.
 
 ---
 
 ### Q5. Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older WinForms apps?
 
-Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older WinForms apps?
+**Concepts**
+- REST APIs expect JSON-serializable POCOs, not DataRow
+- Stateless APIs don't hold in-memory DataSet per request
+- EF Core and micro-ORMs replaced "load table, bind grid"
+- Disconnected editing model doesn't match PUT/PATCH REST
 
-**Answer:** ASP.NET Core APIs are stateless and JSON-centric — clients expect typed DTOs, not ADO.NET tabular schema serialized with column names and `DBNull`. WinForms and WebForms kept connections short by binding grids to `DataTable` in desktop or session-heavy web UI patterns that do not match modern REST design.
+**Answer**
 
-- JSON serializers map cleanly to POCOs (plain old CLR objects), not `DataRow` dictionaries.
-- Holding large `DataSet` objects in server memory per request does not scale across horizontal pods.
-- EF Core and micro-ORMs replaced much of the "load table, bind grid" workflow with entity or DTO pipelines.
-- Disconnected bulk editing is rarer in APIs; clients own UI state and send explicit PUT/PATCH payloads.
+ASP.NET Core APIs are stateless and JSON-centric — clients expect typed DTOs that JSON serializers map cleanly, not `DataRow` dictionaries with `DBNull` values. WinForms and WebForms bound grids directly to `DataTable` in session-heavy patterns that do not fit modern stateless REST design. EF Core and micro-ORMs replaced the "load table, bind grid" workflow with entity or DTO pipelines, making `DataSet` rarely needed in new web APIs.
 
 ---
 
@@ -531,103 +565,99 @@ Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older Win
 
 ### Q1. What are the ACID properties of a transaction?
 
-What are the ACID properties of a transaction?
+**Concepts**
+- Atomicity: all-or-nothing commit
+- Consistency: constraints hold before and after
+- Isolation: concurrent transactions see controlled views
+- Durability: committed data survives crashes (log flush)
 
-**Answer:** ACID stands for Atomicity, Consistency, Isolation, and Durability — the guarantees a transactional database provides for a group of operations. Either all statements in the transaction commit together or none do; concurrent sessions see controlled views of data; committed changes survive crashes.
+**Answer**
 
-- **Atomicity** — all commands succeed or all roll back; no partial application of a logical unit of work.
-- **Consistency** — constraints and rules hold before and after the transaction (foreign keys, checks).
-- **Isolation** — concurrent transactions do not interfere beyond the chosen isolation level's allowed phenomena.
-- **Durability** — once committed, data persists even if power fails immediately afterward (via log flush).
+ACID describes the four guarantees a transactional database provides: Atomicity (all commands commit or all roll back), Consistency (constraints and rules remain valid), Isolation (concurrent transactions see controlled data views per the chosen isolation level), and Durability (committed changes persist even if power fails immediately afterward). Together these properties make multi-statement database operations reliable and predictable.
 
 ---
 
 ### Q2. How do you begin, commit, and rollback a transaction in ADO.NET?
 
-How do you begin, commit, and rollback a transaction in ADO.NET?
+**Concepts**
+- `connection.BeginTransaction()` returns `SqlTransaction`
+- Assign `cmd.Transaction = tx` to every participating command
+- `tx.Commit()` on success, `tx.Rollback()` in catch
+- All commands share the same connection and transaction instance
 
-**Answer:** Open a connection, call `connection.BeginTransaction()` (or `BeginTransactionAsync`) to get a `SqlTransaction`, assign it to each command's `Transaction` property, execute commands, then call `Commit()` on success or `Rollback()` on failure. Dispose the transaction object when finished.
+**Answer**
 
-```csharp
-await using var conn = new SqlConnection(cs);
-await conn.OpenAsync();
-await using var tx = (SqlTransaction)await conn.BeginTransactionAsync();
-try
-{
-    // assign cmd.Transaction = tx; ExecuteNonQueryAsync...
-    await tx.CommitAsync();
-}
-catch { await tx.RollbackAsync(); throw; }
-```
-
-- All participating commands must share the same connection and the same transaction instance.
-- `Rollback` undoes work since `BeginTransaction` on that connection.
-- Nested transactions use savepoints on some providers; SQL Server `BEGIN TRAN` nesting behaves differently from `TransactionScope`.
+Open a connection, call `BeginTransaction()` to get a `SqlTransaction`, assign it to each command's `Transaction` property, execute all commands inside `try`, then call `Commit()` on success or `Rollback()` in `catch` before rethrowing. Dispose the transaction object when finished — `await using` handles this cleanly in async code. All participating commands must share both the same connection and the same transaction instance.
 
 ---
 
 ### Q3. Why must all commands in a transaction share the same connection?
 
-Why must all commands in a transaction share the same connection?
+**Concepts**
+- Transaction bound to a single database session
+- Separate pooled connections are independent sessions
+- Atomicity across sessions requires distributed transaction coordinator
+- EF Core enforces the same rule on its underlying connection
 
-**Answer:** A transaction is bound to a single database session — SQL Server transaction context does not span two physical connections from the pool. Assigning the same `SqlTransaction` to commands on different connections is invalid and will fail or produce undefined behavior.
+**Answer**
 
-- Each pooled connection is an independent session; atomicity cannot cross sessions without a distributed transaction coordinator.
-- Pattern: one `using` connection, one transaction, multiple commands on that connection.
-- Parallel async commands on one connection still serialize at the protocol level unless MARS is enabled — design sequential steps for clarity.
-- EF Core wraps the same rule: `BeginTransactionAsync` on the context's underlying connection applies to subsequent saves on that context instance.
+A transaction is bound to a single database session — SQL Server's transaction context does not span multiple physical connections from the pool. Each pooled connection is an independent session, so atomicity cannot cross sessions without an expensive distributed transaction coordinator. The standard pattern is one `using` connection, one transaction, and multiple sequential commands all assigned to that transaction.
 
 ---
 
 ### Q4. What is `TransactionScope`, and how does it differ from `SqlTransaction`?
 
-What is `TransactionScope`, and how does it differ from `SqlTransaction`?
+**Concepts**
+- `TransactionScope`: ambient transaction, can escalate to distributed
+- `SqlTransaction`: lightweight, single-connection, explicit
+- `Complete()` to commit; dispose without Complete = rollback
+- Distributed transactions discouraged in modern cloud/microservices
 
-**Answer:** `TransactionScope` is a `System.Transactions` API that marks a block of code as transactional and can escalate to a distributed transaction when multiple connections or resource managers enlist. `SqlTransaction` is a lightweight, single-connection transaction tied explicitly to one ADO.NET connection.
+**Answer**
 
-- `TransactionScope` supports ambient transactions across multiple databases if distributed transaction support is enabled — heavier and often discouraged in modern cloud apps.
-- `SqlTransaction` is simpler, faster, and preferred for single-database ADO.NET work in ASP.NET Core.
-- `TransactionScope` requires `Complete()` to commit; disposing without `Complete` rolls back.
-- Many teams avoid distributed transactions in microservices; use sagas or outbox patterns instead.
+`TransactionScope` is a `System.Transactions` API that marks a code block as transactional and can escalate to a distributed transaction when multiple connections or resource managers enlist. `SqlTransaction` is a lightweight, single-connection transaction tied explicitly to one ADO.NET connection. `SqlTransaction` is simpler and faster for single-database work in ASP.NET Core; distributed `TransactionScope` is discouraged in cloud apps — use sagas or outbox patterns instead.
 
 ---
 
 ### Q5. What is a pool exhaustion error, and what typically causes it?
 
-What is a pool exhaustion error, and what typically causes it?
+**Concepts**
+- All pool slots occupied past the timeout window
+- Undisposed connections/readers and long-held transactions
+- Error surfaces at `Open`, not at the original leak
+- Fix: prompt disposal and short transaction lifetime
 
-**Answer:** Pool exhaustion happens when no pooled connection is free within the timeout window — commonly because connections or readers were not disposed, or because long transactions hold slots during traffic spikes. The error surfaces at `Open`, not at the original leak site, which makes diagnosis harder.
+**Answer**
 
-- Same root causes as Chapter 02 Q6: leaks, long-running commands, and blocking locks extend checkout duration.
-- Transactions that stay open across await points in request handlers tie up connections longer than necessary.
-- Fixing disposal and keeping transactions short resolves most cases without raising `Max Pool Size`.
-- Monitor correlation between active transactions, pool count, and application request concurrency.
+Pool exhaustion happens when no pooled connection is free within the timeout window — commonly because connections or readers were not disposed, or because long transactions hold slots during traffic spikes. The error surfaces at `Open` rather than at the original leak site, which makes diagnosis harder. Fixing disposal and keeping transactions short resolves most cases without raising `Max Pool Size`.
 
 ---
 
 ### Q6. What isolation levels exist, and why do they matter?
 
-What isolation levels exist, and why do they matter?
+**Concepts**
+- READ UNCOMMITTED, READ COMMITTED (default), REPEATABLE READ, SNAPSHOT, SERIALIZABLE
+- Lower levels allow dirty reads / phantoms but reduce blocking
+- SNAPSHOT uses row versioning, no shared read locks
+- Set via `BeginTransaction(IsolationLevel)` in ADO.NET
 
-**Answer:** Isolation levels control how much one transaction sees of another's uncommitted or in-flight changes — trading consistency for concurrency. SQL Server supports READ UNCOMMITTED, READ COMMITTED (default), REPEATABLE READ, SNAPSHOT, and SERIALIZABLE, set via `BeginTransaction(IsolationLevel)`.
+**Answer**
 
-- Lower levels allow dirty reads, non-repeatable reads, or phantoms but reduce blocking.
-- REPEATABLE READ and SERIALIZABLE increase lock duration and deadlock risk under write-heavy load.
-- SNAPSHOT uses row versioning for consistent reads without shared locks on readers — popular for read-heavy apps when enabled at database level.
-- Pick the weakest level that preserves business rules; default READ COMMITTED suits most OLTP (online transaction processing) CRUD.
+Isolation levels control how much one transaction sees of another's uncommitted or in-flight changes, trading consistency for concurrency. SQL Server offers READ UNCOMMITTED, READ COMMITTED (default), REPEATABLE READ, SNAPSHOT, and SERIALIZABLE. Lower levels reduce blocking but allow phenomena like dirty reads; SERIALIZABLE prevents all anomalies at the cost of lock contention; SNAPSHOT provides consistent reads via row versioning without shared locks and is popular for read-heavy OLTP workloads.
 
 ---
 
 ### Q7. What is the correct pattern for rollback in a `try/catch` around ADO.NET transactions?
 
-What is the correct pattern for rollback in a `try/catch` around ADO.NET transactions?
+**Concepts**
+- Begin transaction after connection opens, before first command
+- `Commit()` only when all steps succeed
+- `Rollback()` in `catch` before rethrowing
+- `await using var tx` for async disposal
 
-**Answer:** Begin the transaction after the connection is open, execute all commands inside `try`, call `Commit` only when every step succeeds, and call `Rollback` in `catch` before rethrowing so callers know the operation failed. Use `finally` or `using` on the transaction object to dispose resources.
+**Answer**
 
-- Check `tx.Connection != null` before rollback — some providers null the connection after commit.
-- Do not commit after partial failure; a single exception should undo the whole unit of work.
-- Avoid swallowing exceptions without rollback — that leaves the connection in an aborted transaction state until rolled back.
-- `await using var tx` plus explicit `RollbackAsync` in `catch` matches async ASP.NET Core request patterns.
+Begin the transaction after the connection is open, execute all commands inside `try`, and call `Commit()` only when every step succeeds. In `catch`, call `Rollback()` before rethrowing so callers know the operation failed — swallowing exceptions without rollback leaves the connection in an aborted state. Use `await using var tx` and explicit `RollbackAsync` in `catch` for the cleanest async pattern in ASP.NET Core.
 
 ---
 
@@ -635,72 +665,71 @@ What is the correct pattern for rollback in a `try/catch` around ADO.NET transac
 
 ### Q1. What is a stored procedure, and why use one from ADO.NET?
 
-What is a stored procedure, and why use one from ADO.NET?
+**Concepts**
+- Precompiled T-SQL batch stored and invoked by name
+- Encapsulates complex SQL and centralizes tuning
+- EXEC permission without exposing underlying tables
+- Output parameters and multiple result sets as result contracts
 
-**Answer:** A stored procedure is a precompiled batch of T-SQL stored on the server and invoked by name. From ADO.NET it encapsulates complex SQL, centralizes performance tuning, and can expose a stable contract while underlying tables evolve.
+**Answer**
 
-- Grant EXEC on procedures instead of direct table access for tighter security boundaries.
-- Plans may be reused efficiently; heavy reporting logic runs close to data reducing round trips.
-- Output parameters and multiple result sets are natural fits for procedure result contracts.
-- Version and deploy procedures with database migration scripts alongside application releases.
+A stored procedure is a precompiled T-SQL batch stored on the server and invoked by name from ADO.NET. It encapsulates complex SQL, centralizes performance tuning close to the data, and enables granting `EXEC` permission without exposing underlying tables. Output parameters and multiple result sets integrate naturally with ADO.NET's `StoredProcedure` command type.
 
 ---
 
 ### Q2. How do you execute a stored procedure with `SqlCommand`?
 
-How do you execute a stored procedure with `SqlCommand`?
+**Concepts**
+- `CommandType.StoredProcedure` + procedure name in `CommandText`
+- Parameters match proc signature with explicit `SqlDbType`
+- `ParameterDirection.Input`/`Output`/`ReturnValue` for each param
+- Async variants: `ExecuteReaderAsync`, `ExecuteNonQueryAsync`
 
-**Answer:** Set `CommandType = CommandType.StoredProcedure`, assign the procedure name to `CommandText`, add parameters matching the signature, then call `ExecuteReader`, `ExecuteNonQuery`, or `ExecuteScalar` as appropriate. Input parameters use `ParameterDirection.Input`; output and return values need explicit direction.
+**Answer**
 
-```csharp
-cmd.CommandType = CommandType.StoredProcedure;
-cmd.CommandText = "dbo.GetProductById";
-cmd.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int) { Value = id });
-await using var reader = await cmd.ExecuteReaderAsync();
-```
-
-- Parameter names must match the procedure definition including `@` prefix conventions.
-- Do not embed `EXEC dbo.Proc @x` as text when `StoredProcedure` mode is cleaner and safer.
-- Async variants mirror sync: `ExecuteReaderAsync`, `ExecuteNonQueryAsync`.
+Set `CommandType = CommandType.StoredProcedure`, assign the procedure name to `CommandText`, add `SqlParameter` objects matching the signature with explicit `SqlDbType`, then call the appropriate `Execute*` method. Input parameters use `ParameterDirection.Input`; output parameters and return values require explicit direction set before execution and their `.Value` read afterward. Parameter names must match the procedure definition including the `@` prefix.
 
 ---
 
 ### Q3. What is the difference between output parameters and return values (`ReturnValue`)?
 
-What is the difference between output parameters and return values (`ReturnValue`)?
+**Concepts**
+- Output parameters: `OUTPUT` keyword, named `@param` slots
+- `ReturnValue`: separate integer channel, T-SQL `RETURN n`
+- Multiple output params supported; only one return value per call
+- Convention: outputs for data, return value for status codes
 
-**Answer:** Output parameters are declared with `OUTPUT` in the procedure and pass values back through named `@param` slots after execution. The procedure return value is a separate integer channel accessed by adding a parameter with `Direction = ParameterDirection.ReturnValue` — often used for status codes, not business data.
+**Answer**
 
-- Output: `cmd.Parameters.Add("@Total", SqlDbType.Decimal).Direction = ParameterDirection.Output;` read `.Value` after execute.
-- Return value: `var ret = new SqlParameter("@RET", SqlDbType.Int) { Direction = ParameterDirection.ReturnValue };` maps to T-SQL `RETURN 0`.
-- Multiple outputs are supported; only one return value exists per procedure call.
-- Prefer output parameters for result data; reserve RETURN for success/failure codes consistent with C-style APIs.
+Output parameters are declared `OUTPUT` in the procedure signature and pass values back through named `@param` slots — read from `.Value` after execution. The procedure return value is a separate integer channel (`RETURN 0`) accessed via `ParameterDirection.ReturnValue`, conventionally used for status codes rather than business data. Multiple output parameters are supported; there is only one return value per procedure call.
 
 ---
 
 ### Q4. When are stored procedures preferred over inline SQL in ADO.NET?
 
-When are stored procedures preferred over inline SQL in ADO.NET?
+**Concepts**
+- DBA-owned tuned access paths and stable permission surface
+- High-volume batches benefit from server-side execution
+- Multi-client database contracts via procedure signatures
+- Inline SQL suits simple CRUD and rapidly changing queries
 
-**Answer:** Prefer procedures when DBAs own tuned access paths, when you need stable permissions on a narrow API surface, or when batches are large and benefit from server-side execution without shipping text every call. Inline SQL suits simple CRUD, rapidly changing queries, and teams that version SQL entirely in application code.
+**Answer**
 
-- High-volume operations already optimized as procedures with hints and indexed views.
-- Security models that deny SELECT on tables but allow EXEC on vetted procedures.
-- Applications sharing the same database with multiple clients — procedures define one contract.
-- Simple parameterized SELECTs from repositories are often clearer as inline SQL or Dapper for transparency and code review.
+Prefer stored procedures when DBAs own optimized access paths, when a narrow `EXEC`-only permission model is required, or when large batches benefit from server-side execution without shipping SQL text every call. Inline SQL is cleaner for simple CRUD, rapidly changing queries, and teams that version SQL entirely in application code for transparency and code review.
 
 ---
 
 ### Q5. What are the trade-offs of putting business logic in stored procedures versus C#?
 
-What are the trade-offs of putting business logic in stored procedures versus C#?
+**Concepts**
+- Procs: close to data, multi-client enforcement, hard to unit test
+- C#: testable, source-controlled, integrated with DI and domain model
+- T-SQL branching harder to refactor than C# service classes
+- Pragmatic split: set operations in SQL, orchestration in C#
 
-**Answer:** Stored procedures keep logic close to data, reduce round trips, and can enforce rules regardless of which client connects, but they are harder to unit test, version with application code, and debug in typical .NET toolchains. C# logic benefits from source control cohesion, test frameworks, and domain-driven design at the cost of more network chatter if implemented naively.
+**Answer**
 
-- Complex branching in T-SQL is harder to refactor and review than equivalent C# services.
-- Migrations and CI pipelines must deploy procedure changes separately or via embedded SQL scripts.
-- Some rules (validation, authorization against external systems) cannot live purely in the database.
-- Pragmatic split: data-intensive set operations in SQL; orchestration, external integration, and domain rules in application code.
+Stored procedures run logic close to data, reduce round trips, and enforce rules regardless of which client connects, but they are harder to unit test, version alongside application code, and debug in typical .NET toolchains. C# business logic benefits from test frameworks, dependency injection, and domain-driven design, though naively implemented it can generate more network round trips. The pragmatic split is data-intensive set operations in SQL and orchestration, validation, and external integration in application code.
 
 ---
 
@@ -708,89 +737,85 @@ What are the trade-offs of putting business logic in stored procedures versus C#
 
 ### Q1. Why should database I/O be async in ASP.NET Core request handlers?
 
-Why should database I/O be async in ASP.NET Core request handlers?
+**Concepts**
+- Database calls are network I/O-bound, not CPU-bound
+- Async frees thread pool threads during the await
+- Kestrel reuses threads; blocking reduces throughput
+- Sync-over-async causes thread pool starvation under load
 
-**Answer:** Database calls are network I/O-bound — threads should not block waiting for SQL Server to respond. Async ADO.NET (`OpenAsync`, `ExecuteReaderAsync`, etc.) frees thread pool threads to serve other requests while the current operation awaits the database, improving scalability under concurrent load.
+**Answer**
 
-- ASP.NET Core handles many simultaneous connections with a small thread pool; blocking threads on I/O reduces throughput.
-- Async end-to-end from endpoint through repository lets Kestrel reuse threads during awaits.
-- Sync ADO.NET under load increases latency and can cause thread pool starvation before CPU saturates.
-- Async does not make a single query faster — it improves how many queries the server handles at once.
+Database calls are network I/O-bound — a thread blocking on SQL Server response is wasted when it could serve other requests. Async ADO.NET (`OpenAsync`, `ExecuteReaderAsync`) frees the thread pool thread during the database wait, letting Kestrel reuse it for concurrent requests. Sync ADO.NET under load causes thread pool starvation and rising latency before CPU saturates — async does not speed up a single query but improves how many the server handles concurrently.
 
 ---
 
 ### Q2. What does `await using` provide when working with connections and readers?
 
-What does `await using` provide when working with connections and readers?
+**Concepts**
+- Asynchronously disposes `IAsyncDisposable` without blocking
+- Guaranteed cleanup on exception paths
+- Nested `await using` enforces correct connection → reader release order
+- Materialize results before leaving `await using` scope
 
-**Answer:** `await using` asynchronously disposes `IAsyncDisposable` resources such as `SqlConnection`, `SqlCommand`, and `SqlDataReader`, ensuring cleanup completes without blocking a thread on network flush operations. Combined with `try`/`finally` semantics, disposal runs even when exceptions interrupt reading.
+**Answer**
 
-- Prefer `await using var conn = new SqlConnection(cs)` in async methods throughout the stack.
-- Nested `await using` for reader inside connection guarantees correct release order.
-- Returning a deferred `IEnumerable` that still holds an open reader requires the caller to complete enumeration before disposal — materialize inside the method when possible.
-- Mixing sync `using` works but `Dispose()` may block; async disposal is cleaner in async-only code paths.
+`await using` asynchronously disposes `IAsyncDisposable` resources such as `SqlConnection`, `SqlCommand`, and `SqlDataReader`, ensuring cleanup completes without blocking a thread pool thread on network flush. Combined with `try`/`finally` semantics, disposal runs even when exceptions interrupt reading. Materialize results to `List<T>` inside the `await using` scope before returning — returning a deferred enumerable that holds an open reader causes failures when the caller iterates after disposal.
 
 ---
 
 ### Q3. What problems arise from calling `.Result` or `.Wait()` on async ADO.NET operations?
 
-What problems arise from calling `.Result` or `.Wait()` on async ADO.NET operations?
+**Concepts**
+- Sync-over-async: thread blocks idle while I/O waits
+- Thread pool queue growth and cascading latency under load
+- Deadlock when continuation needs the blocked thread
+- Fix: make entire call stack `async Task` and await through
 
-**Answer:** Blocking on incomplete async tasks causes sync-over-async: a thread pool thread waits idle while I/O could have released it, reducing throughput and increasing deadlock risk when an synchronization context captures the blocked thread. In ASP.NET Core, `.Result` on repository async methods under load is a common source of thread pool queue growth and timeouts.
+**Answer**
 
-- ASP.NET Core has no legacy `AspNetSynchronizationContext`, but blocking still wastes threads and can cascade under burst traffic.
-- Deadlocks appear when blocked code waits on continuations that need the same blocked thread.
-- Fix by making controllers and endpoints `async Task` and awaiting through to ADO.NET calls.
-- Library code should use `ConfigureAwait(false)` internally; application code awaits normally without forcing sync.
+Calling `.Result` or `.Wait()` on async ADO.NET operations blocks a thread pool thread while I/O waits — that thread is wasted and unavailable for other requests. Under burst traffic this causes thread pool queue growth and cascading latency. Deadlocks can occur when a blocked thread awaits a continuation that needs the same thread. The fix is making controllers, repositories, and all intermediaries `async Task` and awaiting through to the ADO.NET calls.
 
 ---
 
 ### Q4. What is `CancellationToken` support in async ADO.NET methods?
 
-What is `CancellationToken` support in async ADO.NET methods?
+**Concepts**
+- `OpenAsync`, `ExecuteReaderAsync`, `ReadAsync` all accept a token
+- Pass `HttpContext.RequestAborted` from ASP.NET Core endpoints
+- Cancellation throws `OperationCanceledException`
+- Tokens do not auto-rollback transactions
 
-**Answer:** Async ADO.NET methods accept an optional `CancellationToken` that signals when the client disconnected or a timeout fired, allowing the provider to cancel the pending network operation and close the command. Pass `HttpContext.RequestAborted` from ASP.NET Core endpoints into repository methods.
+**Answer**
 
-- `OpenAsync(cancellationToken)`, `ExecuteReaderAsync(cancellationToken)`, and `ReadAsync(cancellationToken)` honor cooperative cancellation.
-- Cancellation throws `OperationCanceledException` — distinguish from SQL errors in exception handling.
-- Without a token, aborted HTTP requests may continue running SQL until command timeout completes.
-- Tokens do not automatically roll back transactions — pair cancellation with explicit rollback in `catch`.
+Async ADO.NET methods accept an optional `CancellationToken` that signals client disconnect or timeout, allowing the provider to cancel the pending network operation. Pass `HttpContext.RequestAborted` from ASP.NET Core endpoints through repository methods into `OpenAsync`, `ExecuteReaderAsync`, and `ReadAsync`. Cancellation throws `OperationCanceledException` — handle it separately from SQL errors, and remember that cancellation does not automatically roll back an in-flight transaction.
 
 ---
 
 ### Q5. What is the recommended async pattern for opening a connection, executing a command, and reading results?
 
-What is the recommended async pattern for opening a connection, executing a command, and reading results?
+**Concepts**
+- Nested `await using` for connection, command, reader
+- `OpenAsync` → `ExecuteReaderAsync` → `ReadAsync` chain
+- Pass `CancellationToken` through each step
+- Materialize to `List<T>` before connection closes
 
-**Answer:** Use nested `await using` declarations: open the connection asynchronously, create the command, execute the reader asynchronously, then loop with `ReadAsync` until false — passing `CancellationToken` through each step. Map columns to DTOs inside the read loop and return materialized results before leaving the method scope.
+**Answer**
 
-```csharp
-await using var conn = new SqlConnection(cs);
-await conn.OpenAsync(ct);
-await using var cmd = new SqlCommand(sql, conn);
-await using var reader = await cmd.ExecuteReaderAsync(ct);
-while (await reader.ReadAsync(ct)) { /* map row */ }
-```
-
-- Keep the entire chain async — no `.Result` at any layer.
-- Parameterize the command before execution.
-- Materialize to `List<T>` before returning if the caller needs data after the connection closes.
-- One connection per unit of work unless transaction scope requires otherwise.
+Use nested `await using` declarations: open the connection with `OpenAsync(ct)`, create and parameterize the command, execute with `ExecuteReaderAsync(ct)`, then loop with `while (await reader.ReadAsync(ct))` mapping columns to DTOs. Materialize results to `List<T>` before the method scope closes so the caller has data after the connection is disposed. Keep the entire chain async — no `.Result` at any layer.
 
 ---
 
 ### Q6. When is synchronous ADO.NET still acceptable?
 
-When is synchronous ADO.NET still acceptable?
+**Concepts**
+- Console tools, one-off migrations, local scripts
+- Single-threaded batch jobs with no concurrent pressure
+- Integration test setup/teardown for brevity
+- Never sync from ASP.NET Core request threads
 
-**Answer:** Sync ADO.NET remains fine for console tools, one-off migrations, local scripts, and startup configuration where no concurrent request pressure exists and simplicity outweighs scalability concerns. Background workers with dedicated threads and low parallelism can also use sync APIs if they never block ASP.NET Core request threads.
+**Answer**
 
-- Local development utilities and integration test setup/teardown often use sync calls for brevity.
-- Single-threaded batch jobs that process sequentially may not benefit from async overhead.
-- Never call sync ADO.NET from ASP.NET Core request threads when async alternatives exist — that is where the scalability cost appears.
-- If a sync API must run inside a web app, offload to `Task.Run` only as a last resort — prefer true async I/O instead.
-
----
+Sync ADO.NET is fine for console tools, one-off migrations, local scripts, and integration test setup where no concurrent request pressure exists. Single-threaded batch jobs that process sequentially also see minimal benefit from async overhead. Never call sync ADO.NET from ASP.NET Core request threads when async alternatives exist — that is where the scalability cost appears; use `Task.Run` only as a last resort for legacy APIs that cannot be made async.
 
 ---
 
