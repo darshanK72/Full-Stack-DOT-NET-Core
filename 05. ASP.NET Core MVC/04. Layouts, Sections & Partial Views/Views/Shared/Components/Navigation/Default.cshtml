@@ -1,0 +1,41 @@
+@*
+ * FILE ROLE: The Razor view rendered by NavigationViewComponent.
+ *            Receives NavItem[] as its @Model (set by InvokeAsync → View(items)).
+ * SECTIONS IN THIS FILE:
+ *   1. ViewComponent view — how it differs from a partial view
+ *@
+
+@*
+ * SECTION 1: VIEWCOMPONENT VIEW
+ *
+ * This file is the "view" half of NavigationViewComponent.
+ *
+ * Resolution:
+ *   Razor looks for the view at (in order):
+ *     1. Views/<Controller>/Components/Navigation/Default.cshtml
+ *     2. Views/Shared/Components/Navigation/Default.cshtml  ← this file
+ *
+ * The name "Default.cshtml" is the convention when ViewComponent.View(model)
+ * is called without a view name.  To use a named view:
+ *   C#:   return View("Compact", items);
+ *   File: Views/Shared/Components/Navigation/Compact.cshtml
+ *
+ * @model here refers to the object returned by InvokeAsync's View(model) call,
+ * NOT the invoking page's @Model.  The ViewComponent is fully isolated.
+ *
+ * ViewData is still shared at the request level — same behaviour as partials.
+ *@
+@model NavItem[]
+
+<nav class="vc-nav" aria-label="Component navigation">
+    <strong>ViewComponent Navigation:</strong>
+    <ul>
+        @foreach (NavItem item in Model)
+        {
+            <li>
+                <a href="@item.Href"
+                   class="@(item.IsActive ? "active" : string.Empty)">@item.Label</a>
+            </li>
+        }
+    </ul>
+</nav>

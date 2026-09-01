@@ -1,0 +1,98 @@
+@*
+ * FILE ROLE: _Layout.cshtml is the shared page frame rendered around every full
+ *            view in this chapter. Its key contribution to the AJAX tutorial is
+ *            the antiforgery token meta tag (SECTION 14) that enables JSON POST
+ *            requests to retrieve and send the CSRF token via a request header.
+ *
+ * SECTIONS IN THIS FILE:
+ *   14. Antiforgery Meta Tag — surfacing the CSRF token for JavaScript
+ *@
+
+@*
+ * SECTION 14: ANTIFORGERY META TAG — SURFACING THE CSRF TOKEN FOR JAVASCRIPT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * When AJAX sends JSON (Content-Type: application/json), there is no HTML form
+ * body, so the hidden __RequestVerificationToken field from @Html.AntiForgeryToken()
+ * is not available. JavaScript must retrieve the token value from somewhere else
+ * and send it in a request header instead.
+ *
+ * THE META TAG PATTERN:
+ *   1. Server injects the token into <meta name="csrf-token" content="TOKEN_VALUE">
+ *      in the layout, so it is available on every page automatically.
+ *   2. JavaScript reads: document.querySelector('meta[name="csrf-token"]').content
+ *   3. JavaScript sets the header on fetch: 'RequestVerificationToken': tokenValue
+ *   4. [ValidateAntiForgeryToken] reads it from the request header (not the form body)
+ *
+ * GENERATING THE TOKEN VALUE (NOT the hidden input):
+ *   @Html.AntiForgeryToken()                 → full <input type="hidden" …> element
+ *   Antiforgery.GetAndStoreTokens(Context)   → AntiforgeryTokenSet with .RequestToken string
+ *
+ *   GetAndStoreTokens() also ensures the cookie token is set on the response,
+ *   so calling it in the layout guarantees the cookie is always present for the
+ *   page — even on first load before any form has been submitted.
+ *
+ * WHY @inject (not just @using):
+ *   IAntiforgery is an ASP.NET Core service. @inject resolves it from the DI
+ *   container at render time, same as constructor injection but in a Razor file.
+ *   The @using Microsoft.AspNetCore.Antiforgery in _ViewImports.cshtml allows
+ *   the short type name IAntiforgery here instead of the full namespace.
+ *
+ * COOKIE + TOKEN PAIR:
+ *   ASP.NET Core antiforgery uses a DOUBLE-SUBMIT COOKIE pattern:
+ *     Cookie token  — set as a cookie by the server; cannot be read cross-origin
+ *     Request token — embedded in the form or meta tag; sent back in the POST
+ *   The server validates that both tokens are present and cryptographically related.
+ *   This prevents CSRF because an attacker's site cannot read your cookie token.
+ *@
+
+@inject IAntiforgery Antiforgery
+@{
+    var tokens = Antiforgery.GetAndStoreTokens(Context); // generates & stores cookie + returns request token
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — AJAX & Partial Page Updates</title>
+
+    @* Antiforgery token in a meta tag — read by JavaScript for JSON POST requests *@
+    @* tokens.RequestToken is the string value; content attribute makes it readable by JS *@
+    <meta name="csrf-token" content="@tokens.RequestToken" />
+
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 1rem; }
+        h1 { border-bottom: 2px solid #0078d4; padding-bottom: .4rem; }
+        h2 { color: #0078d4; }
+        .demo-section { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem; }
+        .product-card { border: 1px solid #ccc; border-radius: 4px; padding: .75rem; margin-bottom: .5rem; background: #f9f9f9; }
+        .product-card.optimistic { opacity: .6; border-style: dashed; }
+        .product-card.confirmed { border-color: #28a745; }
+        .in-stock { color: #28a745; font-weight: bold; }
+        .out-of-stock { color: #dc3545; font-weight: bold; }
+        .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #ccc; border-top-color: #0078d4; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+        @@keyframes spin { to { transform: rotate(360deg); } }
+        .error-msg { color: #dc3545; }
+        .success-msg { color: #28a745; }
+        .badge { display: inline-block; padding: .2rem .5rem; background: #e0efff; border-radius: 12px; font-size: .8rem; margin-right: .3rem; }
+        label { display: block; margin-bottom: .3rem; }
+        input[type=text], input[type=number] { padding: .3rem; border: 1px solid #ccc; border-radius: 3px; }
+        button { padding: .35rem .8rem; background: #0078d4; color: #fff; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005fa3; }
+        pre { background: #f4f4f4; padding: .75rem; border-radius: 4px; overflow-x: auto; font-size: .85rem; }
+        nav a { margin-right: 1rem; color: #0078d4; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/Products/ProductList">All Products</a>
+        <a href="/Products/ProductList?category=Electronics">Electronics</a>
+        <a href="/Products/ProductList?category=Office">Office</a>
+    </nav>
+
+    <main>
+        @RenderBody()
+    </main>
+</body>
+</html>

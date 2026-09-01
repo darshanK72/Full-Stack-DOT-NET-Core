@@ -1,0 +1,128 @@
+@*
+ * FILE ROLE: Server-rendered Razor view for HomeController.Index().
+ *   Demonstrates the "V" in MVC — a Razor template that receives a typed
+ *   ViewModel from the controller and renders it as HTML. This file shows
+ *   the @model directive, Razor syntax fundamentals, and how a child view
+ *   participates in a shared layout.
+ *
+ * SECTIONS IN THIS FILE:
+ *   SECTION 14: View — Razor syntax and view discovery
+ *               (sub-sections: 14a @model directive, 14b Razor syntax,
+ *                              14c view/layout relationship)
+ *
+ * VIEW DISCOVERY: this file is found by convention at
+ *   Views/{ControllerName}/{ActionName}.cshtml
+ *   → Views/Home/Index.cshtml  (for HomeController.Index())
+ *   See SECTION 9 in Program.cs for the full discovery chain.
+ *
+ * COVERED IN DETAIL LATER → 03. Views & Razor Syntax
+ *@
+
+@*
+ * --- 14a. @model DIRECTIVE — STRONGLY TYPED VIEW ---
+ *
+ * @model declares the type of the Model property for this view.
+ * The Razor compiler generates a typed Model property on the page class:
+ *   public ProductViewModel Model { get; }
+ *
+ * Benefits of strong typing:
+ *   IntelliSense    @Model. triggers the IDE to list ProductViewModel properties
+ *   Compile-time    @Model.Nme fails to compile (typo caught early, not at runtime)
+ *   Refactoring     renaming a property in the class updates all views in a rename
+ *   Validation      Tag Helpers read model metadata for asp-for attributes
+ *
+ * Without @model, Model is typed as dynamic — runtime exceptions replace
+ * compile errors; no IntelliSense; no Tag Helper metadata.
+ *
+ * The controller passes the instance with:  return View(model);
+ * See Controllers/HomeController.cs SECTION 12b for the controller side.
+ *@
+@model IntroductionToMvc.Models.ProductViewModel
+
+@*
+ * --- 14b. RAZOR SYNTAX — EMBEDDING C# IN HTML ---
+ *
+ * Razor transitions between HTML and C# using the @ character:
+ *
+ *   Syntax                      Purpose
+ *   ──────────────────────────  ────────────────────────────────────────────────
+ *   @expression                 Inline expression — HTML-encoded automatically
+ *   @{ statement block }        Multi-statement C# code block; no output
+ *   @if (...) { }               Control flow — conditional markup
+ *   @foreach (var x in list) {} Iteration — render HTML for each item
+ *   @Model.Property             Access the typed ViewModel (see 14a)
+ *   @ViewData["Key"]            Read the ViewData dictionary
+ *   @Html.DisplayFor(m => m.P)  HTML helper — renders a display template
+ *   <tag asp-*="...">           Tag Helper — modern preferred alternative
+ *
+ * HTML ENCODING:
+ *   @Model.Name         — HTML-encoded: < becomes &lt;, & becomes &amp; (safe)
+ *   @Html.Raw(str)      — raw output, NOT encoded (dangerous with user input; avoid)
+ *
+ * The @{ ... } block at the top of the view runs before rendering. It is the
+ * right place to set ViewData values that the layout reads (e.g. page title).
+ *
+ * COVERED IN DETAIL LATER → 03. Views & Razor Syntax
+ *@
+
+@{
+    Layout = "_Layout";                  // use Views/Shared/_Layout.cshtml as the page shell
+    ViewData["Title"] = "Product Details"; // read back by _Layout.cshtml <title> tag
+}
+
+<div class="container mt-4">
+    <h1 class="mb-3">@Model.Name</h1>  @* @Model.Property — HTML-encoded inline expression *@
+
+    <dl class="row">
+        <dt class="col-sm-3">Product ID</dt>
+        <dd class="col-sm-9">@Model.Id</dd>            @* int rendered as text *@
+
+        <dt class="col-sm-3">Category</dt>
+        <dd class="col-sm-9">@Model.Category</dd>      @* string — HTML-encoded automatically *@
+
+        <dt class="col-sm-3">Price</dt>
+        <dd class="col-sm-9">@Model.Price.ToString("C")</dd>   @* ToString("C") = currency format *@
+
+        <dt class="col-sm-3">Availability</dt>
+        <dd class="col-sm-9">
+            @* @if — Razor control flow: render different markup based on a bool property *@
+            @if (Model.IsAvailable)
+            {
+                <span class="badge bg-success">In Stock</span>
+            }
+            else
+            {
+                <span class="badge bg-danger">Out of Stock</span>
+            }
+        </dd>
+    </dl>
+</div>
+
+@*
+ * --- 14c. VIEW / LAYOUT RELATIONSHIP ---
+ *
+ * This view renders only the page body content (the <div> above).
+ * The full page shell — <html>, <head>, <body>, navigation, footer — comes
+ * from Views/Shared/_Layout.cshtml (SECTION 15 in that file).
+ *
+ * HOW THE LAYOUT IS APPLIED:
+ *   Layout = "_Layout" (set in the @{ } block above) tells Razor to wrap
+ *   this view's output with the _Layout.cshtml shell.
+ *
+ *   In a real project, _ViewStart.cshtml (Views/_ViewStart.cshtml) sets
+ *   Layout = "_Layout" globally for every view, so individual views do not
+ *   need to repeat it. This project sets it explicitly for clarity.
+ *
+ * THE RENDERING SEQUENCE:
+ *   1. _Layout.cshtml renders the outer shell (head, nav, footer)
+ *   2. @RenderBody() in the layout is replaced with this view's compiled HTML
+ *   3. @RenderSection("scripts", required: false) in the layout is replaced
+ *      with any @section scripts { } block defined in this view (none here)
+ *
+ * VIEWDATA["Title"] FLOW:
+ *   This view sets:   ViewData["Title"] = "Product Details";
+ *   Layout reads:     <title>@ViewData["Title"]</title>
+ *   Result:           <title>Product Details</title> in the rendered HTML
+ *
+ * COVERED IN DETAIL LATER → 04. Layouts Sections & Partial Views
+ *@

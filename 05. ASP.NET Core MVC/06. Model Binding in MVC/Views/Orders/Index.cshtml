@@ -1,0 +1,47 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * VIEW: Orders/Index.cshtml — list of all in-memory orders.
+ * Not a binding demo view — serves as a landing page after form submissions.
+ * ═══════════════════════════════════════════════════════════════════════════════ *@
+@model System.Collections.Generic.List<CreateOrderViewModel>
+@{ ViewData["Title"] = "All Orders"; }
+
+<h2>All Orders (@Model.Count)</h2>
+
+@if (Model.Count == 0)
+{
+    <p>No orders yet. <a asp-action="Create">Create one.</a></p>
+}
+else
+{
+    <table border="1" cellpadding="4">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Order Date</th>
+                <th>Items</th>
+                <th>Tags</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Model.Count; i++)
+            {
+                var order = Model[i];
+                <tr>
+                    <td>@(i + 1)</td>
+                    <td>@order.CustomerName</td>
+                    <td>@order.CustomerEmail</td>
+                    <td>@(order.OrderDate?.ToString("yyyy-MM-dd") ?? "—")</td>
+                    <td>@order.Items.Count item(s)</td>
+                    <td>@string.Join(", ", order.Tags)</td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@(i + 1)">Details</a> |
+                        <a asp-action="Edit" asp-route-id="@(i + 1)">Edit</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

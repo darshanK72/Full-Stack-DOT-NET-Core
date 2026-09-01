@@ -1,0 +1,83 @@
+@*
+ * Products/Create.cshtml
+ * Form for creating a new product.  Demonstrates how ValidateModelActionFilter
+ * short-circuits back to this view when ModelState is invalid — the form fields
+ * retain their values and asp-validation-for spans display the error messages.
+ *
+ * ValidateModelActionFilter calls controller.View("Create", model) on failure,
+ * which re-renders THIS view with the bound model and preserved ModelState errors.
+ * No @Html.AntiForgeryToken() is needed because the asp-action Tag Helper
+ * automatically emits the hidden __RequestVerificationToken field.
+ *@
+
+@model ProductViewModel
+@{
+    ViewData["Title"] = "Create Product";
+}
+
+<div class="row">
+    <div class="col-md-6">
+        <h2>Create Product</h2>
+
+        @*
+         * asp-validation-summary="ModelOnly" shows model-level errors (not property errors).
+         * Property errors are shown inline by asp-validation-for on each input.
+         *@
+        <form asp-action="Create" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Price" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input asp-for="Price" class="form-control" />
+                </div>
+                <span asp-validation-for="Price" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Description" class="text-danger small"></span>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Create</button>
+                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card bg-light mt-4">
+            <div class="card-body">
+                <h6 class="card-title">Filter Demo Notes</h6>
+                <ul class="small mb-0">
+                    <li>Submit with empty Name → <strong>ValidateModelActionFilter</strong> short-circuits (server-side)</li>
+                    <li>Submit valid form → <strong>PerformanceActionFilter</strong> adds <code>X-Action-Ms</code> response header</li>
+                    <li>Both actions are logged by the global <strong>AuditActionFilter</strong></li>
+                    <li>ETag + Cache-Control headers added by controller-level <strong>ETagResourceFilter</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @* jQuery Validation + Unobtrusive — enables client-side validation from Data Annotations *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+            integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.20.0/jquery.validate.min.js"
+            integrity="sha512-TgRGINQMSB3Q0W+4AiMWpXMnJDFl1cKxDGnGqSl4PN8ntEYFzDT7JAi0j1YkK+h/pgb3mVUq7bSzTekI96kxA=="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"
+            integrity="sha512-xq+Vm4SfQHfMrKGCB0I3gy0MtNbJhF/SuNNQ4gCYE5GRLbxwJMilOZNEBWdmMDI6bHSdgXfBNVzlEbv//rDA=="
+            crossorigin="anonymous"></script>
+}

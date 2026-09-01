@@ -1,0 +1,159 @@
+@*
+ * Register.cshtml — REGISTRATION FORM
+ *
+ * FILE ROLE: Teaches how validation Tag Helpers render data-valmsg-* attributes
+ *            and how the @section Scripts pattern loads validation scripts per-page.
+ *
+ * SECTIONS IN THIS FILE:
+ *   6. Validation Tag Helpers
+ *      6a. asp-validation-summary → data-valmsg-summary
+ *      6b. asp-validation-for     → data-valmsg-for
+ *      6c. @section Scripts       → per-page validation script loading
+ *@
+@model RegistrationViewModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<h2>Create an Account</h2>
+
+@*
+ * SECTION 6: VALIDATION TAG HELPERS
+ *
+ * Tag Helpers in this file require:
+ *   @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers  (in _ViewImports.cshtml)
+ *
+ * asp-action / asp-controller on <form>:
+ *   Generates action="..." using the routing system — no hardcoded URLs.
+ *   The form also gets an automatically-inserted hidden __RequestVerificationToken field
+ *   (required by [ValidateAntiForgeryToken] on the POST action).
+ *@
+
+@* --- 6a. asp-validation-summary → data-valmsg-summary ---
+ *
+ * asp-validation-summary renders a <div> that aggregates all model errors.
+ * Values:
+ *   ValidationSummary.All        — shows ALL model and property errors
+ *   ValidationSummary.ModelOnly  — shows only model-level errors (not per-field ones)
+ *   ValidationSummary.None       — suppresses the summary (remove the tag entirely instead)
+ *
+ * ModelOnly is the standard choice: per-field errors are shown inline via asp-validation-for.
+ * "All" is useful for debugging but leads to duplicate messages.
+ *
+ * Rendered HTML:
+ *   <div class="validation-summary-errors" data-valmsg-summary="true">
+ *       <ul><li>The UserName field is required.</li></ul>
+ *   </div>
+ *   When valid (no errors), the div has class "validation-summary-valid" and is hidden.
+ *@
+<div asp-validation-summary="ModelOnly" class="text-danger validation-summary-errors"></div>
+
+<form asp-action="Register" asp-controller="Account" method="post">
+
+    @* --- 6b. asp-validation-for → data-valmsg-for ---
+     *
+     * asp-for on <input> generates:
+     *   id="UserName"  name="UserName"  (used by model binding)
+     *   type="text"  (inferred from the property type)
+     *   data-val="true"  data-val-required="..."  data-val-length="..."  etc.
+     *   (all DataAnnotation attributes on the property are rendered automatically)
+     *
+     * asp-validation-for on <span> generates:
+     *   data-valmsg-for="UserName"
+     *   data-valmsg-replace="true"
+     *   class="field-validation-valid"  (or "field-validation-error" when invalid)
+     *
+     * jquery.validate.unobtrusive reads data-valmsg-for and data-valmsg-replace.
+     * When validation fails it:
+     *   1. Sets the span's class to "field-validation-error"
+     *   2. Replaces the span's text with the rule's error message
+     * When the field becomes valid it:
+     *   1. Sets the span's class back to "field-validation-valid"
+     *   2. Clears the span's text (because data-valmsg-replace="true")
+     *
+     * Server-side re-render:
+     *   When the POST action returns View(model) after a failed ModelState,
+     *   Razor reads ModelState errors and pre-populates the span text on the server,
+     *   so users with JS disabled still see the errors after form submit.
+     *@
+
+    <div class="form-group">
+        <label asp-for="UserName"></label>
+        <input asp-for="UserName" />
+        @* span will contain: data-valmsg-for="UserName" data-valmsg-replace="true" *@
+        <span asp-validation-for="UserName" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Email"></label>
+        <input asp-for="Email" />
+        @* [EmailAddress] adds data-val-email to the <input> *@
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Password"></label>
+        <input asp-for="Password" />
+        @* [StringLength] adds data-val-length + data-val-length-min + data-val-length-max *@
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="ConfirmPassword"></label>
+        <input asp-for="ConfirmPassword" />
+        @* [Compare("Password")] adds data-val-equalto + data-val-equalto-other="*.Password" *@
+        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Age"></label>
+        <input asp-for="Age" />
+        @* [Range(18, 120)] adds data-val-range + data-val-range-min="18" + data-val-range-max="120" *@
+        <span asp-validation-for="Age" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="PhoneNumber"></label>
+        <input asp-for="PhoneNumber" />
+        @* [RegularExpression] adds data-val-regex + data-val-regex-pattern="^\d{10}$" *@
+        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+    </div>
+
+    @*
+     * Dynamic fields demo — see Section 9 in _ValidationScriptsPartial.cshtml.
+     * A hidden container and a button illustrate how to re-parse dynamically injected fields.
+     * In a real app these fields arrive via AJAX (e.g. $.load() or fetch() + innerHTML).
+     *@
+    <div id="dynamic-fields-container"></div>
+    <button type="button" id="load-dynamic-fields" style="margin-bottom:1rem; background:#6c757d;">
+        Load Dynamic Field (demo — triggers Section 9)
+    </button>
+
+    <div>
+        <button type="submit">Register</button>
+    </div>
+</form>
+
+@*
+ * --- 6c. @section Scripts — per-page validation script loading ---
+ *
+ * @section Scripts fills the @RenderSection("Scripts") placeholder in _Layout.cshtml.
+ * Only views that have forms include this section — pages without forms do not load
+ * the validation scripts at all, keeping page weight minimal.
+ *
+ * <partial name="_ValidationScriptsPartial" /> renders the shared partial defined in
+ * Views/Shared/_ValidationScriptsPartial.cshtml which:
+ *   1. Loads jquery.validate.js from CDN (Section 7)
+ *   2. Loads jquery.validate.unobtrusive.js from CDN (Section 7)
+ *   3. Registers custom "futuredate" method + adapter (Section 8)
+ *   4. Demonstrates $.validator.unobtrusive.parse() for dynamic fields (Section 9)
+ *
+ * Alternatively you can inline scripts directly here for page-specific adapters:
+ *   @section Scripts {
+ *       <partial name="_ValidationScriptsPartial" />
+ *       <script> /* page-specific extra validation *\/ </script>
+ *   }
+ *@
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

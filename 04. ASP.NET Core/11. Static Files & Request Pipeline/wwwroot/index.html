@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Static Files Tutorial</title>
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <h1>ASP.NET Core — Static Files &amp; Request Pipeline</h1>
+  <p>
+    This file is served from <code>wwwroot/index.html</code> by
+    <code>UseStaticFiles()</code>. Because <code>UseDefaultFiles()</code>
+    is registered first, a request to <code>/</code> resolves here
+    without an explicit filename in the URL.
+  </p>
+  <p>
+    Navigate to <a href="/browse">/browse</a> to see the directory listing
+    (requires <code>UseDirectoryBrowser</code> in the pipeline).
+  </p>
+</body>
+</html>

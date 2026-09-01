@@ -1,0 +1,73 @@
+{
+  // FILE ROLE: Developer launch profiles — defines how 'dotnet run' and the IDE
+  //            start this application. This file lives in Properties/ and is
+  //            NEVER deployed to production; it is a development-time artifact only.
+  //            Open this file second (Chapter Map step 2).
+  //
+  // SECTIONS IN THIS FILE:
+  //   1. $schema       — JSON schema URI enabling IDE IntelliSense for this file
+  //   2. iisSettings   — IIS Express server settings (Windows only)
+  //   3. profiles.http — Kestrel (self-hosted, cross-platform) launch profile
+  //   4. profiles."IIS Express" — IIS Express launch profile (proxied, Windows)
+  //
+  // HOW 'dotnet run' CHOOSES A PROFILE:
+  //   dotnet run                       -> uses the first profile listed
+  //   dotnet run --launch-profile http -> explicitly selects the "http" profile
+  //   dotnet run --no-launch-profile   -> skips launchSettings.json entirely
+  //
+  // ENVIRONMENT VARIABLE INJECTION:
+  //   Each profile's "environmentVariables" block injects env vars into the
+  //   process before the app starts. This is how ASPNETCORE_ENVIRONMENT is set
+  //   to "Development" in dev without changing system environment variables.
+  //   Production machines set ASPNETCORE_ENVIRONMENT via the OS or container config.
+
+  // Section 1: Schema — enables VS / VS Code property auto-complete and validation
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+
+  // Section 2: IIS Express settings (Windows only)
+  // IIS Express is a lightweight version of IIS that acts as a reverse proxy:
+  // it handles HTTPS/SSL at the browser-facing port and forwards plain HTTP
+  // requests to the ASP.NET Core process on applicationUrl below.
+  "iisSettings": {
+    "windowsAuthentication": false,  // Windows/Kerberos auth — disabled for this tutorial
+    "anonymousAuthentication": true, // allow unauthenticated HTTP requests
+    "iisExpress": {
+      "applicationUrl": "http://localhost:60000", // internal port IIS Express forwards to Kestrel
+      "sslPort": 44300                            // browser-facing HTTPS port for IIS Express
+    }
+  },
+
+  "profiles": {
+
+    // Section 3: Kestrel / self-hosted profile — "commandName": "Project"
+    // This profile starts Kestrel directly inside the app process. It is the
+    // default for 'dotnet run', Linux, macOS, and all CI environments.
+    // Kestrel is ASP.NET Core's built-in, event-loop HTTP server (libuv/IOCP).
+    "http": {
+      "commandName": "Project",              // run the project's own executable (not IIS Express)
+      "dotnetRunMessages": true,             // print "Now listening on: http://localhost:5000"
+      "launchBrowser": true,                 // open default browser when Kestrel is ready
+      "launchUrl": "",                       // relative URL to open (empty = root /)
+      "applicationUrl": "http://localhost:5000", // Kestrel listening address
+      // environmentVariables injected before app startup:
+      "environmentVariables": {
+        // ASPNETCORE_ENVIRONMENT selects the appsettings.{Env}.json overlay.
+        // "Development" -> loads appsettings.Development.json on top of appsettings.json.
+        // Change to "Staging" or "Production" to test other environment layers locally.
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+
+    // Section 4: IIS Express profile — only functional on Windows with IIS Express installed.
+    // Visual Studio uses this by default when you press F5. The IDE starts the
+    // IIS Express process, which proxies to the ASP.NET Core app on the internal port.
+    "IIS Express": {
+      "commandName": "IISExpress",           // launch via IIS Express (VS manages the process)
+      "launchBrowser": true,
+      "launchUrl": "",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development" // same env selection as the Kestrel profile
+      }
+    }
+  }
+}

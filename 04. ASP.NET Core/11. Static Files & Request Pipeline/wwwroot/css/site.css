@@ -1,0 +1,16 @@
+/* site.css — placeholder stylesheet served from wwwroot/css/site.css
+ * UseStaticFiles resolves this path automatically because the file
+ * sits under wwwroot, which is the default web root.
+ * MIME type: text/css  (mapped by FileExtensionContentTypeProvider)
+ */
+
+body {
+    font-family: system-ui, sans-serif;
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    color: #222;
+}
+
+h1 { color: #0066cc; }
+code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; }

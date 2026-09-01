@@ -1,0 +1,199 @@
+@*
+   FILE ROLE: Demonstrates asset tag helpers (link, script, img with asp-append-version
+              and asp-src-include/exclude), the environment tag helper, the partial
+              tag helper, and the cache tag helper.
+
+   SECTIONS IN THIS FILE:
+     1. asp-append-version   — cache-busting on link, script, and img
+     2. asp-src-include/exclude — glob-based script/style bundling
+     3. environment tag helper  — conditional content by environment name
+     4. partial tag helper      — rendering partial views with optional model
+     5. cache tag helper        — output caching with expiry and vary-by options
+*@
+@{
+    ViewData["Title"] = "Asset Tag Helpers";
+}
+
+<h2>Asset Tag Helpers</h2>
+
+@* ============================================================
+   SECTION 1: asp-append-version — CACHE BUSTING
+   <link asp-append-version="true" href="~/css/site.css" />
+   <script asp-append-version="true" src="~/js/app.js"></script>
+   <img asp-append-version="true" src="~/images/logo.png" />
+
+   HOW IT WORKS:
+     At runtime, IFileVersionProvider computes a SHA-256 hash of the file content
+     and appends it as a query-string parameter: ?v=abc123...
+     Example output:
+       <link href="/css/site.css?v=s47rfh3Kmg..." rel="stylesheet" />
+       <script src="/js/app.js?v=XY29as7..." ></script>
+       <img src="/images/logo.png?v=Qp8..." alt="Logo" />
+
+   WHY IT MATTERS:
+     Browsers cache static files aggressively.  Without a version token, users
+     may receive a stale .css or .js after a deployment.
+     ?v=hash forces a new download every time the file CONTENT changes,
+     but keeps the cache hit when the file is unchanged between requests.
+
+   REQUIREMENTS:
+     - app.UseStaticFiles() must be in the pipeline (Program.cs) ← already done
+     - The file must exist in wwwroot/ at runtime (not required for dotnet build)
+     - IFileVersionProvider is registered by AddControllersWithViews()
+
+   NOTE: For this tutorial's build these files do not exist in wwwroot/ —
+         the tag helper silently omits the ?v= suffix when the file is absent.
+   ============================================================ *@
+<h4>1. asp-append-version</h4>
+
+<link rel="stylesheet" asp-append-version="true" href="~/css/site.css" />
+@* Renders: <link rel="stylesheet" href="/css/site.css?v=SHA256hash" /> *@
+
+<script asp-append-version="true" src="~/js/app.js"></script>
+@* Renders: <script src="/js/app.js?v=SHA256hash"></script> *@
+
+<img asp-append-version="true" src="~/images/logo.png" alt="Logo" class="img-fluid" />
+@* Renders: <img src="/images/logo.png?v=SHA256hash" alt="Logo" class="img-fluid" /> *@
+
+@* ============================================================
+   SECTION 2: asp-src-include / asp-src-exclude — GLOB BUNDLING
+   <link asp-src-include="~/css/**\/*.css" rel="stylesheet" />
+   <script asp-src-include="~/js/**\/*.js" asp-src-exclude="~/js/vendor.js"></script>
+
+   asp-src-include uses Microsoft.Extensions.FileSystemGlobbing patterns:
+     **\/*.css    → all .css files in any subdirectory of ~/css/
+     ~/js/*.js   → all .js files directly in ~/js/ (no subdirs)
+
+   asp-src-exclude filters OUT files that match the pattern.
+   Both attributes accept comma-separated patterns.
+
+   Result: ONE <link> or <script> element is emitted PER matched file.
+   This is NOT a bundler — use it for development convenience or small projects.
+   For production, use a real bundler (e.g. WebOptimizer, esbuild, webpack).
+
+   asp-append-version can be combined with asp-src-include.
+   ============================================================ *@
+<h4>2. asp-src-include / asp-src-exclude</h4>
+
+@* Renders one <link> per .css file found in wwwroot/css/ (all subdirs) *@
+<link asp-src-include="~/css/**/*.css" rel="stylesheet" />
+
+@* Renders one <script> per .js file in wwwroot/js/, excluding vendor.js *@
+<script asp-src-include="~/js/**/*.js" asp-src-exclude="~/js/vendor.js"></script>
+
+@* ============================================================
+   SECTION 3: ENVIRONMENT TAG HELPER
+   <environment include="...">...</environment>
+   <environment exclude="...">...</environment>
+
+   Renders its content only when the hosting environment name matches.
+   Environment name is set by ASPNETCORE_ENVIRONMENT env variable:
+     Development | Staging | Production  (case-insensitive comparison)
+
+   include="env1,env2"  → renders if current env is IN the comma-separated list
+   exclude="env1,env2"  → renders if current env is NOT in the list
+
+   Common use: serve non-minified assets in Development, minified in Production.
+
+   The <environment> element itself is NOT emitted in the HTML output.
+   Only its CONTENTS appear (or not) depending on the environment.
+   ============================================================ *@
+<h4>3. Environment Tag Helper</h4>
+
+<environment include="Development">
+    @* Renders ONLY in the Development environment *@
+    <p class="text-warning">
+        <strong>Dev mode:</strong> verbose logging and non-minified assets active.
+    </p>
+    @* Serve unminified CSS in dev — easier to debug *@
+    <link rel="stylesheet" href="~/css/site.css" />
+    <script src="~/js/app.js"></script>
+</environment>
+
+<environment exclude="Development">
+    @* Renders in Staging and Production (any env that is NOT Development) *@
+    <link rel="stylesheet" asp-append-version="true" href="~/css/site.min.css" />
+    <script asp-append-version="true" src="~/js/app.min.js"></script>
+</environment>
+
+@* ============================================================
+   SECTION 4: PARTIAL TAG HELPER
+   <partial name="ViewName" />
+   <partial name="ViewName" model="@someObject" />
+
+   Renders a partial view synchronously (or asynchronously — the runtime picks).
+   Name resolution follows standard Razor view search order.
+
+   Attribute    | Purpose
+   -------------|----------------------------------------------------------
+   name         | Partial view name or path ("_MyPartial" or "~/Views/...")
+   model        | Strongly-typed model passed to the partial (optional)
+   for          | Model expression — binds a property of the parent model
+   view-data    | ViewDataDictionary passed to the partial (rare)
+
+   Comparison: Html.Partial vs <partial> tag helper
+     @Html.Partial("_Name")               → synchronous (deprecated for async scenarios)
+     @await Html.PartialAsync("_Name")    → async, explicit
+     <partial name="_Name" />             → recommended; async under the hood
+
+   The example below renders _ContactInfo.cshtml from Views/Shared/.
+   ============================================================ *@
+<h4>4. Partial Tag Helper</h4>
+
+@* No-model partial — partial uses the parent's ViewData *@
+<partial name="_ContactInfo" />
+
+@* Partial with an explicit model object (parent model or a sub-property) *@
+@* <partial name="_AddressCard" model="@Model.ShippingAddress" /> *@
+
+@* ============================================================
+   SECTION 5: CACHE TAG HELPER
+   <cache expires-after="@TimeSpan.FromMinutes(5)"
+          vary-by-user="true"
+          vary-by-query="q">
+       ...
+   </cache>
+
+   Caches the rendered OUTPUT of its child content in an in-memory store
+   (IMemoryCache) keyed by the combination of vary-by values.
+   The HTML between the tags is computed ONCE per unique cache key, then
+   served from memory until the expiry.
+
+   Attribute             | Type          | Description
+   ----------------------|---------------|-----------------------------------------
+   enabled               | bool          | true (default) / false to disable caching
+   expires-on            | DateTimeOffset| absolute expiry date/time
+   expires-after         | TimeSpan      | relative TTL from first render
+   expires-sliding       | TimeSpan      | TTL resets on each cache hit
+   vary-by-header        | string (csv)  | separate cache per User-Agent, Accept, etc.
+   vary-by-query         | string (csv)  | separate cache per query-string key
+   vary-by-route         | string (csv)  | separate cache per route value
+   vary-by-cookie        | string (csv)  | separate cache per cookie name
+   vary-by-user          | bool          | separate cache per authenticated user
+   vary-by               | string        | arbitrary cache discriminator expression
+   priority              | CacheItemPriority | Low / Normal / High / NeverRemove
+
+   IMPORTANT: The cache tag helper requires IDistributedCache or falls back to
+   IMemoryCache.  AddControllersWithViews() registers IMemoryCache automatically.
+   ============================================================ *@
+<h4>5. Cache Tag Helper</h4>
+
+@* Cache rendered content for 5 minutes, shared across all users *@
+<cache expires-after="@TimeSpan.FromMinutes(5)">
+    <p class="text-muted">
+        Cached at: @DateTime.Now.ToString("HH:mm:ss")
+        (this timestamp does not change until the cache expires)
+    </p>
+</cache>
+
+@* Separate cache entry per authenticated user AND per ?q= query param *@
+<cache expires-sliding="@TimeSpan.FromMinutes(10)"
+       vary-by-user="true"
+       vary-by-query="q">
+    <p>User-specific cached content (varies by user and search query).</p>
+</cache>
+
+@* Absolute expiry — cache until a specific date/time *@
+<cache expires-on="@new DateTimeOffset(DateTime.Today.AddDays(1))">
+    <p>This content refreshes at midnight.</p>
+</cache>

@@ -1,0 +1,135 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * VIEW: Orders/Create.cshtml
+ *
+ * DEMONSTRATES:
+ *   - HTML form → complex type binding (dot-notation for nested objects)
+ *   - Collection binding via index notation (Items[0].ProductName, etc.)
+ *   - DateTime? field binding (OrderDate)
+ *   - Scalar collection via repeated key (Tags) / CSV (via CsvListModelBinder)
+ *   - Tag Helpers: asp-for, asp-validation-for, asp-validation-summary
+ *   - How field NAME attributes map to the model properties the binder reads
+ *
+ * BINDING NAME RULES (read alongside the HTML below):
+ *   asp-for="CustomerName"                   → <input name="CustomerName" />
+ *   asp-for="ShippingAddress.Street"         → <input name="ShippingAddress.Street" />
+ *   asp-for="Items[0].ProductName"           → <input name="Items[0].ProductName" />
+ *   The Tag Helper sets name AND id; the binder uses name to look up form values.
+ * ═══════════════════════════════════════════════════════════════════════════════ *@
+@model CreateOrderViewModel
+@{ ViewData["Title"] = "Create Order"; }
+
+<h2>Create Order</h2>
+<p>
+    This form demonstrates <strong>complex type binding</strong> (dot-notation for
+    <code>ShippingAddress.*</code>) and <strong>collection binding</strong> (index notation
+    for <code>Items[N].*</code>). Inspect the generated HTML to see the name attributes
+    that the binder reads.
+</p>
+
+@* asp-validation-summary="All" renders the full ModelState error dictionary *@
+<div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+@* form method="post" + asp-action wires the POST to OrdersController.Create([FromForm]) *@
+<form asp-action="Create" method="post">
+
+    @* ── Customer fields — flat scalar binding ──────────────────────────── *@
+    <h3>Customer</h3>
+    <div class="form-group">
+        @* asp-for generates: name="CustomerName" id="CustomerName" *@
+        <label asp-for="CustomerName"></label>
+        <input asp-for="CustomerName" />
+        @* asp-validation-for reads ModelState["CustomerName"].Errors *@
+        <span asp-validation-for="CustomerName"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="CustomerEmail"></label>
+        <input asp-for="CustomerEmail" type="email" />
+        <span asp-validation-for="CustomerEmail"></span>
+    </div>
+
+    @* ── DateTime? binding — OrderDate ───────────────────────────────────── *@
+    <div class="form-group">
+        @* asp-for="OrderDate" generates name="OrderDate"; empty → DateTime? = null *@
+        <label asp-for="OrderDate"></label>
+        <input asp-for="OrderDate" type="date" />
+        <span asp-validation-for="OrderDate"></span>
+    </div>
+
+    @* ── Nested complex type — dot-notation: ShippingAddress.Street etc. ── *@
+    <h3>Shipping Address</h3>
+    <p>
+        Note the generated <code>name</code> attributes:
+        <code>ShippingAddress.Street</code>, <code>ShippingAddress.City</code>, etc.
+        The binder reads these to populate <code>model.ShippingAddress</code>.
+    </p>
+    <div class="form-group">
+        @* generates: name="ShippingAddress.Street" *@
+        <label asp-for="ShippingAddress.Street">Street</label>
+        <input asp-for="ShippingAddress.Street" />
+        <span asp-validation-for="ShippingAddress.Street"></span>
+    </div>
+    <div class="form-group">
+        @* generates: name="ShippingAddress.City" *@
+        <label asp-for="ShippingAddress.City">City</label>
+        <input asp-for="ShippingAddress.City" />
+    </div>
+    <div class="form-group">
+        @* generates: name="ShippingAddress.PostalCode" *@
+        <label asp-for="ShippingAddress.PostalCode">Postal Code</label>
+        <input asp-for="ShippingAddress.PostalCode" />
+    </div>
+    <div class="form-group">
+        @* generates: name="ShippingAddress.Country" *@
+        <label asp-for="ShippingAddress.Country">Country</label>
+        <input asp-for="ShippingAddress.Country" />
+    </div>
+
+    @* ── Collection binding — index notation: Items[N].ProductName etc. ── *@
+    <h3>Order Items</h3>
+    <p>
+        Each row uses <strong>index notation</strong>: <code>Items[0].ProductName</code>,
+        <code>Items[0].Quantity</code>, <code>Items[0].UnitPrice</code>.
+        The binder reads these and populates <code>model.Items</code> as a
+        <code>List&lt;OrderLineInput&gt;</code>. Indices must be consecutive starting at 0.
+    </p>
+
+    @for (int i = 0; i < Model.Items.Count; i++)
+    {
+        <div class="form-group" style="border:1px solid #ccc;padding:0.5rem;margin-bottom:0.5rem;">
+            <strong>Item @(i + 1)</strong>
+            <div>
+                @* generates: name="Items[0].ProductName", name="Items[1].ProductName", etc. *@
+                <label asp-for="Items[i].ProductName">Product Name</label>
+                <input asp-for="Items[i].ProductName" />
+                <span asp-validation-for="Items[i].ProductName"></span>
+            </div>
+            <div>
+                @* generates: name="Items[0].Quantity" — int; non-integer value → ModelState error *@
+                <label asp-for="Items[i].Quantity">Quantity</label>
+                <input asp-for="Items[i].Quantity" type="number" min="1" />
+                <span asp-validation-for="Items[i].Quantity"></span>
+            </div>
+            <div>
+                @* generates: name="Items[0].UnitPrice" — decimal *@
+                <label asp-for="Items[i].UnitPrice">Unit Price</label>
+                <input asp-for="Items[i].UnitPrice" type="number" step="0.01" />
+                <span asp-validation-for="Items[i].UnitPrice"></span>
+            </div>
+        </div>
+    }
+
+    @* ── Scalar collection — Tags via CSV (CsvListModelBinder) ─────────── *@
+    <div class="form-group">
+        @*
+         * The Tags field is bound by CsvListModelBinderProvider (global, registered in Program.cs).
+         * Submit "Electronics,Sale,Featured" → List<string> { "Electronics", "Sale", "Featured" }.
+         * The name must be "Tags" to match the property name on CreateOrderViewModel.
+         *@
+        <label for="Tags">Tags (comma-separated)</label>
+        <input type="text" id="Tags" name="Tags" placeholder="Electronics,Sale,Featured" />
+        <small>Uses the custom CsvListModelBinder — see Binders/CsvListModelBinder.cs</small>
+    </div>
+
+    @* CSRF token hidden field — inserted automatically by the form tag helper *@
+    <button type="submit">Create Order</button>
+</form>

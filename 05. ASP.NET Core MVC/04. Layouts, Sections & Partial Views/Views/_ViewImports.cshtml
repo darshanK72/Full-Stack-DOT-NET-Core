@@ -1,0 +1,42 @@
+@*
+ * FILE ROLE: Injects shared directives (namespaces, tag helpers) into every
+ *            view in the Views/ folder tree — no per-view repetition needed.
+ * SECTIONS IN THIS FILE:
+ *   1. @using — namespace imports for all views
+ *   2. @addTagHelper — tag-helper registration
+ *@
+
+@*
+ * SECTION 1: @using — NAMESPACE IMPORTS
+ *
+ * @using directives in _ViewImports.cshtml apply to every .cshtml file in
+ * the same folder and all sub-folders.
+ *
+ * With <ImplicitUsings>disable</ImplicitUsings> in the .csproj, ALL
+ * namespaces must be explicit — even in Razor views.  _ViewImports.cshtml
+ * is the right place to centralise view-layer imports.
+ *@
+@using LayoutsSectionsPartials.Models
+@using LayoutsSectionsPartials.ViewComponents
+
+@*
+ * SECTION 2: @addTagHelper — TAG-HELPER REGISTRATION
+ *
+ * @addTagHelper <namespace-or-wildcard>, <assembly>
+ *
+ * This line makes all ASP.NET Core built-in tag helpers available in every
+ * view:
+ *   <a asp-action="Index" asp-controller="Page">Home</a>
+ *   <form asp-action="Create" method="post">…</form>
+ *   <input asp-for="Title" />
+ *   <label asp-for="Title" />
+ *   <span asp-validation-for="Title" />
+ *
+ * The wildcard * means "all tag helpers found in that assembly".
+ *
+ * To also enable the ViewComponent tag-helper syntax (<vc:navigation />),
+ * the same @addTagHelper *, <YourAssembly> is required — the Razor compiler
+ * scans for ViewComponent classes and generates the tag helper descriptor.
+ * That syntax is covered in → 08. Tag Helpers.
+ *@
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

@@ -1,0 +1,82 @@
+@*
+ * _Layout.cshtml — SHARED LAYOUT
+ *
+ * FILE ROLE: Defines the page shell shared by all views. Loads jQuery from CDN in the
+ *            <head> so it is available everywhere. Individual views that need validation
+ *            include their own scripts via @section Scripts.
+ *
+ * SCRIPT LOADING ORDER (critical for validation to work):
+ *   1. jquery.js        — loaded HERE in the layout (available to all pages)
+ *   2. jquery.validate.js          ─┐ loaded per-page via @section Scripts
+ *   3. jquery.validate.unobtrusive.js ─┘ (see _ValidationScriptsPartial.cshtml)
+ *
+ * Loading all three scripts globally (in the layout) is simpler but wastes bandwidth
+ * on pages that have no forms. The partial-per-page pattern shown here is the standard
+ * approach in ASP.NET Core MVC project templates.
+ *
+ * CDN vs LibMan vs Bundling:
+ *   CDN     — no local files; depends on network; simple for tutorials and prototypes.
+ *   LibMan  — restores files to wwwroot/lib at build time; works offline; controlled versions.
+ *             Add libman.json to the project root; run "libman restore" or let VS do it.
+ *   Bundle  — bundleconfig.json + BuildBundlerMinifier NuGet pkg; concatenates + minifies
+ *             multiple files into one request; best for production performance.
+ *
+ * @RenderSection("Scripts", required: false)
+ *   Declares a named section that views can fill with @section Scripts { ... }.
+ *   required: false means views that do NOT fill the section are still valid.
+ *   Views with forms should always fill this section to include the validation scripts.
+ *@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Client-Side Validation Tutorial</title>
+
+    @*
+     * jQuery CDN — must load before jquery.validate.js and jquery.validate.unobtrusive.js.
+     * cdnjs.cloudflare.com hosts all three libraries; use exact versions for reproducibility.
+     * integrity + crossorigin attributes enable Subresource Integrity (SRI) checks —
+     * the browser verifies the file hash before executing the script.
+     *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+            integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+
+    @* Minimal reset so form layout is readable without Bootstrap *@
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+        input[type="text"], input[type="email"], input[type="password"],
+        input[type="number"], input[type="tel"], input[type="datetime-local"] {
+            width: 100%; padding: 0.4rem 0.6rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;
+        }
+        .text-danger { color: #dc3545; font-size: 0.85rem; }
+        .validation-summary-errors ul { padding-left: 1.25rem; }
+        button[type="submit"] { padding: 0.5rem 1.5rem; background: #0d6efd; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Client-Side Validation Tutorial</h1>
+        <nav>
+            <a href="/Account/Register">Registration Form</a>
+        </nav>
+    </header>
+
+    <main>
+        @RenderBody()  @* each view's content is injected here *@
+    </main>
+
+    @*
+     * @RenderSection("Scripts", required: false)
+     * Views that need validation scripts fill this section with:
+     *   @section Scripts { <partial name="_ValidationScriptsPartial" /> }
+     * Pages without forms simply do not define the section (required: false).
+     *@
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

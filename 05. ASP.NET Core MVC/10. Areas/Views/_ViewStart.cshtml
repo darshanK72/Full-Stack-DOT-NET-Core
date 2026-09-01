@@ -1,0 +1,23 @@
+@*
+ * FILE ROLE: Root _ViewStart.cshtml — sets the default layout for all views in the
+ *   root Views/ folder (HomeController views). The Razor engine applies this file
+ *   before rendering any view that doesn't set Layout = null or override the layout.
+ *
+ * _ViewStart.cshtml DISCOVERY FOR NON-AREA VIEWS:
+ *   The engine applies _ViewStart.cshtml files hierarchically, most general first:
+ *     1. _ViewStart.cshtml (project root)       — applied first
+ *     2. Views/_ViewStart.cshtml                — applied second (this file)
+ *     3. Views/Home/_ViewStart.cshtml           — applied last (if it existed)
+ *   Each file can override Layout set by the previous. Individual views can
+ *   override further with @{ Layout = null; } to opt out of any layout.
+ *
+ * "_Layout" RESOLUTION (from non-area views):
+ *   The framework searches for _Layout.cshtml:
+ *     1. Views/Home/_Layout.cshtml               — not found
+ *     2. Views/Shared/_Layout.cshtml             ← found (root layout)
+ *   Non-area views always use the root Shared layout.
+*@
+
+@{
+    Layout = "_Layout"; // resolved to Views/Shared/_Layout.cshtml for non-area views
+}

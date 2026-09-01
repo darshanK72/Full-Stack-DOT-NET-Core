@@ -1,0 +1,56 @@
+@*
+ * FILE ROLE: About view — rendered by HomeController.About() and HomeController.Preview().
+ *            Demonstrates reading ViewData set by the controller and by the view itself,
+ *            previewing the controller-to-view data passing mechanism.
+ *
+ * KEY CONCEPTS DEMONSTRATED:
+ *   ViewData["Key"] in Razor
+ *     Razor accesses the ViewDataDictionary using the same string keys set by the
+ *     controller. @ViewData["Heading"] renders the value (object?) as a string.
+ *     Razor handles null gracefully — a null value renders as an empty string.
+ *
+ *   return View("About") from Preview()
+ *     HomeController.Preview() calls return View("About"), specifying the view name
+ *     explicitly rather than using the convention (which would look for Preview.cshtml).
+ *     This demonstrates that any action can render any view — the view name is decoupled
+ *     from the action name.
+ *
+ *   ViewData["Title"] in layout
+ *     The @{} block sets ViewData["Title"] = "About"; which the layout template reads
+ *     in its <title> element. Both the view and the layout share the same ViewData bag.
+ *
+ * COVERED IN DETAIL LATER → 12. TempData, ViewData & ViewBag
+ *@
+@{
+    ViewData["Title"] = "About";
+    Layout = "_Layout";
+
+    // Provide fallback values if the controller did not set these keys.
+    // HomeController.About() sets them; HomeController.Preview() also sets them.
+    string heading = ViewData["Heading"] as string ?? "About This Tutorial";
+    string message = ViewData["Message"] as string ?? "Reading-based tutorial for ASP.NET Core MVC.";
+}
+
+<h1>@heading</h1>
+<p>@message</p>
+
+<h2>ViewData Explained</h2>
+<ul>
+    <li><strong>ViewData["Heading"]</strong>: @ViewData["Heading"]</li>
+    <li><strong>ViewData["Message"]</strong>: @ViewData["Message"]</li>
+    <li><strong>ViewData["Title"]</strong>: @ViewData["Title"]</li>
+</ul>
+
+<h2>Controller-to-View Data Mechanisms</h2>
+<table>
+    <thead>
+        <tr><th>Mechanism</th><th>Type</th><th>Lifetime</th><th>Type-safe?</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>ViewData["Key"]</td><td>ViewDataDictionary (object?)</td><td>Current request</td><td>No — cast in view</td></tr>
+        <tr><td>ViewBag.Key</td><td>dynamic (wraps ViewData)</td><td>Current request</td><td>No — dynamic</td></tr>
+        <tr><td>@@model (typed model)</td><td>Specific class / IEnumerable&lt;T&gt;</td><td>Current request</td><td>Yes — compile-time</td></tr>
+        <tr><td>TempData["Key"]</td><td>ITempDataDictionary (object?)</td><td>One redirect</td><td>No — cast in view</td></tr>
+    </tbody>
+</table>
+<p style="color:#666;font-size:.9rem;">Full depth in 12. TempData, ViewData &amp; ViewBag.</p>

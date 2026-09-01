@@ -1,0 +1,45 @@
+@*
+ * FILE ROLE: Root _ViewImports.cshtml — applies to all views in the root Views/ folder.
+ *   Registers tag helpers and using directives for non-area views (HomeController views).
+ *   NOTE: This file does NOT apply to area views (Areas/Admin/Views/, Areas/Customer/Views/).
+ *   Each area must have its own _ViewImports.cshtml — see Areas/{area}/Views/_ViewImports.cshtml.
+ *
+ * SECTION 10: ROOT TAG HELPER REGISTRATION
+ *
+ * _ViewImports.cshtml serves two purposes:
+ *   1. @using — imports C# namespaces into all views in scope (like a using statement)
+ *   2. @addTagHelper — activates tag helpers for all views in scope
+ *
+ * SCOPE OF THIS FILE:
+ *   Applies to:  Views/Home/Index.cshtml, Views/Shared/_Layout.cshtml, etc.
+ *   Does NOT apply to: Areas/Admin/Views/**, Areas/Customer/Views/**
+ *   (Area views walk up their own physical directory tree — see Section 14.)
+ *
+ * @addTagHelper SYNTAX:
+ *   @addTagHelper {TypeName}, {AssemblyName}
+ *   · TypeName "*" means ALL tag helpers in the assembly
+ *   · Microsoft.AspNetCore.Mvc.TagHelpers is the built-in package
+ *
+ * BUILT-IN TAG HELPERS ACTIVATED HERE:
+ *   Attribute tag helpers   asp-controller, asp-action, asp-area, asp-route-*
+ *   Form tag helpers        asp-for, asp-validation-for, asp-antiforgery
+ *   Anchor tag helper       <a asp-area asp-controller asp-action> → href generation
+ *   Link/Script helpers     asp-src-include, asp-append-version
+ *   Environment helper      <environment include="Development">
+ *
+ * asp-area TAG HELPER (the key area tag helper):
+ *   <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin</a>
+ *   Generates: <a href="/Admin/Dashboard/Index">Admin</a>
+ *
+ *   asp-area=""  ← empty string CLEARS the area context
+ *   <a asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+ *   Generates: <a href="/">Home</a>
+ *
+ *   WITHOUT asp-area in a non-area view, the anchor tag helper uses the ambient area
+ *   (none for root views), so the generated href will NOT include /Admin/ prefix.
+ *   ALWAYS specify asp-area explicitly when crossing area boundaries.
+*@
+
+@using Areas
+@using Areas.Models
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

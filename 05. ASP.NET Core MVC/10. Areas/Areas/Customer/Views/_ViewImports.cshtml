@@ -1,0 +1,13 @@
+@*
+ * FILE ROLE: Customer area _ViewImports.cshtml — registers tag helpers for all views
+ *   inside Areas/Customer/Views/**. Parallel to the Admin area's _ViewImports.cshtml;
+ *   both are required for the same reason: Views/_ViewImports.cshtml does not apply
+ *   to area views.
+ *
+ * The Customer area has no area-specific ViewModels to import; only the tag helper
+ * registration is needed here. Root @using Areas.Models is included in case future
+ * Customer area views need to reference shared models.
+*@
+
+@using Areas.Models
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

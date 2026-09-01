@@ -1,0 +1,71 @@
+@model IEnumerable<AjaxPartialUpdates.Models.ProductViewModel>
+
+@*
+ * FILE ROLE: _ProductList.cshtml renders a collection of product cards. It is
+ *            returned from ProductsController.ProductList(category) when the
+ *            request carries X-Requested-With: XMLHttpRequest, enabling the
+ *            IsAjaxRequest dual-mode pattern taught in SECTION 5.
+ *
+ * SECTIONS IN THIS FILE:
+ *   13. _ProductList partial view — product collection HTML fragment
+ *@
+
+@*
+ * SECTION 13: _ProductList PARTIAL VIEW — PRODUCT COLLECTION HTML FRAGMENT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * This partial renders a list of ProductViewModel items. It is used in two ways:
+ *
+ *   1. Returned by ProductList(category) on AJAX calls (IsAjaxRequest pattern):
+ *        return PartialView("_ProductList", products);
+ *      Client: fetch('/Products/ProductList?category=Electronics',
+ *                     { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+ *              .then(r => r.text()).then(html => container.innerHTML = html);
+ *
+ *   2. Rendered synchronously from Index.cshtml on the initial page load using
+ *      the <partial> tag helper:
+ *        <partial name="_ProductList" model="Model" />
+ *      This pre-populates the product list region without a separate AJAX call.
+ *
+ * THE <partial> TAG HELPER:
+ *   <partial name="_ProductList" model="Model" />
+ *   Equivalent to: @await Html.PartialAsync("_ProductList", Model)
+ *   The tag helper is cleaner and is the preferred syntax in .NET 8 Razor views.
+ *
+ * EMPTY STATE:
+ *   Always render a meaningful fallback when Model is empty. The empty-state
+ *   element is also the target for clearing the list after a search with no
+ *   results.
+ *
+ * LOOP PATTERN IN A PARTIAL VIEW:
+ *   @foreach loops are the standard Razor way to render collections.
+ *   Avoid ViewBag/ViewData for the model — prefer the typed @model directive.
+ *@
+
+@if (!Model.Any())
+{
+    <p>No products found.</p>
+}
+else
+{
+    foreach (var product in Model)
+    {
+        <div class="product-card">
+            <h3>@product.Name <small style="color:#888;">(ID: @product.Id)</small></h3>
+            <p>
+                <strong>Category:</strong> @product.Category &nbsp;|&nbsp;
+                <strong>Price:</strong> $@product.Price.ToString("F2")
+            </p>
+            <p>@product.Description</p>
+            <p>
+                @if (product.InStock)
+                {
+                    <span class="in-stock">In Stock (@product.Stock units)</span>
+                }
+                else
+                {
+                    <span class="out-of-stock">Out of Stock</span>
+                }
+            </p>
+        </div>
+    }
+}

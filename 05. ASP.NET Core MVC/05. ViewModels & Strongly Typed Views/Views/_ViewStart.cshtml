@@ -1,0 +1,20 @@
+@*
+ * FILE ROLE: _ViewStart.cshtml runs before every Razor view in the Views/ folder
+ *            and sets the default layout. Setting Layout here avoids repeating
+ *            Layout = "_Layout" at the top of every individual view file.
+ *
+ *            The Razor view engine looks for _ViewStart.cshtml in the view's own
+ *            folder, then walks up to Views/, applying each one found. Most MVC
+ *            projects have a single _ViewStart.cshtml here in Views/.
+ *
+ *            To opt a single view OUT of the layout, override at the top of that view:
+ *              @{ Layout = null; }
+ *
+ *            The layout value "_Layout" resolves to Views/Shared/_Layout.cshtml
+ *            following the conventional Razor search order:
+ *              1. Views/{Controller}/_Layout.cshtml   (controller-specific)
+ *              2. Views/Shared/_Layout.cshtml          (application-wide — this chapter)
+ *@
+@{
+    Layout = "_Layout"; // resolved to Views/Shared/_Layout.cshtml by the Razor engine
+}

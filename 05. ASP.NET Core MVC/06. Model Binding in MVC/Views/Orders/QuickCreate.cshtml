@@ -1,0 +1,49 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * VIEW: Orders/QuickCreate.cshtml — demonstrates [Bind] allow-list on a parameter.
+ * Only CustomerName, CustomerEmail, and ShippingAddress are bound.
+ * OrderDate and Items are omitted from [Bind] — the controller receives their defaults.
+ * ═══════════════════════════════════════════════════════════════════════════════ *@
+@model CreateOrderViewModel
+@{ ViewData["Title"] = "Quick Create Order"; }
+
+<h2>Quick Create (with [Bind] Allow-List)</h2>
+<p>
+    The controller action uses
+    <code>[Bind("CustomerName,CustomerEmail,ShippingAddress")]</code>.
+    Even if this form had an <code>OrderDate</code> or <code>Items</code> field,
+    those values would be silently ignored. See
+    <code>Controllers/OrdersController.cs Section 5e</code>.
+</p>
+
+<div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+<form asp-action="QuickCreate" method="post">
+    <div class="form-group">
+        <label asp-for="CustomerName"></label>
+        <input asp-for="CustomerName" />
+        <span asp-validation-for="CustomerName"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="CustomerEmail"></label>
+        <input asp-for="CustomerEmail" type="email" />
+        <span asp-validation-for="CustomerEmail"></span>
+    </div>
+    <h3>Shipping Address</h3>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.Street">Street</label>
+        <input asp-for="ShippingAddress.Street" />
+    </div>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.City">City</label>
+        <input asp-for="ShippingAddress.City" />
+    </div>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.PostalCode">Postal Code</label>
+        <input asp-for="ShippingAddress.PostalCode" />
+    </div>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.Country">Country</label>
+        <input asp-for="ShippingAddress.Country" />
+    </div>
+    <button type="submit">Quick Create</button>
+</form>

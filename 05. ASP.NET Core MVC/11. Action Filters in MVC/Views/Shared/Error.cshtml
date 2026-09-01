@@ -1,0 +1,38 @@
+@*
+ * Error.cshtml — used by MvcExceptionFilter (Filters/MvcExceptionFilter.cs)
+ * when an unhandled exception is caught and the request expects an HTML response.
+ *
+ * MvcExceptionFilter constructs a ViewDataDictionary<ErrorViewModel> and sets
+ * ViewResult.ViewName = "~/Views/Shared/Error.cshtml".
+ * The @model directive below gives this view strongly-typed access to ErrorViewModel.
+ *
+ * This view intentionally shows limited error details in production and full
+ * exception information only when IWebHostEnvironment.IsDevelopment() is true
+ * (the MvcExceptionFilter decides what to put in Model.Message based on environment).
+ *@
+
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Something went wrong</h4>
+            <p>@Model.Message</p>
+            @if (Model.ShowRequestId)
+            {
+                <hr />
+                <p class="mb-0 text-muted small">
+                    <strong>Request ID:</strong> @Model.RequestId
+                    <br />
+                    <em>Include this ID when contacting support.</em>
+                </p>
+            }
+        </div>
+        <a asp-controller="Products" asp-action="Index" class="btn btn-primary">
+            &larr; Back to Products
+        </a>
+    </div>
+</div>

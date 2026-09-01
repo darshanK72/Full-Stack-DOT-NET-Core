@@ -1,0 +1,77 @@
+@*
+ * FILE ROLE: Demonstrates a nested layout — _AlternateLayout.cshtml uses
+ *            _Layout.cshtml as its OWN layout, adding an extra two-column
+ *            wrapper around the content view's output.
+ * SECTIONS IN THIS FILE:
+ *   1. Nested layouts — how layouts can nest
+ *   2. Section forwarding — passing sections up through the chain
+ *@
+
+@*
+ * SECTION 1: NESTED LAYOUTS
+ *
+ * A layout file can itself have a parent layout — creating a chain:
+ *
+ *   Content view (Index.cshtml with Layout = "_AlternateLayout")
+ *       ↓ @RenderBody()
+ *   _AlternateLayout.cshtml  (adds two-column wrapper; Layout = "_Layout")
+ *       ↓ @RenderBody()
+ *   _Layout.cshtml           (full HTML document shell)
+ *
+ * Why use nested layouts?
+ *   - Different sections of the site share the same outer shell (_Layout)
+ *     but need different inner chrome (sidebars, tabs, breadcrumbs).
+ *   - Avoids duplicating <html>/<head>/<body> across multiple layout files.
+ *   - An admin section might use a sidebar layout that wraps the base layout.
+ *
+ * To use this layout from a content view:
+ *   @{ Layout = "~/Views/Shared/_AlternateLayout.cshtml"; }
+ *   OR set it in a per-folder _ViewStart.cshtml for a whole area.
+ *
+ * SECTION 2: SECTION FORWARDING
+ *
+ * Sections defined in the content view (e.g. @section Scripts { }) are
+ * consumed at the FIRST level that calls @RenderSection("Scripts").
+ *
+ * If _AlternateLayout does NOT call @RenderSection("Scripts"), ASP.NET Core
+ * will throw: "The following sections have been defined but have not been
+ * rendered … 'Scripts'."
+ *
+ * Solution — forward the section up to the parent layout:
+ *
+ *   @section Scripts {
+ *       @RenderSection("Scripts", required: false)
+ *   }
+ *
+ * This re-declares the section at the _AlternateLayout level so _Layout.cshtml
+ * can render it at the bottom of <body>.
+ *@
+@{
+    Layout = "_Layout";     // _AlternateLayout itself uses _Layout as its parent
+}
+
+@* Forward the optional Scripts and Styles sections up to _Layout.cshtml *@
+@section Styles {
+    @RenderSection("Styles", required: false)
+}
+
+@section Scripts {
+    @RenderSection("Scripts", required: false)
+}
+
+@* Two-column inner structure added by this alternate layout *@
+<div class="two-col-layout">
+    <aside class="sidebar">
+        <h3>Alternate Layout Sidebar</h3>
+        <p>This sidebar is added by _AlternateLayout.cshtml — not by content views.</p>
+    </aside>
+
+    <article class="main-col">
+        @*
+         * @RenderBody() here receives the content view's non-section markup.
+         * _Layout.cshtml's @RenderBody() then receives the entire output of
+         * _AlternateLayout (including the two-column wrapper).
+         *@
+        @RenderBody()
+    </article>
+</div>

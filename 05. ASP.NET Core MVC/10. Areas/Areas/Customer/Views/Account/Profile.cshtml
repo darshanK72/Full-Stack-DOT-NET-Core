@@ -1,0 +1,78 @@
+@*
+ * FILE ROLE: Customer area Account/Profile view — demonstrates a view with no
+ *   typed model (ViewResult with no payload), layout fallback to the root
+ *   Views/Shared/_Layout.cshtml, and cross-area + cross-to-root navigation patterns.
+ *
+ * SECTION 17: CUSTOMER AREA VIEW + CROSS-AREA LINKS
+ *
+ * VIEW RESOLUTION FOR AccountController.Profile():
+ *   return View();  (no model, no explicit view name)
+ *   The engine searches:
+ *     1. Areas/Customer/Views/Account/Profile.cshtml  ← THIS FILE — found
+ *     2. Areas/Customer/Views/Shared/Profile.cshtml
+ *     3. Views/Shared/Profile.cshtml
+ *
+ * LAYOUT CHAIN FOR THIS VIEW:
+ *   Areas/Customer/Views/_ViewStart.cshtml → Layout = "_Layout"
+ *   → searched: Areas/Customer/Views/Account/, Areas/Customer/Views/Shared/ → not found
+ *   → falls back to Views/Shared/_Layout.cshtml (root layout)
+ *   This view renders inside the ROOT layout, giving it the same site chrome as
+ *   Views/Home/Index.cshtml.
+ *
+ * CROSS-AREA LINKS FROM THE CUSTOMER AREA:
+ *   Ambient area = "Customer" (from the current request's route values)
+ *
+ *   <a asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+ *   asp-area="" clears ambient "Customer" → href="/"
+ *
+ *   <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin</a>
+ *   asp-area="Admin" overrides ambient "Customer" → href="/Admin/Dashboard/Index"
+ *
+ * SUMMARY — three cross-area link scenarios:
+ *   Within same area:   asp-area="Customer" (explicit, or omit since ambient matches)
+ *   To another area:    asp-area="Admin"    (must override ambient)
+ *   To non-area root:   asp-area=""         (must clear ambient)
+*@
+
+@{
+    ViewData["Title"] = "Customer Profile";
+}
+
+<h1>Customer Profile</h1>
+<p>
+    This view is served by <code>Areas/Customer/Controllers/AccountController.cs</code>
+    via the Customer area route: <code>/Customer/Account/Profile</code>.
+</p>
+<p>
+    Layout: <strong>Views/Shared/_Layout.cshtml</strong> (root) — the Customer area
+    has no <code>Areas/Customer/Views/Shared/_Layout.cshtml</code>, so the root layout
+    is used as a fallback.
+</p>
+
+<h2>Navigation From the Customer Area</h2>
+<ul>
+    @* asp-area="" → clears ambient "Customer" → href="/" *@
+    <li>
+        <a asp-area="" asp-controller="Home" asp-action="Index">Main Site (Home)</a>
+        &nbsp;&mdash; <code>asp-area=""</code> clears ambient "Customer"
+    </li>
+
+    @* asp-area="Admin" → cross-area link → href="/Admin/Dashboard/Index" *@
+    <li>
+        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin Dashboard</a>
+        &nbsp;&mdash; <code>asp-area="Admin"</code> overrides ambient "Customer"
+    </li>
+
+    @* within same area — asp-area="Customer" is explicit but identical to ambient *@
+    <li>
+        <a asp-area="Customer" asp-controller="Account" asp-action="Profile">Reload Profile</a>
+        &nbsp;&mdash; staying within Customer area
+    </li>
+</ul>
+
+<h2>Cross-Area <code>Url.Action</code> Reference</h2>
+<ul>
+    <li>To Admin:    <code>@Url.Action("Index",   "Dashboard", new { area = "Admin"    })</code></li>
+    <li>To Home:     <code>@Url.Action("Index",   "Home",      new { area = ""         })</code></li>
+    <li>To self:     <code>@Url.Action("Profile", "Account",   new { area = "Customer" })</code></li>
+</ul>

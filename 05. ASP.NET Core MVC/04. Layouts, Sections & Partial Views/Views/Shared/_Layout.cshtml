@@ -1,0 +1,130 @@
+@*
+ * FILE ROLE: The main shared layout — defines the full HTML document structure
+ *            that wraps every content view that uses it.
+ * SECTIONS IN THIS FILE:
+ *   1. Layout structure — DOCTYPE, <html>, <head>, <body>
+ *   2. @RenderBody() — where the content view's output is injected
+ *   3. @RenderSection() — required and optional named slots
+ *   4. ViewData["Title"] pattern
+ *@
+
+@*
+ * SECTION 1: LAYOUT STRUCTURE
+ *
+ * A layout file is a regular .cshtml file that contains the outer HTML shell.
+ * It is NOT a complete page by itself — it delegates the inner content to
+ * @RenderBody() and optional named slots to @RenderSection().
+ *
+ * Naming convention:
+ *   - Layout files start with underscore: _Layout.cshtml
+ *   - Stored in Views/Shared/ so all controllers can use them
+ *   - The underscore prefix prevents the Razor engine from treating the
+ *     file as a routable view (convention; not enforced by the engine)
+ *
+ * SECTION 4: ViewData["Title"] PATTERN
+ *
+ * Layouts and content views share the same ViewData dictionary for the
+ * duration of one request.  The content view sets ViewData["Title"] in its
+ * @{ } block; the layout reads it in <title> and <h1>.
+ *
+ *   Content view:   @{ ViewData["Title"] = "About Us"; }
+ *   Layout:         <title>@ViewData["Title"] - MySite</title>
+ *
+ * This avoids duplicating the page title in two places.
+ *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    @*
+     * ViewData["Title"] is set by the content view's @{ } block.
+     * The null-coalescing fallback "My App" handles views that do not set it.
+     *@
+    <title>@(ViewData["Title"] ?? "My App") - Layout Demo</title>
+
+    @*
+     * SECTION 3a: OPTIONAL "Styles" SECTION
+     *
+     * @RenderSection("Styles", required: false)
+     *   - required: false → the section is OPTIONAL; views that do NOT define
+     *     @section Styles { } compile and run fine; nothing is rendered here.
+     *   - required: true (or omitting the parameter) → every content view MUST
+     *     define the section; omitting it is a compile-time error.
+     *
+     * Use optional sections for page-specific CSS that should be injected
+     * into <head> so it loads before the body.
+     *@
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+
+    <header>
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/page/noLayout">No-Layout Demo</a>
+        </nav>
+    </header>
+
+    <main>
+        @*
+         * SECTION 2: @RenderBody()
+         *
+         * @RenderBody() is the mandatory slot where the content view's
+         * non-section markup is injected.
+         *
+         * Rules:
+         *   - A layout MUST have exactly ONE @RenderBody() call.
+         *   - Everything in the content view that is NOT inside a @section { }
+         *     block flows into this point.
+         *   - The layout is rendered inside-out:
+         *       1. Content view body rendered → string
+         *       2. Layout rendered, @RenderBody() replaced with that string
+         *
+         * Do NOT wrap @RenderBody() in @Html.Raw() — the output is already
+         * IHtmlContent and safe from double-encoding.
+         *@
+        @RenderBody()
+    </main>
+
+    @*
+     * SECTION 3b: OPTIONAL "Hero" SECTION
+     *
+     * Some pages need a full-width hero banner ABOVE main content.
+     * Making it optional means pages that have no hero simply skip it.
+     *
+     * Check IsSectionDefined to conditionally render a wrapper:
+     *
+     *   @if (IsSectionDefined("Hero"))
+     *   {
+     *       <div class="hero-wrapper">@RenderSection("Hero")</div>
+     *   }
+     *@
+    @if (IsSectionDefined("Hero"))
+    {
+        <section class="hero-wrapper">
+            @RenderSection("Hero")
+        </section>
+    }
+
+    @*
+     * SECTION 3c: OPTIONAL "Scripts" SECTION
+     *
+     * Placed at the bottom of <body> so scripts load after the DOM.
+     * Content views that need page-specific JavaScript define:
+     *
+     *   @section Scripts {
+     *       <script src="/js/page-specific.js"></script>
+     *   }
+     *
+     * Views that do not need extra scripts omit the @section block entirely.
+     *@
+    @RenderSection("Scripts", required: false)
+
+    <footer>
+        <p>Layout Demo Footer &mdash; ASP.NET Core MVC Chapter 4</p>
+    </footer>
+
+</body>
+</html>

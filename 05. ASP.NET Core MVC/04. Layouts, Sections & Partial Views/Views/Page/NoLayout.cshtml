@@ -1,0 +1,66 @@
+@*
+ * FILE ROLE: Demonstrates opting out of the shared layout with Layout = null.
+ *            The view renders ONLY its own markup — no outer HTML shell.
+ * SECTIONS IN THIS FILE:
+ *   1. Layout = null — opting out of the layout
+ *   2. When to use Layout = null
+ *@
+
+@*
+ * SECTION 1: Layout = null — OPTING OUT OF THE LAYOUT
+ *
+ * _ViewStart.cshtml runs before this view and sets Layout = "_Layout".
+ * Setting Layout = null in THIS view's @{ } block OVERRIDES that assignment.
+ *
+ * The Razor engine then renders only the markup below — no DOCTYPE, no <html>,
+ * no nav, no footer.  The HTTP response body is exactly what you see below.
+ *
+ * Precedence order for Layout:
+ *   1. Per-view @{ Layout = … }              ← highest priority (wins)
+ *   2. Folder _ViewStart.cshtml
+ *   3. Parent-folder _ViewStart.cshtml       ← lowest
+ *
+ * SECTION 2: WHEN TO USE Layout = null
+ *
+ *   - AJAX partial-page responses
+ *       The controller returns a View() and the browser only wants a fragment,
+ *       not the full page chrome.  Setting Layout = null avoids sending nav/footer.
+ *
+ *   - HTML email templates
+ *       Emails need their own DOCTYPE/table-based layout; the site chrome would break them.
+ *
+ *   - PDF / print generation
+ *       Libraries like IronPDF or SelectPdf render a Razor view to PDF;
+ *       the site chrome is unnecessary and wasteful.
+ *
+ *   - Integration / snapshot tests on raw view output
+ *       Asserting on a specific HTML fragment is easier without the outer shell.
+ *
+ *   - Embedded iframe content
+ *       A view shown inside an <iframe> should not repeat the outer shell.
+ *@
+@{
+    Layout = null;      // _ViewStart set "_Layout"; this line overrides it to nothing
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>No-Layout Demo</title>
+</head>
+<body>
+    <h1>No-Layout View</h1>
+    <p>
+        This page was rendered by <code>Views/Page/NoLayout.cshtml</code> with
+        <code>Layout = null</code>.  There is no shared nav bar, footer, or
+        outer HTML from <code>_Layout.cshtml</code>.  This is the complete
+        HTTP response body.
+    </p>
+    <p>
+        Common use cases: AJAX fragment responses, email templates,
+        PDF generation, embedded iframes, integration test assertions.
+    </p>
+    <a href="/">Back to Index (uses _Layout.cshtml)</a>
+</body>
+</html>

@@ -1,0 +1,90 @@
+@*
+ * FILE ROLE: Root Home view — the application entry point at /. Demonstrates all
+ *   three forms of area navigation: asp-area tag helper, @Url.Action with area,
+ *   and a table summarising cross-area link patterns.
+ *
+ * SECTION 12: ROOT VIEW — CROSS-AREA NAVIGATION
+ *
+ * This view renders inside Views/Shared/_Layout.cshtml (set by Views/_ViewStart.cshtml).
+ * It is a non-area view: no [Area] context is active, so the asp-area tag helper
+ * must explicitly name the target area for every link to an area.
+ *
+ * THREE WAYS TO LINK TO AN AREA ACTION:
+ *
+ *   1. asp-area TAG HELPER (recommended — declarative, compile-time route validation)
+ *      <a asp-area="Admin"    asp-controller="Dashboard" asp-action="Index">Admin</a>
+ *      <a asp-area="Customer" asp-controller="Account"   asp-action="Profile">Customer</a>
+ *      <a asp-area=""         asp-controller="Home"      asp-action="Index">Home</a>
+ *
+ *   2. @Url.Action (useful when href is needed as a string, e.g. in JS or redirects)
+ *      @Url.Action("Index",   "Dashboard", new { area = "Admin" })
+ *      @Url.Action("Profile", "Account",   new { area = "Customer" })
+ *      @Url.Action("Index",   "Home",      new { area = "" })
+ *
+ *   3. @Html.ActionLink (legacy helper — prefer tag helpers in new code)
+ *      @Html.ActionLink("Admin", "Index", "Dashboard", new { area = "Admin" }, null)
+ *
+ * AMBIENT AREA VALUE TRAP:
+ *   When using asp-area without a value, the anchor tag helper uses the ambient
+ *   area from the current request's route data. From a root (non-area) view the
+ *   ambient area is empty, so omitting asp-area would work here. BUT in a shared
+ *   layout or partial that can be rendered from both area and non-area contexts,
+ *   omitting asp-area leads to incorrect hrefs from area pages.
+ *   Best practice: always specify asp-area explicitly when writing links.
+*@
+
+@{
+    ViewData["Title"] = "Home";
+}
+
+<h1>ASP.NET Core MVC — Areas</h1>
+<p>This is the root <strong>Home/Index</strong> view, served by
+   <code>Controllers/HomeController.cs</code> via the default (non-area) route.</p>
+
+<h2>Navigate to Areas</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Destination</th>
+            <th>Tag helper (asp-area)</th>
+            <th>Generated URL</th>
+            <th><code>Url.Action</code> equivalent</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Admin Dashboard</td>
+            <td>
+                @* asp-area="Admin" directs the route to the Admin area *@
+                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin Dashboard</a>
+            </td>
+            <td><code>/Admin/Dashboard/Index</code></td>
+            <td><code>@Url.Action("Index", "Dashboard", new { area = "Admin" })</code></td>
+        </tr>
+        <tr>
+            <td>Customer Profile</td>
+            <td>
+                @* asp-area="Customer" directs the route to the Customer area *@
+                <a asp-area="Customer" asp-controller="Account" asp-action="Profile">Customer Profile</a>
+            </td>
+            <td><code>/Customer/Account/Profile</code></td>
+            <td><code>@Url.Action("Profile", "Account", new { area = "Customer" })</code></td>
+        </tr>
+        <tr>
+            <td>Home (self)</td>
+            <td>
+                @* asp-area="" explicitly clears area context → non-area route *@
+                <a asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+            </td>
+            <td><code>/</code></td>
+            <td><code>@Url.Action("Index", "Home", new { area = "" })</code></td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>About This Project</h2>
+<ul>
+    <li>Root <code>Controllers/HomeController.cs</code> — no [Area] attribute, reached via default route</li>
+    <li><code>Areas/Admin/Controllers/DashboardController.cs</code> — [Area("Admin")], own layout</li>
+    <li><code>Areas/Customer/Controllers/AccountController.cs</code> — [Area("Customer")], uses root layout</li>
+</ul>

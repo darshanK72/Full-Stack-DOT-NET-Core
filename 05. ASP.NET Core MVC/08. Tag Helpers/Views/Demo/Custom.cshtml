@@ -1,0 +1,157 @@
+@*
+   FILE ROLE: Demonstrates the custom AlertTagHelper and GravatarTagHelper in action.
+              Also covers @removeTagHelper, @tagHelperPrefix, and the lifecycle of
+              a custom tag helper (discovery → instantiation → property binding → Process).
+
+   SECTIONS IN THIS FILE:
+     1. AlertTagHelper usage    — <alert type="..."> all severity variants
+     2. Dismissible alert       — <alert type="..." dismissible>
+     3. GravatarTagHelper usage — <img-gravatar email="..." size="...">
+     4. @removeTagHelper        — how and when to opt-out of a tag helper
+     5. @tagHelperPrefix        — requiring a namespace prefix
+*@
+@{
+    ViewData["Title"] = "Custom Tag Helpers";
+}
+
+<h2>Custom Tag Helpers</h2>
+
+@* ============================================================
+   SECTION 1: AlertTagHelper — <alert type="...">...</alert>
+
+   Source: TagHelpers/AlertTagHelper.cs
+   Registered via: @addTagHelper *, TagHelpers  (in _ViewImports.cshtml)
+
+   At render time the Razor engine:
+     1. Encounters <alert type="success">
+     2. Looks up the registered class: AlertTagHelper (via [HtmlTargetElement("alert")])
+     3. Instantiates AlertTagHelper (supports constructor DI)
+     4. Sets AlertType = "success"  (bound from type="success" via [HtmlAttributeName])
+     5. Calls ProcessAsync(context, output)
+     6. The method changes <alert> → <div class="alert alert-success" role="alert">
+     7. Child content is read via GetChildContentAsync() and emitted inside <div>
+
+   Rendered HTML:
+     <div class="alert alert-success" role="alert">
+       Your message was sent successfully!
+     </div>
+   ============================================================ *@
+<h4>1. Alert Variants (AlertTagHelper)</h4>
+
+<alert type="success">
+    Your message was sent successfully!
+</alert>
+
+<alert type="info">
+    Fill in the form below to get in touch.
+</alert>
+
+<alert type="warning">
+    Please review your information before submitting.
+</alert>
+
+<alert type="danger">
+    An error occurred. Please try again later.
+</alert>
+
+@* ============================================================
+   SECTION 2: DISMISSIBLE ALERT — <alert type="..." dismissible>
+
+   The "dismissible" attribute is a bool property on AlertTagHelper.
+   Mere PRESENCE of the attribute (no value) sets Dismissible = true.
+
+   The tag helper adds Bootstrap dismiss classes:
+     class="alert alert-warning alert-dismissible fade show"
+   AND appends a <button class="btn-close" ...> via PostContent.
+
+   The rendered HTML:
+     <div class="alert alert-warning alert-dismissible fade show" role="alert">
+       This is a dismissible warning.
+       <button type="button" class="btn-close" data-bs-dismiss="alert" ...></button>
+     </div>
+
+   Bootstrap JavaScript (data-bs-dismiss="alert") handles the hide animation.
+   ============================================================ *@
+<h4>2. Dismissible Alert</h4>
+
+<alert type="warning" dismissible>
+    This warning can be dismissed by the user.
+</alert>
+
+<alert type="danger" dismissible>
+    Critical error — click &times; to dismiss.
+</alert>
+
+@* ============================================================
+   SECTION 3: GravatarTagHelper — <img-gravatar email="..." size="..." alt="...">
+
+   Source: TagHelpers/GravatarTagHelper.cs
+   The [HtmlTargetElement("img-gravatar")] attribute is required because the hyphenated
+   element name cannot be reliably inferred from the class name alone.
+
+   Process() (synchronous — no child content):
+     1. Lowercases and trims the email
+     2. Computes MD5 hash of the result (MD5.HashData — static, no IDisposable)
+     3. Builds the Gravatar URL: https://www.gravatar.com/avatar/{hash}?s={size}&d=identicon
+     4. Replaces <img-gravatar> → <img> with src, alt, width, height attributes
+
+   Rendered HTML:
+     <img src="https://www.gravatar.com/avatar/b642b4217b34b1e8d3bd915fc65c4452?s=80&d=identicon"
+          alt="Profile picture" width="80" height="80" />
+
+   Note: &d=identicon means "use a geometric fallback if no Gravatar is registered."
+   Other fallback options: mp (mystery person), retro, robohash, blank.
+   ============================================================ *@
+<h4>3. Gravatar Tag Helper</h4>
+
+<p>Default size (80px), default alt text:</p>
+<img-gravatar email="user@example.com" />
+
+<p>Custom size and alt:</p>
+<img-gravatar email="admin@example.com" size="120" alt="Admin avatar" />
+
+<p>Unknown email → identicon fallback:</p>
+<img-gravatar email="no-gravatar-registered@test.invalid" size="64" alt="Identicon" />
+
+@* ============================================================
+   SECTION 4: @removeTagHelper — OPTING OUT OF A SPECIFIC TAG HELPER
+
+   Syntax (in a .cshtml file or _ViewImports.cshtml):
+     @removeTagHelper FullyQualifiedClassName, AssemblyName
+
+   After @removeTagHelper, the matching element reverts to plain HTML.
+   Useful when:
+     - A built-in tag helper conflicts with a third-party one
+     - You need <form action="..."> to render as-is (without MVC route generation)
+     - A partial view should be isolated from the parent's tag helper registrations
+
+   Example — disable FormTagHelper in this view only:
+     @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.FormTagHelper,
+                      Microsoft.AspNetCore.Mvc.TagHelpers
+   After this, <form asp-action="..."> in THIS view is NOT processed — it emits
+   <form asp-action="Submit"> as literal HTML (asp-action is not an HTML attribute).
+
+   You can also @removeTagHelper in a nested _ViewImports.cshtml to scope the
+   removal to a specific folder rather than a single view.
+
+   Order matters:
+     @addTagHelper and @removeTagHelper are processed in declaration order.
+     A @removeTagHelper after an @addTagHelper wins; re-adding after a removal also works.
+   ============================================================ *@
+
+@* ============================================================
+   SECTION 5: @tagHelperPrefix — REQUIRING A NAMESPACE PREFIX
+
+   Syntax (in _ViewImports.cshtml):
+     @tagHelperPrefix  th:
+
+   After this, all tag helpers require the "th:" prefix:
+     <th:form asp-action="Submit">...</th:form>  → works
+     <form asp-action="Submit">...</form>         → NOT processed (passes through)
+
+   Prefix characters allowed: any valid XML name start character.
+   Common prefixes: "th:", "mvc:", "asp:" (but asp: clashes with built-in attributes).
+
+   Use case: migrating a legacy frontend with custom <form> or <a> handling that
+   must NOT be intercepted by MVC tag helpers.  Prefix isolates MVC markup explicitly.
+   ============================================================ *@

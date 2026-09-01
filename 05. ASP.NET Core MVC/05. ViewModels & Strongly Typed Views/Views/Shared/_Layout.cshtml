@@ -1,0 +1,66 @@
+@*
+ * FILE ROLE: _Layout.cshtml is the application-wide layout template. Every view
+ *            that sets Layout = "_Layout" (via _ViewStart.cshtml) is rendered
+ *            inside this file's @RenderBody() call.
+ *
+ *  HOW LAYOUT WORKS:
+ *    1. The action returns View(vm) — MVC finds Views/Products/Index.cshtml.
+ *    2. Index.cshtml has @{ Layout = "_Layout"; } (set by _ViewStart.cshtml).
+ *    3. The Razor engine renders Index.cshtml into a string.
+ *    4. That string is injected at @RenderBody() inside this file.
+ *    5. The final HTML sent to the browser is _Layout.cshtml with the view's
+ *       content in place of @RenderBody().
+ *
+ *  VIEWDATA["Title"]:
+ *    Each action sets ViewData["Title"] = "Page Name" (SECTION 24 in the controller).
+ *    The layout reads it here to populate the <title> tag.
+ *    This is the one accepted ViewData convention in standard MVC layout files.
+ *
+ *  @RenderSection (optional, not used in this chapter):
+ *    @RenderSection("Scripts", required: false)  → lets views inject <script> tags
+ *    @RenderSection("Styles",  required: false)  → lets views inject <style> tags
+ *    Views that want to add section content use:
+ *      @section Scripts { <script src="..."></script> }
+ *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — ViewModels Tutorial</title>@* ViewData["Title"] set per-action *@
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; padding: 0; color: #222; }
+        header { background: #1a1a2e; color: #eee; padding: 0.75rem 1.5rem; }
+        header a { color: #a3c4f3; text-decoration: none; margin-right: 1rem; }
+        header a:hover { text-decoration: underline; }
+        main { padding: 1.5rem; max-width: 960px; margin: 0 auto; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #ddd; }
+        th { background: #f4f4f4; font-weight: 600; }
+        a { color: #1a73e8; }
+        .badge-active   { color: #2e7d32; font-weight: 600; }
+        .badge-inactive { color: #b71c1c; }
+        label { display: block; margin-top: 0.75rem; font-weight: 600; }
+        input, select, textarea { width: 100%; padding: 0.4rem; box-sizing: border-box; margin-top: 0.2rem; }
+        .field-validation-error { color: #b71c1c; font-size: 0.875rem; }
+        .btn { display: inline-block; padding: 0.4rem 1rem; background: #1a73e8; color: #fff; border: none; cursor: pointer; text-decoration: none; }
+        .btn-secondary { background: #5f6368; }
+    </style>
+</head>
+<body>
+    <header>
+        <strong>ViewModels &amp; Strongly Typed Views</strong>
+        &nbsp;|&nbsp;
+        <a asp-controller="Products" asp-action="Index">All Products</a>@* tag helper: generates href="/Products" *@
+        <a asp-controller="Products" asp-action="Form">Add Product</a>@* tag helper: generates href="/Products/Form" *@
+        <a asp-controller="Products" asp-action="Dashboard">Dashboard</a>
+    </header>
+    <main>
+        @RenderBody()@*
+         * @RenderBody() is the insertion point where the rendered view content appears.
+         * Everything in Index.cshtml / Detail.cshtml / Form.cshtml is placed here.
+         * The layout provides the <html>, <head>, <body>, and shared header/footer.
+         *@
+    </main>
+</body>
+</html>

@@ -1,0 +1,286 @@
+@*
+ * FILE ROLE: Comprehensive reference for all Razor directives: @model, @using,
+ *            @inject, @functions, @inherits, @implements, @addTagHelper,
+ *            @removeTagHelper, and @namespace.
+ *
+ * SECTIONS IN THIS FILE:
+ *   1.  @model      — strongly-typed model declaration
+ *   2.  @using      — namespace import in a view
+ *   3.  @inject     — dependency injection into a view
+ *   4.  @functions  — C# methods and properties local to the view
+ *   5.  @inherits   — changing the base class of the compiled view
+ *   6.  @implements — adding an interface to the compiled view
+ *   7.  @addTagHelper / @removeTagHelper — Tag Helper assembly control
+ *   8.  @namespace  — CLR namespace of the compiled view class
+ *
+ * This view has no @model because DemoController.Directives() passes no model.
+ * ViewBag is used for the page title (contrast with typed Model.* in other views).
+ *@
+
+@*
+ * SECTION 2: @using IN A VIEW
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @using imports a namespace for this file only. Types already imported by
+ * Views/_ViewImports.cshtml (ViewsRazorSyntax.Models, etc.) do not need
+ * repeating here. Add only what this specific view needs.
+ *@
+@using System
+@using System.Collections.Generic
+
+@*
+ * SECTION 3: @inject — DEPENDENCY INJECTION INTO A VIEW
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @inject ServiceType PropertyName injects a registered service from the DI
+ * container directly into the view as a typed property.
+ *
+ * SYNTAX:
+ *   @inject IMyService MyService
+ *   → Razor compiles to: [Inject] public IMyService MyService { get; set; }
+ *     on the generated view class.
+ *
+ * USE CASES:
+ *   • IStringLocalizer<T>  — localised strings without passing to ViewModel
+ *   • IUrlHelper           — URL generation inside a view
+ *   • Custom options        — reading IOptions<AppSettings> for feature flags
+ *   • IAuthorizationService — checking permissions to conditionally render UI
+ *
+ * RULE: @inject is for reading/display logic only. Never perform writes or
+ * complex operations in a view — that belongs in the controller or service.
+ *
+ * IUrlHelper is already available as Url in all views. This @inject line
+ * is for illustration; the IWebHostEnvironment injection below is practical.
+ *
+ * Microsoft.AspNetCore.Hosting.IWebHostEnvironment is registered automatically
+ * by WebApplication.CreateBuilder — no manual DI registration needed.
+ *@
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnv
+
+@*
+ * SECTION 4: @functions — LOCAL METHODS IN A VIEW
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @functions { } declares C# methods, properties, and fields that are
+ * compiled into the generated view class. They can be called from anywhere
+ * in the view using standard C# syntax (or @MethodName() in Razor expressions).
+ *
+ * Useful for:
+ *   • Formatting helpers called multiple times in the same view
+ *   • Computed properties derived from ViewBag/Model
+ *   • Small rendering helpers to keep the HTML markup clean
+ *
+ * WHEN TO USE @functions vs A PARTIAL VIEW vs A TAG HELPER:
+ *   @functions   — view-private utility methods; short and simple
+ *   Partial view — reusable HTML fragment shared across multiple views
+ *   Tag Helper   — complex, testable server-side processing on HTML elements
+ *
+ * NOTE: Methods in @functions are not reachable from other views. For shared
+ * logic extract it into a service and @inject it, or into a Tag Helper.
+ *@
+@functions {
+    // Returns a CSS class based on the environment name
+    string EnvBadgeClass(string env) =>
+        env == "Production" ? "color:red; font-weight:bold"
+        : env == "Development" ? "color:green"
+        : "color:orange";
+
+    // Formats a directive name for consistent display in the table below
+    string DirectiveCell(string name) => $"@{name}";
+}
+
+<h1>@ViewBag.PageTitle</h1>
+
+@*
+ * SECTION 1: @model RECAP — THIS VIEW HAS NO @model
+ * ─────────────────────────────────────────────────────────────────────────────
+ * This view omits @model deliberately to illustrate the difference:
+ *   With @model ArticleViewModel  → Model is ArticleViewModel (compile-time type)
+ *   Without @model                → Model is dynamic (runtime binding, no IntelliSense)
+ *
+ * Using @Model.SomeProperty without @model compiles to a dynamic access;
+ * a misspelled property throws a RuntimeBinderException at runtime, not a
+ * compile error. Always prefer @model for any view with structured data.
+ *@
+<div class="card">
+    <h2>1. @@model directive</h2>
+    <p>This view has no <code>@@model</code> — data is accessed via <code>@ViewBag</code> only.</p>
+    <p>Page title from ViewBag: <strong>@ViewBag.PageTitle</strong></p>
+    <p>Compare with Index.cshtml which declares <code>@@model ArticleViewModel</code>
+       and accesses <code>@Model.Title</code> with full compile-time checking.</p>
+</div>
+
+<div class="card">
+    <h2>2. @@using</h2>
+    <p>Imported at top of this file: <code>System</code>, <code>System.Collections.Generic</code>.</p>
+    <p>Today via System.DateTime: <strong>@DateTime.Today.ToString("D")</strong></p>
+</div>
+
+<div class="card">
+    <h2>3. @@inject — IWebHostEnvironment</h2>
+    <p>
+        Environment name (from injected IWebHostEnvironment):
+        <strong style="@EnvBadgeClass(HostEnv.EnvironmentName)">@HostEnv.EnvironmentName</strong>
+    </p>
+    <p>Content root: <code>@HostEnv.ContentRootPath</code></p>
+    <p style="font-size:.85rem; color:#6c757d;">
+        HostEnv was injected via <code>@@inject IWebHostEnvironment HostEnv</code>
+        at the top of this file — no controller pass-through needed.
+    </p>
+</div>
+
+<div class="card">
+    <h2>4. @@functions — Local Methods</h2>
+    <p>The <code>EnvBadgeClass()</code> and <code>DirectiveCell()</code> methods above
+       are declared in a <code>@@functions { }</code> block and called inline:</p>
+    <p>Calling <code>DirectiveCell("model")</code> → <strong>@DirectiveCell("model")</strong></p>
+</div>
+
+@*
+ * SECTION 5: @inherits
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Every .cshtml file is compiled into a C# class that inherits from
+ * RazorPage<TModel> (where TModel is the @model type, or dynamic if none).
+ * RazorPage<T> provides: Html, Url, ViewBag, ViewData, TempData, User, Context.
+ *
+ * @inherits CustomBaseClass replaces RazorPage<T> with your own base class.
+ * The base class must still derive from RazorPage<T>.
+ *
+ * USE CASE: Add custom helpers or properties to ALL views by putting them in
+ * a shared base class, then @inherits it (or put @inherits in _ViewImports
+ * so it applies everywhere automatically).
+ *
+ * EXAMPLE (not applied here — would require creating the base class):
+ *   @inherits MyApp.Views.ApplicationRazorPage<TModel>
+ *   public abstract class ApplicationRazorPage<T> : RazorPage<T>
+ *   {
+ *       public string AppVersion => "2.1.0";
+ *   }
+ *   Then every view can use @AppVersion without @inject.
+ *@
+<div class="card">
+    <h2>5. @@inherits</h2>
+    <p>Changes the base class of the compiled view from <code>RazorPage&lt;T&gt;</code> to a
+       custom subclass. Use in <code>_ViewImports.cshtml</code> to apply to all views.</p>
+    <pre>@@inherits MyApp.Views.AppBasePage&lt;TModel&gt;</pre>
+    <p>This chapter does not apply @@inherits — it requires a custom base class
+       (out of scope here). The pattern is in → 06. View Components &amp; Partial Views.</p>
+</div>
+
+@*
+ * SECTION 6: @implements
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @implements adds an interface to the generated view class.
+ *
+ * SYNTAX:
+ *   @implements IDisposable
+ *   Then define the interface members inside @functions { }.
+ *
+ * Rare in practice — most view logic should live in services or controllers.
+ * The main documented use is implementing IDisposable when the view directly
+ * holds an unmanaged resource (extremely uncommon).
+ *@
+<div class="card">
+    <h2>6. @@implements</h2>
+    <p>Adds an interface to the compiled view class. Uncommon — shown here for completeness.</p>
+    <pre>@@implements IDisposable
+@@functions {
+    public void Dispose() { /* cleanup */ }
+}</pre>
+</div>
+
+@*
+ * SECTION 7: @addTagHelper / @removeTagHelper
+ * ─────────────────────────────────────────────────────────────────────────────
+ * These directives control which Tag Helper classes are active for the view.
+ *
+ * @addTagHelper *, Assembly
+ *   Enables all Tag Helpers in the named assembly. The wildcard * selects every
+ *   class in the assembly that derives from TagHelper. For Microsoft's built-in
+ *   helpers the assembly is "Microsoft.AspNetCore.Mvc.TagHelpers".
+ *
+ * @addTagHelper FullyQualified.ClassName, Assembly
+ *   Enables only one specific Tag Helper class.
+ *
+ * @removeTagHelper *, Assembly
+ *   Disables all Tag Helpers from the assembly (e.g. to override @addTagHelper
+ *   from _ViewImports.cshtml for a specific folder/file).
+ *
+ * In this project @addTagHelper is in _ViewImports.cshtml — applied globally.
+ * A per-folder _ViewImports could use @removeTagHelper to restrict specific views.
+ *
+ * PREVIEW → Full Tag Helper authoring and usage in 08. Tag Helpers
+ *@
+<div class="card">
+    <h2>7. @@addTagHelper / @@removeTagHelper</h2>
+    <p>Declared in <code>Views/_ViewImports.cshtml</code> for this chapter:</p>
+    <pre>@@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers</pre>
+    <p>To disable in a specific sub-folder, create a
+       <code>Views/Admin/_ViewImports.cshtml</code> containing:</p>
+    <pre>@@removeTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers</pre>
+    <p>Full Tag Helper coverage → 08. Tag Helpers</p>
+</div>
+
+@*
+ * SECTION 8: @namespace
+ * ─────────────────────────────────────────────────────────────────────────────
+ * By default, Razor compiles each .cshtml into a class whose CLR namespace is
+ * derived from the view's path:
+ *   Views/Demo/Index.cshtml → AspNetCore.Views_Demo_Index (internal name)
+ *
+ * @namespace ExplicitName overrides this to a specified CLR namespace.
+ * This is rarely needed in application code but matters when:
+ *   • You reference the compiled view class from C# (e.g. in unit tests).
+ *   • You use @inherits with a base class in a specific namespace.
+ *   • You are building a Razor Class Library (RCL) and need predictable names.
+ *
+ * In _ViewImports.cshtml, @namespace sets the root namespace for all views
+ * beneath it — individual views can override with their own @namespace.
+ *@
+<div class="card">
+    <h2>8. @@namespace</h2>
+    <p>Overrides the CLR namespace of the compiled view class.</p>
+    <pre>@@namespace ViewsRazorSyntax.Views</pre>
+    <p>Most useful in Razor Class Libraries where the compiled view namespace
+       must be predictable. Rarely needed in standard MVC applications.</p>
+</div>
+
+@*
+ * DIRECTIVES QUICK REFERENCE
+ * ─────────────────────────────────────────────────────────────────────────────
+ *@
+<div class="card" style="background:#f8f9fa;">
+    <h2>Directives Quick Reference</h2>
+    <table style="border-collapse:collapse; width:100%; font-size:.85rem;">
+        <thead>
+            <tr style="background:#dee2e6;">
+                <th style="padding:6px 10px; text-align:left;">Directive</th>
+                <th style="padding:6px 10px; text-align:left;">Purpose</th>
+                <th style="padding:6px 10px; text-align:left;">Allowed in _ViewImports?</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                var rows = new List<(string Dir, string Purpose, string Imports)>
+                {
+                    ("@model T",            "Declare strongly-typed model",              "Yes"),
+                    ("@using Ns",           "Import a namespace",                        "Yes"),
+                    ("@inject T Name",      "DI into view as a property",               "Yes"),
+                    ("@functions { }",      "Local C# methods/properties",              "No"),
+                    ("@inherits Base",      "Change view base class",                   "Yes"),
+                    ("@implements IFace",   "Add interface to view class",              "No"),
+                    ("@addTagHelper",       "Enable Tag Helpers from assembly",         "Yes"),
+                    ("@removeTagHelper",    "Disable Tag Helpers",                      "Yes"),
+                    ("@namespace Ns",       "Set CLR namespace of compiled view",       "Yes"),
+                };
+                bool alt = false;
+            }
+            @foreach (var (dir, purpose, imports) in rows)
+            {
+                <tr style="background: @(alt ? "#f8f9fa" : "#fff");">
+                    <td style="padding:6px 10px; font-family:monospace;">@dir</td>
+                    <td style="padding:6px 10px;">@purpose</td>
+                    <td style="padding:6px 10px;">@imports</td>
+                </tr>
+                alt = !alt;
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - RealTimeSignalR</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem 2rem; background: #f5f5f5; }
+        h1   { color: #333; }
+        #messagesList { list-style: none; padding: 0; max-height: 400px; overflow-y: auto;
+                        background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: .5rem; }
+        #messagesList li { padding: .25rem .5rem; border-bottom: 1px solid #eee; }
+        #messagesList li.system { color: #888; font-style: italic; }
+        .chat-form { display: flex; gap: .5rem; margin-top: 1rem; }
+        .chat-form input { flex: 1; padding: .4rem; border: 1px solid #ccc; border-radius: 4px; }
+        .chat-form button { padding: .4rem 1rem; background: #0078d4; color: #fff;
+                            border: none; border-radius: 4px; cursor: pointer; }
+        #connectionStatus { font-size: .85rem; margin-bottom: .5rem; }
+    </style>
+</head>
+<body>
+    @RenderBody()
+
+    @*
+     * SIGNALR JAVASCRIPT CLIENT — CDN INCLUDE
+     *
+     * @microsoft/signalr is the official JavaScript client for ASP.NET Core SignalR.
+     * It is NOT included in wwwroot by default; load it from a CDN or npm.
+     *
+     * CDN (cdnjs — used here):
+     *   https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js
+     *   Exposes the global object: signalR
+     *
+     * npm / bundler alternative:
+     *   npm install @microsoft/signalr
+     *   import * as signalR from "@microsoft/signalr";
+     *
+     * The script MUST be loaded BEFORE any inline script that uses HubConnectionBuilder.
+     * Placing it here (before @RenderSectionAsync("Scripts")) ensures correct order:
+     *   1. signalr.min.js   — library
+     *   2. @section Scripts  — page-specific code that uses signalR.*
+     *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

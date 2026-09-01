@@ -1,0 +1,57 @@
+@*
+ * FILE ROLE: A partial view that renders a navigation list from a strongly-typed
+ *            NavItem[] model, and reads extra context from ViewData.
+ * SECTIONS IN THIS FILE:
+ *   1. @model in a partial view
+ *   2. Accessing ViewData inside a partial
+ *@
+
+@*
+ * SECTION 1: @model IN A PARTIAL VIEW
+ *
+ * Partial views support the same @model directive as full views.
+ *
+ * When the calling view passes a model:
+ *   @await Html.PartialAsync("_NavigationPartial", Model.NavItems)
+ *
+ * The partial receives it as a strongly-typed @Model (NavItem[]) —
+ * full IntelliSense, nullable checks, no casting needed.
+ *
+ * If no model is passed, @Model is null (or the parent view's model
+ * if the overload without a model argument is used — see Index.cshtml).
+ *
+ * SECTION 2: ViewData INSIDE A PARTIAL
+ *
+ * ViewData is NOT a property of the model — it is shared across the
+ * entire request.  Anything set by the controller OR the calling view
+ * is readable here with no extra passing:
+ *
+ *   Controller:    ViewData["SidebarContent"] = "Hello from controller";
+ *   Calling view:  @{ ViewData["ExtraKey"] = "Set in Index.cshtml"; }
+ *   This partial:  @ViewData["SidebarContent"]  ← works automatically
+ *
+ * To pass ViewData that is ONLY visible to this partial (not the whole
+ * request), create a new dictionary before calling PartialAsync — shown
+ * in Index.cshtml Section 8.
+ *@
+@model NavItem[]
+
+<nav class="site-nav" aria-label="Main navigation">
+    <ul>
+        @* Iterate the model — @Model is NavItem[] *@
+        @foreach (NavItem item in Model)
+        {
+            @* IsActive drives an aria-current attribute and a CSS class *@
+            <li class="@(item.IsActive ? "nav-active" : string.Empty)">
+                <a href="@item.Href"
+                   aria-current="@(item.IsActive ? "page" : null)">@item.Label</a>
+            </li>
+        }
+    </ul>
+</nav>
+
+@* ViewData from the controller is accessible here without being explicitly passed *@
+@if (ViewData["SidebarContent"] is string sidebarText)
+{
+    <p class="sidebar-note"><em>@sidebarText</em></p>
+}

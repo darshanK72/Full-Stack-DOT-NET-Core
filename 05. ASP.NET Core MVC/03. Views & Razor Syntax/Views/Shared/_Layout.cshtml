@@ -1,0 +1,114 @@
+@*
+ * FILE ROLE: The shared HTML shell for every page in this chapter.
+ *            Demonstrates @RenderBody(), @RenderSection(), and the layout
+ *            composition model that underpins all MVC view rendering.
+ *
+ * SECTIONS IN THIS FILE:
+ *   1. Layout structure     — DOCTYPE, <head>, <body> with @RenderBody
+ *   2. @RenderSection       — optional named sections filled by child views
+ *   3. ViewBag.PageTitle    — reading ViewBag data set by the controller
+ *
+ * HOW THE LAYOUT + VIEW PIPELINE WORKS:
+ *   1. Controller action returns View(model).
+ *   2. _ViewStart.cshtml sets Layout = "_Layout".
+ *   3. Razor renders the child view (e.g. Index.cshtml) into a string.
+ *   4. That string is injected at the @RenderBody() call in this file.
+ *   5. Named sections (@section Scripts { }) are injected at @RenderSection.
+ *   6. The final composed HTML is sent to the client.
+ *
+ * READING @ViewBag FROM THE LAYOUT:
+ *   ViewBag (and ViewData) values set in the controller are available in
+ *   the layout AND in the child view. Setting ViewBag.PageTitle in the action
+ *   lets the layout put it in <title> without the child view repeating it.
+ *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    @*
+     * SECTION 1: READING ViewBag IN THE LAYOUT
+     * ─────────────────────────────────────────────────────────────────────
+     * @ViewBag.PageTitle reads the dynamic value set by the controller.
+     * The null-coalescing fallback ("Views & Razor Syntax") is expressed
+     * as a parenthesised expression so Razor can evaluate the ?? operator.
+     *
+     * Why parentheses?  @ViewBag.PageTitle ?? "fallback"  would confuse the
+     * Razor parser (it would read "fallback" as HTML text after the expression).
+     * Wrapping in @( ) tells Razor the entire expression is one C# unit.
+     *@
+    <title>@(ViewBag.PageTitle ?? "Views & Razor Syntax")</title>
+
+    <style>
+        body  { font-family: Segoe UI, sans-serif; margin: 0; background: #f8f9fa; }
+        nav   { background: #0d6efd; padding: .6rem 1.2rem; }
+        nav a { color: #fff; margin-right: 1rem; text-decoration: none; font-size: .9rem; }
+        nav a:hover { text-decoration: underline; }
+        main  { max-width: 860px; margin: 1.5rem auto; padding: 0 1rem; }
+        h1    { color: #0d6efd; }
+        .badge { display: inline-block; background: #e7f1ff; color: #0d6efd;
+                 border-radius: 4px; padding: 2px 8px; font-size: .8rem; margin: 2px; }
+        .draft { background: #fff3cd; color: #856404;
+                 border: 1px solid #ffc107; padding: .5rem; border-radius: 4px; }
+        .card  { background: #fff; border: 1px solid #dee2e6; border-radius: 6px;
+                 padding: 1rem; margin-bottom: 1rem; }
+        pre    { background: #f1f3f5; padding: .8rem; border-radius: 4px;
+                 overflow-x: auto; font-size: .85rem; }
+        footer { text-align: center; color: #6c757d; font-size: .8rem;
+                 padding: 1.5rem 0; border-top: 1px solid #dee2e6; margin-top: 2rem; }
+    </style>
+</head>
+<body>
+
+    @*
+     * SECTION 2: NAVIGATION BAR
+     * ─────────────────────────────────────────────────────────────────────
+     * Hardcoded nav links demonstrate the conventional URL pattern:
+     *   /Demo/Index, /Demo/Control, /Demo/Helpers, /Demo/Directives
+     * In production these would use Tag Helper anchors (asp-controller /
+     * asp-action) or @Html.ActionLink helpers — both shown in Helpers.cshtml.
+     *@
+    <nav>
+        <strong style="color:#fff; margin-right:1.5rem;">Views &amp; Razor</strong>
+        <a href="/Demo/Index">Expressions</a>
+        <a href="/Demo/Control">Control Flow</a>
+        <a href="/Demo/Helpers">Html Helpers</a>
+        <a href="/Demo/Directives">Directives</a>
+    </nav>
+
+    <main>
+        @*
+         * SECTION 3: @RenderBody() — CHILD VIEW INJECTION POINT
+         * ─────────────────────────────────────────────────────────────────
+         * @RenderBody() is a layout-only method that marks where the rendered
+         * content of the child view is placed. It can appear only once per
+         * layout. Every view that uses this layout has its entire HTML output
+         * inserted here.
+         *
+         * Calling @RenderBody() in a non-layout view throws an exception.
+         *@
+        @RenderBody()
+    </main>
+
+    @*
+     * SECTION 4: @RenderSection() — NAMED OPTIONAL SECTIONS
+     * ─────────────────────────────────────────────────────────────────────
+     * Named sections let child views inject content into specific layout slots
+     * (scripts, sidebar, breadcrumbs, etc.) rather than the main body slot.
+     *
+     * SYNTAX:
+     *   Layout:     @RenderSection("Scripts", required: false)
+     *   Child view: @section Scripts { <script src="..."></script> }
+     *
+     * required: false — layout renders fine if no child view fills this section.
+     * required: true  — throws InvalidOperationException if section is missing.
+     *
+     * RULE: A section name can only be defined once per child view.
+     *       A layout can call @RenderSection for the same name only once.
+     *@
+    @RenderSection("Scripts", required: false)
+
+    <footer>ASP.NET Core MVC — Views &amp; Razor Syntax tutorial chapter</footer>
+</body>
+</html>

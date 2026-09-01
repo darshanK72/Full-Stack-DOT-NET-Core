@@ -1,0 +1,190 @@
+@*
+ * FILE ROLE: Products/Index.cshtml — the list view. Demonstrates:
+ *   - @model directive with a wrapper ViewModel (ProductListViewModel)
+ *   - Html.DisplayNameFor with IEnumerable<T> property for column headers
+ *   - Html.DisplayFor for value rendering with [DisplayFormat] applied
+ *   - Filter form that round-trips search state via the ViewModel
+ *
+ * SECTIONS IN THIS FILE (Razor views):
+ *   @model directive — strong typing declaration
+ *   Filter form      — round-trips SearchTerm and CategoryFilter
+ *   Table headers    — Html.DisplayNameFor reads [Display(Name = "...")] metadata
+ *   Table body       — Html.DisplayFor applies [DisplayFormat] automatically
+ *@
+
+@*
+ * THE @model DIRECTIVE — STRONG TYPING
+ *
+ * @model ProductListViewModel declares the type of Model for this view.
+ * With this declaration:
+ *   - @Model is typed as ProductListViewModel (not dynamic object)
+ *   - The Razor compiler verifies every @Model.Property access at build time
+ *   - IntelliSense in the IDE shows available properties with types
+ *   - Html.DisplayFor / Html.DisplayNameFor / Html.EditorFor can read metadata
+ *     from [Display] and [DisplayFormat] attributes on the ViewModel class
+ *
+ * Without @model (or with @model dynamic):
+ *   - Every @Model.X access is a runtime dictionary lookup
+ *   - Typos cause NullReferenceException at runtime, not a compiler error
+ *   - Html.* expression helpers cannot infer property metadata
+ *
+ * ProductListViewModel is available without a full namespace prefix because
+ * _ViewImports.cshtml adds @using ViewModels.ViewModels.
+ *@
+@model ProductListViewModel
+
+@{
+    ViewData["Title"] = "Products"; // overrides the per-action title (same value here)
+}
+
+<h1>Products <small style="font-size:0.6em; color:#666;">(@Model.TotalCount results)</small></h1>
+
+@*
+ * FILTER FORM — ROUND-TRIPPING SEARCH STATE
+ *
+ * The form submits a GET request so the filter is visible in the URL:
+ *   /Products?searchTerm=laptop&categoryFilter=1
+ * GET (not POST) is correct for search/filter forms because:
+ *   - The URL is bookmarkable and shareable
+ *   - Browser back/forward navigation preserves the filter
+ *   - Refreshing does not re-submit a POST body
+ *
+ * Model.SearchTerm and Model.CategoryFilter are returned by the controller
+ * (SECTION 20) so the inputs are pre-filled with the current filter values.
+ * Without this round-trip, the form clears after submit — confusing UX.
+ *
+ * The <select> for categories uses a tag helper (asp-items) to generate <option>
+ * elements from Model.CategoryOptions. The selected value comes from Model.CategoryFilter.
+ *@
+<form method="get" action="/Products" style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+    <div>
+        <label for="searchTerm">Search</label>
+        <input type="text" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" placeholder="Product name..." />
+    </div>
+    <div>
+        <label for="categoryFilter">Category</label>
+        <select id="categoryFilter" name="categoryFilter" style="width:auto;">
+            <option value="">-- All Categories --</option>
+            @foreach (var opt in Model.CategoryOptions)
+            {
+                @* Check if this option matches the current filter to mark it selected *@
+                if (Model.CategoryFilter == opt.Id)
+                {
+                    <option value="@opt.Id" selected="selected">@opt.Name</option>
+                }
+                else
+                {
+                    <option value="@opt.Id">@opt.Name</option>
+                }
+            }
+        </select>
+    </div>
+    <div style="align-self:flex-end;">
+        <button type="submit" class="btn">Filter</button>
+        <a href="/Products" class="btn btn-secondary">Clear</a>
+    </div>
+</form>
+
+@*
+ * TABLE HEADERS — Html.DisplayNameFor
+ *
+ * Html.DisplayNameFor(expression) reads the [Display(Name = "...")] attribute
+ * from the property identified by the expression and renders its Name value.
+ * If no [Display] attribute is present it falls back to the property name itself.
+ *
+ * For a wrapper ViewModel (ProductListViewModel.Products is IEnumerable<T>),
+ * the expression must navigate INTO the item type:
+ *
+ *   @Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.Name)
+ *
+ *   The framework uses EXPRESSION TREE ANALYSIS — it walks the lambda to find
+ *   ProductSummaryViewModel.Name and reads its [Display(Name = "Product Name")]
+ *   attribute. It does NOT actually call FirstOrDefault() at runtime for this
+ *   purpose; it only reads the expression structure to discover the property type.
+ *
+ *   The ! (null-forgiving operator) suppresses CS8602 because FirstOrDefault()
+ *   returns ProductSummaryViewModel? and the expression is only used for metadata,
+ *   not actual null-safe access.
+ *
+ * Result of each call:
+ *   Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.Name)        → "Product Name"
+ *   Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.CategoryName) → "Category"
+ *   Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.Price)       → "Unit Price"
+ *   Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.IsActive)    → "In Stock"
+ *@
+@if (!Model.Products.Any())
+{
+    <p>No products found. <a asp-action="Form">Add one</a>.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>@Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.Name)</th>
+                <th>@Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.CategoryName)</th>
+                <th>@Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.Price)</th>
+                <th>@Html.DisplayNameFor(m => m.Products.FirstOrDefault()!.IsActive)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        @*
+         * TABLE BODY — Html.DisplayFor
+         *
+         * Html.DisplayFor(expression) renders the value of the property identified
+         * by the expression using any [DisplayFormat] attribute on that property.
+         *
+         *   @Html.DisplayFor(modelItem => item.Price)
+         *
+         *   ProductSummaryViewModel.Price has:
+         *     [DisplayFormat(DataFormatString = "{0:C}", ApplyFormatInEditMode = false)]
+         *   So DisplayFor renders: "$1,299.99" (culture-aware currency format)
+         *   instead of the raw: "1299.99"
+         *
+         * WITHOUT Html.DisplayFor (using @item.Price directly):
+         *   The raw decimal value is rendered with no formatting.
+         *   [DisplayFormat] is IGNORED — it is only applied by Html.DisplayFor.
+         *
+         * EXPRESSION VARIABLE:
+         *   @Html.DisplayFor(modelItem => item.Name)
+         *   The parameter name "modelItem" is a convention from MVC scaffolding.
+         *   It is unused inside the lambda body — `item` (the foreach variable)
+         *   is what is actually read. This is a quirk of the scaffolded pattern;
+         *   the lambda parameter name does not matter.
+         *   You can write: @Html.DisplayFor(_ => item.Name)  — identical result.
+         *@
+        <tbody>
+            @foreach (var item in Model.Products)
+            {
+                <tr>
+                    <td>@Html.DisplayFor(modelItem => item.Name)</td>
+                    <td>@(item.CategoryName ?? "—")</td>@* null-coalescing: show dash if null *@
+                    <td>@Html.DisplayFor(modelItem => item.Price)</td>@* applies [DisplayFormat] → "$X.XX" *@
+                    <td>
+                        @if (item.IsActive)
+                        {
+                            <span class="badge-active">Yes</span>
+                        }
+                        else
+                        {
+                            <span class="badge-inactive">No</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Detail" asp-route-id="@item.Id">View</a> |
+                        <a asp-action="Form"   asp-route-id="@item.Id">Edit</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <p style="margin-top:0.5rem; color:#555;">
+        Showing @Model.Products.Count() of @Model.TotalCount products.
+    </p>
+}
+
+<p style="margin-top:1rem;">
+    <a asp-action="Form" class="btn">+ Add Product</a>
+</p>

@@ -1,0 +1,103 @@
+@*
+ * SECTION 12: CREATE FORM — PRG PATTERN (POST side)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * This view renders the product creation form. When the user submits:
+ *   1. Browser sends POST /Products/Create with form fields
+ *   2. MVC model binder populates a ProductFormModel from the form body
+ *   3. DataAnnotations are validated → ModelState.IsValid
+ *   4a. FAIL: controller returns View(model) — this view re-renders with errors
+ *   4b. PASS: controller sets TempData → RedirectToAction("Index")
+ *
+ * @model ProductFormModel (strongly typed):
+ *   - Tag helpers asp-for / asp-validation-for require a typed @model
+ *   - asp-for="Name" generates: name="Name" id="Name" and correct input type
+ *   - asp-validation-for="Name" generates: <span> that shows ModelState["Name"] error
+ *   - asp-validation-summary="ModelOnly" renders non-field ModelState errors
+ *
+ * ViewBag.FormTitle and ViewData["SubmitLabel"] are supplementary per-request
+ * data set by ProductsController.Create() — they are NOT part of the typed model.
+ *
+ * ANTI-FORGERY TOKEN:
+ *   <form asp-action="Create"> automatically injects a hidden
+ *   __RequestVerificationToken field. The [ValidateAntiForgeryToken] attribute
+ *   on the POST action validates it — preventing CSRF attacks.
+ *@
+
+@model ProductFormModel
+
+@{
+    ViewData["Title"] = "Create Product";
+    var formTitle   = ViewBag.FormTitle   as string ?? "Add New Product";   // ViewBag read
+    var submitLabel = ViewData["SubmitLabel"] as string ?? "Create";        // ViewData read
+}
+
+<h1>@formTitle</h1>
+
+@*
+ * VIEWBAG / VIEWDATA READ PATTERNS IN RAZOR:
+ *
+ *   @ViewBag.FormTitle                           dynamic — null if not set (no exception)
+ *   @ViewData["SubmitLabel"]                     object? — renders via .ToString()
+ *   ViewBag.FormTitle as string ?? "default"     safe cast with null-coalesce
+ *   ViewData["SubmitLabel"] as string ?? "..."   safe cast with null-coalesce (preferred)
+ *
+ * We assigned to local variables above so they can be used inside HTML attributes
+ * cleanly (Razor expressions inside attribute values can be verbose otherwise).
+ *@
+
+<form asp-action="Create" asp-controller="Products" method="post">
+    @* Anti-forgery token is injected automatically by the asp-action tag helper *@
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-error"></div>
+
+    <div class="form-group">
+        <label asp-for="Name"></label>
+        <input asp-for="Name" placeholder="e.g. Wireless Keyboard" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+        @*
+         * asp-for="Name" links to ProductFormModel.Name.
+         * [Required] + [StringLength] DataAnnotations are reflected here:
+         *   - renders required, maxlength, minlength HTML attributes
+         *   - client-side validation (jQuery Unobtrusive) picks these up too
+         * COVERED IN DETAIL → 14. Client-Side Validation
+         *@
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Price"></label>
+        <input asp-for="Price" placeholder="e.g. 29.99" />
+        <span asp-validation-for="Price" class="text-danger"></span>
+        @*
+         * asp-for="Price" renders <input type="number"> for decimal.
+         * [Range(0.01, 10000)] is reflected as min="0.01" max="10000".
+         *@
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Quantity"></label>
+        <input asp-for="Quantity" placeholder="e.g. 100" />
+        <span asp-validation-for="Quantity" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn">@submitLabel</button>
+    &nbsp;
+    <a asp-controller="Products" asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>
+
+<hr />
+
+<h2>PRG flow — what happens when you submit</h2>
+<pre>
+Browser → POST /Products/Create
+            │
+            ├─ ModelState INVALID
+            │     return View(model)  ← re-renders THIS page with error spans
+            │
+            └─ ModelState VALID
+                  StatusMessage = "Product '...' added."   ← [TempData] property
+                  return RedirectToAction("Index")          ← 302 Redirect
+                        │
+                        └─ Browser → GET /Products/Index
+                                         │
+                                         └─ TempData["StatusMessage"] → success banner
+</pre>

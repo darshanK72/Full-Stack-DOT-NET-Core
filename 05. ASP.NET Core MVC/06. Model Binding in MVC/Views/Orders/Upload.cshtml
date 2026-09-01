@@ -1,0 +1,86 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * VIEW: Orders/Upload.cshtml
+ *
+ * DEMONSTRATES:
+ *   - IFormFile binding — form MUST use enctype="multipart/form-data"
+ *   - IList<IFormFile> for multiple file attachments
+ *   - Mixed payload — scalar text fields + file inputs in one model
+ *   - asp-for on file inputs — generates name attribute matching the model property
+ *   - Validation error display for file fields
+ *
+ * KEY RULE — multipart/form-data:
+ *   IFormFile only works when the form uses enctype="multipart/form-data".
+ *   Without it, the browser sends the filename as text, not the file bytes,
+ *   and the binder receives an empty/null IFormFile — no build error, just runtime null.
+ * ═══════════════════════════════════════════════════════════════════════════════ *@
+@model FileUploadModel
+@{ ViewData["Title"] = "Upload Document"; }
+
+<h2>Upload Document</h2>
+<p>
+    Demonstrates <strong>IFormFile</strong> binding. The form uses
+    <code>enctype="multipart/form-data"</code> — required for file uploads.
+    The <code>FileUploadModel</code> combines scalar fields (DocumentTitle, Description)
+    and file inputs (MainFile, Attachments) in a single model.
+</p>
+
+<div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+@*
+ * enctype="multipart/form-data" is REQUIRED for file uploads.
+ * Without it the browser sends only the filename string, not file content.
+ * asp-enctype is not a built-in Tag Helper — set enctype directly on the form element.
+ *@
+<form asp-action="Upload" method="post" enctype="multipart/form-data">
+
+    @* ── Scalar fields — same binding as a normal form ───────────────────── *@
+    <div class="form-group">
+        @* asp-for="DocumentTitle" → name="DocumentTitle" *@
+        <label asp-for="DocumentTitle">Document Title</label>
+        <input asp-for="DocumentTitle" />
+        <span asp-validation-for="DocumentTitle"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="Description">Description</label>
+        <textarea asp-for="Description" rows="3"></textarea>
+    </div>
+
+    @* ── Single IFormFile — required file upload ──────────────────────────── *@
+    <div class="form-group">
+        @*
+         * asp-for="MainFile" generates: name="MainFile" type="file"
+         * The binder matches the <input name> to FileUploadModel.MainFile (IFormFile).
+         * Non-nullable IFormFile → ModelState error if no file is selected.
+         *@
+        <label asp-for="MainFile">Main Document (PDF, DOCX, PNG, JPG — max 5 MB)</label>
+        <input asp-for="MainFile" type="file" accept=".pdf,.docx,.png,.jpg,.jpeg" />
+        <span asp-validation-for="MainFile"></span>
+    </div>
+
+    @* ── IList<IFormFile> — multiple file attachments ────────────────────── *@
+    <div class="form-group">
+        @*
+         * name="Attachments" with multiple attribute.
+         * The binder collects ALL selected files into IList<IFormFile> Attachments.
+         * Each file is one element; no file selected → empty list (not null).
+         * Max 2 MB per attachment (validated in the controller action).
+         *@
+        <label asp-for="Attachments">Attachments (optional, max 2 MB each)</label>
+        <input asp-for="Attachments" type="file" multiple />
+        <small>Hold Ctrl/Cmd to select multiple files</small>
+        <span asp-validation-for="Attachments"></span>
+    </div>
+
+    <button type="submit">Upload</button>
+</form>
+
+<hr />
+<h4>What happens after Submit</h4>
+<ol>
+    <li>Browser sends a multipart/form-data POST to <code>POST /Orders/Upload</code>.</li>
+    <li>MVC reads the multipart body: scalar parts → FormValueProvider; file parts → FormFileCollection.</li>
+    <li>The binder populates <code>FileUploadModel.DocumentTitle</code>, <code>.Description</code>,
+        <code>.MainFile</code>, and <code>.Attachments</code>.</li>
+    <li>Controller validates file size and extension, then saves to a temp path.</li>
+    <li>See <code>Controllers/OrdersController.cs Section 5h</code> for the full validation and save logic.</li>
+</ol>

@@ -1,0 +1,89 @@
+@*
+ * FILE ROLE: Admin area Dashboard view — renders the AdminDashboardViewModel passed
+ *   from DashboardController.Index(). Demonstrates strongly typed area views,
+ *   the @model directive, and asp-area links back to the root and to other areas.
+ *
+ * SECTION 16: ADMIN AREA VIEW — STRONGLY TYPED MODEL + CROSS-AREA LINKS
+ *
+ * @model DIRECTIVE IN AREA VIEWS:
+ *   @model Areas.Models.AdminDashboardViewModel
+ *   · Declares the expected model type passed by the controller via View(viewModel)
+ *   · Enables IntelliSense on @Model.WelcomeMessage etc.
+ *   · The @using Areas.Models in _ViewImports.cshtml allows the short name below.
+ *   · Without @using in _ViewImports, the fully-qualified form is needed:
+ *     @model Areas.Models.AdminDashboardViewModel
+ *
+ * HOW THIS VIEW IS RESOLVED (view discovery recap):
+ *   DashboardController.Index() calls return View();
+ *   The framework searches:
+ *     1. Areas/Admin/Views/Dashboard/Index.cshtml  ← THIS FILE — found
+ *     2. Areas/Admin/Views/Shared/Index.cshtml
+ *     3. Views/Shared/Index.cshtml
+ *
+ * LAYOUT CHAIN FOR THIS VIEW:
+ *   Areas/Admin/Views/_ViewStart.cshtml  → Layout = "_Layout"
+ *   → resolved to Areas/Admin/Views/Shared/_Layout.cshtml (area-specific)
+ *   This view renders INSIDE the Admin area layout's @RenderBody().
+ *
+ * asp-area LINKS FROM THIS VIEW:
+ *   Ambient area = "Admin" (from the current request's route values)
+ *   Must explicitly set asp-area for any link that leaves the Admin area.
+ *
+ *   <a asp-area=""         asp-controller="Home"    asp-action="Index">Home</a>
+ *   asp-area="" clears ambient "Admin" → href="/"
+ *
+ *   <a asp-area="Customer" asp-controller="Account" asp-action="Profile">Customer</a>
+ *   asp-area="Customer" overrides ambient "Admin" → href="/Customer/Account/Profile"
+*@
+
+@model AdminDashboardViewModel
+
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<h1>@Model.WelcomeMessage</h1>
+
+<div style="display:flex; gap:32px; margin:24px 0;">
+    <div style="background:#c0392b; color:white; padding:24px 32px; border-radius:8px; text-align:center;">
+        <div style="font-size:48px; font-weight:bold;">@Model.TotalUsers</div>
+        <div>Total Users</div>
+    </div>
+    <div style="background:#2980b9; color:white; padding:24px 32px; border-radius:8px; text-align:center;">
+        <div style="font-size:48px; font-weight:bold;">@Model.TotalOrders</div>
+        <div>Total Orders</div>
+    </div>
+    <div style="background:#27ae60; color:white; padding:24px 32px; border-radius:8px; text-align:center;">
+        <div style="font-size:48px; font-weight:bold;">@Model.AreaName</div>
+        <div>Current Area</div>
+    </div>
+</div>
+
+<h2>Cross-Area Navigation From This View</h2>
+<p>
+    Ambient area is <strong>"Admin"</strong>.
+    All links below must declare <code>asp-area</code> explicitly.
+</p>
+<ul>
+    @* asp-area="" → clears ambient "Admin" → href="/" *@
+    <li>
+        <a asp-area="" asp-controller="Home" asp-action="Index">Back to Main Site</a>
+        &nbsp; (<code>asp-area=""</code> generates <code>/</code>)
+    </li>
+
+    @* asp-area="Customer" → cross-area → href="/Customer/Account/Profile" *@
+    <li>
+        <a asp-area="Customer" asp-controller="Account" asp-action="Profile">Customer Profile</a>
+        &nbsp; (<code>asp-area="Customer"</code> generates <code>/Customer/Account/Profile</code>)
+    </li>
+
+    @* Url.Action equivalent for use in strings / JS *@
+    <li>
+        Url.Action equivalent:
+        <code>@Url.Action("Index", "Dashboard", new { area = "Admin" })</code>
+    </li>
+    <li>
+        Cross-area via Url.Action:
+        <code>@Url.Action("Profile", "Account", new { area = "Customer" })</code>
+    </li>
+</ul>

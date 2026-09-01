@@ -1,0 +1,57 @@
+@*
+ * FILE ROLE: Home index view — default landing page rendered by HomeController.Index()
+ *            via return View() with no model. Demonstrates a ViewResult with no typed
+ *            model: the view accesses only ViewData set by the controller or the
+ *            view's own @{} block.
+ *
+ * KEY CONCEPTS DEMONSTRATED:
+ *   return View()
+ *     The controller calls View() with no arguments. MVC resolves the view file by
+ *     convention: Views/{ControllerName}/{ActionName}.cshtml → Views/Home/Index.cshtml.
+ *     No @model directive is used because the controller passes no model object.
+ *
+ *   Layout = "_Layout"
+ *     Tells the view engine to wrap this view's output in Views/Shared/_Layout.cshtml.
+ *     Without this (or a _ViewStart.cshtml setting the default), no layout is applied.
+ *
+ *   ViewData["Title"]
+ *     Set here in the view's @{} block; read in _Layout.cshtml's <title> element.
+ *     The layout processes AFTER the view's @{} block runs, so this value is available.
+ *
+ * COVERED IN DETAIL LATER → 03. Views & Razor Syntax
+ *@
+@{
+    ViewData["Title"] = "Home";
+    Layout = "_Layout";
+}
+
+<h1>Controllers &amp; Actions</h1>
+<p>
+    This project demonstrates the complete <strong>IActionResult</strong> family and
+    all core controller conventions in ASP.NET Core MVC.
+</p>
+
+<h2>Try these endpoints</h2>
+<table>
+    <thead>
+        <tr><th>URL</th><th>Controller action</th><th>Result type</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><a href="/Home/About">/Home/About</a></td><td>HomeController.About()</td><td>ViewResult + ViewData</td></tr>
+        <tr><td><a href="/Home/Plain">/Home/Plain</a></td><td>HomeController.Plain()</td><td>ContentResult</td></tr>
+        <tr><td><a href="/Home/JsonSample">/Home/JsonSample</a></td><td>HomeController.JsonSample()</td><td>JsonResult</td></tr>
+        <tr><td><a href="/Home/Teapot">/Home/Teapot</a></td><td>HomeController.Teapot()</td><td>StatusCodeResult 418</td></tr>
+        <tr><td><a href="/Home/Missing">/Home/Missing</a></td><td>HomeController.Missing()</td><td>NotFoundResult 404</td></tr>
+        <tr><td><a href="/Home/SaveResult">/Home/SaveResult</a></td><td>HomeController.SaveResult()</td><td>CreatedResult 201</td></tr>
+        <tr><td><a href="/Home/Clear">/Home/Clear</a></td><td>HomeController.Clear()</td><td>NoContentResult 204</td></tr>
+        <tr><td><a href="/Home/Contact">/Home/Contact</a></td><td>HomeController.GetContact() via [ActionName]</td><td>ContentResult</td></tr>
+        <tr><td><a href="/Home/Info">/Home/Info</a></td><td>HomeController.Info()</td><td>ContentResult + HttpContext</td></tr>
+        <tr><td><a href="/Home/Preview">/Home/Preview</a></td><td>HomeController.Preview()</td><td>ViewResult + ViewData preview</td></tr>
+        <tr><td><a href="/Products">/Products</a></td><td>ProductsController.Index()</td><td>ViewResult async + model</td></tr>
+        <tr><td><a href="/Products/Export">/Products/Export</a></td><td>ProductsController.Export()</td><td>FileContentResult (CSV)</td></tr>
+        <tr><td><a href="/api/catalog">/api/catalog</a></td><td>ApiController.GetAll()</td><td>OkObjectResult (JSON)</td></tr>
+        <tr><td><a href="/api/catalog/1">/api/catalog/1</a></td><td>ApiController.GetById(1)</td><td>OkObjectResult (JSON)</td></tr>
+        <tr><td><a href="/api/catalog/99">/api/catalog/99</a></td><td>ApiController.GetById(99)</td><td>NotFoundObjectResult 404</td></tr>
+        <tr><td><a href="/api/catalog/validate?name=Widget">/api/catalog/validate?name=Widget</a></td><td>ApiController.Validate()</td><td>OkObjectResult</td></tr>
+    </tbody>
+</table>

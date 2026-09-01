@@ -1,0 +1,224 @@
+@*
+ * FILE ROLE: Demonstrates Razor parsing rules, inline expressions, code blocks,
+ *            and the three data-passing mechanisms (model / ViewBag / ViewData).
+ *            This is the chapter entry point — start reading here after Program.cs.
+ *
+ * SECTIONS IN THIS FILE:
+ *   1.  @model directive          — declaring the strongly-typed model
+ *   2.  @using in a view          — one-off namespace import (vs _ViewImports)
+ *   3.  Razor parsing rules       — @ transitions between HTML and C#
+ *   4.  Code blocks @{ }          — C# statements without direct output
+ *   5.  Inline expressions @var   — @Model.*, @variable, simple outputs
+ *   6.  Parenthesised expressions @() — operators, method calls, ternary
+ *   7.  ViewBag and ViewData      — reading dynamic and dictionary data
+ *   8.  Razor comments              — stripped from HTML output
+ *@
+
+@*
+ * SECTION 1: @model DIRECTIVE
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @model declares the CLR type of Model for this view. It must be the first
+ * non-comment, non-whitespace directive in the file (after any @using lines).
+ *
+ * Effect on the compiled view class:
+ *   Without @model:  class IndexCshtml : RazorPage<dynamic>   → Model is dynamic
+ *   With @model T:   class IndexCshtml : RazorPage<T>         → Model is T
+ *
+ * Strong typing gives:
+ *   • IntelliSense / compile-time property checking
+ *   • No cast needed to access ArticleViewModel members
+ *   • CS1061 at build time if a property name is misspelled
+ *
+ * The namespace ArticleViewModel lives in (ViewsRazorSyntax.Models) is already
+ * imported by Views/_ViewImports.cshtml, so just the type name is enough here.
+ *
+ * PREVIEW — Passing data detail → 12. TempData, ViewData & ViewBag
+ *@
+@model ArticleViewModel
+
+@*
+ * SECTION 2: @using IN A VIEW FILE
+ * ─────────────────────────────────────────────────────────────────────────────
+ * A @using directive in an individual view has the same effect as a C# using
+ * statement — it makes types in that namespace accessible without qualification
+ * for this file only.
+ *
+ * Namespaces already declared in _ViewImports.cshtml DO NOT need repeating
+ * here. This import of System is for illustration purposes — it exposes
+ * DateTime directly (though we already get it through the model property).
+ *
+ * Best practice:
+ *   Namespaces used across most views  → _ViewImports.cshtml
+ *   Namespace used in exactly one view → @using in that view
+ *@
+@using System
+
+@*
+ * SECTION 3: RAZOR PARSING RULES — @ TRANSITIONS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * The Razor parser starts in HTML mode and transitions to C# mode on @.
+ * The transition rules are:
+ *
+ *   @variable         — implicit expression: Razor reads the identifier and
+ *                        its chained member accesses as C#, then returns to HTML.
+ *                        Stops at a space, punctuation, or HTML character.
+ *
+ *   @(expression)     — explicit expression: everything inside ( ) is C#.
+ *                        Use for operators (??), method calls, ternary, casts.
+ *
+ *   @{ statements }   — code block: arbitrary C# statements; no direct output.
+ *                        Use for variable assignment, loops (outside HTML), logic.
+ *
+ *   @keyword { }      — control flow: @if, @foreach, @for, @while, @switch
+ *                        The body is HTML mode, transitions back on @ inside.
+ *
+ *   @@                — literal @ character in output (e.g. email addresses).
+ *
+ * ESCAPING ANGLE BRACKETS:
+ *   Inside a @{ } code block, writing bare HTML causes a parse error.
+ *   Prefix an HTML line with @: to emit it from inside a code block.
+ *   Or wrap in <text> ... </text> for multi-line HTML inside a code block.
+ *@
+
+@*
+ * SECTION 4: CODE BLOCKS @{ }
+ * ─────────────────────────────────────────────────────────────────────────────
+ * A @{ } block contains C# statements. Output can be produced with @: or
+ * <text> inside the block, but the block itself does not write to the response.
+ *
+ * Common uses:
+ *   • Declare local variables used later in the view
+ *   • Call view-level helper methods
+ *   • Override Layout (Layout = null; disables the _Layout.cshtml wrapper)
+ *   • Compute derived values from Model data
+ *
+ * Variables declared here are in scope for the rest of the view file.
+ *@
+@{
+    // local variables — in scope for the rest of this view
+    var publishedDate = Model.PublishedOn.ToString("MMMM d, yyyy"); // friendly date
+    var tagCount      = Model.Tags.Count;                           // derived value
+    string statusCss  = Model.IsPublished ? "color:green" : "color:orange"; // ternary in code block
+}
+
+<h1>@ViewBag.PageTitle</h1>
+
+@*
+ * SECTION 5: INLINE EXPRESSIONS — @Model.Property
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @Model.Property is an implicit expression. Razor reads the identifier chain
+ * Model.Title (or Model.Author etc.) as C#, HTML-encodes the result, and
+ * writes it into the response stream.
+ *
+ * AUTOMATIC HTML ENCODING:
+ *   Every inline expression is HTML-encoded before output. A value like
+ *   "<script>alert(1)</script>" becomes "&lt;script&gt;..." in the page —
+ *   safe against XSS. To bypass encoding (for trusted HTML), use @Html.Raw.
+ *   That is demonstrated in Helpers.cshtml.
+ *
+ * @variable — the same rule applies to local variables: @publishedDate,
+ *             @tagCount, etc. are all HTML-encoded inline expressions.
+ *@
+<div class="card">
+    <h2>@Model.Title</h2>                          @* implicit expression — property access *@
+    <p><strong>Author:</strong> @Model.Author</p>  @* implicit expression — string property *@
+    <p><strong>Published:</strong> @publishedDate</p>  @* local variable from code block *@
+    <p><strong>Tag count:</strong> @tagCount tags</p>  @* derived int — auto-encoded *@
+</div>
+
+@*
+ * SECTION 6: PARENTHESISED EXPRESSIONS @(...)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * When an expression contains operators that the parser cannot infer (??  ?: +
+ * arithmetic comparisons) wrap it in @( ) so Razor knows the whole thing is C#.
+ *
+ * Examples:
+ *   @(Model.PublishedOn.Year)              — member access ending in a property
+ *   @(tagCount > 1 ? "tags" : "tag")       — ternary
+ *   @(Model.Title.ToUpper())               — method call with ()
+ *   @(ViewData["SubTitle"] as string ?? "no subtitle") — cast + null-coalesce
+ *
+ * Without @( ) the parser stops reading the expression at the first ambiguous
+ * character — e.g. @Model.PublishedOn > now would emit "> now" as HTML text.
+ *@
+<div class="card">
+    <p><strong>Year:</strong> @(Model.PublishedOn.Year)</p>
+    <p><strong>Title (upper):</strong> @(Model.Title.ToUpper())</p>
+    <p><strong>Status:</strong>
+        <span style="@statusCss">@(Model.IsPublished ? "Published" : "Draft")</span>
+    </p>
+    <p><strong>Literal @@:</strong> &#64;example.com (use &amp;#64; or @@)</p>
+</div>
+
+@*
+ * SECTION 7: READING ViewBag AND ViewData
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ViewBag and ViewData carry incidental values the controller sets that do
+ * not belong in a typed ViewModel. Both read the same dictionary under the hood.
+ *
+ *   @ViewBag.PageTitle        — dynamic access; no cast needed
+ *   @ViewData["SubTitle"]     — object access; returns object → needs cast or string interpolation
+ *
+ * The cast is needed because ViewData["key"] is typed as object?.
+ * Use as string for a safe cast (returns null instead of throwing on mismatch).
+ * A null-check or ?? fallback is good practice.
+ *
+ * PREVIEW — Full ViewData/ViewBag/TempData detail → 12. TempData, ViewData & ViewBag
+ *@
+<div class="card">
+    <h3>Data-Passing Comparison</h3>
+    <table style="border-collapse:collapse; width:100%; font-size:.9rem;">
+        <tr style="background:#e9ecef;">
+            <th style="padding:6px 10px; text-align:left;">Mechanism</th>
+            <th style="padding:6px 10px; text-align:left;">View syntax</th>
+            <th style="padding:6px 10px; text-align:left;">Value rendered</th>
+        </tr>
+        <tr>
+            <td style="padding:6px 10px;">&#64;model</td>
+            <td style="padding:6px 10px;"><code>@Model.Title</code></td>
+            <td style="padding:6px 10px;">@Model.Title</td>
+        </tr>
+        <tr>
+            <td style="padding:6px 10px;">ViewBag</td>
+            <td style="padding:6px 10px;"><code>@ViewBag.PageTitle</code></td>
+            <td style="padding:6px 10px;">@ViewBag.PageTitle</td>
+        </tr>
+        <tr>
+            <td style="padding:6px 10px;">ViewData</td>
+            <td style="padding:6px 10px;"><code>@(ViewData["SubTitle"] as string)</code></td>
+            <td style="padding:6px 10px;">@(ViewData["SubTitle"] as string ?? "(not set)")</td>
+        </tr>
+    </table>
+</div>
+
+@*
+ * SECTION 8: RAZOR COMMENTS  (@* ... closing-star-at)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * The @* ... * @ (no space in real code) form is a Razor comment. It is
+ * stripped completely during compilation — not in the generated HTML response.
+ * The browser never sees it.
+ *
+ * Contrast with HTML comments <!-- ... --> which ARE sent to the client.
+ *
+ * RULE: Use @* * @ (Razor) for developer notes in .cshtml files. Use <!-- --> only
+ * when the comment is intentionally part of the public HTML (rare).
+ *
+ * Razor comments can span multiple lines and may contain HTML and C# fragments
+ * without triggering parse errors (the content is not processed).
+ *@
+<div class="card">
+    <p>This page's source (View Source in browser) contains NO Razor comments —
+       they are stripped before the response is sent.</p>
+    <!-- This HTML comment IS visible in browser source -->
+</div>
+
+@*
+ * Tags section — rendered below the card sections
+ *@
+<div class="card">
+    <strong>Tags on this article:</strong>
+    @foreach (var tag in Model.Tags)
+    {
+        <span class="badge">@tag</span>
+    }
+</div>

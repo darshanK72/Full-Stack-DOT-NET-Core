@@ -1,0 +1,68 @@
+@*
+ * FILE ROLE: Applied automatically to every .cshtml in this Views/ folder
+ *            (and all sub-folders) before the view itself is compiled.
+ *            Declares global @using namespaces and enables Tag Helpers so
+ *            individual view files stay lean.
+ *
+ * SECTIONS IN THIS FILE:
+ *   1. @using directives  — namespaces available in all views without repeating
+ *   2. @addTagHelper      — enabling Tag Helpers from an assembly
+ *
+ * HOW _ViewImports.cshtml WORKS:
+ *   The Razor engine walks UP the folder tree from the view being rendered
+ *   and applies every _ViewImports.cshtml it finds (innermost wins for
+ *   conflicting @namespace declarations). This means:
+ *     Views/_ViewImports.cshtml     → applied to ALL views
+ *     Views/Demo/_ViewImports.cshtml → applied only to Views/Demo/*.cshtml
+ *   This chapter uses a single root-level file for simplicity.
+ *
+ * WHAT BELONGS HERE vs IN A VIEW FILE:
+ *   _ViewImports.cshtml  — namespaces used across many views, Tag Helper assemblies
+ *   Individual view      — @using for one-off types; @model; per-view @inject
+ *
+ * DIRECTIVES ALLOWED IN _ViewImports.cshtml:
+ *   @using, @inject, @model, @inherits, @addTagHelper, @removeTagHelper, @namespace
+ *   NOT allowed: @{ } code blocks, HTML output, @functions
+ *@
+
+@*
+ * SECTION 1: @using DIRECTIVES
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Every @using here is equivalent to writing the same @using at the top of
+ * every .cshtml file in the project. With ImplicitUsings disabled in .csproj,
+ * these must be declared explicitly.
+ *
+ *   ViewsRazorSyntax.Models  — makes ArticleViewModel accessible as just
+ *                              "ArticleViewModel" without the full namespace
+ *   Microsoft.AspNetCore.Mvc.Rendering — IHtmlHelper<T>, SelectList used by
+ *                              @Html.* helper methods
+ *@
+@using ViewsRazorSyntax.Models
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@*
+ * SECTION 2: @addTagHelper DIRECTIVE
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Tag Helpers are C# classes that augment HTML elements with server-side
+ * behaviour by processing matching attributes (asp-action, asp-controller, etc.).
+ *
+ * SYNTAX:
+ *   @addTagHelper *, AssemblyName
+ *     * — wildcard: enable ALL Tag Helpers in the assembly
+ *
+ *   @addTagHelper Fully.Qualified.TagHelperClass, AssemblyName
+ *     — enable a single Tag Helper class
+ *
+ *   @removeTagHelper *, AssemblyName   — disable all in an assembly
+ *   @removeTagHelper Name, Assembly    — disable one specifically
+ *
+ * Microsoft.AspNetCore.Mvc.TagHelpers ships with ASP.NET Core and provides:
+ *   <form asp-action>  <input asp-for>  <a asp-action asp-controller>
+ *   <label asp-for>    <span asp-validation-for>  <select asp-for>  etc.
+ *
+ * PREVIEW — Full Tag Helper depth is in → 08. Tag Helpers
+ *
+ * Without this line, those asp-* attributes are treated as plain HTML
+ * attributes and the server-side processing never runs.
+ *@
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

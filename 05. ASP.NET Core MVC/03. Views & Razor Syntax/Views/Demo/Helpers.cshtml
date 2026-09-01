@@ -1,0 +1,217 @@
+@*
+ * FILE ROLE: Demonstrates the @Html helper method family and HTML encoding.
+ *            Shows Html.DisplayFor, Html.EditorFor, Html.ActionLink,
+ *            Html.BeginForm, and Html.ValidationMessageFor, plus the encoding
+ *            contrast between automatic encoding and @Html.Raw.
+ *
+ * SECTIONS IN THIS FILE:
+ *   1. HTML encoding — automatic vs @Html.Raw
+ *   2. Html.DisplayFor and Html.EditorFor
+ *   3. Html.ActionLink
+ *   4. Html.BeginForm and Html.ValidationMessageFor
+ *   5. Tag Helpers preview
+ *@
+@model ArticleViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@*
+ * SECTION 1: HTML ENCODING — AUTOMATIC vs @Html.Raw
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ALL Razor inline expressions (@variable, @Model.Prop, @(expr)) run the
+ * value through HtmlEncoder.Encode before writing to the response. This means
+ * any HTML markup in the string is neutralised:
+ *   <strong>  →  &lt;strong&gt;
+ *   "         →  &quot;
+ *   &         →  &amp;
+ *
+ * This is the default protection against Cross-Site Scripting (XSS).
+ *
+ * @Html.Raw(string) bypasses encoding and writes the string verbatim.
+ * Use it ONLY when the string is known-safe (server-generated or sanitised).
+ *
+ * NEVER pass user-submitted input to @Html.Raw — that is a textbook XSS hole.
+ *
+ * ENCODING TABLE:
+ *   Input character   Encoded output
+ *   <                 &lt;
+ *   >                 &gt;
+ *   "                 &quot;
+ *   '                 &#x27;
+ *   &                 &amp;
+ *@
+
+<h1>@ViewBag.PageTitle</h1>
+
+<div class="card">
+    <h2>1. HTML Encoding Contrast</h2>
+    <p><strong>Automatic encoding</strong> (@Model.HtmlContent)</p>
+    <pre>@Model.HtmlContent</pre>   @* angle brackets are escaped — safe *@
+
+    <p><strong>@Html.Raw bypass</strong></p>
+    <div style="border:1px solid #dee2e6; padding:.5rem; border-radius:4px;">
+        @Html.Raw(Model.HtmlContent)   @* rendered as real HTML markup — trusted *@
+    </div>
+    <p style="font-size:.8rem; color:#dc3545;">
+        ↑ @Html.Raw outputs the string as HTML. Only use for server-controlled values.
+    </p>
+</div>
+
+@*
+ * SECTION 2: Html.DisplayFor AND Html.EditorFor
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Html.DisplayFor(m => m.Property) renders a model property using the appropriate
+ * display template. For a string it outputs the text; for a DateTime it uses the
+ * [DisplayFormat] attribute (or the default format); for bool it outputs True/False.
+ *
+ * Html.EditorFor(m => m.Property) renders an <input> element whose type is
+ * inferred from the property's CLR type and data annotations:
+ *   string          → <input type="text">
+ *   bool            → <input type="checkbox">
+ *   DateTime        → <input type="datetime-local"> (or text with format)
+ *   [EmailAddress]  → <input type="email">
+ *   [DataType(Password)] → <input type="password">
+ *
+ * Both methods accept an overload with an anonymous object for HTML attributes:
+ *   Html.EditorFor(m => m.Title, new { htmlAttributes = new { @class = "form-control" } })
+ *
+ * NOTE: Lambdas require that the @model directive has been set (strongly-typed).
+ *       Using these helpers with a dynamic model causes a runtime exception.
+ *
+ * PREVIEW — Modern replacement for EditorFor: <input asp-for="Title" />
+ *           Tag Helpers are covered in full → 08. Tag Helpers
+ *@
+<div class="card">
+    <h2>2. Html.DisplayFor and Html.EditorFor</h2>
+
+    <p>
+        <strong>DisplayFor (Title):</strong>
+        @Html.DisplayFor(m => m.Title)
+    </p>
+    <p>
+        <strong>DisplayFor (PublishedOn):</strong>
+        @Html.DisplayFor(m => m.PublishedOn)  @* uses default DateTime rendering *@
+    </p>
+    <p>
+        <strong>DisplayFor (IsPublished):</strong>
+        @Html.DisplayFor(m => m.IsPublished)
+    </p>
+
+    <p><strong>EditorFor (Title) — renders an &lt;input&gt;:</strong></p>
+    @Html.EditorFor(m => m.Title)  @* <input type="text" id="Title" name="Title" value="..."> *@
+
+    <p><strong>EditorFor (IsPublished) — renders a checkbox:</strong></p>
+    @Html.EditorFor(m => m.IsPublished)
+</div>
+
+@*
+ * SECTION 3: Html.ActionLink
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Html.ActionLink generates an <a href="..."> tag where the href is computed
+ * by the routing engine — the same engine that resolves URL patterns.
+ *
+ * OVERLOADS (most common):
+ *   Html.ActionLink(linkText, actionName)
+ *   Html.ActionLink(linkText, actionName, controllerName)
+ *   Html.ActionLink(linkText, actionName, routeValues)
+ *   Html.ActionLink(linkText, actionName, controllerName, routeValues, htmlAttributes)
+ *
+ * Route values are passed as an anonymous object: new { id = 42, page = 2 }
+ * The routing engine converts these into the query string or URL segments
+ * based on the route template in Program.cs.
+ *
+ * MODERN ALTERNATIVE (Tag Helper):
+ *   <a asp-action="Index" asp-controller="Demo">Back to Index</a>
+ *   Tag Helpers are covered → 08. Tag Helpers
+ *@
+<div class="card">
+    <h2>3. Html.ActionLink</h2>
+
+    <p>
+        @Html.ActionLink("Back to Index", "Index")               @* same controller *@
+    </p>
+    <p>
+        @Html.ActionLink("Control Flow", "Control", "Demo")      @* explicit controller *@
+    </p>
+    <p>
+        @Html.ActionLink("Directives", "Directives", "Demo",
+            routeValues: null,
+            htmlAttributes: new { @class = "badge", style = "text-decoration:none;" })
+        @* htmlAttributes — note @class (@ escapes the C# keyword 'class') *@
+    </p>
+</div>
+
+@*
+ * SECTION 4: Html.BeginForm AND Html.ValidationMessageFor
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Html.BeginForm returns an IDisposable that writes <form> on creation and
+ * </form> on disposal. Using it inside a @using block is the idiomatic way to
+ * ensure the closing tag is always emitted.
+ *
+ * OVERLOADS:
+ *   Html.BeginForm()                             — POST to current action/controller
+ *   Html.BeginForm("Action", "Controller")       — POST to explicit target
+ *   Html.BeginForm("Action", "Controller", FormMethod.Get) — GET form
+ *
+ * Html.ValidationMessageFor(m => m.Property) renders a <span> that the client-
+ * and server-side validation infrastructure uses to display per-field errors.
+ * The span is empty until validation fires and adds an error message.
+ *
+ * The [Required] attribute on ArticleViewModel.Title triggers a validation error
+ * when the form is submitted with an empty Title — ValidationMessageFor then
+ * populates with the error text.
+ *
+ * Full validation pipeline is in → 07. Data Annotations & Validation
+ *
+ * MODERN ALTERNATIVE (Tag Helpers):
+ *   <form asp-action="Create" asp-controller="Demo" method="post">
+ *   <span asp-validation-for="Title"></span>
+ *   Tag Helpers are covered → 08. Tag Helpers
+ *@
+<div class="card">
+    <h2>4. Html.BeginForm and Html.ValidationMessageFor</h2>
+
+    @using (Html.BeginForm("Index", "Demo", FormMethod.Post))
+    {
+        <div style="margin-bottom:.75rem;">
+            <label for="Title">Title:</label><br />
+            @Html.EditorFor(m => m.Title)     @* <input name="Title"> *@
+            @Html.ValidationMessageFor(       @* <span> for Title error messages *@
+                m => m.Title,
+                null,
+                new { @class = "validation-error", style = "color:#dc3545; font-size:.85rem;" })
+        </div>
+        <button type="submit">Submit (triggers [Required] validation)</button>
+    }
+    @* </form> emitted automatically when @using block exits *@
+</div>
+
+@*
+ * SECTION 5: TAG HELPERS PREVIEW
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Tag Helpers are the modern, HTML-centric alternative to @Html.* helpers.
+ * They are enabled by the @addTagHelper directive in _ViewImports.cshtml.
+ * Where @Html.ActionLink writes C# in the middle of HTML, the Tag Helper
+ * equivalent looks like a real HTML attribute:
+ *
+ *   @Html.ActionLink("Index", "Index", "Demo")
+ *   vs.
+ *   <a asp-action="Index" asp-controller="Demo">Index</a>
+ *
+ * Both produce the same <a href="/Demo/Index"> output. Tag Helpers are
+ * preferred in modern MVC code for readability and HTML designer tooling.
+ *
+ * COVERED IN DETAIL LATER → 08. Tag Helpers
+ *@
+<div class="card" style="background:#f8f9fa;">
+    <h3>5. Tag Helpers — Preview</h3>
+    <p>The <code>asp-action</code> attribute on this link is processed by the
+       AnchorTagHelper, registered via @@addTagHelper in _ViewImports.cshtml:</p>
+    <a asp-action="Index" asp-controller="Demo"
+       style="display:inline-block; padding:.3rem .8rem; background:#0d6efd; color:#fff;
+              border-radius:4px; text-decoration:none;">
+        Back to Index (Tag Helper)
+    </a>
+    <p style="font-size:.85rem; color:#6c757d; margin-top:.5rem;">
+        Full Tag Helper depth → 08. Tag Helpers
+    </p>
+</div>

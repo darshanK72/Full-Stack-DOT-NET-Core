@@ -1,0 +1,464 @@
+# Azure SQL Database — Interview Q&A
+> 28 questions · Back to [README](../README.md)
+
+## Table of Contents
+1. [What is Azure SQL Database, and how does it differ from SQL Server running on a …](#q1)
+2. [What is the difference between Azure SQL Database, Azure SQL Managed Instance, a…](#q2)
+3. [What is a logical server in Azure SQL Database, and what role does it play?](#q3)
+4. [What does a typical Azure SQL connection string look like, and what are the impo…](#q4)
+5. [Why must Azure SQL firewall rules be configured before an application can connec…](#q5)
+6. [What is the difference between server-level and database-level firewall rules in…](#q6)
+7. [How should connection strings be stored securely in ASP.NET Core when deploying …](#q7)
+8. [How do you register Entity Framework Core with Azure SQL Database in `Program.cs…](#q8)
+9. [What is database scaffolding (reverse engineering), and when would you use it wi…](#q9)
+10. [What is the recommended way to avoid hardcoding connection strings in a `DbConte…](#q10)
+11. [How do EF Core migrations work with Azure SQL Database, and what considerations …](#q11)
+12. [What is the difference between DTU-based and vCore-based purchasing models in Az…](#q12)
+13. [What are the main service tiers in Azure SQL Database (Basic, Standard, Premium,…](#q13)
+14. [When would you choose the DTU model over vCore, or vice versa?](#q14)
+15. [What is an Azure SQL elastic pool, and when does it make sense to use one?](#q15)
+16. [How does eDTU sharing work in an elastic pool, and what is the risk of noisy-nei…](#q16)
+17. [What high-availability guarantees does Azure SQL Database provide by default?](#q17)
+18. [What is Active Geo-Replication in Azure SQL, and how does it differ from auto-fa…](#q18)
+19. [What is an auto-failover group, and when would you configure one for disaster re…](#q19)
+20. [What is Azure Active Directory (Azure AD) authentication for Azure SQL Database,…](#q20)
+21. [How do you connect to Azure SQL using managed identity from an ASP.NET Core app …](#q21)
+22. [What is Always Encrypted in Azure SQL, and when would you use it with an EF Core…](#q22)
+23. [What is Query Store in Azure SQL Database, and why is it useful for tuning Entit…](#q23)
+24. [How does connection pooling work when connecting to Azure SQL from .NET applicat…](#q24)
+25. [What are transient fault handling patterns for Azure SQL, and how does EF Core r…](#q25)
+26. [What is the difference between deploying a single Azure SQL database versus plac…](#q26)
+27. [How do you monitor Azure SQL Database performance and configure alerts from an o…](#q27)
+28. [Gotcha: Why might `GetConnectionString("AzureDb")` return null even when a conne…](#q28)
+
+---
+
+## Q1. What is Azure SQL Database, and how does it differ from SQL Server running on a virtual machine or on-premises?
+
+What is Azure SQL Database, and how does it differ from SQL Server running on a virtual machine or on-premises?
+
+**Answer:** Azure SQL Database is a fully managed Platform-as-a-Service (PaaS) relational database built on the SQL Server engine, where Microsoft operates patching, backups, high availability, and infrastructure scaling so your team focuses on schema and queries instead of servers. Unlike SQL Server on a virtual machine (VM) or on-premises, you do not install or maintain the Windows or Linux operating system, configure Always On clusters yourself, or size physical disks — Azure handles those layers behind a logical server and database resource.
+
+- The engine is largely compatible with on-premises SQL Server Transact-SQL (T-SQL), so existing skills, tools like SQL Server Management Studio (SSMS), and drivers such as `Microsoft.Data.SqlClient` transfer directly.
+- PaaS trade-offs include less control over the host OS, certain features restricted or replaced by platform services (for example automatic backups and built-in geo-replication instead of self-managed clustering), and connection only over the network with mandatory encryption.
+- On a VM you get full SQL Server feature surface and operating-system access at the cost of patching, licensing management, and manual high-availability design; Azure SQL Database optimizes for predictable operations and elastic scale within Azure's boundaries.
+
+---
+
+## Q2. What is the difference between Azure SQL Database, Azure SQL Managed Instance, and SQL Server on Azure VM?
+
+What is the difference between Azure SQL Database, Azure SQL Managed Instance, and SQL Server on Azure VM?
+
+**Answer:** All three run the SQL Server engine, but they differ in how much of the stack Microsoft manages and how closely they mimic a traditional on-premises instance. Azure SQL Database is a single-database PaaS with the smallest operational footprint; Azure SQL Managed Instance is a near-full-instance PaaS with SQL Agent, cross-database queries, and linked-server patterns; SQL Server on Azure VM is infrastructure-as-a-service (IaaS) where you manage the virtual machine and most instance configuration yourself.
+
+| | Azure SQL Database | Azure SQL Managed Instance | SQL Server on Azure VM |
+|---|---|---|---|
+| Management level | Database-focused PaaS | Instance-level PaaS | IaaS — you manage OS and SQL install |
+| Feature surface | Subset; some instance features unavailable | Near parity with on-premises instance | Full SQL Server (edition-dependent) |
+| Typical use | New cloud-native apps, microservices per database | Lift-and-shift needing Agent, CLR, linked servers | Full control, legacy dependencies |
+| Scaling model | DTU/vCore per database or elastic pool | vCore per instance | VM size + storage you configure |
+
+Choose Azure SQL Database for greenfield apps and per-service databases; Managed Instance when migration requires instance-scoped features without VM ops; Azure VM when you need maximum control or unsupported PaaS features.
+
+---
+
+## Q3. What is a logical server in Azure SQL Database, and what role does it play?
+
+What is a logical server in Azure SQL Database, and what role does it play?
+
+**Answer:** A logical server in Azure SQL is an Azure resource that acts as a central administrative endpoint and security boundary — it is not a dedicated physical or virtual machine running your data. It holds the DNS name clients connect to (for example `server46310114.database.windows.net`), hosts server-level firewall rules and Azure Active Directory (Azure AD) administrators, and groups related databases under one subscription and region.
+
+- Each database on that logical server can have its own service tier, size, and backup policy, but authentication and firewall defaults are often configured at the server level first.
+- The logical server name must be globally unique across Azure because it becomes part of the public connection endpoint; port 1433 is the standard SQL port used in connection strings.
+- Deleting a logical server removes its databases, so production designs usually treat the server as a long-lived container and protect it with resource locks, role-based access control (RBAC), and separate dev/test servers.
+
+---
+
+## Chapter 2 — Connection Strings & Firewall
+
+---
+
+## Q4. What does a typical Azure SQL connection string look like, and what are the important keywords (`Encrypt`, `Server`, `Initial Catalog`, and others)?
+
+What does a typical Azure SQL connection string look like, and what are the important keywords (`Encrypt`, `Server`, `Initial Catalog`, and others)?
+
+**Answer:** A typical Azure SQL connection string targets the logical server's TCP endpoint, names the database, and enforces encrypted transport. The sample in this module follows the pattern: `Server=tcp:server46310114.database.windows.net,1433;Initial Catalog=db46310114;User ID=...;Password=...;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`.
+
+- **`Server`** — The logical server hostname and port; `tcp:` prefix and port `1433` are conventional for Azure SQL over the public internet.
+- **`Initial Catalog`** (or `Database`) — The specific database name on that server, not the server name itself.
+- **`Encrypt=True`** — Requires Transport Layer Security (TLS) encryption in transit; Azure SQL expects encrypted connections and rejects insecure ones in most configurations.
+- **`TrustServerCertificate=False`** — Validates the server certificate against a trusted authority instead of blindly accepting any certificate, which is the safer production default.
+- **`Connection Timeout`** — Seconds to wait when opening a connection; **`MultipleActiveResultSets`** controls whether one connection can have multiple open result sets (often set to `False` unless needed).
+
+User ID and Password denote SQL authentication; with Azure AD or managed identity you replace those with token-based authentication instead of embedding secrets.
+
+---
+
+## Q5. Why must Azure SQL firewall rules be configured before an application can connect, and what options exist for allowing access?
+
+Why must Azure SQL firewall rules be configured before an application can connect, and what options exist for allowing access?
+
+**Answer:** Azure SQL blocks all inbound connections by default at the network edge, so even valid credentials fail until an explicit firewall rule permits the client's IP address or an Azure-internal path. This default-deny posture reduces exposure of a public database endpoint on the internet.
+
+- **Server-level IP rules** — Allow a single IP or range (for example your office egress or a developer's current public IP); common for local development and SSMS access.
+- **"Allow Azure services"** — A server-level switch that permits connections from recognized Azure service IP ranges; useful for App Service or Functions, though Microsoft recommends narrowing access with virtual network rules where possible.
+- **Virtual network (VNet) service endpoints or private endpoints** — Route traffic over the Azure backbone or a private IP inside your VNet instead of the public internet, which is the preferred production pattern for App Service integrated with a VNet.
+- Without a matching rule, clients receive errors indicating the server cannot be reached or the client is not allowed, which is often mistaken for a wrong password when the real issue is firewall configuration.
+
+---
+
+## Q6. What is the difference between server-level and database-level firewall rules in Azure SQL?
+
+What is the difference between server-level and database-level firewall rules in Azure SQL?
+
+**Answer:** Server-level firewall rules apply to every database on that logical server, while database-level rules apply only to one database and can allow access even when server-level rules would block the same IP. Both are stored in system tables and evaluated when a connection attempt arrives.
+
+- Server-level rules are simpler to manage when many databases on the same server share the same client locations (for example one App Service outbound IP set).
+- Database-level rules support scenarios where different databases on one server should accept connections from different partners or teams without opening the entire server.
+- If either level permits the client IP, the connection can proceed; database-level rules do not override a server that has no path for Azure AD or SQL authentication — they only affect IP filtering.
+- In practice most teams configure server-level rules first and add database-level rules only when multi-tenant isolation at the network edge is required.
+
+---
+
+## Q7. How should connection strings be stored securely in ASP.NET Core when deploying to Azure App Service?
+
+How should connection strings be stored securely in ASP.NET Core when deploying to Azure App Service?
+
+**Answer:** Connection strings should live outside source control in environment-specific secret stores, and the application should read them through configuration at runtime rather than hardcoding them in `DbContext` or committed JSON files. Azure App Service supports connection strings and application settings as slot-specific configuration that is injected as environment variables when the app starts.
+
+- In development, **User Secrets** (`dotnet user-secrets`) or local environment variables hold credentials; the committed `appsettings.json` contains only non-secret structure or placeholders.
+- In Azure App Service, define the connection under **Configuration → Connection strings** (type SQL Server) or as a setting named `ConnectionStrings__AzureDb` — double underscores map to the nested `ConnectionStrings:AzureDb` key that `GetConnectionString("AzureDb")` reads.
+- **Azure Key Vault** integrates with App Service references so secrets rotate in one place and never appear in deployment artifacts; managed identity can fetch them without storing keys in the app settings blade.
+- Never commit passwords to Git; the scaffold warning in `Db46310114Context` exists precisely because reverse-engineered contexts often embed a connection string in `OnConfiguring`.
+
+---
+
+## Chapter 3 — Entity Framework Core Integration
+
+---
+
+## Q8. How do you register Entity Framework Core with Azure SQL Database in `Program.cs`?
+
+How do you register Entity Framework Core with Azure SQL Database in `Program.cs`?
+
+**Answer:** Register the `DbContext` with dependency injection and point `UseSqlServer` at the connection string from configuration, so each HTTP request receives a scoped context that shares the configured Azure SQL endpoint. This module's `Program.cs` follows the standard pattern:
+
+```csharp
+builder.Services.AddDbContext<Db46310114Context>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("AzureDb")));
+```
+
+- `AddDbContext` registers the context with **scoped** lifetime by default, aligning with ASP.NET Core request scope and ensuring one unit-of-work per request.
+- `UseSqlServer` selects the EF Core provider for SQL Server and Azure SQL; the same provider works for both because Azure SQL speaks the T-SQL wire protocol.
+- Controllers such as `DepartmentsController` take `Db46310114Context` via constructor injection and call `ToListAsync`, `FindAsync`, and `SaveChangesAsync` against the remote database transparently.
+- Registration in `Program.cs` overrides any fallback connection string in `OnConfiguring` when `DbContextOptions` are supplied through DI.
+
+---
+
+## Q9. What is database scaffolding (reverse engineering), and when would you use it with Azure SQL?
+
+What is database scaffolding (reverse engineering), and when would you use it with Azure SQL?
+
+**Answer:** Scaffolding (reverse engineering) generates EF Core entity classes and a `DbContext` from an existing live database schema using the `dotnet ef dbcontext scaffold` command, rather than defining models in code first. It is appropriate when the database already exists — legacy migrations, a sample AdventureWorks-style schema, or a database designed by a DBA — and you need a quick, accurate model that matches tables, views, keys, and relationships.
+
+- The tool reads metadata from Azure SQL over a connection string and emits partial classes, fluent configuration in `OnModelCreating`, and `DbSet` properties for each table.
+- Scaffolding captures details such as schema names (`SalesLT` in this module), computed columns, sequences, and keyless views mapped with `ToView`.
+- It does not replace migrations for greenfield code-first workflows; teams often scaffold once, then switch to migrations for subsequent changes, or re-scaffold carefully when the database is owned externally.
+- Generated contexts frequently include a hardcoded connection in `OnConfiguring`; production apps should remove that fallback and rely on DI configuration instead.
+
+---
+
+## Q10. What is the recommended way to avoid hardcoding connection strings in a `DbContext` generated by scaffolding?
+
+What is the recommended way to avoid hardcoding connection strings in a `DbContext` generated by scaffolding?
+
+**Answer:** Remove or ignore the scaffolded `OnConfiguring` connection string and register the context in `Program.cs` with `AddDbContext`, passing `DbContextOptions` built from `GetConnectionString` or Azure AD token authentication. EF Core prefers externally supplied options over `OnConfiguring` when both are present, so DI registration becomes the single source of truth.
+
+- Delete the hardcoded `UseSqlServer("...")` line from `OnConfiguring`, or guard it with `if (!optionsBuilder.IsConfigured)` only for design-time tools.
+- For design-time commands (`dotnet ef migrations add`), use a **`IDesignTimeDbContextFactory<TContext>`** that reads User Secrets or environment variables so developers never commit credentials.
+- The `#warning` comment in scaffolded files is a built-in reminder that the embedded string is a security and deployment anti-pattern.
+- See Q7 for where configuration should live in each environment.
+
+---
+
+## Q11. How do EF Core migrations work with Azure SQL Database, and what considerations apply in production?
+
+How do EF Core migrations work with Azure SQL Database, and what considerations apply in production?
+
+**Answer:** EF Core migrations are versioned C# files that describe schema changes; at deploy time `dotnet ef database update` or an automated pipeline applies them to Azure SQL using the same connection string the app uses. Azure SQL supports the same DDL operations migrations emit — `CREATE TABLE`, `ALTER COLUMN`, indexes, and foreign keys — subject to tier limits and online operation support.
+
+- Generate migrations locally against a dev database or Azure SQL dev instance, commit the migration files, and apply them in CI/CD before or during app deployment so schema and code stay aligned.
+- Long-running table rebuilds can lock data on busy databases; use backward-compatible migration steps (expand-contract pattern) for zero-downtime deployments on large tables.
+- The migration history table (`__EFMigrationsHistory`) lives in the target database; ensure the deployment identity has DDL permissions.
+- Back up or use a staging slot database before destructive migrations; Azure SQL automated backups help recovery but do not replace testing migrations on a copy first.
+
+---
+
+## Chapter 4 — Service Tiers & Purchasing Models
+
+---
+
+## Q12. What is the difference between DTU-based and vCore-based purchasing models in Azure SQL?
+
+What is the difference between DTU-based and vCore-based purchasing models in Azure SQL?
+
+**Answer:** The Database Transaction Unit (DTU) model bundles compute, memory, and I/O into a single abstract capacity number, while the vCore model lets you choose virtual CPU and memory independently and separately license or pay for SQL Server software. Both models define how much work your Azure SQL database can perform before throttling.
+
+| | DTU model | vCore model |
+|---|---|---|
+| Capacity unit | DTU (or eDTU in pools) — blended measure | vCore + configured memory tier |
+| Hardware visibility | Abstract — you pick a service tier and size | Choose Gen5 or newer hardware generation |
+| Licensing | Included in DTU price | Pay-as-you-go or Azure Hybrid Benefit for existing licenses |
+| Typical fit | Simple sizing, dev/test, predictable bundled SKUs | Production needing granular CPU/memory tuning |
+
+DTU simplifies choice; vCore aligns with on-premises sizing conversations and offers Hyperscale and Business Critical tiers not expressed as DTU SKUs.
+
+---
+
+## Q13. What are the main service tiers in Azure SQL Database (Basic, Standard, Premium, General Purpose, Business Critical)?
+
+What are the main service tiers in Azure SQL Database (Basic, Standard, Premium, General Purpose, Business Critical)?
+
+**Answer:** Service tiers group performance characteristics, availability features, and price points; DTU tiers include Basic, Standard, and Premium, while vCore tiers include General Purpose, Business Critical, and Hyperscale. The tier you select caps throughput, maximum database size, backup retention options, and whether advanced features such as In-Memory OLTP or readable secondaries are available.
+
+- **Basic** — Low-cost, single user workload, minimal performance; suitable for small dev databases only.
+- **Standard (DTU)** — Mid-range OLTP with larger size limits than Basic; common for moderate production workloads on the DTU model.
+- **Premium (DTU)** — High I/O and low latency with more DTUs; supports In-Memory OLTP on eligible sizes.
+- **General Purpose (vCore)** — Default vCore tier for most apps; remote storage with acceptable latency and full database size into the terabyte range.
+- **Business Critical (vCore)** — Local SSD replicas, higher availability, readable secondaries for reporting offload, and lower latency for read-heavy workloads.
+
+Hyperscale (vCore) adds automatic storage growth into very large databases and fast backup restore, aimed at large or rapidly growing datasets.
+
+---
+
+## Q14. When would you choose the DTU model over vCore, or vice versa?
+
+When would you choose the DTU model over vCore, or vice versa?
+
+**Answer:** Choose DTU when you want simple, bundled sizing for smaller or predictable workloads and do not need to map closely to CPU counts or bring your own SQL license; choose vCore when you need independent CPU and memory scaling, Hyperscale or Business Critical features, or Azure Hybrid Benefit savings on existing licenses. The decision is primarily about operational clarity and feature requirements, not engine compatibility.
+
+- DTU works well for dev/test environments, startups, and apps where a single slider (for example S3) is enough and cost predictability matters more than tuning individual cores.
+- vCore fits production systems with performance troubleshooting that references CPU percentage, tempdb contention, or memory grants — metrics that align to vCore counts.
+- If you require readable geo-replicas with low lag, Hyperscale storage beyond DTU limits, or granular maintenance windows on higher tiers, vCore is the practical path.
+- You can migrate between models, but it requires planning and a brief scaling operation; new projects on modern Azure guidance often start on vCore General Purpose unless simplicity strongly favors DTU.
+
+---
+
+## Chapter 5 — Elastic Pools
+
+---
+
+## Q15. What is an Azure SQL elastic pool, and when does it make sense to use one?
+
+What is an Azure SQL elastic pool, and when does it make sense to use one?
+
+**Answer:** An elastic pool is a shared pool of compute resources (eDTUs or vCores) on a logical server that multiple databases draw from, instead of each database having its own fixed capacity. It makes economic and operational sense when you host many databases with individually low or bursty utilization — typical of software-as-a-service (SaaS) tenants, microservices with small databases, or dev/test farms — where provisioning peak capacity for every database would waste budget.
+
+- All pooled databases must share the same compute generation and tier family, but each database can have its own min and max eDTU or vCore caps within the pool limit.
+- Storage is still billed per database, while compute is billed for the pool as a whole; the savings come from statistical multiplexing of peak loads.
+- If one database consistently saturates the pool, other databases may slow down, so monitoring aggregate pool utilization is essential.
+- Single high-utilization databases are usually cheaper and more predictable as standalone databases rather than pool members.
+
+---
+
+## Q16. How does eDTU sharing work in an elastic pool, and what is the risk of noisy-neighbor behavior within the pool?
+
+How does eDTU sharing work in an elastic pool, and what is the risk of noisy-neighbor behavior within the pool?
+
+**Answer:** eDTU sharing means all databases in the pool compete for the same combined eDTU budget up to the pool maximum, and each database can burst only within its configured per-database maximum. Azure reallocates unused capacity momentarily to databases that need it, which smooths out uncorrelated bursts across tenants.
+
+- Per-database **min eDTU** guarantees a floor so critical databases always receive some capacity; **max eDTU** prevents one database from consuming the entire pool.
+- Noisy-neighbor risk occurs when one tenant runs heavy reporting or a missing-index scan during peak hours, increasing latency for others sharing the pool.
+- Mitigations include setting conservative per-database max values, moving hot databases to dedicated SKUs, using Resource Governor-style patterns at the application layer, and alerting on pool eDTU percentage sustained near 100%.
+- vCore elastic pools follow the same sharing idea with vCores instead of eDTUs.
+
+---
+
+## Chapter 6 — High Availability & Geo-Replication
+
+---
+
+## Q17. What high-availability guarantees does Azure SQL Database provide by default?
+
+What high-availability guarantees does Azure SQL Database provide by default?
+
+**Answer:** Every Azure SQL Database automatically maintains a high-availability architecture within the primary region — Microsoft handles replica placement, failure detection, and failover without you configuring Windows Server Failover Clustering. The exact topology depends on tier: General Purpose uses remote storage with redundant compute, while Business Critical adds synchronous replicas on local fast storage for faster failover.
+
+- The published service-level agreement (SLA) for the single-database tier commits to 99.99% availability when using Business Critical or when paired with auto-failover groups spanning regions; General Purpose has a slightly lower standalone SLA.
+- Failover within the region is automatic and typically completes in seconds to minutes; connection strings usually stay the same because the logical server endpoint is unchanged.
+- Automated backups run continuously, enabling point-in-time restore within the retention window (7 days by default, extendable on higher tiers).
+- These guarantees cover platform faults, not application bugs or accidental data deletion — logical corruption still requires backup restore or geo-replica recovery.
+
+---
+
+## Q18. What is Active Geo-Replication in Azure SQL, and how does it differ from auto-failover groups?
+
+What is Active Geo-Replication in Azure SQL, and how does it differ from auto-failover groups?
+
+**Answer:** Active Geo-Replication asynchronously copies a database to up to four readable secondary databases in other Azure regions, each with its own connection endpoint. Auto-failover groups build on geo-replication by grouping primary and secondary databases under a single **read-write listener endpoint** that automatically fails over when the primary region becomes unavailable.
+
+| | Active Geo-Replication | Auto-failover group |
+|---|---|---|
+| Failover | Manual unless paired with a group | Automatic when grace period elapses |
+| Connection endpoint | Separate endpoint per replica | Single read-write listener name |
+| Readable secondaries | Yes — can offload read queries | Yes — same secondary replicas |
+| Typical use | DR standby, read scale in second region | Production DR with minimal app changes |
+
+Geo-replication alone suits warm standby you promote manually; failover groups suit applications that must survive regional outage without rewriting connection strings to a new server name.
+
+---
+
+## Q19. What is an auto-failover group, and when would you configure one for disaster recovery?
+
+What is an auto-failover group, and when would you configure one for disaster recovery?
+
+**Answer:** An auto-failover group is a regional disaster-recovery construct that registers a primary database and one or more secondaries, exposes a **read-write listener** DNS name, and triggers automatic failover when Azure detects prolonged primary unavailability or when you invoke a forced failover during drills. Applications point connection strings at the listener so failover swaps the underlying database without changing the hostname in configuration.
+
+- Configure one when your recovery time objective (RTO) requires minutes—not hours—and you cannot afford manual DNS or connection string updates during a regional outage.
+- Grace period settings prevent flapping on transient network blips before failover commits.
+- Secondary regions should be chosen for compliance, latency to users, and paired-region recommendations; test forced failovers regularly because async replication implies potential small data loss (recovery point objective) at failover time.
+- Combine with Azure App Service multi-region deployment or traffic manager so compute and data fail over in a coordinated runbook.
+
+---
+
+## Chapter 7 — Security & Managed Identity
+
+---
+
+## Q20. What is Azure Active Directory (Azure AD) authentication for Azure SQL Database, and how does it differ from SQL authentication?
+
+What is Azure Active Directory (Azure AD) authentication for Azure SQL Database, and how does it differ from SQL authentication?
+
+**Answer:** Azure AD authentication lets users and applications sign in to Azure SQL using Azure AD identities — users, groups, service principals, or managed identities — instead of SQL logins stored in the database with passwords. The database trusts tokens issued by Azure AD, which enables centralized lifecycle management, conditional access, and elimination of password rotation in connection strings.
+
+- SQL authentication uses `User ID` and `Password` in the connection string, as in this module's sample; credentials are SQL users managed inside the server.
+- Azure AD authentication obtains an access token (via `DefaultAzureCredential`, managed identity, or interactive login) and passes it to SQL Client with `Authentication=Active Directory Default` or similar keywords.
+- Only Azure AD admin accounts can initially configure Azure AD admins on the logical server; afterward you create contained database users mapped to Azure AD principals.
+- Microsoft recommends Azure AD as the preferred production model because secrets leave the connection string and permissions align with enterprise directory groups.
+
+---
+
+## Q21. How do you connect to Azure SQL using managed identity from an ASP.NET Core app running on Azure App Service?
+
+How do you connect to Azure SQL using managed identity from an ASP.NET Core app running on Azure App Service?
+
+**Answer:** Enable a system-assigned or user-assigned managed identity on the App Service, create a contained database user mapped to that identity in Azure SQL, grant required roles (for example `db_datareader`, `db_datawriter`), and configure EF Core to acquire an Azure AD token instead of using a password. At runtime the App Service requests a token from Azure Instance Metadata Service and SQL Client presents it to the logical server.
+
+- In Azure portal, turn on **Identity** for the web app and copy the object ID; in SSMS or Azure Data Studio run `CREATE USER [app-name] FROM EXTERNAL PROVIDER` and add role memberships.
+- Register EF Core with a custom `DbContext` configuration or `SqlConnection` interceptor that calls `DefaultAzureCredential` and sets `AccessToken` on the connection before opening.
+- Connection strings then omit `Password` and use `Authentication=Active Directory Managed Identity` (or programmatic token attachment) with the server and database names only.
+- Managed identity removes secrets from App Service configuration and avoids password expiry outages when combined with proper RBAC on the SQL resource.
+
+---
+
+## Q22. What is Always Encrypted in Azure SQL, and when would you use it with an EF Core application?
+
+What is Always Encrypted in Azure SQL, and when would you use it with an EF Core application?
+
+**Answer:** Always Encrypted protects sensitive column data by encrypting values on the client before they are sent to SQL Server, so plaintext secrets such as national ID numbers or payment tokens are never visible to DBAs or attackers with database access alone. The database stores ciphertext and metadata; only clients holding the column encryption key can decrypt.
+
+- Use it when compliance requires encryption at rest and in use with separation of duties — administrators can manage the server without reading protected columns.
+- EF Core supports Always Encrypted through `Microsoft.Data.SqlClient` with column encryption settings on the connection string and encrypted columns defined in the database.
+- Key management can use Azure Key Vault in **secure enclave** configurations on supported tiers, keeping keys out of the application process where possible.
+- It adds complexity — encrypted columns have limited indexing and query capabilities — so apply it to truly sensitive fields, not every string column.
+
+---
+
+## Chapter 8 — Performance, Resilience & Operations
+
+---
+
+## Q23. What is Query Store in Azure SQL Database, and why is it useful for tuning Entity Framework Core queries?
+
+What is Query Store in Azure SQL Database, and why is it useful for tuning Entity Framework Core queries?
+
+**Answer:** Query Store is a built-in feature that automatically captures query text, execution plans, and runtime statistics over time inside the database, letting you identify regressions and high-cost queries without a separate profiler. For EF Core apps that generate SQL dynamically, Query Store reveals which LINQ operations became expensive after a deployment or data volume change.
+
+- It retains multiple plans per query and flags plan regressions when a new plan performs worse than a previous one.
+- You can force a known-good plan temporarily while investigating schema or parameter sniffing issues common with ORM-generated SQL.
+- Azure portal and DMVs such as `sys.query_store_wait_stats` integrate with Query Store data for wait-category analysis.
+- Enable it on production databases early so baseline history exists before incidents; retention and capture modes are configurable to balance storage overhead.
+
+---
+
+## Q24. How does connection pooling work when connecting to Azure SQL from .NET applications?
+
+How does connection pooling work when connecting to Azure SQL from .NET applications?
+
+**Answer:** ADO.NET connection pooling keeps physical TCP connections to Azure SQL open and reuses them across requests, avoiding the latency of a full TLS handshake and login for every query. When EF Core or `SqlConnection` opens a connection with an identical connection string, the pool returns an idle connection instead of creating a new one.
+
+- Pooling is enabled by default; parameters such as `Min Pool Size`, `Max Pool Size`, and `Connection Timeout` tune behavior under load.
+- Each distinct connection string (including different users or databases) creates a separate pool, so many variants can increase server-side connection counts.
+- Azure SQL has connection limits per service tier; exhausting pools manifests as timeouts waiting for a free connection, not always as SQL errors.
+- In ASP.NET Core, scoped `DbContext` disposes connections back to the pool at the end of the request — it does not necessarily close the TCP session.
+
+---
+
+## Q25. What are transient fault handling patterns for Azure SQL, and how does EF Core retry-on-failure help?
+
+What are transient fault handling patterns for Azure SQL, and how does EF Core retry-on-failure help?
+
+**Answer:** Transient faults are short-lived failures — throttling (error 40613), service busy messages, failover brief unavailability, or network blips — that often succeed if the operation retries after a delay. EF Core's `EnableRetryOnFailure` configures the execution strategy to automatically retry failed commands with exponential backoff instead of surfacing immediate errors to the user.
+
+```csharp
+options.UseSqlServer(connectionString, sqlOptions =>
+    sqlOptions.EnableRetryOnFailure(maxRetryCount: 5));
+```
+
+- Retries apply to operations EF Core initiates; idempotency matters for retries on non-read operations — duplicate inserts may require unique constraints or upsert patterns.
+- Combine with Polly policies at the application layer for broader resilience when calling Azure SQL through raw ADO.NET or stored procedures outside EF's pipeline.
+- Retry logic does not replace correct firewall, connection string, or authentication configuration for permanent failures.
+- During geo-failover, a burst of transient errors is expected; retry policies help apps ride through the listener switch.
+
+---
+
+## Chapter 9 — Monitoring & Common Gotchas
+
+---
+
+## Q26. What is the difference between deploying a single Azure SQL database versus placing databases in an elastic pool?
+
+What is the difference between deploying a single Azure SQL database versus placing databases in an elastic pool?
+
+**Answer:** A single database owns its dedicated compute allocation (DTUs or vCores) at all times, while pooled databases share a pool budget and trade isolation for cost efficiency. The engine and connection model are identical; only resource governance and billing differ.
+
+| | Single database | Elastic pool |
+|---|---|---|
+| Compute | Reserved for one DB | Shared across many DBs |
+| Cost pattern | Pay for peak of each DB | Pay for aggregate pool peak |
+| Noisy neighbor | Only your workload | Possible across pool members |
+| Best for | Steady or high single-DB load | Many small or bursty DBs |
+
+Start with single databases when utilization is high or unpredictable per database; move related low-utilization databases into a pool when monitoring shows complementary usage patterns.
+
+---
+
+## Q27. How do you monitor Azure SQL Database performance and configure alerts from an operations perspective?
+
+How do you monitor Azure SQL Database performance and configure alerts from an operations perspective?
+
+**Answer:** Azure Monitor collects platform metrics and logs from Azure SQL — CPU percentage, DTU or vCore consumption, storage, deadlocks, and connection counts — and lets you define alert rules that notify teams before users notice slowness. Diagnostic settings can stream detailed data to Log Analytics, storage, or Event Hub for dashboards and long-term analysis.
+
+- Enable **Azure SQL Analytics** or workbook templates for trend views on query performance alongside Query Store.
+- Common alert thresholds include DTU or CPU above 80% sustained, storage approaching max size, and failed connection spikes indicating firewall or auth issues.
+- **Intelligent Insights** automatically detects performance anomalies and writes actionable recommendations to the resource diagnostics stream.
+- Correlate SQL metrics with App Service or Functions telemetry so you distinguish database saturation from application N+1 query patterns emitted by EF Core.
+
+---
+
+#### Gotcha 28. Why might `GetConnectionString("AzureDb")` return null even when a connection string value appears in `appsettings.json`?
+
+**Answer:** `GetConnectionString("AzureDb")` reads the configuration key `ConnectionStrings:AzureDb` (or the environment variable `ConnectionStrings__AzureDb`), not arbitrary JSON sections with similar names. If the file nests the value under `"ConnectionString"` (singular) or another custom node, the built-in helper does not find it and returns null even though a human sees a value in the file.
+
+- This module's sample `appsettings.json` uses `"ConnectionString": { "AzureDb": "..." }` while `Program.cs` calls `GetConnectionString("AzureDb")`, which expects `"ConnectionStrings": { "AzureDb": "..." }` — the mismatch leaves DI with a null connection unless `OnConfiguring`'s hardcoded fallback runs.
+- Fix by renaming the section to `ConnectionStrings`, moving the entry there, or reading `Configuration["ConnectionString:AzureDb"]` explicitly if you keep a custom layout.
+- The same naming rule applies in Azure App Service: the **Connection strings** blade maps to `ConnectionStrings__*` environment variables automatically; plain custom keys do not.
+- Always verify at startup with a configuration validation or health check that fails fast when the connection string is missing, rather than discovering null at the first database call.
+
+---
+
+## Q28. Gotcha: Why might `GetConnectionString("AzureDb")` return null even when a connection string value appears in `appsettings.json`?
+
+_Answer not found._
+
+---

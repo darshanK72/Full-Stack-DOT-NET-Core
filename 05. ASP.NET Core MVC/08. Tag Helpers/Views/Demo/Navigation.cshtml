@@ -1,0 +1,217 @@
+@*
+   FILE ROLE: Demonstrates the anchor (<a>) tag helper with all asp-* attributes —
+              asp-action, asp-controller, asp-route-*, asp-area, and asp-fragment.
+
+   SECTIONS IN THIS FILE:
+     1. Basic anchor tag helper     — asp-action, asp-controller
+     2. Route parameters            — asp-route-id and other single-segment params
+     3. Multiple route values       — asp-route-* wildcard for additional query/route params
+     4. Areas                       — asp-area for area-based routing
+     5. Fragment                    — asp-fragment for #anchor hash navigation
+     6. Comparison: HtmlHelper vs Tag Helper
+*@
+@{
+    ViewData["Title"] = "Anchor Tag Helper";
+}
+
+<h2>Anchor Tag Helper</h2>
+
+@* ============================================================
+   SECTION 1: BASIC ANCHOR TAG HELPER
+   <a asp-action="..." asp-controller="...">Link Text</a>
+
+   The AnchorTagHelper activates ONLY when at least one asp-* attribute is present.
+   Without asp-* attributes, <a href="..."> passes through as plain HTML.
+
+   URL generation:
+     1. Reads current route values (controller, action) as defaults
+     2. Overrides with asp-action and asp-controller if provided
+     3. Serialises remaining route values as path segments or query strings
+     4. Sets the href attribute on the rendered <a>
+
+   asp-controller can be OMITTED when linking to an action in the SAME controller.
+   The current request's route values are used as defaults.
+   ============================================================ *@
+<h4>1. Basic Links</h4>
+<ul>
+    <li>
+        @* Same controller, different action — asp-controller inferred from ambient route *@
+        <a asp-action="Forms">Go to Forms Demo</a>
+        @* Renders: <a href="/Demo/Forms">Go to Forms Demo</a> *@
+    </li>
+    <li>
+        @* Explicit controller — always works regardless of current page *@
+        <a asp-action="Assets" asp-controller="Demo">Go to Assets Demo</a>
+        @* Renders: <a href="/Demo/Assets">Go to Assets Demo</a> *@
+    </li>
+    <li>
+        @* Link to a different controller entirely *@
+        <a asp-action="Index" asp-controller="Home">Home (if it existed)</a>
+        @* Renders: <a href="/Home">Home (if it existed)</a> *@
+    </li>
+</ul>
+
+@* ============================================================
+   SECTION 2: ROUTE PARAMETERS — asp-route-id
+   <a asp-action="Details" asp-route-id="5">...</a>
+
+   asp-route-id:
+     If the route template has a segment named {id}, the value is inserted in the path:
+       /Product/Details/5
+
+   asp-route-{name}:
+     Any suffix after "asp-route-" becomes a route or query-string value.
+     If the route template has a matching segment, it's placed in the path.
+     Otherwise it's appended as a query-string parameter: ?name=value
+   ============================================================ *@
+<h4>2. Route Parameters</h4>
+<ul>
+    <li>
+        @* asp-route-id → maps to {id} in the default route template *@
+        <a asp-action="Details" asp-controller="Product" asp-route-id="42">Product 42</a>
+        @* Renders: <a href="/Product/Details/42">Product 42</a> *@
+    </li>
+    <li>
+        @* asp-route-page → no matching route segment → becomes query string *@
+        <a asp-action="Forms" asp-route-page="2">Page 2</a>
+        @* Renders: <a href="/Demo/Forms?page=2">Page 2</a> *@
+    </li>
+</ul>
+
+@* ============================================================
+   SECTION 3: MULTIPLE ROUTE VALUES — asp-route-* wildcard
+   Multiple asp-route-* attributes combine into a route value dictionary.
+   Unknown keys (not in the route template) become query-string parameters.
+   ============================================================ *@
+<h4>3. Multiple Route Values</h4>
+<ul>
+    <li>
+        @* Multiple query-string params: ?page=2&sort=date&direction=asc *@
+        <a asp-action="Forms"
+           asp-route-page="2"
+           asp-route-sort="date"
+           asp-route-direction="asc">
+            Page 2, sorted by date ascending
+        </a>
+        @* Renders: <a href="/Demo/Forms?page=2&sort=date&direction=asc">...</a> *@
+    </li>
+    <li>
+        @* Mixing a path segment and query params *@
+        <a asp-action="Details"
+           asp-controller="Order"
+           asp-route-id="10"
+           asp-route-tab="history">
+            Order 10 — History Tab
+        </a>
+        @* Renders: <a href="/Order/Details/10?tab=history">...</a> *@
+    </li>
+</ul>
+
+@* ============================================================
+   SECTION 4: AREAS — asp-area
+   <a asp-action="..." asp-controller="..." asp-area="Admin">...</a>
+
+   Areas partition a large application into distinct feature sections,
+   each with its own Controllers/, Views/, and Models/ subfolder.
+   asp-area tells the router which area to prefix the URL with.
+
+   Route template for areas (registered in Program.cs):
+     {area:exists}/{controller=Home}/{action=Index}/{id?}
+
+   Without asp-area, links from inside an area still target the CURRENT area.
+   Set asp-area="" (empty string) to explicitly link OUTSIDE all areas.
+
+   NOTE: This project has no Admin area, so this link would return 404 at runtime.
+         It is shown here purely to demonstrate the attribute syntax.
+   ============================================================ *@
+<h4>4. Areas</h4>
+<ul>
+    <li>
+        @* Links into the "Admin" area — requires area routing registered in Program.cs *@
+        <a asp-action="Index" asp-controller="Dashboard" asp-area="Admin">
+            Admin Dashboard (area link)
+        </a>
+        @* Renders: <a href="/Admin/Dashboard">Admin Dashboard</a>
+           (exact URL depends on the area route template) *@
+    </li>
+    <li>
+        @* Link OUT of an area — asp-area="" targets the root (non-area) routes *@
+        <a asp-action="Forms" asp-controller="Demo" asp-area="">
+            Forms (non-area link)
+        </a>
+        @* Renders: <a href="/Demo/Forms">Forms (non-area link)</a> *@
+    </li>
+</ul>
+
+@* ============================================================
+   SECTION 5: FRAGMENT — asp-fragment
+   <a asp-action="..." asp-fragment="sectionId">...</a>
+
+   asp-fragment appends a URL hash (#sectionId) AFTER the full URL.
+   The browser scrolls to the element with id="sectionId" on the target page.
+   The fragment is NOT sent to the server — it's client-side navigation only.
+
+   Combined with asp-route-*:
+     asp-action="Forms" asp-route-tab="billing" asp-fragment="billing-form"
+     → /Demo/Forms?tab=billing#billing-form
+   ============================================================ *@
+<h4>5. Fragment (#anchor)</h4>
+<ul>
+    <li>
+        <a asp-action="Forms" asp-fragment="contact-section">
+            Jump to contact section
+        </a>
+        @* Renders: <a href="/Demo/Forms#contact-section">Jump to contact section</a> *@
+    </li>
+    <li>
+        <a asp-action="Forms"
+           asp-route-returnUrl="/home"
+           asp-fragment="top">
+            Forms with returnUrl and #top
+        </a>
+        @* Renders: <a href="/Demo/Forms?returnUrl=%2Fhome#top">...</a> *@
+    </li>
+</ul>
+
+@* ============================================================
+   SECTION 6: HTML HELPER COMPARISON
+
+   Old HtmlHelper approach (still valid, but less readable):
+     @Html.ActionLink("Product 42", "Details", "Product", new { id = 42 }, null)
+     @Html.ActionLink("Page 2", "Forms", "Demo", new { page = 2 }, null)
+     @Html.ActionLink("Admin", "Index", "Dashboard", new { area = "Admin" }, null)
+
+   Tag Helper approach:
+     <a asp-action="Details" asp-controller="Product" asp-route-id="42">Product 42</a>
+     <a asp-action="Forms" asp-route-page="2">Page 2</a>
+     <a asp-action="Index" asp-controller="Dashboard" asp-area="Admin">Admin</a>
+
+   Advantages of tag helpers:
+     - Reads like HTML (editors apply HTML highlighting, not C# highlighting)
+     - Individual asp-* attributes are easy to add/remove
+     - No awkward anonymous objects or overload disambiguation (null for htmlAttributes)
+     - IDE can offer attribute completion for registered tag helpers
+   ============================================================ *@
+<h4>6. HTML Helper vs Tag Helper — side-by-side</h4>
+<table class="table table-sm table-bordered">
+    <thead>
+        <tr><th>Task</th><th>Html Helper</th><th>Tag Helper</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Basic action link</td>
+            <td><code>@@Html.ActionLink("Text","Action","Controller",null,null)</code></td>
+            <td><code>&lt;a asp-action="Action" asp-controller="Controller"&gt;Text&lt;/a&gt;</code></td>
+        </tr>
+        <tr>
+            <td>With route id</td>
+            <td><code>@@Html.ActionLink("T","A","C",new{id=5},null)</code></td>
+            <td><code>&lt;a asp-action="A" asp-route-id="5"&gt;T&lt;/a&gt;</code></td>
+        </tr>
+        <tr>
+            <td>Area link</td>
+            <td><code>@@Html.ActionLink("T","A","C",new{area="Admin"},null)</code></td>
+            <td><code>&lt;a asp-action="A" asp-area="Admin"&gt;T&lt;/a&gt;</code></td>
+        </tr>
+    </tbody>
+</table>

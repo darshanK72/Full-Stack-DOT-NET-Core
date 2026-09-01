@@ -1,0 +1,505 @@
+@model IEnumerable<AjaxPartialUpdates.Models.ProductViewModel>
+
+@{
+    ViewData["Title"] = "AJAX & Partial Page Updates";
+}
+
+@*
+ * FILE ROLE: Index.cshtml is the main tutorial page. It contains five interactive
+ *            demos covering every client-side AJAX concept: the Fetch API, loading
+ *            partial views, form submission via FormData, JSON POST with a header
+ *            token, multiple-region updates, optimistic UI updates, and spinners.
+ *
+ * SECTIONS IN THIS FILE:
+ *   9.  Fetch API — loading partial views via AJAX
+ *   10. Form submission via AJAX (FormData + JSON.stringify)
+ *   11. Multiple page regions, optimistic UI updates, loading spinners
+ *@
+
+<h1>AJAX &amp; Partial Page Updates</h1>
+<p>Five live demos covering the core AJAX patterns in ASP.NET Core MVC. Run each demo
+   and read the annotated JavaScript below to understand every step.</p>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * SECTION 9: FETCH API — LOADING PARTIAL VIEWS VIA AJAX
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * The Fetch API is the modern browser-native way to send HTTP requests from
+ * JavaScript. It replaces XMLHttpRequest (XHR) with a Promise-based interface.
+ *
+ * KEY MEMBERS:
+ *   fetch(url)                    — GET request; returns Promise<Response>
+ *   fetch(url, { method, headers, body }) — any method with options
+ *   await response.ok             — true for 2xx status codes
+ *   await response.status         — numeric HTTP status (200, 404, 500…)
+ *   await response.text()         — reads body as string (HTML fragment)
+ *   await response.json()         — reads body and parses as JSON
+ *   await response.statusText     — "OK", "Not Found", etc.
+ *
+ * DEMO 1 — Load a product card partial via fetch → response.text() → innerHTML
+ * The server action returns PartialView("_ProductCard", product) (SECTION 5).
+ * The client reads the HTML string and inserts it into the container.
+ *
+ * DEMO 2 — Fetch JSON and display it
+ * The server action returns Json(product) (SECTION 6).
+ * The client calls response.json() to parse the JSON body.
+ *@
+
+<div class="demo-section">
+    <h2>Demo 1: Load Partial View via fetch() → response.text()</h2>
+    <p>Action: <code>GET /Products/ProductCard/{id}</code> → returns <code>PartialView("_ProductCard", product)</code></p>
+    <label>Product ID (1–5):
+        <input type="number" id="card-id" value="1" min="1" max="9" style="width:60px" />
+    </label>
+    <button onclick="loadProductCard()">Load Product Card</button>
+    <span id="card-spinner" class="spinner" style="display:none;"></span>
+    <div id="product-card-container" style="margin-top:.75rem;"></div>
+</div>
+
+<div class="demo-section">
+    <h2>Demo 2: Fetch JSON Data → response.json()</h2>
+    <p>Action: <code>GET /Products/ProductJson/{id}</code> → returns <code>Json(product)</code></p>
+    <label>Product ID (1–5):
+        <input type="number" id="json-id" value="2" min="1" max="9" style="width:60px" />
+    </label>
+    <button onclick="fetchProductJson()">Fetch as JSON</button>
+    <pre id="json-container" style="margin-top:.75rem;"></pre>
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * SECTION 10: FORM SUBMISSION VIA AJAX — FormData AND JSON.stringify
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * Two patterns for sending form data via AJAX:
+ *
+ * PATTERN A — FormData (multipart/form-data):
+ *   new FormData(form) serializes all form fields including hidden inputs.
+ *   Since @Html.AntiForgeryToken() generates a hidden <input name="__RequestVerificationToken">,
+ *   it is captured automatically — no extra work needed for CSRF protection.
+ *   Do NOT manually set Content-Type: fetch sets it to multipart/form-data with
+ *   the correct boundary parameter; overriding it breaks the boundary.
+ *   Controller action: [ValidateAntiForgeryToken] public IActionResult AddProduct(ProductViewModel vm)
+ *
+ * PATTERN B — JSON.stringify (application/json):
+ *   Build a plain object from the form values, serialize to a JSON string.
+ *   There is no form body, so the antiforgery token CANNOT come from a form field.
+ *   Instead, read the token from the <meta name="csrf-token"> tag in _Layout.cshtml
+ *   (populated in SECTION 14) and send it in the RequestVerificationToken header.
+ *   Controller action: [ValidateAntiForgeryToken] public IActionResult AddProductJson([FromBody] ProductViewModel vm)
+ *
+ * CHOOSING BETWEEN THE TWO:
+ *   FormData    → form has file inputs; you want automatic antiforgery handling; simpler JS
+ *   JSON        → you need fine-grained control over the payload shape; the endpoint is
+ *                 also consumed by non-browser clients; you prefer strongly-typed DTOs
+ *@
+
+<div class="demo-section">
+    <h2>Demo 3: Form POST via AJAX — FormData (Pattern A)</h2>
+    <p>Antiforgery token comes from the hidden <code>@Html.AntiForgeryToken()</code> field captured by <code>new FormData(form)</code>.</p>
+    @* @Html.AntiForgeryToken() renders: <input name="__RequestVerificationToken" type="hidden" value="…"> *@
+    @* new FormData(form) captures it automatically — no manual token handling needed *@
+    <form id="add-form-data" action="/Products/AddProduct" method="post">
+        @Html.AntiForgeryToken()
+        <label>Name: <input type="text" name="Name" placeholder="e.g. USB Mouse" required style="width:200px" /></label>
+        <label>Category: <input type="text" name="Category" placeholder="e.g. Electronics" required style="width:150px" /></label>
+        <label>Price ($): <input type="number" name="Price" step="0.01" min="0.01" placeholder="9.99" required style="width:100px" /></label>
+        <label>Description: <input type="text" name="Description" placeholder="Short description" style="width:250px" /></label>
+        <label>Stock: <input type="number" name="Stock" value="0" min="0" style="width:80px" /></label>
+        <button type="submit" style="margin-top:.5rem">Add via FormData</button>
+    </form>
+    <div id="formdata-result" style="margin-top:.5rem;"></div>
+</div>
+
+<div class="demo-section">
+    <h2>Demo 4: JSON POST — JSON.stringify + Header Token (Pattern B)</h2>
+    <p>Antiforgery token is read from <code>&lt;meta name="csrf-token"&gt;</code> (set in <code>_Layout.cshtml</code>) and sent in the <code>RequestVerificationToken</code> header.</p>
+    <form id="add-json-form">
+        <label>Name: <input type="text" name="name" placeholder="e.g. HDMI Cable" required style="width:200px" /></label>
+        <label>Category: <input type="text" name="category" placeholder="e.g. Office" required style="width:150px" /></label>
+        <label>Price ($): <input type="number" name="price" step="0.01" min="0.01" placeholder="14.99" required style="width:100px" /></label>
+        <label>Description: <input type="text" name="description" placeholder="Short description" style="width:250px" /></label>
+        <label>Stock: <input type="number" name="stock" value="0" min="0" style="width:80px" /></label>
+        <button type="submit" style="margin-top:.5rem">Add via JSON</button>
+    </form>
+    <div id="json-add-result" style="margin-top:.5rem;"></div>
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * SECTION 11: MULTIPLE PAGE REGIONS, OPTIMISTIC UI UPDATES, LOADING SPINNERS
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * UPDATING MULTIPLE PAGE REGIONS FROM ONE REQUEST:
+ *   A single AJAX response can carry data for multiple independent UI areas.
+ *   The Search action returns JSON with { count, term, categories[], products[] }.
+ *   The client distributes this data to three separate DOM regions:
+ *     Region 1 — #search-results-count  (text update)
+ *     Region 2 — #category-badges       (badge list from categories array)
+ *     Region 3 — #product-list-container (product cards built from products array)
+ *   This avoids three separate fetch calls and three round trips.
+ *
+ * LOADING SPINNERS:
+ *   A spinner gives users immediate visual feedback that something is happening.
+ *   Pattern:
+ *     1. Before fetch: spinner.style.display = 'block'
+ *     2. After fetch (success or failure): spinner.style.display = 'none'
+ *   Use a try/finally block to guarantee the spinner hides even if an error occurs.
+ *   CSS for the spinner is defined in _Layout.cshtml (the .spinner class).
+ *
+ * OPTIMISTIC UI UPDATES:
+ *   For write operations (add, edit, delete), an optimistic update inserts the
+ *   result into the UI immediately — before the server confirms — then either
+ *   commits (replaces the placeholder with confirmed server data) or rolls back
+ *   (removes the placeholder and shows an error) when the response arrives.
+ *
+ *   Benefits: the user sees the effect of their action with zero perceived latency.
+ *   Trade-off: if the server rejects the request, the UI must undo the update,
+ *              which can be jarring if not handled gracefully.
+ *
+ *   Steps:
+ *     1. Create a placeholder DOM element and insert it (e.g., list.prepend(placeholder))
+ *     2. Await the fetch
+ *     3. On success: update or replace the placeholder with server-confirmed data
+ *     4. On failure: remove the placeholder; show an error message
+ *@
+
+<div class="demo-section">
+    <h2>Demo 5: Search — Multiple Region Update</h2>
+    <p>One request updates three DOM regions: result count, category badges, product list.</p>
+    <form id="search-form" style="display:flex;gap:.5rem;align-items:center">
+        <input type="text" id="search-term" placeholder="Type to search products…" style="width:240px" />
+        <button type="submit">Search</button>
+        <span id="search-spinner" class="spinner" style="display:none;"></span>
+    </form>
+    <p>
+        <span id="search-results-count">Showing all products</span> &mdash;
+        Categories: <span id="category-badges"></span>
+    </p>
+    <div id="product-list-container">
+        @* Pre-rendered on first load with the full product list — no initial AJAX call needed *@
+        <partial name="_ProductList" model="Model" />
+    </div>
+</div>
+
+<div class="demo-section">
+    <h2>Demo 6: Optimistic UI Update</h2>
+    <p>Add a product name — the card appears instantly. The server confirms (or rejects) the add asynchronously.</p>
+    <div style="display:flex;gap:.5rem;align-items:center">
+        <input type="text" id="optimistic-name" placeholder="Product name…" style="width:220px" />
+        <button onclick="addProductOptimistic()">Add (Optimistic)</button>
+    </div>
+    <p id="optimistic-error" class="error-msg" style="min-height:1.2rem;"></p>
+    <div id="optimistic-list"></div>
+</div>
+
+@* ─────────────────────────────────────────────────────────────────────────────
+ *  JAVASCRIPT — all fetch demos with full annotations
+ *  Read Section 9 first, then 10, then 11 (they build on each other)
+ * ────────────────────────────────────────────────────────────────────────────*@
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 9 JS: FETCH API — LOADING PARTIAL VIEWS AND JSON
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// DEMO 1 — Load a partial view (HTML fragment) from the server
+// fetch() always returns a Promise. 'async function' + 'await' flattens the
+// Promise chain into sequential-looking code.
+async function loadProductCard() {
+    const id        = document.getElementById('card-id').value;
+    const container = document.getElementById('product-card-container');
+    const spinner   = document.getElementById('card-spinner');
+
+    // Show spinner before the network call
+    spinner.style.display = 'inline-block';
+    container.innerHTML   = '';
+
+    try {
+        // fetch(url, init) — sends an HTTP request; returns Promise<Response>
+        // The X-Requested-With header is the convention for signalling AJAX calls
+        // to the server (see IsAjaxRequest pattern, SECTION 5 in the controller).
+        // The Fetch API does NOT send this header automatically; jQuery used to.
+        const response = await fetch('/Products/ProductCard/' + id, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        // response.ok is true for 2xx status codes (200–299)
+        // fetch() does NOT reject on 4xx/5xx — only on network failure (no server, DNS error)
+        // So we must manually check response.ok to treat HTTP errors as failures
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+
+        // response.text() reads the entire response body as a plain string
+        // The server returned PartialView("_ProductCard", product) — an HTML fragment
+        const html = await response.text();
+
+        container.innerHTML = html; // replace container contents with the partial view HTML
+
+    } catch (error) {
+        // try/catch covers BOTH: network failures AND our manually thrown HTTP errors
+        container.innerHTML = '<p class="error-msg">Error: ' + error.message + '</p>';
+    } finally {
+        // finally runs whether the try block succeeded or the catch block ran
+        // This guarantees the spinner is always hidden — no leaked spinner on errors
+        spinner.style.display = 'none';
+    }
+}
+
+// DEMO 2 — Fetch JSON data and display it
+async function fetchProductJson() {
+    const id        = document.getElementById('json-id').value;
+    const container = document.getElementById('json-container');
+
+    try {
+        const response = await fetch('/Products/ProductJson/' + id);
+
+        // Handle 404 as a known, expected case (product not found)
+        if (response.status === 404) {
+            container.textContent = 'Product not found (404).';
+            return;
+        }
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+
+        // response.json() reads the body and parses it as JSON
+        // Equivalent to: JSON.parse(await response.text())
+        // Property names are camelCase (System.Text.Json default): "id", "name", "inStock"
+        const data = await response.json();
+
+        // JSON.stringify(value, null, 2) pretty-prints with 2-space indentation
+        container.textContent = JSON.stringify(data, null, 2);
+
+    } catch (error) {
+        container.textContent = 'Error: ' + error.message;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 10 JS: FORM SUBMISSION VIA AJAX
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// DEMO 3 — FormData POST (Pattern A)
+// event.preventDefault() stops the browser's synchronous form submit.
+// new FormData(form) captures all named form inputs PLUS the hidden
+// __RequestVerificationToken field that @Html.AntiForgeryToken() added.
+document.getElementById('add-form-data').addEventListener('submit', async function (event) {
+    event.preventDefault(); // prevent full-page form submit
+
+    const form      = event.target;
+    const resultDiv = document.getElementById('formdata-result');
+
+    // new FormData(form) creates a FormData object from all <input>, <select>, <textarea>
+    // named fields in the form, including: Name, Category, Price, Description, Stock,
+    // and the hidden __RequestVerificationToken.
+    const formData = new FormData(form);
+
+    // IMPORTANT: do NOT set Content-Type manually.
+    // fetch sets it to 'multipart/form-data; boundary=----...' automatically.
+    // Overriding Content-Type omits the boundary parameter, which breaks parsing on the server.
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body:   formData // the antiforgery token is already inside formData
+        });
+
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+
+        // Server returns PartialView("_ProductCard", saved) — an HTML fragment
+        const html = await response.text();
+        resultDiv.innerHTML = '<p class="success-msg">Product added:</p>' + html;
+        form.reset(); // clear form fields after successful submission
+
+    } catch (error) {
+        resultDiv.innerHTML = '<p class="error-msg">' + error.message + '</p>';
+    }
+});
+
+// DEMO 4 — JSON POST with header token (Pattern B)
+// JSON.stringify serializes the data object to a string for the request body.
+// The antiforgery token cannot come from a form field (no form body), so it is
+// read from the <meta name="csrf-token"> tag inserted by _Layout.cshtml SECTION 14.
+document.getElementById('add-json-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+
+    const form      = event.target;
+    const resultDiv = document.getElementById('json-add-result');
+
+    // Extract named form values into a plain object, then apply type conversions
+    const fd = new FormData(form); // convenient way to read named fields even without sending as FormData
+    const data = {
+        name:        fd.get('name'),
+        category:    fd.get('category'),
+        price:       parseFloat(fd.get('price') || '0'),  // server expects decimal
+        description: fd.get('description') || '',
+        stock:       parseInt(fd.get('stock')  || '0', 10) // radix 10 prevents octal parsing
+    };
+
+    // Read the antiforgery token from the meta tag injected by _Layout.cshtml:
+    //   <meta name="csrf-token" content="@@tokens.RequestToken" />
+    // The ?. optional chain returns undefined (not an error) if the meta tag is missing.
+    // The ?? '' fallback ensures token is always a string (never undefined).
+    const token = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+    try {
+        const response = await fetch('/Products/AddProductJson', {
+            method: 'POST',
+            headers: {
+                'Content-Type':              'application/json',    // required for [FromBody] binding
+                'RequestVerificationToken':  token                  // antiforgery token in header (SECTION 8)
+            },
+            body: JSON.stringify(data) // serialize object → JSON string → request body
+        });
+
+        if (!response.ok) {
+            // Server returns 400 + { success: false, errors: [...] } for validation failures
+            const errBody = await response.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(JSON.stringify(errBody));
+        }
+
+        const result = await response.json(); // { success: true, product: { id, name, … } }
+        resultDiv.innerHTML =
+            '<p class="success-msg">Added: ' + result.product.name + ' (ID ' + result.product.id + ')</p>';
+        form.reset();
+
+    } catch (error) {
+        resultDiv.innerHTML = '<p class="error-msg">' + error.message + '</p>';
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 11 JS: MULTIPLE REGIONS, OPTIMISTIC UI, SPINNERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// DEMO 5 — Search: update three DOM regions from a single JSON response
+document.getElementById('search-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+
+    const term      = document.getElementById('search-term').value;
+    const spinner   = document.getElementById('search-spinner');
+    const countEl   = document.getElementById('search-results-count');
+    const container = document.getElementById('product-list-container');
+
+    spinner.style.display = 'inline-block'; // show before the fetch (spinner pattern)
+
+    try {
+        // encodeURIComponent ensures special characters in the search term are URL-safe
+        const response = await fetch('/Products/Search?term=' + encodeURIComponent(term));
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        // Response shape: { count: number, term: string, categories: string[], products: ProductViewModel[] }
+        const data = await response.json();
+
+        // Update THREE separate DOM regions from one JSON response:
+        countEl.textContent = data.count + ' product(s) found for "' + data.term + '"'; // region 1
+
+        updateCategoryBadges(data.categories);                    // region 2
+        container.innerHTML = buildProductListHtml(data.products); // region 3
+
+    } catch (error) {
+        countEl.textContent = 'Search failed: ' + error.message;
+    } finally {
+        spinner.style.display = 'none'; // always hide spinner — success or failure
+    }
+});
+
+// Build product cards as HTML strings from the JSON array (client-side templating)
+// Compare with partial view approach: here JS owns the markup; in SECTION 9 the server owns it.
+function buildProductListHtml(products) {
+    if (!products || products.length === 0) return '<p>No products found.</p>';
+    return products.map(function (p) {
+        var stockHtml = p.inStock
+            ? '<span class="in-stock">In Stock (' + p.stock + ' units)</span>'
+            : '<span class="out-of-stock">Out of Stock</span>';
+        return '<div class="product-card">'
+             + '<h3>' + escapeHtml(p.name) + ' <small style="color:#888;">(ID: ' + p.id + ')</small></h3>'
+             + '<p><strong>Category:</strong> ' + escapeHtml(p.category)
+             + ' &nbsp;|&nbsp; <strong>Price:</strong> $' + p.price.toFixed(2) + '</p>'
+             + '<p>' + escapeHtml(p.description) + '</p>'
+             + '<p>' + stockHtml + '</p>'
+             + '</div>';
+    }).join('');
+}
+
+// Render category filter badges in region 2
+function updateCategoryBadges(categories) {
+    var container = document.getElementById('category-badges');
+    if (!categories || categories.length === 0) {
+        container.innerHTML = '<em>none</em>';
+        return;
+    }
+    container.innerHTML = categories.map(function (c) {
+        return '<span class="badge">' + escapeHtml(c) + '</span>';
+    }).join('');
+}
+
+// XSS-safe HTML escaping: never use untrusted server data directly in innerHTML
+// without escaping. This helper creates a text node (which the browser escapes
+// automatically) then reads back the safe HTML representation.
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(str)));
+    return div.innerHTML;
+}
+
+// DEMO 6 — Optimistic UI update
+// The card appears in the DOM IMMEDIATELY — before the server responds.
+// If the server rejects the add, the placeholder is removed (rollback).
+async function addProductOptimistic() {
+    var nameInput  = document.getElementById('optimistic-name');
+    var listEl     = document.getElementById('optimistic-list');
+    var errorEl    = document.getElementById('optimistic-error');
+    var productName = nameInput.value.trim();
+
+    if (!productName) return;
+
+    errorEl.textContent = '';
+
+    // STEP 1 — Insert a placeholder card immediately (before fetch completes)
+    // The user sees the add happen instantly; the server confirmation is async.
+    var placeholder = document.createElement('div');
+    placeholder.className    = 'product-card optimistic'; // dashed border = "pending" indicator
+    placeholder.innerHTML    = '<h3>' + escapeHtml(productName) + '</h3>'
+                              + '<small style="color:#888;">(saving to server…)</small>';
+    listEl.prepend(placeholder); // put at the top of the list
+    nameInput.value = '';        // clear input immediately for a snappy feel
+
+    var token = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+    try {
+        var response = await fetch('/Products/AddProductJson', {
+            method: 'POST',
+            headers: {
+                'Content-Type':             'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                name:        productName,
+                category:    'Demo',
+                price:       0.01,       // minimum valid price per [Range] annotation
+                description: '',
+                stock:       1
+            })
+        });
+
+        if (!response.ok) throw new Error('Server rejected the add (HTTP ' + response.status + ')');
+
+        var result = await response.json(); // { success: true, product: { id, name, … } }
+
+        // STEP 2 — Replace placeholder with server-confirmed data (commit)
+        // The server assigned the real Id; update the card to show it.
+        placeholder.innerHTML = '<h3>' + escapeHtml(result.product.name) + '</h3>'
+                               + '<small>ID: ' + result.product.id + ' — confirmed by server</small>';
+        placeholder.classList.remove('optimistic');
+        placeholder.classList.add('confirmed'); // green border = confirmed
+
+    } catch (error) {
+        // STEP 3 — Rollback: remove the placeholder on failure
+        // The user sees no change persisted — the UI accurately reflects server state.
+        placeholder.remove();
+        errorEl.textContent = 'Add failed: ' + error.message + ' (rolled back)';
+    }
+}
+</script>

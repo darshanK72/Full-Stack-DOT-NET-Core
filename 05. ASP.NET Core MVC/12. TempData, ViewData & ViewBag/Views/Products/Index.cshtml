@@ -1,0 +1,94 @@
+@*
+ * SECTION 13: READING TEMPDATA AFTER A REDIRECT (POST-REDIRECT-GET)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * This view is the GET destination after a successful Create POST redirect.
+ * TempData values set in ProductsController.Create(POST) are available here
+ * because TempData survives exactly one redirect.
+ *
+ * HOW TEMPDATA REACHES THE VIEW:
+ *   1. Create(POST) sets StatusMessage ([TempData] property) before redirecting.
+ *   2. The CookieTempDataProvider writes the value to an HTTP cookie on the response.
+ *   3. Browser follows the 302 → sends GET /Products/Index with the cookie.
+ *   4. MVC reads the cookie, populates ITempDataDictionary before the action runs.
+ *   5. [TempData] attribute filter loads TempData["StatusMessage"] into the property.
+ *   6. After the action executes, the framework marks read entries for deletion.
+ *   7. This view reads TempData["StatusMessage"] — still accessible in the current
+ *      request's in-memory dictionary even after the attribute consumed it.
+ *   8. Response commits → provider clears consumed entries from the cookie.
+ *
+ * NEXT REQUEST BEHAVIOUR:
+ *   If the user presses F5 (refresh): GET /Index again — TempData["StatusMessage"]
+ *   is now gone (deleted after the previous response). The banners do not reappear.
+ *   This is the expected, correct PRG behaviour.
+ *
+ * PEEK vs direct read (in the view):
+ *   @TempData["StatusMessage"]          → reads AND consumes (entry gone after request)
+ *   @TempData.Peek("StatusMessage")     → reads WITHOUT consuming (entry stays)
+ *   TempData.Keep("StatusMessage")      → call in controller to preserve across 2 requests
+ *@
+
+@{
+    ViewData["Title"] = "Products";
+}
+
+<h1>Products</h1>
+
+@*
+ * SUCCESS BANNER — displayed once after a successful Create POST → redirect.
+ * Pattern: TempData["StatusMessage"] is string msg → true only when the value
+ * exists and is a non-null string. Reading it here marks it for deletion.
+ * The banner will NOT appear on the next page load (PRG behaviour).
+ *@
+@if (TempData["StatusMessage"] is string statusMsg)
+{
+    <div class="alert alert-success">@statusMsg</div>
+}
+
+@*
+ * ERROR BANNER — displayed once after a redirect that carried an error message.
+ * In this project ErrorMessage is set if a server-side guard fails (e.g. a
+ * duplicate product). Validation errors during POST use ModelState instead
+ * (they don't redirect, so TempData is unnecessary for them).
+ *@
+@if (TempData["ErrorMessage"] is string errorMsg)
+{
+    <div class="alert alert-error">@errorMsg</div>
+}
+
+@*
+ * INFO BANNER — check for a generic "Notice" entry left by PeekKeepDemo.
+ * TempData.Keep("Notice") in PeekKeepDemo preserved it across the redirect.
+ * Reading it here (once) will consume it — it won't appear on the next refresh.
+ *@
+@if (TempData["Notice"] is string notice)
+{
+    <div class="alert alert-info"><strong>Keep demo:</strong> @notice</div>
+}
+
+<p>
+    This page is the <strong>GET</strong> destination in the PRG pattern.
+    Use the links below to add a product or explore ViewData / ViewBag.
+</p>
+
+<p>
+    <a asp-controller="Products" asp-action="Create" class="btn">Add Product</a>
+    &nbsp;
+    <a asp-controller="Demo" asp-action="ViewDataDemo" class="btn btn-secondary">ViewData / ViewBag Demo</a>
+    &nbsp;
+    <a asp-controller="Products" asp-action="PeekKeepDemo" class="btn btn-secondary">Peek &amp; Keep Demo</a>
+</p>
+
+<hr />
+
+<h2>How TempData works — at a glance</h2>
+<table>
+    <thead>
+        <tr><th>Step</th><th>Request</th><th>TempData["StatusMessage"]</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>1</td><td>POST /Products/Create (success)</td><td>Set to "Product saved…"</td></tr>
+        <tr><td>2</td><td>302 Redirect issued</td><td>Persisted in cookie by provider</td></tr>
+        <tr><td>3</td><td>GET /Products/Index</td><td>Loaded from cookie; shown here</td></tr>
+        <tr><td>4</td><td>GET /Products/Index (refresh F5)</td><td><em>null</em> — consumed and deleted</td></tr>
+    </tbody>
+</table>

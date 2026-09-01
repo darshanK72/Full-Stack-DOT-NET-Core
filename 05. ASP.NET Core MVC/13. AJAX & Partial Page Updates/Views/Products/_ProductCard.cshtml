@@ -1,0 +1,69 @@
+@model AjaxPartialUpdates.Models.ProductViewModel
+
+@*
+ * FILE ROLE: _ProductCard.cshtml is the partial view for a single product. It is
+ *            returned by ProductsController.ProductCard(id) as a PartialViewResult
+ *            so the client can inject the rendered HTML into any container element.
+ *
+ * SECTIONS IN THIS FILE:
+ *   12. _ProductCard partial view — single product HTML fragment
+ *@
+
+@*
+ * SECTION 12: _ProductCard PARTIAL VIEW — SINGLE PRODUCT HTML FRAGMENT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * A partial view is a .cshtml file that renders a fragment of HTML without a
+ * layout. This file is rendered server-side, then sent as a plain HTML string
+ * in the HTTP response body.
+ *
+ * HOW THIS PARTIAL IS INVOKED FROM THE CONTROLLER:
+ *   return PartialView("_ProductCard", product);
+ *   // ASP.NET Core looks up Views/Products/_ProductCard.cshtml
+ *   // Renders it with the ProductViewModel as Model
+ *   // Returns the resulting HTML string in the response body
+ *
+ * HOW THE CLIENT USES THE RETURNED HTML:
+ *   const html = await response.text();   // read response as raw HTML string
+ *   container.innerHTML = html;            // inject into the DOM
+ *
+ *   Contrast with JSON: for JSON, the client calls response.json() and then
+ *   builds HTML manually. With a partial view the server owns the markup.
+ *
+ * NULL MODEL GUARD:
+ *   The controller returns NotFound() when GetById() returns null, so Model
+ *   should never be null here. However the ? null check on Model? guards against
+ *   defensive direct rendering (e.g., @await Html.PartialAsync("_ProductCard", null)).
+ *
+ * PARTIAL VIEW vs VIEW COMPONENT:
+ *   _ProductCard (partial view) — simple; passes model from the calling action
+ *   ViewComponent              — has its own Invoke() method + DI; can fetch its
+ *                                own data without the parent action providing it
+ *   Use a ViewComponent when the partial needs independent data access.
+ *   COVERED IN DETAIL LATER → 16. View Components
+ *@
+
+@if (Model == null)
+{
+    <p class="error-msg">Product not found.</p>
+}
+else
+{
+    <div class="product-card">
+        <h3>@Model.Name <small style="color:#888;">(ID: @Model.Id)</small></h3>
+        <p>
+            <strong>Category:</strong> @Model.Category &nbsp;|&nbsp;
+            <strong>Price:</strong> $@Model.Price.ToString("F2")
+        </p>
+        <p>@Model.Description</p>
+        <p>
+            @if (Model.InStock)
+            {
+                <span class="in-stock">In Stock (@Model.Stock units)</span>
+            }
+            else
+            {
+                <span class="out-of-stock">Out of Stock</span>
+            }
+        </p>
+    </div>
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Data Annotations Demo</title>
+    <style>
+        body { font-family: sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+        .field-validation-error { color: #c00; font-size: 0.875rem; display: block; margin-top: 2px; }
+        .validation-summary-errors { color: #c00; background: #fee; border: 1px solid #c00; padding: 0.5rem 1rem; border-radius: 4px; margin-bottom: 1rem; }
+        .validation-summary-errors ul { margin: 0; padding-left: 1.25rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-weight: bold; margin-bottom: 0.25rem; }
+        input[type="text"], input[type="email"], input[type="password"],
+        input[type="tel"], input[type="url"], input[type="number"],
+        input[type="date"] { width: 100%; padding: 0.375rem 0.5rem; box-sizing: border-box; border: 1px solid #aaa; border-radius: 3px; }
+        input.input-validation-error { border-color: #c00; }
+        button[type="submit"] { padding: 0.5rem 1.5rem; background: #0066cc; color: white; border: none; border-radius: 3px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <main>
+        @RenderBody()
+    </main>
+
+    @*
+        CLIENT-SIDE UNOBTRUSIVE VALIDATION — PREVIEW (→ 14. Client-Side Validation)
+        ============================================================================
+        The three scripts below enable jQuery Validate + jquery.validate.unobtrusive,
+        which is the ASP.NET Core MVC client-side validation stack.
+
+        HOW IT WORKS (brief overview):
+          1. Razor Tag Helpers (asp-validation-for, asp-for) emit data-val-* attributes
+             on <input> and <span> elements based on the model's DataAnnotations.
+          2. jquery.validate reads those data-val-* attributes and wires up validation
+             rules that run in the browser WITHOUT a server round-trip.
+          3. jquery.validate.unobtrusive bridges ASP.NET Core's naming convention
+             (data-val-required, data-val-length, data-val-regex, etc.) to jQuery
+             Validate's rule API.
+
+        ATTRIBUTE → data-val-* MAPPING EXAMPLES:
+          [Required]              → data-val-required="..."
+          [StringLength(20)]      → data-val-maxlength="..."  data-val-minlength="..."
+          [Range(1, 100)]         → data-val-range="..."
+          [RegularExpression]     → data-val-regex="..."
+          [EmailAddress]          → data-val-email="..."
+          [Compare("Password")]   → data-val-equalto="..."
+          [CreditCard]            → data-val-creditcard="..."
+
+        CLIENT-SIDE DOES NOT REPLACE SERVER-SIDE:
+          JavaScript can be disabled. Always validate on the server (ModelState.IsValid).
+          Client-side is an enhancement, not a replacement.
+
+        IN PRODUCTION: host these scripts locally (wwwroot/lib/) via LibMan or npm
+        rather than loading them from a CDN on every page load.
+        COVERED IN DETAIL LATER → 14. Client-Side Validation
+    *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

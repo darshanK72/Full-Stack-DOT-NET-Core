@@ -1,0 +1,210 @@
+@*
+ * FILE ROLE: Products/Form.cshtml — the create/edit form view. Demonstrates:
+ *   - @model with a form ViewModel (ProductFormViewModel)
+ *   - Html.LabelFor reads [Display(Name = "...")] for <label> text
+ *   - Html.EditorFor reads [DataType] / [UIHint] and renders the right <input> type
+ *   - Html.ValidationMessageFor renders inline validation errors from ModelState
+ *   - Html.DropDownListFor renders a <select> from a SelectList
+ *   - Html.AntiForgeryToken for CSRF protection
+ *   - Create vs Edit detection via Model.Id
+ *
+ * SECTIONS IN THIS VIEW:
+ *   @model directive          — form VM declaration
+ *   Form element              — POST action targeting the right route
+ *   LabelFor + EditorFor      — each form field with validation message
+ *   DropDownListFor           — category selector from CategoryOptions
+ *   AntiForgeryToken          — CSRF protection hidden field
+ *@
+
+@*
+ * @model WITH A FORM VIEWMODEL
+ *
+ * ProductFormViewModel is the @model for this form. It carries:
+ *   - Input fields: Name, Description, Price, StockQuantity, IsActive, CategoryId
+ *   - Validation metadata: [Required], [Range], [StringLength] on each property
+ *   - Display metadata: [Display(Name = "...")] for labels
+ *   - Dropdown data: CategoryOptions (IEnumerable<CategoryOption>) — not submitted
+ *   - Mode signal: Id (int? — null for Create, set for Edit)
+ *
+ * FORM VM vs DOMAIN ENTITY:
+ *   Passing a Product domain entity as @model for this form would:
+ *     - Expose InternalCost (can be over-posted by a malicious user)
+ *     - Include CreatedAt (user should not edit this)
+ *     - Lack [Display] / [Required] attributes appropriate for the form
+ *     - Carry navigation property Category (triggers lazy-load on access)
+ *   ProductFormViewModel contains ONLY what the form intentionally edits.
+ *@
+@model ProductFormViewModel
+
+@{
+    // Determine if this is a Create (no Id) or Edit (Id has value) form
+    bool isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? "Edit Product" : "Add Product";
+    string formAction = isEdit
+        ? Url.Action("Form", "Products", new { id = Model.Id })!
+        : Url.Action("Form", "Products")!;
+}
+
+<h1>@ViewData["Title"]</h1>
+<p><a asp-action="Index">&larr; Back to Products</a></p>
+
+@*
+ * FORM ELEMENT
+ *
+ * method="post"  — form data submitted as HTTP POST body (not query string)
+ * action="..."   — the URL to post to; set dynamically from formAction above
+ *
+ * For Edit (Id = 3):  posts to /Products/Form/3
+ * For Create (no Id): posts to /Products/Form
+ *
+ * The matching [HttpPost] action in ProductsController (SECTION 22) receives the
+ * submitted data. The model binder maps form field names → ProductFormViewModel
+ * properties. The Id is transmitted as a hidden field (below) so the POST action
+ * knows whether this is a Create or Edit.
+ *
+ * Html.BeginForm wraps the inner content in a <form> tag. The using block ensures
+ * the </form> closing tag is written when the block ends. This is the classic
+ * Html.* helper approach. The modern alternative is the <form> tag helper:
+ *   <form asp-action="Form" asp-controller="Products" method="post">
+ * Both produce identical HTML. This chapter uses Html.* helpers for consistency
+ * with the expression-based helper theme.
+ *@
+@using (Html.BeginForm("Form", "Products", isEdit ? new { id = Model.Id } : (object?)null, FormMethod.Post))
+{
+    @*
+     * ANTI-FORGERY TOKEN
+     *
+     * @Html.AntiForgeryToken() injects a hidden field:
+     *   <input type="hidden" name="__RequestVerificationToken" value="..." />
+     *
+     * The [ValidateAntiForgeryToken] attribute on the POST action verifies this
+     * token matches the server-issued value in the user's session cookie. This
+     * prevents Cross-Site Request Forgery (CSRF) attacks where a malicious page
+     * submits a form to your endpoint using the victim's authenticated session.
+     *
+     * MODERN ALTERNATIVE (tag helper):
+     *   When using <form asp-action="..."> tag helpers, the antiforgery token is
+     *   injected automatically — no @Html.AntiForgeryToken() call needed.
+     *   With Html.BeginForm(), you must call it manually.
+     *@
+    @Html.AntiForgeryToken()
+
+    @* Hidden field carries the product Id for Edit mode; nothing for Create (Id is null) *@
+    @Html.HiddenFor(m => m.Id)
+
+    @*
+     * FORM FIELDS — Html.LabelFor + Html.EditorFor + Html.ValidationMessageFor
+     *
+     * This trio is the standard expression-based form field pattern:
+     *
+     *   Html.LabelFor(m => m.Name)
+     *     Reads [Display(Name = "Product Name")] and renders:
+     *       <label for="Name">Product Name</label>
+     *     Without [Display], it uses the property name: <label for="Name">Name</label>
+     *     The for attribute matches the EditorFor input's id — clicking the label
+     *     focuses the input (standard HTML accessibility behavior).
+     *
+     *   Html.EditorFor(m => m.Name)
+     *     Generates an appropriate <input> element for the property type:
+     *       string              → <input type="text" id="Name" name="Name" />
+     *       int                 → <input type="text" id="X" name="X" /> (number-ish)
+     *       bool                → <input type="checkbox" id="X" name="X" />
+     *       decimal             → <input type="text" id="X" name="X" />
+     *       [DataType(Email)]   → <input type="email" ... />
+     *       [DataType(Password)] → <input type="password" ... />
+     *       [UIHint("TextArea")] → <textarea ...></textarea>
+     *     The [DisplayFormat(ApplyFormatInEditMode = false)] on Price ensures
+     *     EditorFor renders "79.99" not "$79.99" — the format is for display only.
+     *
+     *   Html.ValidationMessageFor(m => m.Name)
+     *     Renders a <span class="field-validation-error"> with the validation message
+     *     when ModelState has an error for the Name property. Empty when valid.
+     *     The message text comes from [Required(ErrorMessage = "...")] on the VM.
+     *     Without this call, validation errors are invisible (ModelState.IsValid is
+     *     still false and the form re-renders, but the user sees no error messages).
+     *
+     * MODERN ALTERNATIVE (tag helpers):
+     *   <label asp-for="Name"></label>            → same as Html.LabelFor
+     *   <input asp-for="Name" />                  → same as Html.EditorFor
+     *   <span asp-validation-for="Name"></span>   → same as Html.ValidationMessageFor
+     *   Tag helpers are covered in depth in: COVERED IN DETAIL LATER → 08. Tag Helpers
+     *@
+
+    <div>
+        @Html.LabelFor(m => m.Name)@*     reads [Display(Name = "Product Name")] *@
+        @Html.EditorFor(m => m.Name)@*    <input type="text" name="Name" value="..." /> *@
+        @Html.ValidationMessageFor(m => m.Name)@* error span from [Required] *@
+    </div>
+
+    <div>
+        @Html.LabelFor(m => m.Description)
+        @Html.TextAreaFor(m => m.Description, 3, 0, null)@* <textarea rows="3"> — better UX for longer text *@
+        @Html.ValidationMessageFor(m => m.Description)
+    </div>
+
+    <div>
+        @Html.LabelFor(m => m.Price)@*   reads [Display(Name = "Price")] *@
+        @Html.EditorFor(m => m.Price)@*  [DisplayFormat(ApplyFormatInEditMode=false)] → raw decimal, not "$79.99" *@
+        @Html.ValidationMessageFor(m => m.Price)@* error from [Required] + [Range(0.01, 999999.99)] *@
+    </div>
+
+    <div>
+        @Html.LabelFor(m => m.StockQuantity)@*  reads [Display(Name = "Stock Quantity")] *@
+        @Html.EditorFor(m => m.StockQuantity)
+        @Html.ValidationMessageFor(m => m.StockQuantity)@* [Range(0, int.MaxValue)] error *@
+    </div>
+
+    @*
+     * DROPDOWN — Html.DropDownListFor
+     *
+     * Html.DropDownListFor(expression, selectList, optionLabel)
+     *   expression  — binds the selected value to Model.CategoryId (int)
+     *   selectList  — IEnumerable<SelectListItem> for the <option> elements
+     *   optionLabel — text for the empty "please choose" <option> at the top
+     *
+     * Model.CategoryOptions is IEnumerable<CategoryOption> (a plain DTO, not
+     * SelectListItem). The SelectList constructor converts it:
+     *   new SelectList(source, dataValueField, dataTextField)
+     *   dataValueField = "Id"    → <option value="1">
+     *   dataTextField  = "Name"  → <option value="1">Electronics</option>
+     *
+     * Using nameof() for the field names keeps the SelectList in sync with the
+     * CategoryOption class — if you rename the property, nameof() causes a compile
+     * error rather than a silent runtime mismatch.
+     *
+     * NOTE: CategoryOptions is NOT submitted with the POST. The model binder only
+     * submits CategoryId (the selected value). The controller must re-populate
+     * CategoryOptions before returning View(vm) on a failed POST (SECTION 22).
+     *@
+    <div>
+        @Html.LabelFor(m => m.CategoryId)@* reads [Display(Name = "Category")] *@
+        @Html.DropDownListFor(
+            m => m.CategoryId,
+            new SelectList(
+                Model.CategoryOptions,
+                nameof(CategoryOption.Id),   // nameof → "Id"   (safe rename refactoring)
+                nameof(CategoryOption.Name)  // nameof → "Name"
+            ),
+            "-- Select Category --"          // optionLabel: the empty first option
+        )
+        @Html.ValidationMessageFor(m => m.CategoryId)@* error from [Required] on CategoryId *@
+    </div>
+
+    @*
+     * CHECKBOX — bool property
+     *
+     * Html.EditorFor on a bool renders a checkbox. However Html.CheckBoxFor is
+     * more explicit and also renders a hidden field with the same name (value=false)
+     * so an unchecked checkbox still posts "IsActive=false" to the server.
+     * (An unchecked HTML checkbox posts NOTHING — the hidden field fixes this.)
+     *@
+    <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.75rem;">
+        @Html.CheckBoxFor(m => m.IsActive)@* renders <input type="checkbox"> + hidden false field *@
+        @Html.LabelFor(m => m.IsActive, new { style = "display:inline; margin:0;" })
+    </div>
+
+    <div style="margin-top:1.25rem;">
+        <button type="submit" class="btn">@(isEdit ? "Save Changes" : "Create Product")</button>
+        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+    </div>
+}

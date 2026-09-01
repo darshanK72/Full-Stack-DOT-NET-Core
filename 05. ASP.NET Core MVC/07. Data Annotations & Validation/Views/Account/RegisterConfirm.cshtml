@@ -1,0 +1,17 @@
+@{
+    ViewData["Title"] = "Registration Confirmed";
+}
+
+@*
+    RegisterConfirm — success page reached via the Post-Redirect-Get (PRG) pattern.
+
+    The controller redirects here after a successful POST:
+        return RedirectToAction(nameof(RegisterConfirm));
+
+    This is a GET request, so the browser can refresh safely without re-submitting
+    the form (no duplicate account creation).
+*@
+
+<h1>Registration Confirmed</h1>
+<p>Your account has been successfully created.</p>
+<p><a href="/">Return to home</a></p>

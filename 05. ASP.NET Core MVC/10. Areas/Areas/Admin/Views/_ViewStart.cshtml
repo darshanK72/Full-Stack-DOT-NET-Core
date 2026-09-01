@@ -1,0 +1,37 @@
+@*
+ * FILE ROLE: Admin area _ViewStart.cshtml — sets the default layout for all views
+ *   inside Areas/Admin/Views/**. Because the Admin area has its own
+ *   Areas/Admin/Views/Shared/_Layout.cshtml, the "_Layout" reference resolves to the
+ *   area-specific layout rather than the root Views/Shared/_Layout.cshtml.
+ *
+ * SECTION 13: AREA _ViewStart.cshtml
+ *
+ * _ViewStart.cshtml SCOPING IN AREAS:
+ *   The framework applies _ViewStart.cshtml files hierarchically from most general
+ *   to most specific. For Areas/Admin/Views/Dashboard/Index.cshtml:
+ *     1. _ViewStart.cshtml (project root)              — applied first (if exists)
+ *     2. Areas/_ViewStart.cshtml                       — applied next (if exists)
+ *     3. Areas/Admin/_ViewStart.cshtml                 — applied next (if exists)
+ *     4. Areas/Admin/Views/_ViewStart.cshtml           ← this file
+ *     5. Areas/Admin/Views/Dashboard/_ViewStart.cshtml — applied last (if exists)
+ *   Later files override earlier ones. This file overrides any project-root default.
+ *
+ * WHY AREAS NEED THEIR OWN _ViewStart:
+ *   If there were only a root Views/_ViewStart.cshtml, it would NOT be picked up
+ *   by area views (the discovery path for area views walks through Areas/, not Views/).
+ *   Each area needs its own _ViewStart.cshtml in Areas/{area}/Views/ to assign a layout.
+ *
+ * "_Layout" RESOLUTION FOR ADMIN AREA VIEWS:
+ *   Layout = "_Layout" triggers the layout discovery order:
+ *     1. Areas/Admin/Views/Dashboard/_Layout.cshtml     — not found
+ *     2. Areas/Admin/Views/Shared/_Layout.cshtml        ← FOUND — Admin area layout
+ *   The Admin area uses its own custom layout (different header colour/branding).
+ *
+ * OPTING OUT OF LAYOUT IN A SPECIFIC VIEW:
+ *   @{ Layout = null; }   — disable layout for this view only
+ *   @{ Layout = "~/Views/Shared/_Layout.cshtml"; }  — force root layout from area view
+*@
+
+@{
+    Layout = "_Layout"; // resolves to Areas/Admin/Views/Shared/_Layout.cshtml
+}

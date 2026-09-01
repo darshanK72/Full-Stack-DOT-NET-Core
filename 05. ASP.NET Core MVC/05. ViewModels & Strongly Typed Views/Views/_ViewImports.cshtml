@@ -1,0 +1,37 @@
+@*
+ * FILE ROLE: _ViewImports.cshtml injects namespaces and tag helper registrations
+ *            into every Razor view in the Views/ folder (and subfolders).
+ *            Adding a @using here is equivalent to adding it at the top of every
+ *            individual .cshtml file — DRY principle applied to views.
+ *
+ *  NAMESPACES ADDED HERE:
+ *    ViewModels              — root namespace; rarely used directly in views
+ *    ViewModels.ViewModels   — all ViewModel classes (ProductListViewModel, etc.)
+ *                             Allows views to write @model ProductListViewModel
+ *                             instead of @model ViewModels.ViewModels.ProductListViewModel
+ *    ViewModels.Domain       — domain entities; rarely referenced in views, but
+ *                             available if a partial or helper needs it
+ *    Microsoft.AspNetCore.Mvc.Rendering  — SelectList, SelectListItem
+ *                             Required for Html.DropDownListFor(m => m.CategoryId,
+ *                             new SelectList(...), ...) in Form.cshtml
+ *
+ *  TAG HELPERS:
+ *    @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+ *    Activates ALL tag helpers in the MVC tag helper assembly:
+ *      <a asp-action="Detail" asp-route-id="@item.Id">View</a>
+ *      <form asp-action="Form" method="post">
+ *      <input asp-for="Name" />     (alternative to Html.EditorFor)
+ *      <label asp-for="Name" />     (alternative to Html.LabelFor)
+ *      <span asp-validation-for="Name" /> (alternative to Html.ValidationMessageFor)
+ *
+ *    This chapter uses @Html.* expression helpers (DisplayFor, EditorFor, etc.)
+ *    to demonstrate expression-based metadata reading. Tag helpers are the modern
+ *    alternative and are covered in depth in:
+ *    COVERED IN DETAIL LATER → 08. Tag Helpers
+ *@
+
+@using ViewModels
+@using ViewModels.ViewModels
+@using ViewModels.Domain
+@using Microsoft.AspNetCore.Mvc.Rendering
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

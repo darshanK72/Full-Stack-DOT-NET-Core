@@ -1,0 +1,180 @@
+@*
+ * FILE ROLE: The main content view — demonstrates layout sections, all four
+ *            partial view helpers, ViewData passing, and ViewComponent invocation.
+ * SECTIONS IN THIS FILE:
+ *   1. Using the layout (from _ViewStart) + setting ViewData["Title"]
+ *   2. @section Hero { } — required section consumed by _Layout.cshtml
+ *   3. @Html.Partial family — comparison + async invocations
+ *   4. Passing the strongly-typed model to a partial
+ *   5. ViewData in partial views
+ *   6. @await Component.InvokeAsync — ViewComponent invocation
+ *   7. @section Scripts { } — optional scripts section
+ *@
+@model PageViewModel
+
+@*
+ * SECTION 1: USING THE LAYOUT + SETTING ViewData["Title"]
+ *
+ * _ViewStart.cshtml already set Layout = "_Layout", so this view does
+ * NOT need to repeat it.  The @model directive above connects this view
+ * to PageViewModel — enabling @Model.Title, @Model.NavItems, etc.
+ *
+ * ViewData["Title"] is set in a @{ } code block.  The layout's <title>
+ * tag reads it: <title>@(ViewData["Title"] ?? "My App") - Layout Demo</title>
+ *
+ * To switch to the alternate layout for THIS view only (overriding _ViewStart):
+ *   @{ Layout = "~/Views/Shared/_AlternateLayout.cshtml"; }
+ *
+ * To opt out entirely:
+ *   @{ Layout = null; }   — see NoLayout.cshtml
+ *@
+@{
+    ViewData["Title"] = Model.Title;    // read by _Layout.cshtml's <title>
+}
+
+@*
+ * SECTION 2: @section Hero { }  — REQUIRED SECTION
+ *
+ * _Layout.cshtml calls @RenderSection("Hero") (wrapped in IsSectionDefined check).
+ * Any content view MAY fill it.  Because the layout uses IsSectionDefined,
+ * it is effectively optional at the layout level — but you can demonstrate
+ * a required section by removing the IsSectionDefined guard in _Layout.cshtml
+ * and calling @RenderSection("Hero") directly (no required: false).
+ *
+ * Rules for @section:
+ *   - Must be at the TOP LEVEL of the view, not nested inside HTML or loops.
+ *   - Section name is case-sensitive.
+ *   - A section can be defined only ONCE per view; redefining it is an error.
+ *   - The section's output replaces the @RenderSection("Hero") call in the layout.
+ *@
+@section Hero {
+    <div style="background:#005a9c;color:#fff;padding:1.5rem;border-radius:4px;margin-bottom:1rem;">
+        <h1>@Model.Title</h1>
+        <p>This hero banner is rendered by the <strong>@@section Hero { }</strong> block
+           in Index.cshtml and injected into _Layout.cshtml at its @@RenderSection("Hero") call.</p>
+    </div>
+}
+
+@*
+ * SECTION 3: PARTIAL VIEW HELPERS — @Html.Partial FAMILY
+ *
+ * ASP.NET Core provides four helpers for rendering partial views.
+ * Two are OBSOLETE (synchronous); two are the current recommended API.
+ *
+ * ┌─────────────────────────────────────┬──────────┬────────────┬──────────────────────┐
+ * │ Helper                              │ Returns  │ Async?     │ Status               │
+ * ├─────────────────────────────────────┼──────────┼────────────┼──────────────────────┤
+ * │ @Html.Partial("_Nav", model)        │ IHtml-   │ No         │ OBSOLETE (CS0618)    │
+ * │                                     │ Content  │            │ avoid in new code    │
+ * ├─────────────────────────────────────┼──────────┼────────────┼──────────────────────┤
+ * │ @{ Html.RenderPartial("_Nav",model);}│ void     │ No         │ OBSOLETE (CS0618)    │
+ * │ (must be in @{ } block; returns void)│         │            │ avoid in new code    │
+ * ├─────────────────────────────────────┼──────────┼────────────┼──────────────────────┤
+ * │ @await Html.PartialAsync("_Nav",m)  │ IHtml-   │ Yes ✓      │ PREFERRED            │
+ * │                                     │ Content  │            │ use in Razor pages   │
+ * ├─────────────────────────────────────┼──────────┼────────────┼──────────────────────┤
+ * │ @{ await Html.RenderPartialAsync(…);}│ Task    │ Yes ✓      │ Slightly more        │
+ * │ (must be in @{ } block)             │         │            │ efficient (writes     │
+ * │                                     │         │            │ direct to response)  │
+ * └─────────────────────────────────────┴──────────┴────────────┴──────────────────────┘
+ *
+ * IHtmlContent vs. writing direct to response:
+ *   PartialAsync    → buffers output into IHtmlContent → injected at call site inline
+ *   RenderPartialAsync → writes directly to the response TextWriter → no buffer
+ *   For most views, PartialAsync is the cleaner choice.
+ *   Use RenderPartialAsync in a tight loop rendering many items where buffer overhead matters.
+ *
+ * Obsolete helpers (Partial / RenderPartial):
+ *   Marked [Obsolete] in ASP.NET Core 2.2+.  They block the thread while rendering,
+ *   which can cause deadlocks in async request pipelines.  Calling them in .cshtml
+ *   generates CS0618 build warnings.  Do not use in new code.
+ *
+ * SECTION 4: PASSING MODEL TO A PARTIAL
+ *
+ * Overloads:
+ *   (partialViewName)                        → partial receives parent view's Model
+ *   (partialViewName, model)                 → partial receives the given model
+ *   (partialViewName, model, viewData)        → partial receives model + custom ViewData
+ *@
+
+<section>
+    <h2>Partial Views</h2>
+
+    <h3>Html.PartialAsync — with typed model (NavItem[])</h3>
+    @* Model.NavItems (NavItem[]) is passed explicitly.
+       _NavigationPartial.cshtml receives it as @Model (NavItem[]). *@
+    @await Html.PartialAsync("_NavigationPartial", Model.NavItems)
+
+    <h3>Html.RenderPartialAsync — writes direct to response</h3>
+    @{
+        // Must be inside @{ } because RenderPartialAsync returns Task, not IHtmlContent
+        await Html.RenderPartialAsync("_NavigationPartial", Model.NavItems);
+    }
+
+    @*
+     * SECTION 5: VIEWDATA IN PARTIAL VIEWS
+     *
+     * ViewData is automatically shared — no extra passing needed.
+     * PageController.Index() sets ViewData["SidebarContent"]; the partial
+     * reads it directly (see _NavigationPartial.cshtml Section 2).
+     *
+     * To pass ViewData that is LOCAL to this partial call only:
+     *   @{
+     *       ViewData["PartialTitle"] = "Extra title just for this call";
+     *   }
+     *   @await Html.PartialAsync("_NavigationPartial", Model.NavItems)
+     *   @{
+     *       ViewData.Remove("PartialTitle");   // clean up if needed
+     *   }
+     *
+     * The cleanest isolation uses the three-argument overload with a new
+     * ViewDataDictionary, but for simple cases setting ViewData keys in a
+     * @{ } block before the call is sufficient.
+     *@
+    <p><strong>ViewData pass-through:</strong> The controller set
+       ViewData["SidebarContent"] = "…" — the partial above reads it directly.</p>
+    <p><em>@ViewData["SidebarContent"]</em></p>
+
+    <h3>Body content from PageViewModel</h3>
+    <p>@Model.Body</p>
+</section>
+
+@*
+ * SECTION 6: @await Component.InvokeAsync — VIEWCOMPONENT INVOCATION
+ *
+ * ViewComponents are invoked from Razor with:
+ *   @await Component.InvokeAsync("Navigation")
+ *
+ * The string "Navigation" matches the class name NavigationViewComponent
+ * (the "ViewComponent" suffix is stripped by convention).
+ *
+ * To pass parameters (map to InvokeAsync method parameters):
+ *   @await Component.InvokeAsync("Navigation", new { maxItems = 5 })
+ *
+ * PREVIEW — tag-helper syntax (requires @addTagHelper in _ViewImports.cshtml):
+ *   <vc:navigation />
+ *   <vc:navigation max-items="5" />
+ * Kebab-case maps parameter names: maxItems → max-items.
+ * Covered in full → 08. Tag Helpers.
+ *@
+<section>
+    <h2>ViewComponent</h2>
+    @await Component.InvokeAsync("Navigation")
+</section>
+
+@*
+ * SECTION 7: @section Scripts { } — OPTIONAL SCRIPTS SECTION
+ *
+ * _Layout.cshtml calls @RenderSection("Scripts", required: false) just before
+ * </body>.  Any page-specific JavaScript defined here is injected there —
+ * after the DOM and the layout's own scripts.
+ *
+ * Only include scripts that are specific to this page.  Shared/global scripts
+ * belong in the layout's own <script> tags, not in this section.
+ *@
+@section Scripts {
+    <script>
+        // Page-specific JS — injected at _Layout.cshtml's @RenderSection("Scripts")
+        console.log("Index.cshtml: @@section Scripts rendered into _Layout body.");
+    </script>
+}

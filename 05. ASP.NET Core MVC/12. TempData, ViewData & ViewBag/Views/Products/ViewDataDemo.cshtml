@@ -1,0 +1,192 @@
+@*
+ * SECTION 8: READING VIEWDATA AND VIEWBAG IN RAZOR
+ * ─────────────────────────────────────────────────────────────────────────────
+ * This view is rendered by DemoController.ViewDataDemo() which populates:
+ *
+ *   ViewData["DemoTitle"]   = "ViewData & ViewBag Demo"        (string)
+ *   ViewData["Description"] = "Exploring..."                   (string)
+ *   ViewData["ItemCount"]   = 99                               (int — boxed, last-write-wins)
+ *   ViewData["IsPromo"]     = true                             (bool — boxed)
+ *   ViewData["Tags"]        = List<string> { "MVC", ... }      (ref type — boxed)
+ *   ViewBag.Category        = "Electronics"                    (== ViewData["Category"])
+ *   ViewBag.Price           = 299.99m                          (== ViewData["Price"])
+ *   ViewData["PageTitle"]   = "ViewData Attribute Demo"        (via [ViewData] property)
+ *
+ * RAZOR READING PATTERNS:
+ *
+ *   @ViewData["Key"]
+ *     → calls object?.ToString(); renders "System.Collections.Generic.List`1[…]" for a List
+ *     → returns empty string for null (Razor renders nothing for null dynamic)
+ *
+ *   @(ViewData["Key"] as string)
+ *     → safe cast; null if the stored type is not string
+ *
+ *   @(ViewData["Key"] as string ?? "default")
+ *     → null-safe with fallback — the idiomatic pattern for nullable ViewData strings
+ *
+ *   @((int)ViewData["ItemCount"]!)
+ *     → explicit unbox — InvalidCastException if stored type differs
+ *
+ *   @ViewBag.Key
+ *     → dynamic access; null if not set (no KeyNotFoundException)
+ *
+ *   @(ViewBag.Price as decimal?)
+ *     → safe nullable unbox for value types via dynamic
+ *
+ * Note: IEnumerable<T> values from ViewData must be cast before iterating:
+ *   @{ var tags = ViewData["Tags"] as List<string>; }
+ *   @if (tags != null) { foreach (var t in tags) { ... } }
+ *@
+
+@{
+    ViewData["Title"] = "ViewData & ViewBag Demo";
+
+    @* Safe casts — the preferred pattern for reading ViewData in Razor *@
+    var demoTitle   = ViewData["DemoTitle"]   as string ?? "Demo";
+    var description = ViewData["Description"] as string ?? string.Empty;
+    var pageTitle   = ViewData["PageTitle"]   as string ?? string.Empty;  // [ViewData] attribute
+
+    @* Safe unbox of value types via nullable cast *@
+    var itemCount = ViewData["ItemCount"] as int? ?? 0;   // int? — safe; 0 if null/wrong type
+    var isPromo   = ViewData["IsPromo"]   as bool? ?? false;
+
+    @* Reference type — cast before use in loop *@
+    var tags = ViewData["Tags"] as System.Collections.Generic.List<string>;
+}
+
+<h1>@demoTitle</h1>
+<p>@description</p>
+
+<hr />
+
+<h2>ViewData — Reading Patterns</h2>
+
+@*
+ * STRING VALUES — direct read is safe because ToString() on a string returns itself.
+ * Prefer the 'as string ?? "fallback"' pattern for nullable safety.
+ *@
+<table>
+    <thead>
+        <tr><th>Key</th><th>Read pattern</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>ViewData["DemoTitle"]</code></td>
+            <td><code>as string ?? "default"</code></td>
+            <td>@demoTitle</td>
+        </tr>
+        <tr>
+            <td><code>ViewData["PageTitle"]</code></td>
+            <td><code>as string</code> (via [ViewData] attribute)</td>
+            <td>@pageTitle</td>
+        </tr>
+        <tr>
+            <td><code>ViewData["ItemCount"]</code></td>
+            <td><code>as int? ?? 0</code> (safe unbox)</td>
+            <td>@itemCount</td>
+        </tr>
+        <tr>
+            <td><code>ViewData["IsPromo"]</code></td>
+            <td><code>as bool? ?? false</code></td>
+            <td>@isPromo</td>
+        </tr>
+    </tbody>
+</table>
+
+@*
+ * COLLECTION VALUE — must cast before iterating.
+ * Calling @ViewData["Tags"] directly renders the List's ToString() output,
+ * not the individual items. Always cast to the concrete type first.
+ *@
+<h3>ViewData["Tags"] — cast before iterating</h3>
+@if (tags != null && tags.Count > 0)
+{
+    <ul>
+        @foreach (var tag in tags)
+        {
+            <li>@tag</li>
+        }
+    </ul>
+}
+else
+{
+    <p><em>No tags found — Tags was null or wrong type after cast.</em></p>
+}
+
+<hr />
+
+<h2>ViewBag — Dynamic Access Patterns</h2>
+
+@*
+ * VIEWBAG READS — dynamic property access; null if property not set.
+ * ViewBag.Category reads the SAME entry as ViewData["Category"] — shared store.
+ *@
+<table>
+    <thead>
+        <tr><th>Access</th><th>Equivalent ViewData key</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>@("@ViewBag.Category")</code></td>
+            <td><code>ViewData["Category"]</code></td>
+            <td>@ViewBag.Category</td>
+        </tr>
+        <tr>
+            <td><code>@("@ViewBag.Price")</code></td>
+            <td><code>ViewData["Price"]</code></td>
+            <td>@ViewBag.Price</td>
+        </tr>
+        <tr>
+            <td><code>@("@ViewBag.ItemCount")</code></td>
+            <td><code>ViewData["ItemCount"]</code> (last-write-wins: 99)</td>
+            <td>@ViewBag.ItemCount</td>
+        </tr>
+        <tr>
+            <td><code>@("@ViewBag.DoesNotExist")</code></td>
+            <td><em>not set</em></td>
+            <td>@(ViewBag.DoesNotExist ?? "(null — no exception)")</td>
+        </tr>
+    </tbody>
+</table>
+
+<hr />
+
+<h2>ViewData vs ViewBag — Same Underlying Store</h2>
+
+@*
+ * SAME STORE DEMONSTRATION:
+ * The controller set ViewData["ItemCount"] = 42, then ViewBag.ItemCount = 99.
+ * Because they share the same ViewDataDictionary, the value is 99 (last write wins).
+ * Reading via either API returns the same value.
+ *@
+<pre>
+// Controller (DemoController.ViewDataDemo):
+ViewData["ItemCount"] = 42;   // write via ViewData
+ViewBag.ItemCount     = 99;   // OVERWRITE via ViewBag (same key!)
+
+// View (this file):
+@("@ViewData[\"ItemCount\"]")   → @ViewData["ItemCount"]
+@("@ViewBag.ItemCount")         → @ViewBag.ItemCount
+// Both show 99 — ViewData and ViewBag are two APIs into ONE dictionary.
+</pre>
+
+<hr />
+
+<h2>[ViewData] Attribute — Controller Property Auto-Sync</h2>
+
+@*
+ * [ViewData] ATTRIBUTE RESULT:
+ * DemoController has:  [ViewData] public string? PageTitle { get; set; }
+ * Action set:          PageTitle = "ViewData Attribute Demo"
+ * Framework wrote:     ViewData["PageTitle"] = "ViewData Attribute Demo"
+ * View reads:          ViewData["PageTitle"] → shown below
+ *@
+<p>
+    <strong>ViewData["PageTitle"]</strong> (set via [ViewData] property in controller):
+    <em>@(ViewData["PageTitle"] as string ?? "(not set)")</em>
+</p>
+<p>Same value via ViewBag: <em>@(ViewBag.PageTitle ?? "(not set)")</em></p>
+
+<hr />
+
+<p><a asp-controller="Products" asp-action="Index" class="btn btn-secondary">Back to Products</a></p>

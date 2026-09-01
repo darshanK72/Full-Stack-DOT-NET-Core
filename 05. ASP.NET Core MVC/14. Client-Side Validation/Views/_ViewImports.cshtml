@@ -1,0 +1,9 @@
+@* _ViewImports.cshtml
+ * Applies to all views in this project.
+ * @using directives make namespaces available without qualification in every .cshtml.
+ * @addTagHelper activates Tag Helpers so asp-for, asp-validation-for, asp-action, etc.
+ * are recognised as HTML attributes — without this they are treated as unknown attrs.
+ *@
+@using ClientSideValidation
+@using ClientSideValidation.Models
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

@@ -1,0 +1,246 @@
+@*
+ * CHAPTER SECTION 9: JAVASCRIPT CLIENT — HubConnectionBuilder
+ *
+ * This view demonstrates the complete @microsoft/signalr JavaScript client API:
+ *   HubConnectionBuilder  — builder pattern to configure the connection
+ *   .withUrl(path)         — hub endpoint URL (must match MapHub path in Program.cs)
+ *   .withAutomaticReconnect() — automatic reconnect with exponential back-off
+ *   .build()               — create the HubConnection object
+ *   .start()               — open the transport connection (returns Promise)
+ *   .on(method, handler)   — register a handler for server-to-client events
+ *   .invoke(method, args)  — call a hub method; returns Promise with return value
+ *   .send(method, args)    — fire-and-forget call; returns Promise<void>
+ *   .stop()                — close the connection gracefully
+ *   .state                 — current state string (see below)
+ *   .onreconnecting(cb)    — called when reconnect starts
+ *   .onreconnected(cb)     — called when reconnect succeeds
+ *   .onclose(cb)           — called when connection is permanently closed
+ *@
+
+@{
+    ViewData["Title"] = "SignalR Chat";
+}
+
+<h1>SignalR Real-Time Chat</h1>
+<div id="connectionStatus">Status: <span id="statusText">Disconnected</span></div>
+
+<ul id="messagesList"></ul>
+
+<div class="chat-form">
+    <input type="text" id="userInput" placeholder="Your name" style="max-width:140px;" />
+    <input type="text" id="messageInput" placeholder="Type a message..." />
+    <button id="sendButton" disabled>Send</button>
+</div>
+
+<div style="margin-top:1rem;">
+    <input type="text" id="roomInput" placeholder="Room name" style="max-width:140px;" />
+    <button id="joinRoomButton">Join Room</button>
+    <button id="leaveRoomButton">Leave Room</button>
+</div>
+
+@section Scripts {
+<script>
+    /*
+     * HUBCONNECTIONBUILDER — BUILDING THE CONNECTION
+     *
+     * Every SignalR JavaScript client starts with HubConnectionBuilder.
+     * Chain configuration methods then call .build() to get a HubConnection.
+     *
+     * .withUrl("/chat-hub")
+     *   Sets the hub endpoint URL.  Must match app.MapHub<ChatHub>("/chat-hub")
+     *   in Program.cs.  Relative URLs are resolved against the page origin.
+     *
+     * .withUrl("/chat-hub", options)  — optional second arg for transport config:
+     *   { transport: signalR.HttpTransportType.WebSockets }    force WebSockets
+     *   { skipNegotiation: true, transport: ... WebSockets }   skip /negotiate POST
+     *   { accessTokenFactory: () => getJwt() }                 JWT for auth
+     *   { headers: { "X-Custom": "value" } }                   extra HTTP headers
+     *     NOTE: headers are NOT sent on WebSocket upgrade requests (browser limit).
+     *
+     * .withAutomaticReconnect()
+     *   Reconnects after unexpected disconnects using default delays: 0, 2s, 10s, 30s.
+     *   Custom delays: .withAutomaticReconnect([0, 1000, 5000, 10000])
+     *   Or implement IRetryPolicy for full control.
+     *   Without this, a dropped connection is permanent until the user refreshes.
+     *
+     * .build() — finalizes configuration and returns a HubConnection instance.
+     *   Does NOT open the connection.  Call .start() separately.
+     */
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chat-hub")                  // matches app.MapHub<ChatHub>("/chat-hub")
+        .withAutomaticReconnect()              // retry with back-off on unexpected disconnect
+        .build();
+
+    /*
+     * .ON — REGISTERING SERVER-TO-CLIENT EVENT HANDLERS
+     *
+     * connection.on("MethodName", handler)
+     *   Registers a callback for a server-to-client push.
+     *   "MethodName" is case-insensitive and must match the C# hub interface method.
+     *   Multiple handlers can be registered for the same method name.
+     *   Register handlers BEFORE calling .start() — events can fire immediately
+     *   after the connection opens.
+     *
+     * Handler argument count and types must match the server method signature:
+     *   Server:  await Clients.All.ReceiveMessage(string user, string message)
+     *   Client:  connection.on("ReceiveMessage", (user, message) => { ... })
+     *
+     * connection.off("MethodName")  — removes all handlers for that method name.
+     * connection.off("MethodName", specificHandler)  — removes one handler.
+     */
+
+    // Handler for IChatClient.ReceiveMessage(user, message)
+    connection.on("ReceiveMessage", function (user, message) {
+        appendMessage(user + ": " + message, false);
+    });
+
+    // Handler for IChatClient.ReceiveSystemMessage(message)
+    connection.on("ReceiveSystemMessage", function (message) {
+        appendMessage(message, true);               // system messages styled differently
+    });
+
+    // Handler for IChatClient.UserJoined(user)
+    connection.on("UserJoined", function (user) {
+        appendMessage(user + " joined the chat.", true);
+    });
+
+    // Handler for IChatClient.UserLeft(user)
+    connection.on("UserLeft", function (user) {
+        appendMessage(user + " left the chat.", true);
+    });
+
+    /*
+     * RECONNECT LIFECYCLE CALLBACKS
+     *
+     * onreconnecting(callback)
+     *   Fired when the connection drops and a reconnect attempt begins.
+     *   error is null for a clean initiator; an Error for a transport failure.
+     *   Use it to disable the UI and show a "reconnecting..." message.
+     *
+     * onreconnected(callback)
+     *   Fired when reconnect succeeds.  connectionId is the NEW connection ID —
+     *   the server sees this as a brand-new connection.  Rejoin groups here
+     *   because group membership from the previous connection is gone.
+     *
+     * onclose(callback)
+     *   Fired when the connection is permanently closed (all retries exhausted
+     *   or .stop() called).  error is null for a deliberate .stop().
+     *
+     * connection.state values:
+     *   "Disconnected"   not connected; .start() not yet called or after .stop()
+     *   "Connecting"     .start() in progress
+     *   "Connected"      live connection
+     *   "Reconnecting"   lost, retrying automatically
+     */
+    connection.onreconnecting(function (error) {
+        document.getElementById("statusText").textContent = "Reconnecting...";
+        document.getElementById("sendButton").disabled = true;
+        appendMessage("Connection lost. Attempting to reconnect...", true);
+    });
+
+    connection.onreconnected(function (connectionId) {
+        document.getElementById("statusText").textContent = "Connected";
+        document.getElementById("sendButton").disabled = false;
+        appendMessage("Reconnected. New connection ID: " + connectionId, true);
+        // Rejoin any groups here if needed — group membership does not survive reconnect
+    });
+
+    connection.onclose(function (error) {
+        document.getElementById("statusText").textContent = "Disconnected";
+        document.getElementById("sendButton").disabled = true;
+        if (error) {
+            appendMessage("Connection closed with error: " + error.message, true);
+        }
+    });
+
+    /*
+     * .START() — OPENING THE CONNECTION
+     *
+     * connection.start() returns a Promise<void>.
+     * Await it (or use .then/.catch) before calling .invoke() or .send().
+     * If start() fails, handle the error and optionally retry.
+     *
+     * Calling .invoke() before .start() resolves throws an error.
+     */
+    connection.start().then(function () {
+        document.getElementById("statusText").textContent = "Connected";
+        document.getElementById("sendButton").disabled = false;   // enable send after connect
+    }).catch(function (err) {
+        document.getElementById("statusText").textContent = "Error";
+        console.error("SignalR connection error:", err.toString());
+    });
+
+    /*
+     * .INVOKE AND .SEND — CALLING HUB METHODS FROM THE CLIENT
+     *
+     * connection.invoke("HubMethod", arg1, arg2, ...)
+     *   Returns a Promise that resolves with the hub method's return value.
+     *   Awaits the server-side Task; captures exceptions as Promise rejections.
+     *   Use when you need a response or must know the call succeeded.
+     *
+     * connection.send("HubMethod", arg1, arg2, ...)
+     *   Returns Promise<void>.  Does NOT wait for the server Task to complete.
+     *   Slightly lower overhead — no round-trip acknowledgement.
+     *   Use for high-frequency events where best-effort delivery is acceptable.
+     *
+     * Both throw (reject) if the connection is not in the "Connected" state.
+     */
+    document.getElementById("sendButton").addEventListener("click", function () {
+        var user    = document.getElementById("userInput").value || "anonymous";
+        var message = document.getElementById("messageInput").value;
+        if (!message) return;
+
+        // invoke awaits the hub method Task and captures any server exception
+        connection.invoke("SendMessage", user, message).catch(function (err) {
+            console.error("SendMessage error:", err.toString());
+        });
+
+        document.getElementById("messageInput").value = "";    // clear input after send
+    });
+
+    // Also send on Enter key in the message input
+    document.getElementById("messageInput").addEventListener("keypress", function (e) {
+        if (e.key === "Enter") document.getElementById("sendButton").click();
+    });
+
+    document.getElementById("joinRoomButton").addEventListener("click", function () {
+        var room = document.getElementById("roomInput").value;
+        if (!room) return;
+        // send() is fire-and-forget — group join does not need a return value
+        connection.send("JoinRoom", room).catch(function (err) {
+            console.error("JoinRoom error:", err.toString());
+        });
+    });
+
+    document.getElementById("leaveRoomButton").addEventListener("click", function () {
+        var room = document.getElementById("roomInput").value;
+        if (!room) return;
+        connection.send("LeaveRoom", room).catch(function (err) {
+            console.error("LeaveRoom error:", err.toString());
+        });
+    });
+
+    /*
+     * .STOP() — CLOSING THE CONNECTION
+     *
+     * connection.stop() closes the transport gracefully and fires onclose().
+     * Returns Promise<void>; await or .then() for orderly shutdown.
+     *
+     * After stop() the connection state is "Disconnected".
+     * Call .start() again to reconnect (creates a new server-side connection).
+     */
+    window.addEventListener("beforeunload", function () {
+        connection.stop();   // clean disconnect when the user navigates away
+    });
+
+    // Helper: append a message to the chat list
+    function appendMessage(text, isSystem) {
+        var li = document.createElement("li");
+        li.textContent = text;
+        if (isSystem) li.classList.add("system");
+        var list = document.getElementById("messagesList");
+        list.appendChild(li);
+        list.scrollTop = list.scrollHeight;   // auto-scroll to newest message
+    }
+</script>
+}

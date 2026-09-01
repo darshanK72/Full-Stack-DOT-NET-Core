@@ -1,0 +1,40 @@
+@*
+ * FILE ROLE: Automatically executed before every view in Views/ and its
+ *            subfolders.  Sets the default Layout for all content views.
+ * SECTIONS IN THIS FILE:
+ *   1. _ViewStart.cshtml execution model
+ *   2. Per-folder override pattern
+ *@
+
+@*
+ * SECTION 1: _ViewStart.cshtml EXECUTION MODEL
+ *
+ * ASP.NET Core's Razor engine runs _ViewStart.cshtml automatically before
+ * rendering any content view in the same folder or any sub-folder.
+ *
+ * Key rules:
+ *   - Runs BEFORE the content view (.cshtml) is processed
+ *   - Assigns Layout, ViewData, or any shared Razor state
+ *   - A content view can OVERRIDE what _ViewStart set:
+ *       @{ Layout = null; }                                  opt out
+ *       @{ Layout = "~/Views/Shared/_AlternateLayout.cshtml"; }  use different layout
+ *   - The layout name "_Layout" is resolved by the Razor view engine using
+ *     the standard search paths defined by RazorViewEngineOptions.ViewLocationFormats.
+ *     It resolves to Views/Shared/_Layout.cshtml.
+ *
+ * SECTION 2: PER-FOLDER _ViewStart OVERRIDE
+ *
+ * Place a _ViewStart.cshtml inside a subfolder to change the Layout for only
+ * that area.  The subfolder file is executed INSTEAD of the parent — Razor
+ * does NOT chain or merge them; the most specific one wins.
+ *
+ * Example — admin area:
+ *   Views/_ViewStart.cshtml           →  Layout = "_Layout"        (all views)
+ *   Views/Admin/_ViewStart.cshtml     →  Layout = "_AdminLayout"   (only /Admin/*)
+ *
+ * This hierarchy is the same mechanism used by Areas (→ 10. Areas) where
+ * each Area folder carries its own _ViewStart.cshtml.
+ *@
+@{
+    Layout = "_Layout";     // resolved to Views/Shared/_Layout.cshtml
+}

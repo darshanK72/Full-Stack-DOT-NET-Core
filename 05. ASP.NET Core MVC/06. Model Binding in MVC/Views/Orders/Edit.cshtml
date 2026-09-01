@@ -1,0 +1,55 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * VIEW: Orders/Edit.cshtml — edit form demonstrating TryUpdateModelAsync pattern.
+ * The controller action (POST Edit) uses TryUpdateModelAsync instead of a model
+ * parameter, so IFormCollection triggers form reading. The form fields are the
+ * same as Create — only CustomerName, CustomerEmail, ShippingAddress, OrderDate
+ * are updated (the allow-list in TryUpdateModelAsync).
+ * ═══════════════════════════════════════════════════════════════════════════════ *@
+@model CreateOrderViewModel
+@{ ViewData["Title"] = "Edit Order"; }
+
+<h2>Edit Order</h2>
+<p>
+    This form uses <strong>TryUpdateModelAsync</strong> in the controller.
+    Only <code>CustomerName</code>, <code>CustomerEmail</code>, <code>ShippingAddress</code>,
+    and <code>OrderDate</code> are updated — Items and Tags are excluded from the allow-list.
+    See <code>Controllers/OrdersController.cs Section 5i</code>.
+</p>
+
+<div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+<form asp-action="Edit" method="post">
+    <div class="form-group">
+        <label asp-for="CustomerName"></label>
+        <input asp-for="CustomerName" />
+        <span asp-validation-for="CustomerName"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="CustomerEmail"></label>
+        <input asp-for="CustomerEmail" type="email" />
+        <span asp-validation-for="CustomerEmail"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="OrderDate"></label>
+        <input asp-for="OrderDate" type="date" />
+    </div>
+    <h3>Shipping Address</h3>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.Street">Street</label>
+        <input asp-for="ShippingAddress.Street" />
+    </div>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.City">City</label>
+        <input asp-for="ShippingAddress.City" />
+    </div>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.PostalCode">Postal Code</label>
+        <input asp-for="ShippingAddress.PostalCode" />
+    </div>
+    <div class="form-group">
+        <label asp-for="ShippingAddress.Country">Country</label>
+        <input asp-for="ShippingAddress.Country" />
+    </div>
+    <button type="submit">Save</button>
+    <a asp-action="Index">Cancel</a>
+</form>

@@ -1,0 +1,234 @@
+@*
+   FILE ROLE: Demonstrates all form-related built-in tag helpers:
+              form, label, input (multiple types), select (flat + optgroup),
+              textarea, validation-for, and validation-summary.
+
+   SECTIONS IN THIS FILE:
+     1. Form tag helper         — asp-action, asp-controller, asp-route-*, method
+     2. Label tag helper        — asp-for, [Display] attribute, "for" attribute generation
+     3. Input tag helpers       — asp-for: text / email / date (asp-format) / checkbox
+     4. Select tag helper       — asp-for, asp-items, SelectList, SelectListGroup / optgroup
+     5. Textarea tag helper     — asp-for on multi-line input
+     6. Validation tag helpers  — asp-validation-for (field), asp-validation-summary (all)
+*@
+@model TagHelpers.Models.ContactFormViewModel
+@{
+    ViewData["Title"] = "Form Tag Helpers";
+}
+
+<h2>Form Tag Helpers</h2>
+
+@* ============================================================
+   SECTION 1: FORM TAG HELPER
+   <form asp-action="..."  asp-controller="..."  asp-route-*="...">
+
+   What happens at render time:
+     asp-action="Forms"       → sets action="/Demo/Forms"
+     asp-controller="Demo"    → identifies the controller (inferred from route if omitted)
+     asp-route-returnUrl="/"  → appends ?returnUrl=/ to the action URL
+     method="post"            → passed through unchanged to HTML
+
+   Anti-forgery token:
+     The FormTagHelper AUTOMATICALLY injects a hidden <input> field with a
+     __RequestVerificationToken value when method is POST (the default).
+     You do NOT call @Html.AntiForgeryToken() manually.
+     The POST action must have [ValidateAntiForgeryToken] to verify it.
+
+   Without asp-* attributes, <form> renders as a plain HTML form with no changes.
+   ============================================================ *@
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+
+@* SECTION 6 (summary): show model-level and all field errors at the top *@
+<div asp-validation-summary="All" class="text-danger"></div>
+
+<form asp-action="Forms" asp-controller="Demo" method="post">
+
+    @* ============================================================
+       SECTION 2: LABEL TAG HELPER
+       <label asp-for="PropertyName">...</label>
+
+       Generates:
+         for="PropertyName"     → links label to the matching <input id="PropertyName">
+         inner text             → from [Display(Name = "...")] if present; property name otherwise
+         <label for="Name">Full Name</label>   (because [Display(Name = "Full Name")])
+
+       Leaving the label body empty is fine — the tag helper fills in the text.
+       Providing explicit text OVERRIDES the [Display] value.
+       ============================================================ *@
+
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        @* Renders: <label for="Name" class="form-label">Full Name</label> *@
+
+        @* ========================================================
+           SECTION 3a: INPUT TAG HELPER — TEXT
+           <input asp-for="Name" />
+
+           Generates (based on [Required], [StringLength], CLR type):
+             id="Name"                   → matches label's for="Name"
+             name="Name"                 → form field name for model binding
+             type="text"                 → inferred from string property type
+             value=""                    → current model value (empty on GET)
+             data-val="true"             → jQuery.Unobtrusive.Validation hook
+             data-val-required="..."     → from [Required]
+             data-val-length="..."       → from [StringLength]
+             maxlength="100"             → from [StringLength]
+           ======================================================== *@
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+        @* asp-validation-for emits a <span> with data-valmsg-for="Name";
+           jQuery Unobtrusive fills it in with the field's first error message. *@
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+
+        @* ========================================================
+           SECTION 3b: INPUT TAG HELPER — EMAIL
+           [EmailAddress] annotation causes asp-for to emit type="email".
+           The browser may show a native email keyboard on mobile.
+           Server-side validation still runs via DataAnnotations.
+           ======================================================== *@
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Subject" class="form-label"></label>
+        <input asp-for="Subject" class="form-control" />
+        <span asp-validation-for="Subject" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="BirthDate" class="form-label"></label>
+
+        @* ========================================================
+           SECTION 3c: INPUT TAG HELPER — DATE WITH asp-format
+           [DataType(DataType.Date)] → type="date" (overrides DateTime? default of "datetime-local")
+
+           asp-format="{0:yyyy-MM-dd}":
+             Formats the model value when rendering the input's value attribute.
+             Without asp-format, DateTime? renders as "01/15/1990 00:00:00" which
+             date pickers reject.  The format must match what the date input expects.
+             asp-format does NOT affect how the value is POSTED back (model binding
+             handles parsing the posted string back to DateTime).
+           ======================================================== *@
+        <input asp-for="BirthDate" asp-format="{0:yyyy-MM-dd}" class="form-control" />
+        <span asp-validation-for="BirthDate" class="text-danger"></span>
+    </div>
+
+    @* ============================================================
+       SECTION 4a: SELECT TAG HELPER — FLAT DROPDOWN
+       <select asp-for="CategoryId" asp-items="Model.Categories">
+
+       asp-for="CategoryId":
+         id="CategoryId", name="CategoryId", and sets selected="selected" on the
+         <option> whose value matches the current CategoryId.
+
+       asp-items="Model.Categories":
+         Renders <option value="{item.Value}">{item.Text}</option> for each item.
+         Accepts IEnumerable<SelectListItem> — SelectList satisfies this.
+         An explicit <option value="">-- Select --</option> placeholder inside the
+         <select> body is kept; it renders BEFORE the asp-items options.
+
+       IMPORTANT: Categories is NOT posted back — it must be repopulated on POST failure.
+       ============================================================ *@
+    <div class="mb-3">
+        <label asp-for="CategoryId" class="form-label"></label>
+        <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select">
+            <option value="">-- Select a Category --</option>
+        </select>
+        <span asp-validation-for="CategoryId" class="text-danger"></span>
+    </div>
+
+    @* ============================================================
+       SECTION 4b: SELECT TAG HELPER — GROUPED OPTIONS (<optgroup>)
+       When each SelectListItem has a Group assigned (SelectListGroup),
+       the SelectTagHelper wraps items in <optgroup label="GroupName"> elements:
+
+         <optgroup label="Technical">
+           <option value="1">Support</option>
+           <option value="2">Bug Report</option>
+         </optgroup>
+         <optgroup label="Business">
+           <option value="3">Billing</option>
+           ...
+         </optgroup>
+
+       Items sharing the SAME SelectListGroup INSTANCE appear in the same <optgroup>.
+       Different instances with the same name → separate <optgroup> elements.
+       ============================================================ *@
+    <div class="mb-3">
+        <label class="form-label">Category (with optgroup)</label>
+        <select asp-for="CategoryId" asp-items="Model.GroupedOptions" class="form-select">
+            <option value="">-- Select --</option>
+        </select>
+    </div>
+
+    @* ============================================================
+       SECTION 5: TEXTAREA TAG HELPER
+       <textarea asp-for="Message"></textarea>
+
+       asp-for on a <textarea>:
+         - Sets id="Message", name="Message" (same as input)
+         - Emits the current model value as the textarea's inner text
+         - Does NOT set rows/cols — those remain HTML attributes you set manually
+         - Validation attributes (data-val-*) are added just like <input>
+
+       Do NOT write a value attribute on <textarea> — the content goes between tags.
+       The tag helper handles this correctly; Html.TextAreaFor() also does.
+       ============================================================ *@
+    <div class="mb-3">
+        <label asp-for="Message" class="form-label"></label>
+        <textarea asp-for="Message" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="Message" class="text-danger"></span>
+    </div>
+
+    @* ============================================================
+       SECTION 3d: INPUT TAG HELPER — CHECKBOX
+       <input asp-for="AcceptTerms" />
+
+       bool property → type="checkbox"
+       The MVC model binder needs TWO inputs for a checkbox:
+         <input type="checkbox" id="AcceptTerms" name="AcceptTerms" value="true" />
+         <input type="hidden"              name="AcceptTerms" value="false" />
+       asp-for automatically generates BOTH.  The hidden input ensures the field is
+       posted when the checkbox is unchecked (browsers don't post unchecked checkboxes).
+       ============================================================ *@
+    <div class="mb-3 form-check">
+        <input asp-for="AcceptTerms" class="form-check-input" />
+        <label asp-for="AcceptTerms" class="form-check-label"></label>
+        <span asp-validation-for="AcceptTerms" class="text-danger d-block"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+@* ============================================================
+   SECTION 6: VALIDATION TAG HELPERS
+
+   asp-validation-for="PropertyName"  (on <span> or any inline element)
+     - Emits: <span data-valmsg-for="Name" data-valmsg-replace="true"></span>
+     - jQuery Unobtrusive fills it with the first error for that field.
+     - Server-side: ModelState errors are inserted as span content on re-render.
+     - Client-side: jQuery.Validate fills it in without a page reload.
+
+   asp-validation-summary="All | ModelOnly | None"  (on <div> or block element)
+     All       → shows model-level errors AND all field errors
+     ModelOnly → shows only errors added to ModelState[""] (no specific field)
+     None      → renders nothing (useful to disable temporarily)
+
+   For client-side validation to activate, include in layout or Scripts section:
+     jquery.validate.min.js
+     jquery.validate.unobtrusive.min.js
+   (not included here since this is a build-only tutorial, but note the dependency)
+   ============================================================ *@
+
+@section Scripts {
+    @* Scripts section (defined in _Layout.cshtml) — place validation scripts here
+       so they load after jQuery which is in the layout's body scripts bundle. *@
+}

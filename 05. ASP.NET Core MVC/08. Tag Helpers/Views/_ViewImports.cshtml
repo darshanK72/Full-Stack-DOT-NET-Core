@@ -1,0 +1,70 @@
+@* =============================================================================
+   _ViewImports.cshtml — applies to ALL views in this folder and sub-folders.
+   Loaded once; settings cascade down the directory hierarchy.
+   =============================================================================
+
+   @using directives:
+     Make namespaces available without fully qualifying types inside Razor views.
+     With ImplicitUsings disabled, these are the only usings Razor views see.
+*@
+@using TagHelpers
+@using TagHelpers.Models
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@* =============================================================================
+   @addTagHelper — REGISTERING TAG HELPERS
+
+   Syntax: @addTagHelper  TypePattern,  AssemblyName
+     TypePattern   — "*" (all) or a fully-qualified class name
+     AssemblyName  — the assembly that contains the tag helper classes
+                     (NOT the namespace; matches the .csproj / .dll name)
+
+   Line 1: Register ALL built-in ASP.NET Core tag helpers.
+     Assembly: Microsoft.AspNetCore.Mvc.TagHelpers
+     Includes: form, input, label, select, textarea, span (validation),
+               anchor (a), environment, img, link, script, partial, cache.
+
+   Line 2: Register ALL custom tag helpers in THIS project's assembly.
+     Assembly: TagHelpers  (from TagHelpers.csproj → TagHelpers.dll)
+     Includes: AlertTagHelper, GravatarTagHelper (in TagHelpers.TagHelpers namespace).
+     The assembly name is what matters — the namespace is irrelevant here.
+
+   Tag helper name-to-class mapping:
+     <alert>        → TagHelpers.TagHelpers.AlertTagHelper    (via [HtmlTargetElement])
+     <img-gravatar> → TagHelpers.TagHelpers.GravatarTagHelper (via [HtmlTargetElement])
+     <form>         → FormTagHelper      (overrides native HTML <form> when asp-* present)
+     <input>        → InputTagHelper     (only activates when asp-for is present)
+     <a>            → AnchorTagHelper    (only activates when asp-action/asp-controller present)
+*@
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, TagHelpers
+
+@* =============================================================================
+   @removeTagHelper — OPTING OUT OF A SPECIFIC TAG HELPER
+
+   Syntax: @removeTagHelper  FullyQualifiedClassName,  AssemblyName
+
+   Example: remove the FormTagHelper so <form> is treated as plain HTML
+   (uncomment to activate — breaks the Forms.cshtml demo if active):
+
+   @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.FormTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
+
+   Use case: migrating an existing front-end where <form action="..."> must not be
+   rewritten, or when a third-party tag helper conflicts with a built-in.
+
+   =============================================================================
+   @tagHelperPrefix — REQUIRING A PREFIX ON ALL TAG HELPERS
+
+   Syntax: @tagHelperPrefix  prefix:
+
+   Example: @tagHelperPrefix  th:
+   After this, <th:form asp-action="..."> works; plain <form asp-action="..."> does NOT.
+   Useful in content pages that mix tag helper markup with raw HTML and need disambiguation.
+   (Commented out here — would break all views in this tutorial.)
+
+   =============================================================================
+   SCOPE RULES:
+   - Directives in _ViewImports.cshtml apply to views in the SAME folder and all sub-folders.
+   - A _ViewImports.cshtml in Views/Demo/ would EXTEND (not replace) this file.
+   - Place in the root Views/ folder to affect the entire application.
+*@

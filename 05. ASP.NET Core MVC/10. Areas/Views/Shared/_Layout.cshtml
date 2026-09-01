@@ -1,0 +1,85 @@
+@*
+ * FILE ROLE: Root shared layout — the default chrome for all non-area views and
+ *   for area views that do NOT have their own area-specific layout. Demonstrates
+ *   asp-area tag helper usage for generating cross-area navigation links.
+ *
+ * SECTION 11: ROOT LAYOUT + asp-area TAG HELPER IN NAVIGATION
+ *
+ * This layout is shared by:
+ *   · Non-area views  (HomeController — all requests to /)
+ *   · Customer area views (Areas/Customer has no area-specific layout → falls back here)
+ *
+ * The Admin area defines its OWN layout in Areas/Admin/Views/Shared/_Layout.cshtml
+ * and does NOT render through this file.
+ *
+ * GENERATING AREA LINKS WITH asp-area (anchor tag helper):
+ *
+ *   Tag helper syntax:
+ *     <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">text</a>
+ *     Generates: <a href="/Admin/Dashboard/Index">text</a>
+ *
+ *   asp-area=""  clears the area so the generated link targets the non-area route:
+ *     <a asp-area="" asp-controller="Home" asp-action="Index">text</a>
+ *     Generates: <a href="/">text</a>
+ *
+ *   When inside a layout that may be used by both area and non-area views, ALWAYS
+ *   specify asp-area explicitly. Without it, the ambient route area value from the
+ *   current request carries over, producing wrong hrefs in area context.
+ *
+ *   Common mistake — omitting asp-area in a shared layout:
+ *     <a asp-controller="Home" asp-action="Index">Home</a>
+ *     When rendered for an Admin area request: <a href="/Admin/Home/Index">  ← WRONG
+ *     When rendered for a root request:        <a href="/">                  ← correct
+ *
+ * @RenderBody():
+ *   The placeholder where the rendered child view (.cshtml) is injected.
+ *   Every layout must call @RenderBody() exactly once.
+ *
+ * @RenderSection("Scripts", required: false):
+ *   Optional section for page-specific JavaScript. Views can inject scripts with:
+ *     @section Scripts { <script src="..."></script> }
+ *   required: false means views that don't define this section don't cause an error.
+*@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Areas Tutorial</title>
+    <style>
+        body  { font-family: sans-serif; margin: 0; padding: 0; }
+        nav   { background: #2c3e50; padding: 12px 24px; display: flex; gap: 16px; }
+        nav a { color: #ecf0f1; text-decoration: none; font-weight: 500; }
+        nav a:hover { color: #3498db; }
+        .badge { background: #3498db; color: white; font-size: 11px;
+                 padding: 2px 6px; border-radius: 3px; margin-left: 4px; }
+        main  { padding: 32px 48px; }
+        footer { background: #ecf0f1; padding: 12px 24px; font-size: 12px; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <nav>
+        @* asp-area="" clears area context → generates href="/" *@
+        <a asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+
+        @* asp-area="Admin" → generates href="/Admin/Dashboard/Index" *@
+        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+            Admin <span class="badge">area</span>
+        </a>
+
+        @* asp-area="Customer" → generates href="/Customer/Account/Profile" *@
+        <a asp-area="Customer" asp-controller="Account" asp-action="Profile">
+            Customer <span class="badge">area</span>
+        </a>
+    </nav>
+    <main>
+        @RenderBody()
+    </main>
+    <footer>
+        ASP.NET Core MVC — Areas Tutorial &nbsp;|&nbsp;
+        Layout: <strong>Views/Shared/_Layout.cshtml</strong> (root)
+    </footer>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

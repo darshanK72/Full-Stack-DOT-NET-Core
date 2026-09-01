@@ -1,0 +1,173 @@
+@*
+ * FILE ROLE: Products/Detail.cshtml — the detail view. Demonstrates:
+ *   - @model with a composite ViewModel (ProductDetailViewModel)
+ *   - Html.DisplayNameFor and Html.DisplayFor on direct properties
+ *   - Rendering nested ViewModel properties (@Model.Category.Name)
+ *   - Rendering a collection of nested VMs (related products)
+ *   - Null-coalescing (??) for optional ViewModel properties
+ *   - [DisplayFormat] applied automatically by Html.DisplayFor
+ *
+ * SECTIONS IN THIS VIEW:
+ *   @model directive      — composite VM declaration
+ *   Product details       — Html.DisplayNameFor + Html.DisplayFor for each field
+ *   Nested category VM    — accessing @Model.Category.PropertyName
+ *   Related products list — rendering IEnumerable<ProductSummaryViewModel>
+ *@
+
+@*
+ * @model WITH A COMPOSITE VIEWMODEL
+ *
+ * ProductDetailViewModel is a composite — it contains:
+ *   Direct properties:   Name, Price, StockQuantity, IsActive, CreatedAt
+ *   Nested VM:           Category (CategorySummaryViewModel)
+ *   Collection of VMs:  RelatedProducts (IEnumerable<ProductSummaryViewModel>)
+ *
+ * The @model directive gives the Razor compiler full knowledge of the object graph.
+ * Every property access is verified at build time:
+ *   @Model.Name                   → string           (direct property)
+ *   @Model.Category.Name          → string           (nested VM property)
+ *   @Model.RelatedProducts.Count() → int             (collection method)
+ *
+ * CONTRAST WITH VIEWBAG (anti-pattern):
+ *   @ViewBag.CategoryName    → dynamic; no compile check; typo = null at runtime
+ *   @Model.Category.Name     → typed; compile error if misspelled
+ *@
+@model ProductDetailViewModel
+
+@{
+    ViewData["Title"] = Model.Name; // set page title to the product name
+}
+
+<h1>@Html.DisplayFor(m => m.Name)</h1>@* Html.DisplayFor on a string renders the string value *@
+<p><a asp-action="Index">&larr; Back to Products</a></p>
+
+<div style="display:flex; gap:2rem; flex-wrap:wrap;">
+
+    @*
+     * PRODUCT DETAILS — Html.DisplayNameFor + Html.DisplayFor ON DIRECT PROPERTIES
+     *
+     * Html.DisplayNameFor(m => m.Price)  reads [Display(Name = "Unit Price")] → "Unit Price"
+     * Html.DisplayFor(m => m.Price)      reads [DisplayFormat(DataFormatString = "{0:C}")] → "$1,299.99"
+     *
+     * Html.DisplayNameFor(m => m.CreatedAt) → "Listed On"  ([Display(Name = "Listed On")])
+     * Html.DisplayFor(m => m.CreatedAt)     → "1/10/2024"  ([DisplayFormat(DataFormatString = "{0:d}")])
+     *
+     * Note: Html.DisplayFor does NOT apply [DisplayFormat] when rendering a bool.
+     * Boolean properties render as a checkbox by default (the Bool display template).
+     * For a text Yes/No, use a conditional expression directly: @(Model.IsActive ? "Yes" : "No")
+     *@
+    <div style="flex:1; min-width:280px;">
+        <h2 style="border-bottom:1px solid #ddd; padding-bottom:0.25rem;">Details</h2>
+        <dl>
+            <dt>@Html.DisplayNameFor(m => m.Price)</dt>
+            <dd>@Html.DisplayFor(m => m.Price)</dd>@* [DisplayFormat] applies → currency format *@
+
+            <dt>@Html.DisplayNameFor(m => m.StockQuantity)</dt>
+            <dd>@Html.DisplayFor(m => m.StockQuantity)</dd>@* [DisplayFormat] applies → "N0" format *@
+
+            <dt>@Html.DisplayNameFor(m => m.IsActive)</dt>
+            <dd>@(Model.IsActive ? "Active" : "Inactive")</dd>@* bool: use conditional for readable text *@
+
+            <dt>@Html.DisplayNameFor(m => m.CreatedAt)</dt>
+            <dd>@Html.DisplayFor(m => m.CreatedAt)</dd>@* [DisplayFormat] applies → short date *@
+
+            <dt>@Html.DisplayNameFor(m => m.Description)</dt>
+            <dd>
+                @*
+                 * NULLABLE PROPERTY RENDERING
+                 *
+                 * ProductDetailViewModel.Description is string? — it may be null.
+                 * Html.DisplayFor(m => m.Description) renders nothing (empty string) when null.
+                 * Using ?? provides a user-friendly fallback message instead.
+                 *
+                 * The view handles the nullable display — the controller does not need to
+                 * substitute a fallback string; that is a view/presentation concern.
+                 *@
+                @(Model.Description ?? "No description available.")
+            </dd>
+        </dl>
+
+        <div style="margin-top:1rem;">
+            <a asp-action="Form" asp-route-id="@Model.ProductId" class="btn">Edit</a>
+        </div>
+    </div>
+
+    @*
+     * NESTED VIEWMODEL — ACCESSING @Model.Category.PropertyName
+     *
+     * ProductDetailViewModel.Category is a CategorySummaryViewModel nested object.
+     * Because the controller guaranteed Category is never null (= new() initializer
+     * and the controller always sets it), the view can navigate directly:
+     *   @Model.Category.Name          — safe; always non-null
+     *   @Model.Category.ProductCount  — safe; int, always has a value
+     *
+     * Html.DisplayNameFor also works for nested properties:
+     *   @Html.DisplayNameFor(m => m.Category.Name)        → "Category"
+     *   @Html.DisplayNameFor(m => m.Category.ProductCount) → "Total Products"
+     *
+     * These read the [Display(Name = "...")] attributes on CategorySummaryViewModel,
+     * not on ProductDetailViewModel. The expression tree navigation correctly finds
+     * the attribute on the terminal property's declaring type.
+     *@
+    <div style="flex:1; min-width:240px;">
+        <h2 style="border-bottom:1px solid #ddd; padding-bottom:0.25rem;">
+            @Html.DisplayNameFor(m => m.Category.Name)@* → "Category" *@
+        </h2>
+        <dl>
+            <dt>Name</dt>
+            <dd>@Html.DisplayFor(m => m.Category.Name)</dd>
+
+            <dt>@Html.DisplayNameFor(m => m.Category.ProductCount)</dt>
+            <dd>@Html.DisplayFor(m => m.Category.ProductCount)</dd>
+
+            <dt>Description</dt>
+            <dd>@(Model.Category.Description ?? "—")</dd>@* nullable: show dash if absent *@
+        </dl>
+    </div>
+</div>
+
+@*
+ * RELATED PRODUCTS — IEnumerable<ProductSummaryViewModel> COLLECTION IN A COMPOSITE VM
+ *
+ * Model.RelatedProducts is initialized to an empty list in the VM (= new List<...>())
+ * so the .Any() call is safe — no null check needed.
+ *
+ * Html.DisplayNameFor for collection item properties — same pattern as Index.cshtml:
+ *   @Html.DisplayNameFor(m => m.RelatedProducts.FirstOrDefault()!.Price)
+ *   The framework reads metadata from ProductSummaryViewModel.Price without evaluating
+ *   FirstOrDefault() — expression tree analysis only.
+ *
+ * Html.DisplayFor inside the loop:
+ *   @Html.DisplayFor(modelItem => item.Price)
+ *   Reads [DisplayFormat(DataFormatString = "{0:C}")] from ProductSummaryViewModel.Price.
+ *   Renders the currency-formatted value automatically.
+ *@
+@if (Model.RelatedProducts.Any())
+{
+    <h2 style="margin-top:1.5rem; border-bottom:1px solid #ddd; padding-bottom:0.25rem;">
+        Related Products
+    </h2>
+    <table>
+        <thead>
+            <tr>
+                <th>@Html.DisplayNameFor(m => m.RelatedProducts.FirstOrDefault()!.Name)</th>
+                <th>@Html.DisplayNameFor(m => m.RelatedProducts.FirstOrDefault()!.Price)</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.RelatedProducts)
+            {
+                <tr>
+                    <td>@Html.DisplayFor(modelItem => item.Name)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Price)</td>@* [DisplayFormat] applies → currency *@
+                    <td><a asp-action="Detail" asp-route-id="@item.Id">View</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p style="margin-top:1rem; color:#555;">No related products in this category.</p>
+}

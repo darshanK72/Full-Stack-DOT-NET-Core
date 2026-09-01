@@ -1,0 +1,173 @@
+@model RegistrationViewModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+@*
+    FILE ROLE: Registration form view — demonstrates asp-validation-summary,
+               asp-validation-for, Html.ValidationMessageFor, and how Tag Helpers
+               render DataAnnotation errors from ModelState.
+
+    SECTION 6: VALIDATION IN RAZOR VIEWS
+
+    HOW TAG HELPERS RENDER VALIDATION ERRORS:
+      After the POST, if ModelState.IsValid == false, the controller returns
+      View(model).  The view re-renders with the same model.  Tag Helpers read
+      ModelState and emit error spans/divs automatically.
+
+    THREE WAYS TO DISPLAY ERRORS:
+
+    A) asp-validation-summary (Tag Helper — recommended for MVC):
+         <div asp-validation-summary="All"></div>
+         <div asp-validation-summary="ModelOnly"></div>
+       "All"       — summary lists errors for ALL fields.
+       "ModelOnly" — summary lists only model-level errors (added with
+                     ModelState.AddModelError(string.Empty, "...")).
+                     Field-specific errors are shown next to each field only.
+
+    B) asp-validation-for (Tag Helper — recommended per-field):
+         <span asp-validation-for="Email"></span>
+       Emits a <span> with class "field-validation-error" when the Email field
+       has errors.  Also emits data-valmsg-* attributes for client-side use.
+
+    C) Html.ValidationMessageFor (HTML helper — older style, equivalent):
+         @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-danger" })
+       Same result as asp-validation-for; HTML helper syntax from MVC 5 era.
+       Both approaches are valid; prefer Tag Helpers in new code.
+
+    HTML HELPER vs TAG HELPER COMPARISON:
+    ┌────────────────────────────────┬────────────────────────────────────┐
+    │ HTML Helper                    │ Tag Helper                         │
+    ├────────────────────────────────┼────────────────────────────────────┤
+    │ @Html.ValidationSummary(true)  │ <div asp-validation-summary="ModelOnly"> │
+    │ @Html.ValidationMessageFor(…)  │ <span asp-validation-for="Email">  │
+    │ @Html.LabelFor(m => m.Email)   │ <label asp-for="Email">            │
+    │ @Html.TextBoxFor(m => m.Email) │ <input asp-for="Email">            │
+    │ @Html.EditorFor(m => m.Email)  │ <input asp-for="Email">            │
+    └────────────────────────────────┴────────────────────────────────────┘
+
+    asp-for on <input> automatically:
+      - Sets id and name from the property name
+      - Sets value from the model property (preserves typed input on re-render)
+      - Sets type from [DataType] (password, email, date, etc.)
+      - Emits data-val-* attributes from DataAnnotations for client-side validation
+*@
+
+<h1>Register</h1>
+
+@*
+    asp-action="Register" + asp-controller="Account" → action="/Account/Register"
+    method="post" required for form submission
+    asp-antiforgery="true" is the default when asp-action is set — adds the hidden
+    __RequestVerificationToken field matched by [ValidateAntiForgeryToken] in the controller
+*@
+<form asp-action="Register" asp-controller="Account" method="post">
+
+    @*
+        A) VALIDATION SUMMARY — asp-validation-summary Tag Helper
+        "ModelOnly" shows only model-level errors (ModelState.AddModelError(string.Empty, ...)).
+        Field errors appear next to their fields via asp-validation-for below.
+        Use "All" to show ALL errors here (and still repeat them per-field if desired).
+    *@
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+    @* --- Username (Required + StringLength) --- *@
+    <div class="form-group">
+        <label asp-for="UserName"></label>
+        @* asp-for sets: id="UserName" name="UserName" type="text" value="@Model.UserName"
+           data-val="true" data-val-required="Username is required."
+           data-val-maxlength="Username must be between 3 and 20 characters."
+           data-val-minlength="Username must be between 3 and 20 characters."  *@
+        <input asp-for="UserName" />
+
+        @*
+            B) asp-validation-for — Tag Helper (recommended)
+            Renders: <span class="field-validation-valid" data-valmsg-for="UserName">
+            After POST with errors: <span class="field-validation-error">error message</span>
+        *@
+        <span asp-validation-for="UserName"></span>
+    </div>
+
+    @* --- Email (Required + EmailAddress) --- *@
+    <div class="form-group">
+        <label asp-for="Email"></label>
+        @* asp-for reads [DataType(DataType.EmailAddress)] → type="email" *@
+        <input asp-for="Email" />
+        <span asp-validation-for="Email"></span>
+    </div>
+
+    @* --- Phone (optional — Phone attribute only) --- *@
+    <div class="form-group">
+        <label asp-for="PhoneNumber"></label>
+        @* asp-for reads [DataType(DataType.PhoneNumber)] → type="tel" *@
+        <input asp-for="PhoneNumber" />
+
+        @*
+            C) Html.ValidationMessageFor — HTML helper (older style, equivalent result)
+            First arg: lambda expression selecting the property
+            Second arg: optional literal error message (overrides ModelState error)
+            Third arg: HTML attributes object
+            When empty string (""), uses ModelState error message.
+        *@
+        @Html.ValidationMessageFor(m => m.PhoneNumber, "", new { })
+    </div>
+
+    @* --- Age (Required + Range) --- *@
+    <div class="form-group">
+        <label asp-for="Age"></label>
+        @* asp-for on int? → type="number"; emits data-val-range attributes for [Range] *@
+        <input asp-for="Age" />
+        <span asp-validation-for="Age"></span>
+    </div>
+
+    @* --- Password (Required + DataType.Password + StringLength) --- *@
+    <div class="form-group">
+        <label asp-for="Password"></label>
+        @* asp-for reads [DataType(DataType.Password)] → type="password" (chars masked) *@
+        <input asp-for="Password" />
+        <span asp-validation-for="Password"></span>
+    </div>
+
+    @* --- Confirm Password (Required + Compare) --- *@
+    <div class="form-group">
+        <label asp-for="ConfirmPassword"></label>
+        @* [Compare(nameof(Password))] → data-val-equalto="..." pointing at #Password *@
+        <input asp-for="ConfirmPassword" />
+        <span asp-validation-for="ConfirmPassword"></span>
+    </div>
+
+    @* --- ZIP Code (RegularExpression — optional) --- *@
+    <div class="form-group">
+        <label asp-for="ZipCode"></label>
+        @* [RegularExpression] → data-val-regex="..." with the pattern *@
+        <input asp-for="ZipCode" />
+        <span asp-validation-for="ZipCode"></span>
+    </div>
+
+    <button type="submit">Create Account</button>
+</form>
+
+@*
+    VALIDATION SUMMARY WITH HTML HELPER (alternative to asp-validation-summary):
+      @Html.ValidationSummary(excludePropertyErrors: true)
+        — true: shows only model-level errors (equivalent to asp-validation-summary="ModelOnly")
+        — false: shows all errors including field errors (equivalent to "All")
+      @Html.ValidationSummary(false, "Please fix the following errors:")
+        — adds a message prefix before the error list
+
+    STYLING:
+      MVC adds CSS classes automatically:
+        .field-validation-error  — <span> when field has an error
+        .field-validation-valid  — <span> when field is valid
+        .input-validation-error  — <input> when field has an error
+        .validation-summary-errors — <div> when summary has errors
+        .validation-summary-valid  — <div> when no errors
+
+    CLIENT-SIDE VALIDATION NOTE (PREVIEW → 14. Client-Side Validation):
+      The scripts in _Layout.cshtml activate jQuery Validate automatically because:
+        1. asp-for emits data-val="true" and data-val-[rule] attributes on each <input>
+        2. asp-validation-for emits data-valmsg-for on each <span>
+        3. jquery.validate.unobtrusive scans the form on page load, reads data-val-*,
+           and registers the corresponding jQuery Validate rules
+      No additional JavaScript is required in this view.
+*@

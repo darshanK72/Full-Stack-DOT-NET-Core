@@ -1,0 +1,40 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * VIEW: Orders/Details.cshtml — read-only order display.
+ * Shows [FromRoute] binding in action: GET /Orders/Details/{id}
+ * ═══════════════════════════════════════════════════════════════════════════════ *@
+@model CreateOrderViewModel
+@{ ViewData["Title"] = "Order Details"; }
+
+<h2>Order Details</h2>
+<dl>
+    <dt>Customer</dt>         <dd>@Model.CustomerName</dd>
+    <dt>Email</dt>            <dd>@Model.CustomerEmail</dd>
+    <dt>Order Date</dt>       <dd>@(Model.OrderDate?.ToString("yyyy-MM-dd") ?? "—")</dd>
+    <dt>Street</dt>           <dd>@Model.ShippingAddress.Street</dd>
+    <dt>City</dt>             <dd>@Model.ShippingAddress.City</dd>
+    <dt>Postal Code</dt>      <dd>@Model.ShippingAddress.PostalCode</dd>
+    <dt>Country</dt>          <dd>@Model.ShippingAddress.Country</dd>
+    <dt>Tags</dt>             <dd>@string.Join(", ", Model.Tags)</dd>
+</dl>
+
+<h3>Items</h3>
+@if (Model.Items.Count == 0)
+{
+    <p>No items.</p>
+}
+else
+{
+    <table border="1" cellpadding="4">
+        <tr><th>Product</th><th>Qty</th><th>Unit Price</th></tr>
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>@item.ProductName</td>
+                <td>@item.Quantity</td>
+                <td>@item.UnitPrice.ToString("C")</td>
+            </tr>
+        }
+    </table>
+}
+
+<p><a asp-action="Index">Back to list</a></p>

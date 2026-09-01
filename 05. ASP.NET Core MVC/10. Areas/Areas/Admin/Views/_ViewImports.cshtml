@@ -1,0 +1,32 @@
+@*
+ * FILE ROLE: Admin area _ViewImports.cshtml — registers tag helpers and @using
+ *   directives for all views inside Areas/Admin/Views/**. This is required because
+ *   the root Views/_ViewImports.cshtml does NOT apply to area views.
+ *
+ * SECTION 14: AREA _ViewImports.cshtml
+ *
+ * WHY AREA VIEWS NEED THEIR OWN _ViewImports:
+ *   The Razor engine discovers _ViewImports.cshtml by walking UP the physical
+ *   directory tree from the view file. For Areas/Admin/Views/Dashboard/Index.cshtml,
+ *   the walk is:
+ *     Areas/Admin/Views/Dashboard/   → checks for _ViewImports.cshtml (none)
+ *     Areas/Admin/Views/             ← THIS FILE is found here
+ *     Areas/Admin/                   → checks (none)
+ *     Areas/                         → checks (none)
+ *     (project root)                 → checks (none)
+ *   The path NEVER passes through the Views/ folder, so Views/_ViewImports.cshtml
+ *   is invisible to area views. Each area must declare its own imports.
+ *
+ * WHAT THIS FILE PROVIDES:
+ *   @using Areas.Models          — enables short name AdminDashboardViewModel in views
+ *                                  instead of fully-qualified @model Areas.Models.AdminDashboardViewModel
+ *   @addTagHelper *,...          — activates asp-area, asp-controller, asp-action etc.
+ *
+ * MISSING @addTagHelper EFFECT:
+ *   If @addTagHelper is absent from this file, tag helper attributes in area views
+ *   are silently treated as plain HTML attributes — the generated <a href> will be
+ *   empty or wrong, with no compile-time error. Always include @addTagHelper here.
+*@
+
+@using Areas.Models
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

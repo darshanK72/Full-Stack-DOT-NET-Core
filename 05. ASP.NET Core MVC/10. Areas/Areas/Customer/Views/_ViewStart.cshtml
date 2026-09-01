@@ -1,0 +1,24 @@
+@*
+ * FILE ROLE: Customer area _ViewStart.cshtml — sets the default layout for all views
+ *   inside Areas/Customer/Views/**. Because the Customer area has NO area-specific
+ *   layout, the "_Layout" reference falls back to Views/Shared/_Layout.cshtml,
+ *   demonstrating the layout fallback chain.
+ *
+ * "_Layout" RESOLUTION FOR CUSTOMER AREA VIEWS:
+ *   The engine searches for _Layout.cshtml from the view's folder upward:
+ *     1. Areas/Customer/Views/Account/_Layout.cshtml    → not found
+ *     2. Areas/Customer/Views/Shared/_Layout.cshtml     → not found (no area layout)
+ *     3. Views/Shared/_Layout.cshtml                    ← FOUND — root layout used
+ *
+ *   This fallback to the root layout is deliberate: the Customer portal should look
+ *   identical to the main site (same header, navigation, and footer). Only the
+ *   Admin area overrides the layout with its own dark-themed chrome.
+ *
+ * CONTRAST WITH ADMIN AREA:
+ *   Admin area:    Areas/Admin/Views/Shared/_Layout.cshtml EXISTS → uses it
+ *   Customer area: Areas/Customer/Views/Shared/_Layout.cshtml ABSENT → falls back to root
+*@
+
+@{
+    Layout = "_Layout"; // no area Shared/ layout → falls back to Views/Shared/_Layout.cshtml
+}

@@ -1,0 +1,72 @@
+@*
+ * FILE ROLE: Products index view — rendered by ProductsController.Index() which passes
+ *            a List<Product> as the typed model via return View(_products).
+ *            Demonstrates a strongly typed view with @model and async action data flow.
+ *
+ * KEY CONCEPTS DEMONSTRATED:
+ *   @model IEnumerable<ControllersActions.Models.Product>
+ *     Declares the expected model type for this view. The Razor compiler generates a
+ *     strongly typed Model property of type IEnumerable<Product>, giving full
+ *     IntelliSense and compile-time checks on product.Id, product.Name, etc.
+ *
+ *     The controller passes List<Product>, which satisfies IEnumerable<Product>
+ *     because List<T> : IEnumerable<T>. Using the interface in @model keeps the view
+ *     decoupled from the concrete collection type the controller uses.
+ *
+ *   Async action data flow
+ *     ProductsController.Index() is async Task<IActionResult>. The framework awaits
+ *     the task, then calls View(_products) once the data is ready. From the view's
+ *     perspective, the model is already fully populated — there is no async work
+ *     left to do in the view itself.
+ *
+ *   @foreach over Model
+ *     Razor uses C# control flow directly. Each iteration variable is typed as
+ *     Product (non-nullable) because IEnumerable<Product> guarantees non-null elements.
+ *
+ * COVERED IN DETAIL LATER:
+ *   Strongly typed views  → 05. ViewModels & Strongly Typed Views
+ *   Model binding         → 06. Model Binding in MVC
+ *@
+@model IEnumerable<ControllersActions.Models.Product>
+@{
+    ViewData["Title"] = "Products";
+    Layout = "_Layout";
+}
+
+<h1>Product List</h1>
+<p>
+    Rendered by <code>ProductsController.Index()</code> — an async action returning
+    <code>Task&lt;IActionResult&gt;</code> with <code>return View(_products)</code>.
+</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Category</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td>@product.Id</td>
+                <td>@product.Name</td>
+                <td>$@product.Price.ToString("0.00")</td>
+                <td>@product.Category</td>
+                <td>
+                    <a href="/Products/Details/@product.Id">Details</a> |
+                    <a href="/api/catalog/@product.Id">JSON</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<p style="margin-top:1rem;">
+    <a href="/Products/Export">Download as CSV (FileContentResult)</a> &nbsp;|&nbsp;
+    <a href="/Products/ExportStream">Download as CSV stream (FileStreamResult)</a>
+</p>

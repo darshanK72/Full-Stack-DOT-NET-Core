@@ -1,0 +1,127 @@
+@*
+ * FILE ROLE: Shared layout template — the page shell used by all views that
+ *   opt into this layout. Demonstrates how ASP.NET Core MVC composes a full
+ *   HTML page from a shared skeleton and per-view body content, so each view
+ *   only writes the content that is unique to that page.
+ *
+ * SECTIONS IN THIS FILE:
+ *   SECTION 15: Layout — shared page shell
+ *               (sub-sections: 15a @RenderBody, 15b ViewData["Title"],
+ *                              15c @RenderSection for optional page-level slots)
+ *
+ * DISCOVERY: the Razor view engine finds this file at:
+ *   Views/Shared/_Layout.cshtml
+ *   Referenced from a view via:  @{ Layout = "_Layout"; }
+ *   or globally from:            Views/_ViewStart.cshtml  →  Layout = "_Layout"
+ *
+ *   The leading underscore (_) is a convention meaning "not a standalone view";
+ *   the framework will not route a request directly to a file starting with _.
+ *
+ * COVERED IN DETAIL LATER → 04. Layouts Sections & Partial Views
+ *@
+
+@*
+ * --- 15a. LAYOUT COMPOSITION — @RenderBody() ---
+ *
+ * A layout file is a Razor template that contains the HTML shell and exactly
+ * one call to @RenderBody(). At render time the framework:
+ *   1. Renders the child view (e.g. Views/Home/Index.cshtml) to an HTML string
+ *   2. Replaces @RenderBody() in the layout with that HTML string
+ *   3. Returns the combined result as the HTTP response
+ *
+ * This eliminates duplication of <html>, <head>, <nav>, and <footer> across
+ * every view in the application. Changing the site navigation once in
+ * _Layout.cshtml updates all pages simultaneously.
+ *
+ * LAYOUT NESTING:
+ *   A layout can itself declare a parent layout. This enables admin vs public
+ *   sections that share a base shell but differ in navigation structure or
+ *   sidebar panels:
+ *     _AdminLayout.cshtml sets Layout = "_Layout";   // nests inside this file
+ *
+ * DRY CONTENT IN LAYOUTS — everything that appears on every page goes here:
+ *   <meta> tags, <link rel="stylesheet">, Google Analytics, site navigation,
+ *   breadcrumbs, global footer, cookie consent banners.
+ *@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    @*
+     * --- 15b. ViewData["Title"] — DATA FROM VIEW TO LAYOUT ---
+     *
+     * ViewData is a ViewDataDictionary (string → object?) shared between the
+     * controller, the child view, and the layout. The child view writes:
+     *   @{ ViewData["Title"] = "Product Details"; }
+     * The layout reads it back with @ViewData["Title"].
+     *
+     * Why not use a field or property? Layout and child views are separate
+     * compiled Razor classes that share ViewData as a communication channel
+     * (they do not share a common base class instance).
+     *
+     * Alternatives for passing data from a view to its layout:
+     *   ViewBag.Title       dynamic wrapper over ViewData (convenient but
+     *                       not refactor-safe — no IntelliSense on keys)
+     *   @RenderSection      for larger HTML blocks, not scalar values
+     *   IViewContextAware   services that can access ViewContext directly
+     *
+     * Null-coalescing (??) provides a fallback title when the child view
+     * does not set ViewData["Title"] (e.g. error pages, 404 pages).
+     *
+     * COVERED IN DETAIL LATER → 12. TempData ViewData & ViewBag
+     *@
+    <title>@(ViewData["Title"] ?? "MVC Introduction App")</title>  @* ?? = fallback when key not set *@
+</head>
+<body>
+
+    <header>
+        <nav style="padding: 0.75rem 1rem; background: #1a1a2e; color: #eee;">
+            <a href="/" style="color: #e0e0e0; text-decoration: none; font-weight: bold;">
+                ASP.NET Core MVC — Introduction
+            </a>
+        </nav>
+    </header>
+
+    @*
+     * --- 15c. @RenderBody() and @RenderSection — INJECTION POINTS ---
+     *
+     * @RenderBody() marks the point where the child view's HTML is injected.
+     * There is exactly one @RenderBody() per layout file.
+     *
+     * @RenderSection(name, required) provides named injection slots for
+     * optional or required blocks of HTML from the child view:
+     *
+     *   In the layout (this file):
+     *     @RenderSection("scripts", required: false)
+     *
+     *   In the child view:
+     *     @section scripts {
+     *         <script src="~/js/page-specific.js"></script>
+     *     }
+     *
+     *   required: false  the layout renders fine if no child defines the section
+     *   required: true   an exception is thrown if the child omits the section
+     *
+     * COMMON NAMED SECTIONS:
+     *   scripts    page-specific JavaScript loaded at the bottom of <body>
+     *   styles     page-specific CSS loaded inside <head>
+     *   sidebar    per-page sidebar content in a two-column layout template
+     *   breadcrumb per-page breadcrumb trail injected into the header area
+     *
+     * COVERED IN DETAIL LATER → 04. Layouts Sections & Partial Views
+     *@
+    <main style="padding: 1rem;">
+        @RenderBody()   @* child view HTML is injected here at render time *@
+    </main>
+
+    <footer style="padding: 0.75rem 1rem; background: #f0f0f0; color: #555; font-size: 0.85rem;">
+        <p>05. ASP.NET Core MVC — Introduction to MVC Pattern</p>
+    </footer>
+
+    @RenderSection("scripts", required: false)  @* optional: page-specific scripts at body end *@
+
+</body>
+</html>

@@ -1,0 +1,83 @@
+@*
+ * FILE ROLE: Admin area-specific layout — demonstrates that an area can override
+ *   the root shared layout with its own chrome, navigation, and branding. Only
+ *   views inside Areas/Admin/Views/ use this layout (via the Admin _ViewStart.cshtml).
+ *
+ * SECTION 15: AREA-SPECIFIC LAYOUT
+ *
+ * WHEN TO USE AN AREA-SPECIFIC LAYOUT:
+ *   · Admin portal needs a sidebar, different header colour, or user-management nav
+ *   · Multi-brand apps where each area targets a different visual identity
+ *   · The area has significantly different navigation structure from the main site
+ *
+ * DISCOVERY: Why this layout overrides the root layout
+ *   Areas/Admin/Views/_ViewStart.cshtml sets Layout = "_Layout".
+ *   The Razor engine searches for _Layout.cshtml:
+ *     1. Areas/Admin/Views/Dashboard/_Layout.cshtml    → not found
+ *     2. Areas/Admin/Views/Shared/_Layout.cshtml       ← THIS FILE — found
+ *   The root Views/Shared/_Layout.cshtml is never reached.
+ *
+ * LINKING BACK TO ROOT OR OTHER AREAS FROM THIS LAYOUT:
+ *   This layout renders for Admin area views. The ambient area route value is "Admin".
+ *   To generate correct hrefs for non-Admin destinations, ALWAYS specify asp-area:
+ *
+ *   <a asp-area=""         asp-controller="Home"    asp-action="Index">Main Site</a>
+ *   → href="/"  (asp-area="" clears "Admin" ambient value)
+ *
+ *   <a asp-area="Customer" asp-controller="Account" asp-action="Profile">Customer</a>
+ *   → href="/Customer/Account/Profile"  (cross-area link)
+ *
+ *   Without asp-area="" the anchor tag helper would inherit "Admin" and produce:
+ *   → href="/Admin/Home/Index"  ← WRONG — HomeController has no [Area("Admin")]
+ *
+ * FORCE ROOT LAYOUT FROM WITHIN AN AREA VIEW (override area _ViewStart):
+ *   @{ Layout = "~/Views/Shared/_Layout.cshtml"; }  — tilde-rooted path bypasses discovery
+*@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin — @ViewData["Title"] — Areas Tutorial</title>
+    <style>
+        body     { font-family: sans-serif; margin: 0; padding: 0; }
+        .admin-header { background: #1a252f; padding: 0; }
+        .admin-topbar { background: #c0392b; padding: 8px 24px;
+                        font-size: 12px; color: #fadbd8; }
+        nav      { background: #1a252f; padding: 12px 24px; display: flex; gap: 16px; align-items: center; }
+        nav a    { color: #ecf0f1; text-decoration: none; font-weight: 500; }
+        nav a:hover { color: #e74c3c; }
+        .area-badge { background: #c0392b; color: white; font-size: 11px;
+                      padding: 2px 8px; border-radius: 3px; }
+        main     { padding: 32px 48px; }
+        footer   { background: #1a252f; color: #7f8c8d; padding: 12px 24px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <div class="admin-topbar">
+            <span class="area-badge">ADMIN AREA</span>
+            &nbsp; Area-specific layout: <code>Areas/Admin/Views/Shared/_Layout.cshtml</code>
+        </div>
+        <nav>
+            @* asp-area="" clears ambient "Admin" → generates href="/" *@
+            <a asp-area="" asp-controller="Home" asp-action="Index">&#8592; Main Site</a>
+
+            @* staying within Admin area — asp-area="Admin" is redundant but explicit *@
+            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+
+            @* cross-area link to Customer — asp-area="Customer" overrides ambient "Admin" *@
+            <a asp-area="Customer" asp-controller="Account" asp-action="Profile">Customer Area</a>
+        </nav>
+    </div>
+    <main>
+        @RenderBody()
+    </main>
+    <footer>
+        Admin area layout &nbsp;|&nbsp; root layout: <code>Views/Shared/_Layout.cshtml</code>
+        is NOT used for Admin area views
+    </footer>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

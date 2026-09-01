@@ -1,0 +1,57 @@
+@*
+ * FILE ROLE: Master layout template shared by all views in this project.
+ *            Demonstrates the layout mechanism — views set Layout = "_Layout" in
+ *            their @{} block and the engine wraps them in this template at the
+ *            @RenderBody() call site.
+ *
+ * KEY CONCEPTS DEMONSTRATED:
+ *   @ViewData["Title"]
+ *     Read from the dictionary set by the controller (ViewData["Title"] = "Home")
+ *     or by the view's own @{ ViewData["Title"] = "About"; } block.
+ *     The layout renders AFTER the view's @{} block executes, so the view's
+ *     title assignment is available here.
+ *
+ *   @RenderBody()
+ *     Inserts the main content of the child view at this location.
+ *     Every layout must call RenderBody() exactly once.
+ *
+ *   @await RenderSectionAsync("Scripts", required: false)
+ *     Renders the optional "Scripts" section defined in child views via
+ *     @section Scripts { <script>...</script> }.
+ *     required: false means views that omit the section do not cause an error.
+ *
+ * COVERED IN DETAIL LATER → 04. Layouts, Sections & Partial Views
+ *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Controllers &amp; Actions</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        nav a { margin-right: 1rem; }
+        nav { margin-bottom: 1.5rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 0.4rem 0.8rem; text-align: left; }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/Home/About">About</a>
+            <a href="/Products">Products</a>
+            <a href="/Products/Export">Export CSV</a>
+            <a href="/api/catalog">API (JSON)</a>
+        </nav>
+    </header>
+    <main>
+        @RenderBody()
+    </main>
+    <footer style="margin-top:2rem; color:#888; font-size:.85rem;">
+        05. ASP.NET Core MVC &mdash; 02. Controllers &amp; Actions
+    </footer>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

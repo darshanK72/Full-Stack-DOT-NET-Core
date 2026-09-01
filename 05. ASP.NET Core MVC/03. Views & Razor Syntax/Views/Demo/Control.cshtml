@@ -1,0 +1,177 @@
+@*
+ * FILE ROLE: Demonstrates all Razor control-flow constructs:
+ *            @if / @else if / @else, @switch, @for, @foreach, @while.
+ *
+ * SECTIONS IN THIS FILE:
+ *   1. @if / @else if / @else  — conditional rendering
+ *   2. @switch                 — multi-branch rendering
+ *   3. @foreach                — collection iteration
+ *   4. @for                   — index-based loop
+ *   5. @while                 — condition-based loop
+ *@
+@model ArticleViewModel
+
+@*
+ * SECTION 1: @if / @else IF / @else
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Syntax is identical to C# — only the leading @ is added. The body of each
+ * branch is in HTML mode: write HTML directly; use @ to transition into C#
+ * for expressions inside the branch body.
+ *
+ * RULES:
+ *   • Curly braces are required (unlike bare C# one-liners) because the body
+ *     may mix HTML and C#.
+ *   • @else and @else if must appear immediately after the closing } of the
+ *     previous branch (no whitespace before the @).
+ *   • Any C# boolean expression works in the condition.
+ *
+ * Common patterns:
+ *   @if (Model.IsPublished) { }      — bool property
+ *   @if (Model.Tags.Count > 0) { }  — comparison
+ *   @if (!string.IsNullOrEmpty(s)) { } — null/empty guard
+ *@
+
+<h1>@ViewBag.PageTitle</h1>
+
+<div class="card">
+    <h2>@@if / @@else — Publication Status</h2>
+
+    @if (Model.IsPublished)
+    {
+        <p style="color:green;"><strong>✓ Published</strong> on @Model.PublishedOn.ToString("d")</p>
+    }
+    else
+    {
+        <div class="draft">
+            <strong>⚠ Draft</strong> — this article is not yet public.
+        </div>
+    }
+
+    @* @else if — chained conditional *@
+    @{
+        int tagCount = Model.Tags.Count; // local variable for the chain below
+    }
+    @if (tagCount == 0)
+    {
+        <p>No tags assigned.</p>
+    }
+    else if (tagCount <= 2)
+    {
+        <p>@tagCount tag(s) — minimal tagging.</p>
+    }
+    else
+    {
+        <p>@tagCount tags — well categorised.</p>
+    }
+</div>
+
+@*
+ * SECTION 2: @switch
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @switch works exactly like a C# switch statement. Each case body is in HTML
+ * mode — write HTML directly, use @variables for dynamic values.
+ *
+ * RULES:
+ *   • @break is required to prevent fall-through (same as C#).
+ *   • @default handles the unmatched case.
+ *   • You can switch on any type that supports the == operator, including
+ *     string, int, enum, and expression patterns (C# 8+).
+ *@
+<div class="card">
+    <h2>@@switch — Tag Count Category</h2>
+
+    @switch (Model.Tags.Count)
+    {
+        case 0:
+            <p>No tags — uncategorised.</p>
+            break;
+        case 1:
+        case 2:
+            <p>@Model.Tags.Count tag(s) — lightly tagged.</p>
+            break;
+        case 3:
+        case 4:
+        case 5:
+            <p>@Model.Tags.Count tags — well tagged.</p>
+            break;
+        default:
+            <p>@Model.Tags.Count tags — heavily tagged.</p>
+            break;
+    }
+</div>
+
+@*
+ * SECTION 3: @foreach
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @foreach iterates any IEnumerable<T>. The loop variable (tag, item, etc.)
+ * is a typed C# variable — its properties and methods are available via @.
+ *
+ * RULES:
+ *   • The body is HTML mode — write HTML and @ expressions directly.
+ *   • Use @tag (or whatever the variable name is) to output the value.
+ *   • Nest another @foreach for collections of collections.
+ *   • Avoid heavy logic inside @foreach bodies — call a helper method instead.
+ *
+ * @foreach is the most common Razor loop. Use it whenever you have a list
+ * and do not need the index. Use @for when the index matters.
+ *@
+<div class="card">
+    <h2>@@foreach — Tags List</h2>
+    <ul>
+        @foreach (var tag in Model.Tags)
+        {
+            <li><span class="badge">@tag</span></li>   @* @tag — loop variable expression *@
+        }
+    </ul>
+</div>
+
+@*
+ * SECTION 4: @for
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @for provides an index-based loop. The initialiser, condition, and iterator
+ * are standard C# — only @ prefixes the keyword.
+ *
+ * USE @for WHEN:
+ *   • The index is needed (e.g. to render "1. Tag", "2. Tag")
+ *   • Alternate row styling (even/odd via i % 2)
+ *   • You need to skip items (i += 2)
+ *
+ * The iteration variable (i) and the collection are both accessible inside
+ * the HTML body via @ expressions.
+ *@
+<div class="card">
+    <h2>@@for — Numbered Tags</h2>
+    <ol>
+        @for (int i = 0; i < Model.Tags.Count; i++)
+        {
+            <li>@(i + 1). @Model.Tags[i]</li>   @* i+1 is a parenthesised expression; Tags[i] is implicit *@
+        }
+    </ol>
+</div>
+
+@*
+ * SECTION 5: @while
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @while evaluates a boolean condition before each iteration, same as C#.
+ * In practice @foreach is preferred for known collections. @while is useful
+ * when iterating a stream, reader, or state machine where the end condition
+ * is not simply "end of list".
+ *
+ * The example below shows a view-local index variable driving the loop —
+ * a pattern sometimes seen when processing reader results.
+ *@
+<div class="card">
+    <h2>@@while — First Two Tags</h2>
+    @{
+        int wi = 0; // local loop counter declared in code block
+    }
+    @while (wi < Model.Tags.Count && wi < 2)
+    {
+        <p>@(wi + 1): @Model.Tags[wi]</p>
+        @{ wi++; }  @* increment: code block needed — @while body is in HTML mode *@
+    }
+    @if (Model.Tags.Count > 2)
+    {
+        <p style="color:#6c757d; font-size:.85rem;">…and @(Model.Tags.Count - 2) more.</p>
+    }
+</div>

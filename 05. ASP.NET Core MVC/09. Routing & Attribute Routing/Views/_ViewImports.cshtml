@@ -1,0 +1,63 @@
+@* =============================================================================
+   SECTION 21: _ViewImports — TAG HELPER REGISTRATION & GLOBAL USINGS
+   =============================================================================
+   FILE ROLE: Applies @using directives and @addTagHelper registrations to every
+              Razor view in Views/ and all sub-folders.  Loaded once at startup;
+              settings cascade down the folder hierarchy.
+   =============================================================================
+
+   @using DIRECTIVES:
+     With ImplicitUsings disabled, Razor views see ONLY the namespaces listed here.
+     Add a namespace here to avoid fully-qualified type names in @model declarations
+     and inline Razor expressions.
+
+     RoutingAttributeRouting       — top-level types (none needed here, included for completeness)
+     RoutingAttributeRouting.Models — makes RouteDebugViewModel available without full qualification
+
+   HOW _ViewImports SCOPING WORKS:
+     The Razor engine walks UP the directory tree from each view file, collecting every
+     _ViewImports.cshtml it finds and applying them outer-to-inner.  A file in
+     Views/Home/_ViewImports.cshtml would EXTEND this root-level file, not replace it.
+
+   @addTagHelper SYNTAX:
+     @addTagHelper  TypePattern,  AssemblyName
+       TypePattern   — "*" for all types, or a fully-qualified class name to include one
+       AssemblyName  — the assembly/dll name (matches the .csproj name, NOT the namespace)
+
+   LINE 1 — built-in ASP.NET Core tag helpers:
+     Assembly: Microsoft.AspNetCore.Mvc.TagHelpers
+     Includes:
+       AnchorTagHelper    — <a asp-action asp-controller asp-route-* asp-route asp-area>
+       FormTagHelper      — <form asp-action asp-controller asp-antiforgery>
+       InputTagHelper     — <input asp-for />
+       LabelTagHelper     — <label asp-for></label>
+       SelectTagHelper    — <select asp-for asp-items>
+       TextAreaTagHelper  — <textarea asp-for></textarea>
+       ValidationTagHelper — <span asp-validation-for>
+       EnvironmentTagHelper — <environment include="Development">
+       PartialTagHelper   — <partial name="_PartialView" />
+       CacheTagHelper     — <cache expires-after="...">
+       ImageTagHelper     — <img asp-append-version="true">
+       LinkTagHelper      — <link asp-append-version="true">
+       ScriptTagHelper    — <script asp-append-version="true">
+
+   LINE 2 — custom tag helpers from this project's assembly:
+     Assembly: RoutingAttributeRouting (from RoutingAttributeRouting.csproj)
+     This project defines no custom tag helpers; the line is included to show
+     the correct syntax and is harmless when no custom helpers exist.
+
+   @removeTagHelper — OPT OUT:
+     @removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.FormTagHelper,
+         Microsoft.AspNetCore.Mvc.TagHelpers
+     Use when a built-in helper conflicts with existing HTML or a third-party helper.
+
+   @tagHelperPrefix — REQUIRE A PREFIX:
+     @tagHelperPrefix th:
+     After this, only <th:form asp-action="..."> activates the tag helper;
+     plain <form asp-action="..."> is treated as regular HTML.
+     Useful in content-heavy pages mixing tag helper markup with raw HTML.
+*@
+@using RoutingAttributeRouting
+@using RoutingAttributeRouting.Models
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, RoutingAttributeRouting

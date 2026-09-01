@@ -1,0 +1,46 @@
+@*
+ * FILE ROLE: Runs before every view in this folder (and sub-folders) to set
+ *            common properties — most importantly Layout, which names the
+ *            shared _Layout.cshtml shell that wraps each view's content.
+ *
+ * SECTIONS IN THIS FILE:
+ *   1. Layout assignment — how _ViewStart selects the default layout
+ *
+ * HOW _ViewStart.cshtml WORKS:
+ *   Like _ViewImports.cshtml, the Razor engine walks the folder tree and
+ *   executes every _ViewStart.cshtml it encounters before rendering a view.
+ *   Inner-folder _ViewStart files run AFTER the outer one, so a Views/Admin/
+ *   _ViewStart can override Layout for just the Admin section.
+ *
+ *   The code block here runs in the same context as the view, so the Layout
+ *   property is the same Layout that can be overridden inside any view with:
+ *       @{ Layout = "~/Views/Shared/_CustomLayout.cshtml"; }
+ *   or suppressed entirely:
+ *       @{ Layout = null; }
+ *
+ * WHAT BELONGS HERE:
+ *   Only code that should run before EVERY view — typically just Layout = "...".
+ *   Avoid business logic; this is a configuration entry-point, not a controller.
+ *@
+
+@*
+ * SECTION 1: DEFAULT LAYOUT ASSIGNMENT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Layout is a string property on the view's base class (RazorPage).
+ * Setting it here means every view automatically uses _Layout.cshtml as its
+ * outer HTML shell without needing to repeat the assignment in each file.
+ *
+ * PATH CONVENTIONS:
+ *   "_Layout"            — Razor searches /Views/Shared/ and /Views/ (relative)
+ *   "~/Views/Shared/_Layout.cshtml" — absolute virtual path from app root (~/);
+ *                           safest form to avoid ambiguity in complex layouts
+ *
+ * HOW LAYOUT NESTING WORKS (RenderBody / RenderSection):
+ *   _Layout.cshtml calls @RenderBody() where the view's HTML is inserted.
+ *   Optional sections can be declared with @RenderSection("name", required:false)
+ *   and filled from views with @section name { ... }.
+ *   Detail in → Views/Shared/_Layout.cshtml
+ *@
+@{
+    Layout = "_Layout";   // resolves to Views/Shared/_Layout.cshtml
+}

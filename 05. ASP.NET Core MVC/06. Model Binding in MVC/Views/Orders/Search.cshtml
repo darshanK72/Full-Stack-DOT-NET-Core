@@ -1,0 +1,126 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+ * VIEW: Orders/Search.cshtml
+ *
+ * DEMONSTRATES:
+ *   - [FromQuery] binding for scalar parameters and a complex query model
+ *   - Query string URL construction via asp-route-* Tag Helper attributes
+ *   - Nullable types — how absent query keys map to null properties
+ *   - Preserving current query values on form re-submission
+ *
+ * BINDING FLOW (GET /Orders/Search?keyword=widget&page=2&minPrice=10):
+ *   1. Request arrives with query string values.
+ *   2. MVC creates an empty SearchQuery instance.
+ *   3. For each property, the QueryStringValueProvider looks up the key
+ *      (case-insensitive match: "keyword" → Keyword, "page" → Page, etc.).
+ *   4. Values are parsed to the property type; absent keys leave the property
+ *      at its default (null for string?, 0→overridden by initializer for int).
+ *   5. ModelState is checked — if valid, the view renders results.
+ * ═══════════════════════════════════════════════════════════════════════════════ *@
+@model SearchQuery
+@{ ViewData["Title"] = "Search Orders"; }
+
+<h2>Search Orders</h2>
+<p>
+    This form submits as a GET request — all inputs become query string parameters.
+    The controller action uses <code>[FromQuery] SearchQuery query</code> to bind them.
+    Inspect the URL after submitting to see the query string that the binder reads.
+</p>
+
+@* GET form — method="get" submits fields as ?key=value query string *@
+<form method="get" asp-action="Search">
+
+    <div class="form-group">
+        @*
+         * asp-for="Keyword" generates: name="Keyword"
+         * Absent or empty → SearchQuery.Keyword = null (string? does not error when missing)
+         *@
+        <label asp-for="Keyword">Keyword</label>
+        <input asp-for="Keyword" placeholder="e.g. widget" />
+    </div>
+
+    <div class="form-group" style="display:flex;gap:1rem;">
+        <div>
+            @*
+             * asp-for="MinPrice" → name="MinPrice"
+             * Type is decimal? — absent field → null; non-decimal → ModelState error
+             *@
+            <label asp-for="MinPrice">Min Price</label>
+            <input asp-for="MinPrice" type="number" step="0.01" />
+        </div>
+        <div>
+            <label asp-for="MaxPrice">Max Price</label>
+            <input asp-for="MaxPrice" type="number" step="0.01" />
+        </div>
+    </div>
+
+    <div class="form-group" style="display:flex;gap:1rem;">
+        <div>
+            @*
+             * int Page — default = 1 in the model initializer.
+             * If the form field is absent, Page = 1 (from the property default, not binding).
+             * If the form submits "page=abc", ModelState gets an error for Page.
+             *@
+            <label asp-for="Page">Page</label>
+            <input asp-for="Page" type="number" min="1" />
+        </div>
+        <div>
+            <label asp-for="PageSize">Page Size</label>
+            <input asp-for="PageSize" type="number" min="1" max="100" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        @*
+         * bool SortDescending — parsed from "true"/"false" or "on"/"off" (checkbox).
+         * asp-for generates a hidden input for the false case automatically so that
+         * unchecking the checkbox still posts a value (false), preventing the binder
+         * from leaving the field at its default.
+         *@
+        <label>
+            <input asp-for="SortDescending" type="checkbox" />
+            Sort Descending
+        </label>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="SortBy">Sort By</label>
+        <select asp-for="SortBy">
+            <option value="">— none —</option>
+            <option value="customerName">Customer Name</option>
+            <option value="orderDate">Order Date</option>
+        </select>
+    </div>
+
+    @*
+     * CategoryIds (List<int>) — repeated key notation in the URL:
+     * ?categoryIds=1&categoryIds=3&categoryIds=7
+     * Each separate input with the same name contributes one element.
+     * The binder collects all values for "CategoryIds" into the list.
+     *@
+    <div class="form-group">
+        <label>Categories</label><br />
+        <label><input type="checkbox" name="CategoryIds" value="1" /> Electronics</label><br />
+        <label><input type="checkbox" name="CategoryIds" value="2" /> Books</label><br />
+        <label><input type="checkbox" name="CategoryIds" value="3" /> Clothing</label>
+        <br /><small>Each checked box adds ?CategoryIds=N to the query string (repeated key)</small>
+    </div>
+
+    <button type="submit">Search</button>
+</form>
+
+@if (ViewBag.Query != null)
+{
+    <hr />
+    <h3>Bound Query Values</h3>
+    <table>
+        <tr><th>Keyword</th>      <td>@(Model.Keyword ?? "(null)")</td></tr>
+        <tr><th>Page</th>         <td>@Model.Page</td></tr>
+        <tr><th>PageSize</th>     <td>@Model.PageSize</td></tr>
+        <tr><th>SortBy</th>       <td>@(Model.SortBy ?? "(null)")</td></tr>
+        <tr><th>SortDesc</th>     <td>@Model.SortDescending</td></tr>
+        <tr><th>MinPrice</th>     <td>@(Model.MinPrice?.ToString() ?? "(null)")</td></tr>
+        <tr><th>MaxPrice</th>     <td>@(Model.MaxPrice?.ToString() ?? "(null)")</td></tr>
+        <tr><th>CategoryIds</th>  <td>@string.Join(", ", Model.CategoryIds)</td></tr>
+    </table>
+    <p>Result count (simulated): @ViewBag.ResultCount</p>
+}

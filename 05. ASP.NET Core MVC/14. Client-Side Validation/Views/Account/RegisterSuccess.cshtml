@@ -1,0 +1,30 @@
+@*
+ * RegisterSuccess.cshtml — SUCCESS PAGE
+ *
+ * FILE ROLE: The GET-only success page reached via the Post/Redirect/Get pattern.
+ *            Shows how TempData survives across one redirect and is then automatically cleared.
+ *@
+@{
+    ViewData["Title"] = "Registration Successful";
+}
+
+<h2>Registration Successful</h2>
+
+@*
+ * TempData["RegisteredUser"] was set in the POST action before RedirectToAction.
+ * It persists across exactly ONE redirect. Reading it here consumes it — a refresh
+ * of this page would show null because TempData is cleared after the first read.
+ *
+ * TempData is session-backed (cookie or distributed cache), not related to validation.
+ * It is the standard way to pass a transient message across a PRG redirect.
+ *@
+@if (TempData["RegisteredUser"] is string userName)
+{
+    <p>Welcome, <strong>@userName</strong>! Your account has been created.</p>
+}
+else
+{
+    <p>Your account has been created.</p>
+}
+
+<p><a href="/Account/Register">Register another account</a></p>
