@@ -1,6 +1,114 @@
 # 06. Multithreading & Async Programming — Interview Q&A
 > Back to [README](../README.md)
 
+## Module Index — Subfolder Q&A Files
+
+Each subfolder has its own focused INTERVIEW_QA.md with 12–18 Foundation questions, 4–6 Gotchas, and 5–8 Real-World Scenarios.
+
+| # | Topic | File |
+|---|-------|------|
+| 01 | Threads & Thread Lifecycle | [INTERVIEW_QA.md](01.%20Threads%20%26%20Thread%20Lifecycle/INTERVIEW_QA.md) |
+| 02 | ThreadPool | [INTERVIEW_QA.md](02.%20ThreadPool/INTERVIEW_QA.md) |
+| 03 | Tasks & Task Parallel Library | [INTERVIEW_QA.md](03.%20Tasks%20%26%20Task%20Parallel%20Library/INTERVIEW_QA.md) |
+| 04 | Async and Await | [INTERVIEW_QA.md](04.%20Async%20and%20Await/INTERVIEW_QA.md) |
+| 05 | Parallel Programming | [INTERVIEW_QA.md](05.%20Parallel%20Programming/INTERVIEW_QA.md) |
+| 06 | Synchronization and Locks | [INTERVIEW_QA.md](06.%20Synchronization%20and%20Locks/INTERVIEW_QA.md) |
+| 07 | Concurrent Collections | [INTERVIEW_QA.md](07.%20Concurrent%20Collections/INTERVIEW_QA.md) |
+
+---
+
+## Cross-Cutting Questions — Spanning the Full Module
+
+---
+
+### CQ1. How do Thread, ThreadPool, Task, async/await, and Parallel relate to each other — when do you reach for each?
+
+**Concepts**
+- Thread: OS thread, manual lifecycle, STA/priority control
+- ThreadPool: reusable threads, foundation for Task and async I/O
+- Task: logical work unit, composable, cancellable, awaitable
+- async/await: non-blocking I/O via state machine, suspends without holding threads
+- Parallel: data parallelism, CPU-bound partitioning over ThreadPool
+- Vertical stack: async/await → Task → ThreadPool → Thread (most→least abstraction)
+
+**Answer**
+
+These abstractions form a vertical stack, each building on the one below. `Thread` is the OS-level resource. `ThreadPool` manages a pool of threads to amortize creation cost. `Task` is a logical unit of work that is scheduled on the ThreadPool by default. `async/await` is a compiler transformation that suspends a method at I/O boundaries and schedules the continuation on the ThreadPool (or back on a `SynchronizationContext`), without holding any thread during the wait. `Parallel` is a data-parallelism abstraction that partitions collections across ThreadPool threads for CPU-bound work.
+
+The guidance for choosing: for I/O-bound operations (HTTP, database, disk), use `async/await` — no threads are held during the wait. For CPU-bound parallel work over collections, use `Parallel.For`/`ForEach` or PLINQ. For one-off CPU-bound work, use `Task.Run`. For long-running dedicated work (minutes to hours), use `Task.Factory.StartNew` with `LongRunning` or `new Thread` with `IsBackground = true`. For cross-process synchronization or STA COM interop, use `new Thread` directly. In modern C# (.NET 10), raw `Thread` usage is increasingly rare — `Task`, `async/await`, and `Channel<T>` cover the vast majority of concurrency needs.
+
+---
+
+### CQ2. How do CancellationToken, SynchronizationContext, and AsyncLocal<T> work together in a request-scoped async pipeline?
+
+**Concepts**
+- CancellationToken: cooperative stop signal flowing down the call chain
+- SynchronizationContext: thread-affinity for continuation scheduling
+- AsyncLocal<T>: per-execution-context ambient values flowing with async continuations
+- Request lifecycle: token from HttpContext; context from DI; correlation id via AsyncLocal
+- Together: structured async with proper cancellation, marshaling, and context flow
+
+**Answer**
+
+In an ASP.NET Core request pipeline, these three mechanisms cooperate to give each request a self-contained execution context. `CancellationToken` (from `HttpContext.RequestAborted`) propagates the request's lifecycle downward through every service call — when the client disconnects, every layer can observe the cancellation cooperatively and stop work. `SynchronizationContext` in ASP.NET Core is `null` by default, meaning `await` continuations run on any ThreadPool thread, enabling high throughput without UI-style thread affinity. `AsyncLocal<T>` (used internally by `IHttpContextAccessor`, `Activity.Current`, and `ILogger`'s scopes) flows ambient context — like a correlation ID — across thread hops in the async call chain without passing it explicitly through every method signature.
+
+The interplay: when a continuation runs on a different ThreadPool thread after `await`, the `CancellationToken` remains valid (it is a struct carried in parameters), `AsyncLocal` values are restored from the captured execution context, and `SynchronizationContext` determines where the continuation is posted. Misusing any of these — forgetting to pass the token, calling `.Result` while a `SynchronizationContext` is captured, or using `ThreadLocal<T>` instead of `AsyncLocal<T>` for request context — breaks the isolation and correctness of the pipeline.
+
+---
+
+### CQ3. How do you choose between lock, SemaphoreSlim, Channel<T>, and concurrent collections for shared state in an async service?
+
+**Concepts**
+- lock: exclusive synchronous access (not usable inside async methods)
+- SemaphoreSlim.WaitAsync(): async-compatible exclusive or N-concurrent access
+- Channel<T>: async producer-consumer with built-in backpressure and lifecycle
+- ConcurrentDictionary/Queue: individual-operation thread safety, no async wait
+- Design principle: prefer message-passing (Channel) over shared mutable state
+
+**Answer**
+
+The choice depends on the access pattern and whether the code is async. `lock` cannot be held across an `await` — attempting it will either fail to compile or (in rare cases) release the lock prematurely. For any section that must remain exclusive while doing async work, use `SemaphoreSlim(1,1)` with `WaitAsync()`: it provides the same mutual exclusion as `lock` but releases the thread during the wait.
+
+For N-concurrent access (e.g., at most 5 DB connections), use `SemaphoreSlim(N, N)`. For read-heavy state, `ReaderWriterLockSlim` with `EnterReadLock`/`EnterWriteLock` reduces contention — though it lacks an async API and should be paired with `Task.Run` if reads are I/O-bound. For individual dictionary or queue operations in a multithreaded context, `ConcurrentDictionary<TK,TV>` or `ConcurrentQueue<T>` are the right choice. For producer-consumer pipelines where producers and consumers run at different rates, `Channel<T>` is the modern best practice — it provides async backpressure, bounded capacity, and clean completion semantics without manual synchronization.
+
+The deeper principle: prefer message-passing and data ownership (via `Channel<T>` or `ImmutableDictionary`) over shared mutable state protected by locks. When state must be shared and mutated, the lock hierarchy should be clear and lock scope should be minimal.
+
+---
+
+### CQ4. Walk through all the ways an async/await operation can go wrong — from ThreadPool starvation to deadlock to silent exception loss.
+
+**Concepts**
+- ThreadPool starvation: blocking pool threads with .Result/.Wait()
+- Deadlock: .Result on SynchronizationContext-captured thread
+- Silent exception loss: async void, unobserved Task, fire-and-forget
+- Context issues: ConfigureAwait(false) missing in library, or present in UI code
+- Variable capture: closure captures loop variable by reference
+
+**Answer**
+
+Async/await failures cluster into five categories. (1) **ThreadPool starvation**: calling `.Result` or `.Wait()` on a `Task` inside an async pipeline blocks a pool thread for the duration of the awaited I/O. Under load, all pool threads block simultaneously; the hill-climbing algorithm injects replacements at ~1/500ms — too slowly, causing cascading timeouts. Fix: `await` all the way through. (2) **Deadlock**: in WPF or ASP.NET Classic, `SynchronizationContext` is captured at `await`; calling `.Result` on the captured context thread means the continuation can never post back — circular wait. Fix: `async` all the way, or `ConfigureAwait(false)` in library code. (3) **Silent exception loss**: `async void` posts exceptions to the `SynchronizationContext` and crashes the process; unobserved faulted tasks silently vanish. Fix: return `async Task`, never `async void` outside event handlers; observe all tasks. (4) **Context misuse**: `ConfigureAwait(false)` in UI code means the continuation runs on a ThreadPool thread and crashes on UI element access; missing it in a library causes an avoidable context switch and potential deadlock. Fix: library code always uses `ConfigureAwait(false)`; UI event handlers never do. (5) **Variable capture**: loop-started tasks capture the loop variable by reference — all tasks may see the final loop value. Fix: copy to a local before capturing in the lambda.
+
+---
+
+### CQ5. How do you design a graceful shutdown for a .NET service that has background threads, async hosted services, and Channel-based pipelines?
+
+**Concepts**
+- IHostedService.StopAsync receives CancellationToken (shutdown deadline)
+- CancellationTokenSource linked to shutdown token
+- Channel.Writer.Complete() to stop pipeline consumers
+- Thread.Join with timeout for raw background threads
+- Flush and drain before returning from StopAsync
+
+**Answer**
+
+A .NET service shutdown requires all components to observe the cancellation signal, finish in-flight work, and clean up before the host process exits. The `IHostedService.StopAsync(CancellationToken stoppingToken)` method provides a cancellation token that fires when shutdown is requested (typically SIGTERM, Ctrl+C, or `Environment.Exit`). The token has a deadline — ASP.NET Core's default shutdown timeout is 30 seconds.
+
+The correct sequence: (1) Signal all production loops to stop: call `_cancellationTokenSource.Cancel()`, which flows into any `Channel<T>` writer's `WriteAsync(item, ct)` and all `await Task.Delay(..., ct)` retry loops. (2) Complete any `Channel<T>` writers: `channel.Writer.Complete()` so consumer `ReadAllAsync()` loops drain and exit. (3) Await in-flight tasks: `await Task.WhenAll(allBackgroundTasks)` with a timeout via `Task.WhenAny(..., Task.Delay(timeout, CancellationToken.None))`. (4) Join any raw background threads: `thread.Join(TimeSpan.FromSeconds(5))` and log a warning if the thread did not stop. (5) Dispose resources: `await channel.Reader.Completion`, then `_cancellationTokenSource.Dispose()`.
+
+The key anti-patterns to avoid: not passing the shutdown token to all blocking/delaying operations (leaves them running after stop is signaled), not draining `Channel<T>` before returning (loses buffered items), and calling `GC.Collect()` or throwing exceptions from `StopAsync` (delays or breaks the shutdown sequence for other hosted services).
+
+---
+
 ## Table of Contents
 
 - [01. Threads & Thread Lifecycle](#01-threads-thread-lifecycle)
