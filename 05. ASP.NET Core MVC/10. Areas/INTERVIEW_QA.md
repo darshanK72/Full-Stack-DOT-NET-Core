@@ -1,35 +1,30 @@
 # Areas — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 10. Areas](#chapter-10-areas)
-  - [Q1. What are Areas in ASP.NET Core MVC?](#chapter-10-areas-q1)
-  - [Q2. Why use Areas instead of controller name prefixes?](#chapter-10-areas-q2)
-  - [Q3. What folder structure is required for an Area?](#chapter-10-areas-q3)
-  - [Q4. What is the `[Area("Admin")]` attribute and why is it requir…](#chapter-10-areas-q4)
-  - [Q5. How is area routing registered in `Program.cs`?](#chapter-10-areas-q5)
-  - [Q6. What is the standard areas route pattern?](#chapter-10-areas-q6)
-  - [Q7. Why does route registration order matter for Areas?](#chapter-10-areas-q7)
-  - [Q8. How do you generate links to area controllers using Tag Help…](#chapter-10-areas-q8)
-  - [Q9. What happens when `asp-controller` is used without `asp-area…](#chapter-10-areas-q9)
-  - [Q10. What is the difference between root `Controllers` and `Areas…](#chapter-10-areas-q10)
-  - [Q11. Can two controllers have the same name in different Areas?](#chapter-10-areas-q11)
-  - [Q12. Where should shared partials used by multiple Areas live?](#chapter-10-areas-q12)
-  - [Q13. How does layout resolution work for Area views?](#chapter-10-areas-q13)
-  - [Q14. What is `Areas/{AreaName}/Views/_ViewStart.cshtml` used for?](#chapter-10-areas-q14)
-  - [Q15. How do `_ViewImports` files scope between root Views and Are…](#chapter-10-areas-q15)
-  - [Q16. How do you apply authorization to an entire Area?](#chapter-10-areas-q16)
-  - [Q17. How do you map `/Admin` to a default dashboard action in the…](#chapter-10-areas-q17)
-  - [Q18. When should you use Areas vs Razor Class Libraries vs separa…](#chapter-10-areas-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are Areas in ASP.NET Core MVC?](#q1-what-are-areas-in-aspnet-core-mvc)
+2. [Q2. Why use Areas instead of controller name prefixes?](#q2-why-use-areas-instead-of-controller-name-prefixes)
+3. [Q3. What folder structure is required for an Area?](#q3-what-folder-structure-is-required-for-an-area)
+4. [Q4. What is the `[Area("Admin")]` attribute and why is it required?](#q4-what-is-the-areaadmin-attribute-and-why-is-it-required)
+5. [Q5. How is area routing registered in `Program.cs`?](#q5-how-is-area-routing-registered-in-programcs)
+6. [Q6. What is the standard areas route pattern?](#q6-what-is-the-standard-areas-route-pattern)
+7. [Q7. Why does route registration order matter for Areas?](#q7-why-does-route-registration-order-matter-for-areas)
+8. [Q8. How do you generate links to area controllers using Tag Helpers?](#q8-how-do-you-generate-links-to-area-controllers-using-tag-helpers)
+9. [Q9. What happens when `asp-controller` is used without `asp-area` from within an Area view?](#q9-what-happens-when-asp-controller-is-used-without-asp-area-from-within-an-area-view)
+10. [Q10. What is the difference between root `Controllers` and `Areas/Admin/Controllers`?](#q10-what-is-the-difference-between-root-controllers-and-areasadmincontrollers)
+11. [Q11. Can two controllers have the same name in different Areas?](#q11-can-two-controllers-have-the-same-name-in-different-areas)
+12. [Q12. Where should shared partials used by multiple Areas live?](#q12-where-should-shared-partials-used-by-multiple-areas-live)
+13. [Q13. How does layout resolution work for Area views?](#q13-how-does-layout-resolution-work-for-area-views)
+14. [Q14. What is `Areas/{AreaName}/Views/_ViewStart.cshtml` used for?](#q14-what-is-areasareanameviews_viewstartcshtml-used-for)
+15. [Q15. How do `_ViewImports` files scope between root Views and Area Views?](#q15-how-do-_viewimports-files-scope-between-root-views-and-area-views)
+16. [Q16. How do you apply authorization to an entire Area?](#q16-how-do-you-apply-authorization-to-an-entire-area)
+17. [Q17. How do you map `/Admin` to a default dashboard action in the Admin area?](#q17-how-do-you-map-admin-to-a-default-dashboard-action-in-the-admin-area)
+18. [Q18. When should you use Areas vs Razor Class Libraries vs separate applications?](#q18-when-should-you-use-areas-vs-razor-class-libraries-vs-separate-applications)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 10. Areas
-
-### Q1. What are Areas in ASP.NET Core MVC? {#chapter-10-areas-q1}
+## Q1. What are Areas in ASP.NET Core MVC?
 
 What are Areas in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What are Areas in ASP.NET Core MVC?
 
 ---
 
-### Q2. Why use Areas instead of controller name prefixes? {#chapter-10-areas-q2}
+## Q2. Why use Areas instead of controller name prefixes?
 
 Why use Areas instead of controller name prefixes?
 
@@ -55,7 +50,7 @@ Why use Areas instead of controller name prefixes?
 
 ---
 
-### Q3. What folder structure is required for an Area? {#chapter-10-areas-q3}
+## Q3. What folder structure is required for an Area?
 
 What folder structure is required for an Area?
 
@@ -68,7 +63,7 @@ What folder structure is required for an Area?
 
 ---
 
-### Q4. What is the `[Area("Admin")]` attribute and why is it required? {#chapter-10-areas-q4}
+## Q4. What is the `[Area("Admin")]` attribute and why is it required?
 
 What is the `[Area("Admin")]` attribute and why is it required?
 
@@ -81,7 +76,7 @@ What is the `[Area("Admin")]` attribute and why is it required?
 
 ---
 
-### Q5. How is area routing registered in `Program.cs`? {#chapter-10-areas-q5}
+## Q5. How is area routing registered in `Program.cs`?
 
 How is area routing registered in `Program.cs`?
 
@@ -94,7 +89,7 @@ How is area routing registered in `Program.cs`?
 
 ---
 
-### Q6. What is the standard areas route pattern? {#chapter-10-areas-q6}
+## Q6. What is the standard areas route pattern?
 
 What is the standard areas route pattern?
 
@@ -107,7 +102,7 @@ What is the standard areas route pattern?
 
 ---
 
-### Q7. Why does route registration order matter for Areas? {#chapter-10-areas-q7}
+## Q7. Why does route registration order matter for Areas?
 
 Why does route registration order matter for Areas?
 
@@ -120,7 +115,7 @@ Why does route registration order matter for Areas?
 
 ---
 
-### Q8. How do you generate links to area controllers using Tag Helpers? {#chapter-10-areas-q8}
+## Q8. How do you generate links to area controllers using Tag Helpers?
 
 How do you generate links to area controllers using Tag Helpers?
 
@@ -133,7 +128,7 @@ How do you generate links to area controllers using Tag Helpers?
 
 ---
 
-### Q9. What happens when `asp-controller` is used without `asp-area` from within an Area view? {#chapter-10-areas-q9}
+## Q9. What happens when `asp-controller` is used without `asp-area` from within an Area view?
 
 What happens when `asp-controller` is used without `asp-area` from within an Area view?
 
@@ -146,7 +141,7 @@ What happens when `asp-controller` is used without `asp-area` from within an Are
 
 ---
 
-### Q10. What is the difference between root `Controllers` and `Areas/Admin/Controllers`? {#chapter-10-areas-q10}
+## Q10. What is the difference between root `Controllers` and `Areas/Admin/Controllers`?
 
 What is the difference between root `Controllers` and `Areas/Admin/Controllers`?
 
@@ -159,7 +154,7 @@ What is the difference between root `Controllers` and `Areas/Admin/Controllers`?
 
 ---
 
-### Q11. Can two controllers have the same name in different Areas? {#chapter-10-areas-q11}
+## Q11. Can two controllers have the same name in different Areas?
 
 Can two controllers have the same name in different Areas?
 
@@ -172,7 +167,7 @@ Can two controllers have the same name in different Areas?
 
 ---
 
-### Q12. Where should shared partials used by multiple Areas live? {#chapter-10-areas-q12}
+## Q12. Where should shared partials used by multiple Areas live?
 
 Where should shared partials used by multiple Areas live?
 
@@ -185,7 +180,7 @@ Where should shared partials used by multiple Areas live?
 
 ---
 
-### Q13. How does layout resolution work for Area views? {#chapter-10-areas-q13}
+## Q13. How does layout resolution work for Area views?
 
 How does layout resolution work for Area views?
 
@@ -198,7 +193,7 @@ How does layout resolution work for Area views?
 
 ---
 
-### Q14. What is `Areas/{AreaName}/Views/_ViewStart.cshtml` used for? {#chapter-10-areas-q14}
+## Q14. What is `Areas/{AreaName}/Views/_ViewStart.cshtml` used for?
 
 What is `Areas/{AreaName}/Views/_ViewStart.cshtml` used for?
 
@@ -211,7 +206,7 @@ What is `Areas/{AreaName}/Views/_ViewStart.cshtml` used for?
 
 ---
 
-### Q15. How do `_ViewImports` files scope between root Views and Area Views? {#chapter-10-areas-q15}
+## Q15. How do `_ViewImports` files scope between root Views and Area Views?
 
 How do `_ViewImports` files scope between root Views and Area Views?
 
@@ -224,7 +219,7 @@ How do `_ViewImports` files scope between root Views and Area Views?
 
 ---
 
-### Q16. How do you apply authorization to an entire Area? {#chapter-10-areas-q16}
+## Q16. How do you apply authorization to an entire Area?
 
 How do you apply authorization to an entire Area?
 
@@ -237,7 +232,7 @@ How do you apply authorization to an entire Area?
 
 ---
 
-### Q17. How do you map `/Admin` to a default dashboard action in the Admin area? {#chapter-10-areas-q17}
+## Q17. How do you map `/Admin` to a default dashboard action in the Admin area?
 
 How do you map `/Admin` to a default dashboard action in the Admin area?
 
@@ -250,7 +245,7 @@ How do you map `/Admin` to a default dashboard action in the Admin area?
 
 ---
 
-### Q18. When should you use Areas vs Razor Class Libraries vs separate applications? {#chapter-10-areas-q18}
+## Q18. When should you use Areas vs Razor Class Libraries vs separate applications?
 
 When should you use Areas vs Razor Class Libraries vs separate applications?
 

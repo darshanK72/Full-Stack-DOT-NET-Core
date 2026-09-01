@@ -1,35 +1,30 @@
 # WebSockets & Real-Time Transport — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 15. WebSockets & Real-Time Transport](#chapter-15-websockets-real-time-transport)
-  - [Q1. What are WebSockets, and how do they differ from regular HTT…](#chapter-15-websockets-real-time-transport-q1)
-  - [Q2. How do you enable WebSockets in ASP.NET Core?](#chapter-15-websockets-real-time-transport-q2)
-  - [Q3. Where must `UseWebSockets()` be placed in the middleware pip…](#chapter-15-websockets-real-time-transport-q3)
-  - [Q4. What happens during a WebSocket upgrade request?](#chapter-15-websockets-real-time-transport-q4)
-  - [Q5. What server resources are consumed by an open WebSocket conn…](#chapter-15-websockets-real-time-transport-q5)
-  - [Q6. What is SignalR?](#chapter-15-websockets-real-time-transport-q6)
-  - [Q7. What is the difference between SignalR and raw WebSockets?](#chapter-15-websockets-real-time-transport-q7)
-  - [Q8. When would you choose SignalR over raw WebSockets?](#chapter-15-websockets-real-time-transport-q8)
-  - [Q9. What is a SignalR backplane, and why is it needed?](#chapter-15-websockets-real-time-transport-q9)
-  - [Q10. How do you scale WebSocket/SignalR applications across multi…](#chapter-15-websockets-real-time-transport-q10)
-  - [Q11. How is authentication handled for WebSocket connections?](#chapter-15-websockets-real-time-transport-q11)
-  - [Q12. What are WebSocket message size limits in ASP.NET Core/Kestr…](#chapter-15-websockets-real-time-transport-q12)
-  - [Q13. What is WebSocket backpressure, and why does it matter for b…](#chapter-15-websockets-real-time-transport-q13)
-  - [Q14. How do you detect and clean up stale WebSocket connections?](#chapter-15-websockets-real-time-transport-q14)
-  - [Q15. What is the difference between WebSocket and Server-Sent Eve…](#chapter-15-websockets-real-time-transport-q15)
-  - [Q16. What is long polling, and how does it compare to WebSockets?](#chapter-15-websockets-real-time-transport-q16)
-  - [Q17. What is a SignalR Hub?](#chapter-15-websockets-real-time-transport-q17)
-  - [Q18. What security risks exist when clients self-identify via the…](#chapter-15-websockets-real-time-transport-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are WebSockets, and how do they differ from regular HTTP requests?](#q1-what-are-websockets-and-how-do-they-differ-from-regular-http-requests)
+2. [Q2. How do you enable WebSockets in ASP.NET Core?](#q2-how-do-you-enable-websockets-in-aspnet-core)
+3. [Q3. Where must `UseWebSockets()` be placed in the middleware pipeline?](#q3-where-must-usewebsockets-be-placed-in-the-middleware-pipeline)
+4. [Q4. What happens during a WebSocket upgrade request?](#q4-what-happens-during-a-websocket-upgrade-request)
+5. [Q5. What server resources are consumed by an open WebSocket connection?](#q5-what-server-resources-are-consumed-by-an-open-websocket-connection)
+6. [Q6. What is SignalR?](#q6-what-is-signalr)
+7. [Q7. What is the difference between SignalR and raw WebSockets?](#q7-what-is-the-difference-between-signalr-and-raw-websockets)
+8. [Q8. When would you choose SignalR over raw WebSockets?](#q8-when-would-you-choose-signalr-over-raw-websockets)
+9. [Q9. What is a SignalR backplane, and why is it needed?](#q9-what-is-a-signalr-backplane-and-why-is-it-needed)
+10. [Q10. How do you scale WebSocket/SignalR applications across multiple server instances?](#q10-how-do-you-scale-websocketsignalr-applications-across-multiple-server-instances)
+11. [Q11. How is authentication handled for WebSocket connections?](#q11-how-is-authentication-handled-for-websocket-connections)
+12. [Q12. What are WebSocket message size limits in ASP.NET Core/Kestrel?](#q12-what-are-websocket-message-size-limits-in-aspnet-corekestrel)
+13. [Q13. What is WebSocket backpressure, and why does it matter for broadcasts?](#q13-what-is-websocket-backpressure-and-why-does-it-matter-for-broadcasts)
+14. [Q14. How do you detect and clean up stale WebSocket connections?](#q14-how-do-you-detect-and-clean-up-stale-websocket-connections)
+15. [Q15. What is the difference between WebSocket and Server-Sent Events (SSE)?](#q15-what-is-the-difference-between-websocket-and-server-sent-events-sse)
+16. [Q16. What is long polling, and how does it compare to WebSockets?](#q16-what-is-long-polling-and-how-does-it-compare-to-websockets)
+17. [Q17. What is a SignalR Hub?](#q17-what-is-a-signalr-hub)
+18. [Q18. What security risks exist when clients self-identify via the first WebSocket message?](#q18-what-security-risks-exist-when-clients-self-identify-via-the-first-websocket-message)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 15. WebSockets & Real-Time Transport
-
-### Q1. What are WebSockets, and how do they differ from regular HTTP requests? {#chapter-15-websockets-real-time-transport-q1}
+## Q1. What are WebSockets, and how do they differ from regular HTTP requests?
 
 What are WebSockets, and how do they differ from regular HTTP requests?
 
@@ -42,7 +37,7 @@ What are WebSockets, and how do they differ from regular HTTP requests?
 
 ---
 
-### Q2. How do you enable WebSockets in ASP.NET Core? {#chapter-15-websockets-real-time-transport-q2}
+## Q2. How do you enable WebSockets in ASP.NET Core?
 
 How do you enable WebSockets in ASP.NET Core?
 
@@ -72,7 +67,7 @@ app.Map("/ws", async context =>
 
 ---
 
-### Q3. Where must `UseWebSockets()` be placed in the middleware pipeline? {#chapter-15-websockets-real-time-transport-q3}
+## Q3. Where must `UseWebSockets()` be placed in the middleware pipeline?
 
 Where must `UseWebSockets()` be placed in the middleware pipeline?
 
@@ -85,7 +80,7 @@ Where must `UseWebSockets()` be placed in the middleware pipeline?
 
 ---
 
-### Q4. What happens during a WebSocket upgrade request? {#chapter-15-websockets-real-time-transport-q4}
+## Q4. What happens during a WebSocket upgrade request?
 
 What happens during a WebSocket upgrade request?
 
@@ -98,7 +93,7 @@ What happens during a WebSocket upgrade request?
 
 ---
 
-### Q5. What server resources are consumed by an open WebSocket connection? {#chapter-15-websockets-real-time-transport-q5}
+## Q5. What server resources are consumed by an open WebSocket connection?
 
 What server resources are consumed by an open WebSocket connection?
 
@@ -111,7 +106,7 @@ What server resources are consumed by an open WebSocket connection?
 
 ---
 
-### Q6. What is SignalR? {#chapter-15-websockets-real-time-transport-q6}
+## Q6. What is SignalR?
 
 What is SignalR?
 
@@ -124,7 +119,7 @@ What is SignalR?
 
 ---
 
-### Q7. What is the difference between SignalR and raw WebSockets? {#chapter-15-websockets-real-time-transport-q7}
+## Q7. What is the difference between SignalR and raw WebSockets?
 
 What is the difference between SignalR and raw WebSockets?
 
@@ -143,7 +138,7 @@ What is the difference between SignalR and raw WebSockets?
 
 ---
 
-### Q8. When would you choose SignalR over raw WebSockets? {#chapter-15-websockets-real-time-transport-q8}
+## Q8. When would you choose SignalR over raw WebSockets?
 
 When would you choose SignalR over raw WebSockets?
 
@@ -156,7 +151,7 @@ When would you choose SignalR over raw WebSockets?
 
 ---
 
-### Q9. What is a SignalR backplane, and why is it needed? {#chapter-15-websockets-real-time-transport-q9}
+## Q9. What is a SignalR backplane, and why is it needed?
 
 What is a SignalR backplane, and why is it needed?
 
@@ -169,7 +164,7 @@ What is a SignalR backplane, and why is it needed?
 
 ---
 
-### Q10. How do you scale WebSocket/SignalR applications across multiple server instances? {#chapter-15-websockets-real-time-transport-q10}
+## Q10. How do you scale WebSocket/SignalR applications across multiple server instances?
 
 How do you scale WebSocket/SignalR applications across multiple server instances?
 
@@ -182,7 +177,7 @@ How do you scale WebSocket/SignalR applications across multiple server instances
 
 ---
 
-### Q11. How is authentication handled for WebSocket connections? {#chapter-15-websockets-real-time-transport-q11}
+## Q11. How is authentication handled for WebSocket connections?
 
 How is authentication handled for WebSocket connections?
 
@@ -195,7 +190,7 @@ How is authentication handled for WebSocket connections?
 
 ---
 
-### Q12. What are WebSocket message size limits in ASP.NET Core/Kestrel? {#chapter-15-websockets-real-time-transport-q12}
+## Q12. What are WebSocket message size limits in ASP.NET Core/Kestrel?
 
 What are WebSocket message size limits in ASP.NET Core/Kestrel?
 
@@ -208,7 +203,7 @@ What are WebSocket message size limits in ASP.NET Core/Kestrel?
 
 ---
 
-### Q13. What is WebSocket backpressure, and why does it matter for broadcasts? {#chapter-15-websockets-real-time-transport-q13}
+## Q13. What is WebSocket backpressure, and why does it matter for broadcasts?
 
 What is WebSocket backpressure, and why does it matter for broadcasts?
 
@@ -221,7 +216,7 @@ What is WebSocket backpressure, and why does it matter for broadcasts?
 
 ---
 
-### Q14. How do you detect and clean up stale WebSocket connections? {#chapter-15-websockets-real-time-transport-q14}
+## Q14. How do you detect and clean up stale WebSocket connections?
 
 How do you detect and clean up stale WebSocket connections?
 
@@ -234,7 +229,7 @@ How do you detect and clean up stale WebSocket connections?
 
 ---
 
-### Q15. What is the difference between WebSocket and Server-Sent Events (SSE)? {#chapter-15-websockets-real-time-transport-q15}
+## Q15. What is the difference between WebSocket and Server-Sent Events (SSE)?
 
 What is the difference between WebSocket and Server-Sent Events (SSE)?
 
@@ -247,7 +242,7 @@ What is the difference between WebSocket and Server-Sent Events (SSE)?
 
 ---
 
-### Q16. What is long polling, and how does it compare to WebSockets? {#chapter-15-websockets-real-time-transport-q16}
+## Q16. What is long polling, and how does it compare to WebSockets?
 
 What is long polling, and how does it compare to WebSockets?
 
@@ -260,7 +255,7 @@ What is long polling, and how does it compare to WebSockets?
 
 ---
 
-### Q17. What is a SignalR Hub? {#chapter-15-websockets-real-time-transport-q17}
+## Q17. What is a SignalR Hub?
 
 What is a SignalR Hub?
 
@@ -284,7 +279,7 @@ public class OrderHub : Hub
 
 ---
 
-### Q18. What security risks exist when clients self-identify via the first WebSocket message? {#chapter-15-websockets-real-time-transport-q18}
+## Q18. What security risks exist when clients self-identify via the first WebSocket message?
 
 What security risks exist when clients self-identify via the first WebSocket message?
 

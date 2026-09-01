@@ -1,35 +1,30 @@
 # Routing & Endpoints — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 07. Routing & Endpoints](#chapter-07-routing-endpoints)
-  - [Q1. What is routing in ASP.NET Core?](#chapter-07-routing-endpoints-q1)
-  - [Q2. What is endpoint routing?](#chapter-07-routing-endpoints-q2)
-  - [Q3. What is the difference between attribute routing and convent…](#chapter-07-routing-endpoints-q3)
-  - [Q4. How does `[Route("api/[controller]")]` work?](#chapter-07-routing-endpoints-q4)
-  - [Q5. What are route constraints, and why use them?](#chapter-07-routing-endpoints-q5)
-  - [Q6. What is the difference between `{id}` and `{id:int}` in a ro…](#chapter-07-routing-endpoints-q6)
-  - [Q7. How does ASP.NET Core decide which endpoint handles a reques…](#chapter-07-routing-endpoints-q7)
-  - [Q8. What happens when two routes match the same request?](#chapter-07-routing-endpoints-q8)
-  - [Q9. What is `MapControllers()`?](#chapter-07-routing-endpoints-q9)
-  - [Q10. What is `MapGroup()` in Minimal APIs?](#chapter-07-routing-endpoints-q10)
-  - [Q11. What is link generation, and why does it matter for `Created…](#chapter-07-routing-endpoints-q11)
-  - [Q12. How do you return HTTP 201 Created with a `Location` header?](#chapter-07-routing-endpoints-q12)
-  - [Q13. What is the difference between `CreatedAtAction` and `Create…](#chapter-07-routing-endpoints-q13)
-  - [Q14. What role do forwarded headers play in URL generation behind…](#chapter-07-routing-endpoints-q14)
-  - [Q15. What is route order / route precedence?](#chapter-07-routing-endpoints-q15)
-  - [Q16. How do HTTP methods map to controller actions or minimal API…](#chapter-07-routing-endpoints-q16)
-  - [Q17. What is the difference between endpoint routing and legacy r…](#chapter-07-routing-endpoints-q17)
-  - [Q18. What is `AmbiguousMatchException`, and what causes it?](#chapter-07-routing-endpoints-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is routing in ASP.NET Core?](#q1-what-is-routing-in-aspnet-core)
+2. [Q2. What is endpoint routing?](#q2-what-is-endpoint-routing)
+3. [Q3. What is the difference between attribute routing and conventional routing?](#q3-what-is-the-difference-between-attribute-routing-and-conventional-routing)
+4. [Q4. How does `[Route("api/[controller]")]` work?](#q4-how-does-routeapicontroller-work)
+5. [Q5. What are route constraints, and why use them?](#q5-what-are-route-constraints-and-why-use-them)
+6. [Q6. What is the difference between `{id}` and `{id:int}` in a route template?](#q6-what-is-the-difference-between-id-and-idint-in-a-route-template)
+7. [Q7. How does ASP.NET Core decide which endpoint handles a request?](#q7-how-does-aspnet-core-decide-which-endpoint-handles-a-request)
+8. [Q8. What happens when two routes match the same request?](#q8-what-happens-when-two-routes-match-the-same-request)
+9. [Q9. What is `MapControllers()`?](#q9-what-is-mapcontrollers)
+10. [Q10. What is `MapGroup()` in Minimal APIs?](#q10-what-is-mapgroup-in-minimal-apis)
+11. [Q11. What is link generation, and why does it matter for `CreatedAtAction`?](#q11-what-is-link-generation-and-why-does-it-matter-for-createdataction)
+12. [Q12. How do you return HTTP 201 Created with a `Location` header?](#q12-how-do-you-return-http-201-created-with-a-location-header)
+13. [Q13. What is the difference between `CreatedAtAction` and `CreatedAtRoute`?](#q13-what-is-the-difference-between-createdataction-and-createdatroute)
+14. [Q14. What role do forwarded headers play in URL generation behind a reverse proxy?](#q14-what-role-do-forwarded-headers-play-in-url-generation-behind-a-reverse-proxy)
+15. [Q15. What is route order / route precedence?](#q15-what-is-route-order-route-precedence)
+16. [Q16. How do HTTP methods map to controller actions or minimal API endpoints?](#q16-how-do-http-methods-map-to-controller-actions-or-minimal-api-endpoints)
+17. [Q17. What is the difference between endpoint routing and legacy routing middleware?](#q17-what-is-the-difference-between-endpoint-routing-and-legacy-routing-middleware)
+18. [Q18. What is `AmbiguousMatchException`, and what causes it?](#q18-what-is-ambiguousmatchexception-and-what-causes-it)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 07. Routing & Endpoints
-
-### Q1. What is routing in ASP.NET Core? {#chapter-07-routing-endpoints-q1}
+## Q1. What is routing in ASP.NET Core?
 
 What is routing in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is routing in ASP.NET Core?
 
 ---
 
-### Q2. What is endpoint routing? {#chapter-07-routing-endpoints-q2}
+## Q2. What is endpoint routing?
 
 What is endpoint routing?
 
@@ -55,7 +50,7 @@ What is endpoint routing?
 
 ---
 
-### Q3. What is the difference between attribute routing and conventional routing? {#chapter-07-routing-endpoints-q3}
+## Q3. What is the difference between attribute routing and conventional routing?
 
 What is the difference between attribute routing and conventional routing?
 
@@ -68,7 +63,7 @@ What is the difference between attribute routing and conventional routing?
 
 ---
 
-### Q4. How does `[Route("api/[controller]")]` work? {#chapter-07-routing-endpoints-q4}
+## Q4. How does `[Route("api/[controller]")]` work?
 
 How does `[Route("api/[controller]")]` work?
 
@@ -81,7 +76,7 @@ How does `[Route("api/[controller]")]` work?
 
 ---
 
-### Q5. What are route constraints, and why use them? {#chapter-07-routing-endpoints-q5}
+## Q5. What are route constraints, and why use them?
 
 What are route constraints, and why use them?
 
@@ -94,7 +89,7 @@ What are route constraints, and why use them?
 
 ---
 
-### Q6. What is the difference between `{id}` and `{id:int}` in a route template? {#chapter-07-routing-endpoints-q6}
+## Q6. What is the difference between `{id}` and `{id:int}` in a route template?
 
 What is the difference between `{id}` and `{id:int}` in a route template?
 
@@ -107,7 +102,7 @@ What is the difference between `{id}` and `{id:int}` in a route template?
 
 ---
 
-### Q7. How does ASP.NET Core decide which endpoint handles a request? {#chapter-07-routing-endpoints-q7}
+## Q7. How does ASP.NET Core decide which endpoint handles a request?
 
 How does ASP.NET Core decide which endpoint handles a request?
 
@@ -120,7 +115,7 @@ How does ASP.NET Core decide which endpoint handles a request?
 
 ---
 
-### Q8. What happens when two routes match the same request? {#chapter-07-routing-endpoints-q8}
+## Q8. What happens when two routes match the same request?
 
 What happens when two routes match the same request?
 
@@ -133,7 +128,7 @@ What happens when two routes match the same request?
 
 ---
 
-### Q9. What is `MapControllers()`? {#chapter-07-routing-endpoints-q9}
+## Q9. What is `MapControllers()`?
 
 What is `MapControllers()`?
 
@@ -146,7 +141,7 @@ What is `MapControllers()`?
 
 ---
 
-### Q10. What is `MapGroup()` in Minimal APIs? {#chapter-07-routing-endpoints-q10}
+## Q10. What is `MapGroup()` in Minimal APIs?
 
 What is `MapGroup()` in Minimal APIs?
 
@@ -159,7 +154,7 @@ What is `MapGroup()` in Minimal APIs?
 
 ---
 
-### Q11. What is link generation, and why does it matter for `CreatedAtAction`? {#chapter-07-routing-endpoints-q11}
+## Q11. What is link generation, and why does it matter for `CreatedAtAction`?
 
 What is link generation, and why does it matter for `CreatedAtAction`?
 
@@ -172,7 +167,7 @@ What is link generation, and why does it matter for `CreatedAtAction`?
 
 ---
 
-### Q12. How do you return HTTP 201 Created with a `Location` header? {#chapter-07-routing-endpoints-q12}
+## Q12. How do you return HTTP 201 Created with a `Location` header?
 
 How do you return HTTP 201 Created with a `Location` header?
 
@@ -185,7 +180,7 @@ How do you return HTTP 201 Created with a `Location` header?
 
 ---
 
-### Q13. What is the difference between `CreatedAtAction` and `CreatedAtRoute`? {#chapter-07-routing-endpoints-q13}
+## Q13. What is the difference between `CreatedAtAction` and `CreatedAtRoute`?
 
 What is the difference between `CreatedAtAction` and `CreatedAtRoute`?
 
@@ -198,7 +193,7 @@ What is the difference between `CreatedAtAction` and `CreatedAtRoute`?
 
 ---
 
-### Q14. What role do forwarded headers play in URL generation behind a reverse proxy? {#chapter-07-routing-endpoints-q14}
+## Q14. What role do forwarded headers play in URL generation behind a reverse proxy?
 
 What role do forwarded headers play in URL generation behind a reverse proxy?
 
@@ -211,7 +206,7 @@ What role do forwarded headers play in URL generation behind a reverse proxy?
 
 ---
 
-### Q15. What is route order / route precedence? {#chapter-07-routing-endpoints-q15}
+## Q15. What is route order / route precedence?
 
 What is route order / route precedence?
 
@@ -224,7 +219,7 @@ What is route order / route precedence?
 
 ---
 
-### Q16. How do HTTP methods map to controller actions or minimal API endpoints? {#chapter-07-routing-endpoints-q16}
+## Q16. How do HTTP methods map to controller actions or minimal API endpoints?
 
 How do HTTP methods map to controller actions or minimal API endpoints?
 
@@ -237,7 +232,7 @@ How do HTTP methods map to controller actions or minimal API endpoints?
 
 ---
 
-### Q17. What is the difference between endpoint routing and legacy routing middleware? {#chapter-07-routing-endpoints-q17}
+## Q17. What is the difference between endpoint routing and legacy routing middleware?
 
 What is the difference between endpoint routing and legacy routing middleware?
 
@@ -250,7 +245,7 @@ What is the difference between endpoint routing and legacy routing middleware?
 
 ---
 
-### Q18. What is `AmbiguousMatchException`, and what causes it? {#chapter-07-routing-endpoints-q18}
+## Q18. What is `AmbiguousMatchException`, and what causes it?
 
 What is `AmbiguousMatchException`, and what causes it?
 

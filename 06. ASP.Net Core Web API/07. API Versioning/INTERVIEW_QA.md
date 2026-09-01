@@ -1,35 +1,30 @@
 # API Versioning — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 07. API Versioning](#chapter-07-api-versioning)
-  - [Q1. What is API versioning?](#chapter-07-api-versioning-q1)
-  - [Q2. What is URL path versioning?](#chapter-07-api-versioning-q2)
-  - [Q3. What is header-based API versioning?](#chapter-07-api-versioning-q3)
-  - [Q4. What is query string API versioning?](#chapter-07-api-versioning-q4)
-  - [Q5. What is media type (Accept header) API versioning?](#chapter-07-api-versioning-q5)
-  - [Q6. What is the difference between breaking and non-breaking API…](#chapter-07-api-versioning-q6)
-  - [Q7. What does `DefaultApiVersion` configure?](#chapter-07-api-versioning-q7)
-  - [Q8. What does `AssumeDefaultVersionWhenUnspecified` do?](#chapter-07-api-versioning-q8)
-  - [Q9. What is the `[ApiVersion]` attribute?](#chapter-07-api-versioning-q9)
-  - [Q10. What is `ReportApiVersions`?](#chapter-07-api-versioning-q10)
-  - [Q11. Why is API versioning needed?](#chapter-07-api-versioning-q11)
-  - [Q12. What are the trade-offs of URL path vs header versioning?](#chapter-07-api-versioning-q12)
-  - [Q13. What is a deprecation strategy for old API versions?](#chapter-07-api-versioning-q13)
-  - [Q14. What is the Sunset HTTP header?](#chapter-07-api-versioning-q14)
-  - [Q15. What is an additive vs breaking change in JSON APIs?](#chapter-07-api-versioning-q15)
-  - [Q16. How does CDN caching interact with query-string versioning?](#chapter-07-api-versioning-q16)
-  - [Q17. What is `Asp.Versioning.Mvc`?](#chapter-07-api-versioning-q17)
-  - [Q18. What is the difference between versioning the URL vs version…](#chapter-07-api-versioning-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is API versioning?](#q1-what-is-api-versioning)
+2. [Q2. What is URL path versioning?](#q2-what-is-url-path-versioning)
+3. [Q3. What is header-based API versioning?](#q3-what-is-header-based-api-versioning)
+4. [Q4. What is query string API versioning?](#q4-what-is-query-string-api-versioning)
+5. [Q5. What is media type (Accept header) API versioning?](#q5-what-is-media-type-accept-header-api-versioning)
+6. [Q6. What is the difference between breaking and non-breaking API changes?](#q6-what-is-the-difference-between-breaking-and-non-breaking-api-changes)
+7. [Q7. What does `DefaultApiVersion` configure?](#q7-what-does-defaultapiversion-configure)
+8. [Q8. What does `AssumeDefaultVersionWhenUnspecified` do?](#q8-what-does-assumedefaultversionwhenunspecified-do)
+9. [Q9. What is the `[ApiVersion]` attribute?](#q9-what-is-the-apiversion-attribute)
+10. [Q10. What is `ReportApiVersions`?](#q10-what-is-reportapiversions)
+11. [Q11. Why is API versioning needed?](#q11-why-is-api-versioning-needed)
+12. [Q12. What are the trade-offs of URL path vs header versioning?](#q12-what-are-the-trade-offs-of-url-path-vs-header-versioning)
+13. [Q13. What is a deprecation strategy for old API versions?](#q13-what-is-a-deprecation-strategy-for-old-api-versions)
+14. [Q14. What is the Sunset HTTP header?](#q14-what-is-the-sunset-http-header)
+15. [Q15. What is an additive vs breaking change in JSON APIs?](#q15-what-is-an-additive-vs-breaking-change-in-json-apis)
+16. [Q16. How does CDN caching interact with query-string versioning?](#q16-how-does-cdn-caching-interact-with-query-string-versioning)
+17. [Q17. What is `Asp.Versioning.Mvc`?](#q17-what-is-aspversioningmvc)
+18. [Q18. What is the difference between versioning the URL vs versioning the response schema?](#q18-what-is-the-difference-between-versioning-the-url-vs-versioning-the-response-schema)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 07. API Versioning
-
-### Q1. What is API versioning? {#chapter-07-api-versioning-q1}
+## Q1. What is API versioning?
 
 What is API versioning?
 
@@ -42,7 +37,7 @@ What is API versioning?
 
 ---
 
-### Q2. What is URL path versioning? {#chapter-07-api-versioning-q2}
+## Q2. What is URL path versioning?
 
 What is URL path versioning?
 
@@ -55,7 +50,7 @@ What is URL path versioning?
 
 ---
 
-### Q3. What is header-based API versioning? {#chapter-07-api-versioning-q3}
+## Q3. What is header-based API versioning?
 
 What is header-based API versioning?
 
@@ -68,7 +63,7 @@ What is header-based API versioning?
 
 ---
 
-### Q4. What is query string API versioning? {#chapter-07-api-versioning-q4}
+## Q4. What is query string API versioning?
 
 What is query string API versioning?
 
@@ -81,7 +76,7 @@ What is query string API versioning?
 
 ---
 
-### Q5. What is media type (Accept header) API versioning? {#chapter-07-api-versioning-q5}
+## Q5. What is media type (Accept header) API versioning?
 
 What is media type (Accept header) API versioning?
 
@@ -94,7 +89,7 @@ What is media type (Accept header) API versioning?
 
 ---
 
-### Q6. What is the difference between breaking and non-breaking API changes? {#chapter-07-api-versioning-q6}
+## Q6. What is the difference between breaking and non-breaking API changes?
 
 What is the difference between breaking and non-breaking API changes?
 
@@ -107,7 +102,7 @@ What is the difference between breaking and non-breaking API changes?
 
 ---
 
-### Q7. What does `DefaultApiVersion` configure? {#chapter-07-api-versioning-q7}
+## Q7. What does `DefaultApiVersion` configure?
 
 What does `DefaultApiVersion` configure?
 
@@ -120,7 +115,7 @@ What does `DefaultApiVersion` configure?
 
 ---
 
-### Q8. What does `AssumeDefaultVersionWhenUnspecified` do? {#chapter-07-api-versioning-q8}
+## Q8. What does `AssumeDefaultVersionWhenUnspecified` do?
 
 What does `AssumeDefaultVersionWhenUnspecified` do?
 
@@ -133,7 +128,7 @@ What does `AssumeDefaultVersionWhenUnspecified` do?
 
 ---
 
-### Q9. What is the `[ApiVersion]` attribute? {#chapter-07-api-versioning-q9}
+## Q9. What is the `[ApiVersion]` attribute?
 
 What is the `[ApiVersion]` attribute?
 
@@ -146,7 +141,7 @@ What is the `[ApiVersion]` attribute?
 
 ---
 
-### Q10. What is `ReportApiVersions`? {#chapter-07-api-versioning-q10}
+## Q10. What is `ReportApiVersions`?
 
 What is `ReportApiVersions`?
 
@@ -159,7 +154,7 @@ What is `ReportApiVersions`?
 
 ---
 
-### Q11. Why is API versioning needed? {#chapter-07-api-versioning-q11}
+## Q11. Why is API versioning needed?
 
 Why is API versioning needed?
 
@@ -172,7 +167,7 @@ Why is API versioning needed?
 
 ---
 
-### Q12. What are the trade-offs of URL path vs header versioning? {#chapter-07-api-versioning-q12}
+## Q12. What are the trade-offs of URL path vs header versioning?
 
 What are the trade-offs of URL path vs header versioning?
 
@@ -185,7 +180,7 @@ What are the trade-offs of URL path vs header versioning?
 
 ---
 
-### Q13. What is a deprecation strategy for old API versions? {#chapter-07-api-versioning-q13}
+## Q13. What is a deprecation strategy for old API versions?
 
 What is a deprecation strategy for old API versions?
 
@@ -198,7 +193,7 @@ What is a deprecation strategy for old API versions?
 
 ---
 
-### Q14. What is the Sunset HTTP header? {#chapter-07-api-versioning-q14}
+## Q14. What is the Sunset HTTP header?
 
 What is the Sunset HTTP header?
 
@@ -211,7 +206,7 @@ What is the Sunset HTTP header?
 
 ---
 
-### Q15. What is an additive vs breaking change in JSON APIs? {#chapter-07-api-versioning-q15}
+## Q15. What is an additive vs breaking change in JSON APIs?
 
 What is an additive vs breaking change in JSON APIs?
 
@@ -224,7 +219,7 @@ What is an additive vs breaking change in JSON APIs?
 
 ---
 
-### Q16. How does CDN caching interact with query-string versioning? {#chapter-07-api-versioning-q16}
+## Q16. How does CDN caching interact with query-string versioning?
 
 How does CDN caching interact with query-string versioning?
 
@@ -237,7 +232,7 @@ How does CDN caching interact with query-string versioning?
 
 ---
 
-### Q17. What is `Asp.Versioning.Mvc`? {#chapter-07-api-versioning-q17}
+## Q17. What is `Asp.Versioning.Mvc`?
 
 What is `Asp.Versioning.Mvc`?
 
@@ -250,7 +245,7 @@ What is `Asp.Versioning.Mvc`?
 
 ---
 
-### Q18. What is the difference between versioning the URL vs versioning the response schema? {#chapter-07-api-versioning-q18}
+## Q18. What is the difference between versioning the URL vs versioning the response schema?
 
 What is the difference between versioning the URL vs versioning the response schema?
 

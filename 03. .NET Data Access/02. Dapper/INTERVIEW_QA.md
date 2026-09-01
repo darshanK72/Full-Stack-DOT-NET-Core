@@ -4,44 +4,45 @@
 ## Table of Contents
 
 - [Chapter 01. Introduction to Dapper](#chapter-01-introduction-to-dapper)
-  - [Q1. What is Dapper?](#chapter-01-introduction-to-dapper-q1)
-  - [Q2. What type of library is Dapper (ORM, micro-ORM, or something…](#chapter-01-introduction-to-dapper-q2)
-  - [Q3. What problem does Dapper solve compared to raw ADO.NET?](#chapter-01-introduction-to-dapper-q3)
-  - [Q4. What problem does Dapper solve compared to Entity Framework …](#chapter-01-introduction-to-dapper-q4)
-  - [Q5. When would you choose Dapper over EF Core?](#chapter-01-introduction-to-dapper-q5)
-  - [Q6. When would you choose EF Core over Dapper?](#chapter-01-introduction-to-dapper-q6)
-  - [Q7. What are the main advantages and limitations of Dapper?](#chapter-01-introduction-to-dapper-q7)
-  - [Q8. Does Dapper generate SQL for you?](#chapter-01-introduction-to-dapper-q8)
+  - [Q1. What is Dapper?](#q1-what-is-dapper)
+  - [Q2. What type of library is Dapper (ORM, micro-ORM, or something else)?](#q2-what-type-of-library-is-dapper-orm-micro-orm-or-something-else)
+  - [Q3. What problem does Dapper solve compared to raw ADO.NET?](#q3-what-problem-does-dapper-solve-compared-to-raw-adonet)
+  - [Q4. What problem does Dapper solve compared to Entity Framework Core?](#q4-what-problem-does-dapper-solve-compared-to-entity-framework-core)
+  - [Q5. When would you choose Dapper over EF Core?](#q5-when-would-you-choose-dapper-over-ef-core)
+  - [Q6. When would you choose EF Core over Dapper?](#q6-when-would-you-choose-ef-core-over-dapper)
+  - [Q7. What are the main advantages and limitations of Dapper?](#q7-what-are-the-main-advantages-and-limitations-of-dapper)
+  - [Q8. Does Dapper generate SQL for you?](#q8-does-dapper-generate-sql-for-you)
 
 - [Chapter 02. Queries, Execute & Async Methods](#chapter-02-queries-execute-async-methods)
-  - [Q1. What is the difference between Dapper's `Query` and `Execute…](#chapter-02-queries-execute-async-methods-q1)
-  - [Q2. When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?](#chapter-02-queries-execute-async-methods-q2)
-  - [Q3. What does `Execute` return, and when is it used?](#chapter-02-queries-execute-async-methods-q3)
-  - [Q4. Does Dapper open the connection if it is closed when you cal…](#chapter-02-queries-execute-async-methods-q4)
-  - [Q5. What is the difference between buffered and unbuffered queri…](#chapter-02-queries-execute-async-methods-q5)
-  - [Q6. What async methods does Dapper provide (`QueryAsync`, `Execu…](#chapter-02-queries-execute-async-methods-q6)
+  - [Q1. What is the difference between Dapper's `Query` and `Execute` methods?](#q1-what-is-the-difference-between-dappers-query-and-execute-methods)
+  - [Q2. When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?](#q2-when-do-you-use-queryt-versus-queryfirstordefaultt)
+  - [Q3. What does `Execute` return, and when is it used?](#q3-what-does-execute-return-and-when-is-it-used)
+  - [Q4. Does Dapper open the connection if it is closed when you call `Query`?](#q4-does-dapper-open-the-connection-if-it-is-closed-when-you-call-query)
+  - [Q5. What is the difference between buffered and unbuffered queries in Dapper?](#q5-what-is-the-difference-between-buffered-and-unbuffered-queries-in-dapper)
+  - [Q6. What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)?](#q6-what-async-methods-does-dapper-provide-queryasync-executeasync-etc)
 
 - [Chapter 03. Parameters, Stored Procedures & QueryMultiple](#chapter-03-parameters-stored-procedures-querymultiple)
-  - [Q1. How do you pass parameters to a Dapper query?](#chapter-03-parameters-stored-procedures-querymultiple-q1)
-  - [Q2. How does Dapper prevent SQL injection?](#chapter-03-parameters-stored-procedures-querymultiple-q2)
-  - [Q3. How do you call a stored procedure with Dapper?](#chapter-03-parameters-stored-procedures-querymultiple-q3)
-  - [Q4. What is `QueryMultiple`, and when is it used?](#chapter-03-parameters-stored-procedures-querymultiple-q4)
-  - [Q5. How do you read multiple result sets from `QueryMultiple`?](#chapter-03-parameters-stored-procedures-querymultiple-q5)
-  - [Q6. When would you prefer `QueryMultiple` over separate round-tr…](#chapter-03-parameters-stored-procedures-querymultiple-q6)
+  - [Q1. How do you pass parameters to a Dapper query?](#q1-how-do-you-pass-parameters-to-a-dapper-query)
+  - [Q2. How does Dapper prevent SQL injection?](#q2-how-does-dapper-prevent-sql-injection)
+  - [Q3. How do you call a stored procedure with Dapper?](#q3-how-do-you-call-a-stored-procedure-with-dapper)
+  - [Q4. What is `QueryMultiple`, and when is it used?](#q4-what-is-querymultiple-and-when-is-it-used)
+  - [Q5. How do you read multiple result sets from `QueryMultiple`?](#q5-how-do-you-read-multiple-result-sets-from-querymultiple)
+  - [Q6. When would you prefer `QueryMultiple` over separate round-trips?](#q6-when-would-you-prefer-querymultiple-over-separate-round-trips)
 
 - [Chapter 04. Mapping, Multi-Mapping & Advanced Patterns](#chapter-04-mapping-multi-mapping-advanced-patterns)
-  - [Q1. How does Dapper map column names to property names by defaul…](#chapter-04-mapping-multi-mapping-advanced-patterns-q1)
-  - [Q2. What happens when column names do not match property names?](#chapter-04-mapping-multi-mapping-advanced-patterns-q2)
-  - [Q3. What is multi-mapping in Dapper?](#chapter-04-mapping-multi-mapping-advanced-patterns-q3)
-  - [Q4. What is the `splitOn` parameter in multi-mapping?](#chapter-04-mapping-multi-mapping-advanced-patterns-q4)
-  - [Q5. How does Dapper handle nested object graphs compared to EF C…](#chapter-04-mapping-multi-mapping-advanced-patterns-q5)
+  - [Q1. How does Dapper map column names to property names by default?](#q1-how-does-dapper-map-column-names-to-property-names-by-default)
+  - [Q2. What happens when column names do not match property names?](#q2-what-happens-when-column-names-do-not-match-property-names)
+  - [Q3. What is multi-mapping in Dapper?](#q3-what-is-multi-mapping-in-dapper)
+  - [Q4. What is the `splitOn` parameter in multi-mapping?](#q4-what-is-the-spliton-parameter-in-multi-mapping)
+  - [Q5. How does Dapper handle nested object graphs compared to EF Core `Include`?](#q5-how-does-dapper-handle-nested-object-graphs-compared-to-ef-core-include)
+- [Gotchas](#gotchas)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ## Chapter 01. Introduction to Dapper
 
-### Q1. What is Dapper? {#chapter-01-introduction-to-dapper-q1}
+### Q1. What is Dapper?
 
 What is Dapper?
 
@@ -54,7 +55,7 @@ What is Dapper?
 
 ---
 
-### Q2. What type of library is Dapper (ORM, micro-ORM, or something else)? {#chapter-01-introduction-to-dapper-q2}
+### Q2. What type of library is Dapper (ORM, micro-ORM, or something else)?
 
 What type of library is Dapper (ORM, micro-ORM, or something else)?
 
@@ -67,7 +68,7 @@ What type of library is Dapper (ORM, micro-ORM, or something else)?
 
 ---
 
-### Q3. What problem does Dapper solve compared to raw ADO.NET? {#chapter-01-introduction-to-dapper-q3}
+### Q3. What problem does Dapper solve compared to raw ADO.NET?
 
 What problem does Dapper solve compared to raw ADO.NET?
 
@@ -80,7 +81,7 @@ What problem does Dapper solve compared to raw ADO.NET?
 
 ---
 
-### Q4. What problem does Dapper solve compared to Entity Framework Core? {#chapter-01-introduction-to-dapper-q4}
+### Q4. What problem does Dapper solve compared to Entity Framework Core?
 
 What problem does Dapper solve compared to Entity Framework Core?
 
@@ -93,7 +94,7 @@ What problem does Dapper solve compared to Entity Framework Core?
 
 ---
 
-### Q5. When would you choose Dapper over EF Core? {#chapter-01-introduction-to-dapper-q5}
+### Q5. When would you choose Dapper over EF Core?
 
 When would you choose Dapper over EF Core?
 
@@ -106,7 +107,7 @@ When would you choose Dapper over EF Core?
 
 ---
 
-### Q6. When would you choose EF Core over Dapper? {#chapter-01-introduction-to-dapper-q6}
+### Q6. When would you choose EF Core over Dapper?
 
 When would you choose EF Core over Dapper?
 
@@ -119,7 +120,7 @@ When would you choose EF Core over Dapper?
 
 ---
 
-### Q7. What are the main advantages and limitations of Dapper? {#chapter-01-introduction-to-dapper-q7}
+### Q7. What are the main advantages and limitations of Dapper?
 
 What are the main advantages and limitations of Dapper?
 
@@ -133,7 +134,7 @@ What are the main advantages and limitations of Dapper?
 
 ---
 
-### Q8. Does Dapper generate SQL for you? {#chapter-01-introduction-to-dapper-q8}
+### Q8. Does Dapper generate SQL for you?
 
 Does Dapper generate SQL for you?
 
@@ -148,7 +149,7 @@ Does Dapper generate SQL for you?
 
 ## Chapter 02. Queries, Execute & Async Methods
 
-### Q1. What is the difference between Dapper's `Query` and `Execute` methods? {#chapter-02-queries-execute-async-methods-q1}
+### Q1. What is the difference between Dapper's `Query` and `Execute` methods?
 
 What is the difference between Dapper's `Query` and `Execute` methods?
 
@@ -161,7 +162,7 @@ What is the difference between Dapper's `Query` and `Execute` methods?
 
 ---
 
-### Q2. When do you use `Query<T>` versus `QueryFirstOrDefault<T>`? {#chapter-02-queries-execute-async-methods-q2}
+### Q2. When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?
 
 When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?
 
@@ -174,7 +175,7 @@ When do you use `Query<T>` versus `QueryFirstOrDefault<T>`?
 
 ---
 
-### Q3. What does `Execute` return, and when is it used? {#chapter-02-queries-execute-async-methods-q3}
+### Q3. What does `Execute` return, and when is it used?
 
 What does `Execute` return, and when is it used?
 
@@ -187,7 +188,7 @@ What does `Execute` return, and when is it used?
 
 ---
 
-### Q4. Does Dapper open the connection if it is closed when you call `Query`? {#chapter-02-queries-execute-async-methods-q4}
+### Q4. Does Dapper open the connection if it is closed when you call `Query`?
 
 Does Dapper open the connection if it is closed when you call `Query`?
 
@@ -200,7 +201,7 @@ Does Dapper open the connection if it is closed when you call `Query`?
 
 ---
 
-### Q5. What is the difference between buffered and unbuffered queries in Dapper? {#chapter-02-queries-execute-async-methods-q5}
+### Q5. What is the difference between buffered and unbuffered queries in Dapper?
 
 What is the difference between buffered and unbuffered queries in Dapper?
 
@@ -213,7 +214,7 @@ What is the difference between buffered and unbuffered queries in Dapper?
 
 ---
 
-### Q6. What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)? {#chapter-02-queries-execute-async-methods-q6}
+### Q6. What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)?
 
 What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)?
 
@@ -228,7 +229,7 @@ What async methods does Dapper provide (`QueryAsync`, `ExecuteAsync`, etc.)?
 
 ## Chapter 03. Parameters, Stored Procedures & QueryMultiple
 
-### Q1. How do you pass parameters to a Dapper query? {#chapter-03-parameters-stored-procedures-querymultiple-q1}
+### Q1. How do you pass parameters to a Dapper query?
 
 How do you pass parameters to a Dapper query?
 
@@ -241,7 +242,7 @@ How do you pass parameters to a Dapper query?
 
 ---
 
-### Q2. How does Dapper prevent SQL injection? {#chapter-03-parameters-stored-procedures-querymultiple-q2}
+### Q2. How does Dapper prevent SQL injection?
 
 How does Dapper prevent SQL injection?
 
@@ -254,7 +255,7 @@ How does Dapper prevent SQL injection?
 
 ---
 
-### Q3. How do you call a stored procedure with Dapper? {#chapter-03-parameters-stored-procedures-querymultiple-q3}
+### Q3. How do you call a stored procedure with Dapper?
 
 How do you call a stored procedure with Dapper?
 
@@ -267,7 +268,7 @@ How do you call a stored procedure with Dapper?
 
 ---
 
-### Q4. What is `QueryMultiple`, and when is it used? {#chapter-03-parameters-stored-procedures-querymultiple-q4}
+### Q4. What is `QueryMultiple`, and when is it used?
 
 What is `QueryMultiple`, and when is it used?
 
@@ -280,7 +281,7 @@ What is `QueryMultiple`, and when is it used?
 
 ---
 
-### Q5. How do you read multiple result sets from `QueryMultiple`? {#chapter-03-parameters-stored-procedures-querymultiple-q5}
+### Q5. How do you read multiple result sets from `QueryMultiple`?
 
 How do you read multiple result sets from `QueryMultiple`?
 
@@ -293,7 +294,7 @@ How do you read multiple result sets from `QueryMultiple`?
 
 ---
 
-### Q6. When would you prefer `QueryMultiple` over separate round-trips? {#chapter-03-parameters-stored-procedures-querymultiple-q6}
+### Q6. When would you prefer `QueryMultiple` over separate round-trips?
 
 When would you prefer `QueryMultiple` over separate round-trips?
 
@@ -308,7 +309,7 @@ When would you prefer `QueryMultiple` over separate round-trips?
 
 ## Chapter 04. Mapping, Multi-Mapping & Advanced Patterns
 
-### Q1. How does Dapper map column names to property names by default? {#chapter-04-mapping-multi-mapping-advanced-patterns-q1}
+### Q1. How does Dapper map column names to property names by default?
 
 How does Dapper map column names to property names by default?
 
@@ -321,7 +322,7 @@ How does Dapper map column names to property names by default?
 
 ---
 
-### Q2. What happens when column names do not match property names? {#chapter-04-mapping-multi-mapping-advanced-patterns-q2}
+### Q2. What happens when column names do not match property names?
 
 What happens when column names do not match property names?
 
@@ -334,7 +335,7 @@ What happens when column names do not match property names?
 
 ---
 
-### Q3. What is multi-mapping in Dapper? {#chapter-04-mapping-multi-mapping-advanced-patterns-q3}
+### Q3. What is multi-mapping in Dapper?
 
 What is multi-mapping in Dapper?
 
@@ -347,7 +348,7 @@ What is multi-mapping in Dapper?
 
 ---
 
-### Q4. What is the `splitOn` parameter in multi-mapping? {#chapter-04-mapping-multi-mapping-advanced-patterns-q4}
+### Q4. What is the `splitOn` parameter in multi-mapping?
 
 What is the `splitOn` parameter in multi-mapping?
 
@@ -360,7 +361,7 @@ What is the `splitOn` parameter in multi-mapping?
 
 ---
 
-### Q5. How does Dapper handle nested object graphs compared to EF Core `Include`? {#chapter-04-mapping-multi-mapping-advanced-patterns-q5}
+### Q5. How does Dapper handle nested object graphs compared to EF Core `Include`?
 
 How does Dapper handle nested object graphs compared to EF Core `Include`?
 

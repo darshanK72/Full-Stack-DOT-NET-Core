@@ -1,35 +1,30 @@
 # Introduction to MVC Pattern — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 01. Introduction to MVC Pattern](#chapter-01-introduction-to-mvc-pattern)
-  - [Q1. What is the MVC pattern?](#chapter-01-introduction-to-mvc-pattern-q1)
-  - [Q2. What is the role of the Model in ASP.NET Core MVC?](#chapter-01-introduction-to-mvc-pattern-q2)
-  - [Q3. What is the role of the View in ASP.NET Core MVC?](#chapter-01-introduction-to-mvc-pattern-q3)
-  - [Q4. What is the role of the Controller in ASP.NET Core MVC?](#chapter-01-introduction-to-mvc-pattern-q4)
-  - [Q5. What is the difference between MVC and MVP?](#chapter-01-introduction-to-mvc-pattern-q5)
-  - [Q6. What is the difference between MVC and MVVM?](#chapter-01-introduction-to-mvc-pattern-q6)
-  - [Q7. What is the difference between ASP.NET Core MVC and Razor Pa…](#chapter-01-introduction-to-mvc-pattern-q7)
-  - [Q8. What is the difference between ASP.NET Core MVC and a SPA + …](#chapter-01-introduction-to-mvc-pattern-q8)
-  - [Q9. What does "thin controller" mean and why is it preferred?](#chapter-01-introduction-to-mvc-pattern-q9)
-  - [Q10. What is the "fat controller" anti-pattern?](#chapter-01-introduction-to-mvc-pattern-q10)
-  - [Q11. Where should business logic live in an MVC application?](#chapter-01-introduction-to-mvc-pattern-q11)
-  - [Q12. Where should data access logic live in an MVC application?](#chapter-01-introduction-to-mvc-pattern-q12)
-  - [Q13. Where should input validation live in an MVC application?](#chapter-01-introduction-to-mvc-pattern-q13)
-  - [Q14. How does a request flow through Model, View, and Controller?](#chapter-01-introduction-to-mvc-pattern-q14)
-  - [Q15. What is the difference between a domain entity and a ViewMod…](#chapter-01-introduction-to-mvc-pattern-q15)
-  - [Q16. What symptoms appear when business logic is placed in the Vi…](#chapter-01-introduction-to-mvc-pattern-q16)
-  - [Q17. What symptoms appear when data access is placed in the Contr…](#chapter-01-introduction-to-mvc-pattern-q17)
-  - [Q18. What is Post-Redirect-Get (PRG) and why is it used in MVC?](#chapter-01-introduction-to-mvc-pattern-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is the MVC pattern?](#q1-what-is-the-mvc-pattern)
+2. [Q2. What is the role of the Model in ASP.NET Core MVC?](#q2-what-is-the-role-of-the-model-in-aspnet-core-mvc)
+3. [Q3. What is the role of the View in ASP.NET Core MVC?](#q3-what-is-the-role-of-the-view-in-aspnet-core-mvc)
+4. [Q4. What is the role of the Controller in ASP.NET Core MVC?](#q4-what-is-the-role-of-the-controller-in-aspnet-core-mvc)
+5. [Q5. What is the difference between MVC and MVP?](#q5-what-is-the-difference-between-mvc-and-mvp)
+6. [Q6. What is the difference between MVC and MVVM?](#q6-what-is-the-difference-between-mvc-and-mvvm)
+7. [Q7. What is the difference between ASP.NET Core MVC and Razor Pages?](#q7-what-is-the-difference-between-aspnet-core-mvc-and-razor-pages)
+8. [Q8. What is the difference between ASP.NET Core MVC and a SPA + Minimal API approach?](#q8-what-is-the-difference-between-aspnet-core-mvc-and-a-spa-minimal-api-approach)
+9. [Q9. What does "thin controller" mean and why is it preferred?](#q9-what-does-thin-controller-mean-and-why-is-it-preferred)
+10. [Q10. What is the "fat controller" anti-pattern?](#q10-what-is-the-fat-controller-anti-pattern)
+11. [Q11. Where should business logic live in an MVC application?](#q11-where-should-business-logic-live-in-an-mvc-application)
+12. [Q12. Where should data access logic live in an MVC application?](#q12-where-should-data-access-logic-live-in-an-mvc-application)
+13. [Q13. Where should input validation live in an MVC application?](#q13-where-should-input-validation-live-in-an-mvc-application)
+14. [Q14. How does a request flow through Model, View, and Controller?](#q14-how-does-a-request-flow-through-model-view-and-controller)
+15. [Q15. What is the difference between a domain entity and a ViewModel?](#q15-what-is-the-difference-between-a-domain-entity-and-a-viewmodel)
+16. [Q16. What symptoms appear when business logic is placed in the View?](#q16-what-symptoms-appear-when-business-logic-is-placed-in-the-view)
+17. [Q17. What symptoms appear when data access is placed in the Controller?](#q17-what-symptoms-appear-when-data-access-is-placed-in-the-controller)
+18. [Q18. What is Post-Redirect-Get (PRG) and why is it used in MVC?](#q18-what-is-post-redirect-get-prg-and-why-is-it-used-in-mvc)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 01. Introduction to MVC Pattern
-
-### Q1. What is the MVC pattern? {#chapter-01-introduction-to-mvc-pattern-q1}
+## Q1. What is the MVC pattern?
 
 What is the MVC pattern?
 
@@ -43,7 +38,7 @@ What is the MVC pattern?
 
 ---
 
-### Q2. What is the role of the Model in ASP.NET Core MVC? {#chapter-01-introduction-to-mvc-pattern-q2}
+## Q2. What is the role of the Model in ASP.NET Core MVC?
 
 What is the role of the Model in ASP.NET Core MVC?
 
@@ -57,7 +52,7 @@ What is the role of the Model in ASP.NET Core MVC?
 
 ---
 
-### Q3. What is the role of the View in ASP.NET Core MVC? {#chapter-01-introduction-to-mvc-pattern-q3}
+## Q3. What is the role of the View in ASP.NET Core MVC?
 
 What is the role of the View in ASP.NET Core MVC?
 
@@ -71,7 +66,7 @@ What is the role of the View in ASP.NET Core MVC?
 
 ---
 
-### Q4. What is the role of the Controller in ASP.NET Core MVC? {#chapter-01-introduction-to-mvc-pattern-q4}
+## Q4. What is the role of the Controller in ASP.NET Core MVC?
 
 What is the role of the Controller in ASP.NET Core MVC?
 
@@ -85,7 +80,7 @@ What is the role of the Controller in ASP.NET Core MVC?
 
 ---
 
-### Q5. What is the difference between MVC and MVP? {#chapter-01-introduction-to-mvc-pattern-q5}
+## Q5. What is the difference between MVC and MVP?
 
 What is the difference between MVC and MVP?
 
@@ -99,7 +94,7 @@ What is the difference between MVC and MVP?
 
 ---
 
-### Q6. What is the difference between MVC and MVVM? {#chapter-01-introduction-to-mvc-pattern-q6}
+## Q6. What is the difference between MVC and MVVM?
 
 What is the difference between MVC and MVVM?
 
@@ -113,7 +108,7 @@ What is the difference between MVC and MVVM?
 
 ---
 
-### Q7. What is the difference between ASP.NET Core MVC and Razor Pages? {#chapter-01-introduction-to-mvc-pattern-q7}
+## Q7. What is the difference between ASP.NET Core MVC and Razor Pages?
 
 What is the difference between ASP.NET Core MVC and Razor Pages?
 
@@ -127,7 +122,7 @@ What is the difference between ASP.NET Core MVC and Razor Pages?
 
 ---
 
-### Q8. What is the difference between ASP.NET Core MVC and a SPA + Minimal API approach? {#chapter-01-introduction-to-mvc-pattern-q8}
+## Q8. What is the difference between ASP.NET Core MVC and a SPA + Minimal API approach?
 
 What is the difference between ASP.NET Core MVC and a SPA + Minimal API approach?
 
@@ -141,7 +136,7 @@ What is the difference between ASP.NET Core MVC and a SPA + Minimal API approach
 
 ---
 
-### Q9. What does "thin controller" mean and why is it preferred? {#chapter-01-introduction-to-mvc-pattern-q9}
+## Q9. What does "thin controller" mean and why is it preferred?
 
 What does "thin controller" mean and why is it preferred?
 
@@ -155,7 +150,7 @@ What does "thin controller" mean and why is it preferred?
 
 ---
 
-### Q10. What is the "fat controller" anti-pattern? {#chapter-01-introduction-to-mvc-pattern-q10}
+## Q10. What is the "fat controller" anti-pattern?
 
 What is the "fat controller" anti-pattern?
 
@@ -169,7 +164,7 @@ What is the "fat controller" anti-pattern?
 
 ---
 
-### Q11. Where should business logic live in an MVC application? {#chapter-01-introduction-to-mvc-pattern-q11}
+## Q11. Where should business logic live in an MVC application?
 
 Where should business logic live in an MVC application?
 
@@ -183,7 +178,7 @@ Where should business logic live in an MVC application?
 
 ---
 
-### Q12. Where should data access logic live in an MVC application? {#chapter-01-introduction-to-mvc-pattern-q12}
+## Q12. Where should data access logic live in an MVC application?
 
 Where should data access logic live in an MVC application?
 
@@ -197,7 +192,7 @@ Where should data access logic live in an MVC application?
 
 ---
 
-### Q13. Where should input validation live in an MVC application? {#chapter-01-introduction-to-mvc-pattern-q13}
+## Q13. Where should input validation live in an MVC application?
 
 Where should input validation live in an MVC application?
 
@@ -211,7 +206,7 @@ Where should input validation live in an MVC application?
 
 ---
 
-### Q14. How does a request flow through Model, View, and Controller? {#chapter-01-introduction-to-mvc-pattern-q14}
+## Q14. How does a request flow through Model, View, and Controller?
 
 How does a request flow through Model, View, and Controller?
 
@@ -225,7 +220,7 @@ How does a request flow through Model, View, and Controller?
 
 ---
 
-### Q15. What is the difference between a domain entity and a ViewModel? {#chapter-01-introduction-to-mvc-pattern-q15}
+## Q15. What is the difference between a domain entity and a ViewModel?
 
 What is the difference between a domain entity and a ViewModel?
 
@@ -239,7 +234,7 @@ What is the difference between a domain entity and a ViewModel?
 
 ---
 
-### Q16. What symptoms appear when business logic is placed in the View? {#chapter-01-introduction-to-mvc-pattern-q16}
+## Q16. What symptoms appear when business logic is placed in the View?
 
 What symptoms appear when business logic is placed in the View?
 
@@ -253,7 +248,7 @@ What symptoms appear when business logic is placed in the View?
 
 ---
 
-### Q17. What symptoms appear when data access is placed in the Controller? {#chapter-01-introduction-to-mvc-pattern-q17}
+## Q17. What symptoms appear when data access is placed in the Controller?
 
 What symptoms appear when data access is placed in the Controller?
 
@@ -267,7 +262,7 @@ What symptoms appear when data access is placed in the Controller?
 
 ---
 
-### Q18. What is Post-Redirect-Get (PRG) and why is it used in MVC? {#chapter-01-introduction-to-mvc-pattern-q18}
+## Q18. What is Post-Redirect-Get (PRG) and why is it used in MVC?
 
 What is Post-Redirect-Get (PRG) and why is it used in MVC?
 

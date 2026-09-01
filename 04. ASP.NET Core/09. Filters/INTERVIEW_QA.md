@@ -1,35 +1,30 @@
 # Filters — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 09. Filters](#chapter-09-filters)
-  - [Q1. What are filters in ASP.NET Core MVC?](#chapter-09-filters-q1)
-  - [Q2. What is the MVC filter pipeline execution order?](#chapter-09-filters-q2)
-  - [Q3. What is an authorization filter?](#chapter-09-filters-q3)
-  - [Q4. What is an action filter?](#chapter-09-filters-q4)
-  - [Q5. What is a resource filter?](#chapter-09-filters-q5)
-  - [Q6. What is a result filter?](#chapter-09-filters-q6)
-  - [Q7. What is an exception filter?](#chapter-09-filters-q7)
-  - [Q8. What is the difference between middleware and filters?](#chapter-09-filters-q8)
-  - [Q9. When would you use a filter instead of middleware?](#chapter-09-filters-q9)
-  - [Q10. How do you register a global filter?](#chapter-09-filters-q10)
-  - [Q11. How do you apply a filter to a single action or controller?](#chapter-09-filters-q11)
-  - [Q12. What is `IAsyncActionFilter`, and how does it differ from `I…](#chapter-09-filters-q12)
-  - [Q13. How does `[Authorize]` relate to authorization filters?](#chapter-09-filters-q13)
-  - [Q14. What is the difference between authentication middleware and…](#chapter-09-filters-q14)
-  - [Q15. Do Minimal APIs use MVC filters?](#chapter-09-filters-q15)
-  - [Q16. What are endpoint filters in Minimal APIs?](#chapter-09-filters-q16)
-  - [Q17. How does DI work with filters?](#chapter-09-filters-q17)
-  - [Q18. Can a filter short-circuit a request? How?](#chapter-09-filters-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are filters in ASP.NET Core MVC?](#q1-what-are-filters-in-aspnet-core-mvc)
+2. [Q2. What is the MVC filter pipeline execution order?](#q2-what-is-the-mvc-filter-pipeline-execution-order)
+3. [Q3. What is an authorization filter?](#q3-what-is-an-authorization-filter)
+4. [Q4. What is an action filter?](#q4-what-is-an-action-filter)
+5. [Q5. What is a resource filter?](#q5-what-is-a-resource-filter)
+6. [Q6. What is a result filter?](#q6-what-is-a-result-filter)
+7. [Q7. What is an exception filter?](#q7-what-is-an-exception-filter)
+8. [Q8. What is the difference between middleware and filters?](#q8-what-is-the-difference-between-middleware-and-filters)
+9. [Q9. When would you use a filter instead of middleware?](#q9-when-would-you-use-a-filter-instead-of-middleware)
+10. [Q10. How do you register a global filter?](#q10-how-do-you-register-a-global-filter)
+11. [Q11. How do you apply a filter to a single action or controller?](#q11-how-do-you-apply-a-filter-to-a-single-action-or-controller)
+12. [Q12. What is `IAsyncActionFilter`, and how does it differ from `IActionFilter`?](#q12-what-is-iasyncactionfilter-and-how-does-it-differ-from-iactionfilter)
+13. [Q13. How does `[Authorize]` relate to authorization filters?](#q13-how-does-authorize-relate-to-authorization-filters)
+14. [Q14. What is the difference between authentication middleware and authorization filters?](#q14-what-is-the-difference-between-authentication-middleware-and-authorization-filters)
+15. [Q15. Do Minimal APIs use MVC filters?](#q15-do-minimal-apis-use-mvc-filters)
+16. [Q16. What are endpoint filters in Minimal APIs?](#q16-what-are-endpoint-filters-in-minimal-apis)
+17. [Q17. How does DI work with filters?](#q17-how-does-di-work-with-filters)
+18. [Q18. Can a filter short-circuit a request? How?](#q18-can-a-filter-short-circuit-a-request-how)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 09. Filters
-
-### Q1. What are filters in ASP.NET Core MVC? {#chapter-09-filters-q1}
+## Q1. What are filters in ASP.NET Core MVC?
 
 What are filters in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What are filters in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is the MVC filter pipeline execution order? {#chapter-09-filters-q2}
+## Q2. What is the MVC filter pipeline execution order?
 
 What is the MVC filter pipeline execution order?
 
@@ -55,7 +50,7 @@ What is the MVC filter pipeline execution order?
 
 ---
 
-### Q3. What is an authorization filter? {#chapter-09-filters-q3}
+## Q3. What is an authorization filter?
 
 What is an authorization filter?
 
@@ -68,7 +63,7 @@ What is an authorization filter?
 
 ---
 
-### Q4. What is an action filter? {#chapter-09-filters-q4}
+## Q4. What is an action filter?
 
 What is an action filter?
 
@@ -81,7 +76,7 @@ What is an action filter?
 
 ---
 
-### Q5. What is a resource filter? {#chapter-09-filters-q5}
+## Q5. What is a resource filter?
 
 What is a resource filter?
 
@@ -94,7 +89,7 @@ What is a resource filter?
 
 ---
 
-### Q6. What is a result filter? {#chapter-09-filters-q6}
+## Q6. What is a result filter?
 
 What is a result filter?
 
@@ -107,7 +102,7 @@ What is a result filter?
 
 ---
 
-### Q7. What is an exception filter? {#chapter-09-filters-q7}
+## Q7. What is an exception filter?
 
 What is an exception filter?
 
@@ -120,7 +115,7 @@ What is an exception filter?
 
 ---
 
-### Q8. What is the difference between middleware and filters? {#chapter-09-filters-q8}
+## Q8. What is the difference between middleware and filters?
 
 What is the difference between middleware and filters?
 
@@ -133,7 +128,7 @@ What is the difference between middleware and filters?
 
 ---
 
-### Q9. When would you use a filter instead of middleware? {#chapter-09-filters-q9}
+## Q9. When would you use a filter instead of middleware?
 
 When would you use a filter instead of middleware?
 
@@ -146,7 +141,7 @@ When would you use a filter instead of middleware?
 
 ---
 
-### Q10. How do you register a global filter? {#chapter-09-filters-q10}
+## Q10. How do you register a global filter?
 
 How do you register a global filter?
 
@@ -165,7 +160,7 @@ builder.Services.AddControllers(options =>
 
 ---
 
-### Q11. How do you apply a filter to a single action or controller? {#chapter-09-filters-q11}
+## Q11. How do you apply a filter to a single action or controller?
 
 How do you apply a filter to a single action or controller?
 
@@ -178,7 +173,7 @@ How do you apply a filter to a single action or controller?
 
 ---
 
-### Q12. What is `IAsyncActionFilter`, and how does it differ from `IActionFilter`? {#chapter-09-filters-q12}
+## Q12. What is `IAsyncActionFilter`, and how does it differ from `IActionFilter`?
 
 What is `IAsyncActionFilter`, and how does it differ from `IActionFilter`?
 
@@ -191,7 +186,7 @@ What is `IAsyncActionFilter`, and how does it differ from `IActionFilter`?
 
 ---
 
-### Q13. How does `[Authorize]` relate to authorization filters? {#chapter-09-filters-q13}
+## Q13. How does `[Authorize]` relate to authorization filters?
 
 How does `[Authorize]` relate to authorization filters?
 
@@ -204,7 +199,7 @@ How does `[Authorize]` relate to authorization filters?
 
 ---
 
-### Q14. What is the difference between authentication middleware and authorization filters? {#chapter-09-filters-q14}
+## Q14. What is the difference between authentication middleware and authorization filters?
 
 What is the difference between authentication middleware and authorization filters?
 
@@ -217,7 +212,7 @@ What is the difference between authentication middleware and authorization filte
 
 ---
 
-### Q15. Do Minimal APIs use MVC filters? {#chapter-09-filters-q15}
+## Q15. Do Minimal APIs use MVC filters?
 
 Do Minimal APIs use MVC filters?
 
@@ -230,7 +225,7 @@ Do Minimal APIs use MVC filters?
 
 ---
 
-### Q16. What are endpoint filters in Minimal APIs? {#chapter-09-filters-q16}
+## Q16. What are endpoint filters in Minimal APIs?
 
 What are endpoint filters in Minimal APIs?
 
@@ -243,7 +238,7 @@ What are endpoint filters in Minimal APIs?
 
 ---
 
-### Q17. How does DI work with filters? {#chapter-09-filters-q17}
+## Q17. How does DI work with filters?
 
 How does DI work with filters?
 
@@ -256,7 +251,7 @@ How does DI work with filters?
 
 ---
 
-### Q18. Can a filter short-circuit a request? How? {#chapter-09-filters-q18}
+## Q18. Can a filter short-circuit a request? How?
 
 Can a filter short-circuit a request? How?
 

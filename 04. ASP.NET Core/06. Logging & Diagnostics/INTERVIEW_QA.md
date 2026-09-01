@@ -1,35 +1,30 @@
 # Logging & Diagnostics — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 06. Logging & Diagnostics](#chapter-06-logging-diagnostics)
-  - [Q1. What is `ILogger<T>` in ASP.NET Core?](#chapter-06-logging-diagnostics-q1)
-  - [Q2. How is logging configured in ASP.NET Core?](#chapter-06-logging-diagnostics-q2)
-  - [Q3. What are the standard log levels in .NET logging?](#chapter-06-logging-diagnostics-q3)
-  - [Q4. What is structured logging?](#chapter-06-logging-diagnostics-q4)
-  - [Q5. Why should you use message templates instead of string inter…](#chapter-06-logging-diagnostics-q5)
-  - [Q6. What is the difference between `_logger.LogError(ex.Message)…](#chapter-06-logging-diagnostics-q6)
-  - [Q7. What is the difference between `throw;` and `throw ex;` in a…](#chapter-06-logging-diagnostics-q7)
-  - [Q8. What is `ILogger.BeginScope`, and what is it used for?](#chapter-06-logging-diagnostics-q8)
-  - [Q9. How does ASP.NET Core assign a `TraceIdentifier` to each req…](#chapter-06-logging-diagnostics-q9)
-  - [Q10. What is a correlation ID, and where is it typically set?](#chapter-06-logging-diagnostics-q10)
-  - [Q11. How do you configure log levels per namespace in `appsetting…](#chapter-06-logging-diagnostics-q11)
-  - [Q12. What logging providers ship with ASP.NET Core by default?](#chapter-06-logging-diagnostics-q12)
-  - [Q13. What is OpenTelemetry, and how does it relate to ASP.NET Cor…](#chapter-06-logging-diagnostics-q13)
-  - [Q14. What is distributed tracing?](#chapter-06-logging-diagnostics-q14)
-  - [Q15. What should you never log in a production application?](#chapter-06-logging-diagnostics-q15)
-  - [Q16. What is the difference between logging and diagnostics?](#chapter-06-logging-diagnostics-q16)
-  - [Q17. How does Application Insights integrate with ASP.NET Core lo…](#chapter-06-logging-diagnostics-q17)
-  - [Q18. What is `LoggerMessage` source generators, and why use them?](#chapter-06-logging-diagnostics-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is `ILogger<T>` in ASP.NET Core?](#q1-what-is-iloggert-in-aspnet-core)
+2. [Q2. How is logging configured in ASP.NET Core?](#q2-how-is-logging-configured-in-aspnet-core)
+3. [Q3. What are the standard log levels in .NET logging?](#q3-what-are-the-standard-log-levels-in-net-logging)
+4. [Q4. What is structured logging?](#q4-what-is-structured-logging)
+5. [Q5. Why should you use message templates instead of string interpolation in log calls?](#q5-why-should-you-use-message-templates-instead-of-string-interpolation-in-log-calls)
+6. [Q6. What is the difference between `_logger.LogError(ex.Message)` and `_logger.LogError(ex, "...")`?](#q6-what-is-the-difference-between-_loggerlogerrorexmessage-and-_loggerlogerrorex)
+7. [Q7. What is the difference between `throw;` and `throw ex;` in a catch block?](#q7-what-is-the-difference-between-throw-and-throw-ex-in-a-catch-block)
+8. [Q8. What is `ILogger.BeginScope`, and what is it used for?](#q8-what-is-iloggerbeginscope-and-what-is-it-used-for)
+9. [Q9. How does ASP.NET Core assign a `TraceIdentifier` to each request?](#q9-how-does-aspnet-core-assign-a-traceidentifier-to-each-request)
+10. [Q10. What is a correlation ID, and where is it typically set?](#q10-what-is-a-correlation-id-and-where-is-it-typically-set)
+11. [Q11. How do you configure log levels per namespace in `appsettings.json`?](#q11-how-do-you-configure-log-levels-per-namespace-in-appsettingsjson)
+12. [Q12. What logging providers ship with ASP.NET Core by default?](#q12-what-logging-providers-ship-with-aspnet-core-by-default)
+13. [Q13. What is OpenTelemetry, and how does it relate to ASP.NET Core?](#q13-what-is-opentelemetry-and-how-does-it-relate-to-aspnet-core)
+14. [Q14. What is distributed tracing?](#q14-what-is-distributed-tracing)
+15. [Q15. What should you never log in a production application?](#q15-what-should-you-never-log-in-a-production-application)
+16. [Q16. What is the difference between logging and diagnostics?](#q16-what-is-the-difference-between-logging-and-diagnostics)
+17. [Q17. How does Application Insights integrate with ASP.NET Core logging?](#q17-how-does-application-insights-integrate-with-aspnet-core-logging)
+18. [Q18. What is `LoggerMessage` source generators, and why use them?](#q18-what-is-loggermessage-source-generators-and-why-use-them)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 06. Logging & Diagnostics
-
-### Q1. What is `ILogger<T>` in ASP.NET Core? {#chapter-06-logging-diagnostics-q1}
+## Q1. What is `ILogger<T>` in ASP.NET Core?
 
 What is `ILogger<T>` in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is `ILogger<T>` in ASP.NET Core?
 
 ---
 
-### Q2. How is logging configured in ASP.NET Core? {#chapter-06-logging-diagnostics-q2}
+## Q2. How is logging configured in ASP.NET Core?
 
 How is logging configured in ASP.NET Core?
 
@@ -55,7 +50,7 @@ How is logging configured in ASP.NET Core?
 
 ---
 
-### Q3. What are the standard log levels in .NET logging? {#chapter-06-logging-diagnostics-q3}
+## Q3. What are the standard log levels in .NET logging?
 
 What are the standard log levels in .NET logging?
 
@@ -70,7 +65,7 @@ What are the standard log levels in .NET logging?
 
 ---
 
-### Q4. What is structured logging? {#chapter-06-logging-diagnostics-q4}
+## Q4. What is structured logging?
 
 What is structured logging?
 
@@ -83,7 +78,7 @@ What is structured logging?
 
 ---
 
-### Q5. Why should you use message templates instead of string interpolation in log calls? {#chapter-06-logging-diagnostics-q5}
+## Q5. Why should you use message templates instead of string interpolation in log calls?
 
 Why should you use message templates instead of string interpolation in log calls?
 
@@ -96,7 +91,7 @@ Why should you use message templates instead of string interpolation in log call
 
 ---
 
-### Q6. What is the difference between `_logger.LogError(ex.Message)` and `_logger.LogError(ex, "...")`? {#chapter-06-logging-diagnostics-q6}
+## Q6. What is the difference between `_logger.LogError(ex.Message)` and `_logger.LogError(ex, "...")`?
 
 What is the difference between `_logger.LogError(ex.Message)` and `_logger.LogError(ex, "...")`?
 
@@ -109,7 +104,7 @@ What is the difference between `_logger.LogError(ex.Message)` and `_logger.LogEr
 
 ---
 
-### Q7. What is the difference between `throw;` and `throw ex;` in a catch block? {#chapter-06-logging-diagnostics-q7}
+## Q7. What is the difference between `throw;` and `throw ex;` in a catch block?
 
 What is the difference between `throw;` and `throw ex;` in a catch block?
 
@@ -122,7 +117,7 @@ What is the difference between `throw;` and `throw ex;` in a catch block?
 
 ---
 
-### Q8. What is `ILogger.BeginScope`, and what is it used for? {#chapter-06-logging-diagnostics-q8}
+## Q8. What is `ILogger.BeginScope`, and what is it used for?
 
 What is `ILogger.BeginScope`, and what is it used for?
 
@@ -135,7 +130,7 @@ What is `ILogger.BeginScope`, and what is it used for?
 
 ---
 
-### Q9. How does ASP.NET Core assign a `TraceIdentifier` to each request? {#chapter-06-logging-diagnostics-q9}
+## Q9. How does ASP.NET Core assign a `TraceIdentifier` to each request?
 
 How does ASP.NET Core assign a `TraceIdentifier` to each request?
 
@@ -148,7 +143,7 @@ How does ASP.NET Core assign a `TraceIdentifier` to each request?
 
 ---
 
-### Q10. What is a correlation ID, and where is it typically set? {#chapter-06-logging-diagnostics-q10}
+## Q10. What is a correlation ID, and where is it typically set?
 
 What is a correlation ID, and where is it typically set?
 
@@ -161,7 +156,7 @@ What is a correlation ID, and where is it typically set?
 
 ---
 
-### Q11. How do you configure log levels per namespace in `appsettings.json`? {#chapter-06-logging-diagnostics-q11}
+## Q11. How do you configure log levels per namespace in `appsettings.json`?
 
 How do you configure log levels per namespace in `appsettings.json`?
 
@@ -184,7 +179,7 @@ How do you configure log levels per namespace in `appsettings.json`?
 
 ---
 
-### Q12. What logging providers ship with ASP.NET Core by default? {#chapter-06-logging-diagnostics-q12}
+## Q12. What logging providers ship with ASP.NET Core by default?
 
 What logging providers ship with ASP.NET Core by default?
 
@@ -198,7 +193,7 @@ What logging providers ship with ASP.NET Core by default?
 
 ---
 
-### Q13. What is OpenTelemetry, and how does it relate to ASP.NET Core? {#chapter-06-logging-diagnostics-q13}
+## Q13. What is OpenTelemetry, and how does it relate to ASP.NET Core?
 
 What is OpenTelemetry, and how does it relate to ASP.NET Core?
 
@@ -211,7 +206,7 @@ What is OpenTelemetry, and how does it relate to ASP.NET Core?
 
 ---
 
-### Q14. What is distributed tracing? {#chapter-06-logging-diagnostics-q14}
+## Q14. What is distributed tracing?
 
 What is distributed tracing?
 
@@ -224,7 +219,7 @@ What is distributed tracing?
 
 ---
 
-### Q15. What should you never log in a production application? {#chapter-06-logging-diagnostics-q15}
+## Q15. What should you never log in a production application?
 
 What should you never log in a production application?
 
@@ -237,7 +232,7 @@ What should you never log in a production application?
 
 ---
 
-### Q16. What is the difference between logging and diagnostics? {#chapter-06-logging-diagnostics-q16}
+## Q16. What is the difference between logging and diagnostics?
 
 What is the difference between logging and diagnostics?
 
@@ -250,7 +245,7 @@ What is the difference between logging and diagnostics?
 
 ---
 
-### Q17. How does Application Insights integrate with ASP.NET Core logging? {#chapter-06-logging-diagnostics-q17}
+## Q17. How does Application Insights integrate with ASP.NET Core logging?
 
 How does Application Insights integrate with ASP.NET Core logging?
 
@@ -263,7 +258,7 @@ How does Application Insights integrate with ASP.NET Core logging?
 
 ---
 
-### Q18. What is `LoggerMessage` source generators, and why use them? {#chapter-06-logging-diagnostics-q18}
+## Q18. What is `LoggerMessage` source generators, and why use them?
 
 What is `LoggerMessage` source generators, and why use them?
 

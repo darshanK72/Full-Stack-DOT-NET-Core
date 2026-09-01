@@ -1,35 +1,30 @@
 # CORS — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 08. CORS](#chapter-08-cors)
-  - [Q1. What is CORS?](#chapter-08-cors-q1)
-  - [Q2. Why do browsers enforce CORS for Web APIs?](#chapter-08-cors-q2)
-  - [Q3. What is a cross-origin request?](#chapter-08-cors-q3)
-  - [Q4. What is a CORS preflight request?](#chapter-08-cors-q4)
-  - [Q5. When does a browser send an OPTIONS preflight?](#chapter-08-cors-q5)
-  - [Q6. What is the `Access-Control-Allow-Origin` header?](#chapter-08-cors-q6)
-  - [Q7. What is the difference between `AllowAnyOrigin` and `WithOri…](#chapter-08-cors-q7)
-  - [Q8. Why can't `AllowAnyOrigin` be used with `AllowCredentials`?](#chapter-08-cors-q8)
-  - [Q9. What does `AllowHeaders` configure?](#chapter-08-cors-q9)
-  - [Q10. What does `WithExposedHeaders` do?](#chapter-08-cors-q10)
-  - [Q11. What is the correct middleware order for `UseCors` in a Web …](#chapter-08-cors-q11)
-  - [Q12. What is the difference between simple and non-simple CORS re…](#chapter-08-cors-q12)
-  - [Q13. Does CORS protect the API server from unauthorized access?](#chapter-08-cors-q13)
-  - [Q14. What is `Access-Control-Allow-Credentials`?](#chapter-08-cors-q14)
-  - [Q15. What is the difference between CORS errors and 401 Unauthori…](#chapter-08-cors-q15)
-  - [Q16. What does `Access-Control-Allow-Methods` specify?](#chapter-08-cors-q16)
-  - [Q17. When should CORS be configured at the API vs API gateway?](#chapter-08-cors-q17)
-  - [Q18. What is a CORS policy in ASP.NET Core?](#chapter-08-cors-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is CORS?](#q1-what-is-cors)
+2. [Q2. Why do browsers enforce CORS for Web APIs?](#q2-why-do-browsers-enforce-cors-for-web-apis)
+3. [Q3. What is a cross-origin request?](#q3-what-is-a-cross-origin-request)
+4. [Q4. What is a CORS preflight request?](#q4-what-is-a-cors-preflight-request)
+5. [Q5. When does a browser send an OPTIONS preflight?](#q5-when-does-a-browser-send-an-options-preflight)
+6. [Q6. What is the `Access-Control-Allow-Origin` header?](#q6-what-is-the-access-control-allow-origin-header)
+7. [Q7. What is the difference between `AllowAnyOrigin` and `WithOrigins`?](#q7-what-is-the-difference-between-allowanyorigin-and-withorigins)
+8. [Q8. Why can't `AllowAnyOrigin` be used with `AllowCredentials`?](#q8-why-cant-allowanyorigin-be-used-with-allowcredentials)
+9. [Q9. What does `AllowHeaders` configure?](#q9-what-does-allowheaders-configure)
+10. [Q10. What does `WithExposedHeaders` do?](#q10-what-does-withexposedheaders-do)
+11. [Q11. What is the correct middleware order for `UseCors` in a Web API?](#q11-what-is-the-correct-middleware-order-for-usecors-in-a-web-api)
+12. [Q12. What is the difference between simple and non-simple CORS requests?](#q12-what-is-the-difference-between-simple-and-non-simple-cors-requests)
+13. [Q13. Does CORS protect the API server from unauthorized access?](#q13-does-cors-protect-the-api-server-from-unauthorized-access)
+14. [Q14. What is `Access-Control-Allow-Credentials`?](#q14-what-is-access-control-allow-credentials)
+15. [Q15. What is the difference between CORS errors and 401 Unauthorized?](#q15-what-is-the-difference-between-cors-errors-and-401-unauthorized)
+16. [Q16. What does `Access-Control-Allow-Methods` specify?](#q16-what-does-access-control-allow-methods-specify)
+17. [Q17. When should CORS be configured at the API vs API gateway?](#q17-when-should-cors-be-configured-at-the-api-vs-api-gateway)
+18. [Q18. What is a CORS policy in ASP.NET Core?](#q18-what-is-a-cors-policy-in-aspnet-core)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 08. CORS
-
-### Q1. What is CORS? {#chapter-08-cors-q1}
+## Q1. What is CORS?
 
 What is CORS?
 
@@ -42,7 +37,7 @@ What is CORS?
 
 ---
 
-### Q2. Why do browsers enforce CORS for Web APIs? {#chapter-08-cors-q2}
+## Q2. Why do browsers enforce CORS for Web APIs?
 
 Why do browsers enforce CORS for Web APIs?
 
@@ -55,7 +50,7 @@ Why do browsers enforce CORS for Web APIs?
 
 ---
 
-### Q3. What is a cross-origin request? {#chapter-08-cors-q3}
+## Q3. What is a cross-origin request?
 
 What is a cross-origin request?
 
@@ -68,7 +63,7 @@ What is a cross-origin request?
 
 ---
 
-### Q4. What is a CORS preflight request? {#chapter-08-cors-q4}
+## Q4. What is a CORS preflight request?
 
 What is a CORS preflight request?
 
@@ -81,7 +76,7 @@ What is a CORS preflight request?
 
 ---
 
-### Q5. When does a browser send an OPTIONS preflight? {#chapter-08-cors-q5}
+## Q5. When does a browser send an OPTIONS preflight?
 
 When does a browser send an OPTIONS preflight?
 
@@ -94,7 +89,7 @@ When does a browser send an OPTIONS preflight?
 
 ---
 
-### Q6. What is the `Access-Control-Allow-Origin` header? {#chapter-08-cors-q6}
+## Q6. What is the `Access-Control-Allow-Origin` header?
 
 What is the `Access-Control-Allow-Origin` header?
 
@@ -107,7 +102,7 @@ What is the `Access-Control-Allow-Origin` header?
 
 ---
 
-### Q7. What is the difference between `AllowAnyOrigin` and `WithOrigins`? {#chapter-08-cors-q7}
+## Q7. What is the difference between `AllowAnyOrigin` and `WithOrigins`?
 
 What is the difference between `AllowAnyOrigin` and `WithOrigins`?
 
@@ -120,7 +115,7 @@ What is the difference between `AllowAnyOrigin` and `WithOrigins`?
 
 ---
 
-### Q8. Why can't `AllowAnyOrigin` be used with `AllowCredentials`? {#chapter-08-cors-q8}
+## Q8. Why can't `AllowAnyOrigin` be used with `AllowCredentials`?
 
 Why can't `AllowAnyOrigin` be used with `AllowCredentials`?
 
@@ -133,7 +128,7 @@ Why can't `AllowAnyOrigin` be used with `AllowCredentials`?
 
 ---
 
-### Q9. What does `AllowHeaders` configure? {#chapter-08-cors-q9}
+## Q9. What does `AllowHeaders` configure?
 
 What does `AllowHeaders` configure?
 
@@ -146,7 +141,7 @@ What does `AllowHeaders` configure?
 
 ---
 
-### Q10. What does `WithExposedHeaders` do? {#chapter-08-cors-q10}
+## Q10. What does `WithExposedHeaders` do?
 
 What does `WithExposedHeaders` do?
 
@@ -159,7 +154,7 @@ What does `WithExposedHeaders` do?
 
 ---
 
-### Q11. What is the correct middleware order for `UseCors` in a Web API? {#chapter-08-cors-q11}
+## Q11. What is the correct middleware order for `UseCors` in a Web API?
 
 What is the correct middleware order for `UseCors` in a Web API?
 
@@ -172,7 +167,7 @@ What is the correct middleware order for `UseCors` in a Web API?
 
 ---
 
-### Q12. What is the difference between simple and non-simple CORS requests? {#chapter-08-cors-q12}
+## Q12. What is the difference between simple and non-simple CORS requests?
 
 What is the difference between simple and non-simple CORS requests?
 
@@ -185,7 +180,7 @@ What is the difference between simple and non-simple CORS requests?
 
 ---
 
-### Q13. Does CORS protect the API server from unauthorized access? {#chapter-08-cors-q13}
+## Q13. Does CORS protect the API server from unauthorized access?
 
 Does CORS protect the API server from unauthorized access?
 
@@ -198,7 +193,7 @@ Does CORS protect the API server from unauthorized access?
 
 ---
 
-### Q14. What is `Access-Control-Allow-Credentials`? {#chapter-08-cors-q14}
+## Q14. What is `Access-Control-Allow-Credentials`?
 
 What is `Access-Control-Allow-Credentials`?
 
@@ -211,7 +206,7 @@ What is `Access-Control-Allow-Credentials`?
 
 ---
 
-### Q15. What is the difference between CORS errors and 401 Unauthorized? {#chapter-08-cors-q15}
+## Q15. What is the difference between CORS errors and 401 Unauthorized?
 
 What is the difference between CORS errors and 401 Unauthorized?
 
@@ -224,7 +219,7 @@ What is the difference between CORS errors and 401 Unauthorized?
 
 ---
 
-### Q16. What does `Access-Control-Allow-Methods` specify? {#chapter-08-cors-q16}
+## Q16. What does `Access-Control-Allow-Methods` specify?
 
 What does `Access-Control-Allow-Methods` specify?
 
@@ -237,7 +232,7 @@ What does `Access-Control-Allow-Methods` specify?
 
 ---
 
-### Q17. When should CORS be configured at the API vs API gateway? {#chapter-08-cors-q17}
+## Q17. When should CORS be configured at the API vs API gateway?
 
 When should CORS be configured at the API vs API gateway?
 
@@ -250,7 +245,7 @@ When should CORS be configured at the API vs API gateway?
 
 ---
 
-### Q18. What is a CORS policy in ASP.NET Core? {#chapter-08-cors-q18}
+## Q18. What is a CORS policy in ASP.NET Core?
 
 What is a CORS policy in ASP.NET Core?
 

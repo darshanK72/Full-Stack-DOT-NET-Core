@@ -1,35 +1,30 @@
 # Authentication & Authorization in APIs — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 10. Authentication & Authorization in APIs](#chapter-10-authentication-authorization-in-apis)
-  - [Q1. What is JWT Bearer authentication for Web APIs?](#chapter-10-authentication-authorization-in-apis-q1)
-  - [Q2. What is the difference between authentication and authorizat…](#chapter-10-authentication-authorization-in-apis-q2)
-  - [Q3. What is an API key and when is it used?](#chapter-10-authentication-authorization-in-apis-q3)
-  - [Q4. What is the difference between Bearer tokens and API keys?](#chapter-10-authentication-authorization-in-apis-q4)
-  - [Q5. What does `[Authorize]` do on an API controller?](#chapter-10-authentication-authorization-in-apis-q5)
-  - [Q6. What does `[AllowAnonymous]` do?](#chapter-10-authentication-authorization-in-apis-q6)
-  - [Q7. What is the difference between role-based and policy-based a…](#chapter-10-authentication-authorization-in-apis-q7)
-  - [Q8. What are OAuth2 scopes vs role claims?](#chapter-10-authentication-authorization-in-apis-q8)
-  - [Q9. What is `JwtBearerDefaults.AuthenticationScheme`?](#chapter-10-authentication-authorization-in-apis-q9)
-  - [Q10. What HTTP header carries JWT tokens?](#chapter-10-authentication-authorization-in-apis-q10)
-  - [Q11. What is the difference between 401 Unauthorized and 403 Forb…](#chapter-10-authentication-authorization-in-apis-q11)
-  - [Q12. What is `TokenValidationParameters`?](#chapter-10-authentication-authorization-in-apis-q12)
-  - [Q13. What is a custom `AuthenticationHandler` for API keys?](#chapter-10-authentication-authorization-in-apis-q13)
-  - [Q14. What is `[Authorize(AuthenticationSchemes = "...")]`?](#chapter-10-authentication-authorization-in-apis-q14)
-  - [Q15. What is resource-based authorization in APIs?](#chapter-10-authentication-authorization-in-apis-q15)
-  - [Q16. What is multi-tenant authorization for Web APIs?](#chapter-10-authentication-authorization-in-apis-q16)
-  - [Q17. How do mobile apps typically authenticate to REST APIs?](#chapter-10-authentication-authorization-in-apis-q17)
-  - [Q18. What is the difference between cookie auth and Bearer token …](#chapter-10-authentication-authorization-in-apis-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is JWT Bearer authentication for Web APIs?](#q1-what-is-jwt-bearer-authentication-for-web-apis)
+2. [Q2. What is the difference between authentication and authorization in APIs?](#q2-what-is-the-difference-between-authentication-and-authorization-in-apis)
+3. [Q3. What is an API key and when is it used?](#q3-what-is-an-api-key-and-when-is-it-used)
+4. [Q4. What is the difference between Bearer tokens and API keys?](#q4-what-is-the-difference-between-bearer-tokens-and-api-keys)
+5. [Q5. What does `[Authorize]` do on an API controller?](#q5-what-does-authorize-do-on-an-api-controller)
+6. [Q6. What does `[AllowAnonymous]` do?](#q6-what-does-allowanonymous-do)
+7. [Q7. What is the difference between role-based and policy-based authorization in APIs?](#q7-what-is-the-difference-between-role-based-and-policy-based-authorization-in-apis)
+8. [Q8. What are OAuth2 scopes vs role claims?](#q8-what-are-oauth2-scopes-vs-role-claims)
+9. [Q9. What is `JwtBearerDefaults.AuthenticationScheme`?](#q9-what-is-jwtbearerdefaultsauthenticationscheme)
+10. [Q10. What HTTP header carries JWT tokens?](#q10-what-http-header-carries-jwt-tokens)
+11. [Q11. What is the difference between 401 Unauthorized and 403 Forbidden?](#q11-what-is-the-difference-between-401-unauthorized-and-403-forbidden)
+12. [Q12. What is `TokenValidationParameters`?](#q12-what-is-tokenvalidationparameters)
+13. [Q13. What is a custom `AuthenticationHandler` for API keys?](#q13-what-is-a-custom-authenticationhandler-for-api-keys)
+14. [Q14. What is `[Authorize(AuthenticationSchemes = "...")]`?](#q14-what-is-authorizeauthenticationschemes)
+15. [Q15. What is resource-based authorization in APIs?](#q15-what-is-resource-based-authorization-in-apis)
+16. [Q16. What is multi-tenant authorization for Web APIs?](#q16-what-is-multi-tenant-authorization-for-web-apis)
+17. [Q17. How do mobile apps typically authenticate to REST APIs?](#q17-how-do-mobile-apps-typically-authenticate-to-rest-apis)
+18. [Q18. What is the difference between cookie auth and Bearer token auth for APIs?](#q18-what-is-the-difference-between-cookie-auth-and-bearer-token-auth-for-apis)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 10. Authentication & Authorization in APIs
-
-### Q1. What is JWT Bearer authentication for Web APIs? {#chapter-10-authentication-authorization-in-apis-q1}
+## Q1. What is JWT Bearer authentication for Web APIs?
 
 What is JWT Bearer authentication for Web APIs?
 
@@ -43,7 +38,7 @@ What is JWT Bearer authentication for Web APIs?
 
 ---
 
-### Q2. What is the difference between authentication and authorization in APIs? {#chapter-10-authentication-authorization-in-apis-q2}
+## Q2. What is the difference between authentication and authorization in APIs?
 
 What is the difference between authentication and authorization in APIs?
 
@@ -57,7 +52,7 @@ What is the difference between authentication and authorization in APIs?
 
 ---
 
-### Q3. What is an API key and when is it used? {#chapter-10-authentication-authorization-in-apis-q3}
+## Q3. What is an API key and when is it used?
 
 What is an API key and when is it used?
 
@@ -71,7 +66,7 @@ What is an API key and when is it used?
 
 ---
 
-### Q4. What is the difference between Bearer tokens and API keys? {#chapter-10-authentication-authorization-in-apis-q4}
+## Q4. What is the difference between Bearer tokens and API keys?
 
 What is the difference between Bearer tokens and API keys?
 
@@ -85,7 +80,7 @@ What is the difference between Bearer tokens and API keys?
 
 ---
 
-### Q5. What does `[Authorize]` do on an API controller? {#chapter-10-authentication-authorization-in-apis-q5}
+## Q5. What does `[Authorize]` do on an API controller?
 
 What does `[Authorize]` do on an API controller?
 
@@ -99,7 +94,7 @@ What does `[Authorize]` do on an API controller?
 
 ---
 
-### Q6. What does `[AllowAnonymous]` do? {#chapter-10-authentication-authorization-in-apis-q6}
+## Q6. What does `[AllowAnonymous]` do?
 
 What does `[AllowAnonymous]` do?
 
@@ -113,7 +108,7 @@ What does `[AllowAnonymous]` do?
 
 ---
 
-### Q7. What is the difference between role-based and policy-based authorization in APIs? {#chapter-10-authentication-authorization-in-apis-q7}
+## Q7. What is the difference between role-based and policy-based authorization in APIs?
 
 What is the difference between role-based and policy-based authorization in APIs?
 
@@ -127,7 +122,7 @@ What is the difference between role-based and policy-based authorization in APIs
 
 ---
 
-### Q8. What are OAuth2 scopes vs role claims? {#chapter-10-authentication-authorization-in-apis-q8}
+## Q8. What are OAuth2 scopes vs role claims?
 
 What are OAuth2 scopes vs role claims?
 
@@ -141,7 +136,7 @@ What are OAuth2 scopes vs role claims?
 
 ---
 
-### Q9. What is `JwtBearerDefaults.AuthenticationScheme`? {#chapter-10-authentication-authorization-in-apis-q9}
+## Q9. What is `JwtBearerDefaults.AuthenticationScheme`?
 
 What is `JwtBearerDefaults.AuthenticationScheme`?
 
@@ -155,7 +150,7 @@ What is `JwtBearerDefaults.AuthenticationScheme`?
 
 ---
 
-### Q10. What HTTP header carries JWT tokens? {#chapter-10-authentication-authorization-in-apis-q10}
+## Q10. What HTTP header carries JWT tokens?
 
 What HTTP header carries JWT tokens?
 
@@ -169,7 +164,7 @@ What HTTP header carries JWT tokens?
 
 ---
 
-### Q11. What is the difference between 401 Unauthorized and 403 Forbidden? {#chapter-10-authentication-authorization-in-apis-q11}
+## Q11. What is the difference between 401 Unauthorized and 403 Forbidden?
 
 What is the difference between 401 Unauthorized and 403 Forbidden?
 
@@ -183,7 +178,7 @@ What is the difference between 401 Unauthorized and 403 Forbidden?
 
 ---
 
-### Q12. What is `TokenValidationParameters`? {#chapter-10-authentication-authorization-in-apis-q12}
+## Q12. What is `TokenValidationParameters`?
 
 What is `TokenValidationParameters`?
 
@@ -197,7 +192,7 @@ What is `TokenValidationParameters`?
 
 ---
 
-### Q13. What is a custom `AuthenticationHandler` for API keys? {#chapter-10-authentication-authorization-in-apis-q13}
+## Q13. What is a custom `AuthenticationHandler` for API keys?
 
 What is a custom `AuthenticationHandler` for API keys?
 
@@ -211,7 +206,7 @@ What is a custom `AuthenticationHandler` for API keys?
 
 ---
 
-### Q14. What is `[Authorize(AuthenticationSchemes = "...")]`? {#chapter-10-authentication-authorization-in-apis-q14}
+## Q14. What is `[Authorize(AuthenticationSchemes = "...")]`?
 
 What is `[Authorize(AuthenticationSchemes = "...")]`?
 
@@ -225,7 +220,7 @@ What is `[Authorize(AuthenticationSchemes = "...")]`?
 
 ---
 
-### Q15. What is resource-based authorization in APIs? {#chapter-10-authentication-authorization-in-apis-q15}
+## Q15. What is resource-based authorization in APIs?
 
 What is resource-based authorization in APIs?
 
@@ -239,7 +234,7 @@ What is resource-based authorization in APIs?
 
 ---
 
-### Q16. What is multi-tenant authorization for Web APIs? {#chapter-10-authentication-authorization-in-apis-q16}
+## Q16. What is multi-tenant authorization for Web APIs?
 
 What is multi-tenant authorization for Web APIs?
 
@@ -253,7 +248,7 @@ What is multi-tenant authorization for Web APIs?
 
 ---
 
-### Q17. How do mobile apps typically authenticate to REST APIs? {#chapter-10-authentication-authorization-in-apis-q17}
+## Q17. How do mobile apps typically authenticate to REST APIs?
 
 How do mobile apps typically authenticate to REST APIs?
 
@@ -267,7 +262,7 @@ How do mobile apps typically authenticate to REST APIs?
 
 ---
 
-### Q18. What is the difference between cookie auth and Bearer token auth for APIs? {#chapter-10-authentication-authorization-in-apis-q18}
+## Q18. What is the difference between cookie auth and Bearer token auth for APIs?
 
 What is the difference between cookie auth and Bearer token auth for APIs?
 

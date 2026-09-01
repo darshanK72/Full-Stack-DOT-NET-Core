@@ -1,35 +1,30 @@
 # Model Binding in MVC — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 06. Model Binding in MVC](#chapter-06-model-binding-in-mvc)
-  - [Q1. What is model binding in ASP.NET Core MVC?](#chapter-06-model-binding-in-mvc-q1)
-  - [Q2. How does model binding work for HTML form POSTs?](#chapter-06-model-binding-in-mvc-q2)
-  - [Q3. What is the difference between `[FromForm]` and `[FromBody]`…](#chapter-06-model-binding-in-mvc-q3)
-  - [Q4. Why does `[FromBody]` fail when posting a standard HTML form…](#chapter-06-model-binding-in-mvc-q4)
-  - [Q5. How are collection properties bound from form fields (`Lines…](#chapter-06-model-binding-in-mvc-q5)
-  - [Q6. What happens when collection indices are non-contiguous afte…](#chapter-06-model-binding-in-mvc-q6)
-  - [Q7. How does model binding handle nested objects (`Address.City`…](#chapter-06-model-binding-in-mvc-q7)
-  - [Q8. How do partial views affect model binding prefix for nested …](#chapter-06-model-binding-in-mvc-q8)
-  - [Q9. What happens when optional nullable fields (`int?`, `DateTim…](#chapter-06-model-binding-in-mvc-q9)
-  - [Q10. How does culture affect date and number binding from form fi…](#chapter-06-model-binding-in-mvc-q10)
-  - [Q11. What is `RequestLocalization` and how does it relate to mode…](#chapter-06-model-binding-in-mvc-q11)
-  - [Q12. How does file upload binding work (`IFormFile`)?](#chapter-06-model-binding-in-mvc-q12)
-  - [Q13. What `enctype` is required for file upload forms?](#chapter-06-model-binding-in-mvc-q13)
-  - [Q14. What is over-posting during model binding and how is it prev…](#chapter-06-model-binding-in-mvc-q14)
-  - [Q15. What are `[BindNever]` and `[Bind]` used for?](#chapter-06-model-binding-in-mvc-q15)
-  - [Q16. How do checkboxes bind to `bool` and `bool?` properties?](#chapter-06-model-binding-in-mvc-q16)
-  - [Q17. What is the hidden-field pattern for checkboxes?](#chapter-06-model-binding-in-mvc-q17)
-  - [Q18. What is a custom `IModelBinder` and when would you create on…](#chapter-06-model-binding-in-mvc-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is model binding in ASP.NET Core MVC?](#q1-what-is-model-binding-in-aspnet-core-mvc)
+2. [Q2. How does model binding work for HTML form POSTs?](#q2-how-does-model-binding-work-for-html-form-posts)
+3. [Q3. What is the difference between `[FromForm]` and `[FromBody]` in MVC?](#q3-what-is-the-difference-between-fromform-and-frombody-in-mvc)
+4. [Q4. Why does `[FromBody]` fail when posting a standard HTML form?](#q4-why-does-frombody-fail-when-posting-a-standard-html-form)
+5. [Q5. How are collection properties bound from form fields (`Lines[0].Sku`)?](#q5-how-are-collection-properties-bound-from-form-fields-lines0sku)
+6. [Q6. What happens when collection indices are non-contiguous after deleting a row?](#q6-what-happens-when-collection-indices-are-non-contiguous-after-deleting-a-row)
+7. [Q7. How does model binding handle nested objects (`Address.City`)?](#q7-how-does-model-binding-handle-nested-objects-addresscity)
+8. [Q8. How do partial views affect model binding prefix for nested properties?](#q8-how-do-partial-views-affect-model-binding-prefix-for-nested-properties)
+9. [Q9. What happens when optional nullable fields (`int?`, `DateTime?`) are left empty?](#q9-what-happens-when-optional-nullable-fields-int-datetime-are-left-empty)
+10. [Q10. How does culture affect date and number binding from form fields?](#q10-how-does-culture-affect-date-and-number-binding-from-form-fields)
+11. [Q11. What is `RequestLocalization` and how does it relate to model binding?](#q11-what-is-requestlocalization-and-how-does-it-relate-to-model-binding)
+12. [Q12. How does file upload binding work (`IFormFile`)?](#q12-how-does-file-upload-binding-work-iformfile)
+13. [Q13. What `enctype` is required for file upload forms?](#q13-what-enctype-is-required-for-file-upload-forms)
+14. [Q14. What is over-posting during model binding and how is it prevented?](#q14-what-is-over-posting-during-model-binding-and-how-is-it-prevented)
+15. [Q15. What are `[BindNever]` and `[Bind]` used for?](#q15-what-are-bindnever-and-bind-used-for)
+16. [Q16. How do checkboxes bind to `bool` and `bool?` properties?](#q16-how-do-checkboxes-bind-to-bool-and-bool-properties)
+17. [Q17. What is the hidden-field pattern for checkboxes?](#q17-what-is-the-hidden-field-pattern-for-checkboxes)
+18. [Q18. What is a custom `IModelBinder` and when would you create one?](#q18-what-is-a-custom-imodelbinder-and-when-would-you-create-one)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 06. Model Binding in MVC
-
-### Q1. What is model binding in ASP.NET Core MVC? {#chapter-06-model-binding-in-mvc-q1}
+## Q1. What is model binding in ASP.NET Core MVC?
 
 What is model binding in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is model binding in ASP.NET Core MVC?
 
 ---
 
-### Q2. How does model binding work for HTML form POSTs? {#chapter-06-model-binding-in-mvc-q2}
+## Q2. How does model binding work for HTML form POSTs?
 
 How does model binding work for HTML form POSTs?
 
@@ -55,7 +50,7 @@ How does model binding work for HTML form POSTs?
 
 ---
 
-### Q3. What is the difference between `[FromForm]` and `[FromBody]` in MVC? {#chapter-06-model-binding-in-mvc-q3}
+## Q3. What is the difference between `[FromForm]` and `[FromBody]` in MVC?
 
 What is the difference between `[FromForm]` and `[FromBody]` in MVC?
 
@@ -68,7 +63,7 @@ What is the difference between `[FromForm]` and `[FromBody]` in MVC?
 
 ---
 
-### Q4. Why does `[FromBody]` fail when posting a standard HTML form? {#chapter-06-model-binding-in-mvc-q4}
+## Q4. Why does `[FromBody]` fail when posting a standard HTML form?
 
 Why does `[FromBody]` fail when posting a standard HTML form?
 
@@ -81,7 +76,7 @@ Why does `[FromBody]` fail when posting a standard HTML form?
 
 ---
 
-### Q5. How are collection properties bound from form fields (`Lines[0].Sku`)? {#chapter-06-model-binding-in-mvc-q5}
+## Q5. How are collection properties bound from form fields (`Lines[0].Sku`)?
 
 How are collection properties bound from form fields (`Lines[0].Sku`)?
 
@@ -94,7 +89,7 @@ How are collection properties bound from form fields (`Lines[0].Sku`)?
 
 ---
 
-### Q6. What happens when collection indices are non-contiguous after deleting a row? {#chapter-06-model-binding-in-mvc-q6}
+## Q6. What happens when collection indices are non-contiguous after deleting a row?
 
 What happens when collection indices are non-contiguous after deleting a row?
 
@@ -107,7 +102,7 @@ What happens when collection indices are non-contiguous after deleting a row?
 
 ---
 
-### Q7. How does model binding handle nested objects (`Address.City`)? {#chapter-06-model-binding-in-mvc-q7}
+## Q7. How does model binding handle nested objects (`Address.City`)?
 
 How does model binding handle nested objects (`Address.City`)?
 
@@ -120,7 +115,7 @@ How does model binding handle nested objects (`Address.City`)?
 
 ---
 
-### Q8. How do partial views affect model binding prefix for nested properties? {#chapter-06-model-binding-in-mvc-q8}
+## Q8. How do partial views affect model binding prefix for nested properties?
 
 How do partial views affect model binding prefix for nested properties?
 
@@ -133,7 +128,7 @@ How do partial views affect model binding prefix for nested properties?
 
 ---
 
-### Q9. What happens when optional nullable fields (`int?`, `DateTime?`) are left empty? {#chapter-06-model-binding-in-mvc-q9}
+## Q9. What happens when optional nullable fields (`int?`, `DateTime?`) are left empty?
 
 What happens when optional nullable fields (`int?`, `DateTime?`) are left empty?
 
@@ -146,7 +141,7 @@ What happens when optional nullable fields (`int?`, `DateTime?`) are left empty?
 
 ---
 
-### Q10. How does culture affect date and number binding from form fields? {#chapter-06-model-binding-in-mvc-q10}
+## Q10. How does culture affect date and number binding from form fields?
 
 How does culture affect date and number binding from form fields?
 
@@ -159,7 +154,7 @@ How does culture affect date and number binding from form fields?
 
 ---
 
-### Q11. What is `RequestLocalization` and how does it relate to model binding? {#chapter-06-model-binding-in-mvc-q11}
+## Q11. What is `RequestLocalization` and how does it relate to model binding?
 
 What is `RequestLocalization` and how does it relate to model binding?
 
@@ -172,7 +167,7 @@ What is `RequestLocalization` and how does it relate to model binding?
 
 ---
 
-### Q12. How does file upload binding work (`IFormFile`)? {#chapter-06-model-binding-in-mvc-q12}
+## Q12. How does file upload binding work (`IFormFile`)?
 
 How does file upload binding work (`IFormFile`)?
 
@@ -185,7 +180,7 @@ How does file upload binding work (`IFormFile`)?
 
 ---
 
-### Q13. What `enctype` is required for file upload forms? {#chapter-06-model-binding-in-mvc-q13}
+## Q13. What `enctype` is required for file upload forms?
 
 What `enctype` is required for file upload forms?
 
@@ -198,7 +193,7 @@ What `enctype` is required for file upload forms?
 
 ---
 
-### Q14. What is over-posting during model binding and how is it prevented? {#chapter-06-model-binding-in-mvc-q14}
+## Q14. What is over-posting during model binding and how is it prevented?
 
 What is over-posting during model binding and how is it prevented?
 
@@ -211,7 +206,7 @@ What is over-posting during model binding and how is it prevented?
 
 ---
 
-### Q15. What are `[BindNever]` and `[Bind]` used for? {#chapter-06-model-binding-in-mvc-q15}
+## Q15. What are `[BindNever]` and `[Bind]` used for?
 
 What are `[BindNever]` and `[Bind]` used for?
 
@@ -224,7 +219,7 @@ What are `[BindNever]` and `[Bind]` used for?
 
 ---
 
-### Q16. How do checkboxes bind to `bool` and `bool?` properties? {#chapter-06-model-binding-in-mvc-q16}
+## Q16. How do checkboxes bind to `bool` and `bool?` properties?
 
 How do checkboxes bind to `bool` and `bool?` properties?
 
@@ -237,7 +232,7 @@ How do checkboxes bind to `bool` and `bool?` properties?
 
 ---
 
-### Q17. What is the hidden-field pattern for checkboxes? {#chapter-06-model-binding-in-mvc-q17}
+## Q17. What is the hidden-field pattern for checkboxes?
 
 What is the hidden-field pattern for checkboxes?
 
@@ -250,7 +245,7 @@ What is the hidden-field pattern for checkboxes?
 
 ---
 
-### Q18. What is a custom `IModelBinder` and when would you create one? {#chapter-06-model-binding-in-mvc-q18}
+## Q18. What is a custom `IModelBinder` and when would you create one?
 
 What is a custom `IModelBinder` and when would you create one?
 

@@ -1,35 +1,30 @@
 # AJAX & Partial Page Updates — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 13. AJAX & Partial Page Updates](#chapter-13-ajax-partial-page-updates)
-  - [Q1. What is a partial page update in ASP.NET Core MVC?](#chapter-13-ajax-partial-page-updates-q1)
-  - [Q2. What is `PartialView()` and what does it return?](#chapter-13-ajax-partial-page-updates-q2)
-  - [Q3. What is the difference between returning `PartialView` and `…](#chapter-13-ajax-partial-page-updates-q3)
-  - [Q4. How does model binding differ for AJAX POST with `FormData` …](#chapter-13-ajax-partial-page-updates-q4)
-  - [Q5. How do you include an antiforgery token in a `fetch`/AJAX re…](#chapter-13-ajax-partial-page-updates-q5)
-  - [Q6. What is `RequestVerificationToken` and how is it validated o…](#chapter-13-ajax-partial-page-updates-q6)
-  - [Q7. What is the difference between `[ValidateAntiForgeryToken]` …](#chapter-13-ajax-partial-page-updates-q7)
-  - [Q8. What is unobtrusive AJAX (`data-ajax="true"`)?](#chapter-13-ajax-partial-page-updates-q8)
-  - [Q9. Why should AJAX partial endpoints check response status befo…](#chapter-13-ajax-partial-page-updates-q9)
-  - [Q10. What `Cache-Control` headers should dynamic partial views us…](#chapter-13-ajax-partial-page-updates-q10)
-  - [Q11. What XSS risks exist when injecting server-rendered HTML via…](#chapter-13-ajax-partial-page-updates-q11)
-  - [Q12. Why do duplicate HTML `id` attributes break AJAX-loaded part…](#chapter-13-ajax-partial-page-updates-q12)
-  - [Q13. What is the difference between `Html.PartialAsync` returned …](#chapter-13-ajax-partial-page-updates-q13)
-  - [Q14. How do you handle validation errors in AJAX form submissions…](#chapter-13-ajax-partial-page-updates-q14)
-  - [Q15. What happens when `UseExceptionHandler` returns a full error…](#chapter-13-ajax-partial-page-updates-q15)
-  - [Q16. What is `[FromBody]` vs form-urlencoded binding for AJAX fil…](#chapter-13-ajax-partial-page-updates-q16)
-  - [Q17. What is the difference between jQuery unobtrusive AJAX and `…](#chapter-13-ajax-partial-page-updates-q17)
-  - [Q18. How do you design separate actions for full-page POST vs AJA…](#chapter-13-ajax-partial-page-updates-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is a partial page update in ASP.NET Core MVC?](#q1-what-is-a-partial-page-update-in-aspnet-core-mvc)
+2. [Q2. What is `PartialView()` and what does it return?](#q2-what-is-partialview-and-what-does-it-return)
+3. [Q3. What is the difference between returning `PartialView` and `Json` from an AJAX action?](#q3-what-is-the-difference-between-returning-partialview-and-json-from-an-ajax-action)
+4. [Q4. How does model binding differ for AJAX POST with `FormData` vs JSON?](#q4-how-does-model-binding-differ-for-ajax-post-with-formdata-vs-json)
+5. [Q5. How do you include an antiforgery token in a `fetch`/AJAX request?](#q5-how-do-you-include-an-antiforgery-token-in-a-fetchajax-request)
+6. [Q6. What is `RequestVerificationToken` and how is it validated on AJAX POSTs?](#q6-what-is-requestverificationtoken-and-how-is-it-validated-on-ajax-posts)
+7. [Q7. What is the difference between `[ValidateAntiForgeryToken]` and `[AutoValidateAntiforgeryToken]` for AJAX?](#q7-what-is-the-difference-between-validateantiforgerytoken-and-autovalidateantiforgerytoken-for-ajax)
+8. [Q8. What is unobtrusive AJAX (`data-ajax="true"`)?](#q8-what-is-unobtrusive-ajax-data-ajaxtrue)
+9. [Q9. Why should AJAX partial endpoints check response status before injecting HTML?](#q9-why-should-ajax-partial-endpoints-check-response-status-before-injecting-html)
+10. [Q10. What `Cache-Control` headers should dynamic partial views use?](#q10-what-cache-control-headers-should-dynamic-partial-views-use)
+11. [Q11. What XSS risks exist when injecting server-rendered HTML via `innerHTML`?](#q11-what-xss-risks-exist-when-injecting-server-rendered-html-via-innerhtml)
+12. [Q12. Why do duplicate HTML `id` attributes break AJAX-loaded partials?](#q12-why-do-duplicate-html-id-attributes-break-ajax-loaded-partials)
+13. [Q13. What is the difference between `Html.PartialAsync` returned from an action vs a full `View`?](#q13-what-is-the-difference-between-htmlpartialasync-returned-from-an-action-vs-a-full-view)
+14. [Q14. How do you handle validation errors in AJAX form submissions?](#q14-how-do-you-handle-validation-errors-in-ajax-form-submissions)
+15. [Q15. What happens when `UseExceptionHandler` returns a full error page to a partial AJAX request?](#q15-what-happens-when-useexceptionhandler-returns-a-full-error-page-to-a-partial-ajax-request)
+16. [Q16. What is `[FromBody]` vs form-urlencoded binding for AJAX filter endpoints?](#q16-what-is-frombody-vs-form-urlencoded-binding-for-ajax-filter-endpoints)
+17. [Q17. What is the difference between jQuery unobtrusive AJAX and `fetch` + `innerHTML`?](#q17-what-is-the-difference-between-jquery-unobtrusive-ajax-and-fetch-innerhtml)
+18. [Q18. How do you design separate actions for full-page POST vs AJAX POST?](#q18-how-do-you-design-separate-actions-for-full-page-post-vs-ajax-post)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 13. AJAX & Partial Page Updates
-
-### Q1. What is a partial page update in ASP.NET Core MVC? {#chapter-13-ajax-partial-page-updates-q1}
+## Q1. What is a partial page update in ASP.NET Core MVC?
 
 What is a partial page update in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is a partial page update in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is `PartialView()` and what does it return? {#chapter-13-ajax-partial-page-updates-q2}
+## Q2. What is `PartialView()` and what does it return?
 
 What is `PartialView()` and what does it return?
 
@@ -55,7 +50,7 @@ What is `PartialView()` and what does it return?
 
 ---
 
-### Q3. What is the difference between returning `PartialView` and `Json` from an AJAX action? {#chapter-13-ajax-partial-page-updates-q3}
+## Q3. What is the difference between returning `PartialView` and `Json` from an AJAX action?
 
 What is the difference between returning `PartialView` and `Json` from an AJAX action?
 
@@ -68,7 +63,7 @@ What is the difference between returning `PartialView` and `Json` from an AJAX a
 
 ---
 
-### Q4. How does model binding differ for AJAX POST with `FormData` vs JSON? {#chapter-13-ajax-partial-page-updates-q4}
+## Q4. How does model binding differ for AJAX POST with `FormData` vs JSON?
 
 How does model binding differ for AJAX POST with `FormData` vs JSON?
 
@@ -81,7 +76,7 @@ How does model binding differ for AJAX POST with `FormData` vs JSON?
 
 ---
 
-### Q5. How do you include an antiforgery token in a `fetch`/AJAX request? {#chapter-13-ajax-partial-page-updates-q5}
+## Q5. How do you include an antiforgery token in a `fetch`/AJAX request?
 
 How do you include an antiforgery token in a `fetch`/AJAX request?
 
@@ -103,7 +98,7 @@ await fetch('/Cart/Add', {
 
 ---
 
-### Q6. What is `RequestVerificationToken` and how is it validated on AJAX POSTs? {#chapter-13-ajax-partial-page-updates-q6}
+## Q6. What is `RequestVerificationToken` and how is it validated on AJAX POSTs?
 
 What is `RequestVerificationToken` and how is it validated on AJAX POSTs?
 
@@ -116,7 +111,7 @@ What is `RequestVerificationToken` and how is it validated on AJAX POSTs?
 
 ---
 
-### Q7. What is the difference between `[ValidateAntiForgeryToken]` and `[AutoValidateAntiforgeryToken]` for AJAX? {#chapter-13-ajax-partial-page-updates-q7}
+## Q7. What is the difference between `[ValidateAntiForgeryToken]` and `[AutoValidateAntiforgeryToken]` for AJAX?
 
 What is the difference between `[ValidateAntiForgeryToken]` and `[AutoValidateAntiforgeryToken]` for AJAX?
 
@@ -129,7 +124,7 @@ What is the difference between `[ValidateAntiForgeryToken]` and `[AutoValidateAn
 
 ---
 
-### Q8. What is unobtrusive AJAX (`data-ajax="true"`)? {#chapter-13-ajax-partial-page-updates-q8}
+## Q8. What is unobtrusive AJAX (`data-ajax="true"`)?
 
 What is unobtrusive AJAX (`data-ajax="true"`)?
 
@@ -142,7 +137,7 @@ What is unobtrusive AJAX (`data-ajax="true"`)?
 
 ---
 
-### Q9. Why should AJAX partial endpoints check response status before injecting HTML? {#chapter-13-ajax-partial-page-updates-q9}
+## Q9. Why should AJAX partial endpoints check response status before injecting HTML?
 
 Why should AJAX partial endpoints check response status before injecting HTML?
 
@@ -155,7 +150,7 @@ Why should AJAX partial endpoints check response status before injecting HTML?
 
 ---
 
-### Q10. What `Cache-Control` headers should dynamic partial views use? {#chapter-13-ajax-partial-page-updates-q10}
+## Q10. What `Cache-Control` headers should dynamic partial views use?
 
 What `Cache-Control` headers should dynamic partial views use?
 
@@ -168,7 +163,7 @@ What `Cache-Control` headers should dynamic partial views use?
 
 ---
 
-### Q11. What XSS risks exist when injecting server-rendered HTML via `innerHTML`? {#chapter-13-ajax-partial-page-updates-q11}
+## Q11. What XSS risks exist when injecting server-rendered HTML via `innerHTML`?
 
 What XSS risks exist when injecting server-rendered HTML via `innerHTML`?
 
@@ -181,7 +176,7 @@ What XSS risks exist when injecting server-rendered HTML via `innerHTML`?
 
 ---
 
-### Q12. Why do duplicate HTML `id` attributes break AJAX-loaded partials? {#chapter-13-ajax-partial-page-updates-q12}
+## Q12. Why do duplicate HTML `id` attributes break AJAX-loaded partials?
 
 Why do duplicate HTML `id` attributes break AJAX-loaded partials?
 
@@ -194,7 +189,7 @@ Why do duplicate HTML `id` attributes break AJAX-loaded partials?
 
 ---
 
-### Q13. What is the difference between `Html.PartialAsync` returned from an action vs a full `View`? {#chapter-13-ajax-partial-page-updates-q13}
+## Q13. What is the difference between `Html.PartialAsync` returned from an action vs a full `View`?
 
 What is the difference between `Html.PartialAsync` returned from an action vs a full `View`?
 
@@ -207,7 +202,7 @@ What is the difference between `Html.PartialAsync` returned from an action vs a 
 
 ---
 
-### Q14. How do you handle validation errors in AJAX form submissions? {#chapter-13-ajax-partial-page-updates-q14}
+## Q14. How do you handle validation errors in AJAX form submissions?
 
 How do you handle validation errors in AJAX form submissions?
 
@@ -220,7 +215,7 @@ How do you handle validation errors in AJAX form submissions?
 
 ---
 
-### Q15. What happens when `UseExceptionHandler` returns a full error page to a partial AJAX request? {#chapter-13-ajax-partial-page-updates-q15}
+## Q15. What happens when `UseExceptionHandler` returns a full error page to a partial AJAX request?
 
 What happens when `UseExceptionHandler` returns a full error page to a partial AJAX request?
 
@@ -233,7 +228,7 @@ What happens when `UseExceptionHandler` returns a full error page to a partial A
 
 ---
 
-### Q16. What is `[FromBody]` vs form-urlencoded binding for AJAX filter endpoints? {#chapter-13-ajax-partial-page-updates-q16}
+## Q16. What is `[FromBody]` vs form-urlencoded binding for AJAX filter endpoints?
 
 What is `[FromBody]` vs form-urlencoded binding for AJAX filter endpoints?
 
@@ -246,7 +241,7 @@ What is `[FromBody]` vs form-urlencoded binding for AJAX filter endpoints?
 
 ---
 
-### Q17. What is the difference between jQuery unobtrusive AJAX and `fetch` + `innerHTML`? {#chapter-13-ajax-partial-page-updates-q17}
+## Q17. What is the difference between jQuery unobtrusive AJAX and `fetch` + `innerHTML`?
 
 What is the difference between jQuery unobtrusive AJAX and `fetch` + `innerHTML`?
 
@@ -259,7 +254,7 @@ What is the difference between jQuery unobtrusive AJAX and `fetch` + `innerHTML`
 
 ---
 
-### Q18. How do you design separate actions for full-page POST vs AJAX POST? {#chapter-13-ajax-partial-page-updates-q18}
+## Q18. How do you design separate actions for full-page POST vs AJAX POST?
 
 How do you design separate actions for full-page POST vs AJAX POST?
 

@@ -1,35 +1,30 @@
 # Model Binding & Validation — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 08. Model Binding & Validation](#chapter-08-model-binding-validation)
-  - [Q1. What is model binding in ASP.NET Core?](#chapter-08-model-binding-validation-q1)
-  - [Q2. How does ASP.NET Core bind route values, query strings, and …](#chapter-08-model-binding-validation-q2)
-  - [Q3. What is the difference between `[FromBody]`, `[FromQuery]`, …](#chapter-08-model-binding-validation-q3)
-  - [Q4. Can a GET request have a body, and should you use `[FromBody…](#chapter-08-model-binding-validation-q4)
-  - [Q5. What does the `[ApiController]` attribute change about model…](#chapter-08-model-binding-validation-q5)
-  - [Q6. What is `ModelState`, and how is it used?](#chapter-08-model-binding-validation-q6)
-  - [Q7. What are data annotation attributes for validation?](#chapter-08-model-binding-validation-q7)
-  - [Q8. What HTTP status code does `[ApiController]` return for vali…](#chapter-08-model-binding-validation-q8)
-  - [Q9. What is RFC 7807 ProblemDetails?](#chapter-08-model-binding-validation-q9)
-  - [Q10. How do you enable ProblemDetails responses in ASP.NET Core?](#chapter-08-model-binding-validation-q10)
-  - [Q11. What is the default JSON property naming policy in ASP.NET C…](#chapter-08-model-binding-validation-q11)
-  - [Q12. How do you configure camelCase JSON serialization?](#chapter-08-model-binding-validation-q12)
-  - [Q13. What is `IValidatableObject`?](#chapter-08-model-binding-validation-q13)
-  - [Q14. What is FluentValidation, and how does it differ from data a…](#chapter-08-model-binding-validation-q14)
-  - [Q15. How does complex type binding from query strings work (e.g.,…](#chapter-08-model-binding-validation-q15)
-  - [Q16. What is the difference between model binding errors and vali…](#chapter-08-model-binding-validation-q16)
-  - [Q17. What is `[ValidateNever]` used for?](#chapter-08-model-binding-validation-q17)
-  - [Q18. How does ASP.NET Core handle invalid JSON in the request bod…](#chapter-08-model-binding-validation-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is model binding in ASP.NET Core?](#q1-what-is-model-binding-in-aspnet-core)
+2. [Q2. How does ASP.NET Core bind route values, query strings, and request bodies to action parameters?](#q2-how-does-aspnet-core-bind-route-values-query-strings-and-request-bodies-to-action-parameters)
+3. [Q3. What is the difference between `[FromBody]`, `[FromQuery]`, and `[FromRoute]`?](#q3-what-is-the-difference-between-frombody-fromquery-and-fromroute)
+4. [Q4. Can a GET request have a body, and should you use `[FromBody]` on GET?](#q4-can-a-get-request-have-a-body-and-should-you-use-frombody-on-get)
+5. [Q5. What does the `[ApiController]` attribute change about model validation?](#q5-what-does-the-apicontroller-attribute-change-about-model-validation)
+6. [Q6. What is `ModelState`, and how is it used?](#q6-what-is-modelstate-and-how-is-it-used)
+7. [Q7. What are data annotation attributes for validation?](#q7-what-are-data-annotation-attributes-for-validation)
+8. [Q8. What HTTP status code does `[ApiController]` return for validation failures by default?](#q8-what-http-status-code-does-apicontroller-return-for-validation-failures-by-default)
+9. [Q9. What is RFC 7807 ProblemDetails?](#q9-what-is-rfc-7807-problemdetails)
+10. [Q10. How do you enable ProblemDetails responses in ASP.NET Core?](#q10-how-do-you-enable-problemdetails-responses-in-aspnet-core)
+11. [Q11. What is the default JSON property naming policy in ASP.NET Core Web APIs?](#q11-what-is-the-default-json-property-naming-policy-in-aspnet-core-web-apis)
+12. [Q12. How do you configure camelCase JSON serialization?](#q12-how-do-you-configure-camelcase-json-serialization)
+13. [Q13. What is `IValidatableObject`?](#q13-what-is-ivalidatableobject)
+14. [Q14. What is FluentValidation, and how does it differ from data annotations?](#q14-what-is-fluentvalidation-and-how-does-it-differ-from-data-annotations)
+15. [Q15. How does complex type binding from query strings work (e.g., nested objects)?](#q15-how-does-complex-type-binding-from-query-strings-work-eg-nested-objects)
+16. [Q16. What is the difference between model binding errors and validation errors?](#q16-what-is-the-difference-between-model-binding-errors-and-validation-errors)
+17. [Q17. What is `[ValidateNever]` used for?](#q17-what-is-validatenever-used-for)
+18. [Q18. How does ASP.NET Core handle invalid JSON in the request body?](#q18-how-does-aspnet-core-handle-invalid-json-in-the-request-body)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 08. Model Binding & Validation
-
-### Q1. What is model binding in ASP.NET Core? {#chapter-08-model-binding-validation-q1}
+## Q1. What is model binding in ASP.NET Core?
 
 What is model binding in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is model binding in ASP.NET Core?
 
 ---
 
-### Q2. How does ASP.NET Core bind route values, query strings, and request bodies to action parameters? {#chapter-08-model-binding-validation-q2}
+## Q2. How does ASP.NET Core bind route values, query strings, and request bodies to action parameters?
 
 How does ASP.NET Core bind route values, query strings, and request bodies to action parameters?
 
@@ -55,7 +50,7 @@ How does ASP.NET Core bind route values, query strings, and request bodies to ac
 
 ---
 
-### Q3. What is the difference between `[FromBody]`, `[FromQuery]`, and `[FromRoute]`? {#chapter-08-model-binding-validation-q3}
+## Q3. What is the difference between `[FromBody]`, `[FromQuery]`, and `[FromRoute]`?
 
 What is the difference between `[FromBody]`, `[FromQuery]`, and `[FromRoute]`?
 
@@ -68,7 +63,7 @@ What is the difference between `[FromBody]`, `[FromQuery]`, and `[FromRoute]`?
 
 ---
 
-### Q4. Can a GET request have a body, and should you use `[FromBody]` on GET? {#chapter-08-model-binding-validation-q4}
+## Q4. Can a GET request have a body, and should you use `[FromBody]` on GET?
 
 Can a GET request have a body, and should you use `[FromBody]` on GET?
 
@@ -81,7 +76,7 @@ Can a GET request have a body, and should you use `[FromBody]` on GET?
 
 ---
 
-### Q5. What does the `[ApiController]` attribute change about model validation? {#chapter-08-model-binding-validation-q5}
+## Q5. What does the `[ApiController]` attribute change about model validation?
 
 What does the `[ApiController]` attribute change about model validation?
 
@@ -94,7 +89,7 @@ What does the `[ApiController]` attribute change about model validation?
 
 ---
 
-### Q6. What is `ModelState`, and how is it used? {#chapter-08-model-binding-validation-q6}
+## Q6. What is `ModelState`, and how is it used?
 
 What is `ModelState`, and how is it used?
 
@@ -107,7 +102,7 @@ What is `ModelState`, and how is it used?
 
 ---
 
-### Q7. What are data annotation attributes for validation? {#chapter-08-model-binding-validation-q7}
+## Q7. What are data annotation attributes for validation?
 
 What are data annotation attributes for validation?
 
@@ -120,7 +115,7 @@ What are data annotation attributes for validation?
 
 ---
 
-### Q8. What HTTP status code does `[ApiController]` return for validation failures by default? {#chapter-08-model-binding-validation-q8}
+## Q8. What HTTP status code does `[ApiController]` return for validation failures by default?
 
 What HTTP status code does `[ApiController]` return for validation failures by default?
 
@@ -133,7 +128,7 @@ What HTTP status code does `[ApiController]` return for validation failures by d
 
 ---
 
-### Q9. What is RFC 7807 ProblemDetails? {#chapter-08-model-binding-validation-q9}
+## Q9. What is RFC 7807 ProblemDetails?
 
 What is RFC 7807 ProblemDetails?
 
@@ -146,7 +141,7 @@ What is RFC 7807 ProblemDetails?
 
 ---
 
-### Q10. How do you enable ProblemDetails responses in ASP.NET Core? {#chapter-08-model-binding-validation-q10}
+## Q10. How do you enable ProblemDetails responses in ASP.NET Core?
 
 How do you enable ProblemDetails responses in ASP.NET Core?
 
@@ -159,7 +154,7 @@ How do you enable ProblemDetails responses in ASP.NET Core?
 
 ---
 
-### Q11. What is the default JSON property naming policy in ASP.NET Core Web APIs? {#chapter-08-model-binding-validation-q11}
+## Q11. What is the default JSON property naming policy in ASP.NET Core Web APIs?
 
 What is the default JSON property naming policy in ASP.NET Core Web APIs?
 
@@ -172,7 +167,7 @@ What is the default JSON property naming policy in ASP.NET Core Web APIs?
 
 ---
 
-### Q12. How do you configure camelCase JSON serialization? {#chapter-08-model-binding-validation-q12}
+## Q12. How do you configure camelCase JSON serialization?
 
 How do you configure camelCase JSON serialization?
 
@@ -190,7 +185,7 @@ builder.Services.AddControllers()
 
 ---
 
-### Q13. What is `IValidatableObject`? {#chapter-08-model-binding-validation-q13}
+## Q13. What is `IValidatableObject`?
 
 What is `IValidatableObject`?
 
@@ -203,7 +198,7 @@ What is `IValidatableObject`?
 
 ---
 
-### Q14. What is FluentValidation, and how does it differ from data annotations? {#chapter-08-model-binding-validation-q14}
+## Q14. What is FluentValidation, and how does it differ from data annotations?
 
 What is FluentValidation, and how does it differ from data annotations?
 
@@ -216,7 +211,7 @@ What is FluentValidation, and how does it differ from data annotations?
 
 ---
 
-### Q15. How does complex type binding from query strings work (e.g., nested objects)? {#chapter-08-model-binding-validation-q15}
+## Q15. How does complex type binding from query strings work (e.g., nested objects)?
 
 How does complex type binding from query strings work (e.g., nested objects)?
 
@@ -229,7 +224,7 @@ How does complex type binding from query strings work (e.g., nested objects)?
 
 ---
 
-### Q16. What is the difference between model binding errors and validation errors? {#chapter-08-model-binding-validation-q16}
+## Q16. What is the difference between model binding errors and validation errors?
 
 What is the difference between model binding errors and validation errors?
 
@@ -242,7 +237,7 @@ What is the difference between model binding errors and validation errors?
 
 ---
 
-### Q17. What is `[ValidateNever]` used for? {#chapter-08-model-binding-validation-q17}
+## Q17. What is `[ValidateNever]` used for?
 
 What is `[ValidateNever]` used for?
 
@@ -255,7 +250,7 @@ What is `[ValidateNever]` used for?
 
 ---
 
-### Q18. How does ASP.NET Core handle invalid JSON in the request body? {#chapter-08-model-binding-validation-q18}
+## Q18. How does ASP.NET Core handle invalid JSON in the request body?
 
 How does ASP.NET Core handle invalid JSON in the request body?
 

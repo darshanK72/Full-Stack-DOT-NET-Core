@@ -2,18 +2,18 @@
 > 12 questions · Back to [README](../README.md)
 
 ## Table of Contents
-1. [What is a message broker, and why do microservices use asynchronous messaging in…](#q1)
-2. [What is the difference between at-most-once, at-least-once, and exactly-once del…](#q2)
-3. [How do point-to-point queues differ from publish/subscribe topics, and when woul…](#q3)
-4. [What are RabbitMQ exchanges, and how do direct, fanout, topic, and headers excha…](#q4)
-5. [How do consumer acknowledgements work in RabbitMQ, and what is a dead-letter que…](#q5)
-6. [How does Azure Service Bus differ from RabbitMQ, and when would you choose one o…](#q6)
-7. [What are Kafka partitions and consumer groups, and how does Kafka achieve ordere…](#q7)
-8. [What is MassTransit, and what does it add over using a raw broker client library…](#q8)
-9. [How do you implement consumer idempotency — what happens if the same message is …](#q9)
-10. [What is the competing consumers pattern, and what trade-offs does it introduce f…](#q10)
-11. [How do you evolve message schemas without breaking existing consumers — what com…](#q11)
-12. [How does the transactional outbox pattern solve the dual-write problem between a…](#q12)
+1. [Q1. What is a message broker, and why do microservices use asynchronous messaging instead of direct HTTP calls between services?](#q1-what-is-a-message-broker-and-why-do-microservices-use-asynchronous-messaging-instead-of-direct-http-calls-between-services)
+2. [Q2. What is the difference between at-most-once, at-least-once, and exactly-once delivery semantics in messaging?](#q2-what-is-the-difference-between-at-most-once-at-least-once-and-exactly-once-delivery-semantics-in-messaging)
+3. [Q3. How do point-to-point queues differ from publish/subscribe topics, and when would you use each pattern?](#q3-how-do-point-to-point-queues-differ-from-publishsubscribe-topics-and-when-would-you-use-each-pattern)
+4. [Q4. What are RabbitMQ exchanges, and how do direct, fanout, topic, and headers exchanges route messages differently?](#q4-what-are-rabbitmq-exchanges-and-how-do-direct-fanout-topic-and-headers-exchanges-route-messages-differently)
+5. [Q5. How do consumer acknowledgements work in RabbitMQ, and what is a dead-letter queue used for?](#q5-how-do-consumer-acknowledgements-work-in-rabbitmq-and-what-is-a-dead-letter-queue-used-for)
+6. [Q6. How does Azure Service Bus differ from RabbitMQ, and when would you choose one over the other?](#q6-how-does-azure-service-bus-differ-from-rabbitmq-and-when-would-you-choose-one-over-the-other)
+7. [Q7. What are Kafka partitions and consumer groups, and how does Kafka achieve ordered and scalable message consumption?](#q7-what-are-kafka-partitions-and-consumer-groups-and-how-does-kafka-achieve-ordered-and-scalable-message-consumption)
+8. [Q8. What is MassTransit, and what does it add over using a raw broker client library directly?](#q8-what-is-masstransit-and-what-does-it-add-over-using-a-raw-broker-client-library-directly)
+9. [Q9. How do you implement consumer idempotency — what happens if the same message is delivered and processed more than once?](#q9-how-do-you-implement-consumer-idempotency-what-happens-if-the-same-message-is-delivered-and-processed-more-than-once)
+10. [Q10. What is the competing consumers pattern, and what trade-offs does it introduce for message ordering?](#q10-what-is-the-competing-consumers-pattern-and-what-trade-offs-does-it-introduce-for-message-ordering)
+11. [Q11. How do you evolve message schemas without breaking existing consumers — what compatibility strategies are available?](#q11-how-do-you-evolve-message-schemas-without-breaking-existing-consumers-what-compatibility-strategies-are-available)
+12. [Q12. How does the transactional outbox pattern solve the dual-write problem between a database and a message broker?](#q12-how-does-the-transactional-outbox-pattern-solve-the-dual-write-problem-between-a-database-and-a-message-broker)
 
 ---
 

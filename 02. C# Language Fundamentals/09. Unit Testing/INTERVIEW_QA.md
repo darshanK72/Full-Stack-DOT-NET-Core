@@ -4,94 +4,131 @@
 ## Table of Contents
 
 - [01. Unit Testing Basics](#01-unit-testing-basics)
-  - [Q1. What is unit testing, and how does it differ from integratio…](#01-unit-testing-basics-q1)
-  - [Q2. Explain the AAA pattern (Arrange, Act, Assert) and why order…](#01-unit-testing-basics-q2)
-  - [Q3. What makes a good unit test (FIRST / TRICE — fast, isolated,…](#01-unit-testing-basics-q3)
-  - [Q4. What is the System Under Test (SUT), and how do you identify…](#01-unit-testing-basics-q4)
-  - [Q5. What is test coverage, and why can 100% line coverage still …](#01-unit-testing-basics-q5)
-  - [Q6. What is mutation testing, and how does it critique coverage …](#01-unit-testing-basics-q6)
-  - [Q7. What is the difference between state-based and interaction-b…](#01-unit-testing-basics-q7)
-  - [Q8. What is a test fixture, and how is it different from a test …](#01-unit-testing-basics-q8)
-  - [Q9. What are flaky tests, and what common causes (time, threadin…](#01-unit-testing-basics-q9)
-  - [Q10. What is the test pyramid, and where do unit tests sit relati…](#01-unit-testing-basics-q10)
-  - [Q11. What is TDD (Red-Green-Refactor), and what benefits/challeng…](#01-unit-testing-basics-q11)
-  - [Q12. When should a bug fix include a regression test?](#01-unit-testing-basics-q12)
-  - [Q13. What is the difference between testing public behavior vs in…](#01-unit-testing-basics-q13)
-  - [Q14. How do deterministic tests handle `DateTime.Now`, `Guid.NewG…](#01-unit-testing-basics-q14)
-  - [Q15. What is arrange duplication, and when is shared setup justif…](#01-unit-testing-basics-q15)
+  - [Q1. What is unit testing, and how does it differ from integration, component, and end-to-end testing?](#q1-what-is-unit-testing-and-how-does-it-differ-from-integration-component-and-end-to-end-testing)
+  - [Q2. Explain the AAA pattern (Arrange, Act, Assert) and why order matters psychologically for readers.](#q2-explain-the-aaa-pattern-arrange-act-assert-and-why-order-matters-psychologically-for-readers)
+  - [Q3. What makes a good unit test (FIRST / TRICE — fast, isolated, repeatable, self-validating, timely)?](#q3-what-makes-a-good-unit-test-first-trice-fast-isolated-repeatable-self-validating-timely)
+  - [Q4. What is the System Under Test (SUT), and how do you identify its boundaries?](#q4-what-is-the-system-under-test-sut-and-how-do-you-identify-its-boundaries)
+  - [Q5. What is test coverage, and why can 100% line coverage still miss important bugs?](#q5-what-is-test-coverage-and-why-can-100-line-coverage-still-miss-important-bugs)
+  - [Q6. What is mutation testing, and how does it critique coverage metrics?](#q6-what-is-mutation-testing-and-how-does-it-critique-coverage-metrics)
+  - [Q7. What is the difference between state-based and interaction-based testing?](#q7-what-is-the-difference-between-state-based-and-interaction-based-testing)
+  - [Q8. What is a test fixture, and how is it different from a test case?](#q8-what-is-a-test-fixture-and-how-is-it-different-from-a-test-case)
+  - [Q9. What are flaky tests, and what common causes (time, threading, shared state, external I/O)?](#q9-what-are-flaky-tests-and-what-common-causes-time-threading-shared-state-external-io)
+  - [Q10. What is the test pyramid, and where do unit tests sit relative to integration tests?](#q10-what-is-the-test-pyramid-and-where-do-unit-tests-sit-relative-to-integration-tests)
+  - [Q11. What is TDD (Red-Green-Refactor), and what benefits/challenges does it bring?](#q11-what-is-tdd-red-green-refactor-and-what-benefitschallenges-does-it-bring)
+  - [Q12. When should a bug fix include a regression test?](#q12-when-should-a-bug-fix-include-a-regression-test)
+  - [Q13. What is the difference between testing public behavior vs internal implementation?](#q13-what-is-the-difference-between-testing-public-behavior-vs-internal-implementation)
+  - [Q14. How do deterministic tests handle `DateTime.Now`, `Guid.NewGuid()`, and randomness?](#q14-how-do-deterministic-tests-handle-datetimenow-guidnewguid-and-randomness)
+  - [Q15. What is arrange duplication, and when is shared setup justified vs harmful?](#q15-what-is-arrange-duplication-and-when-is-shared-setup-justified-vs-harmful)
 
 - [02. xUnit](#02-xunit)
-  - [Q1. What is xUnit.net, and how does its philosophy differ from M…](#02-xunit-q1)
-  - [Q2. Explain `[Fact]` vs `[Theory]` — when is parameterized testi…](#02-xunit-q2)
-  - [Q3. How do `[InlineData]`, `[MemberData]`, and `[ClassData]` sup…](#02-xunit-q3)
-  - [Q4. How does xUnit create test class instances — per test or per…](#02-xunit-q4)
-  - [Q5. What are `IClassFixture<T>` and `ICollectionFixture<T>`, and…](#02-xunit-q5)
-  - [Q6. How do collection definitions (`[Collection("Name")]`) seria…](#02-xunit-q6)
-  - [Q7. What is `IAsyncLifetime`, and how does it replace async setu…](#02-xunit-q7)
-  - [Q8. How does xUnit handle parallel test execution by default, an…](#02-xunit-q8)
-  - [Q9. What is `ITestOutputHelper`, and how is it injected into tes…](#02-xunit-q9)
-  - [Q10. How do `[Trait("Category", "Slow")]` attributes help filter …](#02-xunit-q10)
-  - [Q11. How does constructor injection of dependencies work in xUnit…](#02-xunit-q11)
-  - [Q12. What happens if a test constructor throws — how does xUnit r…](#02-xunit-q12)
-  - [Q13. How do you assert exceptions with `Assert.Throws<T>` vs `Ass…](#02-xunit-q13)
-  - [Q14. What is the difference between returning `Task` from a test …](#02-xunit-q14)
-  - [Q15. How do you run xUnit tests from CLI (`dotnet test`) and filt…](#02-xunit-q15)
+  - [Q1. What is xUnit.net, and how does its philosophy differ from MSTest and NUnit?](#q1-what-is-xunitnet-and-how-does-its-philosophy-differ-from-mstest-and-nunit)
+  - [Q2. Explain `[Fact]` vs `[Theory]` — when is parameterized testing appropriate?](#q2-explain-fact-vs-theory-when-is-parameterized-testing-appropriate)
+  - [Q3. How do `[InlineData]`, `[MemberData]`, and `[ClassData]` supply theory inputs?](#q3-how-do-inlinedata-memberdata-and-classdata-supply-theory-inputs)
+  - [Q4. How does xUnit create test class instances — per test or per class?](#q4-how-does-xunit-create-test-class-instances-per-test-or-per-class)
+  - [Q5. What are `IClassFixture<T>` and `ICollectionFixture<T>`, and when use each?](#q5-what-are-iclassfixturet-and-icollectionfixturet-and-when-use-each)
+  - [Q6. How do collection definitions (`[Collection("Name")]`) serialize tests that share expensive resources?](#q6-how-do-collection-definitions-collectionname-serialize-tests-that-share-expensive-resources)
+  - [Q7. What is `IAsyncLifetime`, and how does it replace async setup/teardown patterns?](#q7-what-is-iasynclifetime-and-how-does-it-replace-async-setupteardown-patterns)
+  - [Q8. How does xUnit handle parallel test execution by default, and how do you disable it?](#q8-how-does-xunit-handle-parallel-test-execution-by-default-and-how-do-you-disable-it)
+  - [Q9. What is `ITestOutputHelper`, and how is it injected into tests?](#q9-what-is-itestoutputhelper-and-how-is-it-injected-into-tests)
+  - [Q10. How do `[Trait("Category", "Slow")]` attributes help filter tests in CI?](#q10-how-do-traitcategory-slow-attributes-help-filter-tests-in-ci)
+  - [Q11. How does constructor injection of dependencies work in xUnit test classes?](#q11-how-does-constructor-injection-of-dependencies-work-in-xunit-test-classes)
+  - [Q12. What happens if a test constructor throws — how does xUnit report it?](#q12-what-happens-if-a-test-constructor-throws-how-does-xunit-report-it)
+  - [Q13. How do you assert exceptions with `Assert.Throws<T>` vs `Assert.ThrowsAsync<T>`?](#q13-how-do-you-assert-exceptions-with-assertthrowst-vs-assertthrowsasynct)
+  - [Q14. What is the difference between returning `Task` from a test vs `async void`?](#q14-what-is-the-difference-between-returning-task-from-a-test-vs-async-void)
+  - [Q15. How do you run xUnit tests from CLI (`dotnet test`) and filter by fully qualified name?](#q15-how-do-you-run-xunit-tests-from-cli-dotnet-test-and-filter-by-fully-qualified-name)
 
 - [03. MSTest](#03-mstest)
-  - [Q1. What NuGet packages compose an MSTest project (`MSTest.TestF…](#03-mstest-q1)
-  - [Q2. Explain `[TestClass]`, `[TestMethod]`, and how discovery fin…](#03-mstest-q2)
-  - [Q3. What are `[DataTestMethod]` and `[DataRow]` equivalents to x…](#03-mstest-q3)
-  - [Q4. What is `[TestInitialize]` / `[TestCleanup]` vs `[ClassIniti…](#03-mstest-q4)
-  - [Q5. Why must `[ClassInitialize]` and `[AssemblyInitialize]` be `…](#03-mstest-q5)
-  - [Q6. What is the `[TestContext]` property, and what runtime servi…](#03-mstest-q6)
-  - [Q7. How does MSTest instance lifecycle differ from xUnit's new-i…](#03-mstest-q7)
-  - [Q8. What are `[ExpectedException]` / `[ExpectedExceptionAttribut…](#03-mstest-q8)
-  - [Q9. What Assert helpers exist in MSTest (`Assert.AreEqual`, `Ass…](#03-mstest-q9)
-  - [Q10. How do you deploy test content files (`[DeploymentItem]`) — …](#03-mstest-q10)
-  - [Q11. What is `[Ignore]` / `[TestCategory]`, and how do you filter…](#03-mstest-q11)
-  - [Q12. How does MSTest parallelization work (`Parallelize` attribut…](#03-mstest-q12)
-  - [Q13. What is the difference between MSTest V1 and V2/V3 adapters …](#03-mstest-q13)
-  - [Q14. When would teams choose MSTest over xUnit in greenfield .NET…](#03-mstest-q14)
-  - [Q15. How do MSTest data sources (`[DynamicData]`) compare to xUni…](#03-mstest-q15)
+  - [Q1. What NuGet packages compose an MSTest project (`MSTest.TestFramework`, `MSTest.TestAdapter`, `Microsoft.NET.Test.Sdk`)?](#q1-what-nuget-packages-compose-an-mstest-project-mstesttestframework-mstesttestadapter-microsoftnettestsdk)
+  - [Q2. Explain `[TestClass]`, `[TestMethod]`, and how discovery finds tests.](#q2-explain-testclass-testmethod-and-how-discovery-finds-tests)
+  - [Q3. What are `[DataTestMethod]` and `[DataRow]` equivalents to xUnit theories?](#q3-what-are-datatestmethod-and-datarow-equivalents-to-xunit-theories)
+  - [Q4. What is `[TestInitialize]` / `[TestCleanup]` vs `[ClassInitialize]` / `[ClassCleanup]` vs `[AssemblyInitialize]` / `[AssemblyCleanup]`?](#q4-what-is-testinitialize-testcleanup-vs-classinitialize-classcleanup-vs-assemblyinitialize-assemblycleanup)
+  - [Q5. Why must `[ClassInitialize]` and `[AssemblyInitialize]` be `static`?](#q5-why-must-classinitialize-and-assemblyinitialize-be-static)
+  - [Q6. What is the `[TestContext]` property, and what runtime services does it expose?](#q6-what-is-the-testcontext-property-and-what-runtime-services-does-it-expose)
+  - [Q7. How does MSTest instance lifecycle differ from xUnit's new-instance-per-test model?](#q7-how-does-mstest-instance-lifecycle-differ-from-xunits-new-instance-per-test-model)
+  - [Q8. What are `[ExpectedException]` / `[ExpectedExceptionAttribute]` (legacy), and why is `Assert.ThrowsException` preferred?](#q8-what-are-expectedexception-expectedexceptionattribute-legacy-and-why-is-assertthrowsexception-preferred)
+  - [Q9. What Assert helpers exist in MSTest (`Assert.AreEqual`, `Assert.IsTrue`, `Assert.ThrowsException`, `StringAssert`)?](#q9-what-assert-helpers-exist-in-mstest-assertareequal-assertistrue-assertthrowsexception-stringassert)
+  - [Q10. How do you deploy test content files (`[DeploymentItem]`) — and what are modern alternatives?](#q10-how-do-you-deploy-test-content-files-deploymentitem-and-what-are-modern-alternatives)
+  - [Q11. What is `[Ignore]` / `[TestCategory]`, and how do you filter categories in `dotnet test`?](#q11-what-is-ignore-testcategory-and-how-do-you-filter-categories-in-dotnet-test)
+  - [Q12. How does MSTest parallelization work (`Parallelize` attribute at assembly/class level)?](#q12-how-does-mstest-parallelization-work-parallelize-attribute-at-assemblyclass-level)
+  - [Q13. What is the difference between MSTest V1 and V2/V3 adapters in SDK-style projects?](#q13-what-is-the-difference-between-mstest-v1-and-v2v3-adapters-in-sdk-style-projects)
+  - [Q14. When would teams choose MSTest over xUnit in greenfield .NET projects?](#q14-when-would-teams-choose-mstest-over-xunit-in-greenfield-net-projects)
+  - [Q15. How do MSTest data sources (`[DynamicData]`) compare to xUnit `[MemberData]`?](#q15-how-do-mstest-data-sources-dynamicdata-compare-to-xunit-memberdata)
 
 - [04. Mocking & Test Doubles](#04-mocking-test-doubles)
-  - [Q1. Define the test double taxonomy — dummy, fake, stub, spy, mo…](#04-mocking-test-doubles-q1)
-  - [Q2. What is a mock in the strict sense (interaction verification…](#04-mocking-test-doubles-q2)
-  - [Q3. What is a stub, and when do you configure return values with…](#04-mocking-test-doubles-q3)
-  - [Q4. What is a spy, and how does it record interactions for later…](#04-mocking-test-doubles-q4)
-  - [Q5. What is a fake (e.g., in-memory repository), and when is it …](#04-mocking-test-doubles-q5)
-  - [Q6. What is dependency injection's role in making code testable?](#04-mocking-test-doubles-q6)
-  - [Q7. When should you use a mocking framework (Moq, NSubstitute, F…](#04-mocking-test-doubles-q7)
-  - [Q8. What is the difference between mocking an interface vs a con…](#04-mocking-test-doubles-q8)
-  - [Q9. Why can't Moq intercept non-virtual methods on concrete clas…](#04-mocking-test-doubles-q9)
-  - [Q10. What is `Mock<T>.Setup`, `Returns`, `Callback`, and `Verify`…](#04-mocking-test-doubles-q10)
-  - [Q11. What is over-specification / brittle mocking, and how does i…](#04-mocking-test-doubles-q11)
-  - [Q12. What is the difference between verifying behavior (`Verify`)…](#04-mocking-test-doubles-q12)
-  - [Q13. How do you mock `async` methods returning `Task` / `Task<T>`…](#04-mocking-test-doubles-q13)
-  - [Q14. How do you substitute `HttpClient`, `ILogger<T>`, and `DateT…](#04-mocking-test-doubles-q14)
-  - [Q15. What is a seam, and how do partial wrappers or interfaces in…](#04-mocking-test-doubles-q15)
-  - [Q16. When is integration testing with real dependencies better th…](#04-mocking-test-doubles-q16)
-  - [Q17. What are anti-patterns: mocking concrete DB providers, verif…](#04-mocking-test-doubles-q17)
-  - [Q18. How do manual test doubles (hand-rolled stubs) compare to fr…](#04-mocking-test-doubles-q18)
-  - [Q19. **Testing private methods directly** — Usually signals a des…](#04-mocking-test-doubles-q19)
-  - [Q20. **Shared mutable static state** — Tests pass alone but fail …](#04-mocking-test-doubles-q20)
-  - [Q21. **Mocking concrete classes with non-virtual members** — Fram…](#04-mocking-test-doubles-q21)
-  - [Q22. **`async void` test methods** — Runners may not observe exce…](#04-mocking-test-doubles-q22)
-  - [Q23. **Over-verifying mock calls** — `Verify` on every internal c…](#04-mocking-test-doubles-q23)
-  - [Q24. **Integration tests disguised as unit tests** — Real SQL/fil…](#04-mocking-test-doubles-q24)
-  - [Q25. **MSTest `[ClassInitialize]` sharing mutable state** — Stati…](#04-mocking-test-doubles-q25)
-  - [Q26. **xUnit class fixtures shared across unrelated tests** — Fix…](#04-mocking-test-doubles-q26)
-  - [Q27. **Theory data referencing mutable objects** — Shared array/l…](#04-mocking-test-doubles-q27)
-  - [Q28. **Not awaiting async assertions** — `Assert.ThrowsAsync` mus…](#04-mocking-test-doubles-q28)
-  - [Q29. **Assuming test execution order** — xUnit and parallel MSTes…](#04-mocking-test-doubles-q29)
-  - [Q30. **Confusing stub with mock** — Stubs set up responses; mocks…](#04-mocking-test-doubles-q30)
+  - [Q1. Define the test double taxonomy — dummy, fake, stub, spy, mock; what distinguishes each?](#q1-define-the-test-double-taxonomy-dummy-fake-stub-spy-mock-what-distinguishes-each)
+  - [Q2. What is a mock in the strict sense (interaction verification) vs informal "mock" meaning any fake?](#q2-what-is-a-mock-in-the-strict-sense-interaction-verification-vs-informal-mock-meaning-any-fake)
+  - [Q3. What is a stub, and when do you configure return values without verifying calls?](#q3-what-is-a-stub-and-when-do-you-configure-return-values-without-verifying-calls)
+  - [Q4. What is a spy, and how does it record interactions for later assertion?](#q4-what-is-a-spy-and-how-does-it-record-interactions-for-later-assertion)
+  - [Q5. What is a fake (e.g., in-memory repository), and when is it preferable to mocks?](#q5-what-is-a-fake-eg-in-memory-repository-and-when-is-it-preferable-to-mocks)
+  - [Q6. What is dependency injection's role in making code testable?](#q6-what-is-dependency-injections-role-in-making-code-testable)
+  - [Q7. When should you use a mocking framework (Moq, NSubstitute, FakeItEasy) vs hand-written fakes?](#q7-when-should-you-use-a-mocking-framework-moq-nsubstitute-fakeiteasy-vs-hand-written-fakes)
+  - [Q8. What is the difference between mocking an interface vs a concrete class?](#q8-what-is-the-difference-between-mocking-an-interface-vs-a-concrete-class)
+  - [Q9. Why can't Moq intercept non-virtual methods on concrete classes?](#q9-why-cant-moq-intercept-non-virtual-methods-on-concrete-classes)
+  - [Q10. What is `Mock<T>.Setup`, `Returns`, `Callback`, and `Verify` in Moq terms?](#q10-what-is-mocktsetup-returns-callback-and-verify-in-moq-terms)
+  - [Q11. What is over-specification / brittle mocking, and how does it couple tests to implementation?](#q11-what-is-over-specification-brittle-mocking-and-how-does-it-couple-tests-to-implementation)
+  - [Q12. What is the difference between verifying behavior (`Verify`) vs asserting output state?](#q12-what-is-the-difference-between-verifying-behavior-verify-vs-asserting-output-state)
+  - [Q13. How do you mock `async` methods returning `Task` / `Task<T>`?](#q13-how-do-you-mock-async-methods-returning-task-taskt)
+  - [Q14. How do you substitute `HttpClient`, `ILogger<T>`, and `DateTime` abstractions in tests?](#q14-how-do-you-substitute-httpclient-iloggert-and-datetime-abstractions-in-tests)
+  - [Q15. What is a seam, and how do partial wrappers or interfaces introduce testability?](#q15-what-is-a-seam-and-how-do-partial-wrappers-or-interfaces-introduce-testability)
+  - [Q16. When is integration testing with real dependencies better than mocking everything?](#q16-when-is-integration-testing-with-real-dependencies-better-than-mocking-everything)
+  - [Q17. What are anti-patterns: mocking concrete DB providers, verifying private collaborators, testing framework code?](#q17-what-are-anti-patterns-mocking-concrete-db-providers-verifying-private-collaborators-testing-framework-code)
+  - [Q18. How do manual test doubles (hand-rolled stubs) compare to framework mocks for readability?](#q18-how-do-manual-test-doubles-hand-rolled-stubs-compare-to-framework-mocks-for-readability)
+  - [Q19. **Testing private methods directly** — Usually signals a design problem; test through public seams or extract collaborators.](#q19-testing-private-methods-directly-usually-signals-a-design-problem-test-through-public-seams-or-extract-collaborators)
+  - [Q20. **Shared mutable static state** — Tests pass alone but fail in parallel or random order; isolate with instance state or `[Collection]` serialization.](#q20-shared-mutable-static-state-tests-pass-alone-but-fail-in-parallel-or-random-order-isolate-with-instance-state-or-collection-serialization)
+  - [Q21. **Mocking concrete classes with non-virtual members** — Framework proxies cannot override sealed/non-virtual methods; depend on interfaces.](#q21-mocking-concrete-classes-with-non-virtual-members-framework-proxies-cannot-override-sealednon-virtual-methods-depend-on-interfaces)
+  - [Q22. **`async void` test methods** — Runners may not observe exceptions; always return `Task` from async tests.](#q22-async-void-test-methods-runners-may-not-observe-exceptions-always-return-task-from-async-tests)
+  - [Q23. **Over-verifying mock calls** — `Verify` on every internal call breaks on refactor; assert outcomes and critical interactions only.](#q23-over-verifying-mock-calls-verify-on-every-internal-call-breaks-on-refactor-assert-outcomes-and-critical-interactions-only)
+  - [Q24. **Integration tests disguised as unit tests** — Real SQL/file/network makes tests slow and flaky; name and folder them honestly.](#q24-integration-tests-disguised-as-unit-tests-real-sqlfilenetwork-makes-tests-slow-and-flaky-name-and-folder-them-honestly)
+  - [Q25. **MSTest `[ClassInitialize]` sharing mutable state** — Static setup mutated by one test leaks into others unless reset in `[TestInitialize]`.](#q25-mstest-classinitialize-sharing-mutable-state-static-setup-mutated-by-one-test-leaks-into-others-unless-reset-in-testinitialize)
+  - [Q26. **xUnit class fixtures shared across unrelated tests** — Fixture lifetime is per-class; accidental shared state causes order-dependent failures.](#q26-xunit-class-fixtures-shared-across-unrelated-tests-fixture-lifetime-is-per-class-accidental-shared-state-causes-order-dependent-failures)
+  - [Q27. **Theory data referencing mutable objects** — Shared array/list mutated in one run corrupts later theory cases.](#q27-theory-data-referencing-mutable-objects-shared-arraylist-mutated-in-one-run-corrupts-later-theory-cases)
+  - [Q28. **Not awaiting async assertions** — `Assert.ThrowsAsync` must be awaited; fire-and-forget hides failures.](#q28-not-awaiting-async-assertions-assertthrowsasync-must-be-awaited-fire-and-forget-hides-failures)
+  - [Q29. **Assuming test execution order** — xUnit and parallel MSTest do not guarantee order; tests must be independent.](#q29-assuming-test-execution-order-xunit-and-parallel-mstest-do-not-guarantee-order-tests-must-be-independent)
+  - [Q30. **Confusing stub with mock** — Stubs set up responses; mocks (strict sense) verify interactions — mixing terms leads to wrong test design.](#q30-confusing-stub-with-mock-stubs-set-up-responses-mocks-strict-sense-verify-interactions-mixing-terms-leads-to-wrong-test-design)
+  - [Q1. (R) A teammate adds coverage for `GradeCalculator` after reading this chapter's AAA section. The test passes in CI but does not protect behavior. Review:](#q1-r-a-teammate-adds-coverage-for-gradecalculator-after-reading-this-chapters-aaa-section-the-test-passes-in-ci-but-does-not-protect-behavior-review)
+  - [Q2. (R) A PR adds "boundary" tests for `IsPassing`. Review:](#q2-r-a-pr-adds-boundary-tests-for-ispassing-review)
+  - [Q3. (R) After a refactor, `GradeCalculator` keeps the same public API but replaces nested `if` checks with a private `GradeBand[]` lookup. This test now fails and blocks merge:](#q3-r-after-a-refactor-gradecalculator-keeps-the-same-public-api-but-replaces-nested-if-checks-with-a-private-gradeband-lookup-this-test-now-fails-and-blocks-merge)
+  - [Q4. (R) A developer wants tests to "document business rules" and adds:](#q4-r-a-developer-wants-tests-to-document-business-rules-and-adds)
+  - [Q5. (R) QA reports that a grading bug shipped despite green tests. The suite includes:](#q5-r-qa-reports-that-a-grading-bug-shipped-despite-green-tests-the-suite-includes)
+  - [Q6. (D) Two approaches are proposed for the failing grade at 59 / passing at 60 boundary used in this chapter's `Program.cs` and `GradeCalculatorTests.cs`:](#q6-d-two-approaches-are-proposed-for-the-failing-grade-at-59-passing-at-60-boundary-used-in-this-chapters-programcs-and-gradecalculatortestscs)
+
+- [02. xUnit](#02-xunit-1)
+
+- [02. xUnit](#02-xunit-2)
+  - [Q1. (R) A teammate refactors `DiscountTheoryTests` into separate methods "for clarity." CI passes locally but a new `[Fact]` fails intermittently on the build agent. Review:](#q1-r-a-teammate-refactors-discounttheorytests-into-separate-methods-for-clarity-ci-passes-locally-but-a-new-fact-fails-intermittently-on-the-build-agent-review)
+  - [Q2. (R) A `[Theory]` backed by `[MemberData]` passes in Visual Studio's Test Explorer but fails unpredictably in `dotnet test` on CI. Review the data source and test:](#q2-r-a-theory-backed-by-memberdata-passes-in-visual-studios-test-explorer-but-fails-unpredictably-in-dotnet-test-on-ci-review-the-data-source-and-test)
+  - [Q3. (R) `OrderCatalogFixture` is extended for integration-style tests. Two methods in the same class pass locally but one fails when run with the full suite. Review:](#q3-r-ordercatalogfixture-is-extended-for-integration-style-tests-two-methods-in-the-same-class-pass-locally-but-one-fails-when-run-with-the-full-suite-review)
+  - [Q4. (R) Two test classes should share one catalog database seed via `ICollectionFixture<OrderCatalogFixture>`, but tests flake only on multi-core CI agents. Review:](#q4-r-two-test-classes-should-share-one-catalog-database-seed-via-icollectionfixtureordercatalogfixture-but-tests-flake-only-on-multi-core-ci-agents-review)
+  - [Q5. (M) A developer asks: "We have three test classes using `IClassFixture<OrderCatalogFixture>`. How many `OrderCatalogFixture` instances does xUnit create for one `dotnet test` run, and when does the fixture constructor run?" They also add `IDisposable` to the fixture to reset state. Explain xUnit's lifecycle for class vs collection fixtures and whether `IDisposable` on the fixture replaces proper test isolation.](#q5-m-a-developer-asks-we-have-three-test-classes-using-iclassfixtureordercatalogfixture-how-many-ordercatalogfixture-instances-does-xunit-create-for-one-dotnet-test-run-and-when-does-the-fixture-constructor-run-they-also-add-idisposable-to-the-fixture-to-reset-state-explain-xunits-lifecycle-for-class-vs-collection-fixtures-and-whether-idisposable-on-the-fixture-replaces-proper-test-isolation)
+  - [Q6. (P) Your pipeline runs `dotnet test` on a 4-core Linux agent with no extra flags. Over time, unrelated test classes start failing together — one writes a temp file by fixed name, another reads a static `ConcurrentDictionary`, a third assumes an empty in-memory registry. Locally (often single-threaded or ReSharper's sequential runner) everything passes. What xUnit parallelism rules explain this, and what is your prioritized strategy for CI isolation without disabling all parallelism?](#q6-p-your-pipeline-runs-dotnet-test-on-a-4-core-linux-agent-with-no-extra-flags-over-time-unrelated-test-classes-start-failing-together-one-writes-a-temp-file-by-fixed-name-another-reads-a-static-concurrentdictionary-a-third-assumes-an-empty-in-memory-registry-locally-often-single-threaded-or-resharpers-sequential-runner-everything-passes-what-xunit-parallelism-rules-explain-this-and-what-is-your-prioritized-strategy-for-ci-isolation-without-disabling-all-parallelism)
+
+- [03. MSTest](#03-mstest-1)
+
+- [03. MSTest](#03-mstest-2)
+  - [Q1. (R) A `[TestClass]` has two `[TestInitialize]` methods. One test passes in Visual Studio, another fails on CI — and swapping test names changes which one fails. Review:](#q1-r-a-testclass-has-two-testinitialize-methods-one-test-passes-in-visual-studio-another-fails-on-ci-and-swapping-test-names-changes-which-one-fails-review)
+  - [Q2. (R) A developer ports money tests from `DiscountCalculatorDataTests.cs` and the project no longer builds. Review:](#q2-r-a-developer-ports-money-tests-from-discountcalculatordatatestscs-and-the-project-no-longer-builds-review)
+  - [Q3. (R) A `[DataTestMethod]` is tagged `[TestMethod]` by mistake during a merge. Test Explorer shows one test; the team assumes all discount rows are covered. Review:](#q3-r-a-datatestmethod-is-tagged-testmethod-by-mistake-during-a-merge-test-explorer-shows-one-test-the-team-assumes-all-discount-rows-are-covered-review)
+  - [Q4. (R) A pricing test passes locally but fails on a parallel CI agent. Review the class-level setup and two tests:](#q4-r-a-pricing-test-passes-locally-but-fails-on-a-parallel-ci-agent-review-the-class-level-setup-and-two-tests)
+  - [Q5. (R) A teammate adds a "quick sanity" test for computed discount rates using `float`. It fails in CI with mismatched expected vs actual. Review:](#q5-r-a-teammate-adds-a-quick-sanity-test-for-computed-discount-rates-using-float-it-fails-in-ci-with-mismatched-expected-vs-actual-review)
+  - [Q6. (D) Your team starts a greenfield .NET 8 microservice. `dotnet new xunit` is the SDK default; Visual Studio still offers an MSTest template. Half the org maintains legacy MSTest suites from .NET Framework migrations. For **new** unit-test projects on this service, which framework would you standardize on and why? Cover discovery, lifecycle hooks, parallelism defaults, and when staying on MSTest is the pragmatic choice.](#q6-d-your-team-starts-a-greenfield-net-8-microservice-dotnet-new-xunit-is-the-sdk-default-visual-studio-still-offers-an-mstest-template-half-the-org-maintains-legacy-mstest-suites-from-net-framework-migrations-for-new-unit-test-projects-on-this-service-which-framework-would-you-standardize-on-and-why-cover-discovery-lifecycle-hooks-parallelism-defaults-and-when-staying-on-mstest-is-the-pragmatic-choice)
+
+- [04. Mocking & Test Doubles](#04-mocking-test-doubles-1)
+
+- [04. Mocking & Test Doubles](#04-mocking-test-doubles-2)
+  - [Q1. (D) Your team tests `OrderService.PlaceOrder` three different ways — `StubInventoryService`, `FakeEmailSender`, and `Mock<IEmailSender>` with `Verify`. For a new test that asserts "insufficient stock cancels the order and no email is sent," which double type do you pick for **inventory** and for **email**, and why? When would you swap the email side from fake to mock?](#q1-d-your-team-tests-orderserviceplaceorder-three-different-ways-stubinventoryservice-fakeemailsender-and-mockiemailsender-with-verify-for-a-new-test-that-asserts-insufficient-stock-cancels-the-order-and-no-email-is-sent-which-double-type-do-you-pick-for-inventory-and-for-email-and-why-when-would-you-swap-the-email-side-from-fake-to-mock)
+  - [Q2. (R) A teammate refactors `OrderServiceMoqTests` to "prove every collaboration." Review the Arrange/Assert block:](#q2-r-a-teammate-refactors-orderservicemoqtests-to-prove-every-collaboration-review-the-arrangeassert-block)
+  - [Q3. (R) After a harmless refactor — merging the two `foreach` loops in `OrderService.PlaceOrder` into one pass — CI fails on this test (adapted from `PlaceOrder_WhenStockAvailable_ChecksStockBeforeEveryReserve`):](#q3-r-after-a-harmless-refactor-merging-the-two-foreach-loops-in-orderserviceplaceorder-into-one-pass-ci-fails-on-this-test-adapted-from-placeorder_whenstockavailable_checksstockbeforeeveryreserve)
+  - [Q4. (P) Production `OrderService` will call a warehouse REST API through `HttpClient`. You must unit-test `WarehouseInventoryService : IInventoryService` without network I/O. Sketch the test seam — how do you substitute HTTP responses, and why is `new HttpClient()` inside the service a blocker?](#q4-p-production-orderservice-will-call-a-warehouse-rest-api-through-httpclient-you-must-unit-test-warehouseinventoryservice-iinventoryservice-without-network-io-sketch-the-test-seam-how-do-you-substitute-http-responses-and-why-is-new-httpclient-inside-the-service-a-blocker)
+  - [Q5. (D) A pricing microservice client is injected into checkout. Your lead asks whether to test it with (A) a custom `HttpMessageHandler` stub in a unit test, (B) `WebApplicationFactory` hitting an in-memory test server, or (C) a contract test against a deployed sandbox. Map each option to a layer of the **test pyramid** for this repo's `OrderService` chapter. When is each the right default?](#q5-d-a-pricing-microservice-client-is-injected-into-checkout-your-lead-asks-whether-to-test-it-with-a-a-custom-httpmessagehandler-stub-in-a-unit-test-b-webapplicationfactory-hitting-an-in-memory-test-server-or-c-a-contract-test-against-a-deployed-sandbox-map-each-option-to-a-layer-of-the-test-pyramid-for-this-repos-orderservice-chapter-when-is-each-the-right-default)
+  - [Q6. (R) A junior duplicates production stock logic inside Moq `Setup` chains so tests "stay realistic":](#q6-r-a-junior-duplicates-production-stock-logic-inside-moq-setup-chains-so-tests-stay-realistic)
+  - [Q7. (R) Review this failure-path test for the second-line-out-of-stock scenario (`PlaceOrder_WhenSecondLineOutOfStock_DoesNotReserveFirstLine`):](#q7-r-review-this-failure-path-test-for-the-second-line-out-of-stock-scenario-placeorder_whensecondlineoutofstock_doesnotreservefirstline)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. Unit Testing Basics
 
-#### Q1. What is unit testing, and how does it differ from integration, component, and end-to-end testing? {#01-unit-testing-basics-q1}
+#### Q1. What is unit testing, and how does it differ from integration, component, and end-to-end testing?
 
 (R) A teammate adds coverage for `GradeCalculator` after reading this chapter's AAA section. The test passes in CI but does not protect behavior. Review:
 
@@ -142,7 +179,7 @@ public void GetLetterGrade_Score85_ReturnsB()
 
 ---
 
-#### Q2. Explain the AAA pattern (Arrange, Act, Assert) and why order matters psychologically for readers. {#01-unit-testing-basics-q2}
+#### Q2. Explain the AAA pattern (Arrange, Act, Assert) and why order matters psychologically for readers.
 
 (R) A PR adds "boundary" tests for `IsPassing`. Review:
 
@@ -183,7 +220,7 @@ Identify AAA violations and any assertion gaps. What would you change before app
 
 ---
 
-#### Q3. What makes a good unit test (FIRST / TRICE — fast, isolated, repeatable, self-validating, timely)? {#01-unit-testing-basics-q3}
+#### Q3. What makes a good unit test (FIRST / TRICE — fast, isolated, repeatable, self-validating, timely)?
 
 (R) After a refactor, `GradeCalculator` keeps the same public API but replaces nested `if` checks with a private `GradeBand[]` lookup. This test now fails and blocks merge:
 
@@ -224,7 +261,7 @@ What category of testing mistake is this, and how should passing thresholds be v
 
 ---
 
-#### Q4. What is the System Under Test (SUT), and how do you identify its boundaries? {#01-unit-testing-basics-q4}
+#### Q4. What is the System Under Test (SUT), and how do you identify its boundaries?
 
 (R) A developer wants tests to "document business rules" and adds:
 
@@ -283,7 +320,7 @@ public void IsPassing_Score60_ReturnsTrue()
 
 ---
 
-#### Q5. What is test coverage, and why can 100% line coverage still miss important bugs? {#01-unit-testing-basics-q5}
+#### Q5. What is test coverage, and why can 100% line coverage still miss important bugs?
 
 (R) QA reports that a grading bug shipped despite green tests. The suite includes:
 
@@ -341,7 +378,7 @@ Assert.Equal("score", ex.ParamName);
 
 ---
 
-#### Q6. What is mutation testing, and how does it critique coverage metrics? {#01-unit-testing-basics-q6}
+#### Q6. What is mutation testing, and how does it critique coverage metrics?
 
 (D) Two approaches are proposed for the failing grade at 59 / passing at 60 boundary used in this chapter's `Program.cs` and `GradeCalculatorTests.cs`:
 
@@ -390,55 +427,55 @@ Which approach better supports maintainability and failure diagnosis in a large 
 
 ---
 
-#### Q7. What is the difference between state-based and interaction-based testing? {#01-unit-testing-basics-q7}
+#### Q7. What is the difference between state-based and interaction-based testing?
 
 _Answer not found._
 
 ---
 
-#### Q8. What is a test fixture, and how is it different from a test case? {#01-unit-testing-basics-q8}
+#### Q8. What is a test fixture, and how is it different from a test case?
 
 _Answer not found._
 
 ---
 
-#### Q9. What are flaky tests, and what common causes (time, threading, shared state, external I/O)? {#01-unit-testing-basics-q9}
+#### Q9. What are flaky tests, and what common causes (time, threading, shared state, external I/O)?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is the test pyramid, and where do unit tests sit relative to integration tests? {#01-unit-testing-basics-q10}
+#### Q10. What is the test pyramid, and where do unit tests sit relative to integration tests?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is TDD (Red-Green-Refactor), and what benefits/challenges does it bring? {#01-unit-testing-basics-q11}
+#### Q11. What is TDD (Red-Green-Refactor), and what benefits/challenges does it bring?
 
 _Answer not found._
 
 ---
 
-#### Q12. When should a bug fix include a regression test? {#01-unit-testing-basics-q12}
+#### Q12. When should a bug fix include a regression test?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the difference between testing public behavior vs internal implementation? {#01-unit-testing-basics-q13}
+#### Q13. What is the difference between testing public behavior vs internal implementation?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do deterministic tests handle `DateTime.Now`, `Guid.NewGuid()`, and randomness? {#01-unit-testing-basics-q14}
+#### Q14. How do deterministic tests handle `DateTime.Now`, `Guid.NewGuid()`, and randomness?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is arrange duplication, and when is shared setup justified vs harmful? {#01-unit-testing-basics-q15}
+#### Q15. What is arrange duplication, and when is shared setup justified vs harmful?
 
 _Answer not found._
 
@@ -446,7 +483,7 @@ _Answer not found._
 
 ### 02. xUnit
 
-#### Q1. What is xUnit.net, and how does its philosophy differ from MSTest and NUnit? {#02-xunit-q1}
+#### Q1. What is xUnit.net, and how does its philosophy differ from MSTest and NUnit?
 
 (R) A teammate refactors `DiscountTheoryTests` into separate methods "for clarity." CI passes locally but a new `[Fact]` fails intermittently on the build agent. Review:
 
@@ -497,7 +534,7 @@ What is wrong with mixing `[Fact]` and `[Theory]` here, and how should discount 
 
 ---
 
-#### Q2. Explain `[Fact]` vs `[Theory]` — when is parameterized testing appropriate? {#02-xunit-q2}
+#### Q2. Explain `[Fact]` vs `[Theory]` — when is parameterized testing appropriate?
 
 (R) A `[Theory]` backed by `[MemberData]` passes in Visual Studio's Test Explorer but fails unpredictably in `dotnet test` on CI. Review the data source and test:
 
@@ -561,7 +598,7 @@ public static IEnumerable<object[]> SubtotalRows =>
 
 ---
 
-#### Q3. How do `[InlineData]`, `[MemberData]`, and `[ClassData]` supply theory inputs? {#02-xunit-q3}
+#### Q3. How do `[InlineData]`, `[MemberData]`, and `[ClassData]` supply theory inputs?
 
 (R) `OrderCatalogFixture` is extended for integration-style tests. Two methods in the same class pass locally but one fails when run with the full suite. Review:
 
@@ -618,7 +655,7 @@ What does `IClassFixture<T>` guarantee about instance lifetime, and why does the
 
 ---
 
-#### Q4. How does xUnit create test class instances — per test or per class? {#02-xunit-q4}
+#### Q4. How does xUnit create test class instances — per test or per class?
 
 (R) Two test classes should share one catalog database seed via `ICollectionFixture<OrderCatalogFixture>`, but tests flake only on multi-core CI agents. Review:
 
@@ -674,7 +711,7 @@ What parallelization and fixture-lifetime mistakes stack here, and how do you fi
 
 ---
 
-#### Q5. What are `IClassFixture<T>` and `ICollectionFixture<T>`, and when use each? {#02-xunit-q5}
+#### Q5. What are `IClassFixture<T>` and `ICollectionFixture<T>`, and when use each?
 
 (M) A developer asks: "We have three test classes using `IClassFixture<OrderCatalogFixture>`. How many `OrderCatalogFixture` instances does xUnit create for one `dotnet test` run, and when does the fixture constructor run?" They also add `IDisposable` to the fixture to reset state. Explain xUnit's lifecycle for class vs collection fixtures and whether `IDisposable` on the fixture replaces proper test isolation.
 
@@ -690,7 +727,7 @@ What parallelization and fixture-lifetime mistakes stack here, and how do you fi
 
 ---
 
-#### Q6. How do collection definitions (`[Collection("Name")]`) serialize tests that share expensive resources? {#02-xunit-q6}
+#### Q6. How do collection definitions (`[Collection("Name")]`) serialize tests that share expensive resources?
 
 (P) Your pipeline runs `dotnet test` on a 4-core Linux agent with no extra flags. Over time, unrelated test classes start failing together — one writes a temp file by fixed name, another reads a static `ConcurrentDictionary`, a third assumes an empty in-memory registry. Locally (often single-threaded or ReSharper's sequential runner) everything passes. What xUnit parallelism rules explain this, and what is your prioritized strategy for CI isolation without disabling all parallelism?
 
@@ -712,55 +749,55 @@ What parallelization and fixture-lifetime mistakes stack here, and how do you fi
 
 ---
 
-#### Q7. What is `IAsyncLifetime`, and how does it replace async setup/teardown patterns? {#02-xunit-q7}
+#### Q7. What is `IAsyncLifetime`, and how does it replace async setup/teardown patterns?
 
 _Answer not found._
 
 ---
 
-#### Q8. How does xUnit handle parallel test execution by default, and how do you disable it? {#02-xunit-q8}
+#### Q8. How does xUnit handle parallel test execution by default, and how do you disable it?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is `ITestOutputHelper`, and how is it injected into tests? {#02-xunit-q9}
+#### Q9. What is `ITestOutputHelper`, and how is it injected into tests?
 
 _Answer not found._
 
 ---
 
-#### Q10. How do `[Trait("Category", "Slow")]` attributes help filter tests in CI? {#02-xunit-q10}
+#### Q10. How do `[Trait("Category", "Slow")]` attributes help filter tests in CI?
 
 _Answer not found._
 
 ---
 
-#### Q11. How does constructor injection of dependencies work in xUnit test classes? {#02-xunit-q11}
+#### Q11. How does constructor injection of dependencies work in xUnit test classes?
 
 _Answer not found._
 
 ---
 
-#### Q12. What happens if a test constructor throws — how does xUnit report it? {#02-xunit-q12}
+#### Q12. What happens if a test constructor throws — how does xUnit report it?
 
 _Answer not found._
 
 ---
 
-#### Q13. How do you assert exceptions with `Assert.Throws<T>` vs `Assert.ThrowsAsync<T>`? {#02-xunit-q13}
+#### Q13. How do you assert exceptions with `Assert.Throws<T>` vs `Assert.ThrowsAsync<T>`?
 
 _Answer not found._
 
 ---
 
-#### Q14. What is the difference between returning `Task` from a test vs `async void`? {#02-xunit-q14}
+#### Q14. What is the difference between returning `Task` from a test vs `async void`?
 
 _Answer not found._
 
 ---
 
-#### Q15. How do you run xUnit tests from CLI (`dotnet test`) and filter by fully qualified name? {#02-xunit-q15}
+#### Q15. How do you run xUnit tests from CLI (`dotnet test`) and filter by fully qualified name?
 
 _Answer not found._
 
@@ -768,7 +805,7 @@ _Answer not found._
 
 ### 03. MSTest
 
-#### Q1. What NuGet packages compose an MSTest project (`MSTest.TestFramework`, `MSTest.TestAdapter`, `Microsoft.NET.Test.Sdk`)? {#03-mstest-q1}
+#### Q1. What NuGet packages compose an MSTest project (`MSTest.TestFramework`, `MSTest.TestAdapter`, `Microsoft.NET.Test.Sdk`)?
 
 (R) A `[TestClass]` has two `[TestInitialize]` methods. One test passes in Visual Studio, another fails on CI — and swapping test names changes which one fails. Review:
 
@@ -831,7 +868,7 @@ public void SetUp()
 
 ---
 
-#### Q2. Explain `[TestClass]`, `[TestMethod]`, and how discovery finds tests. {#03-mstest-q2}
+#### Q2. Explain `[TestClass]`, `[TestMethod]`, and how discovery finds tests.
 
 (R) A developer ports money tests from `DiscountCalculatorDataTests.cs` and the project no longer builds. Review:
 
@@ -885,7 +922,7 @@ public void ApplyPercentDiscount_ReturnsExpectedTotal(
 
 ---
 
-#### Q3. What are `[DataTestMethod]` and `[DataRow]` equivalents to xUnit theories? {#03-mstest-q3}
+#### Q3. What are `[DataTestMethod]` and `[DataRow]` equivalents to xUnit theories?
 
 (R) A `[DataTestMethod]` is tagged `[TestMethod]` by mistake during a merge. Test Explorer shows one test; the team assumes all discount rows are covered. Review:
 
@@ -931,7 +968,7 @@ What breaks at compile time or discovery time, and why is `[DataTestMethod]` req
 
 ---
 
-#### Q4. What is `[TestInitialize]` / `[TestCleanup]` vs `[ClassInitialize]` / `[ClassCleanup]` vs `[AssemblyInitialize]` / `[AssemblyCleanup]`? {#03-mstest-q4}
+#### Q4. What is `[TestInitialize]` / `[TestCleanup]` vs `[ClassInitialize]` / `[ClassCleanup]` vs `[AssemblyInitialize]` / `[AssemblyCleanup]`?
 
 (R) A pricing test passes locally but fails on a parallel CI agent. Review the class-level setup and two tests:
 
@@ -980,7 +1017,7 @@ public static void InitClass(TestContext context)
 
 ---
 
-#### Q5. Why must `[ClassInitialize]` and `[AssemblyInitialize]` be `static`? {#03-mstest-q5}
+#### Q5. Why must `[ClassInitialize]` and `[AssemblyInitialize]` be `static`?
 
 (R) A teammate adds a "quick sanity" test for computed discount rates using `float`. It fails in CI with mismatched expected vs actual. Review:
 
@@ -1028,7 +1065,7 @@ Assert.AreEqual(90.0f, discounted, 0.01f);  // float with delta — prefer decim
 
 ---
 
-#### Q6. What is the `[TestContext]` property, and what runtime services does it expose? {#03-mstest-q6}
+#### Q6. What is the `[TestContext]` property, and what runtime services does it expose?
 
 (D) Your team starts a greenfield .NET 8 microservice. `dotnet new xunit` is the SDK default; Visual Studio still offers an MSTest template. Half the org maintains legacy MSTest suites from .NET Framework migrations. For **new** unit-test projects on this service, which framework would you standardize on and why? Cover discovery, lifecycle hooks, parallelism defaults, and when staying on MSTest is the pragmatic choice.
 
@@ -1047,55 +1084,55 @@ Assert.AreEqual(90.0f, discounted, 0.01f);  // float with delta — prefer decim
 
 ---
 
-#### Q7. How does MSTest instance lifecycle differ from xUnit's new-instance-per-test model? {#03-mstest-q7}
+#### Q7. How does MSTest instance lifecycle differ from xUnit's new-instance-per-test model?
 
 _Answer not found._
 
 ---
 
-#### Q8. What are `[ExpectedException]` / `[ExpectedExceptionAttribute]` (legacy), and why is `Assert.ThrowsException` preferred? {#03-mstest-q8}
+#### Q8. What are `[ExpectedException]` / `[ExpectedExceptionAttribute]` (legacy), and why is `Assert.ThrowsException` preferred?
 
 _Answer not found._
 
 ---
 
-#### Q9. What Assert helpers exist in MSTest (`Assert.AreEqual`, `Assert.IsTrue`, `Assert.ThrowsException`, `StringAssert`)? {#03-mstest-q9}
+#### Q9. What Assert helpers exist in MSTest (`Assert.AreEqual`, `Assert.IsTrue`, `Assert.ThrowsException`, `StringAssert`)?
 
 _Answer not found._
 
 ---
 
-#### Q10. How do you deploy test content files (`[DeploymentItem]`) — and what are modern alternatives? {#03-mstest-q10}
+#### Q10. How do you deploy test content files (`[DeploymentItem]`) — and what are modern alternatives?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is `[Ignore]` / `[TestCategory]`, and how do you filter categories in `dotnet test`? {#03-mstest-q11}
+#### Q11. What is `[Ignore]` / `[TestCategory]`, and how do you filter categories in `dotnet test`?
 
 _Answer not found._
 
 ---
 
-#### Q12. How does MSTest parallelization work (`Parallelize` attribute at assembly/class level)? {#03-mstest-q12}
+#### Q12. How does MSTest parallelization work (`Parallelize` attribute at assembly/class level)?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the difference between MSTest V1 and V2/V3 adapters in SDK-style projects? {#03-mstest-q13}
+#### Q13. What is the difference between MSTest V1 and V2/V3 adapters in SDK-style projects?
 
 _Answer not found._
 
 ---
 
-#### Q14. When would teams choose MSTest over xUnit in greenfield .NET projects? {#03-mstest-q14}
+#### Q14. When would teams choose MSTest over xUnit in greenfield .NET projects?
 
 _Answer not found._
 
 ---
 
-#### Q15. How do MSTest data sources (`[DynamicData]`) compare to xUnit `[MemberData]`? {#03-mstest-q15}
+#### Q15. How do MSTest data sources (`[DynamicData]`) compare to xUnit `[MemberData]`?
 
 _Answer not found._
 
@@ -1103,7 +1140,7 @@ _Answer not found._
 
 ### 04. Mocking & Test Doubles
 
-#### Q1. Define the test double taxonomy — dummy, fake, stub, spy, mock; what distinguishes each? {#04-mocking-test-doubles-q1}
+#### Q1. Define the test double taxonomy — dummy, fake, stub, spy, mock; what distinguishes each?
 
 (D) Your team tests `OrderService.PlaceOrder` three different ways — `StubInventoryService`, `FakeEmailSender`, and `Mock<IEmailSender>` with `Verify`. For a new test that asserts "insufficient stock cancels the order and no email is sent," which double type do you pick for **inventory** and for **email**, and why? When would you swap the email side from fake to mock?
 
@@ -1117,7 +1154,7 @@ _Answer not found._
 
 ---
 
-#### Q2. What is a mock in the strict sense (interaction verification) vs informal "mock" meaning any fake? {#04-mocking-test-doubles-q2}
+#### Q2. What is a mock in the strict sense (interaction verification) vs informal "mock" meaning any fake?
 
 (R) A teammate refactors `OrderServiceMoqTests` to "prove every collaboration." Review the Arrange/Assert block:
 
@@ -1173,7 +1210,7 @@ What is wrong with this test as a unit test of `OrderService`, and what would yo
 
 ---
 
-#### Q3. What is a stub, and when do you configure return values without verifying calls? {#04-mocking-test-doubles-q3}
+#### Q3. What is a stub, and when do you configure return values without verifying calls?
 
 (R) After a harmless refactor — merging the two `foreach` loops in `OrderService.PlaceOrder` into one pass — CI fails on this test (adapted from `PlaceOrder_WhenStockAvailable_ChecksStockBeforeEveryReserve`):
 
@@ -1229,7 +1266,7 @@ The refactored `OrderService` still returns success, still reserves both lines, 
 
 ---
 
-#### Q4. What is a spy, and how does it record interactions for later assertion? {#04-mocking-test-doubles-q4}
+#### Q4. What is a spy, and how does it record interactions for later assertion?
 
 (P) Production `OrderService` will call a warehouse REST API through `HttpClient`. You must unit-test `WarehouseInventoryService : IInventoryService` without network I/O. Sketch the test seam — how do you substitute HTTP responses, and why is `new HttpClient()` inside the service a blocker?
 
@@ -1254,7 +1291,7 @@ var inventory = new WarehouseInventoryService(client);
 
 ---
 
-#### Q5. What is a fake (e.g., in-memory repository), and when is it preferable to mocks? {#04-mocking-test-doubles-q5}
+#### Q5. What is a fake (e.g., in-memory repository), and when is it preferable to mocks?
 
 (D) A pricing microservice client is injected into checkout. Your lead asks whether to test it with (A) a custom `HttpMessageHandler` stub in a unit test, (B) `WebApplicationFactory` hitting an in-memory test server, or (C) a contract test against a deployed sandbox. Map each option to a layer of the **test pyramid** for this repo's `OrderService` chapter. When is each the right default?
 
@@ -1274,7 +1311,7 @@ var inventory = new WarehouseInventoryService(client);
 
 ---
 
-#### Q6. What is dependency injection's role in making code testable? {#04-mocking-test-doubles-q6}
+#### Q6. What is dependency injection's role in making code testable?
 
 (R) A junior duplicates production stock logic inside Moq `Setup` chains so tests "stay realistic":
 
@@ -1323,7 +1360,7 @@ Compare this to `OrderServiceManualDoubleTests` using `StubInventoryService` + `
 
 ---
 
-#### Q7. When should you use a mocking framework (Moq, NSubstitute, FakeItEasy) vs hand-written fakes? {#04-mocking-test-doubles-q7}
+#### Q7. When should you use a mocking framework (Moq, NSubstitute, FakeItEasy) vs hand-written fakes?
 
 (R) Review this failure-path test for the second-line-out-of-stock scenario (`PlaceOrder_WhenSecondLineOutOfStock_DoesNotReserveFirstLine`):
 
@@ -1430,139 +1467,139 @@ StrReplace
 
 ---
 
-#### Q8. What is the difference between mocking an interface vs a concrete class? {#04-mocking-test-doubles-q8}
+#### Q8. What is the difference between mocking an interface vs a concrete class?
 
 _Answer not found._
 
 ---
 
-#### Q9. Why can't Moq intercept non-virtual methods on concrete classes? {#04-mocking-test-doubles-q9}
+#### Q9. Why can't Moq intercept non-virtual methods on concrete classes?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `Mock<T>.Setup`, `Returns`, `Callback`, and `Verify` in Moq terms? {#04-mocking-test-doubles-q10}
+#### Q10. What is `Mock<T>.Setup`, `Returns`, `Callback`, and `Verify` in Moq terms?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is over-specification / brittle mocking, and how does it couple tests to implementation? {#04-mocking-test-doubles-q11}
+#### Q11. What is over-specification / brittle mocking, and how does it couple tests to implementation?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is the difference between verifying behavior (`Verify`) vs asserting output state? {#04-mocking-test-doubles-q12}
+#### Q12. What is the difference between verifying behavior (`Verify`) vs asserting output state?
 
 _Answer not found._
 
 ---
 
-#### Q13. How do you mock `async` methods returning `Task` / `Task<T>`? {#04-mocking-test-doubles-q13}
+#### Q13. How do you mock `async` methods returning `Task` / `Task<T>`?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do you substitute `HttpClient`, `ILogger<T>`, and `DateTime` abstractions in tests? {#04-mocking-test-doubles-q14}
+#### Q14. How do you substitute `HttpClient`, `ILogger<T>`, and `DateTime` abstractions in tests?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is a seam, and how do partial wrappers or interfaces introduce testability? {#04-mocking-test-doubles-q15}
+#### Q15. What is a seam, and how do partial wrappers or interfaces introduce testability?
 
 _Answer not found._
 
 ---
 
-#### Q16. When is integration testing with real dependencies better than mocking everything? {#04-mocking-test-doubles-q16}
+#### Q16. When is integration testing with real dependencies better than mocking everything?
 
 _Answer not found._
 
 ---
 
-#### Q17. What are anti-patterns: mocking concrete DB providers, verifying private collaborators, testing framework code? {#04-mocking-test-doubles-q17}
+#### Q17. What are anti-patterns: mocking concrete DB providers, verifying private collaborators, testing framework code?
 
 _Answer not found._
 
 ---
 
-#### Q18. How do manual test doubles (hand-rolled stubs) compare to framework mocks for readability? {#04-mocking-test-doubles-q18}
+#### Q18. How do manual test doubles (hand-rolled stubs) compare to framework mocks for readability?
 
 _Answer not found._
 
 ---
 
-#### Q19. **Testing private methods directly** — Usually signals a design problem; test through public seams or extract collaborators. {#04-mocking-test-doubles-q19}
+#### Q19. **Testing private methods directly** — Usually signals a design problem; test through public seams or extract collaborators.
 
 _Answer not found._
 
 ---
 
-#### Q20. **Shared mutable static state** — Tests pass alone but fail in parallel or random order; isolate with instance state or `[Collection]` serialization. {#04-mocking-test-doubles-q20}
+#### Q20. **Shared mutable static state** — Tests pass alone but fail in parallel or random order; isolate with instance state or `[Collection]` serialization.
 
 _Answer not found._
 
 ---
 
-#### Q21. **Mocking concrete classes with non-virtual members** — Framework proxies cannot override sealed/non-virtual methods; depend on interfaces. {#04-mocking-test-doubles-q21}
+#### Q21. **Mocking concrete classes with non-virtual members** — Framework proxies cannot override sealed/non-virtual methods; depend on interfaces.
 
 _Answer not found._
 
 ---
 
-#### Q22. **`async void` test methods** — Runners may not observe exceptions; always return `Task` from async tests. {#04-mocking-test-doubles-q22}
+#### Q22. **`async void` test methods** — Runners may not observe exceptions; always return `Task` from async tests.
 
 _Answer not found._
 
 ---
 
-#### Q23. **Over-verifying mock calls** — `Verify` on every internal call breaks on refactor; assert outcomes and critical interactions only. {#04-mocking-test-doubles-q23}
+#### Q23. **Over-verifying mock calls** — `Verify` on every internal call breaks on refactor; assert outcomes and critical interactions only.
 
 _Answer not found._
 
 ---
 
-#### Q24. **Integration tests disguised as unit tests** — Real SQL/file/network makes tests slow and flaky; name and folder them honestly. {#04-mocking-test-doubles-q24}
+#### Q24. **Integration tests disguised as unit tests** — Real SQL/file/network makes tests slow and flaky; name and folder them honestly.
 
 _Answer not found._
 
 ---
 
-#### Q25. **MSTest `[ClassInitialize]` sharing mutable state** — Static setup mutated by one test leaks into others unless reset in `[TestInitialize]`. {#04-mocking-test-doubles-q25}
+#### Q25. **MSTest `[ClassInitialize]` sharing mutable state** — Static setup mutated by one test leaks into others unless reset in `[TestInitialize]`.
 
 _Answer not found._
 
 ---
 
-#### Q26. **xUnit class fixtures shared across unrelated tests** — Fixture lifetime is per-class; accidental shared state causes order-dependent failures. {#04-mocking-test-doubles-q26}
+#### Q26. **xUnit class fixtures shared across unrelated tests** — Fixture lifetime is per-class; accidental shared state causes order-dependent failures.
 
 _Answer not found._
 
 ---
 
-#### Q27. **Theory data referencing mutable objects** — Shared array/list mutated in one run corrupts later theory cases. {#04-mocking-test-doubles-q27}
+#### Q27. **Theory data referencing mutable objects** — Shared array/list mutated in one run corrupts later theory cases.
 
 _Answer not found._
 
 ---
 
-#### Q28. **Not awaiting async assertions** — `Assert.ThrowsAsync` must be awaited; fire-and-forget hides failures. {#04-mocking-test-doubles-q28}
+#### Q28. **Not awaiting async assertions** — `Assert.ThrowsAsync` must be awaited; fire-and-forget hides failures.
 
 _Answer not found._
 
 ---
 
-#### Q29. **Assuming test execution order** — xUnit and parallel MSTest do not guarantee order; tests must be independent. {#04-mocking-test-doubles-q29}
+#### Q29. **Assuming test execution order** — xUnit and parallel MSTest do not guarantee order; tests must be independent.
 
 _Answer not found._
 
 ---
 
-#### Q30. **Confusing stub with mock** — Stubs set up responses; mocks (strict sense) verify interactions — mixing terms leads to wrong test design. {#04-mocking-test-doubles-q30}
+#### Q30. **Confusing stub with mock** — Stubs set up responses; mocks (strict sense) verify interactions — mixing terms leads to wrong test design.
 
 _Answer not found._
 

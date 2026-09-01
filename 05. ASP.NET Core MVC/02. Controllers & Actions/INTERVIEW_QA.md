@@ -1,35 +1,30 @@
 # Controllers & Actions — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 02. Controllers & Actions](#chapter-02-controllers-actions)
-  - [Q1. What is a controller in ASP.NET Core MVC?](#chapter-02-controllers-actions-q1)
-  - [Q2. What is an action method?](#chapter-02-controllers-actions-q2)
-  - [Q3. What is `IActionResult` and why use it instead of returning …](#chapter-02-controllers-actions-q3)
-  - [Q4. What is the difference between `View()` and `Json()`?](#chapter-02-controllers-actions-q4)
-  - [Q5. What is the difference between `RedirectToAction` and `Redir…](#chapter-02-controllers-actions-q5)
-  - [Q6. Why should action methods return `Task<IActionResult>` inste…](#chapter-02-controllers-actions-q6)
-  - [Q7. How does dependency injection work in MVC controllers?](#chapter-02-controllers-actions-q7)
-  - [Q8. What does the `Controller` base class provide?](#chapter-02-controllers-actions-q8)
-  - [Q9. What is `ModelState` and when should an action check it?](#chapter-02-controllers-actions-q9)
-  - [Q10. What are `[HttpGet]` and `[HttpPost]` used for?](#chapter-02-controllers-actions-q10)
-  - [Q11. What is `[ValidateAntiForgeryToken]` and when is it required…](#chapter-02-controllers-actions-q11)
-  - [Q12. What is the difference between `[FromBody]`, `[FromForm]`, a…](#chapter-02-controllers-actions-q12)
-  - [Q13. How are controllers activated per request?](#chapter-02-controllers-actions-q13)
-  - [Q14. What is the difference between returning `NotFound()` and `B…](#chapter-02-controllers-actions-q14)
-  - [Q15. Why should controllers avoid a static service locator?](#chapter-02-controllers-actions-q15)
-  - [Q16. What is the purpose of constructor injection in controllers?](#chapter-02-controllers-actions-q16)
-  - [Q17. What is the difference between conventional routing and attr…](#chapter-02-controllers-actions-q17)
-  - [Q18. Can you implement `IDisposable` on a controller to manage re…](#chapter-02-controllers-actions-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is a controller in ASP.NET Core MVC?](#q1-what-is-a-controller-in-aspnet-core-mvc)
+2. [Q2. What is an action method?](#q2-what-is-an-action-method)
+3. [Q3. What is `IActionResult` and why use it instead of returning raw objects?](#q3-what-is-iactionresult-and-why-use-it-instead-of-returning-raw-objects)
+4. [Q4. What is the difference between `View()` and `Json()`?](#q4-what-is-the-difference-between-view-and-json)
+5. [Q5. What is the difference between `RedirectToAction` and `Redirect`?](#q5-what-is-the-difference-between-redirecttoaction-and-redirect)
+6. [Q6. Why should action methods return `Task<IActionResult>` instead of `async void`?](#q6-why-should-action-methods-return-taskiactionresult-instead-of-async-void)
+7. [Q7. How does dependency injection work in MVC controllers?](#q7-how-does-dependency-injection-work-in-mvc-controllers)
+8. [Q8. What does the `Controller` base class provide?](#q8-what-does-the-controller-base-class-provide)
+9. [Q9. What is `ModelState` and when should an action check it?](#q9-what-is-modelstate-and-when-should-an-action-check-it)
+10. [Q10. What are `[HttpGet]` and `[HttpPost]` used for?](#q10-what-are-httpget-and-httppost-used-for)
+11. [Q11. What is `[ValidateAntiForgeryToken]` and when is it required?](#q11-what-is-validateantiforgerytoken-and-when-is-it-required)
+12. [Q12. What is the difference between `[FromBody]`, `[FromForm]`, and default binding in MVC actions?](#q12-what-is-the-difference-between-frombody-fromform-and-default-binding-in-mvc-actions)
+13. [Q13. How are controllers activated per request?](#q13-how-are-controllers-activated-per-request)
+14. [Q14. What is the difference between returning `NotFound()` and `BadRequest()`?](#q14-what-is-the-difference-between-returning-notfound-and-badrequest)
+15. [Q15. Why should controllers avoid a static service locator?](#q15-why-should-controllers-avoid-a-static-service-locator)
+16. [Q16. What is the purpose of constructor injection in controllers?](#q16-what-is-the-purpose-of-constructor-injection-in-controllers)
+17. [Q17. What is the difference between conventional routing and attribute routing on a controller?](#q17-what-is-the-difference-between-conventional-routing-and-attribute-routing-on-a-controller)
+18. [Q18. Can you implement `IDisposable` on a controller to manage resources? Why or why not?](#q18-can-you-implement-idisposable-on-a-controller-to-manage-resources-why-or-why-not)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 02. Controllers & Actions
-
-### Q1. What is a controller in ASP.NET Core MVC? {#chapter-02-controllers-actions-q1}
+## Q1. What is a controller in ASP.NET Core MVC?
 
 What is a controller in ASP.NET Core MVC?
 
@@ -43,7 +38,7 @@ What is a controller in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is an action method? {#chapter-02-controllers-actions-q2}
+## Q2. What is an action method?
 
 What is an action method?
 
@@ -57,7 +52,7 @@ What is an action method?
 
 ---
 
-### Q3. What is `IActionResult` and why use it instead of returning raw objects? {#chapter-02-controllers-actions-q3}
+## Q3. What is `IActionResult` and why use it instead of returning raw objects?
 
 What is `IActionResult` and why use it instead of returning raw objects?
 
@@ -71,7 +66,7 @@ What is `IActionResult` and why use it instead of returning raw objects?
 
 ---
 
-### Q4. What is the difference between `View()` and `Json()`? {#chapter-02-controllers-actions-q4}
+## Q4. What is the difference between `View()` and `Json()`?
 
 What is the difference between `View()` and `Json()`?
 
@@ -85,7 +80,7 @@ What is the difference between `View()` and `Json()`?
 
 ---
 
-### Q5. What is the difference between `RedirectToAction` and `Redirect`? {#chapter-02-controllers-actions-q5}
+## Q5. What is the difference between `RedirectToAction` and `Redirect`?
 
 What is the difference between `RedirectToAction` and `Redirect`?
 
@@ -99,7 +94,7 @@ What is the difference between `RedirectToAction` and `Redirect`?
 
 ---
 
-### Q6. Why should action methods return `Task<IActionResult>` instead of `async void`? {#chapter-02-controllers-actions-q6}
+## Q6. Why should action methods return `Task<IActionResult>` instead of `async void`?
 
 Why should action methods return `Task<IActionResult>` instead of `async void`?
 
@@ -113,7 +108,7 @@ Why should action methods return `Task<IActionResult>` instead of `async void`?
 
 ---
 
-### Q7. How does dependency injection work in MVC controllers? {#chapter-02-controllers-actions-q7}
+## Q7. How does dependency injection work in MVC controllers?
 
 How does dependency injection work in MVC controllers?
 
@@ -127,7 +122,7 @@ How does dependency injection work in MVC controllers?
 
 ---
 
-### Q8. What does the `Controller` base class provide? {#chapter-02-controllers-actions-q8}
+## Q8. What does the `Controller` base class provide?
 
 What does the `Controller` base class provide?
 
@@ -141,7 +136,7 @@ What does the `Controller` base class provide?
 
 ---
 
-### Q9. What is `ModelState` and when should an action check it? {#chapter-02-controllers-actions-q9}
+## Q9. What is `ModelState` and when should an action check it?
 
 What is `ModelState` and when should an action check it?
 
@@ -155,7 +150,7 @@ What is `ModelState` and when should an action check it?
 
 ---
 
-### Q10. What are `[HttpGet]` and `[HttpPost]` used for? {#chapter-02-controllers-actions-q10}
+## Q10. What are `[HttpGet]` and `[HttpPost]` used for?
 
 What are `[HttpGet]` and `[HttpPost]` used for?
 
@@ -169,7 +164,7 @@ What are `[HttpGet]` and `[HttpPost]` used for?
 
 ---
 
-### Q11. What is `[ValidateAntiForgeryToken]` and when is it required? {#chapter-02-controllers-actions-q11}
+## Q11. What is `[ValidateAntiForgeryToken]` and when is it required?
 
 What is `[ValidateAntiForgeryToken]` and when is it required?
 
@@ -183,7 +178,7 @@ What is `[ValidateAntiForgeryToken]` and when is it required?
 
 ---
 
-### Q12. What is the difference between `[FromBody]`, `[FromForm]`, and default binding in MVC actions? {#chapter-02-controllers-actions-q12}
+## Q12. What is the difference between `[FromBody]`, `[FromForm]`, and default binding in MVC actions?
 
 What is the difference between `[FromBody]`, `[FromForm]`, and default binding in MVC actions?
 
@@ -197,7 +192,7 @@ What is the difference between `[FromBody]`, `[FromForm]`, and default binding i
 
 ---
 
-### Q13. How are controllers activated per request? {#chapter-02-controllers-actions-q13}
+## Q13. How are controllers activated per request?
 
 How are controllers activated per request?
 
@@ -211,7 +206,7 @@ How are controllers activated per request?
 
 ---
 
-### Q14. What is the difference between returning `NotFound()` and `BadRequest()`? {#chapter-02-controllers-actions-q14}
+## Q14. What is the difference between returning `NotFound()` and `BadRequest()`?
 
 What is the difference between returning `NotFound()` and `BadRequest()`?
 
@@ -225,7 +220,7 @@ What is the difference between returning `NotFound()` and `BadRequest()`?
 
 ---
 
-### Q15. Why should controllers avoid a static service locator? {#chapter-02-controllers-actions-q15}
+## Q15. Why should controllers avoid a static service locator?
 
 Why should controllers avoid a static service locator?
 
@@ -239,7 +234,7 @@ Why should controllers avoid a static service locator?
 
 ---
 
-### Q16. What is the purpose of constructor injection in controllers? {#chapter-02-controllers-actions-q16}
+## Q16. What is the purpose of constructor injection in controllers?
 
 What is the purpose of constructor injection in controllers?
 
@@ -253,7 +248,7 @@ What is the purpose of constructor injection in controllers?
 
 ---
 
-### Q17. What is the difference between conventional routing and attribute routing on a controller? {#chapter-02-controllers-actions-q17}
+## Q17. What is the difference between conventional routing and attribute routing on a controller?
 
 What is the difference between conventional routing and attribute routing on a controller?
 
@@ -267,7 +262,7 @@ What is the difference between conventional routing and attribute routing on a c
 
 ---
 
-### Q18. Can you implement `IDisposable` on a controller to manage resources? Why or why not? {#chapter-02-controllers-actions-q18}
+## Q18. Can you implement `IDisposable` on a controller to manage resources? Why or why not?
 
 Can you implement `IDisposable` on a controller to manage resources? Why or why not?
 

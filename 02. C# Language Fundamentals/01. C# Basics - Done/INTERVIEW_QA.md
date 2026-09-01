@@ -4,227 +4,323 @@
 ## Table of Contents
 
 - [01. Hello World](#01-hello-world)
-  - [Q1. What is C# and what are its key features?](#01-hello-world-q1)
-  - [Q2. Explain namespaces in C#.](#01-hello-world-q2)
-  - [Q3. How do nested namespaces work in C#?](#01-hello-world-q3)
-  - [Q4. What is the purpose of the `using` directive (importing name…](#01-hello-world-q4)
-  - [Q5. Explain preprocessor directives in C# (`#if`, `#define`, `#r…](#01-hello-world-q5)
-  - [Q6. What is the role of the `Main` method, and how has entry-poi…](#01-hello-world-q6)
-  - [Q7. What is the difference between a project, a solution, and an…](#01-hello-world-q7)
-  - [Q8. What does the `global using` directive do (C# 10+), and when…](#01-hello-world-q8)
-  - [Q9. Explain file-scoped namespaces (`namespace X;`) vs block-sco…](#01-hello-world-q9)
-  - [Q10. What is the purpose of `Program.cs` in a console application…](#01-hello-world-q10)
-  - [Q11. What is the Common Language Runtime (CLR), and how does C# c…](#01-hello-world-q11)
-  - [Q12. What is the difference between compiling to IL and JIT compi…](#01-hello-world-q12)
-  - [Q13. What are SDK-style projects, and what does `<TargetFramework…](#01-hello-world-q13)
-  - [Q14. When would you use `#nullable enable` at the project or file…](#01-hello-world-q14)
-  - [Q15. What is the difference between `Console.Out`, `Console.Error…](#01-hello-world-q15)
+  - [Q1. What is C# and what are its key features?](#q1-what-is-c-and-what-are-its-key-features)
+  - [Q2. Explain namespaces in C#.](#q2-explain-namespaces-in-c)
+  - [Q3. How do nested namespaces work in C#?](#q3-how-do-nested-namespaces-work-in-c)
+  - [Q4. What is the purpose of the `using` directive (importing namespaces)?](#q4-what-is-the-purpose-of-the-using-directive-importing-namespaces)
+  - [Q5. Explain preprocessor directives in C# (`#if`, `#define`, `#region`, `#pragma`, etc.).](#q5-explain-preprocessor-directives-in-c-if-define-region-pragma-etc)
+  - [Q6. What is the role of the `Main` method, and how has entry-point syntax evolved (classic `Main`, top-level statements)?](#q6-what-is-the-role-of-the-main-method-and-how-has-entry-point-syntax-evolved-classic-main-top-level-statements)
+  - [Q7. What is the difference between a project, a solution, and an assembly in a .NET workspace?](#q7-what-is-the-difference-between-a-project-a-solution-and-an-assembly-in-a-net-workspace)
+  - [Q8. What does the `global using` directive do (C# 10+), and when is it useful?](#q8-what-does-the-global-using-directive-do-c-10-and-when-is-it-useful)
+  - [Q9. Explain file-scoped namespaces (`namespace X;`) vs block-scoped namespace syntax.](#q9-explain-file-scoped-namespaces-namespace-x-vs-block-scoped-namespace-syntax)
+  - [Q10. What is the purpose of `Program.cs` in a console application, and what other files typically accompany it (`.csproj`, `global usings`)?](#q10-what-is-the-purpose-of-programcs-in-a-console-application-and-what-other-files-typically-accompany-it-csproj-global-usings)
+  - [Q11. What is the Common Language Runtime (CLR), and how does C# code become executable?](#q11-what-is-the-common-language-runtime-clr-and-how-does-c-code-become-executable)
+  - [Q12. What is the difference between compiling to IL and JIT compilation at runtime?](#q12-what-is-the-difference-between-compiling-to-il-and-jit-compilation-at-runtime)
+  - [Q13. What are SDK-style projects, and what does `<TargetFramework>` in the `.csproj` control?](#q13-what-are-sdk-style-projects-and-what-does-targetframework-in-the-csproj-control)
+  - [Q14. When would you use `#nullable enable` at the project or file level?](#q14-when-would-you-use-nullable-enable-at-the-project-or-file-level)
+  - [Q15. What is the difference between `Console.Out`, `Console.Error`, and writing directly with `Console.WriteLine`?](#q15-what-is-the-difference-between-consoleout-consoleerror-and-writing-directly-with-consolewriteline)
 
 - [02. Data Types & Variables](#02-data-types-variables)
-  - [Q1. What are the different data types in C#?](#02-data-types-variables-q1)
-  - [Q2. What are value types and reference types in C#?](#02-data-types-variables-q2)
-  - [Q3. What is the difference between value types and reference typ…](#02-data-types-variables-q3)
-  - [Q4. What is boxing and unboxing in C#?](#02-data-types-variables-q4)
-  - [Q5. Explain the `var` keyword in C#.](#02-data-types-variables-q5)
-  - [Q6. What are nullable types in C#? (including nullable reference…](#02-data-types-variables-q6)
-  - [Q7. Explain the `default` keyword and default values in C#.](#02-data-types-variables-q7)
-  - [Q8. What are constants, literals, and readonly fields in C#?](#02-data-types-variables-q8)
-  - [Q9. What is the difference between `const` and `readonly`?](#02-data-types-variables-q9)
-  - [Q10. What is an enum in C#?](#02-data-types-variables-q10)
-  - [Q11. What is a `struct` in C#? (basics — comparison with `class` …](#02-data-types-variables-q11)
-  - [Q12. What is a tuple in C#? (ValueTuple vs `Tuple<T>`)](#02-data-types-variables-q12)
-  - [Q13. Where do value types typically live (stack vs heap), and whe…](#02-data-types-variables-q13)
-  - [Q14. When a value type is boxed, where does the data end up, and …](#02-data-types-variables-q14)
-  - [Q15. What is the difference between `int`, `long`, `decimal`, `fl…](#02-data-types-variables-q15)
-  - [Q16. What is the difference between signed and unsigned integer t…](#02-data-types-variables-q16)
-  - [Q17. What is `char` in C# — is it a numeric type or a text type, …](#02-data-types-variables-q17)
-  - [Q18. What is the difference between `bool` and nullable `bool?` i…](#02-data-types-variables-q18)
-  - [Q19. Explain the `??` (null-coalescing) and `??=` (null-coalescin…](#02-data-types-variables-q19)
-  - [Q20. What is the difference between `var` and an explicit type de…](#02-data-types-variables-q20)
-  - [Q21. What are digit separators in numeric literals (e.g., `1_000_…](#02-data-types-variables-q21)
-  - [Q22. What is the difference between `default(int)` and `default` …](#02-data-types-variables-q22)
-  - [Q23. What is a nullable reference type annotation (`string?` vs `…](#02-data-types-variables-q23)
-  - [Q24. What happens when you assign `null` to a non-nullable refere…](#02-data-types-variables-q24)
-  - [Q25. What is the difference between `object` as a universal base …](#02-data-types-variables-q25)
-  - [Q26. What are `nint` and `nuint`, and when might you encounter th…](#02-data-types-variables-q26)
-  - [Q27. What is the difference between declaring a variable with and…](#02-data-types-variables-q27)
-  - [Q28. Can you use `const` with user-defined types like `DateTime` …](#02-data-types-variables-q28)
+  - [Q1. What are the different data types in C#?](#q1-what-are-the-different-data-types-in-c)
+  - [Q2. What are value types and reference types in C#?](#q2-what-are-value-types-and-reference-types-in-c)
+  - [Q3. What is the difference between value types and reference types?](#q3-what-is-the-difference-between-value-types-and-reference-types)
+  - [Q4. What is boxing and unboxing in C#?](#q4-what-is-boxing-and-unboxing-in-c)
+  - [Q5. Explain the `var` keyword in C#.](#q5-explain-the-var-keyword-in-c)
+  - [Q6. What are nullable types in C#? (including nullable reference types in C# 8+)](#q6-what-are-nullable-types-in-c-including-nullable-reference-types-in-c-8)
+  - [Q7. Explain the `default` keyword and default values in C#.](#q7-explain-the-default-keyword-and-default-values-in-c)
+  - [Q8. What are constants, literals, and readonly fields in C#?](#q8-what-are-constants-literals-and-readonly-fields-in-c)
+  - [Q9. What is the difference between `const` and `readonly`?](#q9-what-is-the-difference-between-const-and-readonly)
+  - [Q10. What is an enum in C#?](#q10-what-is-an-enum-in-c)
+  - [Q11. What is a `struct` in C#? (basics — comparison with `class` is in OOP)](#q11-what-is-a-struct-in-c-basics-comparison-with-class-is-in-oop)
+  - [Q12. What is a tuple in C#? (ValueTuple vs `Tuple<T>`)](#q12-what-is-a-tuple-in-c-valuetuple-vs-tuplet)
+  - [Q13. Where do value types typically live (stack vs heap), and where do reference types live?](#q13-where-do-value-types-typically-live-stack-vs-heap-and-where-do-reference-types-live)
+  - [Q14. When a value type is boxed, where does the data end up, and why does that matter for performance?](#q14-when-a-value-type-is-boxed-where-does-the-data-end-up-and-why-does-that-matter-for-performance)
+  - [Q15. What is the difference between `int`, `long`, `decimal`, `float`, and `double` — when would you choose each?](#q15-what-is-the-difference-between-int-long-decimal-float-and-double-when-would-you-choose-each)
+  - [Q16. What is the difference between signed and unsigned integer types (`int` vs `uint`, etc.)?](#q16-what-is-the-difference-between-signed-and-unsigned-integer-types-int-vs-uint-etc)
+  - [Q17. What is `char` in C# — is it a numeric type or a text type, and how does it relate to Unicode?](#q17-what-is-char-in-c-is-it-a-numeric-type-or-a-text-type-and-how-does-it-relate-to-unicode)
+  - [Q18. What is the difference between `bool` and nullable `bool?` in terms of default values and usage?](#q18-what-is-the-difference-between-bool-and-nullable-bool-in-terms-of-default-values-and-usage)
+  - [Q19. Explain the `??` (null-coalescing) and `??=` (null-coalescing assignment) operators with nullable types.](#q19-explain-the-null-coalescing-and-null-coalescing-assignment-operators-with-nullable-types)
+  - [Q20. What is the difference between `var` and an explicit type declaration — when must you use explicit types?](#q20-what-is-the-difference-between-var-and-an-explicit-type-declaration-when-must-you-use-explicit-types)
+  - [Q21. What are digit separators in numeric literals (e.g., `1_000_000`), and what problem do they solve?](#q21-what-are-digit-separators-in-numeric-literals-eg-1_000_000-and-what-problem-do-they-solve)
+  - [Q22. What is the difference between `default(int)` and `default` for a reference type?](#q22-what-is-the-difference-between-defaultint-and-default-for-a-reference-type)
+  - [Q23. What is a nullable reference type annotation (`string?` vs `string`), and is enforcement compile-time or runtime?](#q23-what-is-a-nullable-reference-type-annotation-string-vs-string-and-is-enforcement-compile-time-or-runtime)
+  - [Q24. What happens when you assign `null` to a non-nullable reference type variable under `#nullable enable`?](#q24-what-happens-when-you-assign-null-to-a-non-nullable-reference-type-variable-under-nullable-enable)
+  - [Q25. What is the difference between `object` as a universal base type and using `dynamic`?](#q25-what-is-the-difference-between-object-as-a-universal-base-type-and-using-dynamic)
+  - [Q26. What are `nint` and `nuint`, and when might you encounter them?](#q26-what-are-nint-and-nuint-and-when-might-you-encounter-them)
+  - [Q27. What is the difference between declaring a variable with and without an initializer?](#q27-what-is-the-difference-between-declaring-a-variable-with-and-without-an-initializer)
+  - [Q28. Can you use `const` with user-defined types like `DateTime` or `decimal` computed at runtime? Why or why not?](#q28-can-you-use-const-with-user-defined-types-like-datetime-or-decimal-computed-at-runtime-why-or-why-not)
 
 - [03. Input & Output](#03-input-output)
-  - [Q1. What is the difference between `Console.WriteLine`, `Console…](#03-input-output-q1)
-  - [Q2. What is the difference between `Console.ReadLine()` and `Con…](#03-input-output-q2)
-  - [Q3. How do you safely parse user input (`int.TryParse`, `Parse`,…](#03-input-output-q3)
-  - [Q4. How does formatted console output work (`Console.WriteLine("…](#03-input-output-q4)
-  - [Q5. What is the difference between `CultureInfo.CurrentCulture`,…](#03-input-output-q5)
-  - [Q6. When should you use `InvariantCulture` for formatting number…](#03-input-output-q6)
-  - [Q7. How do culture settings affect decimal separators, currency …](#03-input-output-q7)
-  - [Q8. What is composite formatting (`string.Format`, `{0:N2}`, ali…](#03-input-output-q8)
-  - [Q9. What is the difference between `Console.InputEncoding` and `…](#03-input-output-q9)
-  - [Q10. How do you capture console output programmatically (e.g., `S…](#03-input-output-q10)
-  - [Q11. What is the difference between `Console.Read` and `Console.R…](#03-input-output-q11)
-  - [Q12. How do you format output with alignment and padding using in…](#03-input-output-q12)
-  - [Q13. What is `IFormattable`, and how does it relate to custom for…](#03-input-output-q13)
-  - [Q14. What happens if you call `int.Parse` on invalid input vs `in…](#03-input-output-q14)
-  - [Q15. How does changing `CultureInfo.CurrentCulture` on the curren…](#03-input-output-q15)
-  - [Q16. What is `NumberFormatInfo`, and how does it differ from `Cul…](#03-input-output-q16)
-  - [Q17. When reading numeric input from users in different locales, …](#03-input-output-q17)
-  - [Q18. What is the purpose of `Console.ForegroundColor`, `Backgroun…](#03-input-output-q18)
+  - [Q1. What is the difference between `Console.WriteLine`, `Console.Write`, and string interpolation for output?](#q1-what-is-the-difference-between-consolewriteline-consolewrite-and-string-interpolation-for-output)
+  - [Q2. What is the difference between `Console.ReadLine()` and `Console.ReadKey()`?](#q2-what-is-the-difference-between-consolereadline-and-consolereadkey)
+  - [Q3. How do you safely parse user input (`int.TryParse`, `Parse`, `Convert`) and handle invalid input?](#q3-how-do-you-safely-parse-user-input-inttryparse-parse-convert-and-handle-invalid-input)
+  - [Q4. How does formatted console output work (`Console.WriteLine("{0}", value)` vs interpolation)?](#q4-how-does-formatted-console-output-work-consolewriteline0-value-vs-interpolation)
+  - [Q5. What is the difference between `CultureInfo.CurrentCulture`, `CurrentUICulture`, and `InvariantCulture`?](#q5-what-is-the-difference-between-cultureinfocurrentculture-currentuiculture-and-invariantculture)
+  - [Q6. When should you use `InvariantCulture` for formatting numbers and dates instead of `CurrentCulture`?](#q6-when-should-you-use-invariantculture-for-formatting-numbers-and-dates-instead-of-currentculture)
+  - [Q7. How do culture settings affect decimal separators, currency symbols, and date formats in console output?](#q7-how-do-culture-settings-affect-decimal-separators-currency-symbols-and-date-formats-in-console-output)
+  - [Q8. What is composite formatting (`string.Format`, `{0:N2}`, alignment `{0,10}`, `{0,-10}`)?](#q8-what-is-composite-formatting-stringformat-0n2-alignment-010-0-10)
+  - [Q9. What is the difference between `Console.InputEncoding` and `Console.OutputEncoding`, and why can mismatched encodings garble console text?](#q9-what-is-the-difference-between-consoleinputencoding-and-consoleoutputencoding-and-why-can-mismatched-encodings-garble-console-text)
+  - [Q10. How do you capture console output programmatically (e.g., `StringWriter` redirected to `Console.SetOut`)?](#q10-how-do-you-capture-console-output-programmatically-eg-stringwriter-redirected-to-consolesetout)
+  - [Q11. What is the difference between `Console.Read` and `Console.ReadLine`?](#q11-what-is-the-difference-between-consoleread-and-consolereadline)
+  - [Q12. How do you format output with alignment and padding using interpolation (`$"{value,10}"`, `$"{value:N2}"`)?](#q12-how-do-you-format-output-with-alignment-and-padding-using-interpolation-value10-valuen2)
+  - [Q13. What is `IFormattable`, and how does it relate to custom formatting in `ToString(format, provider)`?](#q13-what-is-iformattable-and-how-does-it-relate-to-custom-formatting-in-tostringformat-provider)
+  - [Q14. What happens if you call `int.Parse` on invalid input vs `int.TryParse` — which pattern is preferred in production console apps?](#q14-what-happens-if-you-call-intparse-on-invalid-input-vs-inttryparse-which-pattern-is-preferred-in-production-console-apps)
+  - [Q15. How does changing `CultureInfo.CurrentCulture` on the current thread affect subsequent formatting calls that omit an explicit provider?](#q15-how-does-changing-cultureinfocurrentculture-on-the-current-thread-affect-subsequent-formatting-calls-that-omit-an-explicit-provider)
+  - [Q16. What is `NumberFormatInfo`, and how does it differ from `CultureInfo`?](#q16-what-is-numberformatinfo-and-how-does-it-differ-from-cultureinfo)
+  - [Q17. When reading numeric input from users in different locales, what pitfalls arise with comma vs period decimal separators?](#q17-when-reading-numeric-input-from-users-in-different-locales-what-pitfalls-arise-with-comma-vs-period-decimal-separators)
+  - [Q18. What is the purpose of `Console.ForegroundColor`, `BackgroundColor`, and resetting colors after use?](#q18-what-is-the-purpose-of-consoleforegroundcolor-backgroundcolor-and-resetting-colors-after-use)
 
 - [04. Operators & Expressions](#04-operators-expressions)
-  - [Q1. What are the different types of operators in C#? (Arithmetic…](#04-operators-expressions-q1)
-  - [Q2. Explain the `checked` and `unchecked` keywords in C#.](#04-operators-expressions-q2)
-  - [Q3. What is the difference between `==` and `.Equals()` for valu…](#04-operators-expressions-q3)
-  - [Q4. What is integer division in C#, and how do you get a fractio…](#04-operators-expressions-q4)
-  - [Q5. Explain operator precedence and associativity — why does `a …](#04-operators-expressions-q5)
-  - [Q6. What is the difference between prefix and postfix increment …](#04-operators-expressions-q6)
-  - [Q7. What are short-circuit logical operators (`&&`, `||`), and w…](#04-operators-expressions-q7)
-  - [Q8. Explain the null-conditional operator (`?.`) and null-coales…](#04-operators-expressions-q8)
-  - [Q9. What are bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`),…](#04-operators-expressions-q9)
-  - [Q10. What is the difference between logical AND (`&&`) and bitwis…](#04-operators-expressions-q10)
-  - [Q11. What is the ternary conditional operator (`?:`), and how doe…](#04-operators-expressions-q11)
-  - [Q12. What is the difference between `is` pattern matching and a s…](#04-operators-expressions-q12)
-  - [Q13. When does overflow occur for integer arithmetic, and how do …](#04-operators-expressions-q13)
-  - [Q14. What is the difference between `==` and `ReferenceEquals` fo…](#04-operators-expressions-q14)
-  - [Q15. Can you overload operators in C# — which operators can and c…](#04-operators-expressions-q15)
-  - [Q16. What is the difference between compound assignment (`+=`, `-…](#04-operators-expressions-q16)
-  - [Q17. What is the `nameof` operator, and how is it used in validat…](#04-operators-expressions-q17)
+  - [Q1. What are the different types of operators in C#? (Arithmetic, Relational, Logical, Bitwise, Assignment, Ternary, Null-coalescing, etc.)](#q1-what-are-the-different-types-of-operators-in-c-arithmetic-relational-logical-bitwise-assignment-ternary-null-coalescing-etc)
+  - [Q2. Explain the `checked` and `unchecked` keywords in C#.](#q2-explain-the-checked-and-unchecked-keywords-in-c)
+  - [Q3. What is the difference between `==` and `.Equals()` for value types vs reference types?](#q3-what-is-the-difference-between-and-equals-for-value-types-vs-reference-types)
+  - [Q4. What is integer division in C#, and how do you get a fractional result?](#q4-what-is-integer-division-in-c-and-how-do-you-get-a-fractional-result)
+  - [Q5. Explain operator precedence and associativity — why does `a + b * c` evaluate differently than `(a + b) * c`?](#q5-explain-operator-precedence-and-associativity-why-does-a-b-c-evaluate-differently-than-a-b-c)
+  - [Q6. What is the difference between prefix and postfix increment (`++i` vs `i++`)?](#q6-what-is-the-difference-between-prefix-and-postfix-increment-i-vs-i)
+  - [Q7. What are short-circuit logical operators (`&&`, `||`), and why do they matter beyond boolean logic?](#q7-what-are-short-circuit-logical-operators-and-why-do-they-matter-beyond-boolean-logic)
+  - [Q8. Explain the null-conditional operator (`?.`) and null-coalescing operators (`??`, `??=`).](#q8-explain-the-null-conditional-operator-and-null-coalescing-operators)
+  - [Q9. What are bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`), and when are they used in application code?](#q9-what-are-bitwise-operators-and-when-are-they-used-in-application-code)
+  - [Q10. What is the difference between logical AND (`&&`) and bitwise AND (`&`) when applied to `bool` operands?](#q10-what-is-the-difference-between-logical-and-and-bitwise-and-when-applied-to-bool-operands)
+  - [Q11. What is the ternary conditional operator (`?:`), and how does it differ from an `if/else` statement?](#q11-what-is-the-ternary-conditional-operator-and-how-does-it-differ-from-an-ifelse-statement)
+  - [Q12. What is the difference between `is` pattern matching and a simple boolean expression in a condition?](#q12-what-is-the-difference-between-is-pattern-matching-and-a-simple-boolean-expression-in-a-condition)
+  - [Q13. When does overflow occur for integer arithmetic, and how do `checked` blocks change behavior?](#q13-when-does-overflow-occur-for-integer-arithmetic-and-how-do-checked-blocks-change-behavior)
+  - [Q14. What is the difference between `==` and `ReferenceEquals` for reference types?](#q14-what-is-the-difference-between-and-referenceequals-for-reference-types)
+  - [Q15. Can you overload operators in C# — which operators can and cannot be overloaded?](#q15-can-you-overload-operators-in-c-which-operators-can-and-cannot-be-overloaded)
+  - [Q16. What is the difference between compound assignment (`+=`, `-=`) and the expanded form (`x = x + y`) for value vs reference types?](#q16-what-is-the-difference-between-compound-assignment---and-the-expanded-form-x-x-y-for-value-vs-reference-types)
+  - [Q17. What is the `nameof` operator, and how is it used in validation messages and refactoring-safe code?](#q17-what-is-the-nameof-operator-and-how-is-it-used-in-validation-messages-and-refactoring-safe-code)
 
 - [05. Type Conversion & Casting](#05-type-conversion-casting)
-  - [Q1. What is the difference between the `is` and `as` operators?](#05-type-conversion-casting-q1)
-  - [Q2. What is the difference between implicit and explicit type co…](#05-type-conversion-casting-q2)
-  - [Q3. What is the difference between `Convert.ToInt32`, `(int)`, a…](#05-type-conversion-casting-q3)
-  - [Q4. When does a cast succeed at compile time but fail at runtime…](#05-type-conversion-casting-q4)
-  - [Q5. What is widening vs narrowing conversion — which direction i…](#05-type-conversion-casting-q5)
-  - [Q6. What is the difference between `Parse`, `TryParse`, and `Con…](#05-type-conversion-casting-q6)
-  - [Q7. When would you use the `is` pattern with a declaration (`if …](#05-type-conversion-casting-q7)
-  - [Q8. What exception types are commonly thrown by failed casts and…](#05-type-conversion-casting-q8)
-  - [Q9. What is `TryFormat`, and how does writing into a `Span<char>…](#05-type-conversion-casting-q9)
-  - [Q10. How does culture affect parsing and formatting during type c…](#05-type-conversion-casting-q10)
-  - [Q11. What is the difference between boxing during conversion to `…](#05-type-conversion-casting-q11)
-  - [Q12. When is the `as` operator preferred over a cast, and what do…](#05-type-conversion-casting-q12)
-  - [Q13. What is user-defined explicit/implicit conversion operator s…](#05-type-conversion-casting-q13)
-  - [Q14. What happens when you cast a `double` to `int` — is rounding…](#05-type-conversion-casting-q14)
-  - [Q15. What is the difference between `default(T)` casting patterns…](#05-type-conversion-casting-q15)
-  - [Q16. When converting between `string` and numeric types in APIs a…](#05-type-conversion-casting-q16)
+  - [Q1. What is the difference between the `is` and `as` operators?](#q1-what-is-the-difference-between-the-is-and-as-operators)
+  - [Q2. What is the difference between implicit and explicit type conversion (casting)?](#q2-what-is-the-difference-between-implicit-and-explicit-type-conversion-casting)
+  - [Q3. What is the difference between `Convert.ToInt32`, `(int)`, and `int.Parse`?](#q3-what-is-the-difference-between-converttoint32-int-and-intparse)
+  - [Q4. When does a cast succeed at compile time but fail at runtime?](#q4-when-does-a-cast-succeed-at-compile-time-but-fail-at-runtime)
+  - [Q5. What is widening vs narrowing conversion — which direction is implicit?](#q5-what-is-widening-vs-narrowing-conversion-which-direction-is-implicit)
+  - [Q6. What is the difference between `Parse`, `TryParse`, and `Convert.ChangeType`?](#q6-what-is-the-difference-between-parse-tryparse-and-convertchangetype)
+  - [Q7. When would you use the `is` pattern with a declaration (`if (obj is int n)`) vs a traditional cast?](#q7-when-would-you-use-the-is-pattern-with-a-declaration-if-obj-is-int-n-vs-a-traditional-cast)
+  - [Q8. What exception types are commonly thrown by failed casts and parses (`FormatException`, `OverflowException`, `InvalidCastException`)?](#q8-what-exception-types-are-commonly-thrown-by-failed-casts-and-parses-formatexception-overflowexception-invalidcastexception)
+  - [Q9. What is `TryFormat`, and how does writing into a `Span<char>` differ from calling `ToString()`?](#q9-what-is-tryformat-and-how-does-writing-into-a-spanchar-differ-from-calling-tostring)
+  - [Q10. How does culture affect parsing and formatting during type conversion (e.g., `"1,234.56"` vs `"1.234,56"`)?](#q10-how-does-culture-affect-parsing-and-formatting-during-type-conversion-eg-123456-vs-123456)
+  - [Q11. What is the difference between boxing during conversion to `object` and a direct numeric cast?](#q11-what-is-the-difference-between-boxing-during-conversion-to-object-and-a-direct-numeric-cast)
+  - [Q12. When is the `as` operator preferred over a cast, and what does it return on failure?](#q12-when-is-the-as-operator-preferred-over-a-cast-and-what-does-it-return-on-failure)
+  - [Q13. What is user-defined explicit/implicit conversion operator syntax (preview level)?](#q13-what-is-user-defined-explicitimplicit-conversion-operator-syntax-preview-level)
+  - [Q14. What happens when you cast a `double` to `int` — is rounding or truncation applied?](#q14-what-happens-when-you-cast-a-double-to-int-is-rounding-or-truncation-applied)
+  - [Q15. What is the difference between `default(T)` casting patterns and `Convert` methods for nullable value types?](#q15-what-is-the-difference-between-defaultt-casting-patterns-and-convert-methods-for-nullable-value-types)
+  - [Q16. When converting between `string` and numeric types in APIs and logs, why is `InvariantCulture` often specified explicitly?](#q16-when-converting-between-string-and-numeric-types-in-apis-and-logs-why-is-invariantculture-often-specified-explicitly)
 
 - [06. Control Flow & Loops](#06-control-flow-loops)
-  - [Q1. What is the difference between `if/else` and the ternary ope…](#06-control-flow-loops-q1)
-  - [Q2. What is the difference between traditional `switch` and swit…](#06-control-flow-loops-q2)
-  - [Q3. When should you use `for`, `foreach`, `while`, and `do-while…](#06-control-flow-loops-q3)
-  - [Q4. What is the difference between `break`, `continue`, and `ret…](#06-control-flow-loops-q4)
-  - [Q5. What are common pitfalls with nested loops and loop variable…](#06-control-flow-loops-q5)
-  - [Q6. What is a switch expression, and how do relational and prope…](#06-control-flow-loops-q6)
-  - [Q7. What is the difference between `break` in a `switch` vs `bre…](#06-control-flow-loops-q7)
-  - [Q8. When is `goto` still used in C# (e.g., `goto case`, `goto de…](#06-control-flow-loops-q8)
-  - [Q9. What is the scope of a variable declared in the initializer …](#06-control-flow-loops-q9)
-  - [Q10. Why did C# 5 change loop variable capture semantics in lambd…](#06-control-flow-loops-q10)
-  - [Q11. Can you modify the collection you are iterating in a `foreac…](#06-control-flow-loops-q11)
-  - [Q12. What is the difference between `while` and `do-while` when t…](#06-control-flow-loops-q12)
-  - [Q13. When would you prefer a `switch` over a chain of `if/else if…](#06-control-flow-loops-q13)
-  - [Q14. What is pattern matching with `is` in an `if` statement vs a…](#06-control-flow-loops-q14)
-  - [Q15. What happens if you use `return` inside a `try` block that h…](#06-control-flow-loops-q15)
+  - [Q1. What is the difference between `if/else` and the ternary operator?](#q1-what-is-the-difference-between-ifelse-and-the-ternary-operator)
+  - [Q2. What is the difference between traditional `switch` and switch expressions (C# 8+)?](#q2-what-is-the-difference-between-traditional-switch-and-switch-expressions-c-8)
+  - [Q3. When should you use `for`, `foreach`, `while`, and `do-while`?](#q3-when-should-you-use-for-foreach-while-and-do-while)
+  - [Q4. What is the difference between `break`, `continue`, and `return` inside a loop?](#q4-what-is-the-difference-between-break-continue-and-return-inside-a-loop)
+  - [Q5. What are common pitfalls with nested loops and loop variable scope?](#q5-what-are-common-pitfalls-with-nested-loops-and-loop-variable-scope)
+  - [Q6. What is a switch expression, and how do relational and property patterns work in `switch`?](#q6-what-is-a-switch-expression-and-how-do-relational-and-property-patterns-work-in-switch)
+  - [Q7. What is the difference between `break` in a `switch` vs `break` in a loop?](#q7-what-is-the-difference-between-break-in-a-switch-vs-break-in-a-loop)
+  - [Q8. When is `goto` still used in C# (e.g., `goto case`, `goto default`), and why is it generally discouraged?](#q8-when-is-goto-still-used-in-c-eg-goto-case-goto-default-and-why-is-it-generally-discouraged)
+  - [Q9. What is the scope of a variable declared in the initializer of a `for` loop (C# rules)?](#q9-what-is-the-scope-of-a-variable-declared-in-the-initializer-of-a-for-loop-c-rules)
+  - [Q10. Why did C# 5 change loop variable capture semantics in lambdas, and how does that affect `foreach` vs `for`?](#q10-why-did-c-5-change-loop-variable-capture-semantics-in-lambdas-and-how-does-that-affect-foreach-vs-for)
+  - [Q11. Can you modify the collection you are iterating in a `foreach` loop — what exception results?](#q11-can-you-modify-the-collection-you-are-iterating-in-a-foreach-loop-what-exception-results)
+  - [Q12. What is the difference between `while` and `do-while` when the condition is false on the first check?](#q12-what-is-the-difference-between-while-and-do-while-when-the-condition-is-false-on-the-first-check)
+  - [Q13. When would you prefer a `switch` over a chain of `if/else if` statements?](#q13-when-would-you-prefer-a-switch-over-a-chain-of-ifelse-if-statements)
+  - [Q14. What is pattern matching with `is` in an `if` statement vs a `switch` on type?](#q14-what-is-pattern-matching-with-is-in-an-if-statement-vs-a-switch-on-type)
+  - [Q15. What happens if you use `return` inside a `try` block that has a `finally` — which executes first?](#q15-what-happens-if-you-use-return-inside-a-try-block-that-has-a-finally-which-executes-first)
 
 - [07. Methods](#07-methods)
-  - [Q1. What are the `out`, `ref`, and `in` parameter modifiers? Exp…](#07-methods-q1)
-  - [Q2. What is the `params` keyword in method definitions?](#07-methods-q2)
-  - [Q3. What are expression-bodied members in C#?](#07-methods-q3)
-  - [Q4. Explain named arguments and optional parameters in C#.](#07-methods-q4)
-  - [Q5. What are local functions in C#?](#07-methods-q5)
-  - [Q6. What is the `yield` keyword and iterators in C#? *(Cross-ref…](#07-methods-q6)
-  - [Q7. Explain method overloading — what makes two methods overload…](#07-methods-q7)
-  - [Q8. How does overload resolution work when multiple overloads co…](#07-methods-q8)
-  - [Q9. Why can't you overload methods by return type alone?](#07-methods-q9)
-  - [Q10. What is the difference between call-by-value for value types…](#07-methods-q10)
-  - [Q11. When should you use `ref` vs `out` vs `in` for parameters?](#07-methods-q11)
-  - [Q12. What problem does the `in` modifier solve for large readonly…](#07-methods-q12)
-  - [Q13. What is the Try-pattern (`bool TryX(..., out T result)`), an…](#07-methods-q13)
-  - [Q14. Can optional parameters precede required parameters — what a…](#07-methods-q14)
-  - [Q15. What is the difference between `params int[]` and passing an…](#07-methods-q15)
-  - [Q16. When does overload resolution fail with ambiguity (CS0121), …](#07-methods-q16)
-  - [Q17. What is the difference between a local function and a privat…](#07-methods-q17)
-  - [Q18. What is recursion, what is a base case, and what risk does u…](#07-methods-q18)
-  - [Q19. Can `out` variables be declared inline at the call site (`Tr…](#07-methods-q19)
-  - [Q20. What is the difference between mutating an object through a …](#07-methods-q20)
+  - [Q1. What are the `out`, `ref`, and `in` parameter modifiers? Explain their usage.](#q1-what-are-the-out-ref-and-in-parameter-modifiers-explain-their-usage)
+  - [Q2. What is the `params` keyword in method definitions?](#q2-what-is-the-params-keyword-in-method-definitions)
+  - [Q3. What are expression-bodied members in C#?](#q3-what-are-expression-bodied-members-in-c)
+  - [Q4. Explain named arguments and optional parameters in C#.](#q4-explain-named-arguments-and-optional-parameters-in-c)
+  - [Q5. What are local functions in C#?](#q5-what-are-local-functions-in-c)
+  - [Q6. What is the `yield` keyword and iterators in C#? *(Cross-ref: Module 03 — IEnumerable)*](#q6-what-is-the-yield-keyword-and-iterators-in-c-cross-ref-module-03-ienumerable)
+  - [Q7. Explain method overloading — what makes two methods overloads vs duplicate definitions?](#q7-explain-method-overloading-what-makes-two-methods-overloads-vs-duplicate-definitions)
+  - [Q8. How does overload resolution work when multiple overloads could apply — what is the "better function member" rule?](#q8-how-does-overload-resolution-work-when-multiple-overloads-could-apply-what-is-the-better-function-member-rule)
+  - [Q9. Why can't you overload methods by return type alone?](#q9-why-cant-you-overload-methods-by-return-type-alone)
+  - [Q10. What is the difference between call-by-value for value types vs reference types at the parameter boundary?](#q10-what-is-the-difference-between-call-by-value-for-value-types-vs-reference-types-at-the-parameter-boundary)
+  - [Q11. When should you use `ref` vs `out` vs `in` for parameters?](#q11-when-should-you-use-ref-vs-out-vs-in-for-parameters)
+  - [Q12. What problem does the `in` modifier solve for large readonly structs?](#q12-what-problem-does-the-in-modifier-solve-for-large-readonly-structs)
+  - [Q13. What is the Try-pattern (`bool TryX(..., out T result)`), and why is it preferred over exceptions for expected failures?](#q13-what-is-the-try-pattern-bool-tryx-out-t-result-and-why-is-it-preferred-over-exceptions-for-expected-failures)
+  - [Q14. Can optional parameters precede required parameters — what are the ordering rules?](#q14-can-optional-parameters-precede-required-parameters-what-are-the-ordering-rules)
+  - [Q15. What is the difference between `params int[]` and passing an explicit `int[]` at the call site?](#q15-what-is-the-difference-between-params-int-and-passing-an-explicit-int-at-the-call-site)
+  - [Q16. When does overload resolution fail with ambiguity (CS0121), and how do casts or named arguments resolve it?](#q16-when-does-overload-resolution-fail-with-ambiguity-cs0121-and-how-do-casts-or-named-arguments-resolve-it)
+  - [Q17. What is the difference between a local function and a private instance method in the same class?](#q17-what-is-the-difference-between-a-local-function-and-a-private-instance-method-in-the-same-class)
+  - [Q18. What is recursion, what is a base case, and what risk does unbounded recursion pose?](#q18-what-is-recursion-what-is-a-base-case-and-what-risk-does-unbounded-recursion-pose)
+  - [Q19. Can `out` variables be declared inline at the call site (`TryParse(text, out int n)`)?](#q19-can-out-variables-be-declared-inline-at-the-call-site-tryparsetext-out-int-n)
+  - [Q20. What is the difference between mutating an object through a reference parameter vs reassigning the parameter variable itself?](#q20-what-is-the-difference-between-mutating-an-object-through-a-reference-parameter-vs-reassigning-the-parameter-variable-itself)
 
 - [08. Strings](#08-strings)
-  - [Q1. Explain string handling in C# (`string` vs `StringBuilder`).](#08-strings-q1)
-  - [Q2. What are the different ways to format strings in C#? (`Strin…](#08-strings-q2)
-  - [Q3. Are strings mutable or immutable in C#? What are the implica…](#08-strings-q3)
-  - [Q4. What is string interning?](#08-strings-q4)
-  - [Q5. What is the difference between `==`, `Equals`, `Compare`, an…](#08-strings-q5)
-  - [Q6. When should you use `StringComparison.Ordinal` vs `OrdinalIg…](#08-strings-q6)
-  - [Q7. What are verbatim string literals (`@"..."`), and when are t…](#08-strings-q7)
-  - [Q8. What are raw string literals (`"""..."""`, C# 11+), and how …](#08-strings-q8)
-  - [Q9. What is the difference between `StringBuilder` and repeated …](#08-strings-q9)
-  - [Q10. What is the difference between `string.Concat`, the `+` oper…](#08-strings-q10)
-  - [Q11. What is the difference between `IsNullOrEmpty`, `IsNullOrWhi…](#08-strings-q11)
-  - [Q12. What is the difference between culture-sensitive (`ToUpper()…](#08-strings-q12)
-  - [Q13. What methods would you use to split, trim, replace, pad, and…](#08-strings-q13)
-  - [Q14. What is UTF-16 storage in .NET strings, and how does that re…](#08-strings-q14)
-  - [Q15. What is the string intern pool, and what does `string.Intern…](#08-strings-q15)
-  - [Q16. Why can two strings with identical content fail `ReferenceEq…](#08-strings-q16)
-  - [Q17. What is the difference between `Substring` and range/index s…](#08-strings-q17)
-  - [Q18. When is `StringBuilder` not the best choice despite many app…](#08-strings-q18)
-  - [Q19. How does string interpolation handle format specifiers and a…](#08-strings-q19)
-  - [Q20. What is the performance implication of calling `Replace` or …](#08-strings-q20)
+  - [Q1. Explain string handling in C# (`string` vs `StringBuilder`).](#q1-explain-string-handling-in-c-string-vs-stringbuilder)
+  - [Q2. What are the different ways to format strings in C#? (`String.Format`, interpolation, composite formatting)](#q2-what-are-the-different-ways-to-format-strings-in-c-stringformat-interpolation-composite-formatting)
+  - [Q3. Are strings mutable or immutable in C#? What are the implications?](#q3-are-strings-mutable-or-immutable-in-c-what-are-the-implications)
+  - [Q4. What is string interning?](#q4-what-is-string-interning)
+  - [Q5. What is the difference between `==`, `Equals`, `Compare`, and `CompareTo` for strings?](#q5-what-is-the-difference-between-equals-compare-and-compareto-for-strings)
+  - [Q6. When should you use `StringComparison.Ordinal` vs `OrdinalIgnoreCase` vs culture-sensitive comparisons?](#q6-when-should-you-use-stringcomparisonordinal-vs-ordinalignorecase-vs-culture-sensitive-comparisons)
+  - [Q7. What are verbatim string literals (`@"..."`), and when are they useful?](#q7-what-are-verbatim-string-literals-and-when-are-they-useful)
+  - [Q8. What are raw string literals (`"""..."""`, C# 11+), and how do they handle quotes and newlines?](#q8-what-are-raw-string-literals-c-11-and-how-do-they-handle-quotes-and-newlines)
+  - [Q9. What is the difference between `StringBuilder` and repeated string concatenation in a loop?](#q9-what-is-the-difference-between-stringbuilder-and-repeated-string-concatenation-in-a-loop)
+  - [Q10. What is the difference between `string.Concat`, the `+` operator, and interpolation for combining text?](#q10-what-is-the-difference-between-stringconcat-the-operator-and-interpolation-for-combining-text)
+  - [Q11. What is the difference between `IsNullOrEmpty`, `IsNullOrWhiteSpace`, and checking `Length == 0`?](#q11-what-is-the-difference-between-isnullorempty-isnullorwhitespace-and-checking-length-0)
+  - [Q12. What is the difference between culture-sensitive (`ToUpper()`) and invariant (`ToUpperInvariant()`) case conversion?](#q12-what-is-the-difference-between-culture-sensitive-toupper-and-invariant-toupperinvariant-case-conversion)
+  - [Q13. What methods would you use to split, trim, replace, pad, and search within strings?](#q13-what-methods-would-you-use-to-split-trim-replace-pad-and-search-within-strings)
+  - [Q14. What is UTF-16 storage in .NET strings, and how does that relate to surrogate pairs and `char`?](#q14-what-is-utf-16-storage-in-net-strings-and-how-does-that-relate-to-surrogate-pairs-and-char)
+  - [Q15. What is the string intern pool, and what does `string.Intern` do?](#q15-what-is-the-string-intern-pool-and-what-does-stringintern-do)
+  - [Q16. Why can two strings with identical content fail `ReferenceEquals` while still passing `==`?](#q16-why-can-two-strings-with-identical-content-fail-referenceequals-while-still-passing)
+  - [Q17. What is the difference between `Substring` and range/index syntax (`s[start..end]`) for slicing strings?](#q17-what-is-the-difference-between-substring-and-rangeindex-syntax-sstartend-for-slicing-strings)
+  - [Q18. When is `StringBuilder` not the best choice despite many append operations?](#q18-when-is-stringbuilder-not-the-best-choice-despite-many-append-operations)
+  - [Q19. How does string interpolation handle format specifiers and alignment (`$"{price:C2}"`, `$"{name,-20}"`)?](#q19-how-does-string-interpolation-handle-format-specifiers-and-alignment-pricec2-name-20)
+  - [Q20. What is the performance implication of calling `Replace` or `Trim` on large strings repeatedly?](#q20-what-is-the-performance-implication-of-calling-replace-or-trim-on-large-strings-repeatedly)
 
 - [09. Arrays](#09-arrays)
-  - [Q1. What are arrays in C#? How is memory managed for single-dime…](#09-arrays-q1)
-  - [Q2. What is a jagged array?](#09-arrays-q2)
-  - [Q3. What is the difference between `Array.Copy()`, `Clone()`, an…](#09-arrays-q3)
-  - [Q4. What is the difference between a single-dimensional array, a…](#09-arrays-q4)
-  - [Q5. Are arrays value types or reference types in C#?](#09-arrays-q5)
-  - [Q6. What is array covariance for reference types, and why is `ob…](#09-arrays-q6)
-  - [Q7. What do `Array.Resize`, `Array.Fill`, and `Array.Clear` do —…](#09-arrays-q7)
-  - [Q8. What is the difference between `Length` on a single-dimensio…](#09-arrays-q8)
-  - [Q9. How do you initialize arrays with collection initializer syn…](#09-arrays-q9)
-  - [Q10. What is the relationship between arrays and `params` paramet…](#09-arrays-q10)
-  - [Q11. What is the difference between shallow copy of an array refe…](#09-arrays-q11)
-  - [Q12. When would you use `Array.Sort` vs LINQ `OrderBy` on an arra…](#09-arrays-q12)
-  - [Q13. What bounds-checking behavior does C# provide for array inde…](#09-arrays-q13)
-  - [Q14. What is `Span<T>`/`ReadOnlySpan<T>` in relation to arrays (p…](#09-arrays-q14)
-  - [Q15. How do jagged arrays differ in memory layout from rectangula…](#09-arrays-q15)
-  - [Q16. What happens when you pass an array to a method — can the ca…](#09-arrays-q16)
+  - [Q1. What are arrays in C#? How is memory managed for single-dimensional, multi-dimensional, and jagged arrays?](#q1-what-are-arrays-in-c-how-is-memory-managed-for-single-dimensional-multi-dimensional-and-jagged-arrays)
+  - [Q2. What is a jagged array?](#q2-what-is-a-jagged-array)
+  - [Q3. What is the difference between `Array.Copy()`, `Clone()`, and assigning one array variable to another?](#q3-what-is-the-difference-between-arraycopy-clone-and-assigning-one-array-variable-to-another)
+  - [Q4. What is the difference between a single-dimensional array, a rectangular multi-dimensional array (`[,]`), and a jagged array (`[][]`)?](#q4-what-is-the-difference-between-a-single-dimensional-array-a-rectangular-multi-dimensional-array-and-a-jagged-array)
+  - [Q5. Are arrays value types or reference types in C#?](#q5-are-arrays-value-types-or-reference-types-in-c)
+  - [Q6. What is array covariance for reference types, and why is `object[] arr = new string[3]; arr[0] = 42;` dangerous?](#q6-what-is-array-covariance-for-reference-types-and-why-is-object-arr-new-string3-arr0-42-dangerous)
+  - [Q7. What do `Array.Resize`, `Array.Fill`, and `Array.Clear` do — which allocate new memory?](#q7-what-do-arrayresize-arrayfill-and-arrayclear-do-which-allocate-new-memory)
+  - [Q8. What is the difference between `Length` on a single-dimensional array vs `GetLength(dimension)` on multi-dimensional arrays?](#q8-what-is-the-difference-between-length-on-a-single-dimensional-array-vs-getlengthdimension-on-multi-dimensional-arrays)
+  - [Q9. How do you initialize arrays with collection initializer syntax and `new int[] { 1, 2, 3 }`?](#q9-how-do-you-initialize-arrays-with-collection-initializer-syntax-and-new-int-1-2-3)
+  - [Q10. What is the relationship between arrays and `params` parameters in methods?](#q10-what-is-the-relationship-between-arrays-and-params-parameters-in-methods)
+  - [Q11. What is the difference between shallow copy of an array reference and copying array elements?](#q11-what-is-the-difference-between-shallow-copy-of-an-array-reference-and-copying-array-elements)
+  - [Q12. When would you use `Array.Sort` vs LINQ `OrderBy` on an array?](#q12-when-would-you-use-arraysort-vs-linq-orderby-on-an-array)
+  - [Q13. What bounds-checking behavior does C# provide for array indexing?](#q13-what-bounds-checking-behavior-does-c-provide-for-array-indexing)
+  - [Q14. What is `Span<T>`/`ReadOnlySpan<T>` in relation to arrays (preview — stack-friendly views)?](#q14-what-is-spantreadonlyspant-in-relation-to-arrays-preview-stack-friendly-views)
+  - [Q15. How do jagged arrays differ in memory layout from rectangular 2D arrays?](#q15-how-do-jagged-arrays-differ-in-memory-layout-from-rectangular-2d-arrays)
+  - [Q16. What happens when you pass an array to a method — can the callee change the caller's array contents?](#q16-what-happens-when-you-pass-an-array-to-a-method-can-the-callee-change-the-callers-array-contents)
 
 - [10. Exception Handling](#10-exception-handling)
-  - [Q1. Explain exception handling in C# (`try`, `catch`, `finally`,…](#10-exception-handling-q1)
-  - [Q2. What is the difference between `throw` and `throw ex`?](#10-exception-handling-q2)
-  - [Q3. Explain the `using` statement in the context of exception ha…](#10-exception-handling-q3)
-  - [Q4. What are exception filters in C#?](#10-exception-handling-q4)
-  - [Q5. What is the difference between catching a specific exception…](#10-exception-handling-q5)
-  - [Q6. What happens if an exception is thrown inside a `finally` bl…](#10-exception-handling-q6)
-  - [Q7. What is the base class hierarchy for exceptions in .NET (`Ex…](#10-exception-handling-q7)
-  - [Q8. When should you create a custom exception type vs using an e…](#10-exception-handling-q8)
-  - [Q9. What is the difference between `using` statement and `using`…](#10-exception-handling-q9)
-  - [Q10. Can you have multiple `catch` blocks — what is the order rul…](#10-exception-handling-q10)
-  - [Q11. What is `finally` guaranteed to do, and can it prevent an ex…](#10-exception-handling-q11)
-  - [Q12. What is the difference between handled exceptions and unhand…](#10-exception-handling-q12)
-  - [Q13. When is it appropriate to catch and swallow an exception vs …](#10-exception-handling-q13)
-  - [Q14. What is `ExceptionDispatchInfo`, and when is `throw;` insuff…](#10-exception-handling-q14)
-  - [Q15. What happens if both `try` and `finally` contain `return` st…](#10-exception-handling-q15)
-  - [Q16. What is the difference between `IDisposable.Dispose` and fin…](#10-exception-handling-q16)
-  - [Q17. **String interning** — `string a = "hello"; string b = "hell…](#10-exception-handling-q17)
-  - [Q18. **Integer division** — `10 / 3` is `3`, not `3.33`. At least…](#10-exception-handling-q18)
-  - [Q19. **`const` vs runtime values** — You cannot use `const` with …](#10-exception-handling-q19)
-  - [Q20. **Boxing silently hurts performance** — Assigning value type…](#10-exception-handling-q20)
-  - [Q21. **Modifying a struct inside `foreach`** — Compile error: the…](#10-exception-handling-q21)
-  - [Q22. **`throw;` vs `throw ex;`** — `throw ex;` resets the stack t…](#10-exception-handling-q22)
-  - [Q23. **`return` in `try` vs `finally`** — `finally` always runs b…](#10-exception-handling-q23)
-  - [Q24. **Array covariance trap** — `object[] arr = new string[3]; a…](#10-exception-handling-q24)
-  - [Q25. **Culture-sensitive parse/format** — `"3,14"` parses as 314 …](#10-exception-handling-q25)
-  - [Q26. **`Parse` vs `TryParse` in user input paths** — `int.Parse` …](#10-exception-handling-q26)
-  - [Q27. **`ref` reassignment vs mutation** — Reassigning a reference…](#10-exception-handling-q27)
-  - [Q28. **`params` must be last** — Only one `params` array paramete…](#10-exception-handling-q28)
-  - [Q29. **Optional parameter defaults are compile-time** — Changing …](#10-exception-handling-q29)
-  - [Q30. **`checked` default is context-dependent** — Integer overflo…](#10-exception-handling-q30)
-  - [Q31. **Console encoding mismatch** — Writing Unicode to a console…](#10-exception-handling-q31)
+  - [Q1. Explain exception handling in C# (`try`, `catch`, `finally`, `throw`, and custom exceptions).](#q1-explain-exception-handling-in-c-try-catch-finally-throw-and-custom-exceptions)
+  - [Q2. What is the difference between `throw` and `throw ex`?](#q2-what-is-the-difference-between-throw-and-throw-ex)
+  - [Q3. Explain the `using` statement in the context of exception handling and resource management.](#q3-explain-the-using-statement-in-the-context-of-exception-handling-and-resource-management)
+  - [Q4. What are exception filters in C#?](#q4-what-are-exception-filters-in-c)
+  - [Q5. What is the difference between catching a specific exception type vs `catch (Exception)`?](#q5-what-is-the-difference-between-catching-a-specific-exception-type-vs-catch-exception)
+  - [Q6. What happens if an exception is thrown inside a `finally` block?](#q6-what-happens-if-an-exception-is-thrown-inside-a-finally-block)
+  - [Q7. What is the base class hierarchy for exceptions in .NET (`Exception`, `SystemException`, application-specific types)?](#q7-what-is-the-base-class-hierarchy-for-exceptions-in-net-exception-systemexception-application-specific-types)
+  - [Q8. When should you create a custom exception type vs using an existing BCL exception?](#q8-when-should-you-create-a-custom-exception-type-vs-using-an-existing-bcl-exception)
+  - [Q9. What is the difference between `using` statement and `using` declaration (`using var`) for disposal?](#q9-what-is-the-difference-between-using-statement-and-using-declaration-using-var-for-disposal)
+  - [Q10. Can you have multiple `catch` blocks — what is the order rule for catching derived vs base exceptions?](#q10-can-you-have-multiple-catch-blocks-what-is-the-order-rule-for-catching-derived-vs-base-exceptions)
+  - [Q11. What is `finally` guaranteed to do, and can it prevent an exception from propagating?](#q11-what-is-finally-guaranteed-to-do-and-can-it-prevent-an-exception-from-propagating)
+  - [Q12. What is the difference between handled exceptions and unhandled exceptions in a console vs ASP.NET host?](#q12-what-is-the-difference-between-handled-exceptions-and-unhandled-exceptions-in-a-console-vs-aspnet-host)
+  - [Q13. When is it appropriate to catch and swallow an exception vs rethrow?](#q13-when-is-it-appropriate-to-catch-and-swallow-an-exception-vs-rethrow)
+  - [Q14. What is `ExceptionDispatchInfo`, and when is `throw;` insufficient?](#q14-what-is-exceptiondispatchinfo-and-when-is-throw-insufficient)
+  - [Q15. What happens if both `try` and `finally` contain `return` statements?](#q15-what-happens-if-both-try-and-finally-contain-return-statements)
+  - [Q16. What is the difference between `IDisposable.Dispose` and finalizers in exception-safe cleanup?](#q16-what-is-the-difference-between-idisposabledispose-and-finalizers-in-exception-safe-cleanup)
+  - [Q17. **String interning** — `string a = "hello"; string b = "hello"; a == b` is `true`, but two separately constructed strings may not be reference-equal even when content matches.](#q17-string-interning-string-a-hello-string-b-hello-a-b-is-true-but-two-separately-constructed-strings-may-not-be-reference-equal-even-when-content-matches)
+  - [Q18. **Integer division** — `10 / 3` is `3`, not `3.33`. At least one operand must be floating-point for fractional results.](#q18-integer-division-10-3-is-3-not-333-at-least-one-operand-must-be-floating-point-for-fractional-results)
+  - [Q19. **`const` vs runtime values** — You cannot use `const` with a value that requires computation (e.g., `DateTime.Now`); use `readonly` or a property instead.](#q19-const-vs-runtime-values-you-cannot-use-const-with-a-value-that-requires-computation-eg-datetimenow-use-readonly-or-a-property-instead)
+  - [Q20. **Boxing silently hurts performance** — Assigning value types to `object` or non-generic collections causes heap allocations; repeated boxing in hot paths is a common production issue.](#q20-boxing-silently-hurts-performance-assigning-value-types-to-object-or-non-generic-collections-causes-heap-allocations-repeated-boxing-in-hot-paths-is-a-common-production-issue)
+  - [Q21. **Modifying a struct inside `foreach`** — Compile error: the iteration variable is a copy. Use a `for` loop with index or `ref`/`Span` patterns.](#q21-modifying-a-struct-inside-foreach-compile-error-the-iteration-variable-is-a-copy-use-a-for-loop-with-index-or-refspan-patterns)
+  - [Q22. **`throw;` vs `throw ex;`** — `throw ex;` resets the stack trace; `throw;` preserves the original.](#q22-throw-vs-throw-ex-throw-ex-resets-the-stack-trace-throw-preserves-the-original)
+  - [Q23. **`return` in `try` vs `finally`** — `finally` always runs before the method actually returns; a `return` in `finally` can override the `try` return value.](#q23-return-in-try-vs-finally-finally-always-runs-before-the-method-actually-returns-a-return-in-finally-can-override-the-try-return-value)
+  - [Q24. **Array covariance trap** — `object[] arr = new string[3]; arr[0] = 42;` compiles but throws `ArrayTypeMismatchException` at runtime.](#q24-array-covariance-trap-object-arr-new-string3-arr0-42-compiles-but-throws-arraytypemismatchexception-at-runtime)
+  - [Q25. **Culture-sensitive parse/format** — `"3,14"` parses as 314 in `en-US` but as 3.14 in `de-DE`; logs and APIs should use `InvariantCulture` when format must be fixed.](#q25-culture-sensitive-parseformat-314-parses-as-314-in-en-us-but-as-314-in-de-de-logs-and-apis-should-use-invariantculture-when-format-must-be-fixed)
+  - [Q26. **`Parse` vs `TryParse` in user input paths** — `int.Parse` on bad console input crashes the app; Try-pattern avoids exceptions for expected failure.](#q26-parse-vs-tryparse-in-user-input-paths-intparse-on-bad-console-input-crashes-the-app-try-pattern-avoids-exceptions-for-expected-failure)
+  - [Q27. **`ref` reassignment vs mutation** — Reassigning a reference parameter does not change the caller's variable; mutating the object it points to does.](#q27-ref-reassignment-vs-mutation-reassigning-a-reference-parameter-does-not-change-the-callers-variable-mutating-the-object-it-points-to-does)
+  - [Q28. **`params` must be last** — Only one `params` array parameter is allowed, and it must be the final parameter in the signature.](#q28-params-must-be-last-only-one-params-array-parameter-is-allowed-and-it-must-be-the-final-parameter-in-the-signature)
+  - [Q29. **Optional parameter defaults are compile-time** — Changing a default value in a method signature does not update callers compiled against the old default unless recompiled.](#q29-optional-parameter-defaults-are-compile-time-changing-a-default-value-in-a-method-signature-does-not-update-callers-compiled-against-the-old-default-unless-recompiled)
+  - [Q30. **`checked` default is context-dependent** — Integer overflow wraps silently in unchecked default contexts; financial code may need explicit `checked` blocks.](#q30-checked-default-is-context-dependent-integer-overflow-wraps-silently-in-unchecked-default-contexts-financial-code-may-need-explicit-checked-blocks)
+  - [Q31. **Console encoding mismatch** — Writing Unicode to a console whose output encoding is not UTF-8 can display replacement characters or mojibake on Windows.](#q31-console-encoding-mismatch-writing-unicode-to-a-console-whose-output-encoding-is-not-utf-8-can-display-replacement-characters-or-mojibake-on-windows)
+  - [Q1. (R) After a merge, `dotnet build` fails with CS0017 ("Program has more than one entry point defined"). Review these two files in the same console project. What conflicted, and how do you fix it?](#q1-r-after-a-merge-dotnet-build-fails-with-cs0017-program-has-more-than-one-entry-point-defined-review-these-two-files-in-the-same-console-project-what-conflicted-and-how-do-you-fix-it)
+  - [Q2. (R) A developer copies a startup snippet into this repo's HelloWorld project (`ImplicitUsings` disabled). Build fails. What is wrong, and what would you change?](#q2-r-a-developer-copies-a-startup-snippet-into-this-repos-helloworld-project-implicitusings-disabled-build-fails-what-is-wrong-and-what-would-you-change)
+  - [Q3. (R) A deployment script runs the published console tool with no arguments:](#q3-r-a-deployment-script-runs-the-published-console-tool-with-no-arguments)
+  - [Q4. (P) A containerized .NET 8 worker uses only `Console.Write` (no newline) for progress dots during a long loop. Locally you see live output; in Kubernetes logs appear only after the process exits or crashes. Explain why and what you would change.](#q4-p-a-containerized-net-8-worker-uses-only-consolewrite-no-newline-for-progress-dots-during-a-long-loop-locally-you-see-live-output-in-kubernetes-logs-appear-only-after-the-process-exits-or-crashes-explain-why-and-what-you-would-change)
+  - [Q5. (D) Your team maintains internal CLI tools and tutorial projects. Some use **top-level statements**, others use explicit `namespace` + `class Program` + `Main` (as in this chapter). What convention would you recommend for production CLIs vs learning repos, and why?](#q5-d-your-team-maintains-internal-cli-tools-and-tutorial-projects-some-use-top-level-statements-others-use-explicit-namespace-class-program-main-as-in-this-chapter-what-convention-would-you-recommend-for-production-clis-vs-learning-repos-and-why)
+
+- [02. Data Types & Variables - Done](#02-data-types-variables---done)
+
+- [02. Data Types & Variables - Done](#02-data-types-variables---done-1)
+  - [Q1. (R) Finance QA reports order totals off by one cent on some invoices. Review this pricing helper copied from a prototype:](#q1-r-finance-qa-reports-order-totals-off-by-one-cent-on-some-invoices-review-this-pricing-helper-copied-from-a-prototype)
+  - [Q2. (R) A loyalty API returns `int?` for optional points. After deploy, `NullReferenceException` and `InvalidOperationException` appear in logs. Review:](#q2-r-a-loyalty-api-returns-int-for-optional-points-after-deploy-nullreferenceexception-and-invalidoperationexception-appear-in-logs-review)
+  - [Q3. (R) A metrics exporter builds a snapshot list for a dashboard. Under load, Gen2 collections spike. Review:](#q3-r-a-metrics-exporter-builds-a-snapshot-list-for-a-dashboard-under-load-gen2-collections-spike-review)
+  - [Q4. (P) A warehouse service increments a 32-bit `int transactionId` inside a tight loop processing bulk imports. In staging (small files) IDs look fine; in production one job reports duplicate IDs and negative values after a long run. The team says "C# integers don't overflow in normal use." Explain what happened and what you would use instead.](#q4-p-a-warehouse-service-increments-a-32-bit-int-transactionid-inside-a-tight-loop-processing-bulk-imports-in-staging-small-files-ids-look-fine-in-production-one-job-reports-duplicate-ids-and-negative-values-after-a-long-run-the-team-says-c-integers-dont-overflow-in-normal-use-explain-what-happened-and-what-you-would-use-instead)
+  - [Q5. (M) A developer models store configuration like the chapter's `StoreConfig` but tries to share a tax rate across all instances from appsettings loaded at startup:](#q5-m-a-developer-models-store-configuration-like-the-chapters-storeconfig-but-tries-to-share-a-tax-rate-across-all-instances-from-appsettings-loaded-at-startup)
+  - [Q6. (D) Your API team debates `var` vs explicit types in service-layer code. Two snippets assign the same JSON field:](#q6-d-your-api-team-debates-var-vs-explicit-types-in-service-layer-code-two-snippets-assign-the-same-json-field)
+
+- [03. Input & Output - Done](#03-input-output---done)
+
+- [03. Input & Output - Done](#03-input-output---done-1)
+  - [Q1. (R) A batch pricing tool prompts for quantity over stdin in a CI pipeline (`dotnet run < empty.txt`). Review this handler — what fails at runtime, and how would you fix it?](#q1-r-a-batch-pricing-tool-prompts-for-quantity-over-stdin-in-a-ci-pipeline-dotnet-run-emptytxt-review-this-handler-what-fails-at-runtime-and-how-would-you-fix-it)
+  - [Q2. (R) A containerized kiosk app runs with `CultureInfo.CurrentCulture` set to `de-DE`. Operators pipe order files from a US-based ERP. Review the parser:](#q2-r-a-containerized-kiosk-app-runs-with-cultureinfocurrentculture-set-to-de-de-operators-pipe-order-files-from-a-us-based-erp-review-the-parser)
+  - [Q3. (R) A developer copies the receipt-capture pattern from this chapter's `CaptureFormattedReceipt` but omits cleanup. Review:](#q3-r-a-developer-copies-the-receipt-capture-pattern-from-this-chapters-captureformattedreceipt-but-omits-cleanup-review)
+  - [Q4. (P) A .NET 8 worker deployed to Kubernetes reads config lines from stdin and writes a summary CSV to stdout. Ops runs:](#q4-p-a-net-8-worker-deployed-to-kubernetes-reads-config-lines-from-stdin-and-writes-a-summary-csv-to-stdout-ops-runs)
+  - [Q5. (M) An internal CLI formats currency for operators in Mumbai (`en-IN`) but must emit a fixed wire-format total for downstream JSON consumers. Review:](#q5-m-an-internal-cli-formats-currency-for-operators-in-mumbai-en-in-but-must-emit-a-fixed-wire-format-total-for-downstream-json-consumers-review)
+  - [Q6. (D) A team building Express-Mart-style kiosk CLIs debates input validation strategy for numeric prompts. Two approaches:](#q6-d-a-team-building-express-mart-style-kiosk-clis-debates-input-validation-strategy-for-numeric-prompts-two-approaches)
+
+- [04. Operators & Expressions - Done](#04-operators-expressions---done)
+
+- [04. Operators & Expressions - Done](#04-operators-expressions---done-1)
+  - [Q1. (R) QA reports that bulk-order discounts are too high on large orders. Review this pricing helper used in checkout:](#q1-r-qa-reports-that-bulk-order-discounts-are-too-high-on-large-orders-review-this-pricing-helper-used-in-checkout)
+  - [Q2. (R) A warehouse API returns `404` when a SKU code is missing from the request, but the team expected a default length of `1`. Review:](#q2-r-a-warehouse-api-returns-404-when-a-sku-code-is-missing-from-the-request-but-the-team-expected-a-default-length-of-1-review)
+  - [Q3. (R) After a deploy, inventory audit logs show stock decrements even when orders are rejected for insufficient credit. Review the guard:](#q3-r-after-a-deploy-inventory-audit-logs-show-stock-decrements-even-when-orders-are-rejected-for-insufficient-credit-review-the-guard)
+  - [Q4. (R) A nightly batch job silently wraps negative stock counts after a bad import. Review:](#q4-r-a-nightly-batch-job-silently-wraps-negative-stock-counts-after-a-bad-import-review)
+  - [Q5. (R) A code review flags this permission-update endpoint copied from an internal admin tool. Identify the compound-assignment and operator issues:](#q5-r-a-code-review-flags-this-permission-update-endpoint-copied-from-an-internal-admin-tool-identify-the-compound-assignment-and-operator-issues)
+  - [Q6. (P) Your team ships pricing, inventory, and permission rules that mix arithmetic, `??`, `&&`, and `|=` in single expressions. What review checklist would you use in PRs to catch operator bugs before they reach production?](#q6-p-your-team-ships-pricing-inventory-and-permission-rules-that-mix-arithmetic-and-in-single-expressions-what-review-checklist-would-you-use-in-prs-to-catch-operator-bugs-before-they-reach-production)
+
+- [05. Type Conversion & Casting - Done](#05-type-conversion-casting---done)
+
+- [05. Type Conversion & Casting - Done](#05-type-conversion-casting---done-1)
+  - [Q1. (R) A warehouse pricing service receives quantities from an upstream JSON deserializer boxed as `object`. Review this method — what fails at runtime, and how would you fix it?](#q1-r-a-warehouse-pricing-service-receives-quantities-from-an-upstream-json-deserializer-boxed-as-object-review-this-method-what-fails-at-runtime-and-how-would-you-fix-it)
+  - [Q2. (R) An ASP.NET Core order API accepts a quantity path segment. Review the action — what breaks for bad input, and what would you change?](#q2-r-an-aspnet-core-order-api-accepts-a-quantity-path-segment-review-the-action-what-breaks-for-bad-input-and-what-would-you-change)
+  - [Q3. (R) A bonus-units endpoint maps optional query text to an integer. Review both methods — which hidden behavior causes incorrect totals in production?](#q3-r-a-bonus-units-endpoint-maps-optional-query-text-to-an-integer-review-both-methods-which-hidden-behavior-causes-incorrect-totals-in-production)
+  - [Q4. (R) Inventory assigns shelf slot IDs stored in a `byte` column. Review this service — what corrupts data silently, and how do you prevent it?](#q4-r-inventory-assigns-shelf-slot-ids-stored-in-a-byte-column-review-this-service-what-corrupts-data-silently-and-how-do-you-prevent-it)
+  - [Q5. (R) A shipping label builder walks a heterogeneous `List<object>` of line items. Review this code — what throws or returns wrong data?](#q5-r-a-shipping-label-builder-walks-a-heterogeneous-listobject-of-line-items-review-this-code-what-throws-or-returns-wrong-data)
+  - [Q6. (P) A partner integration POSTs prices as formatted strings in JSON (`"amountText": "1.234,56"`). The API runs on en-US servers. Review the handler — what fails across environments, and what contract would you enforce?](#q6-p-a-partner-integration-posts-prices-as-formatted-strings-in-json-amounttext-123456-the-api-runs-on-en-us-servers-review-the-handler-what-fails-across-environments-and-what-contract-would-you-enforce)
+
+- [06. Control Flow & Loops - Done](#06-control-flow-loops---done)
+
+- [06. Control Flow & Loops - Done](#06-control-flow-loops---done-1)
+  - [Q1. (R) A developer ports a C-style fulfillment router into C#. The build fails with CS0163. Review the switch — what is wrong, and how would you fix it while preserving the shared "in transit" behavior?](#q1-r-a-developer-ports-a-c-style-fulfillment-router-into-c-the-build-fails-with-cs0163-review-the-switch-what-is-wrong-and-how-would-you-fix-it-while-preserving-the-shared-in-transit-behavior)
+  - [Q2. (R) A nightly batch job counts warehouse slots for billing. QA reports the invoice is one slot short for every aisle. Review the nested loop:](#q2-r-a-nightly-batch-job-counts-warehouse-slots-for-billing-qa-reports-the-invoice-is-one-slot-short-for-every-aisle-review-the-nested-loop)
+  - [Q3. (R) A gate-controller service hangs in staging after a config change. Review the retry loop:](#q3-r-a-gate-controller-service-hangs-in-staging-after-a-config-change-review-the-retry-loop)
+  - [Q4. (R) A pick-list optimizer searches a 2D bin grid for the first high-priority SKU. It finds the SKU but keeps scanning every remaining aisle. Review:](#q4-r-a-pick-list-optimizer-searches-a-2d-bin-grid-for-the-first-high-priority-sku-it-finds-the-sku-but-keeps-scanning-every-remaining-aisle-review)
+  - [Q5. (R) A pricing API uses pattern matching on order payloads. Support tickets report zero-quantity lines labeled as "positive." Review:](#q5-r-a-pricing-api-uses-pattern-matching-on-order-payloads-support-tickets-report-zero-quantity-lines-labeled-as-positive-review)
+  - [Q6. (R) A barcode scan worker sums active line quantities but under-reports totals. Review:](#q6-r-a-barcode-scan-worker-sums-active-line-quantities-but-under-reports-totals-review)
+
+- [07. Methods - Done](#07-methods---done)
+
+- [07. Methods - Done](#07-methods---done-1)
+  - [Q1. (R) A warehouse API helper is supposed to bump packed quantity in place before case-splitting. QA reports the count never changes. Review the call site and method — what is wrong, and how do you fix it?](#q1-r-a-warehouse-api-helper-is-supposed-to-bump-packed-quantity-in-place-before-case-splitting-qa-reports-the-count-never-changes-review-the-call-site-and-method-what-is-wrong-and-how-do-you-fix-it)
+  - [Q2. (R) A pricing service wraps a Try-pattern helper. Under some inputs the process throws instead of returning `false`. Review the method:](#q2-r-a-pricing-service-wraps-a-try-pattern-helper-under-some-inputs-the-process-throws-instead-of-returning-false-review-the-method)
+  - [Q3. (R) A developer adds a flexible shipping-fee helper and the project fails to compile. Review the signatures and one call site:](#q3-r-a-developer-adds-a-flexible-shipping-fee-helper-and-the-project-fails-to-compile-review-the-signatures-and-one-call-site)
+  - [Q4. (P) Your team ships `OrderFormatting.dll` v1.0 with this public API:](#q4-p-your-team-ships-orderformattingdll-v10-with-this-public-api)
+  - [Q5. (R) A catalog service computes pallet arrangements recursively. In production, large orders crash the worker. Review:](#q5-r-a-catalog-service-computes-pallet-arrangements-recursively-in-production-large-orders-crash-the-worker-review)
+  - [Q6. (R) A base reporting type and a derived export type disagree at runtime. The derived XML docs say it "overrides" discount logic, but callers through a base reference see the old behavior. Review:](#q6-r-a-base-reporting-type-and-a-derived-export-type-disagree-at-runtime-the-derived-xml-docs-say-it-overrides-discount-logic-but-callers-through-a-base-reference-see-the-old-behavior-review)
+  - [Q7. (R) Static analysis flags a contract mismatch between XML documentation and implementation. Review:](#q7-r-static-analysis-flags-a-contract-mismatch-between-xml-documentation-and-implementation-review)
+
+- [08. Strings - Done](#08-strings---done)
+
+- [08. Strings - Done](#08-strings---done-1)
+  - [Q1. (R) A nightly export job builds a CSV of 50,000 warehouse scan lines. After deployment, CPU and Gen0 GC spikes correlate with the export window. Review the row builder:](#q1-r-a-nightly-export-job-builds-a-csv-of-50000-warehouse-scan-lines-after-deployment-cpu-and-gen0-gc-spikes-correlate-with-the-export-window-review-the-row-builder)
+  - [Q2. (R) A developer "normalizes" incoming scan text before lookup but duplicate orders still appear in the database. Review:](#q2-r-a-developer-normalizes-incoming-scan-text-before-lookup-but-duplicate-orders-still-appear-in-the-database-review)
+  - [Q3. (R) An API endpoint accepts a scan line and compares the caller's API key to a configured secret. Review:](#q3-r-an-api-endpoint-accepts-a-scan-line-and-compares-the-callers-api-key-to-a-configured-secret-review)
+  - [Q4. (R) A label-printing service crashes intermittently when optional notes are omitted from the request. Review:](#q4-r-a-label-printing-service-crashes-intermittently-when-optional-notes-are-omitted-from-the-request-review)
+  - [Q5. (P) Your team formats shipping labels with `$"Total: {orderTotal:C}"` and writes JSON audit logs on servers in `en-US`, `de-DE`, and `ja-JP`. Finance reports totals that do not reconcile across regions. Explain what is happening and what formatting approach you would standardize for display vs wire/storage.](#q5-p-your-team-formats-shipping-labels-with-total-ordertotalc-and-writes-json-audit-logs-on-servers-in-en-us-de-de-and-ja-jp-finance-reports-totals-that-do-not-reconcile-across-regions-explain-what-is-happening-and-what-formatting-approach-you-would-standardize-for-display-vs-wirestorage)
+  - [Q6. (D) A code review proposes replacing all `StringBuilder` usage with string interpolation because "strings are simpler." The PR touches both a 3-line title builder and `LabelAssembler.BuildFullLabel`-style code that loops over hundreds of SKUs. What guidance would you give — when is `StringBuilder` worth it, and when is plain string composition enough?](#q6-d-a-code-review-proposes-replacing-all-stringbuilder-usage-with-string-interpolation-because-strings-are-simpler-the-pr-touches-both-a-3-line-title-builder-and-labelassemblerbuildfulllabel-style-code-that-loops-over-hundreds-of-skus-what-guidance-would-you-give-when-is-stringbuilder-worth-it-and-when-is-plain-string-composition-enough)
+
+- [09. Arrays - Done](#09-arrays---done)
+
+- [09. Arrays - Done](#09-arrays---done-1)
+  - [Q1. (R) A batch job averages exam scores for reporting. QA reports intermittent `IndexOutOfRangeException` in production when a student has no scores yet. Review the helper:](#q1-r-a-batch-job-averages-exam-scores-for-reporting-qa-reports-intermittent-indexoutofrangeexception-in-production-when-a-student-has-no-scores-yet-review-the-helper)
+  - [Q2. (R) A developer models a textbook shelf grid with a 2D array, then copies a jagged-array traversal pattern from another service. Review:](#q2-r-a-developer-models-a-textbook-shelf-grid-with-a-2d-array-then-copies-a-jagged-array-traversal-pattern-from-another-service-review)
+  - [Q3. (R) A pricing service must keep an immutable snapshot of SKU codes before sorting for audit, but the audit log shows the "original" list reordered. Review:](#q3-r-a-pricing-service-must-keep-an-immutable-snapshot-of-sku-codes-before-sorting-for-audit-but-the-audit-log-shows-the-original-list-reordered-review)
+  - [Q4. (R) A pass-rate calculator tries to normalize scores in place during iteration:](#q4-r-a-pass-rate-calculator-tries-to-normalize-scores-in-place-during-iteration)
+  - [Q5. (R) After migrating parallel arrays to `List<T>`, a report builder fails to compile. Review:](#q5-r-after-migrating-parallel-arrays-to-listt-a-report-builder-fails-to-compile-review)
+  - [Q6. (M) A campus API returns course offerings per department. When every department is closed for the term, the outer array exists but inner arrays are empty. Review:](#q6-m-a-campus-api-returns-course-offerings-per-department-when-every-department-is-closed-for-the-term-the-outer-array-exists-but-inner-arrays-are-empty-review)
+
+- [10. Exception Handling - Done](#10-exception-handling---done)
+
+- [10. Exception Handling - Done](#10-exception-handling---done-1)
+  - [Q1. (R) A teammate adds logging around order validation before rethrowing. Review this method — what would you change and why?](#q1-r-a-teammate-adds-logging-around-order-validation-before-rethrowing-review-this-method-what-would-you-change-and-why)
+  - [Q2. (R) A nightly reconciliation job wraps payment-gateway calls like this. Support reports "job succeeded" but ledger rows are missing after gateway timeouts. What is wrong?](#q2-r-a-nightly-reconciliation-job-wraps-payment-gateway-calls-like-this-support-reports-job-succeeded-but-ledger-rows-are-missing-after-gateway-timeouts-what-is-wrong)
+  - [Q3. (R) Audit entries must always be closed, even when `WriteEntry` throws. A junior developer refactors Section 15 without `using`. Review:](#q3-r-audit-entries-must-always-be-closed-even-when-writeentry-throws-a-junior-developer-refactors-section-15-without-using-review)
+  - [Q4. (D) A team introduces `InvalidOrderException`, `InsufficientFundsException`, and `CustomerNotFoundException` for every validation failure — including null method parameters and missing optional query filters. When is a custom domain exception the right choice vs `ArgumentException`, a result type, or no throw at all?](#q4-d-a-team-introduces-invalidorderexception-insufficientfundsexception-and-customernotfoundexception-for-every-validation-failure-including-null-method-parameters-and-missing-optional-query-filters-when-is-a-custom-domain-exception-the-right-choice-vs-argumentexception-a-result-type-or-no-throw-at-all)
+  - [Q5. (R) Two implementations look up a product by SKU. One is in code review. Which approach would you approve for a catalog service called millions of times per day, and why?](#q5-r-two-implementations-look-up-a-product-by-sku-one-is-in-code-review-which-approach-would-you-approve-for-a-catalog-service-called-millions-of-times-per-day-and-why)
+  - [Q6. (P) This console chapter lets `InvalidOrderException` bubble out of `Main` when validation fails. In an ASP.NET Core API, the same unhandled domain exception currently returns a raw 500 HTML page. What centralized pattern replaces scattered try/catch in every controller, and what must differ between Development and Production responses?](#q6-p-this-console-chapter-lets-invalidorderexception-bubble-out-of-main-when-validation-fails-in-an-aspnet-core-api-the-same-unhandled-domain-exception-currently-returns-a-raw-500-html-page-what-centralized-pattern-replaces-scattered-trycatch-in-every-controller-and-what-must-differ-between-development-and-production-responses)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. Hello World
 
-#### Q1. What is C# and what are its key features? {#01-hello-world-q1}
+#### Q1. What is C# and what are its key features?
 
 What is C# and what are its key features?
 
@@ -237,7 +333,7 @@ What is C# and what are its key features?
 
 ---
 
-#### Q2. Explain namespaces in C#. {#01-hello-world-q2}
+#### Q2. Explain namespaces in C#.
 
 Explain namespaces in C#.
 
@@ -250,7 +346,7 @@ Explain namespaces in C#.
 
 ---
 
-#### Q3. How do nested namespaces work in C#? {#01-hello-world-q3}
+#### Q3. How do nested namespaces work in C#?
 
 How do nested namespaces work in C#?
 
@@ -263,7 +359,7 @@ How do nested namespaces work in C#?
 
 ---
 
-#### Q4. What is the purpose of the `using` directive (importing namespaces)? {#01-hello-world-q4}
+#### Q4. What is the purpose of the `using` directive (importing namespaces)?
 
 What is the purpose of the `using` directive (importing namespaces)?
 
@@ -276,7 +372,7 @@ What is the purpose of the `using` directive (importing namespaces)?
 
 ---
 
-#### Q5. Explain preprocessor directives in C# (`#if`, `#define`, `#region`, `#pragma`, etc.). {#01-hello-world-q5}
+#### Q5. Explain preprocessor directives in C# (`#if`, `#define`, `#region`, `#pragma`, etc.).
 
 Explain preprocessor directives in C# (`#if`, `#define`, `#region`, `#pragma`, etc.).
 
@@ -289,7 +385,7 @@ Explain preprocessor directives in C# (`#if`, `#define`, `#region`, `#pragma`, e
 
 ---
 
-#### Q6. What is the role of the `Main` method, and how has entry-point syntax evolved (classic `Main`, top-level statements)? {#01-hello-world-q6}
+#### Q6. What is the role of the `Main` method, and how has entry-point syntax evolved (classic `Main`, top-level statements)?
 
 What is the role of the `Main` method, and how has entry-point syntax evolved (classic `Main`, top-level statements)?
 
@@ -302,7 +398,7 @@ What is the role of the `Main` method, and how has entry-point syntax evolved (c
 
 ---
 
-#### Q7. What is the difference between a project, a solution, and an assembly in a .NET workspace? {#01-hello-world-q7}
+#### Q7. What is the difference between a project, a solution, and an assembly in a .NET workspace?
 
 What is the difference between a project, a solution, and an assembly in a .NET workspace?
 
@@ -320,7 +416,7 @@ What is the difference between a project, a solution, and an assembly in a .NET 
 
 ---
 
-#### Q8. What does the `global using` directive do (C# 10+), and when is it useful? {#01-hello-world-q8}
+#### Q8. What does the `global using` directive do (C# 10+), and when is it useful?
 
 What does the `global using` directive do (C# 10+), and when is it useful?
 
@@ -333,7 +429,7 @@ What does the `global using` directive do (C# 10+), and when is it useful?
 
 ---
 
-#### Q9. Explain file-scoped namespaces (`namespace X;`) vs block-scoped namespace syntax. {#01-hello-world-q9}
+#### Q9. Explain file-scoped namespaces (`namespace X;`) vs block-scoped namespace syntax.
 
 Explain file-scoped namespaces (`namespace X;`) vs block-scoped namespace syntax.
 
@@ -346,7 +442,7 @@ Explain file-scoped namespaces (`namespace X;`) vs block-scoped namespace syntax
 
 ---
 
-#### Q10. What is the purpose of `Program.cs` in a console application, and what other files typically accompany it (`.csproj`, `global usings`)? {#01-hello-world-q10}
+#### Q10. What is the purpose of `Program.cs` in a console application, and what other files typically accompany it (`.csproj`, `global usings`)?
 
 What is the purpose of `Program.cs` in a console application, and what other files typically accompany it (`.csproj`, `global usings`)?
 
@@ -359,7 +455,7 @@ What is the purpose of `Program.cs` in a console application, and what other fil
 
 ---
 
-#### Q11. What is the Common Language Runtime (CLR), and how does C# code become executable? {#01-hello-world-q11}
+#### Q11. What is the Common Language Runtime (CLR), and how does C# code become executable?
 
 What is the Common Language Runtime (CLR), and how does C# code become executable?
 
@@ -375,7 +471,7 @@ See Module questions on IL vs JIT (Q12) for the distinction between build-time I
 
 ---
 
-#### Q12. What is the difference between compiling to IL and JIT compilation at runtime? {#01-hello-world-q12}
+#### Q12. What is the difference between compiling to IL and JIT compilation at runtime?
 
 What is the difference between compiling to IL and JIT compilation at runtime?
 
@@ -388,7 +484,7 @@ What is the difference between compiling to IL and JIT compilation at runtime?
 
 ---
 
-#### Q13. What are SDK-style projects, and what does `<TargetFramework>` in the `.csproj` control? {#01-hello-world-q13}
+#### Q13. What are SDK-style projects, and what does `<TargetFramework>` in the `.csproj` control?
 
 What are SDK-style projects, and what does `<TargetFramework>` in the `.csproj` control?
 
@@ -401,7 +497,7 @@ What are SDK-style projects, and what does `<TargetFramework>` in the `.csproj` 
 
 ---
 
-#### Q14. When would you use `#nullable enable` at the project or file level? {#01-hello-world-q14}
+#### Q14. When would you use `#nullable enable` at the project or file level?
 
 When would you use `#nullable enable` at the project or file level?
 
@@ -414,7 +510,7 @@ When would you use `#nullable enable` at the project or file level?
 
 ---
 
-#### Q15. What is the difference between `Console.Out`, `Console.Error`, and writing directly with `Console.WriteLine`? {#01-hello-world-q15}
+#### Q15. What is the difference between `Console.Out`, `Console.Error`, and writing directly with `Console.WriteLine`?
 
 What is the difference between `Console.Out`, `Console.Error`, and writing directly with `Console.WriteLine`?
 
@@ -429,7 +525,7 @@ What is the difference between `Console.Out`, `Console.Error`, and writing direc
 
 ### 02. Data Types & Variables
 
-#### Q1. What are the different data types in C#? {#02-data-types-variables-q1}
+#### Q1. What are the different data types in C#?
 
 What are the different data types in C#?
 
@@ -442,7 +538,7 @@ What are the different data types in C#?
 
 ---
 
-#### Q2. What are value types and reference types in C#? {#02-data-types-variables-q2}
+#### Q2. What are value types and reference types in C#?
 
 What are value types and reference types in C#?
 
@@ -455,7 +551,7 @@ What are value types and reference types in C#?
 
 ---
 
-#### Q3. What is the difference between value types and reference types? {#02-data-types-variables-q3}
+#### Q3. What is the difference between value types and reference types?
 
 What is the difference between value types and reference types?
 
@@ -472,7 +568,7 @@ See Q2 for definitions; see Q13 for stack vs heap nuance and Q4 for boxing when 
 
 ---
 
-#### Q4. What is boxing and unboxing in C#? {#02-data-types-variables-q4}
+#### Q4. What is boxing and unboxing in C#?
 
 What is boxing and unboxing in C#?
 
@@ -485,7 +581,7 @@ What is boxing and unboxing in C#?
 
 ---
 
-#### Q5. Explain the `var` keyword in C#. {#02-data-types-variables-q5}
+#### Q5. Explain the `var` keyword in C#.
 
 Explain the `var` keyword in C#.
 
@@ -498,7 +594,7 @@ Explain the `var` keyword in C#.
 
 ---
 
-#### Q6. What are nullable types in C#? (including nullable reference types in C# 8+) {#02-data-types-variables-q6}
+#### Q6. What are nullable types in C#? (including nullable reference types in C# 8+)
 
 What are nullable types in C#? (including nullable reference types in C# 8+)
 
@@ -511,7 +607,7 @@ What are nullable types in C#? (including nullable reference types in C# 8+)
 
 ---
 
-#### Q7. Explain the `default` keyword and default values in C#. {#02-data-types-variables-q7}
+#### Q7. Explain the `default` keyword and default values in C#.
 
 Explain the `default` keyword and default values in C#.
 
@@ -524,7 +620,7 @@ Explain the `default` keyword and default values in C#.
 
 ---
 
-#### Q8. What are constants, literals, and readonly fields in C#? {#02-data-types-variables-q8}
+#### Q8. What are constants, literals, and readonly fields in C#?
 
 What are constants, literals, and readonly fields in C#?
 
@@ -537,7 +633,7 @@ What are constants, literals, and readonly fields in C#?
 
 ---
 
-#### Q9. What is the difference between `const` and `readonly`? {#02-data-types-variables-q9}
+#### Q9. What is the difference between `const` and `readonly`?
 
 What is the difference between `const` and `readonly`?
 
@@ -554,7 +650,7 @@ Use `const` for true symbolic constants; use `readonly` for configuration loaded
 
 ---
 
-#### Q10. What is an enum in C#? {#02-data-types-variables-q10}
+#### Q10. What is an enum in C#?
 
 What is an enum in C#?
 
@@ -567,7 +663,7 @@ What is an enum in C#?
 
 ---
 
-#### Q11. What is a `struct` in C#? (basics — comparison with `class` is in OOP) {#02-data-types-variables-q11}
+#### Q11. What is a `struct` in C#? (basics — comparison with `class` is in OOP)
 
 What is a `struct` in C#? (basics — comparison with `class` is in OOP)
 
@@ -580,7 +676,7 @@ What is a `struct` in C#? (basics — comparison with `class` is in OOP)
 
 ---
 
-#### Q12. What is a tuple in C#? (ValueTuple vs `Tuple<T>`) {#02-data-types-variables-q12}
+#### Q12. What is a tuple in C#? (ValueTuple vs `Tuple<T>`)
 
 What is a tuple in C#? (ValueTuple vs `Tuple<T>`)
 
@@ -593,7 +689,7 @@ What is a tuple in C#? (ValueTuple vs `Tuple<T>`)
 
 ---
 
-#### Q13. Where do value types typically live (stack vs heap), and where do reference types live? {#02-data-types-variables-q13}
+#### Q13. Where do value types typically live (stack vs heap), and where do reference types live?
 
 Where do value types typically live (stack vs heap), and where do reference types live?
 
@@ -606,7 +702,7 @@ Where do value types typically live (stack vs heap), and where do reference type
 
 ---
 
-#### Q14. When a value type is boxed, where does the data end up, and why does that matter for performance? {#02-data-types-variables-q14}
+#### Q14. When a value type is boxed, where does the data end up, and why does that matter for performance?
 
 When a value type is boxed, where does the data end up, and why does that matter for performance?
 
@@ -619,7 +715,7 @@ When a value type is boxed, where does the data end up, and why does that matter
 
 ---
 
-#### Q15. What is the difference between `int`, `long`, `decimal`, `float`, and `double` — when would you choose each? {#02-data-types-variables-q15}
+#### Q15. What is the difference between `int`, `long`, `decimal`, `float`, and `double` — when would you choose each?
 
 What is the difference between `int`, `long`, `decimal`, `float`, and `double` — when would you choose each?
 
@@ -637,7 +733,7 @@ Choose `decimal` for currency; choose `double` for physics simulations; choose i
 
 ---
 
-#### Q16. What is the difference between signed and unsigned integer types (`int` vs `uint`, etc.)? {#02-data-types-variables-q16}
+#### Q16. What is the difference between signed and unsigned integer types (`int` vs `uint`, etc.)?
 
 What is the difference between signed and unsigned integer types (`int` vs `uint`, etc.)?
 
@@ -650,7 +746,7 @@ What is the difference between signed and unsigned integer types (`int` vs `uint
 
 ---
 
-#### Q17. What is `char` in C# — is it a numeric type or a text type, and how does it relate to Unicode? {#02-data-types-variables-q17}
+#### Q17. What is `char` in C# — is it a numeric type or a text type, and how does it relate to Unicode?
 
 What is `char` in C# — is it a numeric type or a text type, and how does it relate to Unicode?
 
@@ -663,7 +759,7 @@ What is `char` in C# — is it a numeric type or a text type, and how does it re
 
 ---
 
-#### Q18. What is the difference between `bool` and nullable `bool?` in terms of default values and usage? {#02-data-types-variables-q18}
+#### Q18. What is the difference between `bool` and nullable `bool?` in terms of default values and usage?
 
 What is the difference between `bool` and nullable `bool?` in terms of default values and usage?
 
@@ -676,7 +772,7 @@ What is the difference between `bool` and nullable `bool?` in terms of default v
 
 ---
 
-#### Q19. Explain the `??` (null-coalescing) and `??=` (null-coalescing assignment) operators with nullable types. {#02-data-types-variables-q19}
+#### Q19. Explain the `??` (null-coalescing) and `??=` (null-coalescing assignment) operators with nullable types.
 
 Explain the `??` (null-coalescing) and `??=` (null-coalescing assignment) operators with nullable types.
 
@@ -689,7 +785,7 @@ Explain the `??` (null-coalescing) and `??=` (null-coalescing assignment) operat
 
 ---
 
-#### Q20. What is the difference between `var` and an explicit type declaration — when must you use explicit types? {#02-data-types-variables-q20}
+#### Q20. What is the difference between `var` and an explicit type declaration — when must you use explicit types?
 
 What is the difference between `var` and an explicit type declaration — when must you use explicit types?
 
@@ -702,7 +798,7 @@ What is the difference between `var` and an explicit type declaration — when m
 
 ---
 
-#### Q21. What are digit separators in numeric literals (e.g., `1_000_000`), and what problem do they solve? {#02-data-types-variables-q21}
+#### Q21. What are digit separators in numeric literals (e.g., `1_000_000`), and what problem do they solve?
 
 What are digit separators in numeric literals (e.g., `1_000_000`), and what problem do they solve?
 
@@ -715,7 +811,7 @@ What are digit separators in numeric literals (e.g., `1_000_000`), and what prob
 
 ---
 
-#### Q22. What is the difference between `default(int)` and `default` for a reference type? {#02-data-types-variables-q22}
+#### Q22. What is the difference between `default(int)` and `default` for a reference type?
 
 What is the difference between `default(int)` and `default` for a reference type?
 
@@ -728,7 +824,7 @@ What is the difference between `default(int)` and `default` for a reference type
 
 ---
 
-#### Q23. What is a nullable reference type annotation (`string?` vs `string`), and is enforcement compile-time or runtime? {#02-data-types-variables-q23}
+#### Q23. What is a nullable reference type annotation (`string?` vs `string`), and is enforcement compile-time or runtime?
 
 What is a nullable reference type annotation (`string?` vs `string`), and is enforcement compile-time or runtime?
 
@@ -741,7 +837,7 @@ What is a nullable reference type annotation (`string?` vs `string`), and is enf
 
 ---
 
-#### Q24. What happens when you assign `null` to a non-nullable reference type variable under `#nullable enable`? {#02-data-types-variables-q24}
+#### Q24. What happens when you assign `null` to a non-nullable reference type variable under `#nullable enable`?
 
 What happens when you assign `null` to a non-nullable reference type variable under `#nullable enable`?
 
@@ -754,7 +850,7 @@ What happens when you assign `null` to a non-nullable reference type variable un
 
 ---
 
-#### Q25. What is the difference between `object` as a universal base type and using `dynamic`? {#02-data-types-variables-q25}
+#### Q25. What is the difference between `object` as a universal base type and using `dynamic`?
 
 What is the difference between `object` as a universal base type and using `dynamic`?
 
@@ -767,7 +863,7 @@ What is the difference between `object` as a universal base type and using `dyna
 
 ---
 
-#### Q26. What are `nint` and `nuint`, and when might you encounter them? {#02-data-types-variables-q26}
+#### Q26. What are `nint` and `nuint`, and when might you encounter them?
 
 What are `nint` and `nuint`, and when might you encounter them?
 
@@ -780,7 +876,7 @@ What are `nint` and `nuint`, and when might you encounter them?
 
 ---
 
-#### Q27. What is the difference between declaring a variable with and without an initializer? {#02-data-types-variables-q27}
+#### Q27. What is the difference between declaring a variable with and without an initializer?
 
 What is the difference between declaring a variable with and without an initializer?
 
@@ -793,7 +889,7 @@ What is the difference between declaring a variable with and without an initiali
 
 ---
 
-#### Q28. Can you use `const` with user-defined types like `DateTime` or `decimal` computed at runtime? Why or why not? {#02-data-types-variables-q28}
+#### Q28. Can you use `const` with user-defined types like `DateTime` or `decimal` computed at runtime? Why or why not?
 
 Can you use `const` with user-defined types like `DateTime` or `decimal` computed at runtime? Why or why not?
 
@@ -808,7 +904,7 @@ Can you use `const` with user-defined types like `DateTime` or `decimal` compute
 
 ### 03. Input & Output
 
-#### Q1. What is the difference between `Console.WriteLine`, `Console.Write`, and string interpolation for output? {#03-input-output-q1}
+#### Q1. What is the difference between `Console.WriteLine`, `Console.Write`, and string interpolation for output?
 
 What is the difference between `Console.WriteLine`, `Console.Write`, and string interpolation for output?
 
@@ -821,7 +917,7 @@ What is the difference between `Console.WriteLine`, `Console.Write`, and string 
 
 ---
 
-#### Q2. What is the difference between `Console.ReadLine()` and `Console.ReadKey()`? {#03-input-output-q2}
+#### Q2. What is the difference between `Console.ReadLine()` and `Console.ReadKey()`?
 
 What is the difference between `Console.ReadLine()` and `Console.ReadKey()`?
 
@@ -834,7 +930,7 @@ What is the difference between `Console.ReadLine()` and `Console.ReadKey()`?
 
 ---
 
-#### Q3. How do you safely parse user input (`int.TryParse`, `Parse`, `Convert`) and handle invalid input? {#03-input-output-q3}
+#### Q3. How do you safely parse user input (`int.TryParse`, `Parse`, `Convert`) and handle invalid input?
 
 How do you safely parse user input (`int.TryParse`, `Parse`, `Convert`) and handle invalid input?
 
@@ -847,7 +943,7 @@ How do you safely parse user input (`int.TryParse`, `Parse`, `Convert`) and hand
 
 ---
 
-#### Q4. How does formatted console output work (`Console.WriteLine("{0}", value)` vs interpolation)? {#03-input-output-q4}
+#### Q4. How does formatted console output work (`Console.WriteLine("{0}", value)` vs interpolation)?
 
 How does formatted console output work (`Console.WriteLine("{0}", value)` vs interpolation)?
 
@@ -860,7 +956,7 @@ How does formatted console output work (`Console.WriteLine("{0}", value)` vs int
 
 ---
 
-#### Q5. What is the difference between `CultureInfo.CurrentCulture`, `CurrentUICulture`, and `InvariantCulture`? {#03-input-output-q5}
+#### Q5. What is the difference between `CultureInfo.CurrentCulture`, `CurrentUICulture`, and `InvariantCulture`?
 
 What is the difference between `CultureInfo.CurrentCulture`, `CurrentUICulture`, and `InvariantCulture`?
 
@@ -876,7 +972,7 @@ Changing `CurrentCulture` affects `ToString()` on numbers and dates when no expl
 
 ---
 
-#### Q6. When should you use `InvariantCulture` for formatting numbers and dates instead of `CurrentCulture`? {#03-input-output-q6}
+#### Q6. When should you use `InvariantCulture` for formatting numbers and dates instead of `CurrentCulture`?
 
 When should you use `InvariantCulture` for formatting numbers and dates instead of `CurrentCulture`?
 
@@ -889,7 +985,7 @@ When should you use `InvariantCulture` for formatting numbers and dates instead 
 
 ---
 
-#### Q7. How do culture settings affect decimal separators, currency symbols, and date formats in console output? {#03-input-output-q7}
+#### Q7. How do culture settings affect decimal separators, currency symbols, and date formats in console output?
 
 How do culture settings affect decimal separators, currency symbols, and date formats in console output?
 
@@ -902,7 +998,7 @@ How do culture settings affect decimal separators, currency symbols, and date fo
 
 ---
 
-#### Q8. What is composite formatting (`string.Format`, `{0:N2}`, alignment `{0,10}`, `{0,-10}`)? {#03-input-output-q8}
+#### Q8. What is composite formatting (`string.Format`, `{0:N2}`, alignment `{0,10}`, `{0,-10}`)?
 
 What is composite formatting (`string.Format`, `{0:N2}`, alignment `{0,10}`, `{0,-10}`)?
 
@@ -915,7 +1011,7 @@ What is composite formatting (`string.Format`, `{0:N2}`, alignment `{0,10}`, `{0
 
 ---
 
-#### Q9. What is the difference between `Console.InputEncoding` and `Console.OutputEncoding`, and why can mismatched encodings garble console text? {#03-input-output-q9}
+#### Q9. What is the difference between `Console.InputEncoding` and `Console.OutputEncoding`, and why can mismatched encodings garble console text?
 
 What is the difference between `Console.InputEncoding` and `Console.OutputEncoding`, and why can mismatched encodings garble console text?
 
@@ -928,7 +1024,7 @@ What is the difference between `Console.InputEncoding` and `Console.OutputEncodi
 
 ---
 
-#### Q10. How do you capture console output programmatically (e.g., `StringWriter` redirected to `Console.SetOut`)? {#03-input-output-q10}
+#### Q10. How do you capture console output programmatically (e.g., `StringWriter` redirected to `Console.SetOut`)?
 
 How do you capture console output programmatically (e.g., `StringWriter` redirected to `Console.SetOut`)?
 
@@ -941,7 +1037,7 @@ How do you capture console output programmatically (e.g., `StringWriter` redirec
 
 ---
 
-#### Q11. What is the difference between `Console.Read` and `Console.ReadLine`? {#03-input-output-q11}
+#### Q11. What is the difference between `Console.Read` and `Console.ReadLine`?
 
 What is the difference between `Console.Read` and `Console.ReadLine`?
 
@@ -954,7 +1050,7 @@ What is the difference between `Console.Read` and `Console.ReadLine`?
 
 ---
 
-#### Q12. How do you format output with alignment and padding using interpolation (`$"{value,10}"`, `$"{value:N2}"`)? {#03-input-output-q12}
+#### Q12. How do you format output with alignment and padding using interpolation (`$"{value,10}"`, `$"{value:N2}"`)?
 
 How do you format output with alignment and padding using interpolation (`$"{value,10}"`, `$"{value:N2}"`)?
 
@@ -967,7 +1063,7 @@ How do you format output with alignment and padding using interpolation (`$"{val
 
 ---
 
-#### Q13. What is `IFormattable`, and how does it relate to custom formatting in `ToString(format, provider)`? {#03-input-output-q13}
+#### Q13. What is `IFormattable`, and how does it relate to custom formatting in `ToString(format, provider)`?
 
 What is `IFormattable`, and how does it relate to custom formatting in `ToString(format, provider)`?
 
@@ -980,7 +1076,7 @@ What is `IFormattable`, and how does it relate to custom formatting in `ToString
 
 ---
 
-#### Q14. What happens if you call `int.Parse` on invalid input vs `int.TryParse` — which pattern is preferred in production console apps? {#03-input-output-q14}
+#### Q14. What happens if you call `int.Parse` on invalid input vs `int.TryParse` — which pattern is preferred in production console apps?
 
 What happens if you call `int.Parse` on invalid input vs `int.TryParse` — which pattern is preferred in production console apps?
 
@@ -993,7 +1089,7 @@ What happens if you call `int.Parse` on invalid input vs `int.TryParse` — whic
 
 ---
 
-#### Q15. How does changing `CultureInfo.CurrentCulture` on the current thread affect subsequent formatting calls that omit an explicit provider? {#03-input-output-q15}
+#### Q15. How does changing `CultureInfo.CurrentCulture` on the current thread affect subsequent formatting calls that omit an explicit provider?
 
 How does changing `CultureInfo.CurrentCulture` on the current thread affect subsequent formatting calls that omit an explicit provider?
 
@@ -1006,7 +1102,7 @@ How does changing `CultureInfo.CurrentCulture` on the current thread affect subs
 
 ---
 
-#### Q16. What is `NumberFormatInfo`, and how does it differ from `CultureInfo`? {#03-input-output-q16}
+#### Q16. What is `NumberFormatInfo`, and how does it differ from `CultureInfo`?
 
 What is `NumberFormatInfo`, and how does it differ from `CultureInfo`?
 
@@ -1019,7 +1115,7 @@ What is `NumberFormatInfo`, and how does it differ from `CultureInfo`?
 
 ---
 
-#### Q17. When reading numeric input from users in different locales, what pitfalls arise with comma vs period decimal separators? {#03-input-output-q17}
+#### Q17. When reading numeric input from users in different locales, what pitfalls arise with comma vs period decimal separators?
 
 When reading numeric input from users in different locales, what pitfalls arise with comma vs period decimal separators?
 
@@ -1032,7 +1128,7 @@ When reading numeric input from users in different locales, what pitfalls arise 
 
 ---
 
-#### Q18. What is the purpose of `Console.ForegroundColor`, `BackgroundColor`, and resetting colors after use? {#03-input-output-q18}
+#### Q18. What is the purpose of `Console.ForegroundColor`, `BackgroundColor`, and resetting colors after use?
 
 What is the purpose of `Console.ForegroundColor`, `BackgroundColor`, and resetting colors after use?
 
@@ -1047,7 +1143,7 @@ What is the purpose of `Console.ForegroundColor`, `BackgroundColor`, and resetti
 
 ### 04. Operators & Expressions
 
-#### Q1. What are the different types of operators in C#? (Arithmetic, Relational, Logical, Bitwise, Assignment, Ternary, Null-coalescing, etc.) {#04-operators-expressions-q1}
+#### Q1. What are the different types of operators in C#? (Arithmetic, Relational, Logical, Bitwise, Assignment, Ternary, Null-coalescing, etc.)
 
 What are the different types of operators in C#? (Arithmetic, Relational, Logical, Bitwise, Assignment, Ternary, Null-coalescing, etc.)
 
@@ -1060,7 +1156,7 @@ What are the different types of operators in C#? (Arithmetic, Relational, Logica
 
 ---
 
-#### Q2. Explain the `checked` and `unchecked` keywords in C#. {#04-operators-expressions-q2}
+#### Q2. Explain the `checked` and `unchecked` keywords in C#.
 
 Explain the `checked` and `unchecked` keywords in C#.
 
@@ -1073,7 +1169,7 @@ Explain the `checked` and `unchecked` keywords in C#.
 
 ---
 
-#### Q3. What is the difference between `==` and `.Equals()` for value types vs reference types? {#04-operators-expressions-q3}
+#### Q3. What is the difference between `==` and `.Equals()` for value types vs reference types?
 
 What is the difference between `==` and `.Equals()` for value types vs reference types?
 
@@ -1086,7 +1182,7 @@ What is the difference between `==` and `.Equals()` for value types vs reference
 
 ---
 
-#### Q4. What is integer division in C#, and how do you get a fractional result? {#04-operators-expressions-q4}
+#### Q4. What is integer division in C#, and how do you get a fractional result?
 
 What is integer division in C#, and how do you get a fractional result?
 
@@ -1099,7 +1195,7 @@ What is integer division in C#, and how do you get a fractional result?
 
 ---
 
-#### Q5. Explain operator precedence and associativity — why does `a + b * c` evaluate differently than `(a + b) * c`? {#04-operators-expressions-q5}
+#### Q5. Explain operator precedence and associativity — why does `a + b * c` evaluate differently than `(a + b) * c`?
 
 Explain operator precedence and associativity — why does `a + b * c` evaluate differently than `(a + b) * c`?
 
@@ -1112,7 +1208,7 @@ Explain operator precedence and associativity — why does `a + b * c` evaluate 
 
 ---
 
-#### Q6. What is the difference between prefix and postfix increment (`++i` vs `i++`)? {#04-operators-expressions-q6}
+#### Q6. What is the difference between prefix and postfix increment (`++i` vs `i++`)?
 
 What is the difference between prefix and postfix increment (`++i` vs `i++`)?
 
@@ -1125,7 +1221,7 @@ What is the difference between prefix and postfix increment (`++i` vs `i++`)?
 
 ---
 
-#### Q7. What are short-circuit logical operators (`&&`, `||`), and why do they matter beyond boolean logic? {#04-operators-expressions-q7}
+#### Q7. What are short-circuit logical operators (`&&`, `||`), and why do they matter beyond boolean logic?
 
 What are short-circuit logical operators (`&&`, `||`), and why do they matter beyond boolean logic?
 
@@ -1138,7 +1234,7 @@ What are short-circuit logical operators (`&&`, `||`), and why do they matter be
 
 ---
 
-#### Q8. Explain the null-conditional operator (`?.`) and null-coalescing operators (`??`, `??=`). {#04-operators-expressions-q8}
+#### Q8. Explain the null-conditional operator (`?.`) and null-coalescing operators (`??`, `??=`).
 
 Explain the null-conditional operator (`?.`) and null-coalescing operators (`??`, `??=`).
 
@@ -1151,7 +1247,7 @@ Explain the null-conditional operator (`?.`) and null-coalescing operators (`??`
 
 ---
 
-#### Q9. What are bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`), and when are they used in application code? {#04-operators-expressions-q9}
+#### Q9. What are bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`), and when are they used in application code?
 
 What are bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`), and when are they used in application code?
 
@@ -1164,7 +1260,7 @@ What are bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`), and when are they u
 
 ---
 
-#### Q10. What is the difference between logical AND (`&&`) and bitwise AND (`&`) when applied to `bool` operands? {#04-operators-expressions-q10}
+#### Q10. What is the difference between logical AND (`&&`) and bitwise AND (`&`) when applied to `bool` operands?
 
 What is the difference between logical AND (`&&`) and bitwise AND (`&`) when applied to `bool` operands?
 
@@ -1177,7 +1273,7 @@ What is the difference between logical AND (`&&`) and bitwise AND (`&`) when app
 
 ---
 
-#### Q11. What is the ternary conditional operator (`?:`), and how does it differ from an `if/else` statement? {#04-operators-expressions-q11}
+#### Q11. What is the ternary conditional operator (`?:`), and how does it differ from an `if/else` statement?
 
 What is the ternary conditional operator (`?:`), and how does it differ from an `if/else` statement?
 
@@ -1190,7 +1286,7 @@ What is the ternary conditional operator (`?:`), and how does it differ from an 
 
 ---
 
-#### Q12. What is the difference between `is` pattern matching and a simple boolean expression in a condition? {#04-operators-expressions-q12}
+#### Q12. What is the difference between `is` pattern matching and a simple boolean expression in a condition?
 
 What is the difference between `is` pattern matching and a simple boolean expression in a condition?
 
@@ -1203,7 +1299,7 @@ What is the difference between `is` pattern matching and a simple boolean expres
 
 ---
 
-#### Q13. When does overflow occur for integer arithmetic, and how do `checked` blocks change behavior? {#04-operators-expressions-q13}
+#### Q13. When does overflow occur for integer arithmetic, and how do `checked` blocks change behavior?
 
 When does overflow occur for integer arithmetic, and how do `checked` blocks change behavior?
 
@@ -1216,7 +1312,7 @@ When does overflow occur for integer arithmetic, and how do `checked` blocks cha
 
 ---
 
-#### Q14. What is the difference between `==` and `ReferenceEquals` for reference types? {#04-operators-expressions-q14}
+#### Q14. What is the difference between `==` and `ReferenceEquals` for reference types?
 
 What is the difference between `==` and `ReferenceEquals` for reference types?
 
@@ -1229,7 +1325,7 @@ What is the difference between `==` and `ReferenceEquals` for reference types?
 
 ---
 
-#### Q15. Can you overload operators in C# — which operators can and cannot be overloaded? {#04-operators-expressions-q15}
+#### Q15. Can you overload operators in C# — which operators can and cannot be overloaded?
 
 Can you overload operators in C# — which operators can and cannot be overloaded?
 
@@ -1242,7 +1338,7 @@ Can you overload operators in C# — which operators can and cannot be overloade
 
 ---
 
-#### Q16. What is the difference between compound assignment (`+=`, `-=`) and the expanded form (`x = x + y`) for value vs reference types? {#04-operators-expressions-q16}
+#### Q16. What is the difference between compound assignment (`+=`, `-=`) and the expanded form (`x = x + y`) for value vs reference types?
 
 What is the difference between compound assignment (`+=`, `-=`) and the expanded form (`x = x + y`) for value vs reference types?
 
@@ -1255,7 +1351,7 @@ What is the difference between compound assignment (`+=`, `-=`) and the expanded
 
 ---
 
-#### Q17. What is the `nameof` operator, and how is it used in validation messages and refactoring-safe code? {#04-operators-expressions-q17}
+#### Q17. What is the `nameof` operator, and how is it used in validation messages and refactoring-safe code?
 
 What is the `nameof` operator, and how is it used in validation messages and refactoring-safe code?
 
@@ -1270,7 +1366,7 @@ What is the `nameof` operator, and how is it used in validation messages and ref
 
 ### 05. Type Conversion & Casting
 
-#### Q1. What is the difference between the `is` and `as` operators? {#05-type-conversion-casting-q1}
+#### Q1. What is the difference between the `is` and `as` operators?
 
 What is the difference between the `is` and `as` operators?
 
@@ -1283,7 +1379,7 @@ What is the difference between the `is` and `as` operators?
 
 ---
 
-#### Q2. What is the difference between implicit and explicit type conversion (casting)? {#05-type-conversion-casting-q2}
+#### Q2. What is the difference between implicit and explicit type conversion (casting)?
 
 What is the difference between implicit and explicit type conversion (casting)?
 
@@ -1296,7 +1392,7 @@ What is the difference between implicit and explicit type conversion (casting)?
 
 ---
 
-#### Q3. What is the difference between `Convert.ToInt32`, `(int)`, and `int.Parse`? {#05-type-conversion-casting-q3}
+#### Q3. What is the difference between `Convert.ToInt32`, `(int)`, and `int.Parse`?
 
 What is the difference between `Convert.ToInt32`, `(int)`, and `int.Parse`?
 
@@ -1309,7 +1405,7 @@ What is the difference between `Convert.ToInt32`, `(int)`, and `int.Parse`?
 
 ---
 
-#### Q4. When does a cast succeed at compile time but fail at runtime? {#05-type-conversion-casting-q4}
+#### Q4. When does a cast succeed at compile time but fail at runtime?
 
 When does a cast succeed at compile time but fail at runtime?
 
@@ -1322,7 +1418,7 @@ When does a cast succeed at compile time but fail at runtime?
 
 ---
 
-#### Q5. What is widening vs narrowing conversion — which direction is implicit? {#05-type-conversion-casting-q5}
+#### Q5. What is widening vs narrowing conversion — which direction is implicit?
 
 What is widening vs narrowing conversion — which direction is implicit?
 
@@ -1335,7 +1431,7 @@ What is widening vs narrowing conversion — which direction is implicit?
 
 ---
 
-#### Q6. What is the difference between `Parse`, `TryParse`, and `Convert.ChangeType`? {#05-type-conversion-casting-q6}
+#### Q6. What is the difference between `Parse`, `TryParse`, and `Convert.ChangeType`?
 
 What is the difference between `Parse`, `TryParse`, and `Convert.ChangeType`?
 
@@ -1348,7 +1444,7 @@ What is the difference between `Parse`, `TryParse`, and `Convert.ChangeType`?
 
 ---
 
-#### Q7. When would you use the `is` pattern with a declaration (`if (obj is int n)`) vs a traditional cast? {#05-type-conversion-casting-q7}
+#### Q7. When would you use the `is` pattern with a declaration (`if (obj is int n)`) vs a traditional cast?
 
 When would you use the `is` pattern with a declaration (`if (obj is int n)`) vs a traditional cast?
 
@@ -1361,7 +1457,7 @@ When would you use the `is` pattern with a declaration (`if (obj is int n)`) vs 
 
 ---
 
-#### Q8. What exception types are commonly thrown by failed casts and parses (`FormatException`, `OverflowException`, `InvalidCastException`)? {#05-type-conversion-casting-q8}
+#### Q8. What exception types are commonly thrown by failed casts and parses (`FormatException`, `OverflowException`, `InvalidCastException`)?
 
 What exception types are commonly thrown by failed casts and parses (`FormatException`, `OverflowException`, `InvalidCastException`)?
 
@@ -1374,7 +1470,7 @@ What exception types are commonly thrown by failed casts and parses (`FormatExce
 
 ---
 
-#### Q9. What is `TryFormat`, and how does writing into a `Span<char>` differ from calling `ToString()`? {#05-type-conversion-casting-q9}
+#### Q9. What is `TryFormat`, and how does writing into a `Span<char>` differ from calling `ToString()`?
 
 What is `TryFormat`, and how does writing into a `Span<char>` differ from calling `ToString()`?
 
@@ -1387,7 +1483,7 @@ What is `TryFormat`, and how does writing into a `Span<char>` differ from callin
 
 ---
 
-#### Q10. How does culture affect parsing and formatting during type conversion (e.g., `"1,234.56"` vs `"1.234,56"`)? {#05-type-conversion-casting-q10}
+#### Q10. How does culture affect parsing and formatting during type conversion (e.g., `"1,234.56"` vs `"1.234,56"`)?
 
 How does culture affect parsing and formatting during type conversion (e.g., `"1,234.56"` vs `"1.234,56"`)?
 
@@ -1400,7 +1496,7 @@ How does culture affect parsing and formatting during type conversion (e.g., `"1
 
 ---
 
-#### Q11. What is the difference between boxing during conversion to `object` and a direct numeric cast? {#05-type-conversion-casting-q11}
+#### Q11. What is the difference between boxing during conversion to `object` and a direct numeric cast?
 
 What is the difference between boxing during conversion to `object` and a direct numeric cast?
 
@@ -1413,7 +1509,7 @@ What is the difference between boxing during conversion to `object` and a direct
 
 ---
 
-#### Q12. When is the `as` operator preferred over a cast, and what does it return on failure? {#05-type-conversion-casting-q12}
+#### Q12. When is the `as` operator preferred over a cast, and what does it return on failure?
 
 When is the `as` operator preferred over a cast, and what does it return on failure?
 
@@ -1426,7 +1522,7 @@ When is the `as` operator preferred over a cast, and what does it return on fail
 
 ---
 
-#### Q13. What is user-defined explicit/implicit conversion operator syntax (preview level)? {#05-type-conversion-casting-q13}
+#### Q13. What is user-defined explicit/implicit conversion operator syntax (preview level)?
 
 What is user-defined explicit/implicit conversion operator syntax (preview level)?
 
@@ -1439,7 +1535,7 @@ What is user-defined explicit/implicit conversion operator syntax (preview level
 
 ---
 
-#### Q14. What happens when you cast a `double` to `int` — is rounding or truncation applied? {#05-type-conversion-casting-q14}
+#### Q14. What happens when you cast a `double` to `int` — is rounding or truncation applied?
 
 What happens when you cast a `double` to `int` — is rounding or truncation applied?
 
@@ -1452,7 +1548,7 @@ What happens when you cast a `double` to `int` — is rounding or truncation app
 
 ---
 
-#### Q15. What is the difference between `default(T)` casting patterns and `Convert` methods for nullable value types? {#05-type-conversion-casting-q15}
+#### Q15. What is the difference between `default(T)` casting patterns and `Convert` methods for nullable value types?
 
 What is the difference between `default(T)` casting patterns and `Convert` methods for nullable value types?
 
@@ -1465,7 +1561,7 @@ What is the difference between `default(T)` casting patterns and `Convert` metho
 
 ---
 
-#### Q16. When converting between `string` and numeric types in APIs and logs, why is `InvariantCulture` often specified explicitly? {#05-type-conversion-casting-q16}
+#### Q16. When converting between `string` and numeric types in APIs and logs, why is `InvariantCulture` often specified explicitly?
 
 When converting between `string` and numeric types in APIs and logs, why is `InvariantCulture` often specified explicitly?
 
@@ -1480,7 +1576,7 @@ When converting between `string` and numeric types in APIs and logs, why is `Inv
 
 ### 06. Control Flow & Loops
 
-#### Q1. What is the difference between `if/else` and the ternary operator? {#06-control-flow-loops-q1}
+#### Q1. What is the difference between `if/else` and the ternary operator?
 
 What is the difference between `if/else` and the ternary operator?
 
@@ -1493,7 +1589,7 @@ What is the difference between `if/else` and the ternary operator?
 
 ---
 
-#### Q2. What is the difference between traditional `switch` and switch expressions (C# 8+)? {#06-control-flow-loops-q2}
+#### Q2. What is the difference between traditional `switch` and switch expressions (C# 8+)?
 
 What is the difference between traditional `switch` and switch expressions (C# 8+)?
 
@@ -1506,7 +1602,7 @@ What is the difference between traditional `switch` and switch expressions (C# 8
 
 ---
 
-#### Q3. When should you use `for`, `foreach`, `while`, and `do-while`? {#06-control-flow-loops-q3}
+#### Q3. When should you use `for`, `foreach`, `while`, and `do-while`?
 
 When should you use `for`, `foreach`, `while`, and `do-while`?
 
@@ -1519,7 +1615,7 @@ When should you use `for`, `foreach`, `while`, and `do-while`?
 
 ---
 
-#### Q4. What is the difference between `break`, `continue`, and `return` inside a loop? {#06-control-flow-loops-q4}
+#### Q4. What is the difference between `break`, `continue`, and `return` inside a loop?
 
 What is the difference between `break`, `continue`, and `return` inside a loop?
 
@@ -1532,7 +1628,7 @@ What is the difference between `break`, `continue`, and `return` inside a loop?
 
 ---
 
-#### Q5. What are common pitfalls with nested loops and loop variable scope? {#06-control-flow-loops-q5}
+#### Q5. What are common pitfalls with nested loops and loop variable scope?
 
 What are common pitfalls with nested loops and loop variable scope?
 
@@ -1545,7 +1641,7 @@ What are common pitfalls with nested loops and loop variable scope?
 
 ---
 
-#### Q6. What is a switch expression, and how do relational and property patterns work in `switch`? {#06-control-flow-loops-q6}
+#### Q6. What is a switch expression, and how do relational and property patterns work in `switch`?
 
 What is a switch expression, and how do relational and property patterns work in `switch`?
 
@@ -1558,7 +1654,7 @@ What is a switch expression, and how do relational and property patterns work in
 
 ---
 
-#### Q7. What is the difference between `break` in a `switch` vs `break` in a loop? {#06-control-flow-loops-q7}
+#### Q7. What is the difference between `break` in a `switch` vs `break` in a loop?
 
 What is the difference between `break` in a `switch` vs `break` in a loop?
 
@@ -1571,7 +1667,7 @@ What is the difference between `break` in a `switch` vs `break` in a loop?
 
 ---
 
-#### Q8. When is `goto` still used in C# (e.g., `goto case`, `goto default`), and why is it generally discouraged? {#06-control-flow-loops-q8}
+#### Q8. When is `goto` still used in C# (e.g., `goto case`, `goto default`), and why is it generally discouraged?
 
 When is `goto` still used in C# (e.g., `goto case`, `goto default`), and why is it generally discouraged?
 
@@ -1584,7 +1680,7 @@ When is `goto` still used in C# (e.g., `goto case`, `goto default`), and why is 
 
 ---
 
-#### Q9. What is the scope of a variable declared in the initializer of a `for` loop (C# rules)? {#06-control-flow-loops-q9}
+#### Q9. What is the scope of a variable declared in the initializer of a `for` loop (C# rules)?
 
 What is the scope of a variable declared in the initializer of a `for` loop (C# rules)?
 
@@ -1597,7 +1693,7 @@ What is the scope of a variable declared in the initializer of a `for` loop (C# 
 
 ---
 
-#### Q10. Why did C# 5 change loop variable capture semantics in lambdas, and how does that affect `foreach` vs `for`? {#06-control-flow-loops-q10}
+#### Q10. Why did C# 5 change loop variable capture semantics in lambdas, and how does that affect `foreach` vs `for`?
 
 Why did C# 5 change loop variable capture semantics in lambdas, and how does that affect `foreach` vs `for`?
 
@@ -1610,7 +1706,7 @@ Why did C# 5 change loop variable capture semantics in lambdas, and how does tha
 
 ---
 
-#### Q11. Can you modify the collection you are iterating in a `foreach` loop — what exception results? {#06-control-flow-loops-q11}
+#### Q11. Can you modify the collection you are iterating in a `foreach` loop — what exception results?
 
 Can you modify the collection you are iterating in a `foreach` loop — what exception results?
 
@@ -1623,7 +1719,7 @@ Can you modify the collection you are iterating in a `foreach` loop — what exc
 
 ---
 
-#### Q12. What is the difference between `while` and `do-while` when the condition is false on the first check? {#06-control-flow-loops-q12}
+#### Q12. What is the difference between `while` and `do-while` when the condition is false on the first check?
 
 What is the difference between `while` and `do-while` when the condition is false on the first check?
 
@@ -1636,7 +1732,7 @@ What is the difference between `while` and `do-while` when the condition is fals
 
 ---
 
-#### Q13. When would you prefer a `switch` over a chain of `if/else if` statements? {#06-control-flow-loops-q13}
+#### Q13. When would you prefer a `switch` over a chain of `if/else if` statements?
 
 When would you prefer a `switch` over a chain of `if/else if` statements?
 
@@ -1649,7 +1745,7 @@ When would you prefer a `switch` over a chain of `if/else if` statements?
 
 ---
 
-#### Q14. What is pattern matching with `is` in an `if` statement vs a `switch` on type? {#06-control-flow-loops-q14}
+#### Q14. What is pattern matching with `is` in an `if` statement vs a `switch` on type?
 
 What is pattern matching with `is` in an `if` statement vs a `switch` on type?
 
@@ -1662,7 +1758,7 @@ What is pattern matching with `is` in an `if` statement vs a `switch` on type?
 
 ---
 
-#### Q15. What happens if you use `return` inside a `try` block that has a `finally` — which executes first? {#06-control-flow-loops-q15}
+#### Q15. What happens if you use `return` inside a `try` block that has a `finally` — which executes first?
 
 What happens if you use `return` inside a `try` block that has a `finally` — which executes first?
 
@@ -1677,7 +1773,7 @@ What happens if you use `return` inside a `try` block that has a `finally` — w
 
 ### 07. Methods
 
-#### Q1. What are the `out`, `ref`, and `in` parameter modifiers? Explain their usage. {#07-methods-q1}
+#### Q1. What are the `out`, `ref`, and `in` parameter modifiers? Explain their usage.
 
 What are the `out`, `ref`, and `in` parameter modifiers? Explain their usage.
 
@@ -1690,7 +1786,7 @@ What are the `out`, `ref`, and `in` parameter modifiers? Explain their usage.
 
 ---
 
-#### Q2. What is the `params` keyword in method definitions? {#07-methods-q2}
+#### Q2. What is the `params` keyword in method definitions?
 
 What is the `params` keyword in method definitions?
 
@@ -1703,7 +1799,7 @@ What is the `params` keyword in method definitions?
 
 ---
 
-#### Q3. What are expression-bodied members in C#? {#07-methods-q3}
+#### Q3. What are expression-bodied members in C#?
 
 What are expression-bodied members in C#?
 
@@ -1716,7 +1812,7 @@ What are expression-bodied members in C#?
 
 ---
 
-#### Q4. Explain named arguments and optional parameters in C#. {#07-methods-q4}
+#### Q4. Explain named arguments and optional parameters in C#.
 
 Explain named arguments and optional parameters in C#.
 
@@ -1729,7 +1825,7 @@ Explain named arguments and optional parameters in C#.
 
 ---
 
-#### Q5. What are local functions in C#? {#07-methods-q5}
+#### Q5. What are local functions in C#?
 
 What are local functions in C#?
 
@@ -1742,7 +1838,7 @@ What are local functions in C#?
 
 ---
 
-#### Q6. What is the `yield` keyword and iterators in C#? *(Cross-ref: Module 03 — IEnumerable)* {#07-methods-q6}
+#### Q6. What is the `yield` keyword and iterators in C#? *(Cross-ref: Module 03 — IEnumerable)*
 
 What is the `yield` keyword and iterators in C#? *(Cross-ref: Module 03 — IEnumerable)*
 
@@ -1755,7 +1851,7 @@ What is the `yield` keyword and iterators in C#? *(Cross-ref: Module 03 — IEnu
 
 ---
 
-#### Q7. Explain method overloading — what makes two methods overloads vs duplicate definitions? {#07-methods-q7}
+#### Q7. Explain method overloading — what makes two methods overloads vs duplicate definitions?
 
 Explain method overloading — what makes two methods overloads vs duplicate definitions?
 
@@ -1768,7 +1864,7 @@ Explain method overloading — what makes two methods overloads vs duplicate def
 
 ---
 
-#### Q8. How does overload resolution work when multiple overloads could apply — what is the "better function member" rule? {#07-methods-q8}
+#### Q8. How does overload resolution work when multiple overloads could apply — what is the "better function member" rule?
 
 How does overload resolution work when multiple overloads could apply — what is the "better function member" rule?
 
@@ -1781,7 +1877,7 @@ How does overload resolution work when multiple overloads could apply — what i
 
 ---
 
-#### Q9. Why can't you overload methods by return type alone? {#07-methods-q9}
+#### Q9. Why can't you overload methods by return type alone?
 
 Why can't you overload methods by return type alone?
 
@@ -1794,7 +1890,7 @@ Why can't you overload methods by return type alone?
 
 ---
 
-#### Q10. What is the difference between call-by-value for value types vs reference types at the parameter boundary? {#07-methods-q10}
+#### Q10. What is the difference between call-by-value for value types vs reference types at the parameter boundary?
 
 What is the difference between call-by-value for value types vs reference types at the parameter boundary?
 
@@ -1807,7 +1903,7 @@ What is the difference between call-by-value for value types vs reference types 
 
 ---
 
-#### Q11. When should you use `ref` vs `out` vs `in` for parameters? {#07-methods-q11}
+#### Q11. When should you use `ref` vs `out` vs `in` for parameters?
 
 When should you use `ref` vs `out` vs `in` for parameters?
 
@@ -1820,7 +1916,7 @@ When should you use `ref` vs `out` vs `in` for parameters?
 
 ---
 
-#### Q12. What problem does the `in` modifier solve for large readonly structs? {#07-methods-q12}
+#### Q12. What problem does the `in` modifier solve for large readonly structs?
 
 What problem does the `in` modifier solve for large readonly structs?
 
@@ -1833,7 +1929,7 @@ What problem does the `in` modifier solve for large readonly structs?
 
 ---
 
-#### Q13. What is the Try-pattern (`bool TryX(..., out T result)`), and why is it preferred over exceptions for expected failures? {#07-methods-q13}
+#### Q13. What is the Try-pattern (`bool TryX(..., out T result)`), and why is it preferred over exceptions for expected failures?
 
 What is the Try-pattern (`bool TryX(..., out T result)`), and why is it preferred over exceptions for expected failures?
 
@@ -1846,7 +1942,7 @@ What is the Try-pattern (`bool TryX(..., out T result)`), and why is it preferre
 
 ---
 
-#### Q14. Can optional parameters precede required parameters — what are the ordering rules? {#07-methods-q14}
+#### Q14. Can optional parameters precede required parameters — what are the ordering rules?
 
 Can optional parameters precede required parameters — what are the ordering rules?
 
@@ -1859,7 +1955,7 @@ Can optional parameters precede required parameters — what are the ordering ru
 
 ---
 
-#### Q15. What is the difference between `params int[]` and passing an explicit `int[]` at the call site? {#07-methods-q15}
+#### Q15. What is the difference between `params int[]` and passing an explicit `int[]` at the call site?
 
 What is the difference between `params int[]` and passing an explicit `int[]` at the call site?
 
@@ -1872,7 +1968,7 @@ What is the difference between `params int[]` and passing an explicit `int[]` at
 
 ---
 
-#### Q16. When does overload resolution fail with ambiguity (CS0121), and how do casts or named arguments resolve it? {#07-methods-q16}
+#### Q16. When does overload resolution fail with ambiguity (CS0121), and how do casts or named arguments resolve it?
 
 When does overload resolution fail with ambiguity (CS0121), and how do casts or named arguments resolve it?
 
@@ -1885,7 +1981,7 @@ When does overload resolution fail with ambiguity (CS0121), and how do casts or 
 
 ---
 
-#### Q17. What is the difference between a local function and a private instance method in the same class? {#07-methods-q17}
+#### Q17. What is the difference between a local function and a private instance method in the same class?
 
 What is the difference between a local function and a private instance method in the same class?
 
@@ -1898,7 +1994,7 @@ What is the difference between a local function and a private instance method in
 
 ---
 
-#### Q18. What is recursion, what is a base case, and what risk does unbounded recursion pose? {#07-methods-q18}
+#### Q18. What is recursion, what is a base case, and what risk does unbounded recursion pose?
 
 What is recursion, what is a base case, and what risk does unbounded recursion pose?
 
@@ -1911,7 +2007,7 @@ What is recursion, what is a base case, and what risk does unbounded recursion p
 
 ---
 
-#### Q19. Can `out` variables be declared inline at the call site (`TryParse(text, out int n)`)? {#07-methods-q19}
+#### Q19. Can `out` variables be declared inline at the call site (`TryParse(text, out int n)`)?
 
 Can `out` variables be declared inline at the call site (`TryParse(text, out int n)`)?
 
@@ -1924,7 +2020,7 @@ Can `out` variables be declared inline at the call site (`TryParse(text, out int
 
 ---
 
-#### Q20. What is the difference between mutating an object through a reference parameter vs reassigning the parameter variable itself? {#07-methods-q20}
+#### Q20. What is the difference between mutating an object through a reference parameter vs reassigning the parameter variable itself?
 
 What is the difference between mutating an object through a reference parameter vs reassigning the parameter variable itself?
 
@@ -1939,7 +2035,7 @@ What is the difference between mutating an object through a reference parameter 
 
 ### 08. Strings
 
-#### Q1. Explain string handling in C# (`string` vs `StringBuilder`). {#08-strings-q1}
+#### Q1. Explain string handling in C# (`string` vs `StringBuilder`).
 
 Explain string handling in C# (`string` vs `StringBuilder`).
 
@@ -1952,7 +2048,7 @@ Explain string handling in C# (`string` vs `StringBuilder`).
 
 ---
 
-#### Q2. What are the different ways to format strings in C#? (`String.Format`, interpolation, composite formatting) {#08-strings-q2}
+#### Q2. What are the different ways to format strings in C#? (`String.Format`, interpolation, composite formatting)
 
 What are the different ways to format strings in C#? (`String.Format`, interpolation, composite formatting)
 
@@ -1965,7 +2061,7 @@ What are the different ways to format strings in C#? (`String.Format`, interpola
 
 ---
 
-#### Q3. Are strings mutable or immutable in C#? What are the implications? {#08-strings-q3}
+#### Q3. Are strings mutable or immutable in C#? What are the implications?
 
 Are strings mutable or immutable in C#? What are the implications?
 
@@ -1978,7 +2074,7 @@ Are strings mutable or immutable in C#? What are the implications?
 
 ---
 
-#### Q4. What is string interning? {#08-strings-q4}
+#### Q4. What is string interning?
 
 What is string interning?
 
@@ -1991,7 +2087,7 @@ What is string interning?
 
 ---
 
-#### Q5. What is the difference between `==`, `Equals`, `Compare`, and `CompareTo` for strings? {#08-strings-q5}
+#### Q5. What is the difference between `==`, `Equals`, `Compare`, and `CompareTo` for strings?
 
 What is the difference between `==`, `Equals`, `Compare`, and `CompareTo` for strings?
 
@@ -2004,7 +2100,7 @@ What is the difference between `==`, `Equals`, `Compare`, and `CompareTo` for st
 
 ---
 
-#### Q6. When should you use `StringComparison.Ordinal` vs `OrdinalIgnoreCase` vs culture-sensitive comparisons? {#08-strings-q6}
+#### Q6. When should you use `StringComparison.Ordinal` vs `OrdinalIgnoreCase` vs culture-sensitive comparisons?
 
 When should you use `StringComparison.Ordinal` vs `OrdinalIgnoreCase` vs culture-sensitive comparisons?
 
@@ -2017,7 +2113,7 @@ When should you use `StringComparison.Ordinal` vs `OrdinalIgnoreCase` vs culture
 
 ---
 
-#### Q7. What are verbatim string literals (`@"..."`), and when are they useful? {#08-strings-q7}
+#### Q7. What are verbatim string literals (`@"..."`), and when are they useful?
 
 What are verbatim string literals (`@"..."`), and when are they useful?
 
@@ -2030,7 +2126,7 @@ What are verbatim string literals (`@"..."`), and when are they useful?
 
 ---
 
-#### Q8. What are raw string literals (`"""..."""`, C# 11+), and how do they handle quotes and newlines? {#08-strings-q8}
+#### Q8. What are raw string literals (`"""..."""`, C# 11+), and how do they handle quotes and newlines?
 
 What are raw string literals (`"""..."""`, C# 11+), and how do they handle quotes and newlines?
 
@@ -2043,7 +2139,7 @@ What are raw string literals (`"""..."""`, C# 11+), and how do they handle quote
 
 ---
 
-#### Q9. What is the difference between `StringBuilder` and repeated string concatenation in a loop? {#08-strings-q9}
+#### Q9. What is the difference between `StringBuilder` and repeated string concatenation in a loop?
 
 What is the difference between `StringBuilder` and repeated string concatenation in a loop?
 
@@ -2056,7 +2152,7 @@ What is the difference between `StringBuilder` and repeated string concatenation
 
 ---
 
-#### Q10. What is the difference between `string.Concat`, the `+` operator, and interpolation for combining text? {#08-strings-q10}
+#### Q10. What is the difference between `string.Concat`, the `+` operator, and interpolation for combining text?
 
 What is the difference between `string.Concat`, the `+` operator, and interpolation for combining text?
 
@@ -2069,7 +2165,7 @@ What is the difference between `string.Concat`, the `+` operator, and interpolat
 
 ---
 
-#### Q11. What is the difference between `IsNullOrEmpty`, `IsNullOrWhiteSpace`, and checking `Length == 0`? {#08-strings-q11}
+#### Q11. What is the difference between `IsNullOrEmpty`, `IsNullOrWhiteSpace`, and checking `Length == 0`?
 
 What is the difference between `IsNullOrEmpty`, `IsNullOrWhiteSpace`, and checking `Length == 0`?
 
@@ -2082,7 +2178,7 @@ What is the difference between `IsNullOrEmpty`, `IsNullOrWhiteSpace`, and checki
 
 ---
 
-#### Q12. What is the difference between culture-sensitive (`ToUpper()`) and invariant (`ToUpperInvariant()`) case conversion? {#08-strings-q12}
+#### Q12. What is the difference between culture-sensitive (`ToUpper()`) and invariant (`ToUpperInvariant()`) case conversion?
 
 What is the difference between culture-sensitive (`ToUpper()`) and invariant (`ToUpperInvariant()`) case conversion?
 
@@ -2095,7 +2191,7 @@ What is the difference between culture-sensitive (`ToUpper()`) and invariant (`T
 
 ---
 
-#### Q13. What methods would you use to split, trim, replace, pad, and search within strings? {#08-strings-q13}
+#### Q13. What methods would you use to split, trim, replace, pad, and search within strings?
 
 What methods would you use to split, trim, replace, pad, and search within strings?
 
@@ -2108,7 +2204,7 @@ What methods would you use to split, trim, replace, pad, and search within strin
 
 ---
 
-#### Q14. What is UTF-16 storage in .NET strings, and how does that relate to surrogate pairs and `char`? {#08-strings-q14}
+#### Q14. What is UTF-16 storage in .NET strings, and how does that relate to surrogate pairs and `char`?
 
 What is UTF-16 storage in .NET strings, and how does that relate to surrogate pairs and `char`?
 
@@ -2121,7 +2217,7 @@ What is UTF-16 storage in .NET strings, and how does that relate to surrogate pa
 
 ---
 
-#### Q15. What is the string intern pool, and what does `string.Intern` do? {#08-strings-q15}
+#### Q15. What is the string intern pool, and what does `string.Intern` do?
 
 What is the string intern pool, and what does `string.Intern` do?
 
@@ -2134,7 +2230,7 @@ What is the string intern pool, and what does `string.Intern` do?
 
 ---
 
-#### Q16. Why can two strings with identical content fail `ReferenceEquals` while still passing `==`? {#08-strings-q16}
+#### Q16. Why can two strings with identical content fail `ReferenceEquals` while still passing `==`?
 
 Why can two strings with identical content fail `ReferenceEquals` while still passing `==`?
 
@@ -2147,7 +2243,7 @@ Why can two strings with identical content fail `ReferenceEquals` while still pa
 
 ---
 
-#### Q17. What is the difference between `Substring` and range/index syntax (`s[start..end]`) for slicing strings? {#08-strings-q17}
+#### Q17. What is the difference between `Substring` and range/index syntax (`s[start..end]`) for slicing strings?
 
 What is the difference between `Substring` and range/index syntax (`s[start..end]`) for slicing strings?
 
@@ -2160,7 +2256,7 @@ What is the difference between `Substring` and range/index syntax (`s[start..end
 
 ---
 
-#### Q18. When is `StringBuilder` not the best choice despite many append operations? {#08-strings-q18}
+#### Q18. When is `StringBuilder` not the best choice despite many append operations?
 
 When is `StringBuilder` not the best choice despite many append operations?
 
@@ -2173,7 +2269,7 @@ When is `StringBuilder` not the best choice despite many append operations?
 
 ---
 
-#### Q19. How does string interpolation handle format specifiers and alignment (`$"{price:C2}"`, `$"{name,-20}"`)? {#08-strings-q19}
+#### Q19. How does string interpolation handle format specifiers and alignment (`$"{price:C2}"`, `$"{name,-20}"`)?
 
 How does string interpolation handle format specifiers and alignment (`$"{price:C2}"`, `$"{name,-20}"`)?
 
@@ -2186,7 +2282,7 @@ How does string interpolation handle format specifiers and alignment (`$"{price:
 
 ---
 
-#### Q20. What is the performance implication of calling `Replace` or `Trim` on large strings repeatedly? {#08-strings-q20}
+#### Q20. What is the performance implication of calling `Replace` or `Trim` on large strings repeatedly?
 
 What is the performance implication of calling `Replace` or `Trim` on large strings repeatedly?
 
@@ -2201,7 +2297,7 @@ What is the performance implication of calling `Replace` or `Trim` on large stri
 
 ### 09. Arrays
 
-#### Q1. What are arrays in C#? How is memory managed for single-dimensional, multi-dimensional, and jagged arrays? {#09-arrays-q1}
+#### Q1. What are arrays in C#? How is memory managed for single-dimensional, multi-dimensional, and jagged arrays?
 
 What are arrays in C#? How is memory managed for single-dimensional, multi-dimensional, and jagged arrays?
 
@@ -2214,7 +2310,7 @@ What are arrays in C#? How is memory managed for single-dimensional, multi-dimen
 
 ---
 
-#### Q2. What is a jagged array? {#09-arrays-q2}
+#### Q2. What is a jagged array?
 
 What is a jagged array?
 
@@ -2227,7 +2323,7 @@ What is a jagged array?
 
 ---
 
-#### Q3. What is the difference between `Array.Copy()`, `Clone()`, and assigning one array variable to another? {#09-arrays-q3}
+#### Q3. What is the difference between `Array.Copy()`, `Clone()`, and assigning one array variable to another?
 
 What is the difference between `Array.Copy()`, `Clone()`, and assigning one array variable to another?
 
@@ -2240,7 +2336,7 @@ What is the difference between `Array.Copy()`, `Clone()`, and assigning one arra
 
 ---
 
-#### Q4. What is the difference between a single-dimensional array, a rectangular multi-dimensional array (`[,]`), and a jagged array (`[][]`)? {#09-arrays-q4}
+#### Q4. What is the difference between a single-dimensional array, a rectangular multi-dimensional array (`[,]`), and a jagged array (`[][]`)?
 
 What is the difference between a single-dimensional array, a rectangular multi-dimensional array (`[,]`), and a jagged array (`[][]`)?
 
@@ -2256,7 +2352,7 @@ Choose rectangular for dense matrices with fixed columns; jagged for variable ro
 
 ---
 
-#### Q5. Are arrays value types or reference types in C#? {#09-arrays-q5}
+#### Q5. Are arrays value types or reference types in C#?
 
 Are arrays value types or reference types in C#?
 
@@ -2269,7 +2365,7 @@ Are arrays value types or reference types in C#?
 
 ---
 
-#### Q6. What is array covariance for reference types, and why is `object[] arr = new string[3]; arr[0] = 42;` dangerous? {#09-arrays-q6}
+#### Q6. What is array covariance for reference types, and why is `object[] arr = new string[3]; arr[0] = 42;` dangerous?
 
 What is array covariance for reference types, and why is `object[] arr = new string[3]; arr[0] = 42;` dangerous?
 
@@ -2282,7 +2378,7 @@ What is array covariance for reference types, and why is `object[] arr = new str
 
 ---
 
-#### Q7. What do `Array.Resize`, `Array.Fill`, and `Array.Clear` do — which allocate new memory? {#09-arrays-q7}
+#### Q7. What do `Array.Resize`, `Array.Fill`, and `Array.Clear` do — which allocate new memory?
 
 What do `Array.Resize`, `Array.Fill`, and `Array.Clear` do — which allocate new memory?
 
@@ -2295,7 +2391,7 @@ What do `Array.Resize`, `Array.Fill`, and `Array.Clear` do — which allocate ne
 
 ---
 
-#### Q8. What is the difference between `Length` on a single-dimensional array vs `GetLength(dimension)` on multi-dimensional arrays? {#09-arrays-q8}
+#### Q8. What is the difference between `Length` on a single-dimensional array vs `GetLength(dimension)` on multi-dimensional arrays?
 
 What is the difference between `Length` on a single-dimensional array vs `GetLength(dimension)` on multi-dimensional arrays?
 
@@ -2308,7 +2404,7 @@ What is the difference between `Length` on a single-dimensional array vs `GetLen
 
 ---
 
-#### Q9. How do you initialize arrays with collection initializer syntax and `new int[] { 1, 2, 3 }`? {#09-arrays-q9}
+#### Q9. How do you initialize arrays with collection initializer syntax and `new int[] { 1, 2, 3 }`?
 
 How do you initialize arrays with collection initializer syntax and `new int[] { 1, 2, 3 }`?
 
@@ -2321,7 +2417,7 @@ How do you initialize arrays with collection initializer syntax and `new int[] {
 
 ---
 
-#### Q10. What is the relationship between arrays and `params` parameters in methods? {#09-arrays-q10}
+#### Q10. What is the relationship between arrays and `params` parameters in methods?
 
 What is the relationship between arrays and `params` parameters in methods?
 
@@ -2334,7 +2430,7 @@ What is the relationship between arrays and `params` parameters in methods?
 
 ---
 
-#### Q11. What is the difference between shallow copy of an array reference and copying array elements? {#09-arrays-q11}
+#### Q11. What is the difference between shallow copy of an array reference and copying array elements?
 
 What is the difference between shallow copy of an array reference and copying array elements?
 
@@ -2347,7 +2443,7 @@ What is the difference between shallow copy of an array reference and copying ar
 
 ---
 
-#### Q12. When would you use `Array.Sort` vs LINQ `OrderBy` on an array? {#09-arrays-q12}
+#### Q12. When would you use `Array.Sort` vs LINQ `OrderBy` on an array?
 
 When would you use `Array.Sort` vs LINQ `OrderBy` on an array?
 
@@ -2360,7 +2456,7 @@ When would you use `Array.Sort` vs LINQ `OrderBy` on an array?
 
 ---
 
-#### Q13. What bounds-checking behavior does C# provide for array indexing? {#09-arrays-q13}
+#### Q13. What bounds-checking behavior does C# provide for array indexing?
 
 What bounds-checking behavior does C# provide for array indexing?
 
@@ -2373,7 +2469,7 @@ What bounds-checking behavior does C# provide for array indexing?
 
 ---
 
-#### Q14. What is `Span<T>`/`ReadOnlySpan<T>` in relation to arrays (preview — stack-friendly views)? {#09-arrays-q14}
+#### Q14. What is `Span<T>`/`ReadOnlySpan<T>` in relation to arrays (preview — stack-friendly views)?
 
 What is `Span<T>`/`ReadOnlySpan<T>` in relation to arrays (preview — stack-friendly views)?
 
@@ -2386,7 +2482,7 @@ What is `Span<T>`/`ReadOnlySpan<T>` in relation to arrays (preview — stack-fri
 
 ---
 
-#### Q15. How do jagged arrays differ in memory layout from rectangular 2D arrays? {#09-arrays-q15}
+#### Q15. How do jagged arrays differ in memory layout from rectangular 2D arrays?
 
 How do jagged arrays differ in memory layout from rectangular 2D arrays?
 
@@ -2399,7 +2495,7 @@ How do jagged arrays differ in memory layout from rectangular 2D arrays?
 
 ---
 
-#### Q16. What happens when you pass an array to a method — can the callee change the caller's array contents? {#09-arrays-q16}
+#### Q16. What happens when you pass an array to a method — can the callee change the caller's array contents?
 
 What happens when you pass an array to a method — can the callee change the caller's array contents?
 
@@ -2414,7 +2510,7 @@ What happens when you pass an array to a method — can the callee change the ca
 
 ### 10. Exception Handling
 
-#### Q1. Explain exception handling in C# (`try`, `catch`, `finally`, `throw`, and custom exceptions). {#10-exception-handling-q1}
+#### Q1. Explain exception handling in C# (`try`, `catch`, `finally`, `throw`, and custom exceptions).
 
 Explain exception handling in C# (`try`, `catch`, `finally`, `throw`, and custom exceptions).
 
@@ -2427,7 +2523,7 @@ Explain exception handling in C# (`try`, `catch`, `finally`, `throw`, and custom
 
 ---
 
-#### Q2. What is the difference between `throw` and `throw ex`? {#10-exception-handling-q2}
+#### Q2. What is the difference between `throw` and `throw ex`?
 
 What is the difference between `throw` and `throw ex`?
 
@@ -2440,7 +2536,7 @@ What is the difference between `throw` and `throw ex`?
 
 ---
 
-#### Q3. Explain the `using` statement in the context of exception handling and resource management. {#10-exception-handling-q3}
+#### Q3. Explain the `using` statement in the context of exception handling and resource management.
 
 Explain the `using` statement in the context of exception handling and resource management.
 
@@ -2453,7 +2549,7 @@ Explain the `using` statement in the context of exception handling and resource 
 
 ---
 
-#### Q4. What are exception filters in C#? {#10-exception-handling-q4}
+#### Q4. What are exception filters in C#?
 
 What are exception filters in C#?
 
@@ -2466,7 +2562,7 @@ What are exception filters in C#?
 
 ---
 
-#### Q5. What is the difference between catching a specific exception type vs `catch (Exception)`? {#10-exception-handling-q5}
+#### Q5. What is the difference between catching a specific exception type vs `catch (Exception)`?
 
 What is the difference between catching a specific exception type vs `catch (Exception)`?
 
@@ -2479,7 +2575,7 @@ What is the difference between catching a specific exception type vs `catch (Exc
 
 ---
 
-#### Q6. What happens if an exception is thrown inside a `finally` block? {#10-exception-handling-q6}
+#### Q6. What happens if an exception is thrown inside a `finally` block?
 
 What happens if an exception is thrown inside a `finally` block?
 
@@ -2492,7 +2588,7 @@ What happens if an exception is thrown inside a `finally` block?
 
 ---
 
-#### Q7. What is the base class hierarchy for exceptions in .NET (`Exception`, `SystemException`, application-specific types)? {#10-exception-handling-q7}
+#### Q7. What is the base class hierarchy for exceptions in .NET (`Exception`, `SystemException`, application-specific types)?
 
 What is the base class hierarchy for exceptions in .NET (`Exception`, `SystemException`, application-specific types)?
 
@@ -2505,7 +2601,7 @@ What is the base class hierarchy for exceptions in .NET (`Exception`, `SystemExc
 
 ---
 
-#### Q8. When should you create a custom exception type vs using an existing BCL exception? {#10-exception-handling-q8}
+#### Q8. When should you create a custom exception type vs using an existing BCL exception?
 
 When should you create a custom exception type vs using an existing BCL exception?
 
@@ -2518,7 +2614,7 @@ When should you create a custom exception type vs using an existing BCL exceptio
 
 ---
 
-#### Q9. What is the difference between `using` statement and `using` declaration (`using var`) for disposal? {#10-exception-handling-q9}
+#### Q9. What is the difference between `using` statement and `using` declaration (`using var`) for disposal?
 
 What is the difference between `using` statement and `using` declaration (`using var`) for disposal?
 
@@ -2531,7 +2627,7 @@ What is the difference between `using` statement and `using` declaration (`using
 
 ---
 
-#### Q10. Can you have multiple `catch` blocks — what is the order rule for catching derived vs base exceptions? {#10-exception-handling-q10}
+#### Q10. Can you have multiple `catch` blocks — what is the order rule for catching derived vs base exceptions?
 
 Can you have multiple `catch` blocks — what is the order rule for catching derived vs base exceptions?
 
@@ -2544,7 +2640,7 @@ Can you have multiple `catch` blocks — what is the order rule for catching der
 
 ---
 
-#### Q11. What is `finally` guaranteed to do, and can it prevent an exception from propagating? {#10-exception-handling-q11}
+#### Q11. What is `finally` guaranteed to do, and can it prevent an exception from propagating?
 
 What is `finally` guaranteed to do, and can it prevent an exception from propagating?
 
@@ -2557,7 +2653,7 @@ What is `finally` guaranteed to do, and can it prevent an exception from propaga
 
 ---
 
-#### Q12. What is the difference between handled exceptions and unhandled exceptions in a console vs ASP.NET host? {#10-exception-handling-q12}
+#### Q12. What is the difference between handled exceptions and unhandled exceptions in a console vs ASP.NET host?
 
 What is the difference between handled exceptions and unhandled exceptions in a console vs ASP.NET host?
 
@@ -2570,7 +2666,7 @@ What is the difference between handled exceptions and unhandled exceptions in a 
 
 ---
 
-#### Q13. When is it appropriate to catch and swallow an exception vs rethrow? {#10-exception-handling-q13}
+#### Q13. When is it appropriate to catch and swallow an exception vs rethrow?
 
 When is it appropriate to catch and swallow an exception vs rethrow?
 
@@ -2583,7 +2679,7 @@ When is it appropriate to catch and swallow an exception vs rethrow?
 
 ---
 
-#### Q14. What is `ExceptionDispatchInfo`, and when is `throw;` insufficient? {#10-exception-handling-q14}
+#### Q14. What is `ExceptionDispatchInfo`, and when is `throw;` insufficient?
 
 What is `ExceptionDispatchInfo`, and when is `throw;` insufficient?
 
@@ -2596,7 +2692,7 @@ What is `ExceptionDispatchInfo`, and when is `throw;` insufficient?
 
 ---
 
-#### Q15. What happens if both `try` and `finally` contain `return` statements? {#10-exception-handling-q15}
+#### Q15. What happens if both `try` and `finally` contain `return` statements?
 
 What happens if both `try` and `finally` contain `return` statements?
 
@@ -2609,7 +2705,7 @@ What happens if both `try` and `finally` contain `return` statements?
 
 ---
 
-#### Q16. What is the difference between `IDisposable.Dispose` and finalizers in exception-safe cleanup? {#10-exception-handling-q16}
+#### Q16. What is the difference between `IDisposable.Dispose` and finalizers in exception-safe cleanup?
 
 What is the difference between `IDisposable.Dispose` and finalizers in exception-safe cleanup?
 
@@ -2765,91 +2861,91 @@ What is the difference between `IDisposable.Dispose` and finalizers in exception
 
 ---
 
-#### Q17. **String interning** — `string a = "hello"; string b = "hello"; a == b` is `true`, but two separately constructed strings may not be reference-equal even when content matches. {#10-exception-handling-q17}
+#### Q17. **String interning** — `string a = "hello"; string b = "hello"; a == b` is `true`, but two separately constructed strings may not be reference-equal even when content matches.
 
 _Answer not found._
 
 ---
 
-#### Q18. **Integer division** — `10 / 3` is `3`, not `3.33`. At least one operand must be floating-point for fractional results. {#10-exception-handling-q18}
+#### Q18. **Integer division** — `10 / 3` is `3`, not `3.33`. At least one operand must be floating-point for fractional results.
 
 _Answer not found._
 
 ---
 
-#### Q19. **`const` vs runtime values** — You cannot use `const` with a value that requires computation (e.g., `DateTime.Now`); use `readonly` or a property instead. {#10-exception-handling-q19}
+#### Q19. **`const` vs runtime values** — You cannot use `const` with a value that requires computation (e.g., `DateTime.Now`); use `readonly` or a property instead.
 
 _Answer not found._
 
 ---
 
-#### Q20. **Boxing silently hurts performance** — Assigning value types to `object` or non-generic collections causes heap allocations; repeated boxing in hot paths is a common production issue. {#10-exception-handling-q20}
+#### Q20. **Boxing silently hurts performance** — Assigning value types to `object` or non-generic collections causes heap allocations; repeated boxing in hot paths is a common production issue.
 
 _Answer not found._
 
 ---
 
-#### Q21. **Modifying a struct inside `foreach`** — Compile error: the iteration variable is a copy. Use a `for` loop with index or `ref`/`Span` patterns. {#10-exception-handling-q21}
+#### Q21. **Modifying a struct inside `foreach`** — Compile error: the iteration variable is a copy. Use a `for` loop with index or `ref`/`Span` patterns.
 
 _Answer not found._
 
 ---
 
-#### Q22. **`throw;` vs `throw ex;`** — `throw ex;` resets the stack trace; `throw;` preserves the original. {#10-exception-handling-q22}
+#### Q22. **`throw;` vs `throw ex;`** — `throw ex;` resets the stack trace; `throw;` preserves the original.
 
 _Answer not found._
 
 ---
 
-#### Q23. **`return` in `try` vs `finally`** — `finally` always runs before the method actually returns; a `return` in `finally` can override the `try` return value. {#10-exception-handling-q23}
+#### Q23. **`return` in `try` vs `finally`** — `finally` always runs before the method actually returns; a `return` in `finally` can override the `try` return value.
 
 _Answer not found._
 
 ---
 
-#### Q24. **Array covariance trap** — `object[] arr = new string[3]; arr[0] = 42;` compiles but throws `ArrayTypeMismatchException` at runtime. {#10-exception-handling-q24}
+#### Q24. **Array covariance trap** — `object[] arr = new string[3]; arr[0] = 42;` compiles but throws `ArrayTypeMismatchException` at runtime.
 
 _Answer not found._
 
 ---
 
-#### Q25. **Culture-sensitive parse/format** — `"3,14"` parses as 314 in `en-US` but as 3.14 in `de-DE`; logs and APIs should use `InvariantCulture` when format must be fixed. {#10-exception-handling-q25}
+#### Q25. **Culture-sensitive parse/format** — `"3,14"` parses as 314 in `en-US` but as 3.14 in `de-DE`; logs and APIs should use `InvariantCulture` when format must be fixed.
 
 _Answer not found._
 
 ---
 
-#### Q26. **`Parse` vs `TryParse` in user input paths** — `int.Parse` on bad console input crashes the app; Try-pattern avoids exceptions for expected failure. {#10-exception-handling-q26}
+#### Q26. **`Parse` vs `TryParse` in user input paths** — `int.Parse` on bad console input crashes the app; Try-pattern avoids exceptions for expected failure.
 
 _Answer not found._
 
 ---
 
-#### Q27. **`ref` reassignment vs mutation** — Reassigning a reference parameter does not change the caller's variable; mutating the object it points to does. {#10-exception-handling-q27}
+#### Q27. **`ref` reassignment vs mutation** — Reassigning a reference parameter does not change the caller's variable; mutating the object it points to does.
 
 _Answer not found._
 
 ---
 
-#### Q28. **`params` must be last** — Only one `params` array parameter is allowed, and it must be the final parameter in the signature. {#10-exception-handling-q28}
+#### Q28. **`params` must be last** — Only one `params` array parameter is allowed, and it must be the final parameter in the signature.
 
 _Answer not found._
 
 ---
 
-#### Q29. **Optional parameter defaults are compile-time** — Changing a default value in a method signature does not update callers compiled against the old default unless recompiled. {#10-exception-handling-q29}
+#### Q29. **Optional parameter defaults are compile-time** — Changing a default value in a method signature does not update callers compiled against the old default unless recompiled.
 
 _Answer not found._
 
 ---
 
-#### Q30. **`checked` default is context-dependent** — Integer overflow wraps silently in unchecked default contexts; financial code may need explicit `checked` blocks. {#10-exception-handling-q30}
+#### Q30. **`checked` default is context-dependent** — Integer overflow wraps silently in unchecked default contexts; financial code may need explicit `checked` blocks.
 
 _Answer not found._
 
 ---
 
-#### Q31. **Console encoding mismatch** — Writing Unicode to a console whose output encoding is not UTF-8 can display replacement characters or mojibake on Windows. {#10-exception-handling-q31}
+#### Q31. **Console encoding mismatch** — Writing Unicode to a console whose output encoding is not UTF-8 can display replacement characters or mojibake on Windows.
 
 _Answer not found._
 

@@ -1,35 +1,30 @@
 # Real-Time UI with SignalR — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 15. Real-Time UI with SignalR](#chapter-15-real-time-ui-with-signalr)
-  - [Q1. What is SignalR and how does it relate to ASP.NET Core MVC?](#chapter-15-real-time-ui-with-signalr-q1)
-  - [Q2. What is a SignalR Hub?](#chapter-15-real-time-ui-with-signalr-q2)
-  - [Q3. What is the difference between a Hub and an MVC controller?](#chapter-15-real-time-ui-with-signalr-q3)
-  - [Q4. How do you map a Hub endpoint in `Program.cs`?](#chapter-15-real-time-ui-with-signalr-q4)
-  - [Q5. What is `IHubContext` and why is it used from MVC controller…](#chapter-15-real-time-ui-with-signalr-q5)
-  - [Q6. Why should you not inject a Hub directly into a controller?](#chapter-15-real-time-ui-with-signalr-q6)
-  - [Q7. What is a SignalR backplane (e.g., Redis) and when is it nee…](#chapter-15-real-time-ui-with-signalr-q7)
-  - [Q8. What is the difference between sticky sessions and a SignalR…](#chapter-15-real-time-ui-with-signalr-q8)
-  - [Q9. How does cookie authentication apply to SignalR connections?](#chapter-15-real-time-ui-with-signalr-q9)
-  - [Q10. What are SignalR Groups and how do clients join them?](#chapter-15-real-time-ui-with-signalr-q10)
-  - [Q11. What happens to group membership on SignalR reconnect?](#chapter-15-real-time-ui-with-signalr-q11)
-  - [Q12. What is the negotiate step in SignalR?](#chapter-15-real-time-ui-with-signalr-q12)
-  - [Q13. What CORS settings are required for cross-origin SignalR con…](#chapter-15-real-time-ui-with-signalr-q13)
-  - [Q14. What is Azure SignalR Service and when would you use it?](#chapter-15-real-time-ui-with-signalr-q14)
-  - [Q15. What is `HubException` and how should hub errors be returned…](#chapter-15-real-time-ui-with-signalr-q15)
-  - [Q16. How do you invoke hub methods from JavaScript in a Razor vie…](#chapter-15-real-time-ui-with-signalr-q16)
-  - [Q17. What are `Clients.All`, `Clients.Caller`, and `Clients.Other…](#chapter-15-real-time-ui-with-signalr-q17)
-  - [Q18. How does `PathBase` affect SignalR hub URLs behind a reverse…](#chapter-15-real-time-ui-with-signalr-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is SignalR and how does it relate to ASP.NET Core MVC?](#q1-what-is-signalr-and-how-does-it-relate-to-aspnet-core-mvc)
+2. [Q2. What is a SignalR Hub?](#q2-what-is-a-signalr-hub)
+3. [Q3. What is the difference between a Hub and an MVC controller?](#q3-what-is-the-difference-between-a-hub-and-an-mvc-controller)
+4. [Q4. How do you map a Hub endpoint in `Program.cs`?](#q4-how-do-you-map-a-hub-endpoint-in-programcs)
+5. [Q5. What is `IHubContext` and why is it used from MVC controllers?](#q5-what-is-ihubcontext-and-why-is-it-used-from-mvc-controllers)
+6. [Q6. Why should you not inject a Hub directly into a controller?](#q6-why-should-you-not-inject-a-hub-directly-into-a-controller)
+7. [Q7. What is a SignalR backplane (e.g., Redis) and when is it needed?](#q7-what-is-a-signalr-backplane-eg-redis-and-when-is-it-needed)
+8. [Q8. What is the difference between sticky sessions and a SignalR backplane?](#q8-what-is-the-difference-between-sticky-sessions-and-a-signalr-backplane)
+9. [Q9. How does cookie authentication apply to SignalR connections?](#q9-how-does-cookie-authentication-apply-to-signalr-connections)
+10. [Q10. What are SignalR Groups and how do clients join them?](#q10-what-are-signalr-groups-and-how-do-clients-join-them)
+11. [Q11. What happens to group membership on SignalR reconnect?](#q11-what-happens-to-group-membership-on-signalr-reconnect)
+12. [Q12. What is the negotiate step in SignalR?](#q12-what-is-the-negotiate-step-in-signalr)
+13. [Q13. What CORS settings are required for cross-origin SignalR connections?](#q13-what-cors-settings-are-required-for-cross-origin-signalr-connections)
+14. [Q14. What is Azure SignalR Service and when would you use it?](#q14-what-is-azure-signalr-service-and-when-would-you-use-it)
+15. [Q15. What is `HubException` and how should hub errors be returned to clients?](#q15-what-is-hubexception-and-how-should-hub-errors-be-returned-to-clients)
+16. [Q16. How do you invoke hub methods from JavaScript in a Razor view?](#q16-how-do-you-invoke-hub-methods-from-javascript-in-a-razor-view)
+17. [Q17. What are `Clients.All`, `Clients.Caller`, and `Clients.Others`?](#q17-what-are-clientsall-clientscaller-and-clientsothers)
+18. [Q18. How does `PathBase` affect SignalR hub URLs behind a reverse proxy?](#q18-how-does-pathbase-affect-signalr-hub-urls-behind-a-reverse-proxy)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 15. Real-Time UI with SignalR
-
-### Q1. What is SignalR and how does it relate to ASP.NET Core MVC? {#chapter-15-real-time-ui-with-signalr-q1}
+## Q1. What is SignalR and how does it relate to ASP.NET Core MVC?
 
 What is SignalR and how does it relate to ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is SignalR and how does it relate to ASP.NET Core MVC?
 
 ---
 
-### Q2. What is a SignalR Hub? {#chapter-15-real-time-ui-with-signalr-q2}
+## Q2. What is a SignalR Hub?
 
 What is a SignalR Hub?
 
@@ -55,7 +50,7 @@ What is a SignalR Hub?
 
 ---
 
-### Q3. What is the difference between a Hub and an MVC controller? {#chapter-15-real-time-ui-with-signalr-q3}
+## Q3. What is the difference between a Hub and an MVC controller?
 
 What is the difference between a Hub and an MVC controller?
 
@@ -68,7 +63,7 @@ What is the difference between a Hub and an MVC controller?
 
 ---
 
-### Q4. How do you map a Hub endpoint in `Program.cs`? {#chapter-15-real-time-ui-with-signalr-q4}
+## Q4. How do you map a Hub endpoint in `Program.cs`?
 
 How do you map a Hub endpoint in `Program.cs`?
 
@@ -93,7 +88,7 @@ app.Run();
 
 ---
 
-### Q5. What is `IHubContext` and why is it used from MVC controllers? {#chapter-15-real-time-ui-with-signalr-q5}
+## Q5. What is `IHubContext` and why is it used from MVC controllers?
 
 What is `IHubContext` and why is it used from MVC controllers?
 
@@ -106,7 +101,7 @@ What is `IHubContext` and why is it used from MVC controllers?
 
 ---
 
-### Q6. Why should you not inject a Hub directly into a controller? {#chapter-15-real-time-ui-with-signalr-q6}
+## Q6. Why should you not inject a Hub directly into a controller?
 
 Why should you not inject a Hub directly into a controller?
 
@@ -119,7 +114,7 @@ Why should you not inject a Hub directly into a controller?
 
 ---
 
-### Q7. What is a SignalR backplane (e.g., Redis) and when is it needed? {#chapter-15-real-time-ui-with-signalr-q7}
+## Q7. What is a SignalR backplane (e.g., Redis) and when is it needed?
 
 What is a SignalR backplane (e.g., Redis) and when is it needed?
 
@@ -132,7 +127,7 @@ What is a SignalR backplane (e.g., Redis) and when is it needed?
 
 ---
 
-### Q8. What is the difference between sticky sessions and a SignalR backplane? {#chapter-15-real-time-ui-with-signalr-q8}
+## Q8. What is the difference between sticky sessions and a SignalR backplane?
 
 What is the difference between sticky sessions and a SignalR backplane?
 
@@ -145,7 +140,7 @@ What is the difference between sticky sessions and a SignalR backplane?
 
 ---
 
-### Q9. How does cookie authentication apply to SignalR connections? {#chapter-15-real-time-ui-with-signalr-q9}
+## Q9. How does cookie authentication apply to SignalR connections?
 
 How does cookie authentication apply to SignalR connections?
 
@@ -158,7 +153,7 @@ How does cookie authentication apply to SignalR connections?
 
 ---
 
-### Q10. What are SignalR Groups and how do clients join them? {#chapter-15-real-time-ui-with-signalr-q10}
+## Q10. What are SignalR Groups and how do clients join them?
 
 What are SignalR Groups and how do clients join them?
 
@@ -171,7 +166,7 @@ What are SignalR Groups and how do clients join them?
 
 ---
 
-### Q11. What happens to group membership on SignalR reconnect? {#chapter-15-real-time-ui-with-signalr-q11}
+## Q11. What happens to group membership on SignalR reconnect?
 
 What happens to group membership on SignalR reconnect?
 
@@ -184,7 +179,7 @@ What happens to group membership on SignalR reconnect?
 
 ---
 
-### Q12. What is the negotiate step in SignalR? {#chapter-15-real-time-ui-with-signalr-q12}
+## Q12. What is the negotiate step in SignalR?
 
 What is the negotiate step in SignalR?
 
@@ -197,7 +192,7 @@ What is the negotiate step in SignalR?
 
 ---
 
-### Q13. What CORS settings are required for cross-origin SignalR connections? {#chapter-15-real-time-ui-with-signalr-q13}
+## Q13. What CORS settings are required for cross-origin SignalR connections?
 
 What CORS settings are required for cross-origin SignalR connections?
 
@@ -218,7 +213,7 @@ builder.Services.AddCors(o => o.AddPolicy("Spa", p =>
 
 ---
 
-### Q14. What is Azure SignalR Service and when would you use it? {#chapter-15-real-time-ui-with-signalr-q14}
+## Q14. What is Azure SignalR Service and when would you use it?
 
 What is Azure SignalR Service and when would you use it?
 
@@ -232,7 +227,7 @@ What is Azure SignalR Service and when would you use it?
 
 ---
 
-### Q15. What is `HubException` and how should hub errors be returned to clients? {#chapter-15-real-time-ui-with-signalr-q15}
+## Q15. What is `HubException` and how should hub errors be returned to clients?
 
 What is `HubException` and how should hub errors be returned to clients?
 
@@ -245,7 +240,7 @@ What is `HubException` and how should hub errors be returned to clients?
 
 ---
 
-### Q16. How do you invoke hub methods from JavaScript in a Razor view? {#chapter-15-real-time-ui-with-signalr-q16}
+## Q16. How do you invoke hub methods from JavaScript in a Razor view?
 
 How do you invoke hub methods from JavaScript in a Razor view?
 
@@ -274,7 +269,7 @@ How do you invoke hub methods from JavaScript in a Razor view?
 
 ---
 
-### Q17. What are `Clients.All`, `Clients.Caller`, and `Clients.Others`? {#chapter-15-real-time-ui-with-signalr-q17}
+## Q17. What are `Clients.All`, `Clients.Caller`, and `Clients.Others`?
 
 What are `Clients.All`, `Clients.Caller`, and `Clients.Others`?
 
@@ -287,7 +282,7 @@ What are `Clients.All`, `Clients.Caller`, and `Clients.Others`?
 
 ---
 
-### Q18. How does `PathBase` affect SignalR hub URLs behind a reverse proxy? {#chapter-15-real-time-ui-with-signalr-q18}
+## Q18. How does `PathBase` affect SignalR hub URLs behind a reverse proxy?
 
 How does `PathBase` affect SignalR hub URLs behind a reverse proxy?
 

@@ -1,35 +1,30 @@
 # File Upload & Streaming Responses — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 11. File Upload & Streaming Responses](#chapter-11-file-upload-streaming-responses)
-  - [Q1. What is `IFormFile` in ASP.NET Core Web API?](#chapter-11-file-upload-streaming-responses-q1)
-  - [Q2. What is `multipart/form-data`?](#chapter-11-file-upload-streaming-responses-q2)
-  - [Q3. What does `[FromForm]` do for file uploads?](#chapter-11-file-upload-streaming-responses-q3)
-  - [Q4. What is the `[RequestSizeLimit]` attribute?](#chapter-11-file-upload-streaming-responses-q4)
-  - [Q5. What is the difference between buffering and streaming a fil…](#chapter-11-file-upload-streaming-responses-q5)
-  - [Q6. What is the `Content-Disposition` header?](#chapter-11-file-upload-streaming-responses-q6)
-  - [Q7. What is the difference between attachment and inline Content…](#chapter-11-file-upload-streaming-responses-q7)
-  - [Q8. What HTTP status does 413 Payload Too Large indicate?](#chapter-11-file-upload-streaming-responses-q8)
-  - [Q9. What are `FormOptions` in ASP.NET Core?](#chapter-11-file-upload-streaming-responses-q9)
-  - [Q10. What role do Kestrel limits play in request body size?](#chapter-11-file-upload-streaming-responses-q10)
-  - [Q11. What is `IAsyncEnumerable` streaming for API responses?](#chapter-11-file-upload-streaming-responses-q11)
-  - [Q12. What is the difference between `File()` and `PhysicalFileRes…](#chapter-11-file-upload-streaming-responses-q12)
-  - [Q13. What is a streaming response in Web APIs?](#chapter-11-file-upload-streaming-responses-q13)
-  - [Q14. What is `[DisableFormValueModelBinding]`?](#chapter-11-file-upload-streaming-responses-q14)
-  - [Q15. What is the difference between uploading via JSON vs multipa…](#chapter-11-file-upload-streaming-responses-q15)
-  - [Q16. What is range request support for large files?](#chapter-11-file-upload-streaming-responses-q16)
-  - [Q17. What is `MemoryBufferThreshold` in FormOptions?](#chapter-11-file-upload-streaming-responses-q17)
-  - [Q18. How does a reverse proxy affect large file uploads?](#chapter-11-file-upload-streaming-responses-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is `IFormFile` in ASP.NET Core Web API?](#q1-what-is-iformfile-in-aspnet-core-web-api)
+2. [Q2. What is `multipart/form-data`?](#q2-what-is-multipartform-data)
+3. [Q3. What does `[FromForm]` do for file uploads?](#q3-what-does-fromform-do-for-file-uploads)
+4. [Q4. What is the `[RequestSizeLimit]` attribute?](#q4-what-is-the-requestsizelimit-attribute)
+5. [Q5. What is the difference between buffering and streaming a file download?](#q5-what-is-the-difference-between-buffering-and-streaming-a-file-download)
+6. [Q6. What is the `Content-Disposition` header?](#q6-what-is-the-content-disposition-header)
+7. [Q7. What is the difference between attachment and inline Content-Disposition?](#q7-what-is-the-difference-between-attachment-and-inline-content-disposition)
+8. [Q8. What HTTP status does 413 Payload Too Large indicate?](#q8-what-http-status-does-413-payload-too-large-indicate)
+9. [Q9. What are `FormOptions` in ASP.NET Core?](#q9-what-are-formoptions-in-aspnet-core)
+10. [Q10. What role do Kestrel limits play in request body size?](#q10-what-role-do-kestrel-limits-play-in-request-body-size)
+11. [Q11. What is `IAsyncEnumerable` streaming for API responses?](#q11-what-is-iasyncenumerable-streaming-for-api-responses)
+12. [Q12. What is the difference between `File()` and `PhysicalFileResult`?](#q12-what-is-the-difference-between-file-and-physicalfileresult)
+13. [Q13. What is a streaming response in Web APIs?](#q13-what-is-a-streaming-response-in-web-apis)
+14. [Q14. What is `[DisableFormValueModelBinding]`?](#q14-what-is-disableformvaluemodelbinding)
+15. [Q15. What is the difference between uploading via JSON vs multipart?](#q15-what-is-the-difference-between-uploading-via-json-vs-multipart)
+16. [Q16. What is range request support for large files?](#q16-what-is-range-request-support-for-large-files)
+17. [Q17. What is `MemoryBufferThreshold` in FormOptions?](#q17-what-is-memorybufferthreshold-in-formoptions)
+18. [Q18. How does a reverse proxy affect large file uploads?](#q18-how-does-a-reverse-proxy-affect-large-file-uploads)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 11. File Upload & Streaming Responses
-
-### Q1. What is `IFormFile` in ASP.NET Core Web API? {#chapter-11-file-upload-streaming-responses-q1}
+## Q1. What is `IFormFile` in ASP.NET Core Web API?
 
 What is `IFormFile` in ASP.NET Core Web API?
 
@@ -43,7 +38,7 @@ What is `IFormFile` in ASP.NET Core Web API?
 
 ---
 
-### Q2. What is `multipart/form-data`? {#chapter-11-file-upload-streaming-responses-q2}
+## Q2. What is `multipart/form-data`?
 
 What is `multipart/form-data`?
 
@@ -57,7 +52,7 @@ What is `multipart/form-data`?
 
 ---
 
-### Q3. What does `[FromForm]` do for file uploads? {#chapter-11-file-upload-streaming-responses-q3}
+## Q3. What does `[FromForm]` do for file uploads?
 
 What does `[FromForm]` do for file uploads?
 
@@ -71,7 +66,7 @@ What does `[FromForm]` do for file uploads?
 
 ---
 
-### Q4. What is the `[RequestSizeLimit]` attribute? {#chapter-11-file-upload-streaming-responses-q4}
+## Q4. What is the `[RequestSizeLimit]` attribute?
 
 What is the `[RequestSizeLimit]` attribute?
 
@@ -85,7 +80,7 @@ What is the `[RequestSizeLimit]` attribute?
 
 ---
 
-### Q5. What is the difference between buffering and streaming a file download? {#chapter-11-file-upload-streaming-responses-q5}
+## Q5. What is the difference between buffering and streaming a file download?
 
 What is the difference between buffering and streaming a file download?
 
@@ -99,7 +94,7 @@ What is the difference between buffering and streaming a file download?
 
 ---
 
-### Q6. What is the `Content-Disposition` header? {#chapter-11-file-upload-streaming-responses-q6}
+## Q6. What is the `Content-Disposition` header?
 
 What is the `Content-Disposition` header?
 
@@ -113,7 +108,7 @@ What is the `Content-Disposition` header?
 
 ---
 
-### Q7. What is the difference between attachment and inline Content-Disposition? {#chapter-11-file-upload-streaming-responses-q7}
+## Q7. What is the difference between attachment and inline Content-Disposition?
 
 What is the difference between attachment and inline Content-Disposition?
 
@@ -127,7 +122,7 @@ What is the difference between attachment and inline Content-Disposition?
 
 ---
 
-### Q8. What HTTP status does 413 Payload Too Large indicate? {#chapter-11-file-upload-streaming-responses-q8}
+## Q8. What HTTP status does 413 Payload Too Large indicate?
 
 What HTTP status does 413 Payload Too Large indicate?
 
@@ -141,7 +136,7 @@ What HTTP status does 413 Payload Too Large indicate?
 
 ---
 
-### Q9. What are `FormOptions` in ASP.NET Core? {#chapter-11-file-upload-streaming-responses-q9}
+## Q9. What are `FormOptions` in ASP.NET Core?
 
 What are `FormOptions` in ASP.NET Core?
 
@@ -155,7 +150,7 @@ What are `FormOptions` in ASP.NET Core?
 
 ---
 
-### Q10. What role do Kestrel limits play in request body size? {#chapter-11-file-upload-streaming-responses-q10}
+## Q10. What role do Kestrel limits play in request body size?
 
 What role do Kestrel limits play in request body size?
 
@@ -169,7 +164,7 @@ What role do Kestrel limits play in request body size?
 
 ---
 
-### Q11. What is `IAsyncEnumerable` streaming for API responses? {#chapter-11-file-upload-streaming-responses-q11}
+## Q11. What is `IAsyncEnumerable` streaming for API responses?
 
 What is `IAsyncEnumerable` streaming for API responses?
 
@@ -183,7 +178,7 @@ What is `IAsyncEnumerable` streaming for API responses?
 
 ---
 
-### Q12. What is the difference between `File()` and `PhysicalFileResult`? {#chapter-11-file-upload-streaming-responses-q12}
+## Q12. What is the difference between `File()` and `PhysicalFileResult`?
 
 What is the difference between `File()` and `PhysicalFileResult`?
 
@@ -197,7 +192,7 @@ What is the difference between `File()` and `PhysicalFileResult`?
 
 ---
 
-### Q13. What is a streaming response in Web APIs? {#chapter-11-file-upload-streaming-responses-q13}
+## Q13. What is a streaming response in Web APIs?
 
 What is a streaming response in Web APIs?
 
@@ -211,7 +206,7 @@ What is a streaming response in Web APIs?
 
 ---
 
-### Q14. What is `[DisableFormValueModelBinding]`? {#chapter-11-file-upload-streaming-responses-q14}
+## Q14. What is `[DisableFormValueModelBinding]`?
 
 What is `[DisableFormValueModelBinding]`?
 
@@ -225,7 +220,7 @@ What is `[DisableFormValueModelBinding]`?
 
 ---
 
-### Q15. What is the difference between uploading via JSON vs multipart? {#chapter-11-file-upload-streaming-responses-q15}
+## Q15. What is the difference between uploading via JSON vs multipart?
 
 What is the difference between uploading via JSON vs multipart?
 
@@ -239,7 +234,7 @@ What is the difference between uploading via JSON vs multipart?
 
 ---
 
-### Q16. What is range request support for large files? {#chapter-11-file-upload-streaming-responses-q16}
+## Q16. What is range request support for large files?
 
 What is range request support for large files?
 
@@ -253,7 +248,7 @@ What is range request support for large files?
 
 ---
 
-### Q17. What is `MemoryBufferThreshold` in FormOptions? {#chapter-11-file-upload-streaming-responses-q17}
+## Q17. What is `MemoryBufferThreshold` in FormOptions?
 
 What is `MemoryBufferThreshold` in FormOptions?
 
@@ -267,7 +262,7 @@ What is `MemoryBufferThreshold` in FormOptions?
 
 ---
 
-### Q18. How does a reverse proxy affect large file uploads? {#chapter-11-file-upload-streaming-responses-q18}
+## Q18. How does a reverse proxy affect large file uploads?
 
 How does a reverse proxy affect large file uploads?
 

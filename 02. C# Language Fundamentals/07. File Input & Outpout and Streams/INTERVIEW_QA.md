@@ -4,111 +4,165 @@
 ## Table of Contents
 
 - [01. File & Directory Operations](#01-file-directory-operations)
-  - [Q1. Explain file handling in C# and the role of the `System.IO` …](#01-file-directory-operations-q1)
-  - [Q2. What is the difference between the static `File`/`Directory`…](#01-file-directory-operations-q2)
-  - [Q3. When would you prefer `FileInfo` over repeated `File.*` stat…](#01-file-directory-operations-q3)
-  - [Q4. How do `Directory.GetFiles`, `Directory.GetDirectories`, and…](#01-file-directory-operations-q4)
-  - [Q5. What does `Directory.CreateDirectory` do when intermediate f…](#01-file-directory-operations-q5)
-  - [Q6. What is the difference between `File.Copy` with `overwrite: …](#01-file-directory-operations-q6)
-  - [Q7. How does `File.Move` differ from copy-then-delete, and what …](#01-file-directory-operations-q7)
-  - [Q8. What is `File.Replace`, and when is it preferable to manual …](#01-file-directory-operations-q8)
-  - [Q9. How do you safely delete a directory tree using `Directory.D…](#01-file-directory-operations-q9)
-  - [Q10. What file metadata can you read via `File` static methods vs…](#01-file-directory-operations-q10)
-  - [Q11. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `Get…](#01-file-directory-operations-q11)
-  - [Q12. How do you set creation, last-write, and last-access timesta…](#01-file-directory-operations-q12)
-  - [Q13. What are `FileAttributes` (ReadOnly, Hidden, System, Archive…](#01-file-directory-operations-q13)
-  - [Q14. What is the difference between `File.Exists` and attempting …](#01-file-directory-operations-q14)
-  - [Q15. What exceptions should you expect during file operations (`F…](#01-file-directory-operations-q15)
-  - [Q16. How does `File.AppendAllText` differ from opening with `File…](#01-file-directory-operations-q16)
-  - [Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropria…](#01-file-directory-operations-q17)
-  - [Q18. Explain `File.Create`, `File.Open`, `File.OpenRead`, and `Fi…](#01-file-directory-operations-q18)
-  - [Q19. How do you handle TOCTOU (time-of-check-time-of-use) races w…](#01-file-directory-operations-q19)
-  - [Q20. What is the difference between deleting a file and clearing …](#01-file-directory-operations-q20)
+  - [Q1. Explain file handling in C# and the role of the `System.IO` namespace.](#q1-explain-file-handling-in-c-and-the-role-of-the-systemio-namespace)
+  - [Q2. What is the difference between the static `File`/`Directory` classes and the instance `FileInfo`/`DirectoryInfo` classes?](#q2-what-is-the-difference-between-the-static-filedirectory-classes-and-the-instance-fileinfodirectoryinfo-classes)
+  - [Q3. When would you prefer `FileInfo` over repeated `File.*` static calls on the same path?](#q3-when-would-you-prefer-fileinfo-over-repeated-file-static-calls-on-the-same-path)
+  - [Q4. How do `Directory.GetFiles`, `Directory.GetDirectories`, and their `Enumerate*` counterparts differ in memory behavior?](#q4-how-do-directorygetfiles-directorygetdirectories-and-their-enumerate-counterparts-differ-in-memory-behavior)
+  - [Q5. What does `Directory.CreateDirectory` do when intermediate folders already exist?](#q5-what-does-directorycreatedirectory-do-when-intermediate-folders-already-exist)
+  - [Q6. What is the difference between `File.Copy` with `overwrite: false` vs `overwrite: true`, and what exception indicates a conflict?](#q6-what-is-the-difference-between-filecopy-with-overwrite-false-vs-overwrite-true-and-what-exception-indicates-a-conflict)
+  - [Q7. How does `File.Move` differ from copy-then-delete, and what happens to metadata and hard links?](#q7-how-does-filemove-differ-from-copy-then-delete-and-what-happens-to-metadata-and-hard-links)
+  - [Q8. What is `File.Replace`, and when is it preferable to manual backup-and-overwrite?](#q8-what-is-filereplace-and-when-is-it-preferable-to-manual-backup-and-overwrite)
+  - [Q9. How do you safely delete a directory tree using `Directory.Delete(path, recursive: true)`?](#q9-how-do-you-safely-delete-a-directory-tree-using-directorydeletepath-recursive-true)
+  - [Q10. What file metadata can you read via `File` static methods vs `FileInfo` instance properties?](#q10-what-file-metadata-can-you-read-via-file-static-methods-vs-fileinfo-instance-properties)
+  - [Q11. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `GetLastAccessTime` — and their `Utc` variants.](#q11-explain-filegetcreationtime-getlastwritetime-and-getlastaccesstime-and-their-utc-variants)
+  - [Q12. How do you set creation, last-write, and last-access timestamps programmatically?](#q12-how-do-you-set-creation-last-write-and-last-access-timestamps-programmatically)
+  - [Q13. What are `FileAttributes` (ReadOnly, Hidden, System, Archive)? How do you read and modify them?](#q13-what-are-fileattributes-readonly-hidden-system-archive-how-do-you-read-and-modify-them)
+  - [Q14. What is the difference between `File.Exists` and attempting to open a file that may be deleted concurrently?](#q14-what-is-the-difference-between-fileexists-and-attempting-to-open-a-file-that-may-be-deleted-concurrently)
+  - [Q15. What exceptions should you expect during file operations (`FileNotFoundException`, `DirectoryNotFoundException`, `IOException`, `UnauthorizedAccessException`)?](#q15-what-exceptions-should-you-expect-during-file-operations-filenotfoundexception-directorynotfoundexception-ioexception-unauthorizedaccessexception)
+  - [Q16. How does `File.AppendAllText` differ from opening with `FileMode.Append`?](#q16-how-does-fileappendalltext-differ-from-opening-with-filemodeappend)
+  - [Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropriate vs stream-based APIs?](#q17-when-is-filereadallbytes-filewriteallbytes-appropriate-vs-stream-based-apis)
+  - [Q18. Explain `File.Create`, `File.Open`, `File.OpenRead`, and `File.OpenWrite` — what modes and access do they imply?](#q18-explain-filecreate-fileopen-fileopenread-and-fileopenwrite-what-modes-and-access-do-they-imply)
+  - [Q19. How do you handle TOCTOU (time-of-check-time-of-use) races when checking existence before read/write?](#q19-how-do-you-handle-toctou-time-of-check-time-of-use-races-when-checking-existence-before-readwrite)
+  - [Q20. What is the difference between deleting a file and clearing its contents while keeping the path?](#q20-what-is-the-difference-between-deleting-a-file-and-clearing-its-contents-while-keeping-the-path)
 
 - [02. StreamReader & StreamWriter](#02-streamreader-streamwriter)
-  - [Q1. Explain the `Stream` base class hierarchy and where `StreamR…](#02-streamreader-streamwriter-q1)
-  - [Q2. What is the difference between `File.ReadAllText`, `File.Rea…](#02-streamreader-streamwriter-q2)
-  - [Q3. Why can `File.ReadLines` hold a file lock until enumeration …](#02-streamreader-streamwriter-q3)
-  - [Q4. How do `StreamReader.ReadLine`, `ReadToEnd`, and `ReadBlock`…](#02-streamreader-streamwriter-q4)
-  - [Q5. What is the default encoding for `StreamReader` and `StreamW…](#02-streamreader-streamwriter-q5)
-  - [Q6. How do you specify `Encoding.UTF8`, UTF-8 with BOM, and lega…](#02-streamreader-streamwriter-q6)
-  - [Q7. What does `StreamReader.DetectEncodingFromByteOrderMarks` co…](#02-streamreader-streamwriter-q7)
-  - [Q8. Explain async read/write methods on `StreamReader`/`StreamWr…](#02-streamreader-streamwriter-q8)
-  - [Q9. What is `StreamWriter.AutoFlush`, and when should you call `…](#02-streamreader-streamwriter-q9)
-  - [Q10. How do you append text to an existing file with `StreamWrite…](#02-streamreader-streamwriter-q10)
-  - [Q11. What happens if you forget to dispose a `StreamWriter` — esp…](#02-streamreader-streamwriter-q11)
-  - [Q12. Can you use `StreamReader`/`StreamWriter` with non-file stre…](#02-streamreader-streamwriter-q12)
-  - [Q13. What is the difference between `using` blocks and C# 8 `usin…](#02-streamreader-streamwriter-q13)
-  - [Q14. How do you read a file line-by-line without loading it entir…](#02-streamreader-streamwriter-q14)
-  - [Q15. What is `TextReader`/`TextWriter`, and why do APIs often acc…](#02-streamreader-streamwriter-q15)
+  - [Q1. Explain the `Stream` base class hierarchy and where `StreamReader`/`StreamWriter` fit.](#q1-explain-the-stream-base-class-hierarchy-and-where-streamreaderstreamwriter-fit)
+  - [Q2. What is the difference between `File.ReadAllText`, `File.ReadAllLines`, and `File.ReadLines`?](#q2-what-is-the-difference-between-filereadalltext-filereadalllines-and-filereadlines)
+  - [Q3. Why can `File.ReadLines` hold a file lock until enumeration completes?](#q3-why-can-filereadlines-hold-a-file-lock-until-enumeration-completes)
+  - [Q4. How do `StreamReader.ReadLine`, `ReadToEnd`, and `ReadBlock` differ for large files?](#q4-how-do-streamreaderreadline-readtoend-and-readblock-differ-for-large-files)
+  - [Q5. What is the default encoding for `StreamReader` and `StreamWriter`, and why can that cause mojibake?](#q5-what-is-the-default-encoding-for-streamreader-and-streamwriter-and-why-can-that-cause-mojibake)
+  - [Q6. How do you specify `Encoding.UTF8`, UTF-8 with BOM, and legacy encodings (`Encoding.GetEncoding`)?](#q6-how-do-you-specify-encodingutf8-utf-8-with-bom-and-legacy-encodings-encodinggetencoding)
+  - [Q7. What does `StreamReader.DetectEncodingFromByteOrderMarks` control?](#q7-what-does-streamreaderdetectencodingfrombyteordermarks-control)
+  - [Q8. Explain async read/write methods on `StreamReader`/`StreamWriter` (`ReadLineAsync`, `WriteLineAsync`, `ReadToEndAsync`).](#q8-explain-async-readwrite-methods-on-streamreaderstreamwriter-readlineasync-writelineasync-readtoendasync)
+  - [Q9. What is `StreamWriter.AutoFlush`, and when should you call `Flush()` explicitly?](#q9-what-is-streamwriterautoflush-and-when-should-you-call-flush-explicitly)
+  - [Q10. How do you append text to an existing file with `StreamWriter` (constructor overload with `append: true`)?](#q10-how-do-you-append-text-to-an-existing-file-with-streamwriter-constructor-overload-with-append-true)
+  - [Q11. What happens if you forget to dispose a `StreamWriter` — especially on Windows file locking?](#q11-what-happens-if-you-forget-to-dispose-a-streamwriter-especially-on-windows-file-locking)
+  - [Q12. Can you use `StreamReader`/`StreamWriter` with non-file streams (memory, network)? Give examples.](#q12-can-you-use-streamreaderstreamwriter-with-non-file-streams-memory-network-give-examples)
+  - [Q13. What is the difference between `using` blocks and C# 8 `using` declarations for stream cleanup?](#q13-what-is-the-difference-between-using-blocks-and-c-8-using-declarations-for-stream-cleanup)
+  - [Q14. How do you read a file line-by-line without loading it entirely into memory?](#q14-how-do-you-read-a-file-line-by-line-without-loading-it-entirely-into-memory)
+  - [Q15. What is `TextReader`/`TextWriter`, and why do APIs often accept these abstractions?](#q15-what-is-textreadertextwriter-and-why-do-apis-often-accept-these-abstractions)
 
 - [03. FileStream & Binary Files](#03-filestream-binary-files)
-  - [Q1. What is the difference between `File`, `Stream`, and `FileSt…](#03-filestream-binary-files-q1)
-  - [Q2. Explain `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCr…](#03-filestream-binary-files-q2)
-  - [Q3. Explain `FileAccess` (`Read`, `Write`, `ReadWrite`) and `Fil…](#03-filestream-binary-files-q3)
-  - [Q4. Why does default `FileShare.None` cause sharing violations w…](#03-filestream-binary-files-q4)
-  - [Q5. What are `FileStream.Position`, `Seek`, and `Length` — and w…](#03-filestream-binary-files-q5)
-  - [Q6. Explain `SeekOrigin` (`Begin`, `Current`, `End`) with a conc…](#03-filestream-binary-files-q6)
-  - [Q7. What happens if you seek on a non-seekable stream (e.g., som…](#03-filestream-binary-files-q7)
-  - [Q8. What is the difference between `FileStream.Read`/`Write` and…](#03-filestream-binary-files-q8)
-  - [Q9. What do `BinaryReader` and `BinaryWriter` add over raw `File…](#03-filestream-binary-files-q9)
-  - [Q10. How does `BinaryReader` handle endianness and primitive type…](#03-filestream-binary-files-q10)
-  - [Q11. What is the on-disk format of `BinaryWriter.Write(string)` —…](#03-filestream-binary-files-q11)
-  - [Q12. What is the difference between text and binary file handling…](#03-filestream-binary-files-q12)
-  - [Q13. When should you use `MemoryStream` instead of `FileStream`?](#03-filestream-binary-files-q13)
-  - [Q14. What is buffered I/O, and how do `FileStream` buffer size op…](#03-filestream-binary-files-q14)
-  - [Q15. How do you read a fixed header followed by variable-length r…](#03-filestream-binary-files-q15)
-  - [Q16. What is a file signature (magic bytes), and how do you valid…](#03-filestream-binary-files-q16)
+  - [Q1. What is the difference between `File`, `Stream`, and `FileStream`?](#q1-what-is-the-difference-between-file-stream-and-filestream)
+  - [Q2. Explain `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`) — when use each?](#q2-explain-filemode-createnew-create-open-openorcreate-truncate-append-when-use-each)
+  - [Q3. Explain `FileAccess` (`Read`, `Write`, `ReadWrite`) and `FileShare` (`None`, `Read`, `Write`, `ReadWrite`, `Delete`).](#q3-explain-fileaccess-read-write-readwrite-and-fileshare-none-read-write-readwrite-delete)
+  - [Q4. Why does default `FileShare.None` cause sharing violations when another process needs read access?](#q4-why-does-default-filesharenone-cause-sharing-violations-when-another-process-needs-read-access)
+  - [Q5. What are `FileStream.Position`, `Seek`, and `Length` — and when is seeking valid?](#q5-what-are-filestreamposition-seek-and-length-and-when-is-seeking-valid)
+  - [Q6. Explain `SeekOrigin` (`Begin`, `Current`, `End`) with a concrete read-modify-write scenario.](#q6-explain-seekorigin-begin-current-end-with-a-concrete-read-modify-write-scenario)
+  - [Q7. What happens if you seek on a non-seekable stream (e.g., some network streams)?](#q7-what-happens-if-you-seek-on-a-non-seekable-stream-eg-some-network-streams)
+  - [Q8. What is the difference between `FileStream.Read`/`Write` and `ReadAsync`/`WriteAsync`?](#q8-what-is-the-difference-between-filestreamreadwrite-and-readasyncwriteasync)
+  - [Q9. What do `BinaryReader` and `BinaryWriter` add over raw `FileStream` byte operations?](#q9-what-do-binaryreader-and-binarywriter-add-over-raw-filestream-byte-operations)
+  - [Q10. How does `BinaryReader` handle endianness and primitive types (`ReadInt32`, `ReadDouble`, `ReadString`)?](#q10-how-does-binaryreader-handle-endianness-and-primitive-types-readint32-readdouble-readstring)
+  - [Q11. What is the on-disk format of `BinaryWriter.Write(string)` — and why does it matter for cross-platform files?](#q11-what-is-the-on-disk-format-of-binarywriterwritestring-and-why-does-it-matter-for-cross-platform-files)
+  - [Q12. What is the difference between text and binary file handling in C#?](#q12-what-is-the-difference-between-text-and-binary-file-handling-in-c)
+  - [Q13. When should you use `MemoryStream` instead of `FileStream`?](#q13-when-should-you-use-memorystream-instead-of-filestream)
+  - [Q14. What is buffered I/O, and how do `FileStream` buffer size options affect performance?](#q14-what-is-buffered-io-and-how-do-filestream-buffer-size-options-affect-performance)
+  - [Q15. How do you read a fixed header followed by variable-length records from a binary file?](#q15-how-do-you-read-a-fixed-header-followed-by-variable-length-records-from-a-binary-file)
+  - [Q16. What is a file signature (magic bytes), and how do you validate one without trusting the extension?](#q16-what-is-a-file-signature-magic-bytes-and-how-do-you-validate-one-without-trusting-the-extension)
 
 - [04. Path & Environment Classes](#04-path-environment-classes)
-  - [Q1. What is the `Path` class, and why should you never hard-code…](#04-path-environment-classes-q1)
-  - [Q2. How does `Path.Combine` behave with trailing slashes, rooted…](#04-path-environment-classes-q2)
-  - [Q3. What is the difference between `Path.GetFullPath` and passin…](#04-path-environment-classes-q3)
-  - [Q4. Explain `Path.GetDirectoryName`, `GetFileName`, `GetFileName…](#04-path-environment-classes-q4)
-  - [Q5. What do `Path.GetTempPath`, `Path.GetTempFileName`, and `Pat…](#04-path-environment-classes-q5)
-  - [Q6. How do `Path.IsPathRooted`, `HasExtension`, and `ChangeExten…](#04-path-environment-classes-q6)
-  - [Q7. What invalid path characters does `Path.GetInvalidPathChars`…](#04-path-environment-classes-q7)
-  - [Q8. What is `Environment.SpecialFolder`, and how do you resolve …](#04-path-environment-classes-q8)
-  - [Q9. How does `Environment.GetFolderPath` differ from hard-coding…](#04-path-environment-classes-q9)
-  - [Q10. What is `Environment.CurrentDirectory`, and how can it diffe…](#04-path-environment-classes-q10)
-  - [Q11. How do you get the application base directory in modern .NET…](#04-path-environment-classes-q11)
-  - [Q12. What is the difference between absolute and relative paths i…](#04-path-environment-classes-q12)
-  - [Q13. How do UNC paths (`\\server\share`) interact with `Path.Comb…](#04-path-environment-classes-q13)
-  - [Q14. What cross-platform path differences matter when deploying t…](#04-path-environment-classes-q14)
+  - [Q1. What is the `Path` class, and why should you never hard-code `\` or `/` separators?](#q1-what-is-the-path-class-and-why-should-you-never-hard-code-or-separators)
+  - [Q2. How does `Path.Combine` behave with trailing slashes, rooted segments, and empty segments?](#q2-how-does-pathcombine-behave-with-trailing-slashes-rooted-segments-and-empty-segments)
+  - [Q3. What is the difference between `Path.GetFullPath` and passing a relative path directly to `File.Open`?](#q3-what-is-the-difference-between-pathgetfullpath-and-passing-a-relative-path-directly-to-fileopen)
+  - [Q4. Explain `Path.GetDirectoryName`, `GetFileName`, `GetFileNameWithoutExtension`, and `GetExtension`.](#q4-explain-pathgetdirectoryname-getfilename-getfilenamewithoutextension-and-getextension)
+  - [Q5. What do `Path.GetTempPath`, `Path.GetTempFileName`, and `Path.GetRandomFileName` return — and what are the security implications of `GetTempFileName`?](#q5-what-do-pathgettemppath-pathgettempfilename-and-pathgetrandomfilename-return-and-what-are-the-security-implications-of-gettempfilename)
+  - [Q6. How do `Path.IsPathRooted`, `HasExtension`, and `ChangeExtension` work?](#q6-how-do-pathispathrooted-hasextension-and-changeextension-work)
+  - [Q7. What invalid path characters does `Path.GetInvalidPathChars` / `GetInvalidFileNameChars` expose?](#q7-what-invalid-path-characters-does-pathgetinvalidpathchars-getinvalidfilenamechars-expose)
+  - [Q8. What is `Environment.SpecialFolder`, and how do you resolve `MyDocuments`, `ApplicationData`, and `LocalApplicationData`?](#q8-what-is-environmentspecialfolder-and-how-do-you-resolve-mydocuments-applicationdata-and-localapplicationdata)
+  - [Q9. How does `Environment.GetFolderPath` differ from hard-coding `C:\Users\...`?](#q9-how-does-environmentgetfolderpath-differ-from-hard-coding-cusers)
+  - [Q10. What is `Environment.CurrentDirectory`, and how can it differ from the executable's location?](#q10-what-is-environmentcurrentdirectory-and-how-can-it-differ-from-the-executables-location)
+  - [Q11. How do you get the application base directory in modern .NET (`AppContext.BaseDirectory`, `AppDomain.CurrentDomain.BaseDirectory`)?](#q11-how-do-you-get-the-application-base-directory-in-modern-net-appcontextbasedirectory-appdomaincurrentdomainbasedirectory)
+  - [Q12. What is the difference between absolute and relative paths in console apps vs ASP.NET Core?](#q12-what-is-the-difference-between-absolute-and-relative-paths-in-console-apps-vs-aspnet-core)
+  - [Q13. How do UNC paths (`\\server\share`) interact with `Path.Combine` and `Path.GetFullPath`?](#q13-how-do-unc-paths-servershare-interact-with-pathcombine-and-pathgetfullpath)
+  - [Q14. What cross-platform path differences matter when deploying the same code on Windows and Linux?](#q14-what-cross-platform-path-differences-matter-when-deploying-the-same-code-on-windows-and-linux)
 
 - [05. Working with CSV and Text Files](#05-working-with-csv-and-text-files)
-  - [Q1. Why is there no built-in CSV parser in the BCL, and what lib…](#05-working-with-csv-and-text-files-q1)
-  - [Q2. What are RFC 4180 rules for CSV fields, delimiters, and reco…](#05-working-with-csv-and-text-files-q2)
-  - [Q3. When must a CSV field be wrapped in double quotes?](#05-working-with-csv-and-text-files-q3)
-  - [Q4. How do you escape a literal double quote inside a quoted CSV…](#05-working-with-csv-and-text-files-q4)
-  - [Q5. What goes wrong if you split CSV lines on `Split(',')` witho…](#05-working-with-csv-and-text-files-q5)
-  - [Q6. How do you handle embedded newlines inside quoted CSV fields…](#05-working-with-csv-and-text-files-q6)
-  - [Q7. What issues arise with culture-specific decimal separators i…](#05-working-with-csv-and-text-files-q7)
-  - [Q8. How do you write CSV headers and ensure stable column orderi…](#05-working-with-csv-and-text-files-q8)
-  - [Q9. What is the difference between `\n`, `\r\n`, and `Environmen…](#05-working-with-csv-and-text-files-q9)
-  - [Q10. How do you normalize line endings when reading files produce…](#05-working-with-csv-and-text-files-q10)
-  - [Q11. What are best practices for large CSV ingestion (streaming v…](#05-working-with-csv-and-text-files-q11)
-  - [Q12. How do you validate CSV row shape (column count) before dese…](#05-working-with-csv-and-text-files-q12)
-  - [Q13. When should you use fixed-width text formats instead of CSV?](#05-working-with-csv-and-text-files-q13)
-  - [Q14. How do you properly dispose file resources across layered re…](#05-working-with-csv-and-text-files-q14)
-  - [Q15. What logging and rotation patterns apply when appending to t…](#05-working-with-csv-and-text-files-q15)
-  - [Q16. **`ReadAllLines` vs `ReadLines`** — `ReadAllLines` loads the…](#05-working-with-csv-and-text-files-q16)
-  - [Q17. **Undisposed streams lock files on Windows** — A finalized-b…](#05-working-with-csv-and-text-files-q17)
-  - [Q18. **`FileShare` defaults to exclusive access** — Opening witho…](#05-working-with-csv-and-text-files-q18)
-  - [Q19. **Hard-coded path separators break cross-platform** — `"fold…](#05-working-with-csv-and-text-files-q19)
-  - [Q20. **Relative paths depend on `CurrentDirectory`** — A path val…](#05-working-with-csv-and-text-files-q20)
-  - [Q21. **`Path.Combine` with an absolute second segment discards ea…](#05-working-with-csv-and-text-files-q21)
-  - [Q22. **Encoding mismatch silently corrupts text** — Default UTF-8…](#05-working-with-csv-and-text-files-q22)
-  - [Q23. **Seeking past EOF then writing extends the file with undefi…](#05-working-with-csv-and-text-files-q23)
-  - [Q24. **CSV `Split(',')` breaks on quoted commas** — `"Smith, Jr."…](#05-working-with-csv-and-text-files-q24)
-  - [Q25. **Double-quote escaping in CSV is `""` not `\"`** — Getting …](#05-working-with-csv-and-text-files-q25)
+  - [Q1. Why is there no built-in CSV parser in the BCL, and what libraries are commonly used?](#q1-why-is-there-no-built-in-csv-parser-in-the-bcl-and-what-libraries-are-commonly-used)
+  - [Q2. What are RFC 4180 rules for CSV fields, delimiters, and record terminators?](#q2-what-are-rfc-4180-rules-for-csv-fields-delimiters-and-record-terminators)
+  - [Q3. When must a CSV field be wrapped in double quotes?](#q3-when-must-a-csv-field-be-wrapped-in-double-quotes)
+  - [Q4. How do you escape a literal double quote inside a quoted CSV field?](#q4-how-do-you-escape-a-literal-double-quote-inside-a-quoted-csv-field)
+  - [Q5. What goes wrong if you split CSV lines on `Split(',')` without a proper parser?](#q5-what-goes-wrong-if-you-split-csv-lines-on-split-without-a-proper-parser)
+  - [Q6. How do you handle embedded newlines inside quoted CSV fields?](#q6-how-do-you-handle-embedded-newlines-inside-quoted-csv-fields)
+  - [Q7. What issues arise with culture-specific decimal separators in CSV numeric columns?](#q7-what-issues-arise-with-culture-specific-decimal-separators-in-csv-numeric-columns)
+  - [Q8. How do you write CSV headers and ensure stable column ordering for downstream consumers?](#q8-how-do-you-write-csv-headers-and-ensure-stable-column-ordering-for-downstream-consumers)
+  - [Q9. What is the difference between `\n`, `\r\n`, and `Environment.NewLine` for text file line endings?](#q9-what-is-the-difference-between-n-rn-and-environmentnewline-for-text-file-line-endings)
+  - [Q10. How do you normalize line endings when reading files produced on Windows vs Linux?](#q10-how-do-you-normalize-line-endings-when-reading-files-produced-on-windows-vs-linux)
+  - [Q11. What are best practices for large CSV ingestion (streaming vs loading all rows)?](#q11-what-are-best-practices-for-large-csv-ingestion-streaming-vs-loading-all-rows)
+  - [Q12. How do you validate CSV row shape (column count) before deserializing to objects?](#q12-how-do-you-validate-csv-row-shape-column-count-before-deserializing-to-objects)
+  - [Q13. When should you use fixed-width text formats instead of CSV?](#q13-when-should-you-use-fixed-width-text-formats-instead-of-csv)
+  - [Q14. How do you properly dispose file resources across layered readers (`FileStream` → `StreamReader`)?](#q14-how-do-you-properly-dispose-file-resources-across-layered-readers-filestream-streamreader)
+  - [Q15. What logging and rotation patterns apply when appending to text log files over time?](#q15-what-logging-and-rotation-patterns-apply-when-appending-to-text-log-files-over-time)
+  - [Q16. **`ReadAllLines` vs `ReadLines`** — `ReadAllLines` loads the entire file into a `string[]`; `ReadLines` is lazy but keeps the file open until enumeration finishes or is disposed.](#q16-readalllines-vs-readlines-readalllines-loads-the-entire-file-into-a-string-readlines-is-lazy-but-keeps-the-file-open-until-enumeration-finishes-or-is-disposed)
+  - [Q17. **Undisposed streams lock files on Windows** — A finalized-but-not-disposed `FileStream`/`StreamWriter` can block deletes, renames, and antivirus scans until GC runs.](#q17-undisposed-streams-lock-files-on-windows-a-finalized-but-not-disposed-filestreamstreamwriter-can-block-deletes-renames-and-antivirus-scans-until-gc-runs)
+  - [Q18. **`FileShare` defaults to exclusive access** — Opening without `FileShare.Read` prevents other processes from reading concurrently.](#q18-fileshare-defaults-to-exclusive-access-opening-without-fileshareread-prevents-other-processes-from-reading-concurrently)
+  - [Q19. **Hard-coded path separators break cross-platform** — `"folder\\file.txt"` fails on Linux; always use `Path.Combine`.](#q19-hard-coded-path-separators-break-cross-platform-folderfiletxt-fails-on-linux-always-use-pathcombine)
+  - [Q20. **Relative paths depend on `CurrentDirectory`** — A path valid in Visual Studio may fail as a Windows Service or cron job where CWD differs.](#q20-relative-paths-depend-on-currentdirectory-a-path-valid-in-visual-studio-may-fail-as-a-windows-service-or-cron-job-where-cwd-differs)
+  - [Q21. **`Path.Combine` with an absolute second segment discards earlier parts** — `Path.Combine("C:\\a", "D:\\b")` yields `D:\b`, which surprises many candidates.](#q21-pathcombine-with-an-absolute-second-segment-discards-earlier-parts-pathcombineca-db-yields-db-which-surprises-many-candidates)
+  - [Q22. **Encoding mismatch silently corrupts text** — Default UTF-8 assumptions break on Windows-1252 or UTF-16 LE files; specify `Encoding` explicitly.](#q22-encoding-mismatch-silently-corrupts-text-default-utf-8-assumptions-break-on-windows-1252-or-utf-16-le-files-specify-encoding-explicitly)
+  - [Q23. **Seeking past EOF then writing extends the file with undefined gap bytes** — Understand sparse/hole behavior when patching binary files in place.](#q23-seeking-past-eof-then-writing-extends-the-file-with-undefined-gap-bytes-understand-sparsehole-behavior-when-patching-binary-files-in-place)
+  - [Q24. **CSV `Split(',')` breaks on quoted commas** — `"Smith, Jr.",42` becomes three fields; use a real parser or state machine.](#q24-csv-split-breaks-on-quoted-commas-smith-jr42-becomes-three-fields-use-a-real-parser-or-state-machine)
+  - [Q25. **Double-quote escaping in CSV is `""` not `\"`** — Getting escape rules wrong produces columns that shift on import.](#q25-double-quote-escaping-in-csv-is-not-getting-escape-rules-wrong-produces-columns-that-shift-on-import)
+  - [Q1. (R) A report export service must create a file only if it does not already exist. Review this helper used under concurrent load:](#q1-r-a-report-export-service-must-create-a-file-only-if-it-does-not-already-exist-review-this-helper-used-under-concurrent-load)
+  - [Q2. (R) A teammate refactors upload processing to write through a temp file, then move into place. Review the method:](#q2-r-a-teammate-refactors-upload-processing-to-write-through-a-temp-file-then-move-into-place-review-the-method)
+  - [Q3. (R) A nightly cleanup job removes old workspace folders. Review:](#q3-r-a-nightly-cleanup-job-removes-old-workspace-folders-review)
+  - [Q4. (P) A multi-process log aggregator appends audit lines from several worker threads. One worker uses `File.AppendAllText`; another opens with default sharing:](#q4-p-a-multi-process-log-aggregator-appends-audit-lines-from-several-worker-threads-one-worker-uses-fileappendalltext-another-opens-with-default-sharing)
+  - [Q5. (P) An export job stages files under `%TEMP%` on Windows, then calls `File.Move(source, dest)` into a network share. On developer laptops it works; in Azure App Service (Linux) and when crossing drive letters it fails with `IOException` or leaves duplicate files. What is happening at the OS level, and what pattern replaces naive `File.Move`?](#q5-p-an-export-job-stages-files-under-temp-on-windows-then-calls-filemovesource-dest-into-a-network-share-on-developer-laptops-it-works-in-azure-app-service-linux-and-when-crossing-drive-letters-it-fails-with-ioexception-or-leaves-duplicate-files-what-is-happening-at-the-os-level-and-what-pattern-replaces-naive-filemove)
+  - [Q6. (M) An ASP.NET Core endpoint reads a 200 MB CSV from disk on every request:](#q6-m-an-aspnet-core-endpoint-reads-a-200-mb-csv-from-disk-on-every-request)
+  - [Q7. (D) A containerized API creates per-request scratch directories under `Path.GetTempPath()` but never deletes them when handlers throw. Disk on the node fills over days; restarting the pod "fixes" it until the next deploy. Compare three cleanup strategies — `try/finally`, `IDisposable` workspace helper, and OS temp with periodic janitor — for production container deployments. What is your default and why?](#q7-d-a-containerized-api-creates-per-request-scratch-directories-under-pathgettemppath-but-never-deletes-them-when-handlers-throw-disk-on-the-node-fills-over-days-restarting-the-pod-fixes-it-until-the-next-deploy-compare-three-cleanup-strategies-tryfinally-idisposable-workspace-helper-and-os-temp-with-periodic-janitor-for-production-container-deployments-what-is-your-default-and-why)
+
+- [02. StreamReader & StreamWriter](#02-streamreader-streamwriter-1)
+
+- [02. StreamReader & StreamWriter](#02-streamreader-streamwriter-2)
+  - [Q1. (R) A nightly audit job throws on bad rows and operators report the log file stays locked until the worker restarts. Review this helper:](#q1-r-a-nightly-audit-job-throws-on-bad-rows-and-operators-report-the-log-file-stays-locked-until-the-worker-restarts-review-this-helper)
+  - [Q2. (R) A CSV export looks correct on the developer's Windows machine but the first column header fails validation after deploy to Linux containers. Review write vs read:](#q2-r-a-csv-export-looks-correct-on-the-developers-windows-machine-but-the-first-column-header-fails-validation-after-deploy-to-linux-containers-review-write-vs-read)
+  - [Q3. (R) A support dashboard calls this to show the tail of a customer log. Under load the worker process recycles with `OutOfMemoryException`. Review:](#q3-r-a-support-dashboard-calls-this-to-show-the-tail-of-a-customer-log-under-load-the-worker-process-recycles-with-outofmemoryexception-review)
+  - [Q4. (R) A long-running export writes a status file so another process can poll completion. Operators see `IN_PROGRESS` forever after a crash mid-run. Review:](#q4-r-a-long-running-export-writes-a-status-file-so-another-process-can-poll-completion-operators-see-in_progress-forever-after-a-crash-mid-run-review)
+  - [Q5. (R) A log tailer and a log writer run in the same app. The tailer intermittently throws `IOException: The process cannot access the file because it is being used by another process`. Review:](#q5-r-a-log-tailer-and-a-log-writer-run-in-the-same-app-the-tailer-intermittently-throws-ioexception-the-process-cannot-access-the-file-because-it-is-being-used-by-another-process-review)
+  - [Q6. (P) An ASP.NET Core hosted service ingests a growing feed file every few seconds. A developer keeps sync I/O "because the file is local":](#q6-p-an-aspnet-core-hosted-service-ingests-a-growing-feed-file-every-few-seconds-a-developer-keeps-sync-io-because-the-file-is-local)
+  - [Q7. (R) A tool rewrites the first line of a config file in place, then reads the remainder. After a refactor it throws `ObjectDisposedException`. Review:](#q7-r-a-tool-rewrites-the-first-line-of-a-config-file-in-place-then-reads-the-remainder-after-a-refactor-it-throws-objectdisposedexception-review)
+  - [Q8. (M) A cross-platform app parses `.env`-style files written on mixed developer machines (Windows CRLF, macOS/Linux LF). Review ingestion:](#q8-m-a-cross-platform-app-parses-env-style-files-written-on-mixed-developer-machines-windows-crlf-macoslinux-lf-review-ingestion)
+
+- [03. FileStream & Binary Files](#03-filestream-binary-files-1)
+
+- [03. FileStream & Binary Files](#03-filestream-binary-files-2)
+  - [Q1. (R) A telemetry service reads a fixed 4-byte file signature from `signature.bin`. In production, short files produce garbage signatures without throwing. Review the reader:](#q1-r-a-telemetry-service-reads-a-fixed-4-byte-file-signature-from-signaturebin-in-production-short-files-produce-garbage-signatures-without-throwing-review-the-reader)
+  - [Q2. (R) A background job appends binary audit records while a dashboard process tries to read the same file. The writer opens like this; the reader gets `IOException: The process cannot access the file`:](#q2-r-a-background-job-appends-binary-audit-records-while-a-dashboard-process-tries-to-read-the-same-file-the-writer-opens-like-this-the-reader-gets-ioexception-the-process-cannot-access-the-file)
+  - [Q3. (R) A teammate ports `inventory.bin` readers from another language and swaps field order on one record type. The file opens fine but prices and names are nonsense after the first record. Review:](#q3-r-a-teammate-ports-inventorybin-readers-from-another-language-and-swaps-field-order-on-one-record-type-the-file-opens-fine-but-prices-and-names-are-nonsense-after-the-first-record-review)
+  - [Q4. (R) A log-rotation utility reads the last 8 bytes of a growing file to verify a footer magic. It intermittently returns wrong bytes under load. Review:](#q4-r-a-log-rotation-utility-reads-the-last-8-bytes-of-a-growing-file-to-verify-a-footer-magic-it-intermittently-returns-wrong-bytes-under-load-review)
+  - [Q5. (P) Your .NET service writes `metrics.bin` consumed by a Linux C tool on big-endian ARM. A developer uses default `BinaryWriter`/`BinaryReader` for `int` and `double` fields. Locally on x64 Windows everything works; in staging the C tool reads garbage. What is the root cause, and how do you design a cross-platform binary layout?](#q5-p-your-net-service-writes-metricsbin-consumed-by-a-linux-c-tool-on-big-endian-arm-a-developer-uses-default-binarywriterbinaryreader-for-int-and-double-fields-locally-on-x64-windows-everything-works-in-staging-the-c-tool-reads-garbage-what-is-the-root-cause-and-how-do-you-design-a-cross-platform-binary-layout)
+  - [Q6. (D) A data pipeline must scan a 60 GB append-only binary archive for records matching a key — random access by fixed record index, not full sequential parse every time. A junior proposes `FileStream` + `Seek` per lookup; a senior suggests `MemoryMappedFile`. What are the trade-offs, and when would you still choose streaming?](#q6-d-a-data-pipeline-must-scan-a-60-gb-append-only-binary-archive-for-records-matching-a-key-random-access-by-fixed-record-index-not-full-sequential-parse-every-time-a-junior-proposes-filestream-seek-per-lookup-a-senior-suggests-memorymappedfile-what-are-the-trade-offs-and-when-would-you-still-choose-streaming)
+  - [Q7. (R) An export worker writes large binary batches with async I/O, then signals a downstream processor via a message queue. The processor often reads zero-length or incomplete files. Review:](#q7-r-an-export-worker-writes-large-binary-batches-with-async-io-then-signals-a-downstream-processor-via-a-message-queue-the-processor-often-reads-zero-length-or-incomplete-files-review)
+  - [Q8. (R) A cache service tries to wipe and rewrite `cache.bin` in one handle. It throws at runtime despite the path existing. Review both open attempts:](#q8-r-a-cache-service-tries-to-wipe-and-rewrite-cachebin-in-one-handle-it-throws-at-runtime-despite-the-path-existing-review-both-open-attempts)
+
+- [04. Path & Environment Classes](#04-path-environment-classes-1)
+
+- [04. Path & Environment Classes](#04-path-environment-classes-2)
+  - [Q1. (R) A report exporter works on Windows dev machines but fails on Linux CI with "Could not find a part of the path." Review this path builder:](#q1-r-a-report-exporter-works-on-windows-dev-machines-but-fails-on-linux-ci-with-could-not-find-a-part-of-the-path-review-this-path-builder)
+  - [Q2. (R) An internal admin API accepts a `fileName` query parameter and serves files from a fixed folder. Review the handler:](#q2-r-an-internal-admin-api-accepts-a-filename-query-parameter-and-serves-files-from-a-fixed-folder-review-the-handler)
+  - [Q3. (P) A worker service loads `config/settings.json` with a relative path. It passes locally from Visual Studio but fails in production when started as a Windows Service or from a systemd unit. The startup code:](#q3-p-a-worker-service-loads-configsettingsjson-with-a-relative-path-it-passes-locally-from-visual-studio-but-fails-in-production-when-started-as-a-windows-service-or-from-a-systemd-unit-the-startup-code)
+  - [Q4. (P) A containerized API writes large PDF exports using `Path.GetTempFileName()` and never deletes them. After a few days in Kubernetes, pods hit `No space left on device`. The temp folder path is `/tmp` inside the container. What breaks in this pattern, and what production approach replaces `GetTempFileName`?](#q4-p-a-containerized-api-writes-large-pdf-exports-using-pathgettempfilename-and-never-deletes-them-after-a-few-days-in-kubernetes-pods-hit-no-space-left-on-device-the-temp-folder-path-is-tmp-inside-the-container-what-breaks-in-this-pattern-and-what-production-approach-replaces-gettempfilename)
+  - [Q5. (R) A desktop-style feature is ported to a headless Linux server without changes:](#q5-r-a-desktop-style-feature-is-ported-to-a-headless-linux-server-without-changes)
+  - [Q6. (M) A path helper builds log file locations from configuration segments. Review this method called on both Windows and Linux:](#q6-m-a-path-helper-builds-log-file-locations-from-configuration-segments-review-this-method-called-on-both-windows-and-linux)
+  - [Q7. (D) Two services exchange file paths over a message queue. Service A (Windows) sends `D:\data\invoices\inv-001.pdf`. Service B (Linux) tries to open it and also needs a relative path for an audit log entry. A developer writes:](#q7-d-two-services-exchange-file-paths-over-a-message-queue-service-a-windows-sends-ddatainvoicesinv-001pdf-service-b-linux-tries-to-open-it-and-also-needs-a-relative-path-for-an-audit-log-entry-a-developer-writes)
+  - [Q8. (P) A build pipeline archives deeply nested test output on Windows agents. One test creates a folder tree exceeding 260 characters. Locally it works when long-path support is enabled; on a Linux agent the same code runs but a Windows-only integration test fails with `PathTooLongException`. What explains the platform difference, and what mitigations belong in the path-building code?](#q8-p-a-build-pipeline-archives-deeply-nested-test-output-on-windows-agents-one-test-creates-a-folder-tree-exceeding-260-characters-locally-it-works-when-long-path-support-is-enabled-on-a-linux-agent-the-same-code-runs-but-a-windows-only-integration-test-fails-with-pathtoolongexception-what-explains-the-platform-difference-and-what-mitigations-belong-in-the-path-building-code)
+
+- [05. Working with CSV and Text Files](#05-working-with-csv-and-text-files-1)
+
+- [05. Working with CSV and Text Files](#05-working-with-csv-and-text-files-2)
+  - [Q1. (R) A partner feed import worked in QA but mis-maps vendor names in production. Review this row parser used for every data line after the header:](#q1-r-a-partner-feed-import-worked-in-qa-but-mis-maps-vendor-names-in-production-review-this-row-parser-used-for-every-data-line-after-the-header)
+  - [Q2. (R) An export job writes inventory CSV on a German Windows server; a US warehouse tool rejects half the rows. Product names with accents arrive as `MÃ¼ller` when the US tool opens the file. Review the export path:](#q2-r-an-export-job-writes-inventory-csv-on-a-german-windows-server-a-us-warehouse-tool-rejects-half-the-rows-product-names-with-accents-arrive-as-mã¼ller-when-the-us-tool-opens-the-file-review-the-export-path)
+  - [Q3. (R) A nightly import job loads a 400 MB ERP export. Review the service method:](#q3-r-a-nightly-import-job-loads-a-400-mb-erp-export-review-the-service-method)
+  - [Q4. (P) A drop-folder service uses `FileSystemWatcher` to import CSV as soon as a file appears in `\\share\inbound`. Operators report random "column count" errors and duplicate SKU rows. The handler:](#q4-p-a-drop-folder-service-uses-filesystemwatcher-to-import-csv-as-soon-as-a-file-appears-in-shareinbound-operators-report-random-column-count-errors-and-duplicate-sku-rows-the-handler)
+  - [Q5. (P) Re-running the same inbound file after a network blip must not double inventory counts. A developer adds a guard:](#q5-p-re-running-the-same-inbound-file-after-a-network-blip-must-not-double-inventory-counts-a-developer-adds-a-guard)
+  - [Q6. (D) Your team must ingest partner CSV feeds with quoted commas, optional date columns, and occasional header renames (`SKU` vs `Sku`). One engineer proposes `CsvHelper`; another wants to extend the hand-rolled `SplitQuotedLine` from this chapter. When do you reach for each, and what are the trade-offs for a long-lived warehouse integration?](#q6-d-your-team-must-ingest-partner-csv-feeds-with-quoted-commas-optional-date-columns-and-occasional-header-renames-sku-vs-sku-one-engineer-proposes-csvhelper-another-wants-to-extend-the-hand-rolled-splitquotedline-from-this-chapter-when-do-you-reach-for-each-and-what-are-the-trade-offs-for-a-long-lived-warehouse-integration)
+  - [Q7. (R) Two import workers occasionally corrupt the same nightly file. Review the concurrent access pattern:](#q7-r-two-import-workers-occasionally-corrupt-the-same-nightly-file-review-the-concurrent-access-pattern)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. File & Directory Operations
 
-#### Q1. Explain file handling in C# and the role of the `System.IO` namespace. {#01-file-directory-operations-q1}
+#### Q1. Explain file handling in C# and the role of the `System.IO` namespace.
 
 (R) A report export service must create a file only if it does not already exist. Review this helper used under concurrent load:
 
@@ -160,7 +214,7 @@ catch (IOException) when (File.Exists(path))
 
 ---
 
-#### Q2. What is the difference between the static `File`/`Directory` classes and the instance `FileInfo`/`DirectoryInfo` classes? {#01-file-directory-operations-q2}
+#### Q2. What is the difference between the static `File`/`Directory` classes and the instance `FileInfo`/`DirectoryInfo` classes?
 
 (R) A teammate refactors upload processing to write through a temp file, then move into place. Review the method:
 
@@ -223,7 +277,7 @@ finally
 
 ---
 
-#### Q3. When would you prefer `FileInfo` over repeated `File.*` static calls on the same path? {#01-file-directory-operations-q3}
+#### Q3. When would you prefer `FileInfo` over repeated `File.*` static calls on the same path?
 
 (R) A nightly cleanup job removes old workspace folders. Review:
 
@@ -265,7 +319,7 @@ Locally it works on small trees; in production it throws `IOException` on non-em
 
 ---
 
-#### Q4. How do `Directory.GetFiles`, `Directory.GetDirectories`, and their `Enumerate*` counterparts differ in memory behavior? {#01-file-directory-operations-q4}
+#### Q4. How do `Directory.GetFiles`, `Directory.GetDirectories`, and their `Enumerate*` counterparts differ in memory behavior?
 
 (P) A multi-process log aggregator appends audit lines from several worker threads. One worker uses `File.AppendAllText`; another opens with default sharing:
 
@@ -307,7 +361,7 @@ finally
 
 ---
 
-#### Q5. What does `Directory.CreateDirectory` do when intermediate folders already exist? {#01-file-directory-operations-q5}
+#### Q5. What does `Directory.CreateDirectory` do when intermediate folders already exist?
 
 (P) An export job stages files under `%TEMP%` on Windows, then calls `File.Move(source, dest)` into a network share. On developer laptops it works; in Azure App Service (Linux) and when crossing drive letters it fails with `IOException` or leaves duplicate files. What is happening at the OS level, and what pattern replaces naive `File.Move`?
 
@@ -324,7 +378,7 @@ finally
 
 ---
 
-#### Q6. What is the difference between `File.Copy` with `overwrite: false` vs `overwrite: true`, and what exception indicates a conflict? {#01-file-directory-operations-q6}
+#### Q6. What is the difference between `File.Copy` with `overwrite: false` vs `overwrite: true`, and what exception indicates a conflict?
 
 (M) An ASP.NET Core endpoint reads a 200 MB CSV from disk on every request:
 
@@ -365,7 +419,7 @@ app.MapGet("/reports/{id}", (string id, IReportStore store) =>
 
 ---
 
-#### Q7. How does `File.Move` differ from copy-then-delete, and what happens to metadata and hard links? {#01-file-directory-operations-q7}
+#### Q7. How does `File.Move` differ from copy-then-delete, and what happens to metadata and hard links?
 
 (D) A containerized API creates per-request scratch directories under `Path.GetTempPath()` but never deletes them when handlers throw. Disk on the node fills over days; restarting the pod "fixes" it until the next deploy. Compare three cleanup strategies — `try/finally`, `IDisposable` workspace helper, and OS temp with periodic janitor — for production container deployments. What is your default and why?
 
@@ -387,79 +441,79 @@ app.MapGet("/reports/{id}", (string id, IReportStore store) =>
 
 ---
 
-#### Q8. What is `File.Replace`, and when is it preferable to manual backup-and-overwrite? {#01-file-directory-operations-q8}
+#### Q8. What is `File.Replace`, and when is it preferable to manual backup-and-overwrite?
 
 _Answer not found._
 
 ---
 
-#### Q9. How do you safely delete a directory tree using `Directory.Delete(path, recursive: true)`? {#01-file-directory-operations-q9}
+#### Q9. How do you safely delete a directory tree using `Directory.Delete(path, recursive: true)`?
 
 _Answer not found._
 
 ---
 
-#### Q10. What file metadata can you read via `File` static methods vs `FileInfo` instance properties? {#01-file-directory-operations-q10}
+#### Q10. What file metadata can you read via `File` static methods vs `FileInfo` instance properties?
 
 _Answer not found._
 
 ---
 
-#### Q11. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `GetLastAccessTime` — and their `Utc` variants. {#01-file-directory-operations-q11}
+#### Q11. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `GetLastAccessTime` — and their `Utc` variants.
 
 _Answer not found._
 
 ---
 
-#### Q12. How do you set creation, last-write, and last-access timestamps programmatically? {#01-file-directory-operations-q12}
+#### Q12. How do you set creation, last-write, and last-access timestamps programmatically?
 
 _Answer not found._
 
 ---
 
-#### Q13. What are `FileAttributes` (ReadOnly, Hidden, System, Archive)? How do you read and modify them? {#01-file-directory-operations-q13}
+#### Q13. What are `FileAttributes` (ReadOnly, Hidden, System, Archive)? How do you read and modify them?
 
 _Answer not found._
 
 ---
 
-#### Q14. What is the difference between `File.Exists` and attempting to open a file that may be deleted concurrently? {#01-file-directory-operations-q14}
+#### Q14. What is the difference between `File.Exists` and attempting to open a file that may be deleted concurrently?
 
 _Answer not found._
 
 ---
 
-#### Q15. What exceptions should you expect during file operations (`FileNotFoundException`, `DirectoryNotFoundException`, `IOException`, `UnauthorizedAccessException`)? {#01-file-directory-operations-q15}
+#### Q15. What exceptions should you expect during file operations (`FileNotFoundException`, `DirectoryNotFoundException`, `IOException`, `UnauthorizedAccessException`)?
 
 _Answer not found._
 
 ---
 
-#### Q16. How does `File.AppendAllText` differ from opening with `FileMode.Append`? {#01-file-directory-operations-q16}
+#### Q16. How does `File.AppendAllText` differ from opening with `FileMode.Append`?
 
 _Answer not found._
 
 ---
 
-#### Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropriate vs stream-based APIs? {#01-file-directory-operations-q17}
+#### Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropriate vs stream-based APIs?
 
 _Answer not found._
 
 ---
 
-#### Q18. Explain `File.Create`, `File.Open`, `File.OpenRead`, and `File.OpenWrite` — what modes and access do they imply? {#01-file-directory-operations-q18}
+#### Q18. Explain `File.Create`, `File.Open`, `File.OpenRead`, and `File.OpenWrite` — what modes and access do they imply?
 
 _Answer not found._
 
 ---
 
-#### Q19. How do you handle TOCTOU (time-of-check-time-of-use) races when checking existence before read/write? {#01-file-directory-operations-q19}
+#### Q19. How do you handle TOCTOU (time-of-check-time-of-use) races when checking existence before read/write?
 
 _Answer not found._
 
 ---
 
-#### Q20. What is the difference between deleting a file and clearing its contents while keeping the path? {#01-file-directory-operations-q20}
+#### Q20. What is the difference between deleting a file and clearing its contents while keeping the path?
 
 _Answer not found._
 
@@ -467,7 +521,7 @@ _Answer not found._
 
 ### 02. StreamReader & StreamWriter
 
-#### Q1. Explain the `Stream` base class hierarchy and where `StreamReader`/`StreamWriter` fit. {#02-streamreader-streamwriter-q1}
+#### Q1. Explain the `Stream` base class hierarchy and where `StreamReader`/`StreamWriter` fit.
 
 (R) A nightly audit job throws on bad rows and operators report the log file stays locked until the worker restarts. Review this helper:
 
@@ -518,7 +572,7 @@ public void AppendAuditEntry(string logPath, string entry)
 
 ---
 
-#### Q2. What is the difference between `File.ReadAllText`, `File.ReadAllLines`, and `File.ReadLines`? {#02-streamreader-streamwriter-q2}
+#### Q2. What is the difference between `File.ReadAllText`, `File.ReadAllLines`, and `File.ReadLines`?
 
 (R) A CSV export looks correct on the developer's Windows machine but the first column header fails validation after deploy to Linux containers. Review write vs read:
 
@@ -575,7 +629,7 @@ using (var reader = new StreamReader(importPath, utf8))
 
 ---
 
-#### Q3. Why can `File.ReadLines` hold a file lock until enumeration completes? {#02-streamreader-streamwriter-q3}
+#### Q3. Why can `File.ReadLines` hold a file lock until enumeration completes?
 
 (R) A support dashboard calls this to show the tail of a customer log. Under load the worker process recycles with `OutOfMemoryException`. Review:
 
@@ -627,7 +681,7 @@ public async Task<IReadOnlyList<string>> ReadLastLinesAsync(string logPath, int 
 
 ---
 
-#### Q4. How do `StreamReader.ReadLine`, `ReadToEnd`, and `ReadBlock` differ for large files? {#02-streamreader-streamwriter-q4}
+#### Q4. How do `StreamReader.ReadLine`, `ReadToEnd`, and `ReadBlock` differ for large files?
 
 (R) A long-running export writes a status file so another process can poll completion. Operators see `IN_PROGRESS` forever after a crash mid-run. Review:
 
@@ -686,7 +740,7 @@ catch
 
 ---
 
-#### Q5. What is the default encoding for `StreamReader` and `StreamWriter`, and why can that cause mojibake? {#02-streamreader-streamwriter-q5}
+#### Q5. What is the default encoding for `StreamReader` and `StreamWriter`, and why can that cause mojibake?
 
 (R) A log tailer and a log writer run in the same app. The tailer intermittently throws `IOException: The process cannot access the file because it is being used by another process`. Review:
 
@@ -737,7 +791,7 @@ using StreamReader reader = new StreamReader(fs, leaveOpen: false);
 
 ---
 
-#### Q6. How do you specify `Encoding.UTF8`, UTF-8 with BOM, and legacy encodings (`Encoding.GetEncoding`)? {#02-streamreader-streamwriter-q6}
+#### Q6. How do you specify `Encoding.UTF8`, UTF-8 with BOM, and legacy encodings (`Encoding.GetEncoding`)?
 
 (P) An ASP.NET Core hosted service ingests a growing feed file every few seconds. A developer keeps sync I/O "because the file is local":
 
@@ -799,7 +853,7 @@ while (!stoppingToken.IsCancellationRequested)
 
 ---
 
-#### Q7. What does `StreamReader.DetectEncodingFromByteOrderMarks` control? {#02-streamreader-streamwriter-q7}
+#### Q7. What does `StreamReader.DetectEncodingFromByteOrderMarks` control?
 
 (R) A tool rewrites the first line of a config file in place, then reads the remainder. After a refactor it throws `ObjectDisposedException`. Review:
 
@@ -856,7 +910,7 @@ using (StreamReader reader = new StreamReader(fs, Encoding.UTF8, leaveOpen: true
 
 ---
 
-#### Q8. Explain async read/write methods on `StreamReader`/`StreamWriter` (`ReadLineAsync`, `WriteLineAsync`, `ReadToEndAsync`). {#02-streamreader-streamwriter-q8}
+#### Q8. Explain async read/write methods on `StreamReader`/`StreamWriter` (`ReadLineAsync`, `WriteLineAsync`, `ReadToEndAsync`).
 
 (M) A cross-platform app parses `.env`-style files written on mixed developer machines (Windows CRLF, macOS/Linux LF). Review ingestion:
 
@@ -913,43 +967,43 @@ while (reader.ReadLine() is { } line)
 
 ---
 
-#### Q9. What is `StreamWriter.AutoFlush`, and when should you call `Flush()` explicitly? {#02-streamreader-streamwriter-q9}
+#### Q9. What is `StreamWriter.AutoFlush`, and when should you call `Flush()` explicitly?
 
 _Answer not found._
 
 ---
 
-#### Q10. How do you append text to an existing file with `StreamWriter` (constructor overload with `append: true`)? {#02-streamreader-streamwriter-q10}
+#### Q10. How do you append text to an existing file with `StreamWriter` (constructor overload with `append: true`)?
 
 _Answer not found._
 
 ---
 
-#### Q11. What happens if you forget to dispose a `StreamWriter` — especially on Windows file locking? {#02-streamreader-streamwriter-q11}
+#### Q11. What happens if you forget to dispose a `StreamWriter` — especially on Windows file locking?
 
 _Answer not found._
 
 ---
 
-#### Q12. Can you use `StreamReader`/`StreamWriter` with non-file streams (memory, network)? Give examples. {#02-streamreader-streamwriter-q12}
+#### Q12. Can you use `StreamReader`/`StreamWriter` with non-file streams (memory, network)? Give examples.
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the difference between `using` blocks and C# 8 `using` declarations for stream cleanup? {#02-streamreader-streamwriter-q13}
+#### Q13. What is the difference between `using` blocks and C# 8 `using` declarations for stream cleanup?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do you read a file line-by-line without loading it entirely into memory? {#02-streamreader-streamwriter-q14}
+#### Q14. How do you read a file line-by-line without loading it entirely into memory?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is `TextReader`/`TextWriter`, and why do APIs often accept these abstractions? {#02-streamreader-streamwriter-q15}
+#### Q15. What is `TextReader`/`TextWriter`, and why do APIs often accept these abstractions?
 
 _Answer not found._
 
@@ -957,7 +1011,7 @@ _Answer not found._
 
 ### 03. FileStream & Binary Files
 
-#### Q1. What is the difference between `File`, `Stream`, and `FileStream`? {#03-filestream-binary-files-q1}
+#### Q1. What is the difference between `File`, `Stream`, and `FileStream`?
 
 (R) A telemetry service reads a fixed 4-byte file signature from `signature.bin`. In production, short files produce garbage signatures without throwing. Review the reader:
 
@@ -1008,7 +1062,7 @@ if (totalRead != buffer.Length)
 
 ---
 
-#### Q2. Explain `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`) — when use each? {#03-filestream-binary-files-q2}
+#### Q2. Explain `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`) — when use each?
 
 (R) A background job appends binary audit records while a dashboard process tries to read the same file. The writer opens like this; the reader gets `IOException: The process cannot access the file`:
 
@@ -1045,7 +1099,7 @@ What locking mismatch causes the failure, and what `FileShare` flags should each
 
 ---
 
-#### Q3. Explain `FileAccess` (`Read`, `Write`, `ReadWrite`) and `FileShare` (`None`, `Read`, `Write`, `ReadWrite`, `Delete`). {#03-filestream-binary-files-q3}
+#### Q3. Explain `FileAccess` (`Read`, `Write`, `ReadWrite`) and `FileShare` (`None`, `Read`, `Write`, `ReadWrite`, `Delete`).
 
 (R) A teammate ports `inventory.bin` readers from another language and swaps field order on one record type. The file opens fine but prices and names are nonsense after the first record. Review:
 
@@ -1083,7 +1137,7 @@ What breaks, why does corruption spread to later records, and how do you detect 
 
 ---
 
-#### Q4. Why does default `FileShare.None` cause sharing violations when another process needs read access? {#03-filestream-binary-files-q4}
+#### Q4. Why does default `FileShare.None` cause sharing violations when another process needs read access?
 
 (R) A log-rotation utility reads the last 8 bytes of a growing file to verify a footer magic. It intermittently returns wrong bytes under load. Review:
 
@@ -1121,7 +1175,7 @@ What Position/Seek mistakes are here, and what else should you validate before t
 
 ---
 
-#### Q5. What are `FileStream.Position`, `Seek`, and `Length` — and when is seeking valid? {#03-filestream-binary-files-q5}
+#### Q5. What are `FileStream.Position`, `Seek`, and `Length` — and when is seeking valid?
 
 (P) Your .NET service writes `metrics.bin` consumed by a Linux C tool on big-endian ARM. A developer uses default `BinaryWriter`/`BinaryReader` for `int` and `double` fields. Locally on x64 Windows everything works; in staging the C tool reads garbage. What is the root cause, and how do you design a cross-platform binary layout?
 
@@ -1136,7 +1190,7 @@ What Position/Seek mistakes are here, and what else should you validate before t
 
 ---
 
-#### Q6. Explain `SeekOrigin` (`Begin`, `Current`, `End`) with a concrete read-modify-write scenario. {#03-filestream-binary-files-q6}
+#### Q6. Explain `SeekOrigin` (`Begin`, `Current`, `End`) with a concrete read-modify-write scenario.
 
 (D) A data pipeline must scan a 60 GB append-only binary archive for records matching a key — random access by fixed record index, not full sequential parse every time. A junior proposes `FileStream` + `Seek` per lookup; a senior suggests `MemoryMappedFile`. What are the trade-offs, and when would you still choose streaming?
 
@@ -1151,7 +1205,7 @@ What Position/Seek mistakes are here, and what else should you validate before t
 
 ---
 
-#### Q7. What happens if you seek on a non-seekable stream (e.g., some network streams)? {#03-filestream-binary-files-q7}
+#### Q7. What happens if you seek on a non-seekable stream (e.g., some network streams)?
 
 (R) An export worker writes large binary batches with async I/O, then signals a downstream processor via a message queue. The processor often reads zero-length or incomplete files. Review:
 
@@ -1197,7 +1251,7 @@ await _queue.PublishAsync(new BatchReadyMessage(path), ct);
 
 ---
 
-#### Q8. What is the difference between `FileStream.Read`/`Write` and `ReadAsync`/`WriteAsync`? {#03-filestream-binary-files-q8}
+#### Q8. What is the difference between `FileStream.Read`/`Write` and `ReadAsync`/`WriteAsync`?
 
 (R) A cache service tries to wipe and rewrite `cache.bin` in one handle. It throws at runtime despite the path existing. Review both open attempts:
 
@@ -1240,49 +1294,49 @@ stream.Flush();
 
 ---
 
-#### Q9. What do `BinaryReader` and `BinaryWriter` add over raw `FileStream` byte operations? {#03-filestream-binary-files-q9}
+#### Q9. What do `BinaryReader` and `BinaryWriter` add over raw `FileStream` byte operations?
 
 _Answer not found._
 
 ---
 
-#### Q10. How does `BinaryReader` handle endianness and primitive types (`ReadInt32`, `ReadDouble`, `ReadString`)? {#03-filestream-binary-files-q10}
+#### Q10. How does `BinaryReader` handle endianness and primitive types (`ReadInt32`, `ReadDouble`, `ReadString`)?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is the on-disk format of `BinaryWriter.Write(string)` — and why does it matter for cross-platform files? {#03-filestream-binary-files-q11}
+#### Q11. What is the on-disk format of `BinaryWriter.Write(string)` — and why does it matter for cross-platform files?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is the difference between text and binary file handling in C#? {#03-filestream-binary-files-q12}
+#### Q12. What is the difference between text and binary file handling in C#?
 
 _Answer not found._
 
 ---
 
-#### Q13. When should you use `MemoryStream` instead of `FileStream`? {#03-filestream-binary-files-q13}
+#### Q13. When should you use `MemoryStream` instead of `FileStream`?
 
 _Answer not found._
 
 ---
 
-#### Q14. What is buffered I/O, and how do `FileStream` buffer size options affect performance? {#03-filestream-binary-files-q14}
+#### Q14. What is buffered I/O, and how do `FileStream` buffer size options affect performance?
 
 _Answer not found._
 
 ---
 
-#### Q15. How do you read a fixed header followed by variable-length records from a binary file? {#03-filestream-binary-files-q15}
+#### Q15. How do you read a fixed header followed by variable-length records from a binary file?
 
 _Answer not found._
 
 ---
 
-#### Q16. What is a file signature (magic bytes), and how do you validate one without trusting the extension? {#03-filestream-binary-files-q16}
+#### Q16. What is a file signature (magic bytes), and how do you validate one without trusting the extension?
 
 _Answer not found._
 
@@ -1290,7 +1344,7 @@ _Answer not found._
 
 ### 04. Path & Environment Classes
 
-#### Q1. What is the `Path` class, and why should you never hard-code `\` or `/` separators? {#04-path-environment-classes-q1}
+#### Q1. What is the `Path` class, and why should you never hard-code `\` or `/` separators?
 
 (R) A report exporter works on Windows dev machines but fails on Linux CI with "Could not find a part of the path." Review this path builder:
 
@@ -1338,7 +1392,7 @@ public string BuildExportPath(string outputRoot, string customerId, string fileN
 
 ---
 
-#### Q2. How does `Path.Combine` behave with trailing slashes, rooted segments, and empty segments? {#04-path-environment-classes-q2}
+#### Q2. How does `Path.Combine` behave with trailing slashes, rooted segments, and empty segments?
 
 (R) An internal admin API accepts a `fileName` query parameter and serves files from a fixed folder. Review the handler:
 
@@ -1393,7 +1447,7 @@ if (!File.Exists(requested))
 
 ---
 
-#### Q3. What is the difference between `Path.GetFullPath` and passing a relative path directly to `File.Open`? {#04-path-environment-classes-q3}
+#### Q3. What is the difference between `Path.GetFullPath` and passing a relative path directly to `File.Open`?
 
 (P) A worker service loads `config/settings.json` with a relative path. It passes locally from Visual Studio but fails in production when started as a Windows Service or from a systemd unit. The startup code:
 
@@ -1422,7 +1476,7 @@ var settingsPath = Path.GetFullPath(
 
 ---
 
-#### Q4. Explain `Path.GetDirectoryName`, `GetFileName`, `GetFileNameWithoutExtension`, and `GetExtension`. {#04-path-environment-classes-q4}
+#### Q4. Explain `Path.GetDirectoryName`, `GetFileName`, `GetFileNameWithoutExtension`, and `GetExtension`.
 
 (P) A containerized API writes large PDF exports using `Path.GetTempFileName()` and never deletes them. After a few days in Kubernetes, pods hit `No space left on device`. The temp folder path is `/tmp` inside the container. What breaks in this pattern, and what production approach replaces `GetTempFileName`?
 
@@ -1439,7 +1493,7 @@ var settingsPath = Path.GetFullPath(
 
 ---
 
-#### Q5. What do `Path.GetTempPath`, `Path.GetTempFileName`, and `Path.GetRandomFileName` return — and what are the security implications of `GetTempFileName`? {#04-path-environment-classes-q5}
+#### Q5. What do `Path.GetTempPath`, `Path.GetTempFileName`, and `Path.GetRandomFileName` return — and what are the security implications of `GetTempFileName`?
 
 (R) A desktop-style feature is ported to a headless Linux server without changes:
 
@@ -1486,7 +1540,7 @@ public string GetDefaultExportFolder(IConfiguration config)
 
 ---
 
-#### Q6. How do `Path.IsPathRooted`, `HasExtension`, and `ChangeExtension` work? {#04-path-environment-classes-q6}
+#### Q6. How do `Path.IsPathRooted`, `HasExtension`, and `ChangeExtension` work?
 
 (M) A path helper builds log file locations from configuration segments. Review this method called on both Windows and Linux:
 
@@ -1512,7 +1566,7 @@ What surprising result occurs when `configuredRoot` is an absolute Unix path (`/
 
 ---
 
-#### Q7. What invalid path characters does `Path.GetInvalidPathChars` / `GetInvalidFileNameChars` expose? {#04-path-environment-classes-q7}
+#### Q7. What invalid path characters does `Path.GetInvalidPathChars` / `GetInvalidFileNameChars` expose?
 
 (D) Two services exchange file paths over a message queue. Service A (Windows) sends `D:\data\invoices\inv-001.pdf`. Service B (Linux) tries to open it and also needs a relative path for an audit log entry. A developer writes:
 
@@ -1536,7 +1590,7 @@ What breaks on Linux, and what contract should replace raw absolute paths betwee
 
 ---
 
-#### Q8. What is `Environment.SpecialFolder`, and how do you resolve `MyDocuments`, `ApplicationData`, and `LocalApplicationData`? {#04-path-environment-classes-q8}
+#### Q8. What is `Environment.SpecialFolder`, and how do you resolve `MyDocuments`, `ApplicationData`, and `LocalApplicationData`?
 
 (P) A build pipeline archives deeply nested test output on Windows agents. One test creates a folder tree exceeding 260 characters. Locally it works when long-path support is enabled; on a Linux agent the same code runs but a Windows-only integration test fails with `PathTooLongException`. What explains the platform difference, and what mitigations belong in the path-building code?
 
@@ -1553,37 +1607,37 @@ What breaks on Linux, and what contract should replace raw absolute paths betwee
 
 ---
 
-#### Q9. How does `Environment.GetFolderPath` differ from hard-coding `C:\Users\...`? {#04-path-environment-classes-q9}
+#### Q9. How does `Environment.GetFolderPath` differ from hard-coding `C:\Users\...`?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `Environment.CurrentDirectory`, and how can it differ from the executable's location? {#04-path-environment-classes-q10}
+#### Q10. What is `Environment.CurrentDirectory`, and how can it differ from the executable's location?
 
 _Answer not found._
 
 ---
 
-#### Q11. How do you get the application base directory in modern .NET (`AppContext.BaseDirectory`, `AppDomain.CurrentDomain.BaseDirectory`)? {#04-path-environment-classes-q11}
+#### Q11. How do you get the application base directory in modern .NET (`AppContext.BaseDirectory`, `AppDomain.CurrentDomain.BaseDirectory`)?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is the difference between absolute and relative paths in console apps vs ASP.NET Core? {#04-path-environment-classes-q12}
+#### Q12. What is the difference between absolute and relative paths in console apps vs ASP.NET Core?
 
 _Answer not found._
 
 ---
 
-#### Q13. How do UNC paths (`\\server\share`) interact with `Path.Combine` and `Path.GetFullPath`? {#04-path-environment-classes-q13}
+#### Q13. How do UNC paths (`\\server\share`) interact with `Path.Combine` and `Path.GetFullPath`?
 
 _Answer not found._
 
 ---
 
-#### Q14. What cross-platform path differences matter when deploying the same code on Windows and Linux? {#04-path-environment-classes-q14}
+#### Q14. What cross-platform path differences matter when deploying the same code on Windows and Linux?
 
 _Answer not found._
 
@@ -1591,7 +1645,7 @@ _Answer not found._
 
 ### 05. Working with CSV and Text Files
 
-#### Q1. Why is there no built-in CSV parser in the BCL, and what libraries are commonly used? {#05-working-with-csv-and-text-files-q1}
+#### Q1. Why is there no built-in CSV parser in the BCL, and what libraries are commonly used?
 
 (R) A partner feed import worked in QA but mis-maps vendor names in production. Review this row parser used for every data line after the header:
 
@@ -1649,7 +1703,7 @@ if (columns.Count != CsvParsing.InventoryColumnCount)
 
 ---
 
-#### Q2. What are RFC 4180 rules for CSV fields, delimiters, and record terminators? {#05-working-with-csv-and-text-files-q2}
+#### Q2. What are RFC 4180 rules for CSV fields, delimiters, and record terminators?
 
 (R) An export job writes inventory CSV on a German Windows server; a US warehouse tool rejects half the rows. Review the export path:
 
@@ -1708,7 +1762,7 @@ writer.WriteLine(CsvFormatting.BuildRow(
 
 ---
 
-#### Q3. When must a CSV field be wrapped in double quotes? {#05-working-with-csv-and-text-files-q3}
+#### Q3. When must a CSV field be wrapped in double quotes?
 
 (R) A nightly import job loads a 400 MB ERP export. Review the service method:
 
@@ -1759,7 +1813,7 @@ What production problems appear at scale, and what pattern from this chapter rep
 
 ---
 
-#### Q4. How do you escape a literal double quote inside a quoted CSV field? {#05-working-with-csv-and-text-files-q4}
+#### Q4. How do you escape a literal double quote inside a quoted CSV field?
 
 (P) A drop-folder service uses `FileSystemWatcher` to import CSV as soon as a file appears in `\\share\inbound`. Operators report random "column count" errors and duplicate SKU rows. The handler:
 
@@ -1785,7 +1839,7 @@ What race conditions happen with partial writes, and how do you harden the watch
 
 ---
 
-#### Q5. What goes wrong if you split CSV lines on `Split(',')` without a proper parser? {#05-working-with-csv-and-text-files-q5}
+#### Q5. What goes wrong if you split CSV lines on `Split(',')` without a proper parser?
 
 (P) Re-running the same inbound file after a network blip must not double inventory counts. A developer adds a guard:
 
@@ -1824,7 +1878,7 @@ await tx.CommitAsync(ct);
 
 ---
 
-#### Q6. How do you handle embedded newlines inside quoted CSV fields? {#05-working-with-csv-and-text-files-q6}
+#### Q6. How do you handle embedded newlines inside quoted CSV fields?
 
 (D) Your team must ingest partner CSV feeds with quoted commas, optional date columns, and occasional header renames (`SKU` vs `Sku`). One engineer proposes `CsvHelper`; another wants to extend the hand-rolled `SplitQuotedLine` from this chapter. When do you reach for each, and what are the trade-offs for a long-lived warehouse integration?
 
@@ -1840,7 +1894,7 @@ await tx.CommitAsync(ct);
 
 ---
 
-#### Q7. What issues arise with culture-specific decimal separators in CSV numeric columns? {#05-working-with-csv-and-text-files-q7}
+#### Q7. What issues arise with culture-specific decimal separators in CSV numeric columns?
 
 (R) Two import workers occasionally corrupt the same nightly file. Review the concurrent access pattern:
 
@@ -1892,109 +1946,109 @@ if (!headerConsumed && LooksLikeHeader(line))
 
 ---
 
-#### Q8. How do you write CSV headers and ensure stable column ordering for downstream consumers? {#05-working-with-csv-and-text-files-q8}
+#### Q8. How do you write CSV headers and ensure stable column ordering for downstream consumers?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the difference between `\n`, `\r\n`, and `Environment.NewLine` for text file line endings? {#05-working-with-csv-and-text-files-q9}
+#### Q9. What is the difference between `\n`, `\r\n`, and `Environment.NewLine` for text file line endings?
 
 _Answer not found._
 
 ---
 
-#### Q10. How do you normalize line endings when reading files produced on Windows vs Linux? {#05-working-with-csv-and-text-files-q10}
+#### Q10. How do you normalize line endings when reading files produced on Windows vs Linux?
 
 _Answer not found._
 
 ---
 
-#### Q11. What are best practices for large CSV ingestion (streaming vs loading all rows)? {#05-working-with-csv-and-text-files-q11}
+#### Q11. What are best practices for large CSV ingestion (streaming vs loading all rows)?
 
 _Answer not found._
 
 ---
 
-#### Q12. How do you validate CSV row shape (column count) before deserializing to objects? {#05-working-with-csv-and-text-files-q12}
+#### Q12. How do you validate CSV row shape (column count) before deserializing to objects?
 
 _Answer not found._
 
 ---
 
-#### Q13. When should you use fixed-width text formats instead of CSV? {#05-working-with-csv-and-text-files-q13}
+#### Q13. When should you use fixed-width text formats instead of CSV?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do you properly dispose file resources across layered readers (`FileStream` → `StreamReader`)? {#05-working-with-csv-and-text-files-q14}
+#### Q14. How do you properly dispose file resources across layered readers (`FileStream` → `StreamReader`)?
 
 _Answer not found._
 
 ---
 
-#### Q15. What logging and rotation patterns apply when appending to text log files over time? {#05-working-with-csv-and-text-files-q15}
+#### Q15. What logging and rotation patterns apply when appending to text log files over time?
 
 _Answer not found._
 
 ---
 
-#### Q16. **`ReadAllLines` vs `ReadLines`** — `ReadAllLines` loads the entire file into a `string[]`; `ReadLines` is lazy but keeps the file open until enumeration finishes or is disposed. {#05-working-with-csv-and-text-files-q16}
+#### Q16. **`ReadAllLines` vs `ReadLines`** — `ReadAllLines` loads the entire file into a `string[]`; `ReadLines` is lazy but keeps the file open until enumeration finishes or is disposed.
 
 _Answer not found._
 
 ---
 
-#### Q17. **Undisposed streams lock files on Windows** — A finalized-but-not-disposed `FileStream`/`StreamWriter` can block deletes, renames, and antivirus scans until GC runs. {#05-working-with-csv-and-text-files-q17}
+#### Q17. **Undisposed streams lock files on Windows** — A finalized-but-not-disposed `FileStream`/`StreamWriter` can block deletes, renames, and antivirus scans until GC runs.
 
 _Answer not found._
 
 ---
 
-#### Q18. **`FileShare` defaults to exclusive access** — Opening without `FileShare.Read` prevents other processes from reading concurrently. {#05-working-with-csv-and-text-files-q18}
+#### Q18. **`FileShare` defaults to exclusive access** — Opening without `FileShare.Read` prevents other processes from reading concurrently.
 
 _Answer not found._
 
 ---
 
-#### Q19. **Hard-coded path separators break cross-platform** — `"folder\\file.txt"` fails on Linux; always use `Path.Combine`. {#05-working-with-csv-and-text-files-q19}
+#### Q19. **Hard-coded path separators break cross-platform** — `"folder\\file.txt"` fails on Linux; always use `Path.Combine`.
 
 _Answer not found._
 
 ---
 
-#### Q20. **Relative paths depend on `CurrentDirectory`** — A path valid in Visual Studio may fail as a Windows Service or cron job where CWD differs. {#05-working-with-csv-and-text-files-q20}
+#### Q20. **Relative paths depend on `CurrentDirectory`** — A path valid in Visual Studio may fail as a Windows Service or cron job where CWD differs.
 
 _Answer not found._
 
 ---
 
-#### Q21. **`Path.Combine` with an absolute second segment discards earlier parts** — `Path.Combine("C:\\a", "D:\\b")` yields `D:\b`, which surprises many candidates. {#05-working-with-csv-and-text-files-q21}
+#### Q21. **`Path.Combine` with an absolute second segment discards earlier parts** — `Path.Combine("C:\\a", "D:\\b")` yields `D:\b`, which surprises many candidates.
 
 _Answer not found._
 
 ---
 
-#### Q22. **Encoding mismatch silently corrupts text** — Default UTF-8 assumptions break on Windows-1252 or UTF-16 LE files; specify `Encoding` explicitly. {#05-working-with-csv-and-text-files-q22}
+#### Q22. **Encoding mismatch silently corrupts text** — Default UTF-8 assumptions break on Windows-1252 or UTF-16 LE files; specify `Encoding` explicitly.
 
 _Answer not found._
 
 ---
 
-#### Q23. **Seeking past EOF then writing extends the file with undefined gap bytes** — Understand sparse/hole behavior when patching binary files in place. {#05-working-with-csv-and-text-files-q23}
+#### Q23. **Seeking past EOF then writing extends the file with undefined gap bytes** — Understand sparse/hole behavior when patching binary files in place.
 
 _Answer not found._
 
 ---
 
-#### Q24. **CSV `Split(',')` breaks on quoted commas** — `"Smith, Jr.",42` becomes three fields; use a real parser or state machine. {#05-working-with-csv-and-text-files-q24}
+#### Q24. **CSV `Split(',')` breaks on quoted commas** — `"Smith, Jr.",42` becomes three fields; use a real parser or state machine.
 
 _Answer not found._
 
 ---
 
-#### Q25. **Double-quote escaping in CSV is `""` not `\"`** — Getting escape rules wrong produces columns that shift on import. {#05-working-with-csv-and-text-files-q25}
+#### Q25. **Double-quote escaping in CSV is `""` not `\"`** — Getting escape rules wrong produces columns that shift on import.
 
 _Answer not found._
 

@@ -4,149 +4,222 @@
 ## Table of Contents
 
 - [01. Threads & Thread Lifecycle](#01-threads-thread-lifecycle)
-  - [Q1. Explain multithreading in C# and when it is appropriate vs a…](#01-threads-thread-lifecycle-q1)
-  - [Q2. What is a `Thread`, and how do you create and start one?](#01-threads-thread-lifecycle-q2)
-  - [Q3. What are foreground vs background threads, and how do they a…](#01-threads-thread-lifecycle-q3)
-  - [Q4. What are the main thread states in the lifecycle (unstarted,…](#01-threads-thread-lifecycle-q4)
-  - [Q5. What is `Thread.Join()`, and what happens if you never join …](#01-threads-thread-lifecycle-q5)
-  - [Q6. What is `Thread.Sleep()` vs spinning vs waiting — when is ea…](#01-threads-thread-lifecycle-q6)
-  - [Q7. What is thread affinity, and why does it matter for UI appli…](#01-threads-thread-lifecycle-q7)
-  - [Q8. What is the difference between creating a raw `Thread` and u…](#01-threads-thread-lifecycle-q8)
-  - [Q9. What are `Thread.Name`, `IsBackground`, `Priority` — which a…](#01-threads-thread-lifecycle-q9)
-  - [Q10. What is a race condition at the thread level, and how can tw…](#01-threads-thread-lifecycle-q10)
-  - [Q11. What is the difference between kernel threads and managed th…](#01-threads-thread-lifecycle-q11)
-  - [Q12. Why is manually creating many threads often a scalability an…](#01-threads-thread-lifecycle-q12)
-  - [Q13. What is `ThreadStatic`, and how does it differ from `ThreadL…](#01-threads-thread-lifecycle-q13)
-  - [Q14. What exceptions can occur when aborting or interrupting thre…](#01-threads-thread-lifecycle-q14)
-  - [Q15. How does the main thread exiting affect background work stil…](#01-threads-thread-lifecycle-q15)
+  - [Q1. Explain multithreading in C# and when it is appropriate vs async I/O or tasks.](#q1-explain-multithreading-in-c-and-when-it-is-appropriate-vs-async-io-or-tasks)
+  - [Q2. What is a `Thread`, and how do you create and start one?](#q2-what-is-a-thread-and-how-do-you-create-and-start-one)
+  - [Q3. What are foreground vs background threads, and how do they affect process shutdown?](#q3-what-are-foreground-vs-background-threads-and-how-do-they-affect-process-shutdown)
+  - [Q4. What are the main thread states in the lifecycle (unstarted, running, wait/sleep/join, stopped)?](#q4-what-are-the-main-thread-states-in-the-lifecycle-unstarted-running-waitsleepjoin-stopped)
+  - [Q5. What is `Thread.Join()`, and what happens if you never join a foreground thread?](#q5-what-is-threadjoin-and-what-happens-if-you-never-join-a-foreground-thread)
+  - [Q6. What is `Thread.Sleep()` vs spinning vs waiting — when is each appropriate?](#q6-what-is-threadsleep-vs-spinning-vs-waiting-when-is-each-appropriate)
+  - [Q7. What is thread affinity, and why does it matter for UI applications?](#q7-what-is-thread-affinity-and-why-does-it-matter-for-ui-applications)
+  - [Q8. What is the difference between creating a raw `Thread` and using thread pool threads?](#q8-what-is-the-difference-between-creating-a-raw-thread-and-using-thread-pool-threads)
+  - [Q9. What are `Thread.Name`, `IsBackground`, `Priority` — which actually affect scheduling?](#q9-what-are-threadname-isbackground-priority-which-actually-affect-scheduling)
+  - [Q10. What is a race condition at the thread level, and how can two threads interleave unpredictably?](#q10-what-is-a-race-condition-at-the-thread-level-and-how-can-two-threads-interleave-unpredictably)
+  - [Q11. What is the difference between kernel threads and managed threads (conceptual model)?](#q11-what-is-the-difference-between-kernel-threads-and-managed-threads-conceptual-model)
+  - [Q12. Why is manually creating many threads often a scalability anti-pattern?](#q12-why-is-manually-creating-many-threads-often-a-scalability-anti-pattern)
+  - [Q13. What is `ThreadStatic`, and how does it differ from `ThreadLocal<T>`?](#q13-what-is-threadstatic-and-how-does-it-differ-from-threadlocalt)
+  - [Q14. What exceptions can occur when aborting or interrupting threads (historical vs modern guidance)?](#q14-what-exceptions-can-occur-when-aborting-or-interrupting-threads-historical-vs-modern-guidance)
+  - [Q15. How does the main thread exiting affect background work still running?](#q15-how-does-the-main-thread-exiting-affect-background-work-still-running)
 
 - [02. ThreadPool](#02-threadpool)
-  - [Q1. What is the thread pool in .NET, and why is it preferred ove…](#02-threadpool-q1)
-  - [Q2. How does the thread pool manage worker threads and I/O compl…](#02-threadpool-q2)
-  - [Q3. What is hill-climbing in the .NET thread pool (high level)?](#02-threadpool-q3)
-  - [Q4. What is `ThreadPool.QueueUserWorkItem`, and how does it rela…](#02-threadpool-q4)
-  - [Q5. What is starvation in the thread pool, and what causes it?](#02-threadpool-q5)
-  - [Q6. How do synchronous blocking calls inside pool threads affect…](#02-threadpool-q6)
-  - [Q7. What is the difference between dedicated threads and pool th…](#02-threadpool-q7)
-  - [Q8. What is `ThreadPool.SetMinThreads` / `SetMaxThreads`, and wh…](#02-threadpool-q8)
-  - [Q9. How does the thread pool interact with `async`/`await` conti…](#02-threadpool-q9)
-  - [Q10. What is the danger of blocking the UI thread vs blocking a p…](#02-threadpool-q10)
-  - [Q11. How do thread pool threads relate to `Parallel.For` and PLIN…](#02-threadpool-q11)
-  - [Q12. What diagnostics exist for thread pool queue length and thre…](#02-threadpool-q12)
+  - [Q1. What is the thread pool in .NET, and why is it preferred over creating raw threads?](#q1-what-is-the-thread-pool-in-net-and-why-is-it-preferred-over-creating-raw-threads)
+  - [Q2. How does the thread pool manage worker threads and I/O completion threads?](#q2-how-does-the-thread-pool-manage-worker-threads-and-io-completion-threads)
+  - [Q3. What is hill-climbing in the .NET thread pool (high level)?](#q3-what-is-hill-climbing-in-the-net-thread-pool-high-level)
+  - [Q4. What is `ThreadPool.QueueUserWorkItem`, and how does it relate to `Task.Run`?](#q4-what-is-threadpoolqueueuserworkitem-and-how-does-it-relate-to-taskrun)
+  - [Q5. What is starvation in the thread pool, and what causes it?](#q5-what-is-starvation-in-the-thread-pool-and-what-causes-it)
+  - [Q6. How do synchronous blocking calls inside pool threads affect throughput?](#q6-how-do-synchronous-blocking-calls-inside-pool-threads-affect-throughput)
+  - [Q7. What is the difference between dedicated threads and pool threads for long-running work?](#q7-what-is-the-difference-between-dedicated-threads-and-pool-threads-for-long-running-work)
+  - [Q8. What is `ThreadPool.SetMinThreads` / `SetMaxThreads`, and when might you tune them?](#q8-what-is-threadpoolsetminthreads-setmaxthreads-and-when-might-you-tune-them)
+  - [Q9. How does the thread pool interact with `async`/`await` continuations?](#q9-how-does-the-thread-pool-interact-with-asyncawait-continuations)
+  - [Q10. What is the danger of blocking the UI thread vs blocking a pool thread?](#q10-what-is-the-danger-of-blocking-the-ui-thread-vs-blocking-a-pool-thread)
+  - [Q11. How do thread pool threads relate to `Parallel.For` and PLINQ?](#q11-how-do-thread-pool-threads-relate-to-parallelfor-and-plinq)
+  - [Q12. What diagnostics exist for thread pool queue length and thread counts (`ThreadPool.ThreadCount`, ETW)?](#q12-what-diagnostics-exist-for-thread-pool-queue-length-and-thread-counts-threadpoolthreadcount-etw)
 
 - [03. Tasks & Task Parallel Library](#03-tasks-task-parallel-library)
-  - [Q1. What is the Task Parallel Library (TPL)?](#03-tasks-task-parallel-library-q1)
-  - [Q2. Explain the difference between `Thread` and `Task` in purpos…](#03-tasks-task-parallel-library-q2)
-  - [Q3. Explain `Task`, `Task<T>`, and `ValueTask<T>` — when to use …](#03-tasks-task-parallel-library-q3)
-  - [Q4. What is `Task.Run`, and when should it be used vs when it sh…](#03-tasks-task-parallel-library-q4)
-  - [Q5. What is `Task.Factory.StartNew`, and why is `Task.Run` usual…](#03-tasks-task-parallel-library-q5)
-  - [Q6. Explain task continuations with `ContinueWith` — options, sc…](#03-tasks-task-parallel-library-q6)
-  - [Q7. What is `Task.WhenAll`, `Task.WhenAny`, and how do they diff…](#03-tasks-task-parallel-library-q7)
-  - [Q8. What is `TaskCompletionSource<T>`, and what scenarios does i…](#03-tasks-task-parallel-library-q8)
-  - [Q9. What is the difference between completing a `TaskCompletionS…](#03-tasks-task-parallel-library-q9)
-  - [Q10. What is `Task.FromResult`, `Task.CompletedTask`, and when ar…](#03-tasks-task-parallel-library-q10)
-  - [Q11. What is the difference between `AggregateException` and a re…](#03-tasks-task-parallel-library-q11)
-  - [Q12. How do child tasks relate to parent tasks (`TaskCreationOpti…](#03-tasks-task-parallel-library-q12)
-  - [Q13. What is task cancellation via `CancellationToken` registrati…](#03-tasks-task-parallel-library-q13)
-  - [Q14. What are unobserved task exceptions, and how does .NET handl…](#03-tasks-task-parallel-library-q14)
-  - [Q15. What is `ValueTask` pooling/caching, and why must consumers …](#03-tasks-task-parallel-library-q15)
-  - [Q16. How do you implement a timeout around a `Task` using `Cancel…](#03-tasks-task-parallel-library-q16)
+  - [Q1. What is the Task Parallel Library (TPL)?](#q1-what-is-the-task-parallel-library-tpl)
+  - [Q2. Explain the difference between `Thread` and `Task` in purpose and scheduling.](#q2-explain-the-difference-between-thread-and-task-in-purpose-and-scheduling)
+  - [Q3. Explain `Task`, `Task<T>`, and `ValueTask<T>` — when to use each.](#q3-explain-task-taskt-and-valuetaskt-when-to-use-each)
+  - [Q4. What is `Task.Run`, and when should it be used vs when it should be avoided?](#q4-what-is-taskrun-and-when-should-it-be-used-vs-when-it-should-be-avoided)
+  - [Q5. What is `Task.Factory.StartNew`, and why is `Task.Run` usually preferred?](#q5-what-is-taskfactorystartnew-and-why-is-taskrun-usually-preferred)
+  - [Q6. Explain task continuations with `ContinueWith` — options, scheduling, and exception handling.](#q6-explain-task-continuations-with-continuewith-options-scheduling-and-exception-handling)
+  - [Q7. What is `Task.WhenAll`, `Task.WhenAny`, and how do they differ from manual continuation chaining?](#q7-what-is-taskwhenall-taskwhenany-and-how-do-they-differ-from-manual-continuation-chaining)
+  - [Q8. What is `TaskCompletionSource<T>`, and what scenarios does it enable (bridging callbacks, manual completion)?](#q8-what-is-taskcompletionsourcet-and-what-scenarios-does-it-enable-bridging-callbacks-manual-completion)
+  - [Q9. What is the difference between completing a `TaskCompletionSource` with result, exception, or cancellation?](#q9-what-is-the-difference-between-completing-a-taskcompletionsource-with-result-exception-or-cancellation)
+  - [Q10. What is `Task.FromResult`, `Task.CompletedTask`, and when are they preferable to `Task.Run`?](#q10-what-is-taskfromresult-taskcompletedtask-and-when-are-they-preferable-to-taskrun)
+  - [Q11. What is the difference between `AggregateException` and a regular exception when tasks fail?](#q11-what-is-the-difference-between-aggregateexception-and-a-regular-exception-when-tasks-fail)
+  - [Q12. How do child tasks relate to parent tasks (`TaskCreationOptions`, attached vs detached)?](#q12-how-do-child-tasks-relate-to-parent-tasks-taskcreationoptions-attached-vs-detached)
+  - [Q13. What is task cancellation via `CancellationToken` registration vs `TrySetCanceled`?](#q13-what-is-task-cancellation-via-cancellationtoken-registration-vs-trysetcanceled)
+  - [Q14. What are unobserved task exceptions, and how does .NET handle them?](#q14-what-are-unobserved-task-exceptions-and-how-does-net-handle-them)
+  - [Q15. What is `ValueTask` pooling/caching, and why must consumers avoid double-awaiting unless documented safe?](#q15-what-is-valuetask-poolingcaching-and-why-must-consumers-avoid-double-awaiting-unless-documented-safe)
+  - [Q16. How do you implement a timeout around a `Task` using `CancellationTokenSource` or `WhenAny`?](#q16-how-do-you-implement-a-timeout-around-a-task-using-cancellationtokensource-or-whenany)
 
 - [04. Async and Await](#04-async-and-await)
-  - [Q1. Explain asynchronous programming in C# — what problem does i…](#04-async-and-await-q1)
-  - [Q2. Explain the `async` and `await` keywords in detail.](#04-async-and-await-q2)
-  - [Q3. What is the difference between CPU-bound and I/O-bound async…](#04-async-and-await-q3)
-  - [Q4. What is `ConfigureAwait(false)`, and when should library vs …](#04-async-and-await-q4)
-  - [Q5. How do you handle exceptions in async/await methods?](#04-async-and-await-q5)
-  - [Q6. What is the difference between `async void`, `async Task`, a…](#04-async-and-await-q6)
-  - [Q7. What is an async stream (`IAsyncEnumerable<T>`) in C# 8+, an…](#04-async-and-await-q7)
-  - [Q8. How does the async state machine work under the hood (high l…](#04-async-and-await-q8)
-  - [Q9. What is synchronization context, and how does it affect cont…](#04-async-and-await-q9)
-  - [Q10. Why can `.Result`, `.Wait()`, and `.GetAwaiter().GetResult()…](#04-async-and-await-q10)
-  - [Q11. What is the difference between `await task` and `return task…](#04-async-and-await-q11)
-  - [Q12. How do you implement retry with exponential backoff in async…](#04-async-and-await-q12)
-  - [Q13. What is jitter in backoff strategies, and why is it used?](#04-async-and-await-q13)
-  - [Q14. How do Polly-style resilience policies relate to manual retr…](#04-async-and-await-q14)
-  - [Q15. What is `CancellationTokenSource.CreateLinkedTokenSource`, a…](#04-async-and-await-q15)
-  - [Q16. How do you propagate cancellation through layered async APIs…](#04-async-and-await-q16)
-  - [Q17. What is `Task.Delay` vs `Thread.Sleep` in async methods?](#04-async-and-await-q17)
-  - [Q18. What is "async all the way" — why is mixing blocking and asy…](#04-async-and-await-q18)
-  - [Q19. How do you unit test async methods and time-dependent retry …](#04-async-and-await-q19)
-  - [Q20. What is `IAsyncDisposable`, and how does `await using` work?](#04-async-and-await-q20)
+  - [Q1. Explain asynchronous programming in C# — what problem does it solve?](#q1-explain-asynchronous-programming-in-c-what-problem-does-it-solve)
+  - [Q2. Explain the `async` and `await` keywords in detail.](#q2-explain-the-async-and-await-keywords-in-detail)
+  - [Q3. What is the difference between CPU-bound and I/O-bound async work?](#q3-what-is-the-difference-between-cpu-bound-and-io-bound-async-work)
+  - [Q4. What is `ConfigureAwait(false)`, and when should library vs application code use it?](#q4-what-is-configureawaitfalse-and-when-should-library-vs-application-code-use-it)
+  - [Q5. How do you handle exceptions in async/await methods?](#q5-how-do-you-handle-exceptions-in-asyncawait-methods)
+  - [Q6. What is the difference between `async void`, `async Task`, and `async Task<T>`?](#q6-what-is-the-difference-between-async-void-async-task-and-async-taskt)
+  - [Q7. What is an async stream (`IAsyncEnumerable<T>`) in C# 8+, and how does `await foreach` work?](#q7-what-is-an-async-stream-iasyncenumerablet-in-c-8-and-how-does-await-foreach-work)
+  - [Q8. How does the async state machine work under the hood (high level: `MoveNext`, `IAsyncStateMachine`)?](#q8-how-does-the-async-state-machine-work-under-the-hood-high-level-movenext-iasyncstatemachine)
+  - [Q9. What is synchronization context, and how does it affect continuation marshaling?](#q9-what-is-synchronization-context-and-how-does-it-affect-continuation-marshaling)
+  - [Q10. Why can `.Result`, `.Wait()`, and `.GetAwaiter().GetResult()` cause deadlocks?](#q10-why-can-result-wait-and-getawaitergetresult-cause-deadlocks)
+  - [Q11. What is the difference between `await task` and `return task` from an async method (async method builder behavior)?](#q11-what-is-the-difference-between-await-task-and-return-task-from-an-async-method-async-method-builder-behavior)
+  - [Q12. How do you implement retry with exponential backoff in async code?](#q12-how-do-you-implement-retry-with-exponential-backoff-in-async-code)
+  - [Q13. What is jitter in backoff strategies, and why is it used?](#q13-what-is-jitter-in-backoff-strategies-and-why-is-it-used)
+  - [Q14. How do Polly-style resilience policies relate to manual retry loops?](#q14-how-do-polly-style-resilience-policies-relate-to-manual-retry-loops)
+  - [Q15. What is `CancellationTokenSource.CreateLinkedTokenSource`, and when is linking tokens needed?](#q15-what-is-cancellationtokensourcecreatelinkedtokensource-and-when-is-linking-tokens-needed)
+  - [Q16. How do you propagate cancellation through layered async APIs?](#q16-how-do-you-propagate-cancellation-through-layered-async-apis)
+  - [Q17. What is `Task.Delay` vs `Thread.Sleep` in async methods?](#q17-what-is-taskdelay-vs-threadsleep-in-async-methods)
+  - [Q18. What is "async all the way" — why is mixing blocking and async problematic?](#q18-what-is-async-all-the-way-why-is-mixing-blocking-and-async-problematic)
+  - [Q19. How do you unit test async methods and time-dependent retry logic?](#q19-how-do-you-unit-test-async-methods-and-time-dependent-retry-logic)
+  - [Q20. What is `IAsyncDisposable`, and how does `await using` work?](#q20-what-is-iasyncdisposable-and-how-does-await-using-work)
 
 - [05. Parallel Programming](#05-parallel-programming)
-  - [Q1. What is `Parallel.For` and `Parallel.ForEach`?](#05-parallel-programming-q1)
-  - [Q2. What is `ParallelOptions` (`MaxDegreeOfParallelism`, `Cancel…](#05-parallel-programming-q2)
-  - [Q3. What is a `Partitioner<TSource>`, and when would you supply …](#05-parallel-programming-q3)
-  - [Q4. What is the difference between range partitioning and chunk …](#05-parallel-programming-q4)
-  - [Q5. Explain PLINQ (`AsParallel`, `WithDegreeOfParallelism`, `Wit…](#05-parallel-programming-q5)
-  - [Q6. When is parallelization slower than sequential execution?](#05-parallel-programming-q6)
-  - [Q7. What types of workloads benefit from PLINQ vs `Parallel.ForE…](#05-parallel-programming-q7)
-  - [Q8. What are thread-safe requirements when using parallel loops …](#05-parallel-programming-q8)
-  - [Q9. How do you perform parallel aggregation with `lock`, `Interl…](#05-parallel-programming-q9)
-  - [Q10. What is `ParallelLoopResult`, and how do you detect partial …](#05-parallel-programming-q10)
-  - [Q11. What are ordering guarantees in PLINQ (`AsOrdered`) and thei…](#05-parallel-programming-q11)
-  - [Q12. How does parallel LINQ decide default partition sizes?](#05-parallel-programming-q12)
-  - [Q13. What exceptions are thrown from parallel loops (`AggregateEx…](#05-parallel-programming-q13)
-  - [Q14. How do you combine async I/O with parallel CPU work without …](#05-parallel-programming-q14)
-  - [Q15. What are best practices for parallel and async code in serve…](#05-parallel-programming-q15)
+  - [Q1. What is `Parallel.For` and `Parallel.ForEach`?](#q1-what-is-parallelfor-and-parallelforeach)
+  - [Q2. What is `ParallelOptions` (`MaxDegreeOfParallelism`, `CancellationToken`) used for?](#q2-what-is-paralleloptions-maxdegreeofparallelism-cancellationtoken-used-for)
+  - [Q3. What is a `Partitioner<TSource>`, and when would you supply a custom partitioner?](#q3-what-is-a-partitionertsource-and-when-would-you-supply-a-custom-partitioner)
+  - [Q4. What is the difference between range partitioning and chunk partitioning?](#q4-what-is-the-difference-between-range-partitioning-and-chunk-partitioning)
+  - [Q5. Explain PLINQ (`AsParallel`, `WithDegreeOfParallelism`, `WithMergeOptions`).](#q5-explain-plinq-asparallel-withdegreeofparallelism-withmergeoptions)
+  - [Q6. When is parallelization slower than sequential execution?](#q6-when-is-parallelization-slower-than-sequential-execution)
+  - [Q7. What types of workloads benefit from PLINQ vs `Parallel.ForEach`?](#q7-what-types-of-workloads-benefit-from-plinq-vs-parallelforeach)
+  - [Q8. What are thread-safe requirements when using parallel loops (shared state, locals, aggregation)?](#q8-what-are-thread-safe-requirements-when-using-parallel-loops-shared-state-locals-aggregation)
+  - [Q9. How do you perform parallel aggregation with `lock`, `Interlocked`, or thread-local accumulators?](#q9-how-do-you-perform-parallel-aggregation-with-lock-interlocked-or-thread-local-accumulators)
+  - [Q10. What is `ParallelLoopResult`, and how do you detect partial failures?](#q10-what-is-parallelloopresult-and-how-do-you-detect-partial-failures)
+  - [Q11. What are ordering guarantees in PLINQ (`AsOrdered`) and their cost?](#q11-what-are-ordering-guarantees-in-plinq-asordered-and-their-cost)
+  - [Q12. How does parallel LINQ decide default partition sizes?](#q12-how-does-parallel-linq-decide-default-partition-sizes)
+  - [Q13. What exceptions are thrown from parallel loops (`AggregateException`, inner exceptions)?](#q13-what-exceptions-are-thrown-from-parallel-loops-aggregateexception-inner-exceptions)
+  - [Q14. How do you combine async I/O with parallel CPU work without blocking the pool?](#q14-how-do-you-combine-async-io-with-parallel-cpu-work-without-blocking-the-pool)
+  - [Q15. What are best practices for parallel and async code in server applications?](#q15-what-are-best-practices-for-parallel-and-async-code-in-server-applications)
 
 - [06. Synchronization and Locks](#06-synchronization-and-locks)
-  - [Q1. Explain synchronization primitives: `lock`, `Monitor`, `Mute…](#06-synchronization-and-locks-q1)
-  - [Q2. What is `ReaderWriterLockSlim`, and when is it preferable to…](#06-synchronization-and-locks-q2)
-  - [Q3. Explain `AutoResetEvent`, `ManualResetEvent`, and `ManualRes…](#06-synchronization-and-locks-q3)
-  - [Q4. What is `CancellationToken`, and how do you implement cooper…](#06-synchronization-and-locks-q4)
-  - [Q5. Explain deadlocks in multithreading — necessary conditions a…](#06-synchronization-and-locks-q5)
-  - [Q6. What are race conditions, and how can they be prevented?](#06-synchronization-and-locks-q6)
-  - [Q7. What is the `volatile` keyword, and when does it provide vis…](#06-synchronization-and-locks-q7)
-  - [Q8. What is the difference between `volatile` and `lock` for thr…](#06-synchronization-and-locks-q8)
-  - [Q9. What is `Interlocked` (`Increment`, `CompareExchange`, `Add`…](#06-synchronization-and-locks-q9)
-  - [Q10. What is `SpinLock`, and when might low-latency spinning beat…](#06-synchronization-and-locks-q10)
-  - [Q11. What is lock ordering, and how does it prevent deadlock?](#06-synchronization-and-locks-q11)
-  - [Q12. What is the `Monitor.TryEnter` pattern, and how do timeouts …](#06-synchronization-and-locks-q12)
-  - [Q13. What is async-compatible locking (`SemaphoreSlim.WaitAsync`)…](#06-synchronization-and-locks-q13)
-  - [Q14. What is a priority inversion problem (conceptual), and which…](#06-synchronization-and-locks-q14)
-  - [Q15. How do you diagnose deadlocks and lock contention in product…](#06-synchronization-and-locks-q15)
-  - [Q16. What is thread-safe lazy initialization (`Lazy<T>`, double-c…](#06-synchronization-and-locks-q16)
+  - [Q1. Explain synchronization primitives: `lock`, `Monitor`, `Mutex`, and `Semaphore`/`SemaphoreSlim`.](#q1-explain-synchronization-primitives-lock-monitor-mutex-and-semaphoresemaphoreslim)
+  - [Q2. What is `ReaderWriterLockSlim`, and when is it preferable to a plain `lock`?](#q2-what-is-readerwriterlockslim-and-when-is-it-preferable-to-a-plain-lock)
+  - [Q3. Explain `AutoResetEvent`, `ManualResetEvent`, and `ManualResetEventSlim`.](#q3-explain-autoresetevent-manualresetevent-and-manualreseteventslim)
+  - [Q4. What is `CancellationToken`, and how do you implement cooperative cancellation?](#q4-what-is-cancellationtoken-and-how-do-you-implement-cooperative-cancellation)
+  - [Q5. Explain deadlocks in multithreading — necessary conditions and prevention strategies.](#q5-explain-deadlocks-in-multithreading-necessary-conditions-and-prevention-strategies)
+  - [Q6. What are race conditions, and how can they be prevented?](#q6-what-are-race-conditions-and-how-can-they-be-prevented)
+  - [Q7. What is the `volatile` keyword, and when does it provide visibility guarantees?](#q7-what-is-the-volatile-keyword-and-when-does-it-provide-visibility-guarantees)
+  - [Q8. What is the difference between `volatile` and `lock` for thread safety?](#q8-what-is-the-difference-between-volatile-and-lock-for-thread-safety)
+  - [Q9. What is `Interlocked` (`Increment`, `CompareExchange`, `Add`), and when is it enough without `lock`?](#q9-what-is-interlocked-increment-compareexchange-add-and-when-is-it-enough-without-lock)
+  - [Q10. What is `SpinLock`, and when might low-latency spinning beat `lock`?](#q10-what-is-spinlock-and-when-might-low-latency-spinning-beat-lock)
+  - [Q11. What is lock ordering, and how does it prevent deadlock?](#q11-what-is-lock-ordering-and-how-does-it-prevent-deadlock)
+  - [Q12. What is the `Monitor.TryEnter` pattern, and how do timeouts help avoid indefinite blocking?](#q12-what-is-the-monitortryenter-pattern-and-how-do-timeouts-help-avoid-indefinite-blocking)
+  - [Q13. What is async-compatible locking (`SemaphoreSlim.WaitAsync`) vs blocking `lock` in async code?](#q13-what-is-async-compatible-locking-semaphoreslimwaitasync-vs-blocking-lock-in-async-code)
+  - [Q14. What is a priority inversion problem (conceptual), and which primitives exacerbate it?](#q14-what-is-a-priority-inversion-problem-conceptual-and-which-primitives-exacerbate-it)
+  - [Q15. How do you diagnose deadlocks and lock contention in production (dump analysis, `dotnet-sync`, counters)?](#q15-how-do-you-diagnose-deadlocks-and-lock-contention-in-production-dump-analysis-dotnet-sync-counters)
+  - [Q16. What is thread-safe lazy initialization (`Lazy<T>`, double-checked locking pitfalls)?](#q16-what-is-thread-safe-lazy-initialization-lazyt-double-checked-locking-pitfalls)
 
 - [07. Concurrent Collections](#07-concurrent-collections)
-  - [Q1. What concurrent collections exist in .NET (`ConcurrentDictio…](#07-concurrent-collections-q1)
-  - [Q2. When should you use thread-safe collections instead of stand…](#07-concurrent-collections-q2)
-  - [Q3. What is the difference between `Dictionary<TKey, TValue>` an…](#07-concurrent-collections-q3)
-  - [Q4. What are `AddOrUpdate`, `GetOrAdd`, and `TryUpdate` on `Conc…](#07-concurrent-collections-q4)
-  - [Q5. What is `BlockingCollection<T>`, and how does it implement p…](#07-concurrent-collections-q5)
-  - [Q6. What is the difference between bounded and unbounded `Blocki…](#07-concurrent-collections-q6)
-  - [Q7. How do you use `BlockingCollection` with multiple producers …](#07-concurrent-collections-q7)
-  - [Q8. What is `ConcurrentQueue` vs `ConcurrentStack` vs `Concurren…](#07-concurrent-collections-q8)
-  - [Q9. When is `ConcurrentBag` the wrong choice despite being threa…](#07-concurrent-collections-q9)
-  - [Q10. What is `IProducerConsumerCollection<T>` and custom underlyi…](#07-concurrent-collections-q10)
-  - [Q11. How do concurrent collections compare to locking a `List<T>`…](#07-concurrent-collections-q11)
-  - [Q12. What enumeration semantics do concurrent collections provide…](#07-concurrent-collections-q12)
-  - [Q13. How do you gracefully complete adding to a `BlockingCollecti…](#07-concurrent-collections-q13)
-  - [Q14. What pitfalls arise when mixing concurrent collections with …](#07-concurrent-collections-q14)
-  - [Q15. When should you use channels (`System.Threading.Channels`) i…](#07-concurrent-collections-q15)
-  - [Q16. **`.Result` / `.Wait()` deadlock** — Blocking async on a cap…](#07-concurrent-collections-q16)
-  - [Q17. **`async void` swallows observability** — Exceptions cannot …](#07-concurrent-collections-q17)
-  - [Q18. **`Task.Run` for I/O** — Offloading blocking I/O to the pool…](#07-concurrent-collections-q18)
-  - [Q19. **Async does not mean threaded** — I/O `await` often complet…](#07-concurrent-collections-q19)
-  - [Q20. **Unobserved task exceptions** — Faulted tasks that are neve…](#07-concurrent-collections-q20)
-  - [Q21. **Race on `List<T>`/`Dictionary<,>`** — Even `Add` is not th…](#07-concurrent-collections-q21)
-  - [Q22. **`ConfigureAwait(false)` in libraries** — Library code shou…](#07-concurrent-collections-q22)
-  - [Q23. **`ValueTask` double-await** — Re-awaiting or concurrent awa…](#07-concurrent-collections-q23)
-  - [Q24. **`TaskCompletionSource` set twice** — Second `TrySet*` call…](#07-concurrent-collections-q24)
-  - [Q25. **`BlockingCollection` after `CompleteAdding`** — Adding thr…](#07-concurrent-collections-q25)
-  - [Q26. **`Interlocked` is not composable** — Check-then-act on comp…](#07-concurrent-collections-q26)
-  - [Q27. **`volatile` does not make operations atomic** — `i++` still…](#07-concurrent-collections-q27)
-  - [Q28. **Parallel loop over small work** — Partitioning overhead ca…](#07-concurrent-collections-q28)
-  - [Q29. **Shared `Random` is not thread-safe** — Use `Random.Shared`…](#07-concurrent-collections-q29)
-  - [Q30. **Retry without cancellation** — Exponential backoff loops m…](#07-concurrent-collections-q30)
+  - [Q1. What concurrent collections exist in .NET (`ConcurrentDictionary`, `ConcurrentQueue`, `ConcurrentBag`, `BlockingCollection`, etc.)?](#q1-what-concurrent-collections-exist-in-net-concurrentdictionary-concurrentqueue-concurrentbag-blockingcollection-etc)
+  - [Q2. When should you use thread-safe collections instead of standard collections plus locks?](#q2-when-should-you-use-thread-safe-collections-instead-of-standard-collections-plus-locks)
+  - [Q3. What is the difference between `Dictionary<TKey, TValue>` and `ConcurrentDictionary<TKey, TValue>`?](#q3-what-is-the-difference-between-dictionarytkey-tvalue-and-concurrentdictionarytkey-tvalue)
+  - [Q4. What are `AddOrUpdate`, `GetOrAdd`, and `TryUpdate` on `ConcurrentDictionary`?](#q4-what-are-addorupdate-getoradd-and-tryupdate-on-concurrentdictionary)
+  - [Q5. What is `BlockingCollection<T>`, and how does it implement producer-consumer patterns?](#q5-what-is-blockingcollectiont-and-how-does-it-implement-producer-consumer-patterns)
+  - [Q6. What is the difference between bounded and unbounded `BlockingCollection` behavior?](#q6-what-is-the-difference-between-bounded-and-unbounded-blockingcollection-behavior)
+  - [Q7. How do you use `BlockingCollection` with multiple producers and consumers?](#q7-how-do-you-use-blockingcollection-with-multiple-producers-and-consumers)
+  - [Q8. What is `ConcurrentQueue` vs `ConcurrentStack` vs `ConcurrentBag` — ordering and stealing semantics?](#q8-what-is-concurrentqueue-vs-concurrentstack-vs-concurrentbag-ordering-and-stealing-semantics)
+  - [Q9. When is `ConcurrentBag` the wrong choice despite being thread-safe?](#q9-when-is-concurrentbag-the-wrong-choice-despite-being-thread-safe)
+  - [Q10. What is `IProducerConsumerCollection<T>` and custom underlying stores for `BlockingCollection`?](#q10-what-is-iproducerconsumercollectiont-and-custom-underlying-stores-for-blockingcollection)
+  - [Q11. How do concurrent collections compare to locking a `List<T>` for high-contention scenarios?](#q11-how-do-concurrent-collections-compare-to-locking-a-listt-for-high-contention-scenarios)
+  - [Q12. What enumeration semantics do concurrent collections provide (weakly consistent iterators)?](#q12-what-enumeration-semantics-do-concurrent-collections-provide-weakly-consistent-iterators)
+  - [Q13. How do you gracefully complete adding to a `BlockingCollection` (`CompleteAdding`)?](#q13-how-do-you-gracefully-complete-adding-to-a-blockingcollection-completeadding)
+  - [Q14. What pitfalls arise when mixing concurrent collections with LINQ?](#q14-what-pitfalls-arise-when-mixing-concurrent-collections-with-linq)
+  - [Q15. When should you use channels (`System.Threading.Channels`) instead of `BlockingCollection` in modern code?](#q15-when-should-you-use-channels-systemthreadingchannels-instead-of-blockingcollection-in-modern-code)
+  - [Q16. **`.Result` / `.Wait()` deadlock** — Blocking async on a captured synchronization context (UI, legacy ASP.NET) deadlocks when the continuation needs that same context.](#q16-result-wait-deadlock-blocking-async-on-a-captured-synchronization-context-ui-legacy-aspnet-deadlocks-when-the-continuation-needs-that-same-context)
+  - [Q17. **`async void` swallows observability** — Exceptions cannot be awaited by callers; use only for event handlers.](#q17-async-void-swallows-observability-exceptions-cannot-be-awaited-by-callers-use-only-for-event-handlers)
+  - [Q18. **`Task.Run` for I/O** — Offloading blocking I/O to the pool wastes threads; prefer truly async APIs.](#q18-taskrun-for-io-offloading-blocking-io-to-the-pool-wastes-threads-prefer-truly-async-apis)
+  - [Q19. **Async does not mean threaded** — I/O `await` often completes without extra threads; continuations may run on any pool thread.](#q19-async-does-not-mean-threaded-io-await-often-completes-without-extra-threads-continuations-may-run-on-any-pool-thread)
+  - [Q20. **Unobserved task exceptions** — Faulted tasks that are never awaited may surface later as unobserved exception events.](#q20-unobserved-task-exceptions-faulted-tasks-that-are-never-awaited-may-surface-later-as-unobserved-exception-events)
+  - [Q21. **Race on `List<T>`/`Dictionary<,>`** — Even `Add` is not thread-safe; use locks or concurrent collections.](#q21-race-on-listtdictionary-even-add-is-not-thread-safe-use-locks-or-concurrent-collections)
+  - [Q22. **`ConfigureAwait(false)` in libraries** — Library code should not marshal back to UI context; app code often needs the default for UI updates.](#q22-configureawaitfalse-in-libraries-library-code-should-not-marshal-back-to-ui-context-app-code-often-needs-the-default-for-ui-updates)
+  - [Q23. **`ValueTask` double-await** — Re-awaiting or concurrent awaits on a pooled `ValueTask` can corrupt state unless documented safe.](#q23-valuetask-double-await-re-awaiting-or-concurrent-awaits-on-a-pooled-valuetask-can-corrupt-state-unless-documented-safe)
+  - [Q24. **`TaskCompletionSource` set twice** — Second `TrySet*` calls fail; race to complete can drop results if not coordinated.](#q24-taskcompletionsource-set-twice-second-tryset-calls-fail-race-to-complete-can-drop-results-if-not-coordinated)
+  - [Q25. **`BlockingCollection` after `CompleteAdding`** — Adding throws; consumers must drain remaining items correctly.](#q25-blockingcollection-after-completeadding-adding-throws-consumers-must-drain-remaining-items-correctly)
+  - [Q26. **`Interlocked` is not composable** — Check-then-act on complex invariants still needs `lock` or careful CAS loops.](#q26-interlocked-is-not-composable-check-then-act-on-complex-invariants-still-needs-lock-or-careful-cas-loops)
+  - [Q27. **`volatile` does not make operations atomic** — `i++` still races even if `i` is volatile.](#q27-volatile-does-not-make-operations-atomic-i-still-races-even-if-i-is-volatile)
+  - [Q28. **Parallel loop over small work** — Partitioning overhead can make `Parallel.ForEach` slower than sequential code.](#q28-parallel-loop-over-small-work-partitioning-overhead-can-make-parallelforeach-slower-than-sequential-code)
+  - [Q29. **Shared `Random` is not thread-safe** — Use `Random.Shared` or thread-local RNG in parallel code.](#q29-shared-random-is-not-thread-safe-use-randomshared-or-thread-local-rng-in-parallel-code)
+  - [Q30. **Retry without cancellation** — Exponential backoff loops must honor `CancellationToken` and max attempts to avoid runaway delays.](#q30-retry-without-cancellation-exponential-backoff-loops-must-honor-cancellationtoken-and-max-attempts-to-avoid-runaway-delays)
+  - [Q1. (R) A warehouse console tool spawns label printers on dedicated threads. Operators report the process "hangs" after pressing Enter to quit, even though cancellation was requested. Review the shutdown wiring:](#q1-r-a-warehouse-console-tool-spawns-label-printers-on-dedicated-threads-operators-report-the-process-hangs-after-pressing-enter-to-quit-even-though-cancellation-was-requested-review-the-shutdown-wiring)
+  - [Q2. (R) A teammate copied the shipment worker from the chapter tutorial but dropped synchronization "for speed." Under load, totals and result lists disagree. Review:](#q2-r-a-teammate-copied-the-shipment-worker-from-the-chapter-tutorial-but-dropped-synchronization-for-speed-under-load-totals-and-result-lists-disagree-review)
+  - [Q3. (R) After parallelizing shipment processing, every worker log shows the same shipment id (`SH-1003`) even though three different ids were queued. Review the spawn loop:](#q3-r-after-parallelizing-shipment-processing-every-worker-log-shows-the-same-shipment-id-sh-1003-even-though-three-different-ids-were-queued-review-the-spawn-loop)
+  - [Q4. (P) A long-running inventory sweep runs on a dedicated `Thread` (like `RunInventorySweep` in the chapter demo). Ops wants the Windows Service to stop within 30 seconds on shutdown — no `Thread.Abort`. What production pattern replaces force-kill, and what must the worker loop guarantee?](#q4-p-a-long-running-inventory-sweep-runs-on-a-dedicated-thread-like-runinventorysweep-in-the-chapter-demo-ops-wants-the-windows-service-to-stop-within-30-seconds-on-shutdown-no-threadabort-what-production-pattern-replaces-force-kill-and-what-must-the-worker-loop-guarantee)
+  - [Q5. (M) Main waits for workers using `IsAlive` and `Join(100)` in a loop (matching the chapter demo). Under heavy load, logs show hundreds of `"Waiting on Worker-…"` lines per second while workers are still running. Is this a bug, and what waiting pattern is preferable in production?](#q5-m-main-waits-for-workers-using-isalive-and-join100-in-a-loop-matching-the-chapter-demo-under-heavy-load-logs-show-hundreds-of-waiting-on-worker--lines-per-second-while-workers-are-still-running-is-this-a-bug-and-what-waiting-pattern-is-preferable-in-production)
+  - [Q6. (D) Apex Warehouse will scan 400 inbound shipments per hour. A developer proposes `new Thread(ProcessShipment)` per shipment forever, `ThreadPriority.AboveNormal` on express lanes, and `[ThreadStatic]` counters for per-worker metrics exported to Prometheus. What breaks at scale, and what would you use instead while still honoring lifecycle concepts from this chapter?](#q6-d-apex-warehouse-will-scan-400-inbound-shipments-per-hour-a-developer-proposes-new-threadprocessshipment-per-shipment-forever-threadpriorityabovenormal-on-express-lanes-and-threadstatic-counters-for-per-worker-metrics-exported-to-prometheus-what-breaks-at-scale-and-what-would-you-use-instead-while-still-honoring-lifecycle-concepts-from-this-chapter)
+  - [Q7. (R) A retry path tries to restart workers after a transient fault. Review:](#q7-r-a-retry-path-tries-to-restart-workers-after-a-transient-fault-review)
+
+- [02. ThreadPool](#02-threadpool-1)
+
+- [02. ThreadPool](#02-threadpool-2)
+  - [Q1. (R) A nightly invoice import queues validation onto the thread pool but reports wrong counts in production (sometimes all zeros). Review this service method. What fails under load, and how do you fix it in priority order?](#q1-r-a-nightly-invoice-import-queues-validation-onto-the-thread-pool-but-reports-wrong-counts-in-production-sometimes-all-zeros-review-this-service-method-what-fails-under-load-and-how-do-you-fix-it-in-priority-order)
+  - [Q2. (R) A legacy COM-aware host copied the tutorial's `ManualResetEvent` + `WaitHandle.WaitAll` pattern for large batches. Review this batch runner used with `jobCount = 500`:](#q2-r-a-legacy-com-aware-host-copied-the-tutorials-manualresetevent-waithandlewaitall-pattern-for-large-batches-review-this-batch-runner-used-with-jobcount-500)
+  - [Q3. (R) After a refactor, an audit pipeline starves under concurrent load — other timers and `Task.Run` work stops progressing. Review the pool callback:](#q3-r-after-a-refactor-an-audit-pipeline-starves-under-concurrent-load-other-timers-and-taskrun-work-stops-progressing-review-the-pool-callback)
+  - [Q4. (P) Every microservice instance calls this at startup in `Program.cs` to "avoid cold-start latency" after deploy:](#q4-p-every-microservice-instance-calls-this-at-startup-in-programcs-to-avoid-cold-start-latency-after-deploy)
+  - [Q5. (M) During a traffic spike, dashboards show `GetAvailableThreads` reporting very few free worker threads, but CPU is only ~35%. A teammate concludes "we need more cores." Given this monitoring snippet from a pool callback, what is the more likely root cause?](#q5-m-during-a-traffic-spike-dashboards-show-getavailablethreads-reporting-very-few-free-worker-threads-but-cpu-is-only-35-a-teammate-concludes-we-need-more-cores-given-this-monitoring-snippet-from-a-pool-callback-what-is-the-more-likely-root-cause)
+  - [Q6. (D) A thumbnail service receives bursts of 2,000 independent resize jobs per upload batch (~50 ms CPU each). Two proposals:](#q6-d-a-thumbnail-service-receives-bursts-of-2000-independent-resize-jobs-per-upload-batch-50-ms-cpu-each-two-proposals)
+  - [Q7. (R) Pool callbacks silently drop failures in production — support sees partial imports with no error logs. Review this aggregation helper:](#q7-r-pool-callbacks-silently-drop-failures-in-production-support-sees-partial-imports-with-no-error-logs-review-this-aggregation-helper)
+
+- [03. Tasks & Task Parallel Library](#03-tasks-task-parallel-library-1)
+
+- [03. Tasks & Task Parallel Library](#03-tasks-task-parallel-library-2)
+  - [Q1. (R) An ASP.NET Core batch-validation endpoint works in dev but stalls under load. Review the action:](#q1-r-an-aspnet-core-batch-validation-endpoint-works-in-dev-but-stalls-under-load-review-the-action)
+  - [Q2. (R) A fulfillment service refactored raw threads to tasks, but ops reports missing line picks and intermittent duplicate shipments. Review:](#q2-r-a-fulfillment-service-refactored-raw-threads-to-tasks-but-ops-reports-missing-line-picks-and-intermittent-duplicate-shipments-review)
+  - [Q3. (R) A payment integration wraps a legacy callback gateway with `TaskCompletionSource`. Declined payments sometimes hang until timeout; approved payments occasionally throw `InvalidOperationException`. Review:](#q3-r-a-payment-integration-wraps-a-legacy-callback-gateway-with-taskcompletionsource-declined-payments-sometimes-hang-until-timeout-approved-payments-occasionally-throw-invalidoperationexception-review)
+  - [Q4. (R) A shipping pipeline chains pick → label with continuations after removing `async/await` "for clarity." Fault injection tests crash the worker process. Review:](#q4-r-a-shipping-pipeline-chains-pick-label-with-continuations-after-removing-asyncawait-for-clarity-fault-injection-tests-crash-the-worker-process-review)
+  - [Q5. (P) A warehouse API throttles concurrent picks with `SemaphoreSlim` (matching the chapter pattern). After a downstream timeout spike, throughput collapses to zero until restart. Review:](#q5-p-a-warehouse-api-throttles-concurrent-picks-with-semaphoreslim-matching-the-chapter-pattern-after-a-downstream-timeout-spike-throughput-collapses-to-zero-until-restart-review)
+  - [Q6. (M) A carrier-selection service uses `Task.WhenAny` to take the fastest quote (as in the chapter demo). Load tests show open HTTP connection counts climbing. Review:](#q6-m-a-carrier-selection-service-uses-taskwhenany-to-take-the-fastest-quote-as-in-the-chapter-demo-load-tests-show-open-http-connection-counts-climbing-review)
+  - [Q7. (D) A team must batch-validate four thousand orders every night. One developer proposes `Task.WaitAll` on thousands of `Task.Run(() => Validate(order))` calls; another wants `Parallel.ForEach` immediately; a third wants `async`/`await` with `Task.WhenAll` and a concurrency limit. What breaks at scale with the first approach, and what pattern would you ship?](#q7-d-a-team-must-batch-validate-four-thousand-orders-every-night-one-developer-proposes-taskwaitall-on-thousands-of-taskrun-validateorder-calls-another-wants-parallelforeach-immediately-a-third-wants-asyncawait-with-taskwhenall-and-a-concurrency-limit-what-breaks-at-scale-with-the-first-approach-and-what-pattern-would-you-ship)
+
+- [04. Async and Await](#04-async-and-await-1)
+
+- [04. Async and Await](#04-async-and-await-2)
+  - [Q1. (R) Under load, report-export API requests time out and thread-pool starvation alerts fire. Review this ASP.NET Core minimal endpoint and service:](#q1-r-under-load-report-export-api-requests-time-out-and-thread-pool-starvation-alerts-fire-review-this-aspnet-core-minimal-endpoint-and-service)
+  - [Q2. (R) A nightly export job sometimes crashes the worker process with no log line. Review this orchestrator:](#q2-r-a-nightly-export-job-sometimes-crashes-the-worker-process-with-no-log-line-review-this-orchestrator)
+  - [Q3. (R) A WPF desktop app deadlocks on startup when loading reports through a shared NuGet library. Review the library and caller:](#q3-r-a-wpf-desktop-app-deadlocks-on-startup-when-loading-reports-through-a-shared-nuget-library-review-the-library-and-caller)
+  - [Q4. (P) A team wraps a legacy HTTP client that ignores `CancellationToken`. They ship this timeout helper for report downloads:](#q4-p-a-team-wraps-a-legacy-http-client-that-ignores-cancellationtoken-they-ship-this-timeout-helper-for-report-downloads)
+  - [Q5. (R) Transient upstream failures are handled with a shared retry helper, but operators report exports running for minutes after a user cancels. Review:](#q5-r-transient-upstream-failures-are-handled-with-a-shared-retry-helper-but-operators-report-exports-running-for-minutes-after-a-user-cancels-review)
+  - [Q6. (D) Only one report may write to a shared export folder at a time. A developer adds this gate to a singleton-registered service:](#q6-d-only-one-report-may-write-to-a-shared-export-folder-at-a-time-a-developer-adds-this-gate-to-a-singleton-registered-service)
+  - [Q7. (M) A hot-path metadata lookup was optimized to return `ValueTask<int>`. After a refactor, intermittent `InvalidOperationException` appears in logs. Review:](#q7-m-a-hot-path-metadata-lookup-was-optimized-to-return-valuetaskint-after-a-refactor-intermittent-invalidoperationexception-appears-in-logs-review)
+
+- [05. Parallel Programming](#05-parallel-programming-1)
+
+- [05. Parallel Programming](#05-parallel-programming-2)
+  - [Q1. (R) A nightly warehouse job sums reconciled inventory values in parallel. Finance reports totals that drift from the serial baseline. Review the hot path:](#q1-r-a-nightly-warehouse-job-sums-reconciled-inventory-values-in-parallel-finance-reports-totals-that-drift-from-the-serial-baseline-review-the-hot-path)
+  - [Q2. (R) A teammate parallelizes audit-log line generation for the same SKU batch:](#q2-r-a-teammate-parallelizes-audit-log-line-generation-for-the-same-sku-batch)
+  - [Q3. (R) Under load, a reporting endpoint times out and thread-pool starvation alerts fire. Review the "optimization" added to fetch order details:](#q3-r-under-load-a-reporting-endpoint-times-out-and-thread-pool-starvation-alerts-fire-review-the-optimization-added-to-fetch-order-details)
+  - [Q4. (P) A CPU-bound pricing engine recalculates thousands of in-memory `StockRecord` rows on a 16-core VM shared with other services. A developer caps workers like this:](#q4-p-a-cpu-bound-pricing-engine-recalculates-thousands-of-in-memory-stockrecord-rows-on-a-16-core-vm-shared-with-other-services-a-developer-caps-workers-like-this)
+  - [Q5. (D) A reconciliation worker must stop processing once cumulative value crosses a credit limit — not process the entire batch. Two implementations were proposed:](#q5-d-a-reconciliation-worker-must-stop-processing-once-cumulative-value-crosses-a-credit-limit-not-process-the-entire-batch-two-implementations-were-proposed)
+  - [Q6. (R) A dashboard query was "speed up" with PLINQ. Users see wrong top-SKU ordering under load and elevated CPU:](#q6-r-a-dashboard-query-was-speed-up-with-plinq-users-see-wrong-top-sku-ordering-under-load-and-elevated-cpu)
+  - [Q7. (M) A partitioner was introduced to reduce scheduling overhead on a uniform-cost batch, but throughput dropped on a 4-core machine:](#q7-m-a-partitioner-was-introduced-to-reduce-scheduling-overhead-on-a-uniform-cost-batch-but-throughput-dropped-on-a-4-core-machine)
+
+- [06. Synchronization and Locks](#06-synchronization-and-locks-1)
+
+- [06. Synchronization and Locks](#06-synchronization-and-locks-2)
+  - [Q1. (R) A payment microservice registers `LedgerService` as a **Singleton**. Under concurrent deposits and withdrawals, balances drift and QA sees different totals on every run. Review:](#q1-r-a-payment-microservice-registers-ledgerservice-as-a-singleton-under-concurrent-deposits-and-withdrawals-balances-drift-and-qa-sees-different-totals-on-every-run-review)
+  - [Q2. (R) A batch job transfers funds between two `BankAccount` instances on background threads. The job hangs intermittently under load — no exception, threads stuck in `Monitor.Wait`. Review:](#q2-r-a-batch-job-transfers-funds-between-two-bankaccount-instances-on-background-threads-the-job-hangs-intermittently-under-load-no-exception-threads-stuck-in-monitorwait-review)
+  - [Q3. (R) A developer "async-ified" a cache warmer registered as a **Singleton** in ASP.NET Core. The app compiles in some branches but stalls request threads under traffic. Review:](#q3-r-a-developer-async-ified-a-cache-warmer-registered-as-a-singleton-in-aspnet-core-the-app-compiles-in-some-branches-but-stalls-request-threads-under-traffic-review)
+  - [Q4. (R) A read-heavy interest-rate API uses `ReaderWriterLockSlim` like the chapter tutorial. The first request for a missing product code freezes the entire rate service. Review:](#q4-r-a-read-heavy-interest-rate-api-uses-readerwriterlockslim-like-the-chapter-tutorial-the-first-request-for-a-missing-product-code-freezes-the-entire-rate-service-review)
+  - [Q5. (P) An outbound API integration must allow at most **50 concurrent HTTP calls** cluster-wide per process, record a global request counter for metrics, and support cooperative shutdown of a background poller. Which synchronization primitives do you use for each concern, and what breaks if you use `lock` for all three?](#q5-p-an-outbound-api-integration-must-allow-at-most-50-concurrent-http-calls-cluster-wide-per-process-record-a-global-request-counter-for-metrics-and-support-cooperative-shutdown-of-a-background-poller-which-synchronization-primitives-do-you-use-for-each-concern-and-what-breaks-if-you-use-lock-for-all-three)
+  - [Q6. (M) A nightly vault-scan worker runs on a dedicated thread. Operators click "Stop" in a WinForms-style host; locally it often exits, but on release builds in production the thread keeps running until the process is killed. Review:](#q6-m-a-nightly-vault-scan-worker-runs-on-a-dedicated-thread-operators-click-stop-in-a-winforms-style-host-locally-it-often-exits-but-on-release-builds-in-production-the-thread-keeps-running-until-the-process-is-killed-review)
+  - [Q7. (D) Two designs protect a singleton in-memory fee schedule updated once per hour and read on every pricing request:](#q7-d-two-designs-protect-a-singleton-in-memory-fee-schedule-updated-once-per-hour-and-read-on-every-pricing-request)
+
+- [07. Concurrent Collections](#07-concurrent-collections-1)
+
+- [07. Concurrent Collections](#07-concurrent-collections-2)
+  - [Q1. (R) A warehouse API records parallel pick confirmations into shared stock counts. Under load, inventory drifts negative even though each sale is valid. Review this service method:](#q1-r-a-warehouse-api-records-parallel-pick-confirmations-into-shared-stock-counts-under-load-inventory-drifts-negative-even-though-each-sale-is-valid-review-this-service-method)
+  - [Q2. (R) A catalog microservice caches product rows in `ConcurrentDictionary` to cut database round-trips. After a traffic spike, ops sees duplicate `LoadProduct` calls and inflated cache-miss metrics for the same SKU. Review:](#q2-r-a-catalog-microservice-caches-product-rows-in-concurrentdictionary-to-cut-database-round-trips-after-a-traffic-spike-ops-sees-duplicate-loadproduct-calls-and-inflated-cache-miss-metrics-for-the-same-sku-review)
+  - [Q3. (R) A nightly batch job ships orders through a bounded in-memory buffer. Locally it finishes; in production the job hangs until the host kills the process. Review the pipeline:](#q3-r-a-nightly-batch-job-ships-orders-through-a-bounded-in-memory-buffer-locally-it-finishes-in-production-the-job-hangs-until-the-host-kills-the-process-review-the-pipeline)
+  - [Q4. (R) Support tickets must be processed first-in, first-out. A developer chose `ConcurrentBag` because "it's built for parallel workers." Review the dispatcher:](#q4-r-support-tickets-must-be-processed-first-in-first-out-a-developer-chose-concurrentbag-because-its-built-for-parallel-workers-review-the-dispatcher)
+  - [Q5. (P) A log-ingestion service has 50 HTTP producers and 4 background writers. An unbounded `ConcurrentQueue<LogEntry>` caused an OOM during a burst. How would you redesign the buffer using types from this chapter, and what breaks if you skip back-pressure?](#q5-p-a-log-ingestion-service-has-50-http-producers-and-4-background-writers-an-unbounded-concurrentqueuelogentry-caused-an-oom-during-a-burst-how-would-you-redesign-the-buffer-using-types-from-this-chapter-and-what-breaks-if-you-skip-back-pressure)
+  - [Q6. (D) Two approaches for collecting validation errors from `Parallel.ForEach` over 10,000 CSV rows:](#q6-d-two-approaches-for-collecting-validation-errors-from-parallelforeach-over-10000-csv-rows)
+  - [Q7. (M) During peak picking, a dashboard polls `ConcurrentDictionary` for a live inventory report:](#q7-m-during-peak-picking-a-dashboard-polls-concurrentdictionary-for-a-live-inventory-report)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. Threads & Thread Lifecycle
 
-#### Q1. Explain multithreading in C# and when it is appropriate vs async I/O or tasks. {#01-threads-thread-lifecycle-q1}
+#### Q1. Explain multithreading in C# and when it is appropriate vs async I/O or tasks.
 
 (R) A warehouse console tool spawns label printers on dedicated threads. Operators report the process "hangs" after pressing Enter to quit, even though cancellation was requested. Review the shutdown wiring:
 
@@ -203,7 +276,7 @@ if (!labelThread.Join(TimeSpan.FromSeconds(30)))
 
 ---
 
-#### Q2. What is a `Thread`, and how do you create and start one? {#01-threads-thread-lifecycle-q2}
+#### Q2. What is a `Thread`, and how do you create and start one?
 
 (R) A teammate copied the shipment worker from the chapter tutorial but dropped synchronization "for speed." Under load, totals and result lists disagree. Review:
 
@@ -268,7 +341,7 @@ lock (TallyLock)
 
 ---
 
-#### Q3. What are foreground vs background threads, and how do they affect process shutdown? {#01-threads-thread-lifecycle-q3}
+#### Q3. What are foreground vs background threads, and how do they affect process shutdown?
 
 (R) After parallelizing shipment processing, every worker log shows the same shipment id (`SH-1003`) even though three different ids were queued. Review the spawn loop:
 
@@ -322,7 +395,7 @@ for (int i = 0; i < pending.Length; i++)
 
 ---
 
-#### Q4. What are the main thread states in the lifecycle (unstarted, running, wait/sleep/join, stopped)? {#01-threads-thread-lifecycle-q4}
+#### Q4. What are the main thread states in the lifecycle (unstarted, running, wait/sleep/join, stopped)?
 
 (P) A long-running inventory sweep runs on a dedicated `Thread` (like `RunInventorySweep` in the chapter demo). Ops wants the Windows Service to stop within 30 seconds on shutdown — no `Thread.Abort`. What production pattern replaces force-kill, and what must the worker loop guarantee?
 
@@ -337,7 +410,7 @@ for (int i = 0; i < pending.Length; i++)
 
 ---
 
-#### Q5. What is `Thread.Join()`, and what happens if you never join a foreground thread? {#01-threads-thread-lifecycle-q5}
+#### Q5. What is `Thread.Join()`, and what happens if you never join a foreground thread?
 
 (M) Main waits for workers using `IsAlive` and `Join(100)` in a loop (matching the chapter demo). Under heavy load, logs show hundreds of `"Waiting on Worker-…"` lines per second while workers are still running. Is this a bug, and what waiting pattern is preferable in production?
 
@@ -365,7 +438,7 @@ foreach (Thread worker in workers)
 
 ---
 
-#### Q6. What is `Thread.Sleep()` vs spinning vs waiting — when is each appropriate? {#01-threads-thread-lifecycle-q6}
+#### Q6. What is `Thread.Sleep()` vs spinning vs waiting — when is each appropriate?
 
 (D) Apex Warehouse will scan 400 inbound shipments per hour. A developer proposes `new Thread(ProcessShipment)` per shipment forever, `ThreadPriority.AboveNormal` on express lanes, and `[ThreadStatic]` counters for per-worker metrics exported to Prometheus. What breaks at scale, and what would you use instead while still honoring lifecycle concepts from this chapter?
 
@@ -381,7 +454,7 @@ foreach (Thread worker in workers)
 
 ---
 
-#### Q7. What is thread affinity, and why does it matter for UI applications? {#01-threads-thread-lifecycle-q7}
+#### Q7. What is thread affinity, and why does it matter for UI applications?
 
 (R) A retry path tries to restart workers after a transient fault. Review:
 
@@ -430,49 +503,49 @@ for (int attempt = 1; attempt <= maxAttempts && shipment.NeedsRetry; attempt++)
 
 ---
 
-#### Q8. What is the difference between creating a raw `Thread` and using thread pool threads? {#01-threads-thread-lifecycle-q8}
+#### Q8. What is the difference between creating a raw `Thread` and using thread pool threads?
 
 _Answer not found._
 
 ---
 
-#### Q9. What are `Thread.Name`, `IsBackground`, `Priority` — which actually affect scheduling? {#01-threads-thread-lifecycle-q9}
+#### Q9. What are `Thread.Name`, `IsBackground`, `Priority` — which actually affect scheduling?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is a race condition at the thread level, and how can two threads interleave unpredictably? {#01-threads-thread-lifecycle-q10}
+#### Q10. What is a race condition at the thread level, and how can two threads interleave unpredictably?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is the difference between kernel threads and managed threads (conceptual model)? {#01-threads-thread-lifecycle-q11}
+#### Q11. What is the difference between kernel threads and managed threads (conceptual model)?
 
 _Answer not found._
 
 ---
 
-#### Q12. Why is manually creating many threads often a scalability anti-pattern? {#01-threads-thread-lifecycle-q12}
+#### Q12. Why is manually creating many threads often a scalability anti-pattern?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is `ThreadStatic`, and how does it differ from `ThreadLocal<T>`? {#01-threads-thread-lifecycle-q13}
+#### Q13. What is `ThreadStatic`, and how does it differ from `ThreadLocal<T>`?
 
 _Answer not found._
 
 ---
 
-#### Q14. What exceptions can occur when aborting or interrupting threads (historical vs modern guidance)? {#01-threads-thread-lifecycle-q14}
+#### Q14. What exceptions can occur when aborting or interrupting threads (historical vs modern guidance)?
 
 _Answer not found._
 
 ---
 
-#### Q15. How does the main thread exiting affect background work still running? {#01-threads-thread-lifecycle-q15}
+#### Q15. How does the main thread exiting affect background work still running?
 
 _Answer not found._
 
@@ -480,7 +553,7 @@ _Answer not found._
 
 ### 02. ThreadPool
 
-#### Q1. What is the thread pool in .NET, and why is it preferred over creating raw threads? {#02-threadpool-q1}
+#### Q1. What is the thread pool in .NET, and why is it preferred over creating raw threads?
 
 (R) A nightly invoice import queues validation onto the thread pool but reports wrong counts in production (sometimes all zeros). Review this service method. What fails under load, and how do you fix it in priority order?
 
@@ -521,7 +594,7 @@ done.Wait();
 
 ---
 
-#### Q2. How does the thread pool manage worker threads and I/O completion threads? {#02-threadpool-q2}
+#### Q2. How does the thread pool manage worker threads and I/O completion threads?
 
 (R) A legacy COM-aware host copied the tutorial's `ManualResetEvent` + `WaitHandle.WaitAll` pattern for large batches. Review this batch runner used with `jobCount = 500`:
 
@@ -573,7 +646,7 @@ What breaks at runtime, and what synchronization pattern from this chapter repla
 
 ---
 
-#### Q3. What is hill-climbing in the .NET thread pool (high level)? {#02-threadpool-q3}
+#### Q3. What is hill-climbing in the .NET thread pool (high level)?
 
 (R) After a refactor, an audit pipeline starves under concurrent load — other timers and `Task.Run` work stops progressing. Review the pool callback:
 
@@ -613,7 +686,7 @@ Diagnose the threading failure mode and propose a production-safe replacement.
 
 ---
 
-#### Q4. What is `ThreadPool.QueueUserWorkItem`, and how does it relate to `Task.Run`? {#02-threadpool-q4}
+#### Q4. What is `ThreadPool.QueueUserWorkItem`, and how does it relate to `Task.Run`?
 
 (P) Every microservice instance calls this at startup in `Program.cs` to "avoid cold-start latency" after deploy:
 
@@ -636,7 +709,7 @@ The fleet runs 40 pods on 8-core nodes. What goes wrong in production, and when 
 
 ---
 
-#### Q5. What is starvation in the thread pool, and what causes it? {#02-threadpool-q5}
+#### Q5. What is starvation in the thread pool, and what causes it?
 
 (M) During a traffic spike, dashboards show `GetAvailableThreads` reporting very few free worker threads, but CPU is only ~35%. A teammate concludes "we need more cores." Given this monitoring snippet from a pool callback, what is the more likely root cause?
 
@@ -652,7 +725,7 @@ The fleet runs 40 pods on 8-core nodes. What goes wrong in production, and when 
 
 ---
 
-#### Q6. How do synchronous blocking calls inside pool threads affect throughput? {#02-threadpool-q6}
+#### Q6. How do synchronous blocking calls inside pool threads affect throughput?
 
 (D) A thumbnail service receives bursts of 2,000 independent resize jobs per upload batch (~50 ms CPU each). Two proposals:
 
@@ -673,7 +746,7 @@ Compare throughput, memory, and operational risk. Which do you ship, and when wo
 
 ---
 
-#### Q7. What is the difference between dedicated threads and pool threads for long-running work? {#02-threadpool-q7}
+#### Q7. What is the difference between dedicated threads and pool threads for long-running work?
 
 (R) Pool callbacks silently drop failures in production — support sees partial imports with no error logs. Review this aggregation helper:
 
@@ -720,31 +793,31 @@ List the defects (correctness, observability, and API contract) and how you woul
 
 ---
 
-#### Q8. What is `ThreadPool.SetMinThreads` / `SetMaxThreads`, and when might you tune them? {#02-threadpool-q8}
+#### Q8. What is `ThreadPool.SetMinThreads` / `SetMaxThreads`, and when might you tune them?
 
 _Answer not found._
 
 ---
 
-#### Q9. How does the thread pool interact with `async`/`await` continuations? {#02-threadpool-q9}
+#### Q9. How does the thread pool interact with `async`/`await` continuations?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is the danger of blocking the UI thread vs blocking a pool thread? {#02-threadpool-q10}
+#### Q10. What is the danger of blocking the UI thread vs blocking a pool thread?
 
 _Answer not found._
 
 ---
 
-#### Q11. How do thread pool threads relate to `Parallel.For` and PLINQ? {#02-threadpool-q11}
+#### Q11. How do thread pool threads relate to `Parallel.For` and PLINQ?
 
 _Answer not found._
 
 ---
 
-#### Q12. What diagnostics exist for thread pool queue length and thread counts (`ThreadPool.ThreadCount`, ETW)? {#02-threadpool-q12}
+#### Q12. What diagnostics exist for thread pool queue length and thread counts (`ThreadPool.ThreadCount`, ETW)?
 
 _Answer not found._
 
@@ -752,7 +825,7 @@ _Answer not found._
 
 ### 03. Tasks & Task Parallel Library
 
-#### Q1. What is the Task Parallel Library (TPL)? {#03-tasks-task-parallel-library-q1}
+#### Q1. What is the Task Parallel Library (TPL)?
 
 (R) An ASP.NET Core batch-validation endpoint works in dev but stalls under load. Review the action:
 
@@ -793,7 +866,7 @@ What are the problems (threading, scalability, and API shape), and how do you fi
 
 ---
 
-#### Q2. Explain the difference between `Thread` and `Task` in purpose and scheduling. {#03-tasks-task-parallel-library-q2}
+#### Q2. Explain the difference between `Thread` and `Task` in purpose and scheduling.
 
 (R) A fulfillment service refactored raw threads to tasks, but ops reports missing line picks and intermittent duplicate shipments. Review:
 
@@ -842,7 +915,7 @@ What fails at runtime, and what is the corrected task composition?
 
 ---
 
-#### Q3. Explain `Task`, `Task<T>`, and `ValueTask<T>` — when to use each. {#03-tasks-task-parallel-library-q3}
+#### Q3. Explain `Task`, `Task<T>`, and `ValueTask<T>` — when to use each.
 
 (R) A payment integration wraps a legacy callback gateway with `TaskCompletionSource`. Declined payments sometimes hang until timeout; approved payments occasionally throw `InvalidOperationException`. Review:
 
@@ -895,7 +968,7 @@ void CompleteOnce(Action complete) { if (tcs.TrySetResult(default!)) { /* use Tr
 
 ---
 
-#### Q4. What is `Task.Run`, and when should it be used vs when it should be avoided? {#03-tasks-task-parallel-library-q4}
+#### Q4. What is `Task.Run`, and when should it be used vs when it should be avoided?
 
 (R) A shipping pipeline chains pick → label with continuations after removing `async/await` "for clarity." Fault injection tests crash the worker process. Review:
 
@@ -938,7 +1011,7 @@ What breaks when the pick task faults, and how should the continuation chain be 
 
 ---
 
-#### Q5. What is `Task.Factory.StartNew`, and why is `Task.Run` usually preferred? {#03-tasks-task-parallel-library-q5}
+#### Q5. What is `Task.Factory.StartNew`, and why is `Task.Run` usually preferred?
 
 (P) A warehouse API throttles concurrent picks with `SemaphoreSlim` (matching the chapter pattern). After a downstream timeout spike, throughput collapses to zero until restart. Review:
 
@@ -967,7 +1040,7 @@ What fails when `PickAsync` throws or the request is canceled mid-flight, and wh
 
 ---
 
-#### Q6. Explain task continuations with `ContinueWith` — options, scheduling, and exception handling. {#03-tasks-task-parallel-library-q6}
+#### Q6. Explain task continuations with `ContinueWith` — options, scheduling, and exception handling.
 
 (M) A carrier-selection service uses `Task.WhenAny` to take the fastest quote (as in the chapter demo). Load tests show open HTTP connection counts climbing. Review:
 
@@ -999,7 +1072,7 @@ Why do losing carrier calls keep consuming resources, and what changes after you
 
 ---
 
-#### Q7. What is `Task.WhenAll`, `Task.WhenAny`, and how do they differ from manual continuation chaining? {#03-tasks-task-parallel-library-q7}
+#### Q7. What is `Task.WhenAll`, `Task.WhenAny`, and how do they differ from manual continuation chaining?
 
 (D) A team must batch-validate four thousand orders every night. One developer proposes `Task.WaitAll` on thousands of `Task.Run(() => Validate(order))` calls; another wants `Parallel.ForEach` immediately; a third wants `async`/`await` with `Task.WhenAll` and a concurrency limit. What breaks at scale with the first approach, and what pattern would you ship?
 
@@ -1016,55 +1089,55 @@ Why do losing carrier calls keep consuming resources, and what changes after you
 
 ---
 
-#### Q8. What is `TaskCompletionSource<T>`, and what scenarios does it enable (bridging callbacks, manual completion)? {#03-tasks-task-parallel-library-q8}
+#### Q8. What is `TaskCompletionSource<T>`, and what scenarios does it enable (bridging callbacks, manual completion)?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the difference between completing a `TaskCompletionSource` with result, exception, or cancellation? {#03-tasks-task-parallel-library-q9}
+#### Q9. What is the difference between completing a `TaskCompletionSource` with result, exception, or cancellation?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `Task.FromResult`, `Task.CompletedTask`, and when are they preferable to `Task.Run`? {#03-tasks-task-parallel-library-q10}
+#### Q10. What is `Task.FromResult`, `Task.CompletedTask`, and when are they preferable to `Task.Run`?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is the difference between `AggregateException` and a regular exception when tasks fail? {#03-tasks-task-parallel-library-q11}
+#### Q11. What is the difference between `AggregateException` and a regular exception when tasks fail?
 
 _Answer not found._
 
 ---
 
-#### Q12. How do child tasks relate to parent tasks (`TaskCreationOptions`, attached vs detached)? {#03-tasks-task-parallel-library-q12}
+#### Q12. How do child tasks relate to parent tasks (`TaskCreationOptions`, attached vs detached)?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is task cancellation via `CancellationToken` registration vs `TrySetCanceled`? {#03-tasks-task-parallel-library-q13}
+#### Q13. What is task cancellation via `CancellationToken` registration vs `TrySetCanceled`?
 
 _Answer not found._
 
 ---
 
-#### Q14. What are unobserved task exceptions, and how does .NET handle them? {#03-tasks-task-parallel-library-q14}
+#### Q14. What are unobserved task exceptions, and how does .NET handle them?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is `ValueTask` pooling/caching, and why must consumers avoid double-awaiting unless documented safe? {#03-tasks-task-parallel-library-q15}
+#### Q15. What is `ValueTask` pooling/caching, and why must consumers avoid double-awaiting unless documented safe?
 
 _Answer not found._
 
 ---
 
-#### Q16. How do you implement a timeout around a `Task` using `CancellationTokenSource` or `WhenAny`? {#03-tasks-task-parallel-library-q16}
+#### Q16. How do you implement a timeout around a `Task` using `CancellationTokenSource` or `WhenAny`?
 
 _Answer not found._
 
@@ -1072,7 +1145,7 @@ _Answer not found._
 
 ### 04. Async and Await
 
-#### Q1. Explain asynchronous programming in C# — what problem does it solve? {#04-async-and-await-q1}
+#### Q1. Explain asynchronous programming in C# — what problem does it solve?
 
 (R) Under load, report-export API requests time out and thread-pool starvation alerts fire. Review this ASP.NET Core minimal endpoint and service:
 
@@ -1130,7 +1203,7 @@ app.MapGet("/reports/{id}", async (ReportService svc, string id, CancellationTok
 
 ---
 
-#### Q2. Explain the `async` and `await` keywords in detail. {#04-async-and-await-q2}
+#### Q2. Explain the `async` and `await` keywords in detail.
 
 (R) A nightly export job sometimes crashes the worker process with no log line. Review this orchestrator:
 
@@ -1189,7 +1262,7 @@ public async Task StartExportAsync(string reportId, CancellationToken ct)
 
 ---
 
-#### Q3. What is the difference between CPU-bound and I/O-bound async work? {#04-async-and-await-q3}
+#### Q3. What is the difference between CPU-bound and I/O-bound async work?
 
 (R) A WPF desktop app deadlocks on startup when loading reports through a shared NuGet library. Review the library and caller:
 
@@ -1248,7 +1321,7 @@ private async void LoadReportOnStartup()
 
 ---
 
-#### Q4. What is `ConfigureAwait(false)`, and when should library vs application code use it? {#04-async-and-await-q4}
+#### Q4. What is `ConfigureAwait(false)`, and when should library vs application code use it?
 
 (P) A team wraps a legacy HTTP client that ignores `CancellationToken`. They ship this timeout helper for report downloads:
 
@@ -1286,7 +1359,7 @@ What breaks in production when callers cancel or time out, and how should the se
 
 ---
 
-#### Q5. How do you handle exceptions in async/await methods? {#04-async-and-await-q5}
+#### Q5. How do you handle exceptions in async/await methods?
 
 (R) Transient upstream failures are handled with a shared retry helper, but operators report exports running for minutes after a user cancels. Review:
 
@@ -1346,7 +1419,7 @@ catch (Exception ex) when (attempt < maxAttempts && ex is not OperationCanceledE
 
 ---
 
-#### Q6. What is the difference between `async void`, `async Task`, and `async Task<T>`? {#04-async-and-await-q6}
+#### Q6. What is the difference between `async void`, `async Task`, and `async Task<T>`?
 
 (D) Only one report may write to a shared export folder at a time. A developer adds this gate to a singleton-registered service:
 
@@ -1394,7 +1467,7 @@ For multi-node: replace in-memory gate with storage-level lease; keep `Semaphore
 
 ---
 
-#### Q7. What is an async stream (`IAsyncEnumerable<T>`) in C# 8+, and how does `await foreach` work? {#04-async-and-await-q7}
+#### Q7. What is an async stream (`IAsyncEnumerable<T>`) in C# 8+, and how does `await foreach` work?
 
 (M) A hot-path metadata lookup was optimized to return `ValueTask<int>`. After a refactor, intermittent `InvalidOperationException` appears in logs. Review:
 
@@ -1449,79 +1522,79 @@ public Task<int> GetRowCountAsync(string reportId) =>
 
 ---
 
-#### Q8. How does the async state machine work under the hood (high level: `MoveNext`, `IAsyncStateMachine`)? {#04-async-and-await-q8}
+#### Q8. How does the async state machine work under the hood (high level: `MoveNext`, `IAsyncStateMachine`)?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is synchronization context, and how does it affect continuation marshaling? {#04-async-and-await-q9}
+#### Q9. What is synchronization context, and how does it affect continuation marshaling?
 
 _Answer not found._
 
 ---
 
-#### Q10. Why can `.Result`, `.Wait()`, and `.GetAwaiter().GetResult()` cause deadlocks? {#04-async-and-await-q10}
+#### Q10. Why can `.Result`, `.Wait()`, and `.GetAwaiter().GetResult()` cause deadlocks?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is the difference between `await task` and `return task` from an async method (async method builder behavior)? {#04-async-and-await-q11}
+#### Q11. What is the difference between `await task` and `return task` from an async method (async method builder behavior)?
 
 _Answer not found._
 
 ---
 
-#### Q12. How do you implement retry with exponential backoff in async code? {#04-async-and-await-q12}
+#### Q12. How do you implement retry with exponential backoff in async code?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is jitter in backoff strategies, and why is it used? {#04-async-and-await-q13}
+#### Q13. What is jitter in backoff strategies, and why is it used?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do Polly-style resilience policies relate to manual retry loops? {#04-async-and-await-q14}
+#### Q14. How do Polly-style resilience policies relate to manual retry loops?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is `CancellationTokenSource.CreateLinkedTokenSource`, and when is linking tokens needed? {#04-async-and-await-q15}
+#### Q15. What is `CancellationTokenSource.CreateLinkedTokenSource`, and when is linking tokens needed?
 
 _Answer not found._
 
 ---
 
-#### Q16. How do you propagate cancellation through layered async APIs? {#04-async-and-await-q16}
+#### Q16. How do you propagate cancellation through layered async APIs?
 
 _Answer not found._
 
 ---
 
-#### Q17. What is `Task.Delay` vs `Thread.Sleep` in async methods? {#04-async-and-await-q17}
+#### Q17. What is `Task.Delay` vs `Thread.Sleep` in async methods?
 
 _Answer not found._
 
 ---
 
-#### Q18. What is "async all the way" — why is mixing blocking and async problematic? {#04-async-and-await-q18}
+#### Q18. What is "async all the way" — why is mixing blocking and async problematic?
 
 _Answer not found._
 
 ---
 
-#### Q19. How do you unit test async methods and time-dependent retry logic? {#04-async-and-await-q19}
+#### Q19. How do you unit test async methods and time-dependent retry logic?
 
 _Answer not found._
 
 ---
 
-#### Q20. What is `IAsyncDisposable`, and how does `await using` work? {#04-async-and-await-q20}
+#### Q20. What is `IAsyncDisposable`, and how does `await using` work?
 
 _Answer not found._
 
@@ -1529,7 +1602,7 @@ _Answer not found._
 
 ### 05. Parallel Programming
 
-#### Q1. What is `Parallel.For` and `Parallel.ForEach`? {#05-parallel-programming-q1}
+#### Q1. What is `Parallel.For` and `Parallel.ForEach`?
 
 (R) A nightly warehouse job sums reconciled inventory values in parallel. Finance reports totals that drift from the serial baseline. Review the hot path:
 
@@ -1579,7 +1652,7 @@ Parallel.ForEach(
 
 ---
 
-#### Q2. What is `ParallelOptions` (`MaxDegreeOfParallelism`, `CancellationToken`) used for? {#05-parallel-programming-q2}
+#### Q2. What is `ParallelOptions` (`MaxDegreeOfParallelism`, `CancellationToken`) used for?
 
 (R) A teammate parallelizes audit-log line generation for the same SKU batch:
 
@@ -1630,7 +1703,7 @@ return bag.OrderBy(l => l).ToList();
 
 ---
 
-#### Q3. What is a `Partitioner<TSource>`, and when would you supply a custom partitioner? {#05-parallel-programming-q3}
+#### Q3. What is a `Partitioner<TSource>`, and when would you supply a custom partitioner?
 
 (R) Under load, a reporting endpoint times out and thread-pool starvation alerts fire. Review the "optimization" added to fetch order details:
 
@@ -1693,7 +1766,7 @@ public async Task<IActionResult> ExportOrders(int[] orderIds, CancellationToken 
 
 ---
 
-#### Q4. What is the difference between range partitioning and chunk partitioning? {#05-parallel-programming-q4}
+#### Q4. What is the difference between range partitioning and chunk partitioning?
 
 (P) A CPU-bound pricing engine recalculates thousands of in-memory `StockRecord` rows on a 16-core VM shared with other services. A developer caps workers like this:
 
@@ -1722,7 +1795,7 @@ When is this cap wrong on a shared host, and how do you choose `MaxDegreeOfParal
 
 ---
 
-#### Q5. Explain PLINQ (`AsParallel`, `WithDegreeOfParallelism`, `WithMergeOptions`). {#05-parallel-programming-q5}
+#### Q5. Explain PLINQ (`AsParallel`, `WithDegreeOfParallelism`, `WithMergeOptions`).
 
 (D) A reconciliation worker must stop processing once cumulative value crosses a credit limit — not process the entire batch. Two implementations were proposed:
 
@@ -1768,7 +1841,7 @@ Which do you ship for correctness and throughput, and what does `Break()` guaran
 
 ---
 
-#### Q6. When is parallelization slower than sequential execution? {#05-parallel-programming-q6}
+#### Q6. When is parallelization slower than sequential execution?
 
 (R) A dashboard query was "speed up" with PLINQ. Users see wrong top-SKU ordering under load and elevated CPU:
 
@@ -1807,7 +1880,7 @@ Later, a second developer adds `AsOrdered()` before `OrderByDescending` "to fix 
 
 ---
 
-#### Q7. What types of workloads benefit from PLINQ vs `Parallel.ForEach`? {#05-parallel-programming-q7}
+#### Q7. What types of workloads benefit from PLINQ vs `Parallel.ForEach`?
 
 (M) A partitioner was introduced to reduce scheduling overhead on a uniform-cost batch, but throughput dropped on a 4-core machine:
 
@@ -1835,49 +1908,49 @@ The batch has 12 items; each `ReconciledValue` is a cheap multiply. What mechani
 
 ---
 
-#### Q8. What are thread-safe requirements when using parallel loops (shared state, locals, aggregation)? {#05-parallel-programming-q8}
+#### Q8. What are thread-safe requirements when using parallel loops (shared state, locals, aggregation)?
 
 _Answer not found._
 
 ---
 
-#### Q9. How do you perform parallel aggregation with `lock`, `Interlocked`, or thread-local accumulators? {#05-parallel-programming-q9}
+#### Q9. How do you perform parallel aggregation with `lock`, `Interlocked`, or thread-local accumulators?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `ParallelLoopResult`, and how do you detect partial failures? {#05-parallel-programming-q10}
+#### Q10. What is `ParallelLoopResult`, and how do you detect partial failures?
 
 _Answer not found._
 
 ---
 
-#### Q11. What are ordering guarantees in PLINQ (`AsOrdered`) and their cost? {#05-parallel-programming-q11}
+#### Q11. What are ordering guarantees in PLINQ (`AsOrdered`) and their cost?
 
 _Answer not found._
 
 ---
 
-#### Q12. How does parallel LINQ decide default partition sizes? {#05-parallel-programming-q12}
+#### Q12. How does parallel LINQ decide default partition sizes?
 
 _Answer not found._
 
 ---
 
-#### Q13. What exceptions are thrown from parallel loops (`AggregateException`, inner exceptions)? {#05-parallel-programming-q13}
+#### Q13. What exceptions are thrown from parallel loops (`AggregateException`, inner exceptions)?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do you combine async I/O with parallel CPU work without blocking the pool? {#05-parallel-programming-q14}
+#### Q14. How do you combine async I/O with parallel CPU work without blocking the pool?
 
 _Answer not found._
 
 ---
 
-#### Q15. What are best practices for parallel and async code in server applications? {#05-parallel-programming-q15}
+#### Q15. What are best practices for parallel and async code in server applications?
 
 _Answer not found._
 
@@ -1885,7 +1958,7 @@ _Answer not found._
 
 ### 06. Synchronization and Locks
 
-#### Q1. Explain synchronization primitives: `lock`, `Monitor`, `Mutex`, and `Semaphore`/`SemaphoreSlim`. {#06-synchronization-and-locks-q1}
+#### Q1. Explain synchronization primitives: `lock`, `Monitor`, `Mutex`, and `Semaphore`/`SemaphoreSlim`.
 
 (R) A payment microservice registers `LedgerService` as a **Singleton**. Under concurrent deposits and withdrawals, balances drift and QA sees different totals on every run. Review:
 
@@ -1920,7 +1993,7 @@ public decimal Balance { get { lock (_sync) { return _balance; } } }
 
 ---
 
-#### Q2. What is `ReaderWriterLockSlim`, and when is it preferable to a plain `lock`? {#06-synchronization-and-locks-q2}
+#### Q2. What is `ReaderWriterLockSlim`, and when is it preferable to a plain `lock`?
 
 (R) A batch job transfers funds between two `BankAccount` instances on background threads. The job hangs intermittently under load — no exception, threads stuck in `Monitor.Wait`. Review:
 
@@ -1955,7 +2028,7 @@ lock (first.SyncRoot) {
 
 ---
 
-#### Q3. Explain `AutoResetEvent`, `ManualResetEvent`, and `ManualResetEventSlim`. {#06-synchronization-and-locks-q3}
+#### Q3. Explain `AutoResetEvent`, `ManualResetEvent`, and `ManualResetEventSlim`.
 
 (R) A developer "async-ified" a cache warmer registered as a **Singleton** in ASP.NET Core. The app compiles in some branches but stalls request threads under traffic. Review:
 
@@ -1987,7 +2060,7 @@ lock (_sync) { _rates[productCode] = rate; }
 
 ---
 
-#### Q4. What is `CancellationToken`, and how do you implement cooperative cancellation? {#06-synchronization-and-locks-q4}
+#### Q4. What is `CancellationToken`, and how do you implement cooperative cancellation?
 
 (R) A read-heavy interest-rate API uses `ReaderWriterLockSlim` like the chapter tutorial. The first request for a missing product code freezes the entire rate service. Review:
 
@@ -2025,7 +2098,7 @@ try {
 
 ---
 
-#### Q5. Explain deadlocks in multithreading — necessary conditions and prevention strategies. {#06-synchronization-and-locks-q5}
+#### Q5. Explain deadlocks in multithreading — necessary conditions and prevention strategies.
 
 (P) An outbound API integration must allow at most **50 concurrent HTTP calls** cluster-wide per process, record a global request counter for metrics, and support cooperative shutdown of a background poller. Which synchronization primitives do you use for each concern, and what breaks if you use `lock` for all three?
 
@@ -2045,7 +2118,7 @@ try {
 
 ---
 
-#### Q6. What are race conditions, and how can they be prevented? {#06-synchronization-and-locks-q6}
+#### Q6. What are race conditions, and how can they be prevented?
 
 (M) A nightly vault-scan worker runs on a dedicated thread. Operators click "Stop" in a WinForms-style host; locally it often exits, but on release builds in production the thread keeps running until the process is killed. Review:
 
@@ -2077,7 +2150,7 @@ public void RequestStop() => _stopRequested = true;
 
 ---
 
-#### Q7. What is the `volatile` keyword, and when does it provide visibility guarantees? {#06-synchronization-and-locks-q7}
+#### Q7. What is the `volatile` keyword, and when does it provide visibility guarantees?
 
 (D) Two designs protect a singleton in-memory fee schedule updated once per hour and read on every pricing request:
 
@@ -2100,55 +2173,55 @@ public void RequestStop() => _stopRequested = true;
 
 ---
 
-#### Q8. What is the difference between `volatile` and `lock` for thread safety? {#06-synchronization-and-locks-q8}
+#### Q8. What is the difference between `volatile` and `lock` for thread safety?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is `Interlocked` (`Increment`, `CompareExchange`, `Add`), and when is it enough without `lock`? {#06-synchronization-and-locks-q9}
+#### Q9. What is `Interlocked` (`Increment`, `CompareExchange`, `Add`), and when is it enough without `lock`?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `SpinLock`, and when might low-latency spinning beat `lock`? {#06-synchronization-and-locks-q10}
+#### Q10. What is `SpinLock`, and when might low-latency spinning beat `lock`?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is lock ordering, and how does it prevent deadlock? {#06-synchronization-and-locks-q11}
+#### Q11. What is lock ordering, and how does it prevent deadlock?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is the `Monitor.TryEnter` pattern, and how do timeouts help avoid indefinite blocking? {#06-synchronization-and-locks-q12}
+#### Q12. What is the `Monitor.TryEnter` pattern, and how do timeouts help avoid indefinite blocking?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is async-compatible locking (`SemaphoreSlim.WaitAsync`) vs blocking `lock` in async code? {#06-synchronization-and-locks-q13}
+#### Q13. What is async-compatible locking (`SemaphoreSlim.WaitAsync`) vs blocking `lock` in async code?
 
 _Answer not found._
 
 ---
 
-#### Q14. What is a priority inversion problem (conceptual), and which primitives exacerbate it? {#06-synchronization-and-locks-q14}
+#### Q14. What is a priority inversion problem (conceptual), and which primitives exacerbate it?
 
 _Answer not found._
 
 ---
 
-#### Q15. How do you diagnose deadlocks and lock contention in production (dump analysis, `dotnet-sync`, counters)? {#06-synchronization-and-locks-q15}
+#### Q15. How do you diagnose deadlocks and lock contention in production (dump analysis, `dotnet-sync`, counters)?
 
 _Answer not found._
 
 ---
 
-#### Q16. What is thread-safe lazy initialization (`Lazy<T>`, double-checked locking pitfalls)? {#06-synchronization-and-locks-q16}
+#### Q16. What is thread-safe lazy initialization (`Lazy<T>`, double-checked locking pitfalls)?
 
 _Answer not found._
 
@@ -2156,7 +2229,7 @@ _Answer not found._
 
 ### 07. Concurrent Collections
 
-#### Q1. What concurrent collections exist in .NET (`ConcurrentDictionary`, `ConcurrentQueue`, `ConcurrentBag`, `BlockingCollection`, etc.)? {#07-concurrent-collections-q1}
+#### Q1. What concurrent collections exist in .NET (`ConcurrentDictionary`, `ConcurrentQueue`, `ConcurrentBag`, `BlockingCollection`, etc.)?
 
 (R) A warehouse API records parallel pick confirmations into shared stock counts. Under load, inventory drifts negative even though each sale is valid. Review this service method:
 
@@ -2189,7 +2262,7 @@ public void ApplyPick(string sku, int quantity) =>
 
 ---
 
-#### Q2. When should you use thread-safe collections instead of standard collections plus locks? {#07-concurrent-collections-q2}
+#### Q2. When should you use thread-safe collections instead of standard collections plus locks?
 
 (R) A catalog microservice caches product rows in `ConcurrentDictionary` to cut database round-trips. After a traffic spike, ops sees duplicate `LoadProduct` calls and inflated cache-miss metrics for the same SKU. Review:
 
@@ -2219,7 +2292,7 @@ var product = lazy.Value;
 
 ---
 
-#### Q3. What is the difference between `Dictionary<TKey, TValue>` and `ConcurrentDictionary<TKey, TValue>`? {#07-concurrent-collections-q3}
+#### Q3. What is the difference between `Dictionary<TKey, TValue>` and `ConcurrentDictionary<TKey, TValue>`?
 
 (R) A nightly batch job ships orders through a bounded in-memory buffer. Locally it finishes; in production the job hangs until the host kills the process. Review the pipeline:
 
@@ -2253,7 +2326,7 @@ try {
 
 ---
 
-#### Q4. What are `AddOrUpdate`, `GetOrAdd`, and `TryUpdate` on `ConcurrentDictionary`? {#07-concurrent-collections-q4}
+#### Q4. What are `AddOrUpdate`, `GetOrAdd`, and `TryUpdate` on `ConcurrentDictionary`?
 
 (R) Support tickets must be processed first-in, first-out. A developer chose `ConcurrentBag` because "it's built for parallel workers." Review the dispatcher:
 
@@ -2278,7 +2351,7 @@ try {
 
 ---
 
-#### Q5. What is `BlockingCollection<T>`, and how does it implement producer-consumer patterns? {#07-concurrent-collections-q5}
+#### Q5. What is `BlockingCollection<T>`, and how does it implement producer-consumer patterns?
 
 (P) A log-ingestion service has 50 HTTP producers and 4 background writers. An unbounded `ConcurrentQueue<LogEntry>` caused an OOM during a burst. How would you redesign the buffer using types from this chapter, and what breaks if you skip back-pressure?
 
@@ -2299,7 +2372,7 @@ try {
 
 ---
 
-#### Q6. What is the difference between bounded and unbounded `BlockingCollection` behavior? {#07-concurrent-collections-q6}
+#### Q6. What is the difference between bounded and unbounded `BlockingCollection` behavior?
 
 (D) Two approaches for collecting validation errors from `Parallel.ForEach` over 10,000 CSV rows:
 
@@ -2322,7 +2395,7 @@ try {
 
 ---
 
-#### Q7. How do you use `BlockingCollection` with multiple producers and consumers? {#07-concurrent-collections-q7}
+#### Q7. How do you use `BlockingCollection` with multiple producers and consumers?
 
 (M) During peak picking, a dashboard polls `ConcurrentDictionary` for a live inventory report:
 
@@ -2350,139 +2423,139 @@ var rows = snapshot
 
 ---
 
-#### Q8. What is `ConcurrentQueue` vs `ConcurrentStack` vs `ConcurrentBag` — ordering and stealing semantics? {#07-concurrent-collections-q8}
+#### Q8. What is `ConcurrentQueue` vs `ConcurrentStack` vs `ConcurrentBag` — ordering and stealing semantics?
 
 _Answer not found._
 
 ---
 
-#### Q9. When is `ConcurrentBag` the wrong choice despite being thread-safe? {#07-concurrent-collections-q9}
+#### Q9. When is `ConcurrentBag` the wrong choice despite being thread-safe?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `IProducerConsumerCollection<T>` and custom underlying stores for `BlockingCollection`? {#07-concurrent-collections-q10}
+#### Q10. What is `IProducerConsumerCollection<T>` and custom underlying stores for `BlockingCollection`?
 
 _Answer not found._
 
 ---
 
-#### Q11. How do concurrent collections compare to locking a `List<T>` for high-contention scenarios? {#07-concurrent-collections-q11}
+#### Q11. How do concurrent collections compare to locking a `List<T>` for high-contention scenarios?
 
 _Answer not found._
 
 ---
 
-#### Q12. What enumeration semantics do concurrent collections provide (weakly consistent iterators)? {#07-concurrent-collections-q12}
+#### Q12. What enumeration semantics do concurrent collections provide (weakly consistent iterators)?
 
 _Answer not found._
 
 ---
 
-#### Q13. How do you gracefully complete adding to a `BlockingCollection` (`CompleteAdding`)? {#07-concurrent-collections-q13}
+#### Q13. How do you gracefully complete adding to a `BlockingCollection` (`CompleteAdding`)?
 
 _Answer not found._
 
 ---
 
-#### Q14. What pitfalls arise when mixing concurrent collections with LINQ? {#07-concurrent-collections-q14}
+#### Q14. What pitfalls arise when mixing concurrent collections with LINQ?
 
 _Answer not found._
 
 ---
 
-#### Q15. When should you use channels (`System.Threading.Channels`) instead of `BlockingCollection` in modern code? {#07-concurrent-collections-q15}
+#### Q15. When should you use channels (`System.Threading.Channels`) instead of `BlockingCollection` in modern code?
 
 _Answer not found._
 
 ---
 
-#### Q16. **`.Result` / `.Wait()` deadlock** — Blocking async on a captured synchronization context (UI, legacy ASP.NET) deadlocks when the continuation needs that same context. {#07-concurrent-collections-q16}
+#### Q16. **`.Result` / `.Wait()` deadlock** — Blocking async on a captured synchronization context (UI, legacy ASP.NET) deadlocks when the continuation needs that same context.
 
 _Answer not found._
 
 ---
 
-#### Q17. **`async void` swallows observability** — Exceptions cannot be awaited by callers; use only for event handlers. {#07-concurrent-collections-q17}
+#### Q17. **`async void` swallows observability** — Exceptions cannot be awaited by callers; use only for event handlers.
 
 _Answer not found._
 
 ---
 
-#### Q18. **`Task.Run` for I/O** — Offloading blocking I/O to the pool wastes threads; prefer truly async APIs. {#07-concurrent-collections-q18}
+#### Q18. **`Task.Run` for I/O** — Offloading blocking I/O to the pool wastes threads; prefer truly async APIs.
 
 _Answer not found._
 
 ---
 
-#### Q19. **Async does not mean threaded** — I/O `await` often completes without extra threads; continuations may run on any pool thread. {#07-concurrent-collections-q19}
+#### Q19. **Async does not mean threaded** — I/O `await` often completes without extra threads; continuations may run on any pool thread.
 
 _Answer not found._
 
 ---
 
-#### Q20. **Unobserved task exceptions** — Faulted tasks that are never awaited may surface later as unobserved exception events. {#07-concurrent-collections-q20}
+#### Q20. **Unobserved task exceptions** — Faulted tasks that are never awaited may surface later as unobserved exception events.
 
 _Answer not found._
 
 ---
 
-#### Q21. **Race on `List<T>`/`Dictionary<,>`** — Even `Add` is not thread-safe; use locks or concurrent collections. {#07-concurrent-collections-q21}
+#### Q21. **Race on `List<T>`/`Dictionary<,>`** — Even `Add` is not thread-safe; use locks or concurrent collections.
 
 _Answer not found._
 
 ---
 
-#### Q22. **`ConfigureAwait(false)` in libraries** — Library code should not marshal back to UI context; app code often needs the default for UI updates. {#07-concurrent-collections-q22}
+#### Q22. **`ConfigureAwait(false)` in libraries** — Library code should not marshal back to UI context; app code often needs the default for UI updates.
 
 _Answer not found._
 
 ---
 
-#### Q23. **`ValueTask` double-await** — Re-awaiting or concurrent awaits on a pooled `ValueTask` can corrupt state unless documented safe. {#07-concurrent-collections-q23}
+#### Q23. **`ValueTask` double-await** — Re-awaiting or concurrent awaits on a pooled `ValueTask` can corrupt state unless documented safe.
 
 _Answer not found._
 
 ---
 
-#### Q24. **`TaskCompletionSource` set twice** — Second `TrySet*` calls fail; race to complete can drop results if not coordinated. {#07-concurrent-collections-q24}
+#### Q24. **`TaskCompletionSource` set twice** — Second `TrySet*` calls fail; race to complete can drop results if not coordinated.
 
 _Answer not found._
 
 ---
 
-#### Q25. **`BlockingCollection` after `CompleteAdding`** — Adding throws; consumers must drain remaining items correctly. {#07-concurrent-collections-q25}
+#### Q25. **`BlockingCollection` after `CompleteAdding`** — Adding throws; consumers must drain remaining items correctly.
 
 _Answer not found._
 
 ---
 
-#### Q26. **`Interlocked` is not composable** — Check-then-act on complex invariants still needs `lock` or careful CAS loops. {#07-concurrent-collections-q26}
+#### Q26. **`Interlocked` is not composable** — Check-then-act on complex invariants still needs `lock` or careful CAS loops.
 
 _Answer not found._
 
 ---
 
-#### Q27. **`volatile` does not make operations atomic** — `i++` still races even if `i` is volatile. {#07-concurrent-collections-q27}
+#### Q27. **`volatile` does not make operations atomic** — `i++` still races even if `i` is volatile.
 
 _Answer not found._
 
 ---
 
-#### Q28. **Parallel loop over small work** — Partitioning overhead can make `Parallel.ForEach` slower than sequential code. {#07-concurrent-collections-q28}
+#### Q28. **Parallel loop over small work** — Partitioning overhead can make `Parallel.ForEach` slower than sequential code.
 
 _Answer not found._
 
 ---
 
-#### Q29. **Shared `Random` is not thread-safe** — Use `Random.Shared` or thread-local RNG in parallel code. {#07-concurrent-collections-q29}
+#### Q29. **Shared `Random` is not thread-safe** — Use `Random.Shared` or thread-local RNG in parallel code.
 
 _Answer not found._
 
 ---
 
-#### Q30. **Retry without cancellation** — Exponential backoff loops must honor `CancellationToken` and max attempts to avoid runaway delays. {#07-concurrent-collections-q30}
+#### Q30. **Retry without cancellation** — Exponential backoff loops must honor `CancellationToken` and max attempts to avoid runaway delays.
 
 _Answer not found._
 

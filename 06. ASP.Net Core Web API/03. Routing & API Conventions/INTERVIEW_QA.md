@@ -1,35 +1,30 @@
 # Routing & API Conventions — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 03. Routing & API Conventions](#chapter-03-routing-api-conventions)
-  - [Q1. What is attribute routing in ASP.NET Core Web API?](#chapter-03-routing-api-conventions-q1)
-  - [Q2. What does the `[Route("api/[controller]")]` template mean?](#chapter-03-routing-api-conventions-q2)
-  - [Q3. What is the difference between attribute routing and convent…](#chapter-03-routing-api-conventions-q3)
-  - [Q4. Why is attribute routing preferred for REST APIs?](#chapter-03-routing-api-conventions-q4)
-  - [Q5. What is the `[controller]` token in a route template?](#chapter-03-routing-api-conventions-q5)
-  - [Q6. What is RESTful route design for resource URLs?](#chapter-03-routing-api-conventions-q6)
-  - [Q7. What is route ambiguity and how can it occur in API routing?](#chapter-03-routing-api-conventions-q7)
-  - [Q8. What are nested resource routes?](#chapter-03-routing-api-conventions-q8)
-  - [Q9. What is `RouteOptions.LowercaseUrls`?](#chapter-03-routing-api-conventions-q9)
-  - [Q10. What is `UsePathBase` and how does it affect API URLs?](#chapter-03-routing-api-conventions-q10)
-  - [Q11. What do `[HttpGet]`, `[HttpPost]`, etc. specify?](#chapter-03-routing-api-conventions-q11)
-  - [Q12. What is the difference between route templates on controller…](#chapter-03-routing-api-conventions-q12)
-  - [Q13. What is link generation in ASP.NET Core routing?](#chapter-03-routing-api-conventions-q13)
-  - [Q14. Why should API routes use nouns instead of verbs?](#chapter-03-routing-api-conventions-q14)
-  - [Q15. What is a route constraint (e.g., `{id:int}`)?](#chapter-03-routing-api-conventions-q15)
-  - [Q16. What happens when two actions match the same route?](#chapter-03-routing-api-conventions-q16)
-  - [Q17. What is the difference between `[Route]` at class level vs `…](#chapter-03-routing-api-conventions-q17)
-  - [Q18. How does `[ApiController]` affect route parameter binding?](#chapter-03-routing-api-conventions-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is attribute routing in ASP.NET Core Web API?](#q1-what-is-attribute-routing-in-aspnet-core-web-api)
+2. [Q2. What does the `[Route("api/[controller]")]` template mean?](#q2-what-does-the-routeapicontroller-template-mean)
+3. [Q3. What is the difference between attribute routing and conventional routing for Web APIs?](#q3-what-is-the-difference-between-attribute-routing-and-conventional-routing-for-web-apis)
+4. [Q4. Why is attribute routing preferred for REST APIs?](#q4-why-is-attribute-routing-preferred-for-rest-apis)
+5. [Q5. What is the `[controller]` token in a route template?](#q5-what-is-the-controller-token-in-a-route-template)
+6. [Q6. What is RESTful route design for resource URLs?](#q6-what-is-restful-route-design-for-resource-urls)
+7. [Q7. What is route ambiguity and how can it occur in API routing?](#q7-what-is-route-ambiguity-and-how-can-it-occur-in-api-routing)
+8. [Q8. What are nested resource routes?](#q8-what-are-nested-resource-routes)
+9. [Q9. What is `RouteOptions.LowercaseUrls`?](#q9-what-is-routeoptionslowercaseurls)
+10. [Q10. What is `UsePathBase` and how does it affect API URLs?](#q10-what-is-usepathbase-and-how-does-it-affect-api-urls)
+11. [Q11. What do `[HttpGet]`, `[HttpPost]`, etc. specify?](#q11-what-do-httpget-httppost-etc-specify)
+12. [Q12. What is the difference between route templates on controller vs action?](#q12-what-is-the-difference-between-route-templates-on-controller-vs-action)
+13. [Q13. What is link generation in ASP.NET Core routing?](#q13-what-is-link-generation-in-aspnet-core-routing)
+14. [Q14. Why should API routes use nouns instead of verbs?](#q14-why-should-api-routes-use-nouns-instead-of-verbs)
+15. [Q15. What is a route constraint (e.g., `{id:int}`)?](#q15-what-is-a-route-constraint-eg-idint)
+16. [Q16. What happens when two actions match the same route?](#q16-what-happens-when-two-actions-match-the-same-route)
+17. [Q17. What is the difference between `[Route]` at class level vs `[HttpGet("path")]` on action?](#q17-what-is-the-difference-between-route-at-class-level-vs-httpgetpath-on-action)
+18. [Q18. How does `[ApiController]` affect route parameter binding?](#q18-how-does-apicontroller-affect-route-parameter-binding)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 03. Routing & API Conventions
-
-### Q1. What is attribute routing in ASP.NET Core Web API? {#chapter-03-routing-api-conventions-q1}
+## Q1. What is attribute routing in ASP.NET Core Web API?
 
 What is attribute routing in ASP.NET Core Web API?
 
@@ -43,7 +38,7 @@ What is attribute routing in ASP.NET Core Web API?
 
 ---
 
-### Q2. What does the `[Route("api/[controller]")]` template mean? {#chapter-03-routing-api-conventions-q2}
+## Q2. What does the `[Route("api/[controller]")]` template mean?
 
 What does the `[Route("api/[controller]")]` template mean?
 
@@ -57,7 +52,7 @@ What does the `[Route("api/[controller]")]` template mean?
 
 ---
 
-### Q3. What is the difference between attribute routing and conventional routing for Web APIs? {#chapter-03-routing-api-conventions-q3}
+## Q3. What is the difference between attribute routing and conventional routing for Web APIs?
 
 What is the difference between attribute routing and conventional routing for Web APIs?
 
@@ -71,7 +66,7 @@ What is the difference between attribute routing and conventional routing for We
 
 ---
 
-### Q4. Why is attribute routing preferred for REST APIs? {#chapter-03-routing-api-conventions-q4}
+## Q4. Why is attribute routing preferred for REST APIs?
 
 Why is attribute routing preferred for REST APIs?
 
@@ -85,7 +80,7 @@ Why is attribute routing preferred for REST APIs?
 
 ---
 
-### Q5. What is the `[controller]` token in a route template? {#chapter-03-routing-api-conventions-q5}
+## Q5. What is the `[controller]` token in a route template?
 
 What is the `[controller]` token in a route template?
 
@@ -99,7 +94,7 @@ What is the `[controller]` token in a route template?
 
 ---
 
-### Q6. What is RESTful route design for resource URLs? {#chapter-03-routing-api-conventions-q6}
+## Q6. What is RESTful route design for resource URLs?
 
 What is RESTful route design for resource URLs?
 
@@ -113,7 +108,7 @@ What is RESTful route design for resource URLs?
 
 ---
 
-### Q7. What is route ambiguity and how can it occur in API routing? {#chapter-03-routing-api-conventions-q7}
+## Q7. What is route ambiguity and how can it occur in API routing?
 
 What is route ambiguity and how can it occur in API routing?
 
@@ -127,7 +122,7 @@ What is route ambiguity and how can it occur in API routing?
 
 ---
 
-### Q8. What are nested resource routes? {#chapter-03-routing-api-conventions-q8}
+## Q8. What are nested resource routes?
 
 What are nested resource routes?
 
@@ -141,7 +136,7 @@ What are nested resource routes?
 
 ---
 
-### Q9. What is `RouteOptions.LowercaseUrls`? {#chapter-03-routing-api-conventions-q9}
+## Q9. What is `RouteOptions.LowercaseUrls`?
 
 What is `RouteOptions.LowercaseUrls`?
 
@@ -155,7 +150,7 @@ What is `RouteOptions.LowercaseUrls`?
 
 ---
 
-### Q10. What is `UsePathBase` and how does it affect API URLs? {#chapter-03-routing-api-conventions-q10}
+## Q10. What is `UsePathBase` and how does it affect API URLs?
 
 What is `UsePathBase` and how does it affect API URLs?
 
@@ -169,7 +164,7 @@ What is `UsePathBase` and how does it affect API URLs?
 
 ---
 
-### Q11. What do `[HttpGet]`, `[HttpPost]`, etc. specify? {#chapter-03-routing-api-conventions-q11}
+## Q11. What do `[HttpGet]`, `[HttpPost]`, etc. specify?
 
 What do `[HttpGet]`, `[HttpPost]`, etc. specify?
 
@@ -183,7 +178,7 @@ What do `[HttpGet]`, `[HttpPost]`, etc. specify?
 
 ---
 
-### Q12. What is the difference between route templates on controller vs action? {#chapter-03-routing-api-conventions-q12}
+## Q12. What is the difference between route templates on controller vs action?
 
 What is the difference between route templates on controller vs action?
 
@@ -197,7 +192,7 @@ What is the difference between route templates on controller vs action?
 
 ---
 
-### Q13. What is link generation in ASP.NET Core routing? {#chapter-03-routing-api-conventions-q13}
+## Q13. What is link generation in ASP.NET Core routing?
 
 What is link generation in ASP.NET Core routing?
 
@@ -211,7 +206,7 @@ What is link generation in ASP.NET Core routing?
 
 ---
 
-### Q14. Why should API routes use nouns instead of verbs? {#chapter-03-routing-api-conventions-q14}
+## Q14. Why should API routes use nouns instead of verbs?
 
 Why should API routes use nouns instead of verbs?
 
@@ -225,7 +220,7 @@ Why should API routes use nouns instead of verbs?
 
 ---
 
-### Q15. What is a route constraint (e.g., `{id:int}`)? {#chapter-03-routing-api-conventions-q15}
+## Q15. What is a route constraint (e.g., `{id:int}`)?
 
 What is a route constraint (e.g., `{id:int}`)?
 
@@ -239,7 +234,7 @@ What is a route constraint (e.g., `{id:int}`)?
 
 ---
 
-### Q16. What happens when two actions match the same route? {#chapter-03-routing-api-conventions-q16}
+## Q16. What happens when two actions match the same route?
 
 What happens when two actions match the same route?
 
@@ -253,7 +248,7 @@ What happens when two actions match the same route?
 
 ---
 
-### Q17. What is the difference between `[Route]` at class level vs `[HttpGet("path")]` on action? {#chapter-03-routing-api-conventions-q17}
+## Q17. What is the difference between `[Route]` at class level vs `[HttpGet("path")]` on action?
 
 What is the difference between `[Route]` at class level vs `[HttpGet("path")]` on action?
 
@@ -267,7 +262,7 @@ What is the difference between `[Route]` at class level vs `[HttpGet("path")]` o
 
 ---
 
-### Q18. How does `[ApiController]` affect route parameter binding? {#chapter-03-routing-api-conventions-q18}
+## Q18. How does `[ApiController]` affect route parameter binding?
 
 How does `[ApiController]` affect route parameter binding?
 

@@ -4,93 +4,156 @@
 ## Table of Contents
 
 - [01. Delegates](#01-delegates)
-  - [Q1. What is Functional Programming, and how does C# support it w…](#01-delegates-q1)
-  - [Q2. What are the key principles of Functional Programming (immut…](#01-delegates-q2)
-  - [Q3. What is the difference between imperative and declarative pr…](#01-delegates-q3)
-  - [Q4. What does it mean for functions to be first-class citizens i…](#01-delegates-q4)
-  - [Q5. What is a delegate in C#? How does it differ from a method g…](#01-delegates-q5)
-  - [Q6. How do you declare, instantiate, and invoke a custom delegat…](#01-delegates-q6)
-  - [Q7. What is a multicast delegate? How does `+=` and `-=` work on…](#01-delegates-q7)
-  - [Q8. What is the difference between single-cast and multicast del…](#01-delegates-q8)
-  - [Q9. What happens when you invoke a multicast delegate and one su…](#01-delegates-q9)
-  - [Q10. What is delegate covariance and contravariance in C#?](#01-delegates-q10)
-  - [Q11. When would you prefer a named delegate type over `Func`/`Act…](#01-delegates-q11)
-  - [Q12. What are the advantages and limitations of adopting a functi…](#01-delegates-q12)
+  - [Q1. What is Functional Programming, and how does C# support it without being a purely functional language?](#q1-what-is-functional-programming-and-how-does-c-support-it-without-being-a-purely-functional-language)
+  - [Q2. What are the key principles of Functional Programming (immutability, pure functions, first-class functions, higher-order functions, referential transparency)?](#q2-what-are-the-key-principles-of-functional-programming-immutability-pure-functions-first-class-functions-higher-order-functions-referential-transparency)
+  - [Q3. What is the difference between imperative and declarative programming styles? Give a C# example of each.](#q3-what-is-the-difference-between-imperative-and-declarative-programming-styles-give-a-c-example-of-each)
+  - [Q4. What does it mean for functions to be first-class citizens in C#?](#q4-what-does-it-mean-for-functions-to-be-first-class-citizens-in-c)
+  - [Q5. What is a delegate in C#? How does it differ from a method group and from an interface with a single method?](#q5-what-is-a-delegate-in-c-how-does-it-differ-from-a-method-group-and-from-an-interface-with-a-single-method)
+  - [Q6. How do you declare, instantiate, and invoke a custom delegate type?](#q6-how-do-you-declare-instantiate-and-invoke-a-custom-delegate-type)
+  - [Q7. What is a multicast delegate? How does `+=` and `-=` work on delegate instances?](#q7-what-is-a-multicast-delegate-how-does-and---work-on-delegate-instances)
+  - [Q8. What is the difference between single-cast and multicast delegates at invocation time?](#q8-what-is-the-difference-between-single-cast-and-multicast-delegates-at-invocation-time)
+  - [Q9. What happens when you invoke a multicast delegate and one subscriber throws an exception?](#q9-what-happens-when-you-invoke-a-multicast-delegate-and-one-subscriber-throws-an-exception)
+  - [Q10. What is delegate covariance and contravariance in C#?](#q10-what-is-delegate-covariance-and-contravariance-in-c)
+  - [Q11. When would you prefer a named delegate type over `Func`/`Action` in a public API?](#q11-when-would-you-prefer-a-named-delegate-type-over-funcaction-in-a-public-api)
+  - [Q12. What are the advantages and limitations of adopting a functional style in typical enterprise C# codebases?](#q12-what-are-the-advantages-and-limitations-of-adopting-a-functional-style-in-typical-enterprise-c-codebases)
 
 - [02. Lambda Expressions](#02-lambda-expressions)
-  - [Q1. What is a lambda expression in C#? What problem does it solv…](#02-lambda-expressions-q1)
-  - [Q2. What is the difference between an expression lambda and a st…](#02-lambda-expressions-q2)
-  - [Q3. When can parameter types be omitted in a lambda, and when mu…](#02-lambda-expressions-q3)
-  - [Q4. What are target-typed lambdas (C# 10+)? In what contexts doe…](#02-lambda-expressions-q4)
-  - [Q5. What is the natural type of a lambda — when does the compile…](#02-lambda-expressions-q5)
-  - [Q6. How do lambda expressions differ from anonymous methods in s…](#02-lambda-expressions-q6)
-  - [Q7. Can a lambda expression access `ref`, `out`, or `in` paramet…](#02-lambda-expressions-q7)
-  - [Q8. Can a lambda be converted to an expression tree? What syntax…](#02-lambda-expressions-q8)
-  - [Q9. What is the difference between a lambda that captures no loc…](#02-lambda-expressions-q9)
-  - [Q10. How do async lambdas work (`async x => ...`)? What delegate …](#02-lambda-expressions-q10)
-  - [Q11. What happens if you use a lambda where a `Expression<TDelega…](#02-lambda-expressions-q11)
+  - [Q1. What is a lambda expression in C#? What problem does it solve compared to named methods?](#q1-what-is-a-lambda-expression-in-c-what-problem-does-it-solve-compared-to-named-methods)
+  - [Q2. What is the difference between an expression lambda and a statement lambda?](#q2-what-is-the-difference-between-an-expression-lambda-and-a-statement-lambda)
+  - [Q3. When can parameter types be omitted in a lambda, and when must they be explicit?](#q3-when-can-parameter-types-be-omitted-in-a-lambda-and-when-must-they-be-explicit)
+  - [Q4. What are target-typed lambdas (C# 10+)? In what contexts does the compiler infer the delegate type?](#q4-what-are-target-typed-lambdas-c-10-in-what-contexts-does-the-compiler-infer-the-delegate-type)
+  - [Q5. What is the natural type of a lambda — when does the compiler infer `Func`/`Action` vs require an explicit target type?](#q5-what-is-the-natural-type-of-a-lambda-when-does-the-compiler-infer-funcaction-vs-require-an-explicit-target-type)
+  - [Q6. How do lambda expressions differ from anonymous methods in syntax, capabilities, and compiler output?](#q6-how-do-lambda-expressions-differ-from-anonymous-methods-in-syntax-capabilities-and-compiler-output)
+  - [Q7. Can a lambda expression access `ref`, `out`, or `in` parameters from the enclosing method?](#q7-can-a-lambda-expression-access-ref-out-or-in-parameters-from-the-enclosing-method)
+  - [Q8. Can a lambda be converted to an expression tree? What syntax or API constraints apply?](#q8-can-a-lambda-be-converted-to-an-expression-tree-what-syntax-or-api-constraints-apply)
+  - [Q9. What is the difference between a lambda that captures no locals vs one that captures outer variables?](#q9-what-is-the-difference-between-a-lambda-that-captures-no-locals-vs-one-that-captures-outer-variables)
+  - [Q10. How do async lambdas work (`async x => ...`)? What delegate types can they target?](#q10-how-do-async-lambdas-work-async-x-what-delegate-types-can-they-target)
+  - [Q11. What happens if you use a lambda where a `Expression<TDelegate>` is expected vs where a `TDelegate` is expected?](#q11-what-happens-if-you-use-a-lambda-where-a-expressiontdelegate-is-expected-vs-where-a-tdelegate-is-expected)
 
 - [03. Anonymous Methods](#03-anonymous-methods)
-  - [Q1. What are anonymous methods in C#? Why were they introduced, …](#03-anonymous-methods-q1)
-  - [Q2. What is the syntax for an anonymous method, and how does it …](#03-anonymous-methods-q2)
-  - [Q3. Can anonymous methods omit parameter lists? When is that use…](#03-anonymous-methods-q3)
-  - [Q4. What outer scope variables can anonymous methods access, and…](#03-anonymous-methods-q4)
-  - [Q5. In modern C# code, when (if ever) would you still choose an …](#03-anonymous-methods-q5)
+  - [Q1. What are anonymous methods in C#? Why were they introduced, and what largely replaced them?](#q1-what-are-anonymous-methods-in-c-why-were-they-introduced-and-what-largely-replaced-them)
+  - [Q2. What is the syntax for an anonymous method, and how does it compare to lambda syntax?](#q2-what-is-the-syntax-for-an-anonymous-method-and-how-does-it-compare-to-lambda-syntax)
+  - [Q3. Can anonymous methods omit parameter lists? When is that useful?](#q3-can-anonymous-methods-omit-parameter-lists-when-is-that-useful)
+  - [Q4. What outer scope variables can anonymous methods access, and how does capture work?](#q4-what-outer-scope-variables-can-anonymous-methods-access-and-how-does-capture-work)
+  - [Q5. In modern C# code, when (if ever) would you still choose an anonymous method over a lambda?](#q5-in-modern-c-code-when-if-ever-would-you-still-choose-an-anonymous-method-over-a-lambda)
 
 - [04. Extension Methods](#04-extension-methods)
-  - [Q1. What are extension methods in C#? How do they appear to the …](#04-extension-methods-q1)
-  - [Q2. What are the language rules for declaring an extension metho…](#04-extension-methods-q2)
-  - [Q3. How does the compiler resolve an extension method call at co…](#04-extension-methods-q3)
-  - [Q4. What is the difference in resolution order between an instan…](#04-extension-methods-q4)
-  - [Q5. Can extension methods access `private` members of the extend…](#04-extension-methods-q5)
-  - [Q6. What are the limitations of extension methods?](#04-extension-methods-q6)
-  - [Q7. How do extension methods work on interfaces? What are design…](#04-extension-methods-q7)
-  - [Q8. What happens when two namespaces define extensions with the …](#04-extension-methods-q8)
-  - [Q9. Can you define generic extension methods? How does type infe…](#04-extension-methods-q9)
-  - [Q10. What are anti-patterns with extension methods (god extension…](#04-extension-methods-q10)
+  - [Q1. What are extension methods in C#? How do they appear to the caller vs how they are implemented?](#q1-what-are-extension-methods-in-c-how-do-they-appear-to-the-caller-vs-how-they-are-implemented)
+  - [Q2. What are the language rules for declaring an extension method (static class, `this` parameter, accessibility)?](#q2-what-are-the-language-rules-for-declaring-an-extension-method-static-class-this-parameter-accessibility)
+  - [Q3. How does the compiler resolve an extension method call at compile time?](#q3-how-does-the-compiler-resolve-an-extension-method-call-at-compile-time)
+  - [Q4. What is the difference in resolution order between an instance method and an extension method with the same signature?](#q4-what-is-the-difference-in-resolution-order-between-an-instance-method-and-an-extension-method-with-the-same-signature)
+  - [Q5. Can extension methods access `private` members of the extended type? Why or why not?](#q5-can-extension-methods-access-private-members-of-the-extended-type-why-or-why-not)
+  - [Q6. What are the limitations of extension methods?](#q6-what-are-the-limitations-of-extension-methods)
+  - [Q7. How do extension methods work on interfaces? What are design implications (e.g., LINQ)?](#q7-how-do-extension-methods-work-on-interfaces-what-are-design-implications-eg-linq)
+  - [Q8. What happens when two namespaces define extensions with the same name and signature for the same type?](#q8-what-happens-when-two-namespaces-define-extensions-with-the-same-name-and-signature-for-the-same-type)
+  - [Q9. Can you define generic extension methods? How does type inference work at the call site?](#q9-can-you-define-generic-extension-methods-how-does-type-inference-work-at-the-call-site)
+  - [Q10. What are anti-patterns with extension methods (god extensions, violating encapsulation)?](#q10-what-are-anti-patterns-with-extension-methods-god-extensions-violating-encapsulation)
 
 - [05. Func, Action & Predicate](#05-func-action-predicate)
-  - [Q1. What are `Func<T>`, `Func<T, TResult>`, and the general `Fun…](#05-func-action-predicate-q1)
-  - [Q2. What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?](#05-func-action-predicate-q2)
-  - [Q3. What is `Predicate<T>`, and how does it relate to `Func<T, b…](#05-func-action-predicate-q3)
-  - [Q4. When should you use `Func` vs `Action` vs `Predicate` vs a c…](#05-func-action-predicate-q4)
-  - [Q5. What are higher-order functions? Give C# examples using `Fun…](#05-func-action-predicate-q5)
-  - [Q6. What is function composition, and how can it be achieved in …](#05-func-action-predicate-q6)
-  - [Q7. How many generic parameters do `Func` and `Action` support, …](#05-func-action-predicate-q7)
-  - [Q8. How are `Func` and `Action` used in LINQ method parameters (…](#05-func-action-predicate-q8)
-  - [Q9. When does using `Func<T, bool>` instead of `Predicate<T>` im…](#05-func-action-predicate-q9)
+  - [Q1. What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family?](#q1-what-are-funct-funct-tresult-and-the-general-func-family)
+  - [Q2. What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?](#q2-what-is-action-vs-actiont-vs-actiont1-t2)
+  - [Q3. What is `Predicate<T>`, and how does it relate to `Func<T, bool>`?](#q3-what-is-predicatet-and-how-does-it-relate-to-funct-bool)
+  - [Q4. When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate?](#q4-when-should-you-use-func-vs-action-vs-predicate-vs-a-custom-delegate)
+  - [Q5. What are higher-order functions? Give C# examples using `Func` and `Action`.](#q5-what-are-higher-order-functions-give-c-examples-using-func-and-action)
+  - [Q6. What is function composition, and how can it be achieved in C#?](#q6-what-is-function-composition-and-how-can-it-be-achieved-in-c)
+  - [Q7. How many generic parameters do `Func` and `Action` support, and which parameter is always the return type for `Func`?](#q7-how-many-generic-parameters-do-func-and-action-support-and-which-parameter-is-always-the-return-type-for-func)
+  - [Q8. How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, etc.)?](#q8-how-are-func-and-action-used-in-linq-method-parameters-select-where-etc)
+  - [Q9. When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API clarity?](#q9-when-does-using-funct-bool-instead-of-predicatet-improve-or-hurt-api-clarity)
 
 - [06. Closures](#06-closures)
-  - [Q1. What is a closure in C#?](#06-closures-q1)
-  - [Q2. How does the compiler implement variable capture for lambdas…](#06-closures-q2)
-  - [Q3. What is the difference between capturing a variable vs captu…](#06-closures-q3)
-  - [Q4. What is the classic `for` loop closure bug, and how did C# 5…](#06-closures-q4)
-  - [Q5. How does the same capture bug appear in `foreach`, LINQ, and…](#06-closures-q5)
-  - [Q6. What problems arise when multiple closures share the same ca…](#06-closures-q6)
-  - [Q7. What is a display class (compiler-generated closure type), a…](#06-closures-q7)
-  - [Q8. What is a pure function? Give an example in C# and explain w…](#06-closures-q8)
-  - [Q9. What is immutability, and why is it important in functional …](#06-closures-q9)
-  - [Q10. How can immutability be achieved in C# (`readonly`, `record`…](#06-closures-q10)
-  - [Q11. How do you avoid side effects when passing lambdas to APIs t…](#06-closures-q11)
-  - [Q12. When should you copy loop values to a local inside the loop …](#06-closures-q12)
-  - [Q13. How do local functions compare to lambdas regarding capture …](#06-closures-q13)
-  - [Q14. **Closure captures the variable, not the value** — Loop lamb…](#06-closures-q14)
-  - [Q15. **Same trap in LINQ and tasks** — Capturing loop variables i…](#06-closures-q15)
-  - [Q16. **Multicast delegate short-circuit on exception** — Later su…](#06-closures-q16)
-  - [Q17. **Extension method not in scope** — Missing `using` for the …](#06-closures-q17)
-  - [Q18. **Instance method wins over extension** — An instance method…](#06-closures-q18)
-  - [Q19. **Shared captured storage** — Multiple lambdas share one slo…](#06-closures-q19)
-  - [Q20. **Target-typed lambda ambiguity** — Without a clear target t…](#06-closures-q20)
-  - [Q21. **Expression tree vs delegate** — Expression-tree lambdas ca…](#06-closures-q21)
-  - [Q22. **Capturing `this` implicitly** — Instance lambdas capture `…](#06-closures-q22)
-  - [Q23. **Extension on null reference** — Extension methods can be c…](#06-closures-q23)
+  - [Q1. What is a closure in C#?](#q1-what-is-a-closure-in-c)
+  - [Q2. How does the compiler implement variable capture for lambdas and anonymous methods?](#q2-how-does-the-compiler-implement-variable-capture-for-lambdas-and-anonymous-methods)
+  - [Q3. What is the difference between capturing a variable vs capturing a value at closure creation time?](#q3-what-is-the-difference-between-capturing-a-variable-vs-capturing-a-value-at-closure-creation-time)
+  - [Q4. What is the classic `for` loop closure bug, and how did C# 5 change loop variable capture semantics?](#q4-what-is-the-classic-for-loop-closure-bug-and-how-did-c-5-change-loop-variable-capture-semantics)
+  - [Q5. How does the same capture bug appear in `foreach`, LINQ, and `Task.Run` callbacks?](#q5-how-does-the-same-capture-bug-appear-in-foreach-linq-and-taskrun-callbacks)
+  - [Q6. What problems arise when multiple closures share the same captured variable?](#q6-what-problems-arise-when-multiple-closures-share-the-same-captured-variable)
+  - [Q7. What is a display class (compiler-generated closure type), and what performance cost does capture introduce?](#q7-what-is-a-display-class-compiler-generated-closure-type-and-what-performance-cost-does-capture-introduce)
+  - [Q8. What is a pure function? Give an example in C# and explain what makes it pure.](#q8-what-is-a-pure-function-give-an-example-in-c-and-explain-what-makes-it-pure)
+  - [Q9. What is immutability, and why is it important in functional and concurrent programming?](#q9-what-is-immutability-and-why-is-it-important-in-functional-and-concurrent-programming)
+  - [Q10. How can immutability be achieved in C# (`readonly`, `record`, avoiding mutable captures)?](#q10-how-can-immutability-be-achieved-in-c-readonly-record-avoiding-mutable-captures)
+  - [Q11. How do you avoid side effects when passing lambdas to APIs that store or invoke them later?](#q11-how-do-you-avoid-side-effects-when-passing-lambdas-to-apis-that-store-or-invoke-them-later)
+  - [Q12. When should you copy loop values to a local inside the loop before capturing (`var copy = item`)?](#q12-when-should-you-copy-loop-values-to-a-local-inside-the-loop-before-capturing-var-copy-item)
+  - [Q13. How do local functions compare to lambdas regarding capture and allocation behavior?](#q13-how-do-local-functions-compare-to-lambdas-regarding-capture-and-allocation-behavior)
+  - [Q14. **Closure captures the variable, not the value** — Loop lambda prints `3, 3, 3`, not `0, 1, 2`.](#q14-closure-captures-the-variable-not-the-value-loop-lambda-prints-3-3-3-not-0-1-2)
+  - [Q15. **Same trap in LINQ and tasks** — Capturing loop variables inside `.Where()` / `Task.Run` produces identical bugs.](#q15-same-trap-in-linq-and-tasks-capturing-loop-variables-inside-where-taskrun-produces-identical-bugs)
+  - [Q16. **Multicast delegate short-circuit on exception** — Later subscribers may not run if an early one throws.](#q16-multicast-delegate-short-circuit-on-exception-later-subscribers-may-not-run-if-an-early-one-throws)
+  - [Q17. **Extension method not in scope** — Missing `using` for the static class namespace.](#q17-extension-method-not-in-scope-missing-using-for-the-static-class-namespace)
+  - [Q18. **Instance method wins over extension** — An instance method hides the extension; you cannot "override" with an extension.](#q18-instance-method-wins-over-extension-an-instance-method-hides-the-extension-you-cannot-override-with-an-extension)
+  - [Q19. **Shared captured storage** — Multiple lambdas share one slot for the same outer variable.](#q19-shared-captured-storage-multiple-lambdas-share-one-slot-for-the-same-outer-variable)
+  - [Q20. **Target-typed lambda ambiguity** — Without a clear target type, lambda expressions may fail to compile.](#q20-target-typed-lambda-ambiguity-without-a-clear-target-type-lambda-expressions-may-fail-to-compile)
+  - [Q21. **Expression tree vs delegate** — Expression-tree lambdas cannot contain many C# constructs that delegate lambdas allow.](#q21-expression-tree-vs-delegate-expression-tree-lambdas-cannot-contain-many-c-constructs-that-delegate-lambdas-allow)
+  - [Q22. **Capturing `this` implicitly** — Instance lambdas capture `this`, extending object lifetime.](#q22-capturing-this-implicitly-instance-lambdas-capture-this-extending-object-lifetime)
+  - [Q23. **Extension on null reference** — Extension methods can be called on null receivers; may throw inside the method.](#q23-extension-on-null-reference-extension-methods-can-be-called-on-null-receivers-may-throw-inside-the-method)
+  - [Q1. (R) A pricing microservice chains discount calculators on a returning delegate and logs the "final adjusted price." Review the pipeline:](#q1-r-a-pricing-microservice-chains-discount-calculators-on-a-returning-delegate-and-logs-the-final-adjusted-price-review-the-pipeline)
+  - [Q2. (R) An order service exposes an optional audit hook as a nullable delegate. After a handler throws, downstream code never runs and later calls crash:](#q2-r-an-order-service-exposes-an-optional-audit-hook-as-a-nullable-delegate-after-a-handler-throws-downstream-code-never-runs-and-later-calls-crash)
+  - [Q3. (R) A teammate exposes notification wiring as a public delegate field "so integrators can subscribe without boilerplate." Review cross-team usage:](#q3-r-a-teammate-exposes-notification-wiring-as-a-public-delegate-field-so-integrators-can-subscribe-without-boilerplate-review-cross-team-usage)
+  - [Q4. (P) A warehouse API raises audit notifications from background worker threads while HTTP middleware subscribes and unsubscribes handlers per request. The publisher uses direct multicast invoke:](#q4-p-a-warehouse-api-raises-audit-notifications-from-background-worker-threads-while-http-middleware-subscribes-and-unsubscribes-handlers-per-request-the-publisher-uses-direct-multicast-invoke)
+  - [Q5. (P) An ASP.NET Core app registers a **Singleton** `ShippingCalculator` that takes a `Func<decimal, decimal>` built at startup from a **Scoped** `TaxRateProvider`:](#q5-p-an-aspnet-core-app-registers-a-singleton-shippingcalculator-that-takes-a-funcdecimal-decimal-built-at-startup-from-a-scoped-taxrateprovider)
+  - [Q6. (D) Your team is extending `OrderFulfillmentService` to support pluggable shipping and price adjustment. Two proposals:](#q6-d-your-team-is-extending-orderfulfillmentservice-to-support-pluggable-shipping-and-price-adjustment-two-proposals)
+  - [Q7. (M) A reporting job wires a covariant factory delegate and then fails when accessing derived-only data:](#q7-m-a-reporting-job-wires-a-covariant-factory-delegate-and-then-fails-when-accessing-derived-only-data)
+
+- [02. Lambda Expressions](#02-lambda-expressions-1)
+
+- [02. Lambda Expressions](#02-lambda-expressions-2)
+  - [Q1. (R) A pricing microservice builds per-SKU discount rules at startup and applies them later during checkout. QA reports every SKU gets the same discount as the last item in the catalog. Review this registration code:](#q1-r-a-pricing-microservice-builds-per-sku-discount-rules-at-startup-and-applies-them-later-during-checkout-qa-reports-every-sku-gets-the-same-discount-as-the-last-item-in-the-catalog-review-this-registration-code)
+  - [Q2. (R) A teammate refactors price validation from a statement lambda to an "expression" lambda for readability. The project fails to compile. Review the change:](#q2-r-a-teammate-refactors-price-validation-from-a-statement-lambda-to-an-expression-lambda-for-readability-the-project-fails-to-compile-review-the-change)
+  - [Q3. (R) An order API caches a `PriceTransform` delegate per tenant so repeated requests skip rebuilding markup logic. Review the scoped service:](#q3-r-an-order-api-caches-a-pricetransform-delegate-per-tenant-so-repeated-requests-skip-rebuilding-markup-logic-review-the-scoped-service)
+  - [Q4. (P) An EF Core repository exposes two overloads for filtering products. In production, one path translates to SQL; the other loads the entire table into memory. Review:](#q4-p-an-ef-core-repository-exposes-two-overloads-for-filtering-products-in-production-one-path-translates-to-sql-the-other-loads-the-entire-table-into-memory-review)
+  - [Q5. (R) A background price-sync job fires work with `Task.Run` and an async lambda. Failures never reach Application Insights. Review:](#q5-r-a-background-price-sync-job-fires-work-with-taskrun-and-an-async-lambda-failures-never-reach-application-insights-review)
+  - [Q6. (M) A developer chains LINQ over an in-memory price list and assumes the filter runs once at definition time. Review:](#q6-m-a-developer-chains-linq-over-an-in-memory-price-list-and-assumes-the-filter-runs-once-at-definition-time-review)
+  - [Q7. (D) A hot-path checkout endpoint transforms thousands of line items per second. The team debates three filter styles:](#q7-d-a-hot-path-checkout-endpoint-transforms-thousands-of-line-items-per-second-the-team-debates-three-filter-styles)
+
+- [03. Anonymous Methods](#03-anonymous-methods-1)
+
+- [03. Anonymous Methods](#03-anonymous-methods-2)
+  - [Q1. (R) A legacy WinForms order screen leaks memory after users open and close detail dialogs dozens of times. Review this maintenance patch that still uses anonymous methods:](#q1-r-a-legacy-winforms-order-screen-leaks-memory-after-users-open-and-close-detail-dialogs-dozens-of-times-review-this-maintenance-patch-that-still-uses-anonymous-methods)
+  - [Q2. (R) A developer modernizes a validation pipeline by replacing anonymous methods with lambdas but leaves one factory unchanged. Review both versions — what breaks at runtime in the combined pipeline?](#q2-r-a-developer-modernizes-a-validation-pipeline-by-replacing-anonymous-methods-with-lambdas-but-leaves-one-factory-unchanged-review-both-versions-what-breaks-at-runtime-in-the-combined-pipeline)
+  - [Q3. (R) A code review flags this void delegate wiring in a long-lived `StringBuilder` audit helper. Identify compile-time and lifetime issues:](#q3-r-a-code-review-flags-this-void-delegate-wiring-in-a-long-lived-stringbuilder-audit-helper-identify-compile-time-and-lifetime-issues)
+  - [Q4. (P) Your team inherits a .NET Framework 4.x WinForms/WPF codebase full of `delegate { … }` event handlers, `List<T>.FindAll(delegate …)`, and `ThreadPool.QueueUserWorkItem(delegate …)`. Product wants incremental modernization — no big-bang rewrite. Describe a safe migration strategy from anonymous methods to lambdas (or local functions), including what you verify before merging each touched file.](#q4-p-your-team-inherits-a-net-framework-4x-winformswpf-codebase-full-of-delegate-event-handlers-listtfindalldelegate-and-threadpoolqueueuserworkitemdelegate-product-wants-incremental-modernization-no-big-bang-rewrite-describe-a-safe-migration-strategy-from-anonymous-methods-to-lambdas-or-local-functions-including-what-you-verify-before-merging-each-touched-file)
+  - [Q5. (M) Explain where captured locals from an anonymous method live after the enclosing method returns. A junior developer claims `int matchCount = 0` stays on the stack because it is a value type. Review this snippet from an order-filter utility:](#q5-m-explain-where-captured-locals-from-an-anonymous-method-live-after-the-enclosing-method-returns-a-junior-developer-claims-int-matchcount-0-stays-on-the-stack-because-it-is-a-value-type-review-this-snippet-from-an-order-filter-utility)
+  - [Q6. (D) A teammate argues that anonymous methods in `RunAllRules` should stay inline because "they are only five lines," but QA cannot unit-test individual rules without running the whole pipeline. The pipeline today:](#q6-d-a-teammate-argues-that-anonymous-methods-in-runallrules-should-stay-inline-because-they-are-only-five-lines-but-qa-cannot-unit-test-individual-rules-without-running-the-whole-pipeline-the-pipeline-today)
+
+- [04. Extension Methods](#04-extension-methods-1)
+
+- [04. Extension Methods](#04-extension-methods-2)
+  - [Q1. (R) A teammate nests extension helpers inside an existing service class to "keep related code together." Review this addition:](#q1-r-a-teammate-nests-extension-helpers-inside-an-existing-service-class-to-keep-related-code-together-review-this-addition)
+  - [Q2. (R) After splitting helpers into a shared library, API controllers fail to build. Review the controller and library layout:](#q2-r-after-splitting-helpers-into-a-shared-library-api-controllers-fail-to-build-review-the-controller-and-library-layout)
+  - [Q3. (R) A null-safe helper was added for optional promo codes on checkout. Review the extension and its first production call:](#q3-r-a-null-safe-helper-was-added-for-optional-promo-codes-on-checkout-review-the-extension-and-its-first-production-call)
+  - [Q4. (R) Two NuGet packages ship extensions on `string` with the same signature. After adding both, CI builds but behavior flipped in staging:](#q4-r-two-nuget-packages-ship-extensions-on-string-with-the-same-signature-after-adding-both-ci-builds-but-behavior-flipped-in-staging)
+  - [Q5. (P) A logging extension on `IEnumerable<T>` looks convenient but skews metrics under load. Review:](#q5-p-a-logging-extension-on-ienumerablet-looks-convenient-but-skews-metrics-under-load-review)
+  - [Q6. (D) Your team debates where pricing rules belong for `OrderLine`. Option A adds extensions; Option B keeps methods on the type:](#q6-d-your-team-debates-where-pricing-rules-belong-for-orderline-option-a-adds-extensions-option-b-keeps-methods-on-the-type)
+  - [Q7. (P) An ASP.NET Core teammate models custom middleware as extension methods on `IApplicationBuilder`, mirroring `UseRouting` / `UseAuthentication`. Review this registration block:](#q7-p-an-aspnet-core-teammate-models-custom-middleware-as-extension-methods-on-iapplicationbuilder-mirroring-userouting-useauthentication-review-this-registration-block)
+  - [Q8. (M) Unit tests for a service that uses string extensions pass locally but fail in CI with `NullReferenceException`. Review the test setup:](#q8-m-unit-tests-for-a-service-that-uses-string-extensions-pass-locally-but-fail-in-ci-with-nullreferenceexception-review-the-test-setup)
+
+- [05. Func Action & Predicate](#05-func-action-predicate-1)
+
+- [05. Func Action & Predicate](#05-func-action-predicate-2)
+  - [Q1. (R) A warehouse API reuses a shared filter delegate across `List<T>` and LINQ. The build fails after a refactor. What is wrong, and how do you fix it without duplicating filter logic?](#q1-r-a-warehouse-api-reuses-a-shared-filter-delegate-across-listt-and-linq-the-build-fails-after-a-refactor-what-is-wrong-and-how-do-you-fix-it-without-duplicating-filter-logic)
+  - [Q2. (R) A teammate wires logging callbacks into a pick-list pipeline. Review the registration and invocation:](#q2-r-a-teammate-wires-logging-callbacks-into-a-pick-list-pipeline-review-the-registration-and-invocation)
+  - [Q3. (R) After making a filter optional, production throws intermittently when a branch has no active rule. Review:](#q3-r-after-making-a-filter-optional-production-throws-intermittently-when-a-branch-has-no-active-rule-review)
+  - [Q4. (P) An ASP.NET Core app registers a `Func<IServiceProvider, decimal>` factory in DI to read tax rate per request. Review startup:](#q4-p-an-aspnet-core-app-registers-a-funciserviceprovider-decimal-factory-in-di-to-read-tax-rate-per-request-review-startup)
+  - [Q5. (R) A pricing service accepts `Func<Product, decimal>` so callers can plug in "async catalog lookups." Review usage from a minimal API endpoint:](#q5-r-a-pricing-service-accepts-funcproduct-decimal-so-callers-can-plug-in-async-catalog-lookups-review-usage-from-a-minimal-api-endpoint)
+  - [Q6. (D) A team replaces every inventory rule interface with `Func<Product, bool>` parameters "to reduce boilerplate." Tests now require copying lambdas from production code. Compare:](#q6-d-a-team-replaces-every-inventory-rule-interface-with-funcproduct-bool-parameters-to-reduce-boilerplate-tests-now-require-copying-lambdas-from-production-code-compare)
+  - [Q7. (P) An API adds a custom endpoint filter using a predicate delegate. Review registration and behavior:](#q7-p-an-api-adds-a-custom-endpoint-filter-using-a-predicate-delegate-review-registration-and-behavior)
+  - [Q8. (M) A generic helper tries to widen a discontinued-SKU predicate for use on the full catalog. Review:](#q8-m-a-generic-helper-tries-to-widen-a-discontinued-sku-predicate-for-use-on-the-full-catalog-review)
+
+- [06. Closures](#06-closures-1)
+
+- [06. Closures](#06-closures-2)
+  - [Q1. (R) A batch job queues three background tasks to process order IDs 0, 1, and 2. In production every task logs `Processing order 3`. Review the scheduling code:](#q1-r-a-batch-job-queues-three-background-tasks-to-process-order-ids-0-1-and-2-in-production-every-task-logs-processing-order-3-review-the-scheduling-code)
+  - [Q2. (R) A price-filter service builds deferred LINQ queries inside a loop and stores them for later execution. Review this helper:](#q2-r-a-price-filter-service-builds-deferred-linq-queries-inside-a-loop-and-stores-them-for-later-execution-review-this-helper)
+  - [Q3. (R) After users navigate away from detail views, memory stays high. Review this WinForms-style panel:](#q3-r-after-users-navigate-away-from-detail-views-memory-stays-high-review-this-winforms-style-panel)
+  - [Q4. (P) A singleton `RetryScheduler` registers one-shot timers that retry failed HTTP calls. Review the registration:](#q4-p-a-singleton-retryscheduler-registers-one-shot-timers-that-retry-failed-http-calls-review-the-registration)
+  - [Q5. (R) A team parallelizes CSV row validation with `Parallel.ForEach`. Under load, totals and error lists are wrong. Review:](#q5-r-a-team-parallelizes-csv-row-validation-with-parallelforeach-under-load-totals-and-error-lists-are-wrong-review)
+  - [Q6. (M) An API endpoint filters products on every request using a closure factory. A junior dev argues "it's just a lambda — no allocation concern." Review the hot path:](#q6-m-an-api-endpoint-filters-products-on-every-request-using-a-closure-factory-a-junior-dev-argues-its-just-a-lambda-no-allocation-concern-review-the-hot-path)
+  - [Q7. (D) You inherit a service that mixes lambdas and local functions for deferred work:](#q7-d-you-inherit-a-service-that-mixes-lambdas-and-local-functions-for-deferred-work)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. Delegates
 
-#### Q1. What is Functional Programming, and how does C# support it without being a purely functional language? {#01-delegates-q1}
+#### Q1. What is Functional Programming, and how does C# support it without being a purely functional language?
 
 (R) A pricing microservice chains discount calculators on a returning delegate and logs the "final adjusted price." Review the pipeline:
 
@@ -139,7 +202,7 @@ decimal finalPrice = price;
 
 ---
 
-#### Q2. What are the key principles of Functional Programming (immutability, pure functions, first-class functions, higher-order functions, referential transparency)? {#01-delegates-q2}
+#### Q2. What are the key principles of Functional Programming (immutability, pure functions, first-class functions, higher-order functions, referential transparency)?
 
 (R) An order service exposes an optional audit hook as a nullable delegate. After a handler throws, downstream code never runs and later calls crash:
 
@@ -198,7 +261,7 @@ _metrics.Increment("orders.completed");
 
 ---
 
-#### Q3. What is the difference between imperative and declarative programming styles? Give a C# example of each. {#01-delegates-q3}
+#### Q3. What is the difference between imperative and declarative programming styles? Give a C# example of each.
 
 (R) A teammate exposes notification wiring as a public delegate field "so integrators can subscribe without boilerplate." Review cross-team usage:
 
@@ -246,7 +309,7 @@ What production risks does this create compared to wrapping the multicast chain 
 
 ---
 
-#### Q4. What does it mean for functions to be first-class citizens in C#? {#01-delegates-q4}
+#### Q4. What does it mean for functions to be first-class citizens in C#?
 
 (P) A warehouse API raises audit notifications from background worker threads while HTTP middleware subscribes and unsubscribes handlers per request. The publisher uses direct multicast invoke:
 
@@ -286,7 +349,7 @@ public void RaiseAudit(string message)
 
 ---
 
-#### Q5. What is a delegate in C#? How does it differ from a method group and from an interface with a single method? {#01-delegates-q5}
+#### Q5. What is a delegate in C#? How does it differ from a method group and from an interface with a single method?
 
 (P) An ASP.NET Core app registers a **Singleton** `ShippingCalculator` that takes a `Func<decimal, decimal>` built at startup from a **Scoped** `TaxRateProvider`:
 
@@ -333,7 +396,7 @@ public sealed class ShippingCalculator
 
 ---
 
-#### Q6. How do you declare, instantiate, and invoke a custom delegate type? {#01-delegates-q6}
+#### Q6. How do you declare, instantiate, and invoke a custom delegate type?
 
 (D) Your team is extending `OrderFulfillmentService` to support pluggable shipping and price adjustment. Two proposals:
 
@@ -353,7 +416,7 @@ When would you choose delegates vs interfaces for each hook in a production ASP.
 
 ---
 
-#### Q7. What is a multicast delegate? How does `+=` and `-=` work on delegate instances? {#01-delegates-q7}
+#### Q7. What is a multicast delegate? How does `+=` and `-=` work on delegate instances?
 
 (M) A reporting job wires a covariant factory delegate and then fails when accessing derived-only data:
 
@@ -390,31 +453,31 @@ else
 
 ---
 
-#### Q8. What is the difference between single-cast and multicast delegates at invocation time? {#01-delegates-q8}
+#### Q8. What is the difference between single-cast and multicast delegates at invocation time?
 
 _Answer not found._
 
 ---
 
-#### Q9. What happens when you invoke a multicast delegate and one subscriber throws an exception? {#01-delegates-q9}
+#### Q9. What happens when you invoke a multicast delegate and one subscriber throws an exception?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is delegate covariance and contravariance in C#? {#01-delegates-q10}
+#### Q10. What is delegate covariance and contravariance in C#?
 
 _Answer not found._
 
 ---
 
-#### Q11. When would you prefer a named delegate type over `Func`/`Action` in a public API? {#01-delegates-q11}
+#### Q11. When would you prefer a named delegate type over `Func`/`Action` in a public API?
 
 _Answer not found._
 
 ---
 
-#### Q12. What are the advantages and limitations of adopting a functional style in typical enterprise C# codebases? {#01-delegates-q12}
+#### Q12. What are the advantages and limitations of adopting a functional style in typical enterprise C# codebases?
 
 _Answer not found._
 
@@ -422,7 +485,7 @@ _Answer not found._
 
 ### 02. Lambda Expressions
 
-#### Q1. What is a lambda expression in C#? What problem does it solve compared to named methods? {#02-lambda-expressions-q1}
+#### Q1. What is a lambda expression in C#? What problem does it solve compared to named methods?
 
 (R) A pricing microservice builds per-SKU discount rules at startup and applies them later during checkout. QA reports every SKU gets the same discount as the last item in the catalog. Review this registration code:
 
@@ -475,7 +538,7 @@ foreach (var item in catalog)
 
 ---
 
-#### Q2. What is the difference between an expression lambda and a statement lambda? {#02-lambda-expressions-q2}
+#### Q2. What is the difference between an expression lambda and a statement lambda?
 
 (R) A teammate refactors price validation from a statement lambda to an "expression" lambda for readability. The project fails to compile. Review the change:
 
@@ -523,7 +586,7 @@ PriceFilter isValidUnitPrice = price =>
 
 ---
 
-#### Q3. When can parameter types be omitted in a lambda, and when must they be explicit? {#02-lambda-expressions-q3}
+#### Q3. When can parameter types be omitted in a lambda, and when must they be explicit?
 
 (R) An order API caches a `PriceTransform` delegate per tenant so repeated requests skip rebuilding markup logic. Review the scoped service:
 
@@ -568,7 +631,7 @@ public decimal GetMarkedUpPrice(decimal basePrice, decimal tenantMarkupPercent) 
 
 ---
 
-#### Q4. What are target-typed lambdas (C# 10+)? In what contexts does the compiler infer the delegate type? {#02-lambda-expressions-q4}
+#### Q4. What are target-typed lambdas (C# 10+)? In what contexts does the compiler infer the delegate type?
 
 (P) An EF Core repository exposes two overloads for filtering products. In production, one path translates to SQL; the other loads the entire table into memory. Review:
 
@@ -611,7 +674,7 @@ Explain why `Expression<Func<T, bool>>` vs `Func<T, bool>` matters for EF Core, 
 
 ---
 
-#### Q5. What is the natural type of a lambda — when does the compiler infer `Func`/`Action` vs require an explicit target type? {#02-lambda-expressions-q5}
+#### Q5. What is the natural type of a lambda — when does the compiler infer `Func`/`Action` vs require an explicit target type?
 
 (R) A background price-sync job fires work with `Task.Run` and an async lambda. Failures never reach Application Insights. Review:
 
@@ -673,7 +736,7 @@ public async Task ScheduleCatalogRefreshAsync(IEnumerable<string> skus, Cancella
 
 ---
 
-#### Q6. How do lambda expressions differ from anonymous methods in syntax, capabilities, and compiler output? {#02-lambda-expressions-q6}
+#### Q6. How do lambda expressions differ from anonymous methods in syntax, capabilities, and compiler output?
 
 (M) A developer chains LINQ over an in-memory price list and assumes the filter runs once at definition time. Review:
 
@@ -706,7 +769,7 @@ What does deferred execution plus closure capture imply for the printed count vs
 
 ---
 
-#### Q7. Can a lambda expression access `ref`, `out`, or `in` parameters from the enclosing method? {#02-lambda-expressions-q7}
+#### Q7. Can a lambda expression access `ref`, `out`, or `in` parameters from the enclosing method?
 
 (D) A hot-path checkout endpoint transforms thousands of line items per second. The team debates three filter styles:
 
@@ -735,25 +798,25 @@ When would you choose A vs B vs C for production throughput and maintainability,
 
 ---
 
-#### Q8. Can a lambda be converted to an expression tree? What syntax or API constraints apply? {#02-lambda-expressions-q8}
+#### Q8. Can a lambda be converted to an expression tree? What syntax or API constraints apply?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the difference between a lambda that captures no locals vs one that captures outer variables? {#02-lambda-expressions-q9}
+#### Q9. What is the difference between a lambda that captures no locals vs one that captures outer variables?
 
 _Answer not found._
 
 ---
 
-#### Q10. How do async lambdas work (`async x => ...`)? What delegate types can they target? {#02-lambda-expressions-q10}
+#### Q10. How do async lambdas work (`async x => ...`)? What delegate types can they target?
 
 _Answer not found._
 
 ---
 
-#### Q11. What happens if you use a lambda where a `Expression<TDelegate>` is expected vs where a `TDelegate` is expected? {#02-lambda-expressions-q11}
+#### Q11. What happens if you use a lambda where a `Expression<TDelegate>` is expected vs where a `TDelegate` is expected?
 
 _Answer not found._
 
@@ -761,7 +824,7 @@ _Answer not found._
 
 ### 03. Anonymous Methods
 
-#### Q1. What are anonymous methods in C#? Why were they introduced, and what largely replaced them? {#03-anonymous-methods-q1}
+#### Q1. What are anonymous methods in C#? Why were they introduced, and what largely replaced them?
 
 (R) A legacy WinForms order screen leaks memory after users open and close detail dialogs dozens of times. Review this maintenance patch that still uses anonymous methods:
 
@@ -839,7 +902,7 @@ protected override void OnFormClosed(FormClosedEventArgs e)
 
 ---
 
-#### Q2. What is the syntax for an anonymous method, and how does it compare to lambda syntax? {#03-anonymous-methods-q2}
+#### Q2. What is the syntax for an anonymous method, and how does it compare to lambda syntax?
 
 (R) A developer modernizes a validation pipeline by replacing anonymous methods with lambdas but leaves one factory unchanged. Review both versions — what breaks at runtime in the combined pipeline?
 
@@ -890,7 +953,7 @@ Is this an anonymous-method vs lambda difference, or something shared? What is t
 
 ---
 
-#### Q3. Can anonymous methods omit parameter lists? When is that useful? {#03-anonymous-methods-q3}
+#### Q3. Can anonymous methods omit parameter lists? When is that useful?
 
 (R) A code review flags this void delegate wiring in a long-lived `StringBuilder` audit helper. Identify compile-time and lifetime issues:
 
@@ -945,7 +1008,7 @@ OrderNotifier logFailure = delegate (string message)
 
 ---
 
-#### Q4. What outer scope variables can anonymous methods access, and how does capture work? {#03-anonymous-methods-q4}
+#### Q4. What outer scope variables can anonymous methods access, and how does capture work?
 
 (P) Your team inherits a .NET Framework 4.x WinForms/WPF codebase full of `delegate { … }` event handlers, `List<T>.FindAll(delegate …)`, and `ThreadPool.QueueUserWorkItem(delegate …)`. Product wants incremental modernization — no big-bang rewrite. Describe a safe migration strategy from anonymous methods to lambdas (or local functions), including what you verify before merging each touched file.
 
@@ -961,7 +1024,7 @@ OrderNotifier logFailure = delegate (string message)
 
 ---
 
-#### Q5. In modern C# code, when (if ever) would you still choose an anonymous method over a lambda? {#03-anonymous-methods-q5}
+#### Q5. In modern C# code, when (if ever) would you still choose an anonymous method over a lambda?
 
 (M) Explain where captured locals from an anonymous method live after the enclosing method returns. A junior developer claims `int matchCount = 0` stays on the stack because it is a value type. Review this snippet from an order-filter utility:
 
@@ -1001,7 +1064,7 @@ Where does `matchCount` actually live once `CountMatchingOrders` returns but cal
 
 ### 04. Extension Methods
 
-#### Q1. What are extension methods in C#? How do they appear to the caller vs how they are implemented? {#04-extension-methods-q1}
+#### Q1. What are extension methods in C#? How do they appear to the caller vs how they are implemented?
 
 (R) A teammate nests extension helpers inside an existing service class to "keep related code together." Review this addition:
 
@@ -1054,7 +1117,7 @@ public static class OrderLineExtensions
 
 ---
 
-#### Q2. What are the language rules for declaring an extension method (static class, `this` parameter, accessibility)? {#04-extension-methods-q2}
+#### Q2. What are the language rules for declaring an extension method (static class, `this` parameter, accessibility)?
 
 (R) After splitting helpers into a shared library, API controllers fail to build. Review the controller and library layout:
 
@@ -1103,7 +1166,7 @@ The domain models compile fine; only the controller breaks. What is missing, and
 
 ---
 
-#### Q3. How does the compiler resolve an extension method call at compile time? {#04-extension-methods-q3}
+#### Q3. How does the compiler resolve an extension method call at compile time?
 
 (R) A null-safe helper was added for optional promo codes on checkout. Review the extension and its first production call:
 
@@ -1151,7 +1214,7 @@ public static string? NormalizePromoOrNull(this string? code) =>
 
 ---
 
-#### Q4. What is the difference in resolution order between an instance method and an extension method with the same signature? {#04-extension-methods-q4}
+#### Q4. What is the difference in resolution order between an instance method and an extension method with the same signature?
 
 (R) Two NuGet packages ship extensions on `string` with the same signature. After adding both, CI builds but behavior flipped in staging:
 
@@ -1202,7 +1265,7 @@ What binding rule caused the silent behavior change, and what are your options t
 
 ---
 
-#### Q5. Can extension methods access `private` members of the extended type? Why or why not? {#04-extension-methods-q5}
+#### Q5. Can extension methods access `private` members of the extended type? Why or why not?
 
 (P) A logging extension on `IEnumerable<T>` looks convenient but skews metrics under load. Review:
 
@@ -1248,7 +1311,7 @@ Assume `_cache.GetLines` returns a deferred `IEnumerable` backed by a live datab
 
 ---
 
-#### Q6. What are the limitations of extension methods? {#04-extension-methods-q6}
+#### Q6. What are the limitations of extension methods?
 
 (D) Your team debates where pricing rules belong for `OrderLine`. Option A adds extensions; Option B keeps methods on the type:
 
@@ -1274,7 +1337,7 @@ The type is **sealed**, owned by your team, and referenced from API, tests, and 
 
 ---
 
-#### Q7. How do extension methods work on interfaces? What are design implications (e.g., LINQ)? {#04-extension-methods-q7}
+#### Q7. How do extension methods work on interfaces? What are design implications (e.g., LINQ)?
 
 (P) An ASP.NET Core teammate models custom middleware as extension methods on `IApplicationBuilder`, mirroring `UseRouting` / `UseAuthentication`. Review this registration block:
 
@@ -1314,7 +1377,7 @@ Logs still cannot be correlated across services. What is wrong with the middlewa
 
 ---
 
-#### Q8. What happens when two namespaces define extensions with the same name and signature for the same type? {#04-extension-methods-q8}
+#### Q8. What happens when two namespaces define extensions with the same name and signature for the same type?
 
 (M) Unit tests for a service that uses string extensions pass locally but fail in CI with `NullReferenceException`. Review the test setup:
 
@@ -1351,13 +1414,13 @@ The test project references the production assembly. Explain why extension metho
 
 ---
 
-#### Q9. Can you define generic extension methods? How does type inference work at the call site? {#04-extension-methods-q9}
+#### Q9. Can you define generic extension methods? How does type inference work at the call site?
 
 _Answer not found._
 
 ---
 
-#### Q10. What are anti-patterns with extension methods (god extensions, violating encapsulation)? {#04-extension-methods-q10}
+#### Q10. What are anti-patterns with extension methods (god extensions, violating encapsulation)?
 
 _Answer not found._
 
@@ -1365,7 +1428,7 @@ _Answer not found._
 
 ### 05. Func, Action & Predicate
 
-#### Q1. What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family? {#05-func-action-predicate-q1}
+#### Q1. What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family?
 
 What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family?
 
@@ -1378,7 +1441,7 @@ What are `Func<T>`, `Func<T, TResult>`, and the general `Func<...>` family?
 
 ---
 
-#### Q2. What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`? {#05-func-action-predicate-q2}
+#### Q2. What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?
 
 What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?
 
@@ -1391,7 +1454,7 @@ What is `Action` vs `Action<T>` vs `Action<T1, T2, ...>`?
 
 ---
 
-#### Q3. What is `Predicate<T>`, and how does it relate to `Func<T, bool>`? {#05-func-action-predicate-q3}
+#### Q3. What is `Predicate<T>`, and how does it relate to `Func<T, bool>`?
 
 What is `Predicate<T>`, and how does it relate to `Func<T, bool>`?
 
@@ -1404,7 +1467,7 @@ What is `Predicate<T>`, and how does it relate to `Func<T, bool>`?
 
 ---
 
-#### Q4. When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate? {#05-func-action-predicate-q4}
+#### Q4. When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate?
 
 When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate?
 
@@ -1417,7 +1480,7 @@ When should you use `Func` vs `Action` vs `Predicate` vs a custom delegate?
 
 ---
 
-#### Q5. What are higher-order functions? Give C# examples using `Func` and `Action`. {#05-func-action-predicate-q5}
+#### Q5. What are higher-order functions? Give C# examples using `Func` and `Action`.
 
 What are higher-order functions? Give C# examples using `Func` and `Action`.
 
@@ -1430,7 +1493,7 @@ What are higher-order functions? Give C# examples using `Func` and `Action`.
 
 ---
 
-#### Q6. What is function composition, and how can it be achieved in C#? {#05-func-action-predicate-q6}
+#### Q6. What is function composition, and how can it be achieved in C#?
 
 What is function composition, and how can it be achieved in C#?
 
@@ -1448,7 +1511,7 @@ Func<int, int> h = x => f(g(x));
 
 ---
 
-#### Q7. How many generic parameters do `Func` and `Action` support, and which parameter is always the return type for `Func`? {#05-func-action-predicate-q7}
+#### Q7. How many generic parameters do `Func` and `Action` support, and which parameter is always the return type for `Func`?
 
 How many generic parameters do `Func` and `Action` support, and which parameter is always the return type for `Func`?
 
@@ -1461,7 +1524,7 @@ How many generic parameters do `Func` and `Action` support, and which parameter 
 
 ---
 
-#### Q8. How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, etc.)? {#05-func-action-predicate-q8}
+#### Q8. How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, etc.)?
 
 How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, etc.)?
 
@@ -1474,7 +1537,7 @@ How are `Func` and `Action` used in LINQ method parameters (`Select`, `Where`, e
 
 ---
 
-#### Q9. When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API clarity? {#05-func-action-predicate-q9}
+#### Q9. When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API clarity?
 
 When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API clarity?
 
@@ -1489,7 +1552,7 @@ When does using `Func<T, bool>` instead of `Predicate<T>` improve or hurt API cl
 
 ### 06. Closures
 
-#### Q1. What is a closure in C#? {#06-closures-q1}
+#### Q1. What is a closure in C#?
 
 (R) A batch job queues three background tasks to process order IDs 0, 1, and 2. In production every task logs `Processing order 3`. Review the scheduling code:
 
@@ -1543,7 +1606,7 @@ static void ScheduleOne(IOrderService orders, int orderId) =>
 
 ---
 
-#### Q2. How does the compiler implement variable capture for lambdas and anonymous methods? {#06-closures-q2}
+#### Q2. How does the compiler implement variable capture for lambdas and anonymous methods?
 
 (R) A price-filter service builds deferred LINQ queries inside a loop and stores them for later execution. Review this helper:
 
@@ -1603,7 +1666,7 @@ static void AddTierFilter(List<Func<decimal, bool>> sink, decimal[] thresholds, 
 
 ---
 
-#### Q3. What is the difference between capturing a variable vs capturing a value at closure creation time? {#06-closures-q3}
+#### Q3. What is the difference between capturing a variable vs capturing a value at closure creation time?
 
 (R) After users navigate away from detail views, memory stays high. Review this WinForms-style panel:
 
@@ -1666,7 +1729,7 @@ public void Dispose()
 
 ---
 
-#### Q4. What is the classic `for` loop closure bug, and how did C# 5 change loop variable capture semantics? {#06-closures-q4}
+#### Q4. What is the classic `for` loop closure bug, and how did C# 5 change loop variable capture semantics?
 
 (P) A singleton `RetryScheduler` registers one-shot timers that retry failed HTTP calls. Review the registration:
 
@@ -1723,7 +1786,7 @@ var timer = new Timer(async _ =>
 
 ---
 
-#### Q5. How does the same capture bug appear in `foreach`, LINQ, and `Task.Run` callbacks? {#06-closures-q5}
+#### Q5. How does the same capture bug appear in `foreach`, LINQ, and `Task.Run` callbacks?
 
 (R) A team parallelizes CSV row validation with `Parallel.ForEach`. Under load, totals and error lists are wrong. Review:
 
@@ -1797,7 +1860,7 @@ Parallel.ForEach(rows,
 
 ---
 
-#### Q6. What problems arise when multiple closures share the same captured variable? {#06-closures-q6}
+#### Q6. What problems arise when multiple closures share the same captured variable?
 
 (M) An API endpoint filters products on every request using a closure factory. A junior dev argues "it's just a lambda — no allocation concern." Review the hot path:
 
@@ -1857,7 +1920,7 @@ bool InAnyTier(Product p, decimal minPrice, int tierCount)
 
 ---
 
-#### Q7. What is a display class (compiler-generated closure type), and what performance cost does capture introduce? {#06-closures-q7}
+#### Q7. What is a display class (compiler-generated closure type), and what performance cost does capture introduce?
 
 (D) You inherit a service that mixes lambdas and local functions for deferred work:
 
@@ -1916,97 +1979,97 @@ Keep lambdas for short LINQ/`Task.Run`/event one-liners; switch to local functio
 
 ---
 
-#### Q8. What is a pure function? Give an example in C# and explain what makes it pure. {#06-closures-q8}
+#### Q8. What is a pure function? Give an example in C# and explain what makes it pure.
 
 _Answer not found._
 
 ---
 
-#### Q9. What is immutability, and why is it important in functional and concurrent programming? {#06-closures-q9}
+#### Q9. What is immutability, and why is it important in functional and concurrent programming?
 
 _Answer not found._
 
 ---
 
-#### Q10. How can immutability be achieved in C# (`readonly`, `record`, avoiding mutable captures)? {#06-closures-q10}
+#### Q10. How can immutability be achieved in C# (`readonly`, `record`, avoiding mutable captures)?
 
 _Answer not found._
 
 ---
 
-#### Q11. How do you avoid side effects when passing lambdas to APIs that store or invoke them later? {#06-closures-q11}
+#### Q11. How do you avoid side effects when passing lambdas to APIs that store or invoke them later?
 
 _Answer not found._
 
 ---
 
-#### Q12. When should you copy loop values to a local inside the loop before capturing (`var copy = item`)? {#06-closures-q12}
+#### Q12. When should you copy loop values to a local inside the loop before capturing (`var copy = item`)?
 
 _Answer not found._
 
 ---
 
-#### Q13. How do local functions compare to lambdas regarding capture and allocation behavior? {#06-closures-q13}
+#### Q13. How do local functions compare to lambdas regarding capture and allocation behavior?
 
 _Answer not found._
 
 ---
 
-#### Q14. **Closure captures the variable, not the value** — Loop lambda prints `3, 3, 3`, not `0, 1, 2`. {#06-closures-q14}
+#### Q14. **Closure captures the variable, not the value** — Loop lambda prints `3, 3, 3`, not `0, 1, 2`.
 
 _Answer not found._
 
 ---
 
-#### Q15. **Same trap in LINQ and tasks** — Capturing loop variables inside `.Where()` / `Task.Run` produces identical bugs. {#06-closures-q15}
+#### Q15. **Same trap in LINQ and tasks** — Capturing loop variables inside `.Where()` / `Task.Run` produces identical bugs.
 
 _Answer not found._
 
 ---
 
-#### Q16. **Multicast delegate short-circuit on exception** — Later subscribers may not run if an early one throws. {#06-closures-q16}
+#### Q16. **Multicast delegate short-circuit on exception** — Later subscribers may not run if an early one throws.
 
 _Answer not found._
 
 ---
 
-#### Q17. **Extension method not in scope** — Missing `using` for the static class namespace. {#06-closures-q17}
+#### Q17. **Extension method not in scope** — Missing `using` for the static class namespace.
 
 _Answer not found._
 
 ---
 
-#### Q18. **Instance method wins over extension** — An instance method hides the extension; you cannot "override" with an extension. {#06-closures-q18}
+#### Q18. **Instance method wins over extension** — An instance method hides the extension; you cannot "override" with an extension.
 
 _Answer not found._
 
 ---
 
-#### Q19. **Shared captured storage** — Multiple lambdas share one slot for the same outer variable. {#06-closures-q19}
+#### Q19. **Shared captured storage** — Multiple lambdas share one slot for the same outer variable.
 
 _Answer not found._
 
 ---
 
-#### Q20. **Target-typed lambda ambiguity** — Without a clear target type, lambda expressions may fail to compile. {#06-closures-q20}
+#### Q20. **Target-typed lambda ambiguity** — Without a clear target type, lambda expressions may fail to compile.
 
 _Answer not found._
 
 ---
 
-#### Q21. **Expression tree vs delegate** — Expression-tree lambdas cannot contain many C# constructs that delegate lambdas allow. {#06-closures-q21}
+#### Q21. **Expression tree vs delegate** — Expression-tree lambdas cannot contain many C# constructs that delegate lambdas allow.
 
 _Answer not found._
 
 ---
 
-#### Q22. **Capturing `this` implicitly** — Instance lambdas capture `this`, extending object lifetime. {#06-closures-q22}
+#### Q22. **Capturing `this` implicitly** — Instance lambdas capture `this`, extending object lifetime.
 
 _Answer not found._
 
 ---
 
-#### Q23. **Extension on null reference** — Extension methods can be called on null receivers; may throw inside the method. {#06-closures-q23}
+#### Q23. **Extension on null reference** — Extension methods can be called on null receivers; may throw inside the method.
 
 _Answer not found._
 

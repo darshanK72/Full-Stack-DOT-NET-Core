@@ -1,35 +1,30 @@
 # Static Files & Request Pipeline — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 11. Static Files & Request Pipeline](#chapter-11-static-files-request-pipeline)
-  - [Q1. What is the purpose of the `wwwroot` folder?](#chapter-11-static-files-request-pipeline-q1)
-  - [Q2. What does `UseStaticFiles()` do?](#chapter-11-static-files-request-pipeline-q2)
-  - [Q3. What is the difference between `UseDefaultFiles()` and `UseS…](#chapter-11-static-files-request-pipeline-q3)
-  - [Q4. What security risk does `UseDirectoryBrowser()` pose?](#chapter-11-static-files-request-pipeline-q4)
-  - [Q5. Where should static file middleware be placed in the pipelin…](#chapter-11-static-files-request-pipeline-q5)
-  - [Q6. How do you serve a Single Page Application (SPA) with ASP.NE…](#chapter-11-static-files-request-pipeline-q6)
-  - [Q7. What is SPA fallback routing, and why is it needed?](#chapter-11-static-files-request-pipeline-q7)
-  - [Q8. How do you prevent SPA fallback from intercepting API routes…](#chapter-11-static-files-request-pipeline-q8)
-  - [Q9. What are MIME types, and how does ASP.NET Core determine the…](#chapter-11-static-files-request-pipeline-q9)
-  - [Q10. What is `StaticFileOptions`?](#chapter-11-static-files-request-pipeline-q10)
-  - [Q11. What is `FileExtensionContentTypeProvider`?](#chapter-11-static-files-request-pipeline-q11)
-  - [Q12. What does `ServeUnknownFileTypes` do, and when is it risky?](#chapter-11-static-files-request-pipeline-q12)
-  - [Q13. What is a path traversal attack in the context of file servi…](#chapter-11-static-files-request-pipeline-q13)
-  - [Q14. How do you set cache-control headers for static assets?](#chapter-11-static-files-request-pipeline-q14)
-  - [Q15. Why should hashed JS/CSS files be cached aggressively but `i…](#chapter-11-static-files-request-pipeline-q15)
-  - [Q16. What is the difference between serving files from `wwwroot` …](#chapter-11-static-files-request-pipeline-q16)
-  - [Q17. Can static files be served without placing them in `wwwroot`…](#chapter-11-static-files-request-pipeline-q17)
-  - [Q18. What happens if sensitive files (e.g., `.env`, `appsettings.…](#chapter-11-static-files-request-pipeline-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is the purpose of the `wwwroot` folder?](#q1-what-is-the-purpose-of-the-wwwroot-folder)
+2. [Q2. What does `UseStaticFiles()` do?](#q2-what-does-usestaticfiles-do)
+3. [Q3. What is the difference between `UseDefaultFiles()` and `UseStaticFiles()`?](#q3-what-is-the-difference-between-usedefaultfiles-and-usestaticfiles)
+4. [Q4. What security risk does `UseDirectoryBrowser()` pose?](#q4-what-security-risk-does-usedirectorybrowser-pose)
+5. [Q5. Where should static file middleware be placed in the pipeline?](#q5-where-should-static-file-middleware-be-placed-in-the-pipeline)
+6. [Q6. How do you serve a Single Page Application (SPA) with ASP.NET Core?](#q6-how-do-you-serve-a-single-page-application-spa-with-aspnet-core)
+7. [Q7. What is SPA fallback routing, and why is it needed?](#q7-what-is-spa-fallback-routing-and-why-is-it-needed)
+8. [Q8. How do you prevent SPA fallback from intercepting API routes?](#q8-how-do-you-prevent-spa-fallback-from-intercepting-api-routes)
+9. [Q9. What are MIME types, and how does ASP.NET Core determine them for static files?](#q9-what-are-mime-types-and-how-does-aspnet-core-determine-them-for-static-files)
+10. [Q10. What is `StaticFileOptions`?](#q10-what-is-staticfileoptions)
+11. [Q11. What is `FileExtensionContentTypeProvider`?](#q11-what-is-fileextensioncontenttypeprovider)
+12. [Q12. What does `ServeUnknownFileTypes` do, and when is it risky?](#q12-what-does-serveunknownfiletypes-do-and-when-is-it-risky)
+13. [Q13. What is a path traversal attack in the context of file serving?](#q13-what-is-a-path-traversal-attack-in-the-context-of-file-serving)
+14. [Q14. How do you set cache-control headers for static assets?](#q14-how-do-you-set-cache-control-headers-for-static-assets)
+15. [Q15. Why should hashed JS/CSS files be cached aggressively but `index.html` should not?](#q15-why-should-hashed-jscss-files-be-cached-aggressively-but-indexhtml-should-not)
+16. [Q16. What is the difference between serving files from `wwwroot` vs a custom folder?](#q16-what-is-the-difference-between-serving-files-from-wwwroot-vs-a-custom-folder)
+17. [Q17. Can static files be served without placing them in `wwwroot`?](#q17-can-static-files-be-served-without-placing-them-in-wwwroot)
+18. [Q18. What happens if sensitive files (e.g., `.env`, `appsettings.Production.json`) are placed in `wwwroot`?](#q18-what-happens-if-sensitive-files-eg-env-appsettingsproductionjson-are-placed-in-wwwroot)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 11. Static Files & Request Pipeline
-
-### Q1. What is the purpose of the `wwwroot` folder? {#chapter-11-static-files-request-pipeline-q1}
+## Q1. What is the purpose of the `wwwroot` folder?
 
 What is the purpose of the `wwwroot` folder?
 
@@ -42,7 +37,7 @@ What is the purpose of the `wwwroot` folder?
 
 ---
 
-### Q2. What does `UseStaticFiles()` do? {#chapter-11-static-files-request-pipeline-q2}
+## Q2. What does `UseStaticFiles()` do?
 
 What does `UseStaticFiles()` do?
 
@@ -55,7 +50,7 @@ What does `UseStaticFiles()` do?
 
 ---
 
-### Q3. What is the difference between `UseDefaultFiles()` and `UseStaticFiles()`? {#chapter-11-static-files-request-pipeline-q3}
+## Q3. What is the difference between `UseDefaultFiles()` and `UseStaticFiles()`?
 
 What is the difference between `UseDefaultFiles()` and `UseStaticFiles()`?
 
@@ -68,7 +63,7 @@ What is the difference between `UseDefaultFiles()` and `UseStaticFiles()`?
 
 ---
 
-### Q4. What security risk does `UseDirectoryBrowser()` pose? {#chapter-11-static-files-request-pipeline-q4}
+## Q4. What security risk does `UseDirectoryBrowser()` pose?
 
 What security risk does `UseDirectoryBrowser()` pose?
 
@@ -81,7 +76,7 @@ What security risk does `UseDirectoryBrowser()` pose?
 
 ---
 
-### Q5. Where should static file middleware be placed in the pipeline? {#chapter-11-static-files-request-pipeline-q5}
+## Q5. Where should static file middleware be placed in the pipeline?
 
 Where should static file middleware be placed in the pipeline?
 
@@ -94,7 +89,7 @@ Where should static file middleware be placed in the pipeline?
 
 ---
 
-### Q6. How do you serve a Single Page Application (SPA) with ASP.NET Core? {#chapter-11-static-files-request-pipeline-q6}
+## Q6. How do you serve a Single Page Application (SPA) with ASP.NET Core?
 
 How do you serve a Single Page Application (SPA) with ASP.NET Core?
 
@@ -107,7 +102,7 @@ How do you serve a Single Page Application (SPA) with ASP.NET Core?
 
 ---
 
-### Q7. What is SPA fallback routing, and why is it needed? {#chapter-11-static-files-request-pipeline-q7}
+## Q7. What is SPA fallback routing, and why is it needed?
 
 What is SPA fallback routing, and why is it needed?
 
@@ -120,7 +115,7 @@ What is SPA fallback routing, and why is it needed?
 
 ---
 
-### Q8. How do you prevent SPA fallback from intercepting API routes? {#chapter-11-static-files-request-pipeline-q8}
+## Q8. How do you prevent SPA fallback from intercepting API routes?
 
 How do you prevent SPA fallback from intercepting API routes?
 
@@ -133,7 +128,7 @@ How do you prevent SPA fallback from intercepting API routes?
 
 ---
 
-### Q9. What are MIME types, and how does ASP.NET Core determine them for static files? {#chapter-11-static-files-request-pipeline-q9}
+## Q9. What are MIME types, and how does ASP.NET Core determine them for static files?
 
 What are MIME types, and how does ASP.NET Core determine them for static files?
 
@@ -146,7 +141,7 @@ What are MIME types, and how does ASP.NET Core determine them for static files?
 
 ---
 
-### Q10. What is `StaticFileOptions`? {#chapter-11-static-files-request-pipeline-q10}
+## Q10. What is `StaticFileOptions`?
 
 What is `StaticFileOptions`?
 
@@ -159,7 +154,7 @@ What is `StaticFileOptions`?
 
 ---
 
-### Q11. What is `FileExtensionContentTypeProvider`? {#chapter-11-static-files-request-pipeline-q11}
+## Q11. What is `FileExtensionContentTypeProvider`?
 
 What is `FileExtensionContentTypeProvider`?
 
@@ -172,7 +167,7 @@ What is `FileExtensionContentTypeProvider`?
 
 ---
 
-### Q12. What does `ServeUnknownFileTypes` do, and when is it risky? {#chapter-11-static-files-request-pipeline-q12}
+## Q12. What does `ServeUnknownFileTypes` do, and when is it risky?
 
 What does `ServeUnknownFileTypes` do, and when is it risky?
 
@@ -185,7 +180,7 @@ What does `ServeUnknownFileTypes` do, and when is it risky?
 
 ---
 
-### Q13. What is a path traversal attack in the context of file serving? {#chapter-11-static-files-request-pipeline-q13}
+## Q13. What is a path traversal attack in the context of file serving?
 
 What is a path traversal attack in the context of file serving?
 
@@ -198,7 +193,7 @@ What is a path traversal attack in the context of file serving?
 
 ---
 
-### Q14. How do you set cache-control headers for static assets? {#chapter-11-static-files-request-pipeline-q14}
+## Q14. How do you set cache-control headers for static assets?
 
 How do you set cache-control headers for static assets?
 
@@ -211,7 +206,7 @@ How do you set cache-control headers for static assets?
 
 ---
 
-### Q15. Why should hashed JS/CSS files be cached aggressively but `index.html` should not? {#chapter-11-static-files-request-pipeline-q15}
+## Q15. Why should hashed JS/CSS files be cached aggressively but `index.html` should not?
 
 Why should hashed JS/CSS files be cached aggressively but `index.html` should not?
 
@@ -224,7 +219,7 @@ Why should hashed JS/CSS files be cached aggressively but `index.html` should no
 
 ---
 
-### Q16. What is the difference between serving files from `wwwroot` vs a custom folder? {#chapter-11-static-files-request-pipeline-q16}
+## Q16. What is the difference between serving files from `wwwroot` vs a custom folder?
 
 What is the difference between serving files from `wwwroot` vs a custom folder?
 
@@ -237,7 +232,7 @@ What is the difference between serving files from `wwwroot` vs a custom folder?
 
 ---
 
-### Q17. Can static files be served without placing them in `wwwroot`? {#chapter-11-static-files-request-pipeline-q17}
+## Q17. Can static files be served without placing them in `wwwroot`?
 
 Can static files be served without placing them in `wwwroot`?
 
@@ -250,7 +245,7 @@ Can static files be served without placing them in `wwwroot`?
 
 ---
 
-### Q18. What happens if sensitive files (e.g., `.env`, `appsettings.Production.json`) are placed in `wwwroot`? {#chapter-11-static-files-request-pipeline-q18}
+## Q18. What happens if sensitive files (e.g., `.env`, `appsettings.Production.json`) are placed in `wwwroot`?
 
 What happens if sensitive files (e.g., `.env`, `appsettings.Production.json`) are placed in `wwwroot`?
 

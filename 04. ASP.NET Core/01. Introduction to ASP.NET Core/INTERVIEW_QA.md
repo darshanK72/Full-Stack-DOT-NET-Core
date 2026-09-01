@@ -1,35 +1,30 @@
 # Introduction to ASP.NET Core — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 01. Introduction to ASP.NET Core](#chapter-01-introduction-to-aspnet-core)
-  - [Q1. What is ASP.NET Core?](#chapter-01-introduction-to-aspnet-core-q1)
-  - [Q2. How does ASP.NET Core differ from ASP.NET Framework?](#chapter-01-introduction-to-aspnet-core-q2)
-  - [Q3. What is Kestrel, and what role does it play in ASP.NET Core?](#chapter-01-introduction-to-aspnet-core-q3)
-  - [Q4. Why do production deployments often place nginx or IIS in fr…](#chapter-01-introduction-to-aspnet-core-q4)
-  - [Q5. Who terminates TLS in a typical reverse-proxy deployment?](#chapter-01-introduction-to-aspnet-core-q5)
-  - [Q6. What is the unified hosting model introduced by `WebApplicat…](#chapter-01-introduction-to-aspnet-core-q6)
-  - [Q7. What is the difference between the old `Startup.cs` pattern …](#chapter-01-introduction-to-aspnet-core-q7)
-  - [Q8. Walk through the major stages of an HTTP request in ASP.NET …](#chapter-01-introduction-to-aspnet-core-q8)
-  - [Q9. When would you choose Minimal APIs over MVC controllers?](#chapter-01-introduction-to-aspnet-core-q9)
-  - [Q10. What does `ASPNETCORE_ENVIRONMENT` control?](#chapter-01-introduction-to-aspnet-core-q10)
-  - [Q11. What makes ASP.NET Core suitable for Linux containers and cl…](#chapter-01-introduction-to-aspnet-core-q11)
-  - [Q12. What is the ASP.NET Core request pipeline?](#chapter-01-introduction-to-aspnet-core-q12)
-  - [Q13. What is endpoint routing?](#chapter-01-introduction-to-aspnet-core-q13)
-  - [Q14. What are the main components registered in `Program.cs`?](#chapter-01-introduction-to-aspnet-core-q14)
-  - [Q15. What is cross-platform hosting in the context of ASP.NET Cor…](#chapter-01-introduction-to-aspnet-core-q15)
-  - [Q16. How does ASP.NET Core handle dependency injection by default…](#chapter-01-introduction-to-aspnet-core-q16)
-  - [Q17. What is the difference between in-process and out-of-process…](#chapter-01-introduction-to-aspnet-core-q17)
-  - [Q18. What architectural shifts are required when porting a .NET F…](#chapter-01-introduction-to-aspnet-core-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is ASP.NET Core?](#q1-what-is-aspnet-core)
+2. [Q2. How does ASP.NET Core differ from ASP.NET Framework?](#q2-how-does-aspnet-core-differ-from-aspnet-framework)
+3. [Q3. What is Kestrel, and what role does it play in ASP.NET Core?](#q3-what-is-kestrel-and-what-role-does-it-play-in-aspnet-core)
+4. [Q4. Why do production deployments often place nginx or IIS in front of Kestrel?](#q4-why-do-production-deployments-often-place-nginx-or-iis-in-front-of-kestrel)
+5. [Q5. Who terminates TLS in a typical reverse-proxy deployment?](#q5-who-terminates-tls-in-a-typical-reverse-proxy-deployment)
+6. [Q6. What is the unified hosting model introduced by `WebApplication.CreateBuilder`?](#q6-what-is-the-unified-hosting-model-introduced-by-webapplicationcreatebuilder)
+7. [Q7. What is the difference between the old `Startup.cs` pattern and the modern minimal hosting model?](#q7-what-is-the-difference-between-the-old-startupcs-pattern-and-the-modern-minimal-hosting-model)
+8. [Q8. Walk through the major stages of an HTTP request in ASP.NET Core (high level).](#q8-walk-through-the-major-stages-of-an-http-request-in-aspnet-core-high-level)
+9. [Q9. When would you choose Minimal APIs over MVC controllers?](#q9-when-would-you-choose-minimal-apis-over-mvc-controllers)
+10. [Q10. What does `ASPNETCORE_ENVIRONMENT` control?](#q10-what-does-aspnetcore_environment-control)
+11. [Q11. What makes ASP.NET Core suitable for Linux containers and cloud deployment?](#q11-what-makes-aspnet-core-suitable-for-linux-containers-and-cloud-deployment)
+12. [Q12. What is the ASP.NET Core request pipeline?](#q12-what-is-the-aspnet-core-request-pipeline)
+13. [Q13. What is endpoint routing?](#q13-what-is-endpoint-routing)
+14. [Q14. What are the main components registered in `Program.cs`?](#q14-what-are-the-main-components-registered-in-programcs)
+15. [Q15. What is cross-platform hosting in the context of ASP.NET Core?](#q15-what-is-cross-platform-hosting-in-the-context-of-aspnet-core)
+16. [Q16. How does ASP.NET Core handle dependency injection by default?](#q16-how-does-aspnet-core-handle-dependency-injection-by-default)
+17. [Q17. What is the difference between in-process and out-of-process IIS hosting?](#q17-what-is-the-difference-between-in-process-and-out-of-process-iis-hosting)
+18. [Q18. What architectural shifts are required when porting a .NET Framework Web API to ASP.NET Core?](#q18-what-architectural-shifts-are-required-when-porting-a-net-framework-web-api-to-aspnet-core)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 01. Introduction to ASP.NET Core
-
-### Q1. What is ASP.NET Core? {#chapter-01-introduction-to-aspnet-core-q1}
+## Q1. What is ASP.NET Core?
 
 What is ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is ASP.NET Core?
 
 ---
 
-### Q2. How does ASP.NET Core differ from ASP.NET Framework? {#chapter-01-introduction-to-aspnet-core-q2}
+## Q2. How does ASP.NET Core differ from ASP.NET Framework?
 
 How does ASP.NET Core differ from ASP.NET Framework?
 
@@ -55,7 +50,7 @@ How does ASP.NET Core differ from ASP.NET Framework?
 
 ---
 
-### Q3. What is Kestrel, and what role does it play in ASP.NET Core? {#chapter-01-introduction-to-aspnet-core-q3}
+## Q3. What is Kestrel, and what role does it play in ASP.NET Core?
 
 What is Kestrel, and what role does it play in ASP.NET Core?
 
@@ -68,7 +63,7 @@ What is Kestrel, and what role does it play in ASP.NET Core?
 
 ---
 
-### Q4. Why do production deployments often place nginx or IIS in front of Kestrel? {#chapter-01-introduction-to-aspnet-core-q4}
+## Q4. Why do production deployments often place nginx or IIS in front of Kestrel?
 
 Why do production deployments often place nginx or IIS in front of Kestrel?
 
@@ -81,7 +76,7 @@ Why do production deployments often place nginx or IIS in front of Kestrel?
 
 ---
 
-### Q5. Who terminates TLS in a typical reverse-proxy deployment? {#chapter-01-introduction-to-aspnet-core-q5}
+## Q5. Who terminates TLS in a typical reverse-proxy deployment?
 
 Who terminates TLS in a typical reverse-proxy deployment?
 
@@ -94,7 +89,7 @@ Who terminates TLS in a typical reverse-proxy deployment?
 
 ---
 
-### Q6. What is the unified hosting model introduced by `WebApplication.CreateBuilder`? {#chapter-01-introduction-to-aspnet-core-q6}
+## Q6. What is the unified hosting model introduced by `WebApplication.CreateBuilder`?
 
 What is the unified hosting model introduced by `WebApplication.CreateBuilder`?
 
@@ -107,7 +102,7 @@ What is the unified hosting model introduced by `WebApplication.CreateBuilder`?
 
 ---
 
-### Q7. What is the difference between the old `Startup.cs` pattern and the modern minimal hosting model? {#chapter-01-introduction-to-aspnet-core-q7}
+## Q7. What is the difference between the old `Startup.cs` pattern and the modern minimal hosting model?
 
 What is the difference between the old `Startup.cs` pattern and the modern minimal hosting model?
 
@@ -120,7 +115,7 @@ What is the difference between the old `Startup.cs` pattern and the modern minim
 
 ---
 
-### Q8. Walk through the major stages of an HTTP request in ASP.NET Core (high level). {#chapter-01-introduction-to-aspnet-core-q8}
+## Q8. Walk through the major stages of an HTTP request in ASP.NET Core (high level).
 
 Walk through the major stages of an HTTP request in ASP.NET Core (high level).
 
@@ -133,7 +128,7 @@ Walk through the major stages of an HTTP request in ASP.NET Core (high level).
 
 ---
 
-### Q9. When would you choose Minimal APIs over MVC controllers? {#chapter-01-introduction-to-aspnet-core-q9}
+## Q9. When would you choose Minimal APIs over MVC controllers?
 
 When would you choose Minimal APIs over MVC controllers?
 
@@ -146,7 +141,7 @@ When would you choose Minimal APIs over MVC controllers?
 
 ---
 
-### Q10. What does `ASPNETCORE_ENVIRONMENT` control? {#chapter-01-introduction-to-aspnet-core-q10}
+## Q10. What does `ASPNETCORE_ENVIRONMENT` control?
 
 What does `ASPNETCORE_ENVIRONMENT` control?
 
@@ -159,7 +154,7 @@ What does `ASPNETCORE_ENVIRONMENT` control?
 
 ---
 
-### Q11. What makes ASP.NET Core suitable for Linux containers and cloud deployment? {#chapter-01-introduction-to-aspnet-core-q11}
+## Q11. What makes ASP.NET Core suitable for Linux containers and cloud deployment?
 
 What makes ASP.NET Core suitable for Linux containers and cloud deployment?
 
@@ -172,7 +167,7 @@ What makes ASP.NET Core suitable for Linux containers and cloud deployment?
 
 ---
 
-### Q12. What is the ASP.NET Core request pipeline? {#chapter-01-introduction-to-aspnet-core-q12}
+## Q12. What is the ASP.NET Core request pipeline?
 
 What is the ASP.NET Core request pipeline?
 
@@ -185,7 +180,7 @@ What is the ASP.NET Core request pipeline?
 
 ---
 
-### Q13. What is endpoint routing? {#chapter-01-introduction-to-aspnet-core-q13}
+## Q13. What is endpoint routing?
 
 What is endpoint routing?
 
@@ -198,7 +193,7 @@ What is endpoint routing?
 
 ---
 
-### Q14. What are the main components registered in `Program.cs`? {#chapter-01-introduction-to-aspnet-core-q14}
+## Q14. What are the main components registered in `Program.cs`?
 
 What are the main components registered in `Program.cs`?
 
@@ -211,7 +206,7 @@ What are the main components registered in `Program.cs`?
 
 ---
 
-### Q15. What is cross-platform hosting in the context of ASP.NET Core? {#chapter-01-introduction-to-aspnet-core-q15}
+## Q15. What is cross-platform hosting in the context of ASP.NET Core?
 
 What is cross-platform hosting in the context of ASP.NET Core?
 
@@ -224,7 +219,7 @@ What is cross-platform hosting in the context of ASP.NET Core?
 
 ---
 
-### Q16. How does ASP.NET Core handle dependency injection by default? {#chapter-01-introduction-to-aspnet-core-q16}
+## Q16. How does ASP.NET Core handle dependency injection by default?
 
 How does ASP.NET Core handle dependency injection by default?
 
@@ -237,7 +232,7 @@ How does ASP.NET Core handle dependency injection by default?
 
 ---
 
-### Q17. What is the difference between in-process and out-of-process IIS hosting? {#chapter-01-introduction-to-aspnet-core-q17}
+## Q17. What is the difference between in-process and out-of-process IIS hosting?
 
 What is the difference between in-process and out-of-process IIS hosting?
 
@@ -250,7 +245,7 @@ What is the difference between in-process and out-of-process IIS hosting?
 
 ---
 
-### Q18. What architectural shifts are required when porting a .NET Framework Web API to ASP.NET Core? {#chapter-01-introduction-to-aspnet-core-q18}
+## Q18. What architectural shifts are required when porting a .NET Framework Web API to ASP.NET Core?
 
 What architectural shifts are required when porting a .NET Framework Web API to ASP.NET Core?
 

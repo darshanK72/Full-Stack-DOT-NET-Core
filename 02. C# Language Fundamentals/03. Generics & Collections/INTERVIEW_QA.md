@@ -4,142 +4,219 @@
 ## Table of Contents
 
 - [01. Generics](#01-generics)
-  - [Q1. What are generics in C#? Why were they introduced?](#01-generics-q1)
-  - [Q2. What is the difference between generic and non-generic colle…](#01-generics-q2)
-  - [Q3. Explain generic constraints in C# (`where` clause) with exam…](#01-generics-q3)
-  - [Q4. Explain covariance and contravariance in generics (`in` and …](#01-generics-q4)
-  - [Q5. Can you use `where T : Enum` or `where T : unmanaged`? What …](#01-generics-q5)
-  - [Q6. What happens when you use `default(T)` on an unconstrained t…](#01-generics-q6)
-  - [Q7. Why can't you write `T value = null;` unless `T` is constrai…](#01-generics-q7)
-  - [Q8. What is the difference between a generic class and a generic…](#01-generics-q8)
-  - [Q9. What's the difference between reflection over an open generi…](#01-generics-q9)
-  - [Q10. Why does `typeof(List<int>) == typeof(List<string>)` return …](#01-generics-q10)
-  - [Q11. What is type erasure vs reification — does C# retain generic…](#01-generics-q11)
-  - [Q12. What constraints allow calling `new T()` — what does `where …](#01-generics-q12)
-  - [Q13. What is the difference between `where T : class` and `where …](#01-generics-q13)
-  - [Q14. What does `where T : notnull` mean for nullable reference ty…](#01-generics-q14)
-  - [Q15. Why are generic value types separate closed types at runtime…](#01-generics-q15)
-  - [Q16. What is covariance on `IEnumerable<out T>` — why can you ass…](#01-generics-q16)
-  - [Q17. What is contravariance on `Action<in T>` / `IComparer<in T>`…](#01-generics-q17)
-  - [Q18. Why is `List<T>` neither covariant nor contravariant on `T`?](#01-generics-q18)
-  - [Q19. What is the difference between generic specialization perfor…](#01-generics-q19)
-  - [Q20. Can you cast from `List<string>` to `List<object>` — what er…](#01-generics-q20)
+  - [Q1. What are generics in C#? Why were they introduced?](#q1-what-are-generics-in-c-why-were-they-introduced)
+  - [Q2. What is the difference between generic and non-generic collections?](#q2-what-is-the-difference-between-generic-and-non-generic-collections)
+  - [Q3. Explain generic constraints in C# (`where` clause) with examples.](#q3-explain-generic-constraints-in-c-where-clause-with-examples)
+  - [Q4. Explain covariance and contravariance in generics (`in` and `out` keywords).](#q4-explain-covariance-and-contravariance-in-generics-in-and-out-keywords)
+  - [Q5. Can you use `where T : Enum` or `where T : unmanaged`? What problems do these solve?](#q5-can-you-use-where-t-enum-or-where-t-unmanaged-what-problems-do-these-solve)
+  - [Q6. What happens when you use `default(T)` on an unconstrained type parameter?](#q6-what-happens-when-you-use-defaultt-on-an-unconstrained-type-parameter)
+  - [Q7. Why can't you write `T value = null;` unless `T` is constrained to `class`?](#q7-why-cant-you-write-t-value-null-unless-t-is-constrained-to-class)
+  - [Q8. What is the difference between a generic class and a generic method?](#q8-what-is-the-difference-between-a-generic-class-and-a-generic-method)
+  - [Q9. What's the difference between reflection over an open generic type (`List<>`) and a closed generic type (`List<int>`)?](#q9-whats-the-difference-between-reflection-over-an-open-generic-type-list-and-a-closed-generic-type-listint)
+  - [Q10. Why does `typeof(List<int>) == typeof(List<string>)` return `false`, and how do you get the shared generic type definition?](#q10-why-does-typeoflistint-typeofliststring-return-false-and-how-do-you-get-the-shared-generic-type-definition)
+  - [Q11. What is type erasure vs reification — does C# retain generic type information at runtime?](#q11-what-is-type-erasure-vs-reification-does-c-retain-generic-type-information-at-runtime)
+  - [Q12. What constraints allow calling `new T()` — what does `where T : new()` enable?](#q12-what-constraints-allow-calling-new-t-what-does-where-t-new-enable)
+  - [Q13. What is the difference between `where T : class` and `where T : struct` constraints?](#q13-what-is-the-difference-between-where-t-class-and-where-t-struct-constraints)
+  - [Q14. What does `where T : notnull` mean for nullable reference type analysis?](#q14-what-does-where-t-notnull-mean-for-nullable-reference-type-analysis)
+  - [Q15. Why are generic value types separate closed types at runtime for static fields?](#q15-why-are-generic-value-types-separate-closed-types-at-runtime-for-static-fields)
+  - [Q16. What is covariance on `IEnumerable<out T>` — why can you assign `IEnumerable<string>` to `IEnumerable<object>`?](#q16-what-is-covariance-on-ienumerableout-t-why-can-you-assign-ienumerablestring-to-ienumerableobject)
+  - [Q17. What is contravariance on `Action<in T>` / `IComparer<in T>`?](#q17-what-is-contravariance-on-actionin-t-icomparerin-t)
+  - [Q18. Why is `List<T>` neither covariant nor contravariant on `T`?](#q18-why-is-listt-neither-covariant-nor-contravariant-on-t)
+  - [Q19. What is the difference between generic specialization performance for value types vs reference types?](#q19-what-is-the-difference-between-generic-specialization-performance-for-value-types-vs-reference-types)
+  - [Q20. Can you cast from `List<string>` to `List<object>` — what error or exception occurs?](#q20-can-you-cast-from-liststring-to-listobject-what-error-or-exception-occurs)
 
 - [02. ArrayList](#02-arraylist)
-  - [Q1. What is the difference between `Array` and `ArrayList`?](#02-arraylist-q1)
-  - [Q2. What is the difference between `List<T>` and `ArrayList`?](#02-arraylist-q2)
-  - [Q3. Why is `ArrayList` considered a legacy collection in modern …](#02-arraylist-q3)
-  - [Q4. What boxing occurs when storing `int` values in an `ArrayLis…](#02-arraylist-q4)
-  - [Q5. What is the performance cost of repeated boxing/unboxing in …](#02-arraylist-q5)
-  - [Q6. Can you store mixed types in an `ArrayList`, and what typing…](#02-arraylist-q6)
-  - [Q7. What is the difference between `ArrayList.Capacity` and `Cou…](#02-arraylist-q7)
-  - [Q8. When might you still encounter `ArrayList` in maintained leg…](#02-arraylist-q8)
-  - [Q9. What is the difference between `ArrayList` and `object[]`?](#02-arraylist-q9)
-  - [Q10. What legacy non-generic collections (`Hashtable`, `Queue`, `…](#02-arraylist-q10)
+  - [Q1. What is the difference between `Array` and `ArrayList`?](#q1-what-is-the-difference-between-array-and-arraylist)
+  - [Q2. What is the difference between `List<T>` and `ArrayList`?](#q2-what-is-the-difference-between-listt-and-arraylist)
+  - [Q3. Why is `ArrayList` considered a legacy collection in modern C#?](#q3-why-is-arraylist-considered-a-legacy-collection-in-modern-c)
+  - [Q4. What boxing occurs when storing `int` values in an `ArrayList`?](#q4-what-boxing-occurs-when-storing-int-values-in-an-arraylist)
+  - [Q5. What is the performance cost of repeated boxing/unboxing in hot loops using `ArrayList`?](#q5-what-is-the-performance-cost-of-repeated-boxingunboxing-in-hot-loops-using-arraylist)
+  - [Q6. Can you store mixed types in an `ArrayList`, and what typing risks does that create?](#q6-can-you-store-mixed-types-in-an-arraylist-and-what-typing-risks-does-that-create)
+  - [Q7. What is the difference between `ArrayList.Capacity` and `Count`?](#q7-what-is-the-difference-between-arraylistcapacity-and-count)
+  - [Q8. When might you still encounter `ArrayList` in maintained legacy codebases?](#q8-when-might-you-still-encounter-arraylist-in-maintained-legacy-codebases)
+  - [Q9. What is the difference between `ArrayList` and `object[]`?](#q9-what-is-the-difference-between-arraylist-and-object)
+  - [Q10. What legacy non-generic collections (`Hashtable`, `Queue`, `Stack`) should you know for maintenance scenarios?](#q10-what-legacy-non-generic-collections-hashtable-queue-stack-should-you-know-for-maintenance-scenarios)
 
 - [03. List](#03-list)
-  - [Q1. Explain the internal working and performance of `List<T>` vs…](#03-list-q1)
-  - [Q2. What is `LinkedList<T>` and when should it be used?](#03-list-q2)
-  - [Q3. What is the difference between `List<T>.Sort()` stability an…](#03-list-q3)
-  - [Q4. How does `List<T>` grow its internal buffer when capacity is…](#03-list-q4)
-  - [Q5. What is the amortized cost of `Add` on `List<T>` vs `Insert`…](#03-list-q5)
-  - [Q6. What does `List<T>.AsReadOnly()` return, and can callers sti…](#03-list-q6)
-  - [Q7. What is the difference between `ConvertAll`, `ForEach`, and …](#03-list-q7)
-  - [Q8. What do `ToArray`, `CopyTo`, and `GetRange` do — which alloc…](#03-list-q8)
-  - [Q9. When would you expose `List<T>` as a return type vs `IReadOn…](#03-list-q9)
-  - [Q10. What is the difference between `List<T>.Capacity` and `Count…](#03-list-q10)
-  - [Q11. What happens if you mutate a list while iterating with `fore…](#03-list-q11)
-  - [Q12. What is `TrimExcess`, and when is it useful?](#03-list-q12)
-  - [Q13. What is binary search on a list (`BinarySearch`) — what prec…](#03-list-q13)
-  - [Q14. How does `List<T>` indexer access compare to `LinkedList<T>`…](#03-list-q14)
-  - [Q15. What is `Comparison<T>` delegate, and how does it relate to …](#03-list-q15)
+  - [Q1. Explain the internal working and performance of `List<T>` vs `LinkedList<T>`.](#q1-explain-the-internal-working-and-performance-of-listt-vs-linkedlistt)
+  - [Q2. What is `LinkedList<T>` and when should it be used?](#q2-what-is-linkedlistt-and-when-should-it-be-used)
+  - [Q3. What is the difference between `List<T>.Sort()` stability and `OrderBy()` stability?](#q3-what-is-the-difference-between-listtsort-stability-and-orderby-stability)
+  - [Q4. How does `List<T>` grow its internal buffer when capacity is exceeded?](#q4-how-does-listt-grow-its-internal-buffer-when-capacity-is-exceeded)
+  - [Q5. What is the amortized cost of `Add` on `List<T>` vs `Insert` at the beginning or middle?](#q5-what-is-the-amortized-cost-of-add-on-listt-vs-insert-at-the-beginning-or-middle)
+  - [Q6. What does `List<T>.AsReadOnly()` return, and can callers still mutate the underlying list?](#q6-what-does-listtasreadonly-return-and-can-callers-still-mutate-the-underlying-list)
+  - [Q7. What is the difference between `ConvertAll`, `ForEach`, and LINQ `Select` on a list?](#q7-what-is-the-difference-between-convertall-foreach-and-linq-select-on-a-list)
+  - [Q8. What do `ToArray`, `CopyTo`, and `GetRange` do — which allocate new arrays?](#q8-what-do-toarray-copyto-and-getrange-do-which-allocate-new-arrays)
+  - [Q9. When would you expose `List<T>` as a return type vs `IReadOnlyList<T>` or `IEnumerable<T>`?](#q9-when-would-you-expose-listt-as-a-return-type-vs-ireadonlylistt-or-ienumerablet)
+  - [Q10. What is the difference between `List<T>.Capacity` and `Count`?](#q10-what-is-the-difference-between-listtcapacity-and-count)
+  - [Q11. What happens if you mutate a list while iterating with `foreach`?](#q11-what-happens-if-you-mutate-a-list-while-iterating-with-foreach)
+  - [Q12. What is `TrimExcess`, and when is it useful?](#q12-what-is-trimexcess-and-when-is-it-useful)
+  - [Q13. What is binary search on a list (`BinarySearch`) — what precondition must the list satisfy?](#q13-what-is-binary-search-on-a-list-binarysearch-what-precondition-must-the-list-satisfy)
+  - [Q14. How does `List<T>` indexer access compare to `LinkedList<T>` (no indexer)?](#q14-how-does-listt-indexer-access-compare-to-linkedlistt-no-indexer)
+  - [Q15. What is `Comparison<T>` delegate, and how does it relate to `List<T>.Sort`?](#q15-what-is-comparisont-delegate-and-how-does-it-relate-to-listtsort)
 
 - [04. Dictionary](#04-dictionary)
-  - [Q1. What is the difference between `Dictionary<TKey, TValue>` an…](#04-dictionary-q1)
-  - [Q2. Explain `IDictionary<TKey, TValue>` and `IReadOnlyDictionary…](#04-dictionary-q2)
-  - [Q3. How does `Dictionary<TKey, TValue>` handle hashing and colli…](#04-dictionary-q3)
-  - [Q4. What is the difference between `Dictionary.Add` and the inde…](#04-dictionary-q4)
-  - [Q5. What is the difference between `ContainsKey`, `TryGetValue`,…](#04-dictionary-q5)
-  - [Q6. Why must keys be immutable (or stable) after insertion for c…](#04-dictionary-q6)
-  - [Q7. What exception is thrown when accessing a missing key via th…](#04-dictionary-q7)
-  - [Q8. Can `null` be used as a key when `TKey` is a reference type?](#04-dictionary-q8)
-  - [Q9. What is the average vs worst-case time complexity for lookup…](#04-dictionary-q9)
-  - [Q10. What is the hash code contract between `GetHashCode` and `Eq…](#04-dictionary-q10)
-  - [Q11. What is `IEqualityComparer<TKey>`, and when do you pass a cu…](#04-dictionary-q11)
-  - [Q12. When would you choose `Dictionary` over `List` for lookups b…](#04-dictionary-q12)
-  - [Q13. What happens internally when two keys hash to the same bucke…](#04-dictionary-q13)
+  - [Q1. What is the difference between `Dictionary<TKey, TValue>` and `Hashtable`?](#q1-what-is-the-difference-between-dictionarytkey-tvalue-and-hashtable)
+  - [Q2. Explain `IDictionary<TKey, TValue>` and `IReadOnlyDictionary<TKey, TValue>`.](#q2-explain-idictionarytkey-tvalue-and-ireadonlydictionarytkey-tvalue)
+  - [Q3. How does `Dictionary<TKey, TValue>` handle hashing and collisions?](#q3-how-does-dictionarytkey-tvalue-handle-hashing-and-collisions)
+  - [Q4. What is the difference between `Dictionary.Add` and the indexer when the key already exists?](#q4-what-is-the-difference-between-dictionaryadd-and-the-indexer-when-the-key-already-exists)
+  - [Q5. What is the difference between `ContainsKey`, `TryGetValue`, and the indexer for lookup?](#q5-what-is-the-difference-between-containskey-trygetvalue-and-the-indexer-for-lookup)
+  - [Q6. Why must keys be immutable (or stable) after insertion for correct hash table behavior?](#q6-why-must-keys-be-immutable-or-stable-after-insertion-for-correct-hash-table-behavior)
+  - [Q7. What exception is thrown when accessing a missing key via the indexer?](#q7-what-exception-is-thrown-when-accessing-a-missing-key-via-the-indexer)
+  - [Q8. Can `null` be used as a key when `TKey` is a reference type?](#q8-can-null-be-used-as-a-key-when-tkey-is-a-reference-type)
+  - [Q9. What is the average vs worst-case time complexity for lookup, insert, and remove?](#q9-what-is-the-average-vs-worst-case-time-complexity-for-lookup-insert-and-remove)
+  - [Q10. What is the hash code contract between `GetHashCode` and `Equals` for custom key types?](#q10-what-is-the-hash-code-contract-between-gethashcode-and-equals-for-custom-key-types)
+  - [Q11. What is `IEqualityComparer<TKey>`, and when do you pass a custom comparer to the constructor?](#q11-what-is-iequalitycomparertkey-and-when-do-you-pass-a-custom-comparer-to-the-constructor)
+  - [Q12. When would you choose `Dictionary` over `List` for lookups by id or SKU?](#q12-when-would-you-choose-dictionary-over-list-for-lookups-by-id-or-sku)
+  - [Q13. What happens internally when two keys hash to the same bucket?](#q13-what-happens-internally-when-two-keys-hash-to-the-same-bucket)
 
 - [05. HashSet](#05-hashset)
-  - [Q1. Explain `HashSet<T>` and its use cases. How is it different …](#05-hashset-q1)
-  - [Q2. What is the difference between `SortedSet<T>` and `HashSet<T…](#05-hashset-q2)
-  - [Q3. Why does `HashSet<T>` require correct `GetHashCode()`/`Equal…](#05-hashset-q3)
-  - [Q4. What set operations does `HashSet<T>` provide (`UnionWith`, …](#05-hashset-q4)
-  - [Q5. What is the difference between `Add` returning `false` on du…](#05-hashset-q5)
-  - [Q6. How do you construct a `HashSet<T>` with custom equality (`I…](#05-hashset-q6)
-  - [Q7. When would you use `HashSet<T>` for deduplication vs `Distin…](#05-hashset-q7)
-  - [Q8. What is the difference between set membership test in `HashS…](#05-hashset-q8)
-  - [Q9. What is `IsSubsetOf`, `IsSupersetOf`, and `Overlaps` used fo…](#05-hashset-q9)
-  - [Q10. Can you modify an element in a `HashSet` in place if it affe…](#05-hashset-q10)
+  - [Q1. Explain `HashSet<T>` and its use cases. How is it different from `List<T>`?](#q1-explain-hashsett-and-its-use-cases-how-is-it-different-from-listt)
+  - [Q2. What is the difference between `SortedSet<T>` and `HashSet<T>`?](#q2-what-is-the-difference-between-sortedsett-and-hashsett)
+  - [Q3. Why does `HashSet<T>` require correct `GetHashCode()`/`Equals()` for custom types?](#q3-why-does-hashsett-require-correct-gethashcodeequals-for-custom-types)
+  - [Q4. What set operations does `HashSet<T>` provide (`UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`)?](#q4-what-set-operations-does-hashsett-provide-unionwith-intersectwith-exceptwith-symmetricexceptwith)
+  - [Q5. What is the difference between `Add` returning `false` on duplicate vs `List.Add` behavior?](#q5-what-is-the-difference-between-add-returning-false-on-duplicate-vs-listadd-behavior)
+  - [Q6. How do you construct a `HashSet<T>` with custom equality (`IEqualityComparer<T>`)?](#q6-how-do-you-construct-a-hashsett-with-custom-equality-iequalitycomparert)
+  - [Q7. When would you use `HashSet<T>` for deduplication vs `Distinct()` in LINQ?](#q7-when-would-you-use-hashsett-for-deduplication-vs-distinct-in-linq)
+  - [Q8. What is the difference between set membership test in `HashSet` vs scanning a `List`?](#q8-what-is-the-difference-between-set-membership-test-in-hashset-vs-scanning-a-list)
+  - [Q9. What is `IsSubsetOf`, `IsSupersetOf`, and `Overlaps` used for?](#q9-what-is-issubsetof-issupersetof-and-overlaps-used-for)
+  - [Q10. Can you modify an element in a `HashSet` in place if it affects equality — what goes wrong?](#q10-can-you-modify-an-element-in-a-hashset-in-place-if-it-affects-equality-what-goes-wrong)
 
 - [06. Queue and Stack](#06-queue-and-stack)
-  - [Q1. Explain `Queue<T>` and `Stack<T>` vs their non-generic count…](#06-queue-and-stack-q1)
-  - [Q2. What is FIFO vs LIFO, and which collection maps to each?](#06-queue-and-stack-q2)
-  - [Q3. What operations does `Queue<T>` expose (`Enqueue`, `Dequeue`…](#06-queue-and-stack-q3)
-  - [Q4. What operations does `Stack<T>` expose (`Push`, `Pop`, `Peek…](#06-queue-and-stack-q4)
-  - [Q5. Why do `Queue` and `Stack` not support random access by inde…](#06-queue-and-stack-q5)
-  - [Q6. How is `Queue<T>` used in breadth-first search (BFS) on a gr…](#06-queue-and-stack-q6)
-  - [Q7. Why does BFS find shortest paths in unweighted graphs?](#06-queue-and-stack-q7)
-  - [Q8. What real-world workflows map naturally to a stack (undo/red…](#06-queue-and-stack-q8)
-  - [Q9. What is the difference between non-generic `Queue`/`Stack` a…](#06-queue-and-stack-q9)
-  - [Q10. When would you use `Queue<T>` over `List<T>` with remove-fro…](#06-queue-and-stack-q10)
+  - [Q1. Explain `Queue<T>` and `Stack<T>` vs their non-generic counterparts.](#q1-explain-queuet-and-stackt-vs-their-non-generic-counterparts)
+  - [Q2. What is FIFO vs LIFO, and which collection maps to each?](#q2-what-is-fifo-vs-lifo-and-which-collection-maps-to-each)
+  - [Q3. What operations does `Queue<T>` expose (`Enqueue`, `Dequeue`, `Peek`, `TryDequeue`, `TryPeek`)?](#q3-what-operations-does-queuet-expose-enqueue-dequeue-peek-trydequeue-trypeek)
+  - [Q4. What operations does `Stack<T>` expose (`Push`, `Pop`, `Peek`, `TryPop`)?](#q4-what-operations-does-stackt-expose-push-pop-peek-trypop)
+  - [Q5. Why do `Queue` and `Stack` not support random access by index?](#q5-why-do-queue-and-stack-not-support-random-access-by-index)
+  - [Q6. How is `Queue<T>` used in breadth-first search (BFS) on a graph or grid?](#q6-how-is-queuet-used-in-breadth-first-search-bfs-on-a-graph-or-grid)
+  - [Q7. Why does BFS find shortest paths in unweighted graphs?](#q7-why-does-bfs-find-shortest-paths-in-unweighted-graphs)
+  - [Q8. What real-world workflows map naturally to a stack (undo/redo, call stack, DFS)?](#q8-what-real-world-workflows-map-naturally-to-a-stack-undoredo-call-stack-dfs)
+  - [Q9. What is the difference between non-generic `Queue`/`Stack` and generic versions regarding boxing?](#q9-what-is-the-difference-between-non-generic-queuestack-and-generic-versions-regarding-boxing)
+  - [Q10. When would you use `Queue<T>` over `List<T>` with remove-from-front patterns?](#q10-when-would-you-use-queuet-over-listt-with-remove-from-front-patterns)
 
 - [07. SortedList & SortedDictionary](#07-sortedlist-sorteddictionary)
-  - [Q1. What is `SortedList<TKey, TValue>` and `SortedDictionary<TKe…](#07-sortedlist-sorteddictionary-q1)
-  - [Q2. What interface defines ordering for sorted collections (`ICo…](#07-sortedlist-sorteddictionary-q2)
-  - [Q3. What is the difference between `SortedList` (array-backed) a…](#07-sortedlist-sorteddictionary-q3)
-  - [Q4. When is `SortedList` preferred over `SortedDictionary` for m…](#07-sortedlist-sorteddictionary-q4)
-  - [Q5. What is the cost of inserting out-of-order keys into a sorte…](#07-sortedlist-sorteddictionary-q5)
-  - [Q6. Can you look up by index in `SortedList` — what does `Keys[i…](#07-sortedlist-sorteddictionary-q6)
-  - [Q7. What is the difference between `SortedSet<T>` and `SortedDic…](#07-sortedlist-sorteddictionary-q7)
-  - [Q8. When would you choose `SortedDictionary` over sorting keys f…](#07-sortedlist-sorteddictionary-q8)
+  - [Q1. What is `SortedList<TKey, TValue>` and `SortedDictionary<TKey, TValue>`? When would you use each?](#q1-what-is-sortedlisttkey-tvalue-and-sorteddictionarytkey-tvalue-when-would-you-use-each)
+  - [Q2. What interface defines ordering for sorted collections (`IComparer<TKey>` vs `IEqualityComparer<TKey>`)?](#q2-what-interface-defines-ordering-for-sorted-collections-icomparertkey-vs-iequalitycomparertkey)
+  - [Q3. What is the difference between `SortedList` (array-backed) and `SortedDictionary` (tree-backed) performance?](#q3-what-is-the-difference-between-sortedlist-array-backed-and-sorteddictionary-tree-backed-performance)
+  - [Q4. When is `SortedList` preferred over `SortedDictionary` for memory or indexed access?](#q4-when-is-sortedlist-preferred-over-sorteddictionary-for-memory-or-indexed-access)
+  - [Q5. What is the cost of inserting out-of-order keys into a sorted collection?](#q5-what-is-the-cost-of-inserting-out-of-order-keys-into-a-sorted-collection)
+  - [Q6. Can you look up by index in `SortedList` — what does `Keys[index]` provide?](#q6-can-you-look-up-by-index-in-sortedlist-what-does-keysindex-provide)
+  - [Q7. What is the difference between `SortedSet<T>` and `SortedDictionary<TKey, TValue>`?](#q7-what-is-the-difference-between-sortedsett-and-sorteddictionarytkey-tvalue)
+  - [Q8. When would you choose `SortedDictionary` over sorting keys from a `Dictionary` at read time?](#q8-when-would-you-choose-sorteddictionary-over-sorting-keys-from-a-dictionary-at-read-time)
 
 - [08. IEnumerable & IEnumerator](#08-ienumerable-ienumerator)
-  - [Q1. What is the difference between `IEnumerable<T>` and `ICollec…](#08-ienumerable-ienumerator-q1)
-  - [Q2. What is the difference between `ICollection<T>` and `IList<T…](#08-ienumerable-ienumerator-q2)
-  - [Q3. What are `IReadOnlyList<T>` and `IReadOnlyCollection<T>`?](#08-ienumerable-ienumerator-q3)
-  - [Q4. What is the difference between `IEnumerator` and `IEnumerato…](#08-ienumerable-ienumerator-q4)
-  - [Q5. What is the `yield` keyword, and how do iterator methods rel…](#08-ienumerable-ienumerator-q5)
-  - [Q6. What is the difference between deferred execution and immedi…](#08-ienumerable-ienumerator-q6)
-  - [Q7. What is the iterator pattern — what do `MoveNext`, `Current`…](#08-ienumerable-ienumerator-q7)
-  - [Q8. What is `yield break` vs `return` in an iterator method?](#08-ienumerable-ienumerator-q8)
-  - [Q9. Why can multiple enumeration of the same `IEnumerable` from …](#08-ienumerable-ienumerator-q9)
-  - [Q10. What is the difference between returning `IEnumerable<T>` fr…](#08-ienumerable-ienumerator-q10)
-  - [Q11. What happens if you modify a collection during `foreach` — h…](#08-ienumerable-ienumerator-q11)
-  - [Q12. What is covariance on `IEnumerable<out T>` — practical assig…](#08-ienumerable-ienumerator-q12)
-  - [Q13. What is the difference between `foreach` and manual `while (…](#08-ienumerable-ienumerator-q13)
-  - [Q14. What is `ToList()` materialization, and when must you materi…](#08-ienumerable-ienumerator-q14)
-  - [Q15. What is the relationship between `IAsyncEnumerable<T>` and i…](#08-ienumerable-ienumerator-q15)
-  - [Q16. **Modify while iterating** — Changing a collection during `f…](#08-ienumerable-ienumerator-q16)
-  - [Q17. **Mutable keys** — Changing equality-relevant state on a key…](#08-ienumerable-ienumerator-q17)
-  - [Q18. **`IEnumerable<T>` covariant, `List<T>` not** — Covariance o…](#08-ienumerable-ienumerator-q18)
-  - [Q19. **Wrong collection for the job** — Frequent middle inserts o…](#08-ienumerable-ienumerator-q19)
-  - [Q20. **Static fields on generic types** — Separate static slots p…](#08-ienumerable-ienumerator-q20)
-  - [Q21. **Boxing in non-generic collections** — `ArrayList` boxes va…](#08-ienumerable-ienumerator-q21)
-  - [Q22. **Passing `List<T>` by value** — Reference is copied; conten…](#08-ienumerable-ienumerator-q22)
-  - [Q23. **`Dictionary.Add` vs indexer on duplicate key** — `Add` thr…](#08-ienumerable-ienumerator-q23)
-  - [Q24. **`AsReadOnly()` is a view** — Original list mutations remai…](#08-ienumerable-ienumerator-q24)
-  - [Q25. **Assuming dictionary enumeration order** — Undefined; sort …](#08-ienumerable-ienumerator-q25)
-  - [Q26. **Multiple enumeration cost** — `yield`/LINQ re-executes wor…](#08-ienumerable-ienumerator-q26)
-  - [Q27. **Wrong comparer on sorted types** — `SortedDictionary` uses…](#08-ienumerable-ienumerator-q27)
-  - [Q28. **Poor `GetHashCode` distribution** — Constant hash codes de…](#08-ienumerable-ienumerator-q28)
-  - [Q29. **Queue `Contains` is O(n)** — Use a `HashSet` alongside if …](#08-ienumerable-ienumerator-q29)
+  - [Q1. What is the difference between `IEnumerable<T>` and `ICollection<T>`?](#q1-what-is-the-difference-between-ienumerablet-and-icollectiont)
+  - [Q2. What is the difference between `ICollection<T>` and `IList<T>`?](#q2-what-is-the-difference-between-icollectiont-and-ilistt)
+  - [Q3. What are `IReadOnlyList<T>` and `IReadOnlyCollection<T>`?](#q3-what-are-ireadonlylistt-and-ireadonlycollectiont)
+  - [Q4. What is the difference between `IEnumerator` and `IEnumerator<T>`?](#q4-what-is-the-difference-between-ienumerator-and-ienumeratort)
+  - [Q5. What is the `yield` keyword, and how do iterator methods relate to `IEnumerable<T>`?](#q5-what-is-the-yield-keyword-and-how-do-iterator-methods-relate-to-ienumerablet)
+  - [Q6. What is the difference between deferred execution and immediate execution for IEnumerable sequences?](#q6-what-is-the-difference-between-deferred-execution-and-immediate-execution-for-ienumerable-sequences)
+  - [Q7. What is the iterator pattern — what do `MoveNext`, `Current`, and `Reset` do?](#q7-what-is-the-iterator-pattern-what-do-movenext-current-and-reset-do)
+  - [Q8. What is `yield break` vs `return` in an iterator method?](#q8-what-is-yield-break-vs-return-in-an-iterator-method)
+  - [Q9. Why can multiple enumeration of the same `IEnumerable` from a LINQ query re-run the pipeline?](#q9-why-can-multiple-enumeration-of-the-same-ienumerable-from-a-linq-query-re-run-the-pipeline)
+  - [Q10. What is the difference between returning `IEnumerable<T>` from a method vs `List<T>`?](#q10-what-is-the-difference-between-returning-ienumerablet-from-a-method-vs-listt)
+  - [Q11. What happens if you modify a collection during `foreach` — how does the enumerator detect it?](#q11-what-happens-if-you-modify-a-collection-during-foreach-how-does-the-enumerator-detect-it)
+  - [Q12. What is covariance on `IEnumerable<out T>` — practical assignment examples?](#q12-what-is-covariance-on-ienumerableout-t-practical-assignment-examples)
+  - [Q13. What is the difference between `foreach` and manual `while (enumerator.MoveNext())`?](#q13-what-is-the-difference-between-foreach-and-manual-while-enumeratormovenext)
+  - [Q14. What is `ToList()` materialization, and when must you materialize before multiple passes?](#q14-what-is-tolist-materialization-and-when-must-you-materialize-before-multiple-passes)
+  - [Q15. What is the relationship between `IAsyncEnumerable<T>` and iterators (preview)?](#q15-what-is-the-relationship-between-iasyncenumerablet-and-iterators-preview)
+  - [Q16. **Modify while iterating** — Changing a collection during `foreach` throws `InvalidOperationException`.](#q16-modify-while-iterating-changing-a-collection-during-foreach-throws-invalidoperationexception)
+  - [Q17. **Mutable keys** — Changing equality-relevant state on a key after insertion causes silent lookup failures.](#q17-mutable-keys-changing-equality-relevant-state-on-a-key-after-insertion-causes-silent-lookup-failures)
+  - [Q18. **`IEnumerable<T>` covariant, `List<T>` not** — Covariance on mutable lists would break type safety.](#q18-ienumerablet-covariant-listt-not-covariance-on-mutable-lists-would-break-type-safety)
+  - [Q19. **Wrong collection for the job** — Frequent middle inserts on `List<T>` are O(n).](#q19-wrong-collection-for-the-job-frequent-middle-inserts-on-listt-are-on)
+  - [Q20. **Static fields on generic types** — Separate static slots per closed generic type.](#q20-static-fields-on-generic-types-separate-static-slots-per-closed-generic-type)
+  - [Q21. **Boxing in non-generic collections** — `ArrayList` boxes value types; `List<T>` avoids this.](#q21-boxing-in-non-generic-collections-arraylist-boxes-value-types-listt-avoids-this)
+  - [Q22. **Passing `List<T>` by value** — Reference is copied; contents still shared.](#q22-passing-listt-by-value-reference-is-copied-contents-still-shared)
+  - [Q23. **`Dictionary.Add` vs indexer on duplicate key** — `Add` throws; indexer overwrites silently.](#q23-dictionaryadd-vs-indexer-on-duplicate-key-add-throws-indexer-overwrites-silently)
+  - [Q24. **`AsReadOnly()` is a view** — Original list mutations remain visible through the wrapper.](#q24-asreadonly-is-a-view-original-list-mutations-remain-visible-through-the-wrapper)
+  - [Q25. **Assuming dictionary enumeration order** — Undefined; sort keys explicitly if order matters.](#q25-assuming-dictionary-enumeration-order-undefined-sort-keys-explicitly-if-order-matters)
+  - [Q26. **Multiple enumeration cost** — `yield`/LINQ re-executes work each pass; materialize when needed.](#q26-multiple-enumeration-cost-yieldlinq-re-executes-work-each-pass-materialize-when-needed)
+  - [Q27. **Wrong comparer on sorted types** — `SortedDictionary` uses `IComparer<TKey>`, not `IEqualityComparer<TKey>`.](#q27-wrong-comparer-on-sorted-types-sorteddictionary-uses-icomparertkey-not-iequalitycomparertkey)
+  - [Q28. **Poor `GetHashCode` distribution** — Constant hash codes degrade to O(n) buckets.](#q28-poor-gethashcode-distribution-constant-hash-codes-degrade-to-on-buckets)
+  - [Q29. **Queue `Contains` is O(n)** — Use a `HashSet` alongside if you need fast membership checks.](#q29-queue-contains-is-on-use-a-hashset-alongside-if-you-need-fast-membership-checks)
+  - [Q1. (R) A teammate adds a generic repository helper for warehouse stock rows. `dotnet build` fails. Review the constraint stack — what is wrong, and how do you fix it?](#q1-r-a-teammate-adds-a-generic-repository-helper-for-warehouse-stock-rows-dotnet-build-fails-review-the-constraint-stack-what-is-wrong-and-how-do-you-fix-it)
+  - [Q2. (R) A developer "fixes" a method that accepts any payload list by widening to `List<object>`. Review the assignment and call site:](#q2-r-a-developer-fixes-a-method-that-accepts-any-payload-list-by-widening-to-listobject-review-the-assignment-and-call-site)
+  - [Q3. (R) An API endpoint helper should return the larger of two comparable stock metrics without boxing value types. Review the call chain:](#q3-r-an-api-endpoint-helper-should-return-the-larger-of-two-comparable-stock-metrics-without-boxing-value-types-review-the-call-chain)
+  - [Q4. (M) A hot inventory path stores millions of pallet counts per hour. One service uses `List<object>` "for flexibility"; another uses `List<int>`. Review the read loop:](#q4-m-a-hot-inventory-path-stores-millions-of-pallet-counts-per-hour-one-service-uses-listobject-for-flexibility-another-uses-listint-review-the-read-loop)
+  - [Q5. (R) A factory method should default-construct inventory DTOs for an import pipeline. Review:](#q5-r-a-factory-method-should-default-construct-inventory-dtos-for-an-import-pipeline-review)
+  - [Q6. (R) A library author exposes typed domain exceptions via generics "so callers can catch exactly what they need." Review:](#q6-r-a-library-author-exposes-typed-domain-exceptions-via-generics-so-callers-can-catch-exactly-what-they-need-review)
+
+- [02. ArrayList](#02-arraylist-1)
+
+- [02. ArrayList](#02-arraylist-2)
+  - [Q1. (R) A legacy warehouse service stores pick lines in an `ArrayList`. After a refactor, production throws `InvalidCastException` during the nightly export. Review the code — what failed, and why did it compile?](#q1-r-a-legacy-warehouse-service-stores-pick-lines-in-an-arraylist-after-a-refactor-production-throws-invalidcastexception-during-the-nightly-export-review-the-code-what-failed-and-why-did-it-compile)
+  - [Q2. (R) A sensor-ingestion job stores telemetry in an `ArrayList` and unboxes on read. Under load, GC pressure spikes and one pod crashes intermittently. Review the hot path — what is wrong at the storage layer and on read?](#q2-r-a-sensor-ingestion-job-stores-telemetry-in-an-arraylist-and-unboxes-on-read-under-load-gc-pressure-spikes-and-one-pod-crashes-intermittently-review-the-hot-path-what-is-wrong-at-the-storage-layer-and-on-read)
+  - [Q3. (R) A catalog API still exposes `IList` for backward compatibility. New code assumes every element is a `Product`. Review this controller helper — what breaks at runtime, and what compile-time safety is missing?](#q3-r-a-catalog-api-still-exposes-ilist-for-backward-compatibility-new-code-assumes-every-element-is-a-product-review-this-controller-helper-what-breaks-at-runtime-and-what-compile-time-safety-is-missing)
+  - [Q4. (P) Your team is migrating a .NET Framework inventory module that uses `ArrayList` for product catalogs, `Hashtable` for SKU→bin lookup, and manual `(Product)` casts in every loop. What is your migration plan to modern generic collections, and what do you change first to stop runtime cast failures?](#q4-p-your-team-is-migrating-a-net-framework-inventory-module-that-uses-arraylist-for-product-catalogs-hashtable-for-skubin-lookup-and-manual-product-casts-in-every-loop-what-is-your-migration-plan-to-modern-generic-collections-and-what-do-you-change-first-to-stop-runtime-cast-failures)
+  - [Q5. (M) Two implementations compute the same warehouse capacity check. One uses `ArrayList`, one uses `List<int>`. A performance test shows the `ArrayList` version allocates more and runs slower on .NET 8. Explain the mechanism — what happens on each `Add` for value types, and why does `List<int>` avoid it?](#q5-m-two-implementations-compute-the-same-warehouse-capacity-check-one-uses-arraylist-one-uses-listint-a-performance-test-shows-the-arraylist-version-allocates-more-and-runs-slower-on-net-8-explain-the-mechanism-what-happens-on-each-add-for-value-types-and-why-does-listint-avoid-it)
+  - [Q6. (D) A monolith has 40 call sites passing `ArrayList` into methods typed as `IList`. Full rewrite to `List<T>` is blocked for two sprints. What incremental strategy reduces `InvalidCastException` risk without a big-bang change, and where do you draw the line on leaving `ArrayList` in place?](#q6-d-a-monolith-has-40-call-sites-passing-arraylist-into-methods-typed-as-ilist-full-rewrite-to-listt-is-blocked-for-two-sprints-what-incremental-strategy-reduces-invalidcastexception-risk-without-a-big-bang-change-and-where-do-you-draw-the-line-on-leaving-arraylist-in-place)
+
+- [03. List](#03-list-1)
+
+- [03. List](#03-list-2)
+  - [Q1. (R) A nightly import job loads 500,000 shipment SKUs into a `List<string>` by calling `Add` one at a time in a loop. Memory profiling shows repeated large allocations and GC pressure. Review the pattern below. What is happening internally, and how would you fix it?](#q1-r-a-nightly-import-job-loads-500000-shipment-skus-into-a-liststring-by-calling-add-one-at-a-time-in-a-loop-memory-profiling-shows-repeated-large-allocations-and-gc-pressure-review-the-pattern-below-what-is-happening-internally-and-how-would-you-fix-it)
+  - [Q2. (R) A warehouse service removes cancelled dock labels during iteration. In staging it throws intermittently. Review this method — what breaks, and what is the correct fix?](#q2-r-a-warehouse-service-removes-cancelled-dock-labels-during-iteration-in-staging-it-throws-intermittently-review-this-method-what-breaks-and-what-is-the-correct-fix)
+  - [Q3. (M) A shipment validator checks whether each incoming pallet's SKU already exists in a queue of 50,000 items by calling `IndexOf` inside a loop. What is the performance problem, and what structure would you use instead?](#q3-m-a-shipment-validator-checks-whether-each-incoming-pallets-sku-already-exists-in-a-queue-of-50000-items-by-calling-indexof-inside-a-loop-what-is-the-performance-problem-and-what-structure-would-you-use-instead)
+  - [Q4. (D) Two developers search a pallet-count list for the first value over 20. One uses `List.Find`; the other uses LINQ `FirstOrDefault`. When would you prefer each, and what subtle difference matters for value types?](#q4-d-two-developers-search-a-pallet-count-list-for-the-first-value-over-20-one-uses-listfind-the-other-uses-linq-firstordefault-when-would-you-prefer-each-and-what-subtle-difference-matters-for-value-types)
+  - [Q5. (R) A `ShipmentQueueService` exposes its internal lane list directly to API callers. Review the property and usage — what can go wrong in production, and how would you expose the data safely?](#q5-r-a-shipmentqueueservice-exposes-its-internal-lane-list-directly-to-api-callers-review-the-property-and-usage-what-can-go-wrong-in-production-and-how-would-you-expose-the-data-safely)
+  - [Q6. (P) A singleton background worker and several API threads share one static `List<ShipmentItem>` for the live shipment queue. Under load, counts become wrong and the process occasionally throws. Explain why `List<T>` is unsafe here and what pattern you would use instead.](#q6-p-a-singleton-background-worker-and-several-api-threads-share-one-static-listshipmentitem-for-the-live-shipment-queue-under-load-counts-become-wrong-and-the-process-occasionally-throws-explain-why-listt-is-unsafe-here-and-what-pattern-you-would-use-instead)
+
+- [04. Dictionary](#04-dictionary-1)
+
+- [04. Dictionary](#04-dictionary-2)
+  - [Q1. (R) A hot-path SKU lookup uses `ContainsKey` followed by the indexer. Review this warehouse catalog access. What is inefficient, and how would you improve it?](#q1-r-a-hot-path-sku-lookup-uses-containskey-followed-by-the-indexer-review-this-warehouse-catalog-access-what-is-inefficient-and-how-would-you-improve-it)
+  - [Q2. (R) A team uses a custom class as the dictionary key and mutates it after insert. Lookups start failing intermittently in production. Review this catalog code:](#q2-r-a-team-uses-a-custom-class-as-the-dictionary-key-and-mutates-it-after-insert-lookups-start-failing-intermittently-in-production-review-this-catalog-code)
+  - [Q3. (P) An ASP.NET Core API caches product details in a shared `Dictionary<string, Product>` field on a singleton service. Under load tests, responses are wrong and the process occasionally throws `InvalidOperationException`. Review the cache:](#q3-p-an-aspnet-core-api-caches-product-details-in-a-shared-dictionarystring-product-field-on-a-singleton-service-under-load-tests-responses-are-wrong-and-the-process-occasionally-throws-invalidoperationexception-review-the-cache)
+  - [Q4. (R) A REST endpoint maps query parameters directly into dictionary lookups without null checks. Review the handler:](#q4-r-a-rest-endpoint-maps-query-parameters-directly-into-dictionary-lookups-without-null-checks-review-the-handler)
+  - [Q5. (D) A microservice adds a static in-memory cache so repeated HTTP fetches are fast. After two weeks in production, pods hit OOM kills even though traffic is steady. Review the cache:](#q5-d-a-microservice-adds-a-static-in-memory-cache-so-repeated-http-fetches-are-fast-after-two-weeks-in-production-pods-hit-oom-kills-even-though-traffic-is-steady-review-the-cache)
+  - [Q6. (P) A developer avoids `ConcurrentDictionary` and hand-rolls lazy initialization with `TryGetValue`. Under load, the expensive factory runs twice for the same key. Review:](#q6-p-a-developer-avoids-concurrentdictionary-and-hand-rolls-lazy-initialization-with-trygetvalue-under-load-the-expensive-factory-runs-twice-for-the-same-key-review)
+
+- [05. HashSet](#05-hashset-1)
+
+- [05. HashSet](#05-hashset-2)
+  - [Q1. (R) A nightly tag-import job deduplicates article tags with `List<string>.Contains` before insert. Review the hot path:](#q1-r-a-nightly-tag-import-job-deduplicates-article-tags-with-liststringcontains-before-insert-review-the-hot-path)
+  - [Q2. (R) A newsletter service deduplicates subscribers by email but keeps seeing duplicate sends in logs. Review:](#q2-r-a-newsletter-service-deduplicates-subscribers-by-email-but-keeps-seeing-duplicate-sends-in-logs-review)
+  - [Q3. (R) After a profile-update feature ships, support reports "user already subscribed" errors even when lookup fails. Review:](#q3-r-after-a-profile-update-feature-ships-support-reports-user-already-subscribed-errors-even-when-lookup-fails-review)
+  - [Q4. (R) An editorial dashboard merges article tag sets for a "shared topics" widget. Case variants appear twice after deploy. Review:](#q4-r-an-editorial-dashboard-merges-article-tag-sets-for-a-shared-topics-widget-case-variants-appear-twice-after-deploy-review)
+  - [Q5. (R) A publish pipeline accidentally wipes an editor's working tag pool. Review the merge step:](#q5-r-a-publish-pipeline-accidentally-wipes-an-editors-working-tag-pool-review-the-merge-step)
+  - [Q6. (R) A custom comparer passes code review but `Remove` and `Contains` behave inconsistently. Review:](#q6-r-a-custom-comparer-passes-code-review-but-remove-and-contains-behave-inconsistently-review)
+
+- [06. Queue and Stack](#06-queue-and-stack-1)
+
+- [06. Queue and Stack](#06-queue-and-stack-2)
+  - [Q1. (R) A help-desk service was refactored from `Queue<SupportTicket>` to `Stack<SupportTicket>` "because stacks are faster." Review the handler loop. What ordering bug appears in production, and how do you fix it?](#q1-r-a-help-desk-service-was-refactored-from-queuesupportticket-to-stacksupportticket-because-stacks-are-faster-review-the-handler-loop-what-ordering-bug-appears-in-production-and-how-do-you-fix-it)
+  - [Q2. (R) A background worker drains a print queue when the upstream publisher is idle. Under load, the service logs unhandled `InvalidOperationException` and the host restarts. Review the consumer:](#q2-r-a-background-worker-drains-a-print-queue-when-the-upstream-publisher-is-idle-under-load-the-service-logs-unhandled-invalidoperationexception-and-the-host-restarts-review-the-consumer)
+  - [Q3. (P) Three ASP.NET Core request threads enqueue audit events; one background `IHostedService` dequeues them for batch upload. The team shares one `Queue<AuditEvent>` instance registered as a **Singleton**. Occasionally events disappear or `InvalidOperationException` appears under concurrent `Enqueue`/`Dequeue`. Explain why `Queue<T>` is unsafe here and what you would register instead.](#q3-p-three-aspnet-core-request-threads-enqueue-audit-events-one-background-ihostedservice-dequeues-them-for-batch-upload-the-team-shares-one-queueauditevent-instance-registered-as-a-singleton-occasionally-events-disappear-or-invalidoperationexception-appears-under-concurrent-enqueuedequeue-explain-why-queuet-is-unsafe-here-and-what-you-would-register-instead)
+  - [Q4. (M) A developer rewrites maze pathfinding from the chapter's BFS to recursive DFS. On large grids the process terminates with `StackOverflowException`. They propose "just use `Stack<T>` instead of recursion." Review both approaches:](#q4-m-a-developer-rewrites-maze-pathfinding-from-the-chapters-bfs-to-recursive-dfs-on-large-grids-the-process-terminates-with-stackoverflowexception-they-propose-just-use-stackt-instead-of-recursion-review-both-approaches)
+  - [Q5. (D) Your team must pick a frontier collection for two graph tasks on an unweighted social network: (A) find **shortest path** in friend hops from user A to user B, and (B) detect whether a **cycle** exists in a follow graph (direction matters). One engineer says "both are graph search — use `Stack<T>` for both." What would you choose for each task and why?](#q5-d-your-team-must-pick-a-frontier-collection-for-two-graph-tasks-on-an-unweighted-social-network-a-find-shortest-path-in-friend-hops-from-user-a-to-user-b-and-b-detect-whether-a-cycle-exists-in-a-follow-graph-direction-matters-one-engineer-says-both-are-graph-search-use-stackt-for-both-what-would-you-choose-for-each-task-and-why)
+  - [Q6. (R) A response editor copied from the chapter's `HelpDeskSession` mixes undo (`Stack<string>`) with ticket draining. Review this merge:](#q6-r-a-response-editor-copied-from-the-chapters-helpdesksession-mixes-undo-stackstring-with-ticket-draining-review-this-merge)
+
+- [07. SortedList & SortedDictionary](#07-sortedlist-sorteddictionary-1)
+
+- [07. SortedList & SortedDictionary](#07-sortedlist-sorteddictionary-2)
+  - [Q1. (R) A warehouse dashboard prints the lowest and highest SKU from a live price map. Review:](#q1-r-a-warehouse-dashboard-prints-the-lowest-and-highest-sku-from-a-live-price-map-review)
+  - [Q2. (R) An inventory sync service upserts pallet counts every few seconds. Review the hot path:](#q2-r-an-inventory-sync-service-upserts-pallet-counts-every-few-seconds-review-the-hot-path)
+  - [Q3. (D) You expose a `/regions/sales` JSON endpoint. Product wants keys returned alphabetically by region code. Two proposals:](#q3-d-you-expose-a-regionssales-json-endpoint-product-wants-keys-returned-alphabetically-by-region-code-two-proposals)
+  - [Q4. (R) A catalog search feature stores product tags in a case-insensitive sorted map. QA reports duplicate logical tags after a Turkish-locale server deploy. Review:](#q4-r-a-catalog-search-feature-stores-product-tags-in-a-case-insensitive-sorted-map-qa-reports-duplicate-logical-tags-after-a-turkish-locale-server-deploy-review)
+  - [Q5. (M) A pricing microservice benchmarks three shapes for a nightly job that inserts 50_000 random SKUs once, then performs 500_000 lookups:](#q5-m-a-pricing-microservice-benchmarks-three-shapes-for-a-nightly-job-that-inserts-50_000-random-skus-once-then-performs-500_000-lookups)
+  - [Q6. (R) A developer ports a `Dictionary` helper to sorted collections but copies the wrong comparer interface. Review:](#q6-r-a-developer-ports-a-dictionary-helper-to-sorted-collections-but-copies-the-wrong-comparer-interface-review)
+
+- [08. IEnumerable & IEnumerator](#08-ienumerable-ienumerator-1)
+
+- [08. IEnumerable & IEnumerator](#08-ienumerable-ienumerator-2)
+  - [Q1. (R) A warehouse API returns `IEnumerable<PickLine>` from a `yield return` filter. A report job calls `Count()` then `Sum()` on the same reference without materializing. Totals disagree with the pick ticket and logs show the database query ran twice. Review the service method and caller. What went wrong, and how do you fix it?](#q1-r-a-warehouse-api-returns-ienumerablepickline-from-a-yield-return-filter-a-report-job-calls-count-then-sum-on-the-same-reference-without-materializing-totals-disagree-with-the-pick-ticket-and-logs-show-the-database-query-ran-twice-review-the-service-method-and-caller-what-went-wrong-and-how-do-you-fix-it)
+  - [Q2. (R) A custom `IEnumerator<PickLine>` wraps a file reader. A developer copies the manual loop from a tutorial but drops the `using` block. Under load, temp files pile up on disk. Review the loop. What is missing, and what does `foreach` do differently?](#q2-r-a-custom-ienumeratorpickline-wraps-a-file-reader-a-developer-copies-the-manual-loop-from-a-tutorial-but-drops-the-using-block-under-load-temp-files-pile-up-on-disk-review-the-loop-what-is-missing-and-what-does-foreach-do-differently)
+  - [Q3. (R) A batch-picking screen tries to skip short lines by removing them while iterating. It crashes on the second line every time. Review the loop (same pattern as **Program.cs** Section 4g). What throws, why is it allowed, and what is the safe fix?](#q3-r-a-batch-picking-screen-tries-to-skip-short-lines-by-removing-them-while-iterating-it-crashes-on-the-second-line-every-time-review-the-loop-same-pattern-as-programcs-section-4g-what-throws-why-is-it-allowed-and-what-is-the-safe-fix)
+  - [Q4. (M) A developer builds a lazy LINQ pipeline over live pick lines, logs the count, then mutates the underlying list before a second `foreach`. Results differ between the two passes. Walk through what runs when and why the second pass can change.](#q4-m-a-developer-builds-a-lazy-linq-pipeline-over-live-pick-lines-logs-the-count-then-mutates-the-underlying-list-before-a-second-foreach-results-differ-between-the-two-passes-walk-through-what-runs-when-and-why-the-second-pass-can-change)
+  - [Q5. (M) An iterator method logs each SKU as it yields. A caller breaks out of `foreach` after the first match. Later code assumes every line was scanned. Review the iterator and caller. What does `yield return` guarantee about execution state, and when does work *not* run?](#q5-m-an-iterator-method-logs-each-sku-as-it-yields-a-caller-breaks-out-of-foreach-after-the-first-match-later-code-assumes-every-line-was-scanned-review-the-iterator-and-caller-what-does-yield-return-guarantee-about-execution-state-and-when-does-work-not-run)
+  - [Q6. (P) A code review flags `var lines = GetHeavyLines(...).ToList()` as "unnecessary allocation." The author argues it prevents double DB hits and stabilizes results if the ticket changes mid-request. When is `ToList()` (or `ToArray()`) the right production fix for `IEnumerable<T>`, and when is it waste?](#q6-p-a-code-review-flags-var-lines-getheavylinestolist-as-unnecessary-allocation-the-author-argues-it-prevents-double-db-hits-and-stabilizes-results-if-the-ticket-changes-mid-request-when-is-tolist-or-toarray-the-right-production-fix-for-ienumerablet-and-when-is-it-waste)
+  - [Q7. (R) Two developers iterate the same `PickBatch` concurrently — one with `foreach`, one with a stored `IEnumerator<PickLine>` from an earlier `GetEnumerator()` call. Intermittent duplicates and skipped SKUs appear. Review `PickBatch` (fresh enumerator per `GetEnumerator()`). What contract did the second developer violate, and how should multiple consumers walk the same batch?](#q7-r-two-developers-iterate-the-same-pickbatch-concurrently-one-with-foreach-one-with-a-stored-ienumeratorpickline-from-an-earlier-getenumerator-call-intermittent-duplicates-and-skipped-skus-appear-review-pickbatch-fresh-enumerator-per-getenumerator-what-contract-did-the-second-developer-violate-and-how-should-multiple-consumers-walk-the-same-batch)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. Generics
 
-#### Q1. What are generics in C#? Why were they introduced? {#01-generics-q1}
+#### Q1. What are generics in C#? Why were they introduced?
 
 (R) A teammate adds a generic repository helper for warehouse stock rows. `dotnet build` fails. Review the constraint stack — what is wrong, and how do you fix it?
 
@@ -164,7 +241,7 @@
 
 ---
 
-#### Q2. What is the difference between generic and non-generic collections? {#01-generics-q2}
+#### Q2. What is the difference between generic and non-generic collections?
 
 (R) A developer "fixes" a method that accepts any payload list by widening to `List<object>`. Review the assignment and call site:
 
@@ -189,7 +266,7 @@
 
 ---
 
-#### Q3. Explain generic constraints in C# (`where` clause) with examples. {#01-generics-q3}
+#### Q3. Explain generic constraints in C# (`where` clause) with examples.
 
 (R) An API endpoint helper should return the larger of two comparable stock metrics without boxing value types. Review the call chain:
 
@@ -214,7 +291,7 @@
 
 ---
 
-#### Q4. Explain covariance and contravariance in generics (`in` and `out` keywords). {#01-generics-q4}
+#### Q4. Explain covariance and contravariance in generics (`in` and `out` keywords).
 
 (M) A hot inventory path stores millions of pallet counts per hour. One service uses `List<object>` "for flexibility"; another uses `List<int>`. Review the read loop:
 
@@ -240,7 +317,7 @@
 
 ---
 
-#### Q5. Can you use `where T : Enum` or `where T : unmanaged`? What problems do these solve? {#01-generics-q5}
+#### Q5. Can you use `where T : Enum` or `where T : unmanaged`? What problems do these solve?
 
 (R) A factory method should default-construct inventory DTOs for an import pipeline. Review:
 
@@ -265,7 +342,7 @@
 
 ---
 
-#### Q6. What happens when you use `default(T)` on an unconstrained type parameter? {#01-generics-q6}
+#### Q6. What happens when you use `default(T)` on an unconstrained type parameter?
 
 (R) A library author exposes typed domain exceptions via generics "so callers can catch exactly what they need." Review:
 
@@ -305,85 +382,85 @@ if (!IsKnownSku(sku))
 
 ---
 
-#### Q7. Why can't you write `T value = null;` unless `T` is constrained to `class`? {#01-generics-q7}
+#### Q7. Why can't you write `T value = null;` unless `T` is constrained to `class`?
 
 _Answer not found._
 
 ---
 
-#### Q8. What is the difference between a generic class and a generic method? {#01-generics-q8}
+#### Q8. What is the difference between a generic class and a generic method?
 
 _Answer not found._
 
 ---
 
-#### Q9. What's the difference between reflection over an open generic type (`List<>`) and a closed generic type (`List<int>`)? {#01-generics-q9}
+#### Q9. What's the difference between reflection over an open generic type (`List<>`) and a closed generic type (`List<int>`)?
 
 _Answer not found._
 
 ---
 
-#### Q10. Why does `typeof(List<int>) == typeof(List<string>)` return `false`, and how do you get the shared generic type definition? {#01-generics-q10}
+#### Q10. Why does `typeof(List<int>) == typeof(List<string>)` return `false`, and how do you get the shared generic type definition?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is type erasure vs reification — does C# retain generic type information at runtime? {#01-generics-q11}
+#### Q11. What is type erasure vs reification — does C# retain generic type information at runtime?
 
 _Answer not found._
 
 ---
 
-#### Q12. What constraints allow calling `new T()` — what does `where T : new()` enable? {#01-generics-q12}
+#### Q12. What constraints allow calling `new T()` — what does `where T : new()` enable?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the difference between `where T : class` and `where T : struct` constraints? {#01-generics-q13}
+#### Q13. What is the difference between `where T : class` and `where T : struct` constraints?
 
 _Answer not found._
 
 ---
 
-#### Q14. What does `where T : notnull` mean for nullable reference type analysis? {#01-generics-q14}
+#### Q14. What does `where T : notnull` mean for nullable reference type analysis?
 
 _Answer not found._
 
 ---
 
-#### Q15. Why are generic value types separate closed types at runtime for static fields? {#01-generics-q15}
+#### Q15. Why are generic value types separate closed types at runtime for static fields?
 
 _Answer not found._
 
 ---
 
-#### Q16. What is covariance on `IEnumerable<out T>` — why can you assign `IEnumerable<string>` to `IEnumerable<object>`? {#01-generics-q16}
+#### Q16. What is covariance on `IEnumerable<out T>` — why can you assign `IEnumerable<string>` to `IEnumerable<object>`?
 
 _Answer not found._
 
 ---
 
-#### Q17. What is contravariance on `Action<in T>` / `IComparer<in T>`? {#01-generics-q17}
+#### Q17. What is contravariance on `Action<in T>` / `IComparer<in T>`?
 
 _Answer not found._
 
 ---
 
-#### Q18. Why is `List<T>` neither covariant nor contravariant on `T`? {#01-generics-q18}
+#### Q18. Why is `List<T>` neither covariant nor contravariant on `T`?
 
 _Answer not found._
 
 ---
 
-#### Q19. What is the difference between generic specialization performance for value types vs reference types? {#01-generics-q19}
+#### Q19. What is the difference between generic specialization performance for value types vs reference types?
 
 _Answer not found._
 
 ---
 
-#### Q20. Can you cast from `List<string>` to `List<object>` — what error or exception occurs? {#01-generics-q20}
+#### Q20. Can you cast from `List<string>` to `List<object>` — what error or exception occurs?
 
 _Answer not found._
 
@@ -391,7 +468,7 @@ _Answer not found._
 
 ### 02. ArrayList
 
-#### Q1. What is the difference between `Array` and `ArrayList`? {#02-arraylist-q1}
+#### Q1. What is the difference between `Array` and `ArrayList`?
 
 (R) A legacy warehouse service stores pick lines in an `ArrayList`. After a refactor, production throws `InvalidCastException` during the nightly export. Review the code — what failed, and why did it compile?
 
@@ -434,7 +511,7 @@ warehouseLines.Add("RUSH-PICK");
 
 ---
 
-#### Q2. What is the difference between `List<T>` and `ArrayList`? {#02-arraylist-q2}
+#### Q2. What is the difference between `List<T>` and `ArrayList`?
 
 (R) A sensor-ingestion job stores telemetry in an `ArrayList` and unboxes on read. Under load, GC pressure spikes and one pod crashes intermittently. Review the hot path — what is wrong at the storage layer and on read?
 
@@ -471,7 +548,7 @@ int peak = (long)readings[0]; // "fix" after a code review comment
 
 ---
 
-#### Q3. Why is `ArrayList` considered a legacy collection in modern C#? {#02-arraylist-q3}
+#### Q3. Why is `ArrayList` considered a legacy collection in modern C#?
 
 (R) A catalog API still exposes `IList` for backward compatibility. New code assumes every element is a `Product`. Review this controller helper — what breaks at runtime, and what compile-time safety is missing?
 
@@ -517,7 +594,7 @@ GetCatalogTotal(legacyCatalog);
 
 ---
 
-#### Q4. What boxing occurs when storing `int` values in an `ArrayList`? {#02-arraylist-q4}
+#### Q4. What boxing occurs when storing `int` values in an `ArrayList`?
 
 (P) Your team is migrating a .NET Framework inventory module that uses `ArrayList` for product catalogs, `Hashtable` for SKU→bin lookup, and manual `(Product)` casts in every loop. What is your migration plan to modern generic collections, and what do you change first to stop runtime cast failures?
 
@@ -534,7 +611,7 @@ GetCatalogTotal(legacyCatalog);
 
 ---
 
-#### Q5. What is the performance cost of repeated boxing/unboxing in hot loops using `ArrayList`? {#02-arraylist-q5}
+#### Q5. What is the performance cost of repeated boxing/unboxing in hot loops using `ArrayList`?
 
 (M) Two implementations compute the same warehouse capacity check. One uses `ArrayList`, one uses `List<int>`. A performance test shows the `ArrayList` version allocates more and runs slower on .NET 8. Explain the mechanism — what happens on each `Add` for value types, and why does `List<int>` avoid it?
 
@@ -550,7 +627,7 @@ GetCatalogTotal(legacyCatalog);
 
 ---
 
-#### Q6. Can you store mixed types in an `ArrayList`, and what typing risks does that create? {#02-arraylist-q6}
+#### Q6. Can you store mixed types in an `ArrayList`, and what typing risks does that create?
 
 (D) A monolith has 40 call sites passing `ArrayList` into methods typed as `IList`. Full rewrite to `List<T>` is blocked for two sprints. What incremental strategy reduces `InvalidCastException` risk without a big-bang change, and where do you draw the line on leaving `ArrayList` in place?
 
@@ -569,25 +646,25 @@ GetCatalogTotal(legacyCatalog);
 
 ---
 
-#### Q7. What is the difference between `ArrayList.Capacity` and `Count`? {#02-arraylist-q7}
+#### Q7. What is the difference between `ArrayList.Capacity` and `Count`?
 
 _Answer not found._
 
 ---
 
-#### Q8. When might you still encounter `ArrayList` in maintained legacy codebases? {#02-arraylist-q8}
+#### Q8. When might you still encounter `ArrayList` in maintained legacy codebases?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the difference between `ArrayList` and `object[]`? {#02-arraylist-q9}
+#### Q9. What is the difference between `ArrayList` and `object[]`?
 
 _Answer not found._
 
 ---
 
-#### Q10. What legacy non-generic collections (`Hashtable`, `Queue`, `Stack`) should you know for maintenance scenarios? {#02-arraylist-q10}
+#### Q10. What legacy non-generic collections (`Hashtable`, `Queue`, `Stack`) should you know for maintenance scenarios?
 
 _Answer not found._
 
@@ -595,7 +672,7 @@ _Answer not found._
 
 ### 03. List
 
-#### Q1. Explain the internal working and performance of `List<T>` vs `LinkedList<T>`. {#03-list-q1}
+#### Q1. Explain the internal working and performance of `List<T>` vs `LinkedList<T>`.
 
 (R) A nightly import job loads 500,000 shipment SKUs into a `List<string>` by calling `Add` one at a time in a loop. Memory profiling shows repeated large allocations and GC pressure. Review the pattern below. What is happening internally, and how would you fix it?
 
@@ -644,7 +721,7 @@ public static List<string> LoadSkusFromFeed(IReadOnlyCollection<string> feedLine
 
 ---
 
-#### Q2. What is `LinkedList<T>` and when should it be used? {#03-list-q2}
+#### Q2. What is `LinkedList<T>` and when should it be used?
 
 (R) A warehouse service removes cancelled dock labels during iteration. In staging it throws intermittently. Review this method — what breaks, and what is the correct fix?
 
@@ -689,7 +766,7 @@ public void PurgeCancelledLabels(List<string> dockLabels, HashSet<string> cancel
 
 ---
 
-#### Q3. What is the difference between `List<T>.Sort()` stability and `OrderBy()` stability? {#03-list-q3}
+#### Q3. What is the difference between `List<T>.Sort()` stability and `OrderBy()` stability?
 
 (M) A shipment validator checks whether each incoming pallet's SKU already exists in a queue of 50,000 items by calling `IndexOf` inside a loop. What is the performance problem, and what structure would you use instead?
 
@@ -736,7 +813,7 @@ public bool AllSkusAlreadyQueued(List<ShipmentItem> queue, IEnumerable<ShipmentI
 
 ---
 
-#### Q4. How does `List<T>` grow its internal buffer when capacity is exceeded? {#03-list-q4}
+#### Q4. How does `List<T>` grow its internal buffer when capacity is exceeded?
 
 (D) Two developers search a pallet-count list for the first value over 20. One uses `List.Find`; the other uses LINQ `FirstOrDefault`. When would you prefer each, and what subtle difference matters for value types?
 
@@ -767,7 +844,7 @@ int b = palletCounts.FirstOrDefault(n => n > 20);
 
 ---
 
-#### Q5. What is the amortized cost of `Add` on `List<T>` vs `Insert` at the beginning or middle? {#03-list-q5}
+#### Q5. What is the amortized cost of `Add` on `List<T>` vs `Insert` at the beginning or middle?
 
 (R) A `ShipmentQueueService` exposes its internal lane list directly to API callers. Review the property and usage — what can go wrong in production, and how would you expose the data safely?
 
@@ -822,7 +899,7 @@ public void AddLane(string lane)
 
 ---
 
-#### Q6. What does `List<T>.AsReadOnly()` return, and can callers still mutate the underlying list? {#03-list-q6}
+#### Q6. What does `List<T>.AsReadOnly()` return, and can callers still mutate the underlying list?
 
 (P) A singleton background worker and several API threads share one static `List<ShipmentItem>` for the live shipment queue. Under load, counts become wrong and the process occasionally throws. Explain why `List<T>` is unsafe here and what pattern you would use instead.
 
@@ -888,55 +965,55 @@ public static bool TryDequeue(out ShipmentItem? item)
 
 ---
 
-#### Q7. What is the difference between `ConvertAll`, `ForEach`, and LINQ `Select` on a list? {#03-list-q7}
+#### Q7. What is the difference between `ConvertAll`, `ForEach`, and LINQ `Select` on a list?
 
 _Answer not found._
 
 ---
 
-#### Q8. What do `ToArray`, `CopyTo`, and `GetRange` do — which allocate new arrays? {#03-list-q8}
+#### Q8. What do `ToArray`, `CopyTo`, and `GetRange` do — which allocate new arrays?
 
 _Answer not found._
 
 ---
 
-#### Q9. When would you expose `List<T>` as a return type vs `IReadOnlyList<T>` or `IEnumerable<T>`? {#03-list-q9}
+#### Q9. When would you expose `List<T>` as a return type vs `IReadOnlyList<T>` or `IEnumerable<T>`?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is the difference between `List<T>.Capacity` and `Count`? {#03-list-q10}
+#### Q10. What is the difference between `List<T>.Capacity` and `Count`?
 
 _Answer not found._
 
 ---
 
-#### Q11. What happens if you mutate a list while iterating with `foreach`? {#03-list-q11}
+#### Q11. What happens if you mutate a list while iterating with `foreach`?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is `TrimExcess`, and when is it useful? {#03-list-q12}
+#### Q12. What is `TrimExcess`, and when is it useful?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is binary search on a list (`BinarySearch`) — what precondition must the list satisfy? {#03-list-q13}
+#### Q13. What is binary search on a list (`BinarySearch`) — what precondition must the list satisfy?
 
 _Answer not found._
 
 ---
 
-#### Q14. How does `List<T>` indexer access compare to `LinkedList<T>` (no indexer)? {#03-list-q14}
+#### Q14. How does `List<T>` indexer access compare to `LinkedList<T>` (no indexer)?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is `Comparison<T>` delegate, and how does it relate to `List<T>.Sort`? {#03-list-q15}
+#### Q15. What is `Comparison<T>` delegate, and how does it relate to `List<T>.Sort`?
 
 _Answer not found._
 
@@ -944,7 +1021,7 @@ _Answer not found._
 
 ### 04. Dictionary
 
-#### Q1. What is the difference between `Dictionary<TKey, TValue>` and `Hashtable`? {#04-dictionary-q1}
+#### Q1. What is the difference between `Dictionary<TKey, TValue>` and `Hashtable`?
 
 (R) A hot-path SKU lookup uses `ContainsKey` followed by the indexer. Review this warehouse catalog access. What is inefficient, and how would you improve it?
 
@@ -975,7 +1052,7 @@ public Product? FindProduct(Dictionary<string, Product> catalog, string sku)
 
 ---
 
-#### Q2. Explain `IDictionary<TKey, TValue>` and `IReadOnlyDictionary<TKey, TValue>`. {#04-dictionary-q2}
+#### Q2. Explain `IDictionary<TKey, TValue>` and `IReadOnlyDictionary<TKey, TValue>`.
 
 (R) A team uses a custom class as the dictionary key and mutates it after insert. Lookups start failing intermittently in production. Review this catalog code:
 
@@ -1008,7 +1085,7 @@ catalog[new SkuKey("WH-1001")] = product;
 
 ---
 
-#### Q3. How does `Dictionary<TKey, TValue>` handle hashing and collisions? {#04-dictionary-q3}
+#### Q3. How does `Dictionary<TKey, TValue>` handle hashing and collisions?
 
 (P) An ASP.NET Core API caches product details in a shared `Dictionary<string, Product>` field on a singleton service. Under load tests, responses are wrong and the process occasionally throws `InvalidOperationException`. Review the cache:
 
@@ -1041,7 +1118,7 @@ public Product GetBySku(string sku) =>
 
 ---
 
-#### Q4. What is the difference between `Dictionary.Add` and the indexer when the key already exists? {#04-dictionary-q4}
+#### Q4. What is the difference between `Dictionary.Add` and the indexer when the key already exists?
 
 (R) A REST endpoint maps query parameters directly into dictionary lookups without null checks. Review the handler:
 
@@ -1079,7 +1156,7 @@ public IActionResult GetProduct([FromQuery] string? sku, [FromServices] IProduct
 
 ---
 
-#### Q5. What is the difference between `ContainsKey`, `TryGetValue`, and the indexer for lookup? {#04-dictionary-q5}
+#### Q5. What is the difference between `ContainsKey`, `TryGetValue`, and the indexer for lookup?
 
 (D) A microservice adds a static in-memory cache so repeated HTTP fetches are fast. After two weeks in production, pods hit OOM kills even though traffic is steady. Review the cache:
 
@@ -1121,7 +1198,7 @@ _cache.GetOrCreate(url, entry =>
 
 ---
 
-#### Q6. Why must keys be immutable (or stable) after insertion for correct hash table behavior? {#04-dictionary-q6}
+#### Q6. Why must keys be immutable (or stable) after insertion for correct hash table behavior?
 
 (P) A developer avoids `ConcurrentDictionary` and hand-rolls lazy initialization with `TryGetValue`. Under load, the expensive factory runs twice for the same key. Review:
 
@@ -1161,43 +1238,43 @@ public Product GetOrLoad(string sku) =>
 
 ---
 
-#### Q7. What exception is thrown when accessing a missing key via the indexer? {#04-dictionary-q7}
+#### Q7. What exception is thrown when accessing a missing key via the indexer?
 
 _Answer not found._
 
 ---
 
-#### Q8. Can `null` be used as a key when `TKey` is a reference type? {#04-dictionary-q8}
+#### Q8. Can `null` be used as a key when `TKey` is a reference type?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the average vs worst-case time complexity for lookup, insert, and remove? {#04-dictionary-q9}
+#### Q9. What is the average vs worst-case time complexity for lookup, insert, and remove?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is the hash code contract between `GetHashCode` and `Equals` for custom key types? {#04-dictionary-q10}
+#### Q10. What is the hash code contract between `GetHashCode` and `Equals` for custom key types?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is `IEqualityComparer<TKey>`, and when do you pass a custom comparer to the constructor? {#04-dictionary-q11}
+#### Q11. What is `IEqualityComparer<TKey>`, and when do you pass a custom comparer to the constructor?
 
 _Answer not found._
 
 ---
 
-#### Q12. When would you choose `Dictionary` over `List` for lookups by id or SKU? {#04-dictionary-q12}
+#### Q12. When would you choose `Dictionary` over `List` for lookups by id or SKU?
 
 _Answer not found._
 
 ---
 
-#### Q13. What happens internally when two keys hash to the same bucket? {#04-dictionary-q13}
+#### Q13. What happens internally when two keys hash to the same bucket?
 
 _Answer not found._
 
@@ -1205,7 +1282,7 @@ _Answer not found._
 
 ### 05. HashSet
 
-#### Q1. Explain `HashSet<T>` and its use cases. How is it different from `List<T>`? {#05-hashset-q1}
+#### Q1. Explain `HashSet<T>` and its use cases. How is it different from `List<T>`?
 
 (R) A nightly tag-import job deduplicates article tags with `List<string>.Contains` before insert. Review the hot path:
 
@@ -1235,7 +1312,7 @@ public bool TryRegisterTag(string tag) => _knownTags.Add(tag);
 
 ---
 
-#### Q2. What is the difference between `SortedSet<T>` and `HashSet<T>`? {#05-hashset-q2}
+#### Q2. What is the difference between `SortedSet<T>` and `HashSet<T>`?
 
 (R) A newsletter service deduplicates subscribers by email but keeps seeing duplicate sends in logs. Review:
 
@@ -1263,7 +1340,7 @@ private readonly HashSet<Subscriber> _subscribers =
 
 ---
 
-#### Q3. Why does `HashSet<T>` require correct `GetHashCode()`/`Equals()` for custom types? {#05-hashset-q3}
+#### Q3. Why does `HashSet<T>` require correct `GetHashCode()`/`Equals()` for custom types?
 
 (R) After a profile-update feature ships, support reports "user already subscribed" errors even when lookup fails. Review:
 
@@ -1302,7 +1379,7 @@ public sealed class SubscriberProfile
 
 ---
 
-#### Q4. What set operations does `HashSet<T>` provide (`UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`)? {#05-hashset-q4}
+#### Q4. What set operations does `HashSet<T>` provide (`UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`)?
 
 (R) An editorial dashboard merges article tag sets for a "shared topics" widget. Case variants appear twice after deploy. Review:
 
@@ -1332,7 +1409,7 @@ var widgetTags = new HashSet<string>(
 
 ---
 
-#### Q5. What is the difference between `Add` returning `false` on duplicate vs `List.Add` behavior? {#05-hashset-q5}
+#### Q5. What is the difference between `Add` returning `false` on duplicate vs `List.Add` behavior?
 
 (R) A publish pipeline accidentally wipes an editor's working tag pool. Review the merge step:
 
@@ -1363,7 +1440,7 @@ var preview = new HashSet<string>(
 
 ---
 
-#### Q6. How do you construct a `HashSet<T>` with custom equality (`IEqualityComparer<T>`)? {#05-hashset-q6}
+#### Q6. How do you construct a `HashSet<T>` with custom equality (`IEqualityComparer<T>`)?
 
 (R) A custom comparer passes code review but `Remove` and `Contains` behave inconsistently. Review:
 
@@ -1391,25 +1468,25 @@ public int GetHashCode(Subscriber obj) =>
 
 ---
 
-#### Q7. When would you use `HashSet<T>` for deduplication vs `Distinct()` in LINQ? {#05-hashset-q7}
+#### Q7. When would you use `HashSet<T>` for deduplication vs `Distinct()` in LINQ?
 
 _Answer not found._
 
 ---
 
-#### Q8. What is the difference between set membership test in `HashSet` vs scanning a `List`? {#05-hashset-q8}
+#### Q8. What is the difference between set membership test in `HashSet` vs scanning a `List`?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is `IsSubsetOf`, `IsSupersetOf`, and `Overlaps` used for? {#05-hashset-q9}
+#### Q9. What is `IsSubsetOf`, `IsSupersetOf`, and `Overlaps` used for?
 
 _Answer not found._
 
 ---
 
-#### Q10. Can you modify an element in a `HashSet` in place if it affects equality — what goes wrong? {#05-hashset-q10}
+#### Q10. Can you modify an element in a `HashSet` in place if it affects equality — what goes wrong?
 
 _Answer not found._
 
@@ -1417,7 +1494,7 @@ _Answer not found._
 
 ### 06. Queue and Stack
 
-#### Q1. Explain `Queue<T>` and `Stack<T>` vs their non-generic counterparts. {#06-queue-and-stack-q1}
+#### Q1. Explain `Queue<T>` and `Stack<T>` vs their non-generic counterparts.
 
 (R) A help-desk service was refactored from `Queue<SupportTicket>` to `Stack<SupportTicket>` "because stacks are faster." Review the handler loop. What ordering bug appears in production, and how do you fix it?
 
@@ -1450,7 +1527,7 @@ public bool TryResolveNext(out SupportTicket ticket) => _pending.TryDequeue(out 
 
 ---
 
-#### Q2. What is FIFO vs LIFO, and which collection maps to each? {#06-queue-and-stack-q2}
+#### Q2. What is FIFO vs LIFO, and which collection maps to each?
 
 (R) A background worker drains a print queue when the upstream publisher is idle. Under load, the service logs unhandled `InvalidOperationException` and the host restarts. Review the consumer:
 
@@ -1511,7 +1588,7 @@ public async Task RunAsync(CancellationToken ct)
 
 ---
 
-#### Q3. What operations does `Queue<T>` expose (`Enqueue`, `Dequeue`, `Peek`, `TryDequeue`, `TryPeek`)? {#06-queue-and-stack-q3}
+#### Q3. What operations does `Queue<T>` expose (`Enqueue`, `Dequeue`, `Peek`, `TryDequeue`, `TryPeek`)?
 
 (P) Three ASP.NET Core request threads enqueue audit events; one background `IHostedService` dequeues them for batch upload. The team shares one `Queue<AuditEvent>` instance registered as a **Singleton**. Occasionally events disappear or `InvalidOperationException` appears under concurrent `Enqueue`/`Dequeue`. Explain why `Queue<T>` is unsafe here and what you would register instead.
 
@@ -1533,7 +1610,7 @@ builder.Services.AddHostedService<AuditBatchUploader>();
 
 ---
 
-#### Q4. What operations does `Stack<T>` expose (`Push`, `Pop`, `Peek`, `TryPop`)? {#06-queue-and-stack-q4}
+#### Q4. What operations does `Stack<T>` expose (`Push`, `Pop`, `Peek`, `TryPop`)?
 
 (M) A developer rewrites maze pathfinding from the chapter's BFS to recursive DFS. On large grids the process terminates with `StackOverflowException`. They propose "just use `Stack<T>` instead of recursion." Review both approaches:
 
@@ -1567,7 +1644,7 @@ What actually causes the overflow, and when does an explicit `Stack<T>` fix it v
 
 ---
 
-#### Q5. Why do `Queue` and `Stack` not support random access by index? {#06-queue-and-stack-q5}
+#### Q5. Why do `Queue` and `Stack` not support random access by index?
 
 (D) Your team must pick a frontier collection for two graph tasks on an unweighted social network: (A) find **shortest path** in friend hops from user A to user B, and (B) detect whether a **cycle** exists in a follow graph (direction matters). One engineer says "both are graph search — use `Stack<T>` for both." What would you choose for each task and why?
 
@@ -1594,7 +1671,7 @@ What actually causes the overflow, and when does an explicit `Stack<T>` fix it v
 
 ---
 
-#### Q6. How is `Queue<T>` used in breadth-first search (BFS) on a graph or grid? {#06-queue-and-stack-q6}
+#### Q6. How is `Queue<T>` used in breadth-first search (BFS) on a graph or grid?
 
 (R) A response editor copied from the chapter's `HelpDeskSession` mixes undo (`Stack<string>`) with ticket draining. Review this merge:
 
@@ -1661,25 +1738,25 @@ public bool TryResolveNextTicket(out SupportTicket ticket)
 
 ---
 
-#### Q7. Why does BFS find shortest paths in unweighted graphs? {#06-queue-and-stack-q7}
+#### Q7. Why does BFS find shortest paths in unweighted graphs?
 
 _Answer not found._
 
 ---
 
-#### Q8. What real-world workflows map naturally to a stack (undo/redo, call stack, DFS)? {#06-queue-and-stack-q8}
+#### Q8. What real-world workflows map naturally to a stack (undo/redo, call stack, DFS)?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the difference between non-generic `Queue`/`Stack` and generic versions regarding boxing? {#06-queue-and-stack-q9}
+#### Q9. What is the difference between non-generic `Queue`/`Stack` and generic versions regarding boxing?
 
 _Answer not found._
 
 ---
 
-#### Q10. When would you use `Queue<T>` over `List<T>` with remove-from-front patterns? {#06-queue-and-stack-q10}
+#### Q10. When would you use `Queue<T>` over `List<T>` with remove-from-front patterns?
 
 _Answer not found._
 
@@ -1687,7 +1764,7 @@ _Answer not found._
 
 ### 07. SortedList & SortedDictionary
 
-#### Q1. What is `SortedList<TKey, TValue>` and `SortedDictionary<TKey, TValue>`? When would you use each? {#07-sortedlist-sorteddictionary-q1}
+#### Q1. What is `SortedList<TKey, TValue>` and `SortedDictionary<TKey, TValue>`? When would you use each?
 
 (R) A warehouse dashboard prints the lowest and highest SKU from a live price map. Review:
 
@@ -1720,7 +1797,7 @@ foreach (string sku in skuPrices.Keys)
 
 ---
 
-#### Q2. What interface defines ordering for sorted collections (`IComparer<TKey>` vs `IEqualityComparer<TKey>`)? {#07-sortedlist-sorteddictionary-q2}
+#### Q2. What interface defines ordering for sorted collections (`IComparer<TKey>` vs `IEqualityComparer<TKey>`)?
 
 (R) An inventory sync service upserts pallet counts every few seconds. Review the hot path:
 
@@ -1751,7 +1828,7 @@ public void UpsertZoneCount(int zoneId, int palletCount) =>
 
 ---
 
-#### Q3. What is the difference between `SortedList` (array-backed) and `SortedDictionary` (tree-backed) performance? {#07-sortedlist-sorteddictionary-q3}
+#### Q3. What is the difference between `SortedList` (array-backed) and `SortedDictionary` (tree-backed) performance?
 
 (D) You expose a `/regions/sales` JSON endpoint. Product wants keys returned alphabetically by region code. Two proposals:
 
@@ -1778,7 +1855,7 @@ public void UpsertZoneCount(int zoneId, int palletCount) =>
 
 ---
 
-#### Q4. When is `SortedList` preferred over `SortedDictionary` for memory or indexed access? {#07-sortedlist-sorteddictionary-q4}
+#### Q4. When is `SortedList` preferred over `SortedDictionary` for memory or indexed access?
 
 (R) A catalog search feature stores product tags in a case-insensitive sorted map. QA reports duplicate logical tags after a Turkish-locale server deploy. Review:
 
@@ -1814,7 +1891,7 @@ tagsByCount["csharp"] = 99; // updates single "CSharp"/"csharp" entry
 
 ---
 
-#### Q5. What is the cost of inserting out-of-order keys into a sorted collection? {#07-sortedlist-sorteddictionary-q5}
+#### Q5. What is the cost of inserting out-of-order keys into a sorted collection?
 
 (M) A pricing microservice benchmarks three shapes for a nightly job that inserts 50_000 random SKUs once, then performs 500_000 lookups:
 
@@ -1841,7 +1918,7 @@ tagsByCount["csharp"] = 99; // updates single "CSharp"/"csharp" entry
 
 ---
 
-#### Q6. Can you look up by index in `SortedList` — what does `Keys[index]` provide? {#07-sortedlist-sorteddictionary-q6}
+#### Q6. Can you look up by index in `SortedList` — what does `Keys[index]` provide?
 
 (R) A developer ports a `Dictionary` helper to sorted collections but copies the wrong comparer interface. Review:
 
@@ -1876,13 +1953,13 @@ reorderQty["alpha-pad"] = 200; // updates existing key
 
 ---
 
-#### Q7. What is the difference between `SortedSet<T>` and `SortedDictionary<TKey, TValue>`? {#07-sortedlist-sorteddictionary-q7}
+#### Q7. What is the difference between `SortedSet<T>` and `SortedDictionary<TKey, TValue>`?
 
 _Answer not found._
 
 ---
 
-#### Q8. When would you choose `SortedDictionary` over sorting keys from a `Dictionary` at read time? {#07-sortedlist-sorteddictionary-q8}
+#### Q8. When would you choose `SortedDictionary` over sorting keys from a `Dictionary` at read time?
 
 _Answer not found._
 
@@ -1890,7 +1967,7 @@ _Answer not found._
 
 ### 08. IEnumerable & IEnumerator
 
-#### Q1. What is the difference between `IEnumerable<T>` and `ICollection<T>`? {#08-ienumerable-ienumerator-q1}
+#### Q1. What is the difference between `IEnumerable<T>` and `ICollection<T>`?
 
 (R) A warehouse API returns `IEnumerable<PickLine>` from a `yield return` filter. A report job calls `Count()` then `Sum()` on the same reference without materializing. Totals disagree with the pick ticket and logs show the database query ran twice. Review the service method and caller. What went wrong, and how do you fix it?
 
@@ -1921,7 +1998,7 @@ decimal totalKg = heavy.Sum(l => l.TotalWeightKg);
 
 ---
 
-#### Q2. What is the difference between `ICollection<T>` and `IList<T>`? {#08-ienumerable-ienumerator-q2}
+#### Q2. What is the difference between `ICollection<T>` and `IList<T>`?
 
 (R) A custom `IEnumerator<PickLine>` wraps a file reader. A developer copies the manual loop from a tutorial but drops the `using` block. Under load, temp files pile up on disk. Review the loop. What is missing, and what does `foreach` do differently?
 
@@ -1958,7 +2035,7 @@ using (IEnumerator<PickLine> walk = batch.GetEnumerator())
 
 ---
 
-#### Q3. What are `IReadOnlyList<T>` and `IReadOnlyCollection<T>`? {#08-ienumerable-ienumerator-q3}
+#### Q3. What are `IReadOnlyList<T>` and `IReadOnlyCollection<T>`?
 
 (R) A batch-picking screen tries to skip short lines by removing them while iterating. It crashes on the second line every time. Review the loop (same pattern as **Program.cs** Section 4g). What throws, why is it allowed, and what is the safe fix?
 
@@ -1989,7 +2066,7 @@ foreach (PickLine line in lines)
 
 ---
 
-#### Q4. What is the difference between `IEnumerator` and `IEnumerator<T>`? {#08-ienumerable-ienumerator-q4}
+#### Q4. What is the difference between `IEnumerator` and `IEnumerator<T>`?
 
 (M) A developer builds a lazy LINQ pipeline over live pick lines, logs the count, then mutates the underlying list before a second `foreach`. Results differ between the two passes. Walk through what runs when and why the second pass can change.
 
@@ -2014,7 +2091,7 @@ foreach (PickLine line in lines)
 
 ---
 
-#### Q5. What is the `yield` keyword, and how do iterator methods relate to `IEnumerable<T>`? {#08-ienumerable-ienumerator-q5}
+#### Q5. What is the `yield` keyword, and how do iterator methods relate to `IEnumerable<T>`?
 
 (M) An iterator method logs each SKU as it yields. A caller breaks out of `foreach` after the first match. Later code assumes every line was scanned. Review the iterator and caller. What does `yield return` guarantee about execution state, and when does work *not* run?
 
@@ -2039,7 +2116,7 @@ foreach (PickLine line in lines)
 
 ---
 
-#### Q6. What is the difference between deferred execution and immediate execution for IEnumerable sequences? {#08-ienumerable-ienumerator-q6}
+#### Q6. What is the difference between deferred execution and immediate execution for IEnumerable sequences?
 
 (P) A code review flags `var lines = GetHeavyLines(...).ToList()` as "unnecessary allocation." The author argues it prevents double DB hits and stabilizes results if the ticket changes mid-request. When is `ToList()` (or `ToArray()`) the right production fix for `IEnumerable<T>`, and when is it waste?
 
@@ -2062,7 +2139,7 @@ foreach (PickLine line in lines)
 
 ---
 
-#### Q7. What is the iterator pattern — what do `MoveNext`, `Current`, and `Reset` do? {#08-ienumerable-ienumerator-q7}
+#### Q7. What is the iterator pattern — what do `MoveNext`, `Current`, and `Reset` do?
 
 (R) Two developers iterate the same `PickBatch` concurrently — one with `foreach`, one with a stored `IEnumerator<PickLine>` from an earlier `GetEnumerator()` call. Intermittent duplicates and skipped SKUs appear. Review `PickBatch` (fresh enumerator per `GetEnumerator()`). What contract did the second developer violate, and how should multiple consumers walk the same batch?
 
@@ -2095,133 +2172,133 @@ foreach (PickLine line in batch) ProcessB(line);
 
 ---
 
-#### Q8. What is `yield break` vs `return` in an iterator method? {#08-ienumerable-ienumerator-q8}
+#### Q8. What is `yield break` vs `return` in an iterator method?
 
 _Answer not found._
 
 ---
 
-#### Q9. Why can multiple enumeration of the same `IEnumerable` from a LINQ query re-run the pipeline? {#08-ienumerable-ienumerator-q9}
+#### Q9. Why can multiple enumeration of the same `IEnumerable` from a LINQ query re-run the pipeline?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is the difference between returning `IEnumerable<T>` from a method vs `List<T>`? {#08-ienumerable-ienumerator-q10}
+#### Q10. What is the difference between returning `IEnumerable<T>` from a method vs `List<T>`?
 
 _Answer not found._
 
 ---
 
-#### Q11. What happens if you modify a collection during `foreach` — how does the enumerator detect it? {#08-ienumerable-ienumerator-q11}
+#### Q11. What happens if you modify a collection during `foreach` — how does the enumerator detect it?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is covariance on `IEnumerable<out T>` — practical assignment examples? {#08-ienumerable-ienumerator-q12}
+#### Q12. What is covariance on `IEnumerable<out T>` — practical assignment examples?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the difference between `foreach` and manual `while (enumerator.MoveNext())`? {#08-ienumerable-ienumerator-q13}
+#### Q13. What is the difference between `foreach` and manual `while (enumerator.MoveNext())`?
 
 _Answer not found._
 
 ---
 
-#### Q14. What is `ToList()` materialization, and when must you materialize before multiple passes? {#08-ienumerable-ienumerator-q14}
+#### Q14. What is `ToList()` materialization, and when must you materialize before multiple passes?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is the relationship between `IAsyncEnumerable<T>` and iterators (preview)? {#08-ienumerable-ienumerator-q15}
+#### Q15. What is the relationship between `IAsyncEnumerable<T>` and iterators (preview)?
 
 _Answer not found._
 
 ---
 
-#### Q16. **Modify while iterating** — Changing a collection during `foreach` throws `InvalidOperationException`. {#08-ienumerable-ienumerator-q16}
+#### Q16. **Modify while iterating** — Changing a collection during `foreach` throws `InvalidOperationException`.
 
 _Answer not found._
 
 ---
 
-#### Q17. **Mutable keys** — Changing equality-relevant state on a key after insertion causes silent lookup failures. {#08-ienumerable-ienumerator-q17}
+#### Q17. **Mutable keys** — Changing equality-relevant state on a key after insertion causes silent lookup failures.
 
 _Answer not found._
 
 ---
 
-#### Q18. **`IEnumerable<T>` covariant, `List<T>` not** — Covariance on mutable lists would break type safety. {#08-ienumerable-ienumerator-q18}
+#### Q18. **`IEnumerable<T>` covariant, `List<T>` not** — Covariance on mutable lists would break type safety.
 
 _Answer not found._
 
 ---
 
-#### Q19. **Wrong collection for the job** — Frequent middle inserts on `List<T>` are O(n). {#08-ienumerable-ienumerator-q19}
+#### Q19. **Wrong collection for the job** — Frequent middle inserts on `List<T>` are O(n).
 
 _Answer not found._
 
 ---
 
-#### Q20. **Static fields on generic types** — Separate static slots per closed generic type. {#08-ienumerable-ienumerator-q20}
+#### Q20. **Static fields on generic types** — Separate static slots per closed generic type.
 
 _Answer not found._
 
 ---
 
-#### Q21. **Boxing in non-generic collections** — `ArrayList` boxes value types; `List<T>` avoids this. {#08-ienumerable-ienumerator-q21}
+#### Q21. **Boxing in non-generic collections** — `ArrayList` boxes value types; `List<T>` avoids this.
 
 _Answer not found._
 
 ---
 
-#### Q22. **Passing `List<T>` by value** — Reference is copied; contents still shared. {#08-ienumerable-ienumerator-q22}
+#### Q22. **Passing `List<T>` by value** — Reference is copied; contents still shared.
 
 _Answer not found._
 
 ---
 
-#### Q23. **`Dictionary.Add` vs indexer on duplicate key** — `Add` throws; indexer overwrites silently. {#08-ienumerable-ienumerator-q23}
+#### Q23. **`Dictionary.Add` vs indexer on duplicate key** — `Add` throws; indexer overwrites silently.
 
 _Answer not found._
 
 ---
 
-#### Q24. **`AsReadOnly()` is a view** — Original list mutations remain visible through the wrapper. {#08-ienumerable-ienumerator-q24}
+#### Q24. **`AsReadOnly()` is a view** — Original list mutations remain visible through the wrapper.
 
 _Answer not found._
 
 ---
 
-#### Q25. **Assuming dictionary enumeration order** — Undefined; sort keys explicitly if order matters. {#08-ienumerable-ienumerator-q25}
+#### Q25. **Assuming dictionary enumeration order** — Undefined; sort keys explicitly if order matters.
 
 _Answer not found._
 
 ---
 
-#### Q26. **Multiple enumeration cost** — `yield`/LINQ re-executes work each pass; materialize when needed. {#08-ienumerable-ienumerator-q26}
+#### Q26. **Multiple enumeration cost** — `yield`/LINQ re-executes work each pass; materialize when needed.
 
 _Answer not found._
 
 ---
 
-#### Q27. **Wrong comparer on sorted types** — `SortedDictionary` uses `IComparer<TKey>`, not `IEqualityComparer<TKey>`. {#08-ienumerable-ienumerator-q27}
+#### Q27. **Wrong comparer on sorted types** — `SortedDictionary` uses `IComparer<TKey>`, not `IEqualityComparer<TKey>`.
 
 _Answer not found._
 
 ---
 
-#### Q28. **Poor `GetHashCode` distribution** — Constant hash codes degrade to O(n) buckets. {#08-ienumerable-ienumerator-q28}
+#### Q28. **Poor `GetHashCode` distribution** — Constant hash codes degrade to O(n) buckets.
 
 _Answer not found._
 
 ---
 
-#### Q29. **Queue `Contains` is O(n)** — Use a `HashSet` alongside if you need fast membership checks. {#08-ienumerable-ienumerator-q29}
+#### Q29. **Queue `Contains` is O(n)** — Use a `HashSet` alongside if you need fast membership checks.
 
 _Answer not found._
 

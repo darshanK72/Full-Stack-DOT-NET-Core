@@ -1,35 +1,30 @@
 # API Controllers & Action Results — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 02. API Controllers & Action Results](#chapter-02-api-controllers-action-results)
-  - [Q1. What is an API controller in ASP.NET Core?](#chapter-02-api-controllers-action-results-q1)
-  - [Q2. What does the `[ApiController]` attribute do?](#chapter-02-api-controllers-action-results-q2)
-  - [Q3. What is the difference between `ControllerBase` and `Control…](#chapter-02-api-controllers-action-results-q3)
-  - [Q4. What is `IActionResult`?](#chapter-02-api-controllers-action-results-q4)
-  - [Q5. What is `ActionResult<T>` and how does it differ from `IActi…](#chapter-02-api-controllers-action-results-q5)
-  - [Q6. What is `CreatedAtAction` and when do you use it?](#chapter-02-api-controllers-action-results-q6)
-  - [Q7. What is the difference between `CreatedAtAction` and `Create…](#chapter-02-api-controllers-action-results-q7)
-  - [Q8. What does the `Ok()` helper return?](#chapter-02-api-controllers-action-results-q8)
-  - [Q9. What does `NoContent()` return and when is it appropriate?](#chapter-02-api-controllers-action-results-q9)
-  - [Q10. What is the difference between `NotFound()` and `BadRequest(…](#chapter-02-api-controllers-action-results-q10)
-  - [Q11. What HTTP status does `Conflict()` map to?](#chapter-02-api-controllers-action-results-q11)
-  - [Q12. Why should API actions return DTOs instead of EF entities?](#chapter-02-api-controllers-action-results-q12)
-  - [Q13. What is the Location header used for in API responses?](#chapter-02-api-controllers-action-results-q13)
-  - [Q14. What is the difference between synchronous and asynchronous …](#chapter-02-api-controllers-action-results-q14)
-  - [Q15. What problem does blocking on `.Result` cause in API control…](#chapter-02-api-controllers-action-results-q15)
-  - [Q16. What is the difference between returning `Ok(entity)` and `C…](#chapter-02-api-controllers-action-results-q16)
-  - [Q17. What does `[ProducesResponseType]` do on an API action?](#chapter-02-api-controllers-action-results-q17)
-  - [Q18. What is a "thin controller" in Web API design?](#chapter-02-api-controllers-action-results-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is an API controller in ASP.NET Core?](#q1-what-is-an-api-controller-in-aspnet-core)
+2. [Q2. What does the `[ApiController]` attribute do?](#q2-what-does-the-apicontroller-attribute-do)
+3. [Q3. What is the difference between `ControllerBase` and `Controller`?](#q3-what-is-the-difference-between-controllerbase-and-controller)
+4. [Q4. What is `IActionResult`?](#q4-what-is-iactionresult)
+5. [Q5. What is `ActionResult<T>` and how does it differ from `IActionResult`?](#q5-what-is-actionresultt-and-how-does-it-differ-from-iactionresult)
+6. [Q6. What is `CreatedAtAction` and when do you use it?](#q6-what-is-createdataction-and-when-do-you-use-it)
+7. [Q7. What is the difference between `CreatedAtAction` and `CreatedAtRoute`?](#q7-what-is-the-difference-between-createdataction-and-createdatroute)
+8. [Q8. What does the `Ok()` helper return?](#q8-what-does-the-ok-helper-return)
+9. [Q9. What does `NoContent()` return and when is it appropriate?](#q9-what-does-nocontent-return-and-when-is-it-appropriate)
+10. [Q10. What is the difference between `NotFound()` and `BadRequest()`?](#q10-what-is-the-difference-between-notfound-and-badrequest)
+11. [Q11. What HTTP status does `Conflict()` map to?](#q11-what-http-status-does-conflict-map-to)
+12. [Q12. Why should API actions return DTOs instead of EF entities?](#q12-why-should-api-actions-return-dtos-instead-of-ef-entities)
+13. [Q13. What is the Location header used for in API responses?](#q13-what-is-the-location-header-used-for-in-api-responses)
+14. [Q14. What is the difference between synchronous and asynchronous controller actions?](#q14-what-is-the-difference-between-synchronous-and-asynchronous-controller-actions)
+15. [Q15. What problem does blocking on `.Result` cause in API controllers?](#q15-what-problem-does-blocking-on-result-cause-in-api-controllers)
+16. [Q16. What is the difference between returning `Ok(entity)` and `CreatedAtAction` for POST?](#q16-what-is-the-difference-between-returning-okentity-and-createdataction-for-post)
+17. [Q17. What does `[ProducesResponseType]` do on an API action?](#q17-what-does-producesresponsetype-do-on-an-api-action)
+18. [Q18. What is a "thin controller" in Web API design?](#q18-what-is-a-thin-controller-in-web-api-design)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 02. API Controllers & Action Results
-
-### Q1. What is an API controller in ASP.NET Core? {#chapter-02-api-controllers-action-results-q1}
+## Q1. What is an API controller in ASP.NET Core?
 
 What is an API controller in ASP.NET Core?
 
@@ -43,7 +38,7 @@ What is an API controller in ASP.NET Core?
 
 ---
 
-### Q2. What does the `[ApiController]` attribute do? {#chapter-02-api-controllers-action-results-q2}
+## Q2. What does the `[ApiController]` attribute do?
 
 What does the `[ApiController]` attribute do?
 
@@ -57,7 +52,7 @@ What does the `[ApiController]` attribute do?
 
 ---
 
-### Q3. What is the difference between `ControllerBase` and `Controller`? {#chapter-02-api-controllers-action-results-q3}
+## Q3. What is the difference between `ControllerBase` and `Controller`?
 
 What is the difference between `ControllerBase` and `Controller`?
 
@@ -71,7 +66,7 @@ What is the difference between `ControllerBase` and `Controller`?
 
 ---
 
-### Q4. What is `IActionResult`? {#chapter-02-api-controllers-action-results-q4}
+## Q4. What is `IActionResult`?
 
 What is `IActionResult`?
 
@@ -85,7 +80,7 @@ What is `IActionResult`?
 
 ---
 
-### Q5. What is `ActionResult<T>` and how does it differ from `IActionResult`? {#chapter-02-api-controllers-action-results-q5}
+## Q5. What is `ActionResult<T>` and how does it differ from `IActionResult`?
 
 What is `ActionResult<T>` and how does it differ from `IActionResult`?
 
@@ -99,7 +94,7 @@ What is `ActionResult<T>` and how does it differ from `IActionResult`?
 
 ---
 
-### Q6. What is `CreatedAtAction` and when do you use it? {#chapter-02-api-controllers-action-results-q6}
+## Q6. What is `CreatedAtAction` and when do you use it?
 
 What is `CreatedAtAction` and when do you use it?
 
@@ -113,7 +108,7 @@ What is `CreatedAtAction` and when do you use it?
 
 ---
 
-### Q7. What is the difference between `CreatedAtAction` and `CreatedAtRoute`? {#chapter-02-api-controllers-action-results-q7}
+## Q7. What is the difference between `CreatedAtAction` and `CreatedAtRoute`?
 
 What is the difference between `CreatedAtAction` and `CreatedAtRoute`?
 
@@ -127,7 +122,7 @@ What is the difference between `CreatedAtAction` and `CreatedAtRoute`?
 
 ---
 
-### Q8. What does the `Ok()` helper return? {#chapter-02-api-controllers-action-results-q8}
+## Q8. What does the `Ok()` helper return?
 
 What does the `Ok()` helper return?
 
@@ -141,7 +136,7 @@ What does the `Ok()` helper return?
 
 ---
 
-### Q9. What does `NoContent()` return and when is it appropriate? {#chapter-02-api-controllers-action-results-q9}
+## Q9. What does `NoContent()` return and when is it appropriate?
 
 What does `NoContent()` return and when is it appropriate?
 
@@ -155,7 +150,7 @@ What does `NoContent()` return and when is it appropriate?
 
 ---
 
-### Q10. What is the difference between `NotFound()` and `BadRequest()`? {#chapter-02-api-controllers-action-results-q10}
+## Q10. What is the difference between `NotFound()` and `BadRequest()`?
 
 What is the difference between `NotFound()` and `BadRequest()`?
 
@@ -169,7 +164,7 @@ What is the difference between `NotFound()` and `BadRequest()`?
 
 ---
 
-### Q11. What HTTP status does `Conflict()` map to? {#chapter-02-api-controllers-action-results-q11}
+## Q11. What HTTP status does `Conflict()` map to?
 
 What HTTP status does `Conflict()` map to?
 
@@ -183,7 +178,7 @@ What HTTP status does `Conflict()` map to?
 
 ---
 
-### Q12. Why should API actions return DTOs instead of EF entities? {#chapter-02-api-controllers-action-results-q12}
+## Q12. Why should API actions return DTOs instead of EF entities?
 
 Why should API actions return DTOs instead of EF entities?
 
@@ -197,7 +192,7 @@ Why should API actions return DTOs instead of EF entities?
 
 ---
 
-### Q13. What is the Location header used for in API responses? {#chapter-02-api-controllers-action-results-q13}
+## Q13. What is the Location header used for in API responses?
 
 What is the Location header used for in API responses?
 
@@ -211,7 +206,7 @@ What is the Location header used for in API responses?
 
 ---
 
-### Q14. What is the difference between synchronous and asynchronous controller actions? {#chapter-02-api-controllers-action-results-q14}
+## Q14. What is the difference between synchronous and asynchronous controller actions?
 
 What is the difference between synchronous and asynchronous controller actions?
 
@@ -225,7 +220,7 @@ What is the difference between synchronous and asynchronous controller actions?
 
 ---
 
-### Q15. What problem does blocking on `.Result` cause in API controllers? {#chapter-02-api-controllers-action-results-q15}
+## Q15. What problem does blocking on `.Result` cause in API controllers?
 
 What problem does blocking on `.Result` cause in API controllers?
 
@@ -239,7 +234,7 @@ What problem does blocking on `.Result` cause in API controllers?
 
 ---
 
-### Q16. What is the difference between returning `Ok(entity)` and `CreatedAtAction` for POST? {#chapter-02-api-controllers-action-results-q16}
+## Q16. What is the difference between returning `Ok(entity)` and `CreatedAtAction` for POST?
 
 What is the difference between returning `Ok(entity)` and `CreatedAtAction` for POST?
 
@@ -253,7 +248,7 @@ What is the difference between returning `Ok(entity)` and `CreatedAtAction` for 
 
 ---
 
-### Q17. What does `[ProducesResponseType]` do on an API action? {#chapter-02-api-controllers-action-results-q17}
+## Q17. What does `[ProducesResponseType]` do on an API action?
 
 What does `[ProducesResponseType]` do on an API action?
 
@@ -267,7 +262,7 @@ What does `[ProducesResponseType]` do on an API action?
 
 ---
 
-### Q18. What is a "thin controller" in Web API design? {#chapter-02-api-controllers-action-results-q18}
+## Q18. What is a "thin controller" in Web API design?
 
 What is a "thin controller" in Web API design?
 

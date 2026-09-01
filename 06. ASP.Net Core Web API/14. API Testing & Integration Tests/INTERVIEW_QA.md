@@ -1,35 +1,30 @@
 # API Testing & Integration Tests — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 14. API Testing & Integration Tests](#chapter-14-api-testing-integration-tests)
-  - [Q1. What is `WebApplicationFactory` in ASP.NET Core?](#chapter-14-api-testing-integration-tests-q1)
-  - [Q2. What is the difference between unit tests and integration te…](#chapter-14-api-testing-integration-tests-q2)
-  - [Q3. What is an in-memory test server for Web APIs?](#chapter-14-api-testing-integration-tests-q3)
-  - [Q4. What does `CreateClient()` on WebApplicationFactory return?](#chapter-14-api-testing-integration-tests-q4)
-  - [Q5. What is the test pyramid for API development?](#chapter-14-api-testing-integration-tests-q5)
-  - [Q6. What is Mock `HttpMessageHandler` used for?](#chapter-14-api-testing-integration-tests-q6)
-  - [Q7. Why should integration tests not use the production database…](#chapter-14-api-testing-integration-tests-q7)
-  - [Q8. What is Testcontainers for API testing?](#chapter-14-api-testing-integration-tests-q8)
-  - [Q9. What is the difference between EF InMemory and real SQL for …](#chapter-14-api-testing-integration-tests-q9)
-  - [Q10. What is `ConfigureWebHost` in WebApplicationFactory?](#chapter-14-api-testing-integration-tests-q10)
-  - [Q11. How do you test authenticated API endpoints?](#chapter-14-api-testing-integration-tests-q11)
-  - [Q12. What is `PostAsJsonAsync` in integration tests?](#chapter-14-api-testing-integration-tests-q12)
-  - [Q13. What causes flaky parallel integration tests?](#chapter-14-api-testing-integration-tests-q13)
-  - [Q14. What is the difference between mocking a service vs mocking …](#chapter-14-api-testing-integration-tests-q14)
-  - [Q15. What is a test fixture for API integration tests?](#chapter-14-api-testing-integration-tests-q15)
-  - [Q16. What is seed data in API integration tests?](#chapter-14-api-testing-integration-tests-q16)
-  - [Q17. What is the difference between testing controllers directly …](#chapter-14-api-testing-integration-tests-q17)
-  - [Q18. Why must HttpClient instances be disposed properly in tests?](#chapter-14-api-testing-integration-tests-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is `WebApplicationFactory` in ASP.NET Core?](#q1-what-is-webapplicationfactory-in-aspnet-core)
+2. [Q2. What is the difference between unit tests and integration tests for APIs?](#q2-what-is-the-difference-between-unit-tests-and-integration-tests-for-apis)
+3. [Q3. What is an in-memory test server for Web APIs?](#q3-what-is-an-in-memory-test-server-for-web-apis)
+4. [Q4. What does `CreateClient()` on WebApplicationFactory return?](#q4-what-does-createclient-on-webapplicationfactory-return)
+5. [Q5. What is the test pyramid for API development?](#q5-what-is-the-test-pyramid-for-api-development)
+6. [Q6. What is Mock `HttpMessageHandler` used for?](#q6-what-is-mock-httpmessagehandler-used-for)
+7. [Q7. Why should integration tests not use the production database?](#q7-why-should-integration-tests-not-use-the-production-database)
+8. [Q8. What is Testcontainers for API testing?](#q8-what-is-testcontainers-for-api-testing)
+9. [Q9. What is the difference between EF InMemory and real SQL for API tests?](#q9-what-is-the-difference-between-ef-inmemory-and-real-sql-for-api-tests)
+10. [Q10. What is `ConfigureWebHost` in WebApplicationFactory?](#q10-what-is-configurewebhost-in-webapplicationfactory)
+11. [Q11. How do you test authenticated API endpoints?](#q11-how-do-you-test-authenticated-api-endpoints)
+12. [Q12. What is `PostAsJsonAsync` in integration tests?](#q12-what-is-postasjsonasync-in-integration-tests)
+13. [Q13. What causes flaky parallel integration tests?](#q13-what-causes-flaky-parallel-integration-tests)
+14. [Q14. What is the difference between mocking a service vs mocking HttpClient?](#q14-what-is-the-difference-between-mocking-a-service-vs-mocking-httpclient)
+15. [Q15. What is a test fixture for API integration tests?](#q15-what-is-a-test-fixture-for-api-integration-tests)
+16. [Q16. What is seed data in API integration tests?](#q16-what-is-seed-data-in-api-integration-tests)
+17. [Q17. What is the difference between testing controllers directly vs testing via HTTP?](#q17-what-is-the-difference-between-testing-controllers-directly-vs-testing-via-http)
+18. [Q18. Why must HttpClient instances be disposed properly in tests?](#q18-why-must-httpclient-instances-be-disposed-properly-in-tests)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 14. API Testing & Integration Tests
-
-### Q1. What is `WebApplicationFactory` in ASP.NET Core? {#chapter-14-api-testing-integration-tests-q1}
+## Q1. What is `WebApplicationFactory` in ASP.NET Core?
 
 What is `WebApplicationFactory` in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is `WebApplicationFactory` in ASP.NET Core?
 
 ---
 
-### Q2. What is the difference between unit tests and integration tests for APIs? {#chapter-14-api-testing-integration-tests-q2}
+## Q2. What is the difference between unit tests and integration tests for APIs?
 
 What is the difference between unit tests and integration tests for APIs?
 
@@ -55,7 +50,7 @@ What is the difference between unit tests and integration tests for APIs?
 
 ---
 
-### Q3. What is an in-memory test server for Web APIs? {#chapter-14-api-testing-integration-tests-q3}
+## Q3. What is an in-memory test server for Web APIs?
 
 What is an in-memory test server for Web APIs?
 
@@ -68,7 +63,7 @@ What is an in-memory test server for Web APIs?
 
 ---
 
-### Q4. What does `CreateClient()` on WebApplicationFactory return? {#chapter-14-api-testing-integration-tests-q4}
+## Q4. What does `CreateClient()` on WebApplicationFactory return?
 
 What does `CreateClient()` on WebApplicationFactory return?
 
@@ -81,7 +76,7 @@ What does `CreateClient()` on WebApplicationFactory return?
 
 ---
 
-### Q5. What is the test pyramid for API development? {#chapter-14-api-testing-integration-tests-q5}
+## Q5. What is the test pyramid for API development?
 
 What is the test pyramid for API development?
 
@@ -94,7 +89,7 @@ What is the test pyramid for API development?
 
 ---
 
-### Q6. What is Mock `HttpMessageHandler` used for? {#chapter-14-api-testing-integration-tests-q6}
+## Q6. What is Mock `HttpMessageHandler` used for?
 
 What is Mock `HttpMessageHandler` used for?
 
@@ -107,7 +102,7 @@ What is Mock `HttpMessageHandler` used for?
 
 ---
 
-### Q7. Why should integration tests not use the production database? {#chapter-14-api-testing-integration-tests-q7}
+## Q7. Why should integration tests not use the production database?
 
 Why should integration tests not use the production database?
 
@@ -120,7 +115,7 @@ Why should integration tests not use the production database?
 
 ---
 
-### Q8. What is Testcontainers for API testing? {#chapter-14-api-testing-integration-tests-q8}
+## Q8. What is Testcontainers for API testing?
 
 What is Testcontainers for API testing?
 
@@ -133,7 +128,7 @@ What is Testcontainers for API testing?
 
 ---
 
-### Q9. What is the difference between EF InMemory and real SQL for API tests? {#chapter-14-api-testing-integration-tests-q9}
+## Q9. What is the difference between EF InMemory and real SQL for API tests?
 
 What is the difference between EF InMemory and real SQL for API tests?
 
@@ -146,7 +141,7 @@ What is the difference between EF InMemory and real SQL for API tests?
 
 ---
 
-### Q10. What is `ConfigureWebHost` in WebApplicationFactory? {#chapter-14-api-testing-integration-tests-q10}
+## Q10. What is `ConfigureWebHost` in WebApplicationFactory?
 
 What is `ConfigureWebHost` in WebApplicationFactory?
 
@@ -159,7 +154,7 @@ What is `ConfigureWebHost` in WebApplicationFactory?
 
 ---
 
-### Q11. How do you test authenticated API endpoints? {#chapter-14-api-testing-integration-tests-q11}
+## Q11. How do you test authenticated API endpoints?
 
 How do you test authenticated API endpoints?
 
@@ -172,7 +167,7 @@ How do you test authenticated API endpoints?
 
 ---
 
-### Q12. What is `PostAsJsonAsync` in integration tests? {#chapter-14-api-testing-integration-tests-q12}
+## Q12. What is `PostAsJsonAsync` in integration tests?
 
 What is `PostAsJsonAsync` in integration tests?
 
@@ -185,7 +180,7 @@ What is `PostAsJsonAsync` in integration tests?
 
 ---
 
-### Q13. What causes flaky parallel integration tests? {#chapter-14-api-testing-integration-tests-q13}
+## Q13. What causes flaky parallel integration tests?
 
 What causes flaky parallel integration tests?
 
@@ -198,7 +193,7 @@ What causes flaky parallel integration tests?
 
 ---
 
-### Q14. What is the difference between mocking a service vs mocking HttpClient? {#chapter-14-api-testing-integration-tests-q14}
+## Q14. What is the difference between mocking a service vs mocking HttpClient?
 
 What is the difference between mocking a service vs mocking HttpClient?
 
@@ -211,7 +206,7 @@ What is the difference between mocking a service vs mocking HttpClient?
 
 ---
 
-### Q15. What is a test fixture for API integration tests? {#chapter-14-api-testing-integration-tests-q15}
+## Q15. What is a test fixture for API integration tests?
 
 What is a test fixture for API integration tests?
 
@@ -224,7 +219,7 @@ What is a test fixture for API integration tests?
 
 ---
 
-### Q16. What is seed data in API integration tests? {#chapter-14-api-testing-integration-tests-q16}
+## Q16. What is seed data in API integration tests?
 
 What is seed data in API integration tests?
 
@@ -237,7 +232,7 @@ What is seed data in API integration tests?
 
 ---
 
-### Q17. What is the difference between testing controllers directly vs testing via HTTP? {#chapter-14-api-testing-integration-tests-q17}
+## Q17. What is the difference between testing controllers directly vs testing via HTTP?
 
 What is the difference between testing controllers directly vs testing via HTTP?
 
@@ -250,7 +245,7 @@ What is the difference between testing controllers directly vs testing via HTTP?
 
 ---
 
-### Q18. Why must HttpClient instances be disposed properly in tests? {#chapter-14-api-testing-integration-tests-q18}
+## Q18. Why must HttpClient instances be disposed properly in tests?
 
 Why must HttpClient instances be disposed properly in tests?
 

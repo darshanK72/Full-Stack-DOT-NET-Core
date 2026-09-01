@@ -1,35 +1,30 @@
 # Model Binding & Validation — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 05. Model Binding & Validation](#chapter-05-model-binding-validation)
-  - [Q1. What is model binding in ASP.NET Core Web API?](#chapter-05-model-binding-validation-q1)
-  - [Q2. What does `[FromBody]` do?](#chapter-05-model-binding-validation-q2)
-  - [Q3. What does `[FromQuery]` do?](#chapter-05-model-binding-validation-q3)
-  - [Q4. What does `[FromRoute]` do?](#chapter-05-model-binding-validation-q4)
-  - [Q5. What is the difference between `[FromBody]` and `[FromQuery]…](#chapter-05-model-binding-validation-q5)
-  - [Q6. How does `[ApiController]` affect automatic model validation…](#chapter-05-model-binding-validation-q6)
-  - [Q7. What HTTP status code does automatic validation failure retu…](#chapter-05-model-binding-validation-q7)
-  - [Q8. What is `ValidationProblemDetails`?](#chapter-05-model-binding-validation-q8)
-  - [Q9. What are data annotations for validation?](#chapter-05-model-binding-validation-q9)
-  - [Q10. What is the difference between `[Required]` and optional pro…](#chapter-05-model-binding-validation-q10)
-  - [Q11. What is `IValidatableObject`?](#chapter-05-model-binding-validation-q11)
-  - [Q12. What is FluentValidation and how does it integrate with Web …](#chapter-05-model-binding-validation-q12)
-  - [Q13. Why can't GET requests reliably use `[FromBody]`?](#chapter-05-model-binding-validation-q13)
-  - [Q14. What is complex type binding from query strings?](#chapter-05-model-binding-validation-q14)
-  - [Q15. What is the difference between model binding and validation?](#chapter-05-model-binding-validation-q15)
-  - [Q16. What does `[ValidateNever]` do?](#chapter-05-model-binding-validation-q16)
-  - [Q17. What is PATCH semantics for partial updates?](#chapter-05-model-binding-validation-q17)
-  - [Q18. How does camelCase JSON map to PascalCase C# properties?](#chapter-05-model-binding-validation-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is model binding in ASP.NET Core Web API?](#q1-what-is-model-binding-in-aspnet-core-web-api)
+2. [Q2. What does `[FromBody]` do?](#q2-what-does-frombody-do)
+3. [Q3. What does `[FromQuery]` do?](#q3-what-does-fromquery-do)
+4. [Q4. What does `[FromRoute]` do?](#q4-what-does-fromroute-do)
+5. [Q5. What is the difference between `[FromBody]` and `[FromQuery]`?](#q5-what-is-the-difference-between-frombody-and-fromquery)
+6. [Q6. How does `[ApiController]` affect automatic model validation?](#q6-how-does-apicontroller-affect-automatic-model-validation)
+7. [Q7. What HTTP status code does automatic validation failure return?](#q7-what-http-status-code-does-automatic-validation-failure-return)
+8. [Q8. What is `ValidationProblemDetails`?](#q8-what-is-validationproblemdetails)
+9. [Q9. What are data annotations for validation?](#q9-what-are-data-annotations-for-validation)
+10. [Q10. What is the difference between `[Required]` and optional properties?](#q10-what-is-the-difference-between-required-and-optional-properties)
+11. [Q11. What is `IValidatableObject`?](#q11-what-is-ivalidatableobject)
+12. [Q12. What is FluentValidation and how does it integrate with Web APIs?](#q12-what-is-fluentvalidation-and-how-does-it-integrate-with-web-apis)
+13. [Q13. Why can't GET requests reliably use `[FromBody]`?](#q13-why-cant-get-requests-reliably-use-frombody)
+14. [Q14. What is complex type binding from query strings?](#q14-what-is-complex-type-binding-from-query-strings)
+15. [Q15. What is the difference between model binding and validation?](#q15-what-is-the-difference-between-model-binding-and-validation)
+16. [Q16. What does `[ValidateNever]` do?](#q16-what-does-validatenever-do)
+17. [Q17. What is PATCH semantics for partial updates?](#q17-what-is-patch-semantics-for-partial-updates)
+18. [Q18. How does camelCase JSON map to PascalCase C# properties?](#q18-how-does-camelcase-json-map-to-pascalcase-c-properties)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 05. Model Binding & Validation
-
-### Q1. What is model binding in ASP.NET Core Web API? {#chapter-05-model-binding-validation-q1}
+## Q1. What is model binding in ASP.NET Core Web API?
 
 What is model binding in ASP.NET Core Web API?
 
@@ -42,7 +37,7 @@ What is model binding in ASP.NET Core Web API?
 
 ---
 
-### Q2. What does `[FromBody]` do? {#chapter-05-model-binding-validation-q2}
+## Q2. What does `[FromBody]` do?
 
 What does `[FromBody]` do?
 
@@ -55,7 +50,7 @@ What does `[FromBody]` do?
 
 ---
 
-### Q3. What does `[FromQuery]` do? {#chapter-05-model-binding-validation-q3}
+## Q3. What does `[FromQuery]` do?
 
 What does `[FromQuery]` do?
 
@@ -68,7 +63,7 @@ What does `[FromQuery]` do?
 
 ---
 
-### Q4. What does `[FromRoute]` do? {#chapter-05-model-binding-validation-q4}
+## Q4. What does `[FromRoute]` do?
 
 What does `[FromRoute]` do?
 
@@ -81,7 +76,7 @@ What does `[FromRoute]` do?
 
 ---
 
-### Q5. What is the difference between `[FromBody]` and `[FromQuery]`? {#chapter-05-model-binding-validation-q5}
+## Q5. What is the difference between `[FromBody]` and `[FromQuery]`?
 
 What is the difference between `[FromBody]` and `[FromQuery]`?
 
@@ -94,7 +89,7 @@ What is the difference between `[FromBody]` and `[FromQuery]`?
 
 ---
 
-### Q6. How does `[ApiController]` affect automatic model validation? {#chapter-05-model-binding-validation-q6}
+## Q6. How does `[ApiController]` affect automatic model validation?
 
 How does `[ApiController]` affect automatic model validation?
 
@@ -107,7 +102,7 @@ How does `[ApiController]` affect automatic model validation?
 
 ---
 
-### Q7. What HTTP status code does automatic validation failure return? {#chapter-05-model-binding-validation-q7}
+## Q7. What HTTP status code does automatic validation failure return?
 
 What HTTP status code does automatic validation failure return?
 
@@ -120,7 +115,7 @@ What HTTP status code does automatic validation failure return?
 
 ---
 
-### Q8. What is `ValidationProblemDetails`? {#chapter-05-model-binding-validation-q8}
+## Q8. What is `ValidationProblemDetails`?
 
 What is `ValidationProblemDetails`?
 
@@ -133,7 +128,7 @@ What is `ValidationProblemDetails`?
 
 ---
 
-### Q9. What are data annotations for validation? {#chapter-05-model-binding-validation-q9}
+## Q9. What are data annotations for validation?
 
 What are data annotations for validation?
 
@@ -146,7 +141,7 @@ What are data annotations for validation?
 
 ---
 
-### Q10. What is the difference between `[Required]` and optional properties? {#chapter-05-model-binding-validation-q10}
+## Q10. What is the difference between `[Required]` and optional properties?
 
 What is the difference between `[Required]` and optional properties?
 
@@ -159,7 +154,7 @@ What is the difference between `[Required]` and optional properties?
 
 ---
 
-### Q11. What is `IValidatableObject`? {#chapter-05-model-binding-validation-q11}
+## Q11. What is `IValidatableObject`?
 
 What is `IValidatableObject`?
 
@@ -172,7 +167,7 @@ What is `IValidatableObject`?
 
 ---
 
-### Q12. What is FluentValidation and how does it integrate with Web APIs? {#chapter-05-model-binding-validation-q12}
+## Q12. What is FluentValidation and how does it integrate with Web APIs?
 
 What is FluentValidation and how does it integrate with Web APIs?
 
@@ -185,7 +180,7 @@ What is FluentValidation and how does it integrate with Web APIs?
 
 ---
 
-### Q13. Why can't GET requests reliably use `[FromBody]`? {#chapter-05-model-binding-validation-q13}
+## Q13. Why can't GET requests reliably use `[FromBody]`?
 
 Why can't GET requests reliably use `[FromBody]`?
 
@@ -198,7 +193,7 @@ Why can't GET requests reliably use `[FromBody]`?
 
 ---
 
-### Q14. What is complex type binding from query strings? {#chapter-05-model-binding-validation-q14}
+## Q14. What is complex type binding from query strings?
 
 What is complex type binding from query strings?
 
@@ -211,7 +206,7 @@ What is complex type binding from query strings?
 
 ---
 
-### Q15. What is the difference between model binding and validation? {#chapter-05-model-binding-validation-q15}
+## Q15. What is the difference between model binding and validation?
 
 What is the difference between model binding and validation?
 
@@ -224,7 +219,7 @@ What is the difference between model binding and validation?
 
 ---
 
-### Q16. What does `[ValidateNever]` do? {#chapter-05-model-binding-validation-q16}
+## Q16. What does `[ValidateNever]` do?
 
 What does `[ValidateNever]` do?
 
@@ -237,7 +232,7 @@ What does `[ValidateNever]` do?
 
 ---
 
-### Q17. What is PATCH semantics for partial updates? {#chapter-05-model-binding-validation-q17}
+## Q17. What is PATCH semantics for partial updates?
 
 What is PATCH semantics for partial updates?
 
@@ -250,7 +245,7 @@ What is PATCH semantics for partial updates?
 
 ---
 
-### Q18. How does camelCase JSON map to PascalCase C# properties? {#chapter-05-model-binding-validation-q18}
+## Q18. How does camelCase JSON map to PascalCase C# properties?
 
 How does camelCase JSON map to PascalCase C# properties?
 

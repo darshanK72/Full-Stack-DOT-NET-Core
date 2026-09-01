@@ -1,35 +1,30 @@
 # Health Checks — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 12. Health Checks](#chapter-12-health-checks)
-  - [Q1. What are health checks in ASP.NET Core Web API?](#chapter-12-health-checks-q1)
-  - [Q2. What is the difference between liveness and readiness probes…](#chapter-12-health-checks-q2)
-  - [Q3. What is `AddHealthChecks` used for?](#chapter-12-health-checks-q3)
-  - [Q4. What is `MapHealthChecks`?](#chapter-12-health-checks-q4)
-  - [Q5. What is `HealthCheckOptions.Predicate`?](#chapter-12-health-checks-q5)
-  - [Q6. What are health check tags?](#chapter-12-health-checks-q6)
-  - [Q7. Why should readiness checks include dependencies like SQL?](#chapter-12-health-checks-q7)
-  - [Q8. Why should liveness checks avoid external dependencies?](#chapter-12-health-checks-q8)
-  - [Q9. What is `AddDbContextCheck`?](#chapter-12-health-checks-q9)
-  - [Q10. What happens if liveness and readiness use the same failing …](#chapter-12-health-checks-q10)
-  - [Q11. What is HealthChecksUI?](#chapter-12-health-checks-q11)
-  - [Q12. Should health endpoints be publicly accessible?](#chapter-12-health-checks-q12)
-  - [Q13. What is a `ResponseWriter` in health checks?](#chapter-12-health-checks-q13)
-  - [Q14. How do Kubernetes probes use health check endpoints?](#chapter-12-health-checks-q14)
-  - [Q15. What is `HealthStatus` (Healthy, Degraded, Unhealthy)?](#chapter-12-health-checks-q15)
-  - [Q16. What is the difference between `/health/live` and `/health/r…](#chapter-12-health-checks-q16)
-  - [Q17. What timeout considerations apply to health checks under loa…](#chapter-12-health-checks-q17)
-  - [Q18. What information should external health endpoints expose?](#chapter-12-health-checks-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are health checks in ASP.NET Core Web API?](#q1-what-are-health-checks-in-aspnet-core-web-api)
+2. [Q2. What is the difference between liveness and readiness probes?](#q2-what-is-the-difference-between-liveness-and-readiness-probes)
+3. [Q3. What is `AddHealthChecks` used for?](#q3-what-is-addhealthchecks-used-for)
+4. [Q4. What is `MapHealthChecks`?](#q4-what-is-maphealthchecks)
+5. [Q5. What is `HealthCheckOptions.Predicate`?](#q5-what-is-healthcheckoptionspredicate)
+6. [Q6. What are health check tags?](#q6-what-are-health-check-tags)
+7. [Q7. Why should readiness checks include dependencies like SQL?](#q7-why-should-readiness-checks-include-dependencies-like-sql)
+8. [Q8. Why should liveness checks avoid external dependencies?](#q8-why-should-liveness-checks-avoid-external-dependencies)
+9. [Q9. What is `AddDbContextCheck`?](#q9-what-is-adddbcontextcheck)
+10. [Q10. What happens if liveness and readiness use the same failing check?](#q10-what-happens-if-liveness-and-readiness-use-the-same-failing-check)
+11. [Q11. What is HealthChecksUI?](#q11-what-is-healthchecksui)
+12. [Q12. Should health endpoints be publicly accessible?](#q12-should-health-endpoints-be-publicly-accessible)
+13. [Q13. What is a `ResponseWriter` in health checks?](#q13-what-is-a-responsewriter-in-health-checks)
+14. [Q14. How do Kubernetes probes use health check endpoints?](#q14-how-do-kubernetes-probes-use-health-check-endpoints)
+15. [Q15. What is `HealthStatus` (Healthy, Degraded, Unhealthy)?](#q15-what-is-healthstatus-healthy-degraded-unhealthy)
+16. [Q16. What is the difference between `/health/live` and `/health/ready`?](#q16-what-is-the-difference-between-healthlive-and-healthready)
+17. [Q17. What timeout considerations apply to health checks under load?](#q17-what-timeout-considerations-apply-to-health-checks-under-load)
+18. [Q18. What information should external health endpoints expose?](#q18-what-information-should-external-health-endpoints-expose)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 12. Health Checks
-
-### Q1. What are health checks in ASP.NET Core Web API? {#chapter-12-health-checks-q1}
+## Q1. What are health checks in ASP.NET Core Web API?
 
 What are health checks in ASP.NET Core Web API?
 
@@ -43,7 +38,7 @@ What are health checks in ASP.NET Core Web API?
 
 ---
 
-### Q2. What is the difference between liveness and readiness probes? {#chapter-12-health-checks-q2}
+## Q2. What is the difference between liveness and readiness probes?
 
 What is the difference between liveness and readiness probes?
 
@@ -57,7 +52,7 @@ What is the difference between liveness and readiness probes?
 
 ---
 
-### Q3. What is `AddHealthChecks` used for? {#chapter-12-health-checks-q3}
+## Q3. What is `AddHealthChecks` used for?
 
 What is `AddHealthChecks` used for?
 
@@ -71,7 +66,7 @@ What is `AddHealthChecks` used for?
 
 ---
 
-### Q4. What is `MapHealthChecks`? {#chapter-12-health-checks-q4}
+## Q4. What is `MapHealthChecks`?
 
 What is `MapHealthChecks`?
 
@@ -85,7 +80,7 @@ What is `MapHealthChecks`?
 
 ---
 
-### Q5. What is `HealthCheckOptions.Predicate`? {#chapter-12-health-checks-q5}
+## Q5. What is `HealthCheckOptions.Predicate`?
 
 What is `HealthCheckOptions.Predicate`?
 
@@ -99,7 +94,7 @@ What is `HealthCheckOptions.Predicate`?
 
 ---
 
-### Q6. What are health check tags? {#chapter-12-health-checks-q6}
+## Q6. What are health check tags?
 
 What are health check tags?
 
@@ -113,7 +108,7 @@ What are health check tags?
 
 ---
 
-### Q7. Why should readiness checks include dependencies like SQL? {#chapter-12-health-checks-q7}
+## Q7. Why should readiness checks include dependencies like SQL?
 
 Why should readiness checks include dependencies like SQL?
 
@@ -127,7 +122,7 @@ Why should readiness checks include dependencies like SQL?
 
 ---
 
-### Q8. Why should liveness checks avoid external dependencies? {#chapter-12-health-checks-q8}
+## Q8. Why should liveness checks avoid external dependencies?
 
 Why should liveness checks avoid external dependencies?
 
@@ -141,7 +136,7 @@ Why should liveness checks avoid external dependencies?
 
 ---
 
-### Q9. What is `AddDbContextCheck`? {#chapter-12-health-checks-q9}
+## Q9. What is `AddDbContextCheck`?
 
 What is `AddDbContextCheck`?
 
@@ -155,7 +150,7 @@ What is `AddDbContextCheck`?
 
 ---
 
-### Q10. What happens if liveness and readiness use the same failing check? {#chapter-12-health-checks-q10}
+## Q10. What happens if liveness and readiness use the same failing check?
 
 What happens if liveness and readiness use the same failing check?
 
@@ -169,7 +164,7 @@ What happens if liveness and readiness use the same failing check?
 
 ---
 
-### Q11. What is HealthChecksUI? {#chapter-12-health-checks-q11}
+## Q11. What is HealthChecksUI?
 
 What is HealthChecksUI?
 
@@ -183,7 +178,7 @@ What is HealthChecksUI?
 
 ---
 
-### Q12. Should health endpoints be publicly accessible? {#chapter-12-health-checks-q12}
+## Q12. Should health endpoints be publicly accessible?
 
 Should health endpoints be publicly accessible?
 
@@ -197,7 +192,7 @@ Should health endpoints be publicly accessible?
 
 ---
 
-### Q13. What is a `ResponseWriter` in health checks? {#chapter-12-health-checks-q13}
+## Q13. What is a `ResponseWriter` in health checks?
 
 What is a `ResponseWriter` in health checks?
 
@@ -211,7 +206,7 @@ What is a `ResponseWriter` in health checks?
 
 ---
 
-### Q14. How do Kubernetes probes use health check endpoints? {#chapter-12-health-checks-q14}
+## Q14. How do Kubernetes probes use health check endpoints?
 
 How do Kubernetes probes use health check endpoints?
 
@@ -225,7 +220,7 @@ How do Kubernetes probes use health check endpoints?
 
 ---
 
-### Q15. What is `HealthStatus` (Healthy, Degraded, Unhealthy)? {#chapter-12-health-checks-q15}
+## Q15. What is `HealthStatus` (Healthy, Degraded, Unhealthy)?
 
 What is `HealthStatus` (Healthy, Degraded, Unhealthy)?
 
@@ -239,7 +234,7 @@ What is `HealthStatus` (Healthy, Degraded, Unhealthy)?
 
 ---
 
-### Q16. What is the difference between `/health/live` and `/health/ready`? {#chapter-12-health-checks-q16}
+## Q16. What is the difference between `/health/live` and `/health/ready`?
 
 What is the difference between `/health/live` and `/health/ready`?
 
@@ -253,7 +248,7 @@ What is the difference between `/health/live` and `/health/ready`?
 
 ---
 
-### Q17. What timeout considerations apply to health checks under load? {#chapter-12-health-checks-q17}
+## Q17. What timeout considerations apply to health checks under load?
 
 What timeout considerations apply to health checks under load?
 
@@ -267,7 +262,7 @@ What timeout considerations apply to health checks under load?
 
 ---
 
-### Q18. What information should external health endpoints expose? {#chapter-12-health-checks-q18}
+## Q18. What information should external health endpoints expose?
 
 What information should external health endpoints expose?
 

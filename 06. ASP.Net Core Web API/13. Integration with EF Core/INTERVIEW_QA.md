@@ -1,35 +1,30 @@
 # Integration with EF Core — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 13. Integration with EF Core](#chapter-13-integration-with-ef-core)
-  - [Q1. What is the typical DbContext lifetime in a Web API request?](#chapter-13-integration-with-ef-core-q1)
-  - [Q2. Why should API controllers avoid returning EF entities direc…](#chapter-13-integration-with-ef-core-q2)
-  - [Q3. What is the N+1 query problem in API endpoints?](#chapter-13-integration-with-ef-core-q3)
-  - [Q4. What is `AsNoTracking` and when should read-only API actions…](#chapter-13-integration-with-ef-core-q4)
-  - [Q5. What is the difference between `Include` and projection (`Se…](#chapter-13-integration-with-ef-core-q5)
-  - [Q6. What is `SaveChangesAsync` in the context of API POST/PUT ac…](#chapter-13-integration-with-ef-core-q6)
-  - [Q7. What is `DbUpdateConcurrencyException` in Web APIs?](#chapter-13-integration-with-ef-core-q7)
-  - [Q8. What is the repository pattern for Web APIs?](#chapter-13-integration-with-ef-core-q8)
-  - [Q9. What is `IQueryable` and why is returning it from repositori…](#chapter-13-integration-with-ef-core-q9)
-  - [Q10. What is the difference between scoped DbContext and `IDbCont…](#chapter-13-integration-with-ef-core-q10)
-  - [Q11. What is a transaction boundary in an API checkout flow?](#chapter-13-integration-with-ef-core-q11)
-  - [Q12. What is pagination with Skip and Take?](#chapter-13-integration-with-ef-core-q12)
-  - [Q13. What causes unstable pagination in concurrent APIs?](#chapter-13-integration-with-ef-core-q13)
-  - [Q14. What is DTO projection with EF Core Select?](#chapter-13-integration-with-ef-core-q14)
-  - [Q15. What happens when DbContext is injected into a Singleton ser…](#chapter-13-integration-with-ef-core-q15)
-  - [Q16. What is lazy loading and why is it problematic for APIs?](#chapter-13-integration-with-ef-core-q16)
-  - [Q17. What is the difference between `FindAsync` and `FirstOrDefau…](#chapter-13-integration-with-ef-core-q17)
-  - [Q18. What is `AddDbContextFactory` used for in Web APIs?](#chapter-13-integration-with-ef-core-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is the typical DbContext lifetime in a Web API request?](#q1-what-is-the-typical-dbcontext-lifetime-in-a-web-api-request)
+2. [Q2. Why should API controllers avoid returning EF entities directly?](#q2-why-should-api-controllers-avoid-returning-ef-entities-directly)
+3. [Q3. What is the N+1 query problem in API endpoints?](#q3-what-is-the-n1-query-problem-in-api-endpoints)
+4. [Q4. What is `AsNoTracking` and when should read-only API actions use it?](#q4-what-is-asnotracking-and-when-should-read-only-api-actions-use-it)
+5. [Q5. What is the difference between `Include` and projection (`Select`) in API queries?](#q5-what-is-the-difference-between-include-and-projection-select-in-api-queries)
+6. [Q6. What is `SaveChangesAsync` in the context of API POST/PUT actions?](#q6-what-is-savechangesasync-in-the-context-of-api-postput-actions)
+7. [Q7. What is `DbUpdateConcurrencyException` in Web APIs?](#q7-what-is-dbupdateconcurrencyexception-in-web-apis)
+8. [Q8. What is the repository pattern for Web APIs?](#q8-what-is-the-repository-pattern-for-web-apis)
+9. [Q9. What is `IQueryable` and why is returning it from repositories risky?](#q9-what-is-iqueryable-and-why-is-returning-it-from-repositories-risky)
+10. [Q10. What is the difference between scoped DbContext and `IDbContextFactory`?](#q10-what-is-the-difference-between-scoped-dbcontext-and-idbcontextfactory)
+11. [Q11. What is a transaction boundary in an API checkout flow?](#q11-what-is-a-transaction-boundary-in-an-api-checkout-flow)
+12. [Q12. What is pagination with Skip and Take?](#q12-what-is-pagination-with-skip-and-take)
+13. [Q13. What causes unstable pagination in concurrent APIs?](#q13-what-causes-unstable-pagination-in-concurrent-apis)
+14. [Q14. What is DTO projection with EF Core Select?](#q14-what-is-dto-projection-with-ef-core-select)
+15. [Q15. What happens when DbContext is injected into a Singleton service?](#q15-what-happens-when-dbcontext-is-injected-into-a-singleton-service)
+16. [Q16. What is lazy loading and why is it problematic for APIs?](#q16-what-is-lazy-loading-and-why-is-it-problematic-for-apis)
+17. [Q17. What is the difference between `FindAsync` and `FirstOrDefaultAsync` in APIs?](#q17-what-is-the-difference-between-findasync-and-firstordefaultasync-in-apis)
+18. [Q18. What is `AddDbContextFactory` used for in Web APIs?](#q18-what-is-adddbcontextfactory-used-for-in-web-apis)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 13. Integration with EF Core
-
-### Q1. What is the typical DbContext lifetime in a Web API request? {#chapter-13-integration-with-ef-core-q1}
+## Q1. What is the typical DbContext lifetime in a Web API request?
 
 What is the typical DbContext lifetime in a Web API request?
 
@@ -42,7 +37,7 @@ What is the typical DbContext lifetime in a Web API request?
 
 ---
 
-### Q2. Why should API controllers avoid returning EF entities directly? {#chapter-13-integration-with-ef-core-q2}
+## Q2. Why should API controllers avoid returning EF entities directly?
 
 Why should API controllers avoid returning EF entities directly?
 
@@ -55,7 +50,7 @@ Why should API controllers avoid returning EF entities directly?
 
 ---
 
-### Q3. What is the N+1 query problem in API endpoints? {#chapter-13-integration-with-ef-core-q3}
+## Q3. What is the N+1 query problem in API endpoints?
 
 What is the N+1 query problem in API endpoints?
 
@@ -68,7 +63,7 @@ What is the N+1 query problem in API endpoints?
 
 ---
 
-### Q4. What is `AsNoTracking` and when should read-only API actions use it? {#chapter-13-integration-with-ef-core-q4}
+## Q4. What is `AsNoTracking` and when should read-only API actions use it?
 
 What is `AsNoTracking` and when should read-only API actions use it?
 
@@ -81,7 +76,7 @@ What is `AsNoTracking` and when should read-only API actions use it?
 
 ---
 
-### Q5. What is the difference between `Include` and projection (`Select`) in API queries? {#chapter-13-integration-with-ef-core-q5}
+## Q5. What is the difference between `Include` and projection (`Select`) in API queries?
 
 What is the difference between `Include` and projection (`Select`) in API queries?
 
@@ -94,7 +89,7 @@ What is the difference between `Include` and projection (`Select`) in API querie
 
 ---
 
-### Q6. What is `SaveChangesAsync` in the context of API POST/PUT actions? {#chapter-13-integration-with-ef-core-q6}
+## Q6. What is `SaveChangesAsync` in the context of API POST/PUT actions?
 
 What is `SaveChangesAsync` in the context of API POST/PUT actions?
 
@@ -107,7 +102,7 @@ What is `SaveChangesAsync` in the context of API POST/PUT actions?
 
 ---
 
-### Q7. What is `DbUpdateConcurrencyException` in Web APIs? {#chapter-13-integration-with-ef-core-q7}
+## Q7. What is `DbUpdateConcurrencyException` in Web APIs?
 
 What is `DbUpdateConcurrencyException` in Web APIs?
 
@@ -120,7 +115,7 @@ What is `DbUpdateConcurrencyException` in Web APIs?
 
 ---
 
-### Q8. What is the repository pattern for Web APIs? {#chapter-13-integration-with-ef-core-q8}
+## Q8. What is the repository pattern for Web APIs?
 
 What is the repository pattern for Web APIs?
 
@@ -133,7 +128,7 @@ What is the repository pattern for Web APIs?
 
 ---
 
-### Q9. What is `IQueryable` and why is returning it from repositories risky? {#chapter-13-integration-with-ef-core-q9}
+## Q9. What is `IQueryable` and why is returning it from repositories risky?
 
 What is `IQueryable` and why is returning it from repositories risky?
 
@@ -146,7 +141,7 @@ What is `IQueryable` and why is returning it from repositories risky?
 
 ---
 
-### Q10. What is the difference between scoped DbContext and `IDbContextFactory`? {#chapter-13-integration-with-ef-core-q10}
+## Q10. What is the difference between scoped DbContext and `IDbContextFactory`?
 
 What is the difference between scoped DbContext and `IDbContextFactory`?
 
@@ -159,7 +154,7 @@ What is the difference between scoped DbContext and `IDbContextFactory`?
 
 ---
 
-### Q11. What is a transaction boundary in an API checkout flow? {#chapter-13-integration-with-ef-core-q11}
+## Q11. What is a transaction boundary in an API checkout flow?
 
 What is a transaction boundary in an API checkout flow?
 
@@ -172,7 +167,7 @@ What is a transaction boundary in an API checkout flow?
 
 ---
 
-### Q12. What is pagination with Skip and Take? {#chapter-13-integration-with-ef-core-q12}
+## Q12. What is pagination with Skip and Take?
 
 What is pagination with Skip and Take?
 
@@ -185,7 +180,7 @@ What is pagination with Skip and Take?
 
 ---
 
-### Q13. What causes unstable pagination in concurrent APIs? {#chapter-13-integration-with-ef-core-q13}
+## Q13. What causes unstable pagination in concurrent APIs?
 
 What causes unstable pagination in concurrent APIs?
 
@@ -198,7 +193,7 @@ What causes unstable pagination in concurrent APIs?
 
 ---
 
-### Q14. What is DTO projection with EF Core Select? {#chapter-13-integration-with-ef-core-q14}
+## Q14. What is DTO projection with EF Core Select?
 
 What is DTO projection with EF Core Select?
 
@@ -211,7 +206,7 @@ What is DTO projection with EF Core Select?
 
 ---
 
-### Q15. What happens when DbContext is injected into a Singleton service? {#chapter-13-integration-with-ef-core-q15}
+## Q15. What happens when DbContext is injected into a Singleton service?
 
 What happens when DbContext is injected into a Singleton service?
 
@@ -224,7 +219,7 @@ What happens when DbContext is injected into a Singleton service?
 
 ---
 
-### Q16. What is lazy loading and why is it problematic for APIs? {#chapter-13-integration-with-ef-core-q16}
+## Q16. What is lazy loading and why is it problematic for APIs?
 
 What is lazy loading and why is it problematic for APIs?
 
@@ -237,7 +232,7 @@ What is lazy loading and why is it problematic for APIs?
 
 ---
 
-### Q17. What is the difference between `FindAsync` and `FirstOrDefaultAsync` in APIs? {#chapter-13-integration-with-ef-core-q17}
+## Q17. What is the difference between `FindAsync` and `FirstOrDefaultAsync` in APIs?
 
 What is the difference between `FindAsync` and `FirstOrDefaultAsync` in APIs?
 
@@ -250,7 +245,7 @@ What is the difference between `FindAsync` and `FirstOrDefaultAsync` in APIs?
 
 ---
 
-### Q18. What is `AddDbContextFactory` used for in Web APIs? {#chapter-13-integration-with-ef-core-q18}
+## Q18. What is `AddDbContextFactory` used for in Web APIs?
 
 What is `AddDbContextFactory` used for in Web APIs?
 

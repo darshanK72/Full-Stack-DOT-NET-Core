@@ -1,35 +1,30 @@
 # Data Annotations & Validation — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 07. Data Annotations & Validation](#chapter-07-data-annotations-validation)
-  - [Q1. What are Data Annotations in ASP.NET Core MVC?](#chapter-07-data-annotations-validation-q1)
-  - [Q2. What is `ModelState` and how does it relate to validation?](#chapter-07-data-annotations-validation-q2)
-  - [Q3. Why must server-side validation always be performed even wit…](#chapter-07-data-annotations-validation-q3)
-  - [Q4. What does `ModelState.IsValid` check?](#chapter-07-data-annotations-validation-q4)
-  - [Q5. What is the difference between `[Required]` and `[AllowNull]…](#chapter-07-data-annotations-validation-q5)
-  - [Q6. Why does `[Required]` not work as expected on a `bool` check…](#chapter-07-data-annotations-validation-q6)
-  - [Q7. What is `[Compare]` used for?](#chapter-07-data-annotations-validation-q7)
-  - [Q8. What are `[Range]` and `[StringLength]` used for?](#chapter-07-data-annotations-validation-q8)
-  - [Q9. What is `[RegularExpression]` used for?](#chapter-07-data-annotations-validation-q9)
-  - [Q10. What is `IValidatableObject` and when do you use it?](#chapter-07-data-annotations-validation-q10)
-  - [Q11. What is the difference between `IValidatableObject` and a cu…](#chapter-07-data-annotations-validation-q11)
-  - [Q12. What is `[Remote]` validation and how does it work?](#chapter-07-data-annotations-validation-q12)
-  - [Q13. What is `[ValidateNever]` and when is it applied?](#chapter-07-data-annotations-validation-q13)
-  - [Q14. Why should validation attributes not be placed on EF entitie…](#chapter-07-data-annotations-validation-q14)
-  - [Q15. What are `asp-validation-for` and `asp-validation-summary`?](#chapter-07-data-annotations-validation-q15)
-  - [Q16. What is the difference between `ValidationSummary` `ModelOnl…](#chapter-07-data-annotations-validation-q16)
-  - [Q17. What is unobtrusive client validation?](#chapter-07-data-annotations-validation-q17)
-  - [Q18. What is the difference between Data Annotations and FluentVa…](#chapter-07-data-annotations-validation-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are Data Annotations in ASP.NET Core MVC?](#q1-what-are-data-annotations-in-aspnet-core-mvc)
+2. [Q2. What is `ModelState` and how does it relate to validation?](#q2-what-is-modelstate-and-how-does-it-relate-to-validation)
+3. [Q3. Why must server-side validation always be performed even with client validation?](#q3-why-must-server-side-validation-always-be-performed-even-with-client-validation)
+4. [Q4. What does `ModelState.IsValid` check?](#q4-what-does-modelstateisvalid-check)
+5. [Q5. What is the difference between `[Required]` and `[AllowNull]`?](#q5-what-is-the-difference-between-required-and-allownull)
+6. [Q6. Why does `[Required]` not work as expected on a `bool` checkbox?](#q6-why-does-required-not-work-as-expected-on-a-bool-checkbox)
+7. [Q7. What is `[Compare]` used for?](#q7-what-is-compare-used-for)
+8. [Q8. What are `[Range]` and `[StringLength]` used for?](#q8-what-are-range-and-stringlength-used-for)
+9. [Q9. What is `[RegularExpression]` used for?](#q9-what-is-regularexpression-used-for)
+10. [Q10. What is `IValidatableObject` and when do you use it?](#q10-what-is-ivalidatableobject-and-when-do-you-use-it)
+11. [Q11. What is the difference between `IValidatableObject` and a custom `ValidationAttribute`?](#q11-what-is-the-difference-between-ivalidatableobject-and-a-custom-validationattribute)
+12. [Q12. What is `[Remote]` validation and how does it work?](#q12-what-is-remote-validation-and-how-does-it-work)
+13. [Q13. What is `[ValidateNever]` and when is it applied?](#q13-what-is-validatenever-and-when-is-it-applied)
+14. [Q14. Why should validation attributes not be placed on EF entities shared with MVC?](#q14-why-should-validation-attributes-not-be-placed-on-ef-entities-shared-with-mvc)
+15. [Q15. What are `asp-validation-for` and `asp-validation-summary`?](#q15-what-are-asp-validation-for-and-asp-validation-summary)
+16. [Q16. What is the difference between `ValidationSummary` `ModelOnly` and `All`?](#q16-what-is-the-difference-between-validationsummary-modelonly-and-all)
+17. [Q17. What is unobtrusive client validation?](#q17-what-is-unobtrusive-client-validation)
+18. [Q18. What is the difference between Data Annotations and FluentValidation?](#q18-what-is-the-difference-between-data-annotations-and-fluentvalidation)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 07. Data Annotations & Validation
-
-### Q1. What are Data Annotations in ASP.NET Core MVC? {#chapter-07-data-annotations-validation-q1}
+## Q1. What are Data Annotations in ASP.NET Core MVC?
 
 What are Data Annotations in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What are Data Annotations in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is `ModelState` and how does it relate to validation? {#chapter-07-data-annotations-validation-q2}
+## Q2. What is `ModelState` and how does it relate to validation?
 
 What is `ModelState` and how does it relate to validation?
 
@@ -55,7 +50,7 @@ What is `ModelState` and how does it relate to validation?
 
 ---
 
-### Q3. Why must server-side validation always be performed even with client validation? {#chapter-07-data-annotations-validation-q3}
+## Q3. Why must server-side validation always be performed even with client validation?
 
 Why must server-side validation always be performed even with client validation?
 
@@ -68,7 +63,7 @@ Why must server-side validation always be performed even with client validation?
 
 ---
 
-### Q4. What does `ModelState.IsValid` check? {#chapter-07-data-annotations-validation-q4}
+## Q4. What does `ModelState.IsValid` check?
 
 What does `ModelState.IsValid` check?
 
@@ -81,7 +76,7 @@ What does `ModelState.IsValid` check?
 
 ---
 
-### Q5. What is the difference between `[Required]` and `[AllowNull]`? {#chapter-07-data-annotations-validation-q5}
+## Q5. What is the difference between `[Required]` and `[AllowNull]`?
 
 What is the difference between `[Required]` and `[AllowNull]`?
 
@@ -94,7 +89,7 @@ What is the difference between `[Required]` and `[AllowNull]`?
 
 ---
 
-### Q6. Why does `[Required]` not work as expected on a `bool` checkbox? {#chapter-07-data-annotations-validation-q6}
+## Q6. Why does `[Required]` not work as expected on a `bool` checkbox?
 
 Why does `[Required]` not work as expected on a `bool` checkbox?
 
@@ -107,7 +102,7 @@ Why does `[Required]` not work as expected on a `bool` checkbox?
 
 ---
 
-### Q7. What is `[Compare]` used for? {#chapter-07-data-annotations-validation-q7}
+## Q7. What is `[Compare]` used for?
 
 What is `[Compare]` used for?
 
@@ -120,7 +115,7 @@ What is `[Compare]` used for?
 
 ---
 
-### Q8. What are `[Range]` and `[StringLength]` used for? {#chapter-07-data-annotations-validation-q8}
+## Q8. What are `[Range]` and `[StringLength]` used for?
 
 What are `[Range]` and `[StringLength]` used for?
 
@@ -133,7 +128,7 @@ What are `[Range]` and `[StringLength]` used for?
 
 ---
 
-### Q9. What is `[RegularExpression]` used for? {#chapter-07-data-annotations-validation-q9}
+## Q9. What is `[RegularExpression]` used for?
 
 What is `[RegularExpression]` used for?
 
@@ -146,7 +141,7 @@ What is `[RegularExpression]` used for?
 
 ---
 
-### Q10. What is `IValidatableObject` and when do you use it? {#chapter-07-data-annotations-validation-q10}
+## Q10. What is `IValidatableObject` and when do you use it?
 
 What is `IValidatableObject` and when do you use it?
 
@@ -159,7 +154,7 @@ What is `IValidatableObject` and when do you use it?
 
 ---
 
-### Q11. What is the difference between `IValidatableObject` and a custom `ValidationAttribute`? {#chapter-07-data-annotations-validation-q11}
+## Q11. What is the difference between `IValidatableObject` and a custom `ValidationAttribute`?
 
 What is the difference between `IValidatableObject` and a custom `ValidationAttribute`?
 
@@ -172,7 +167,7 @@ What is the difference between `IValidatableObject` and a custom `ValidationAttr
 
 ---
 
-### Q12. What is `[Remote]` validation and how does it work? {#chapter-07-data-annotations-validation-q12}
+## Q12. What is `[Remote]` validation and how does it work?
 
 What is `[Remote]` validation and how does it work?
 
@@ -185,7 +180,7 @@ What is `[Remote]` validation and how does it work?
 
 ---
 
-### Q13. What is `[ValidateNever]` and when is it applied? {#chapter-07-data-annotations-validation-q13}
+## Q13. What is `[ValidateNever]` and when is it applied?
 
 What is `[ValidateNever]` and when is it applied?
 
@@ -198,7 +193,7 @@ What is `[ValidateNever]` and when is it applied?
 
 ---
 
-### Q14. Why should validation attributes not be placed on EF entities shared with MVC? {#chapter-07-data-annotations-validation-q14}
+## Q14. Why should validation attributes not be placed on EF entities shared with MVC?
 
 Why should validation attributes not be placed on EF entities shared with MVC?
 
@@ -211,7 +206,7 @@ Why should validation attributes not be placed on EF entities shared with MVC?
 
 ---
 
-### Q15. What are `asp-validation-for` and `asp-validation-summary`? {#chapter-07-data-annotations-validation-q15}
+## Q15. What are `asp-validation-for` and `asp-validation-summary`?
 
 What are `asp-validation-for` and `asp-validation-summary`?
 
@@ -224,7 +219,7 @@ What are `asp-validation-for` and `asp-validation-summary`?
 
 ---
 
-### Q16. What is the difference between `ValidationSummary` `ModelOnly` and `All`? {#chapter-07-data-annotations-validation-q16}
+## Q16. What is the difference between `ValidationSummary` `ModelOnly` and `All`?
 
 What is the difference between `ValidationSummary` `ModelOnly` and `All`?
 
@@ -237,7 +232,7 @@ What is the difference between `ValidationSummary` `ModelOnly` and `All`?
 
 ---
 
-### Q17. What is unobtrusive client validation? {#chapter-07-data-annotations-validation-q17}
+## Q17. What is unobtrusive client validation?
 
 What is unobtrusive client validation?
 
@@ -250,7 +245,7 @@ What is unobtrusive client validation?
 
 ---
 
-### Q18. What is the difference between Data Annotations and FluentValidation? {#chapter-07-data-annotations-validation-q18}
+## Q18. What is the difference between Data Annotations and FluentValidation?
 
 What is the difference between Data Annotations and FluentValidation?
 

@@ -1,35 +1,30 @@
 # Content Negotiation & Formatters — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 04. Content Negotiation & Formatters](#chapter-04-content-negotiation-formatters)
-  - [Q1. What is content negotiation in ASP.NET Core Web API?](#chapter-04-content-negotiation-formatters-q1)
-  - [Q2. What is the Accept HTTP header used for?](#chapter-04-content-negotiation-formatters-q2)
-  - [Q3. What is the Content-Type header used for in API requests?](#chapter-04-content-negotiation-formatters-q3)
-  - [Q4. What is the default JSON serializer in ASP.NET Core 8?](#chapter-04-content-negotiation-formatters-q4)
-  - [Q5. What is camelCase JSON naming and why is it used in Web APIs…](#chapter-04-content-negotiation-formatters-q5)
-  - [Q6. What is the difference between input formatters and output f…](#chapter-04-content-negotiation-formatters-q6)
-  - [Q7. What HTTP status code is returned when content negotiation f…](#chapter-04-content-negotiation-formatters-q7)
-  - [Q8. What does `[Produces("application/json")]` do?](#chapter-04-content-negotiation-formatters-q8)
-  - [Q9. What does `[Consumes("application/xml")]` do?](#chapter-04-content-negotiation-formatters-q9)
-  - [Q10. What is the difference between `System.Text.Json` and Newton…](#chapter-04-content-negotiation-formatters-q10)
-  - [Q11. How does model binding relate to input formatters?](#chapter-04-content-negotiation-formatters-q11)
-  - [Q12. What is an output formatter?](#chapter-04-content-negotiation-formatters-q12)
-  - [Q13. What is the difference between JSON and XML responses in Web…](#chapter-04-content-negotiation-formatters-q13)
-  - [Q14. What does `[JsonPropertyName]` do?](#chapter-04-content-negotiation-formatters-q14)
-  - [Q15. What is `AddJsonOptions` used for?](#chapter-04-content-negotiation-formatters-q15)
-  - [Q16. When would you register a custom output formatter?](#chapter-04-content-negotiation-formatters-q16)
-  - [Q17. What is the default response format for ASP.NET Core Web API…](#chapter-04-content-negotiation-formatters-q17)
-  - [Q18. What is the difference between serialization and model bindi…](#chapter-04-content-negotiation-formatters-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is content negotiation in ASP.NET Core Web API?](#q1-what-is-content-negotiation-in-aspnet-core-web-api)
+2. [Q2. What is the Accept HTTP header used for?](#q2-what-is-the-accept-http-header-used-for)
+3. [Q3. What is the Content-Type header used for in API requests?](#q3-what-is-the-content-type-header-used-for-in-api-requests)
+4. [Q4. What is the default JSON serializer in ASP.NET Core 8?](#q4-what-is-the-default-json-serializer-in-aspnet-core-8)
+5. [Q5. What is camelCase JSON naming and why is it used in Web APIs?](#q5-what-is-camelcase-json-naming-and-why-is-it-used-in-web-apis)
+6. [Q6. What is the difference between input formatters and output formatters?](#q6-what-is-the-difference-between-input-formatters-and-output-formatters)
+7. [Q7. What HTTP status code is returned when content negotiation fails?](#q7-what-http-status-code-is-returned-when-content-negotiation-fails)
+8. [Q8. What does `[Produces("application/json")]` do?](#q8-what-does-producesapplicationjson-do)
+9. [Q9. What does `[Consumes("application/xml")]` do?](#q9-what-does-consumesapplicationxml-do)
+10. [Q10. What is the difference between `System.Text.Json` and Newtonsoft.Json in ASP.NET Core?](#q10-what-is-the-difference-between-systemtextjson-and-newtonsoftjson-in-aspnet-core)
+11. [Q11. How does model binding relate to input formatters?](#q11-how-does-model-binding-relate-to-input-formatters)
+12. [Q12. What is an output formatter?](#q12-what-is-an-output-formatter)
+13. [Q13. What is the difference between JSON and XML responses in Web APIs?](#q13-what-is-the-difference-between-json-and-xml-responses-in-web-apis)
+14. [Q14. What does `[JsonPropertyName]` do?](#q14-what-does-jsonpropertyname-do)
+15. [Q15. What is `AddJsonOptions` used for?](#q15-what-is-addjsonoptions-used-for)
+16. [Q16. When would you register a custom output formatter?](#q16-when-would-you-register-a-custom-output-formatter)
+17. [Q17. What is the default response format for ASP.NET Core Web API?](#q17-what-is-the-default-response-format-for-aspnet-core-web-api)
+18. [Q18. What is the difference between serialization and model binding?](#q18-what-is-the-difference-between-serialization-and-model-binding)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 04. Content Negotiation & Formatters
-
-### Q1. What is content negotiation in ASP.NET Core Web API? {#chapter-04-content-negotiation-formatters-q1}
+## Q1. What is content negotiation in ASP.NET Core Web API?
 
 What is content negotiation in ASP.NET Core Web API?
 
@@ -43,7 +38,7 @@ What is content negotiation in ASP.NET Core Web API?
 
 ---
 
-### Q2. What is the Accept HTTP header used for? {#chapter-04-content-negotiation-formatters-q2}
+## Q2. What is the Accept HTTP header used for?
 
 What is the Accept HTTP header used for?
 
@@ -57,7 +52,7 @@ What is the Accept HTTP header used for?
 
 ---
 
-### Q3. What is the Content-Type header used for in API requests? {#chapter-04-content-negotiation-formatters-q3}
+## Q3. What is the Content-Type header used for in API requests?
 
 What is the Content-Type header used for in API requests?
 
@@ -71,7 +66,7 @@ What is the Content-Type header used for in API requests?
 
 ---
 
-### Q4. What is the default JSON serializer in ASP.NET Core 8? {#chapter-04-content-negotiation-formatters-q4}
+## Q4. What is the default JSON serializer in ASP.NET Core 8?
 
 What is the default JSON serializer in ASP.NET Core 8?
 
@@ -85,7 +80,7 @@ What is the default JSON serializer in ASP.NET Core 8?
 
 ---
 
-### Q5. What is camelCase JSON naming and why is it used in Web APIs? {#chapter-04-content-negotiation-formatters-q5}
+## Q5. What is camelCase JSON naming and why is it used in Web APIs?
 
 What is camelCase JSON naming and why is it used in Web APIs?
 
@@ -99,7 +94,7 @@ What is camelCase JSON naming and why is it used in Web APIs?
 
 ---
 
-### Q6. What is the difference between input formatters and output formatters? {#chapter-04-content-negotiation-formatters-q6}
+## Q6. What is the difference between input formatters and output formatters?
 
 What is the difference between input formatters and output formatters?
 
@@ -113,7 +108,7 @@ What is the difference between input formatters and output formatters?
 
 ---
 
-### Q7. What HTTP status code is returned when content negotiation fails? {#chapter-04-content-negotiation-formatters-q7}
+## Q7. What HTTP status code is returned when content negotiation fails?
 
 What HTTP status code is returned when content negotiation fails?
 
@@ -127,7 +122,7 @@ What HTTP status code is returned when content negotiation fails?
 
 ---
 
-### Q8. What does `[Produces("application/json")]` do? {#chapter-04-content-negotiation-formatters-q8}
+## Q8. What does `[Produces("application/json")]` do?
 
 What does `[Produces("application/json")]` do?
 
@@ -141,7 +136,7 @@ What does `[Produces("application/json")]` do?
 
 ---
 
-### Q9. What does `[Consumes("application/xml")]` do? {#chapter-04-content-negotiation-formatters-q9}
+## Q9. What does `[Consumes("application/xml")]` do?
 
 What does `[Consumes("application/xml")]` do?
 
@@ -155,7 +150,7 @@ What does `[Consumes("application/xml")]` do?
 
 ---
 
-### Q10. What is the difference between `System.Text.Json` and Newtonsoft.Json in ASP.NET Core? {#chapter-04-content-negotiation-formatters-q10}
+## Q10. What is the difference between `System.Text.Json` and Newtonsoft.Json in ASP.NET Core?
 
 What is the difference between `System.Text.Json` and Newtonsoft.Json in ASP.NET Core?
 
@@ -169,7 +164,7 @@ What is the difference between `System.Text.Json` and Newtonsoft.Json in ASP.NET
 
 ---
 
-### Q11. How does model binding relate to input formatters? {#chapter-04-content-negotiation-formatters-q11}
+## Q11. How does model binding relate to input formatters?
 
 How does model binding relate to input formatters?
 
@@ -183,7 +178,7 @@ How does model binding relate to input formatters?
 
 ---
 
-### Q12. What is an output formatter? {#chapter-04-content-negotiation-formatters-q12}
+## Q12. What is an output formatter?
 
 What is an output formatter?
 
@@ -197,7 +192,7 @@ What is an output formatter?
 
 ---
 
-### Q13. What is the difference between JSON and XML responses in Web APIs? {#chapter-04-content-negotiation-formatters-q13}
+## Q13. What is the difference between JSON and XML responses in Web APIs?
 
 What is the difference between JSON and XML responses in Web APIs?
 
@@ -211,7 +206,7 @@ What is the difference between JSON and XML responses in Web APIs?
 
 ---
 
-### Q14. What does `[JsonPropertyName]` do? {#chapter-04-content-negotiation-formatters-q14}
+## Q14. What does `[JsonPropertyName]` do?
 
 What does `[JsonPropertyName]` do?
 
@@ -225,7 +220,7 @@ What does `[JsonPropertyName]` do?
 
 ---
 
-### Q15. What is `AddJsonOptions` used for? {#chapter-04-content-negotiation-formatters-q15}
+## Q15. What is `AddJsonOptions` used for?
 
 What is `AddJsonOptions` used for?
 
@@ -239,7 +234,7 @@ What is `AddJsonOptions` used for?
 
 ---
 
-### Q16. When would you register a custom output formatter? {#chapter-04-content-negotiation-formatters-q16}
+## Q16. When would you register a custom output formatter?
 
 When would you register a custom output formatter?
 
@@ -253,7 +248,7 @@ When would you register a custom output formatter?
 
 ---
 
-### Q17. What is the default response format for ASP.NET Core Web API? {#chapter-04-content-negotiation-formatters-q17}
+## Q17. What is the default response format for ASP.NET Core Web API?
 
 What is the default response format for ASP.NET Core Web API?
 
@@ -267,7 +262,7 @@ What is the default response format for ASP.NET Core Web API?
 
 ---
 
-### Q18. What is the difference between serialization and model binding? {#chapter-04-content-negotiation-formatters-q18}
+## Q18. What is the difference between serialization and model binding?
 
 What is the difference between serialization and model binding?
 

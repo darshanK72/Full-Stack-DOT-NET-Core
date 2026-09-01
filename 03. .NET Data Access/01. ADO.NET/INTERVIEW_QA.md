@@ -4,79 +4,80 @@
 ## Table of Contents
 
 - [Chapter 01. Introduction to ADO.NET](#chapter-01-introduction-to-adonet)
-  - [Q1. What is ADO.NET?](#chapter-01-introduction-to-adonet-q1)
-  - [Q2. What is the difference between connected and disconnected da…](#chapter-01-introduction-to-adonet-q2)
-  - [Q3. What are the core building blocks of ADO.NET (connection, co…](#chapter-01-introduction-to-adonet-q3)
-  - [Q4. What is the difference between ADO.NET and an ORM like Entit…](#chapter-01-introduction-to-adonet-q4)
-  - [Q5. When would you choose ADO.NET over Dapper or EF Core?](#chapter-01-introduction-to-adonet-q5)
-  - [Q6. What is the connected model, and which ADO.NET types does it…](#chapter-01-introduction-to-adonet-q6)
-  - [Q7. What is the disconnected model, and which ADO.NET types does…](#chapter-01-introduction-to-adonet-q7)
-  - [Q8. What are the trade-offs of hand-written SQL versus a higher-…](#chapter-01-introduction-to-adonet-q8)
+  - [Q1. What is ADO.NET?](#q1-what-is-adonet)
+  - [Q2. What is the difference between connected and disconnected data access in ADO.NET?](#q2-what-is-the-difference-between-connected-and-disconnected-data-access-in-adonet)
+  - [Q3. What are the core building blocks of ADO.NET (connection, command, reader, adapter)?](#q3-what-are-the-core-building-blocks-of-adonet-connection-command-reader-adapter)
+  - [Q4. What is the difference between ADO.NET and an ORM like Entity Framework Core?](#q4-what-is-the-difference-between-adonet-and-an-orm-like-entity-framework-core)
+  - [Q5. When would you choose ADO.NET over Dapper or EF Core?](#q5-when-would-you-choose-adonet-over-dapper-or-ef-core)
+  - [Q6. What is the connected model, and which ADO.NET types does it primarily use?](#q6-what-is-the-connected-model-and-which-adonet-types-does-it-primarily-use)
+  - [Q7. What is the disconnected model, and which ADO.NET types does it primarily use?](#q7-what-is-the-disconnected-model-and-which-adonet-types-does-it-primarily-use)
+  - [Q8. What are the trade-offs of hand-written SQL versus a higher-level ORM?](#q8-what-are-the-trade-offs-of-hand-written-sql-versus-a-higher-level-orm)
 
 - [Chapter 02. SqlConnection & Connection Strings](#chapter-02-sqlconnection-connection-strings)
-  - [Q1. What is connection pooling in ADO.NET?](#chapter-02-sqlconnection-connection-strings-q1)
-  - [Q2. Does creating `new SqlConnection()` every time open a new ph…](#chapter-02-sqlconnection-connection-strings-q2)
-  - [Q3. Why should you use `using` or `await using` with connections…](#chapter-02-sqlconnection-connection-strings-q3)
-  - [Q4. How do you store connection strings securely in ASP.NET Core…](#chapter-02-sqlconnection-connection-strings-q4)
-  - [Q5. What is the difference between `Microsoft.Data.SqlClient` an…](#chapter-02-sqlconnection-connection-strings-q5)
-  - [Q6. What is a pool exhaustion error, and what typically causes i…](#chapter-02-sqlconnection-connection-strings-q6)
-  - [Q7. What symptoms indicate a misconfigured or exhausted connecti…](#chapter-02-sqlconnection-connection-strings-q7)
-  - [Q8. How do unclosed connections affect pool availability?](#chapter-02-sqlconnection-connection-strings-q8)
+  - [Q1. What is connection pooling in ADO.NET?](#q1-what-is-connection-pooling-in-adonet)
+  - [Q2. Does creating `new SqlConnection()` every time open a new physical database connection?](#q2-does-creating-new-sqlconnection-every-time-open-a-new-physical-database-connection)
+  - [Q3. Why should you use `using` or `await using` with connections?](#q3-why-should-you-use-using-or-await-using-with-connections)
+  - [Q4. How do you store connection strings securely in ASP.NET Core?](#q4-how-do-you-store-connection-strings-securely-in-aspnet-core)
+  - [Q5. What is the difference between `Microsoft.Data.SqlClient` and `System.Data.SqlClient`?](#q5-what-is-the-difference-between-microsoftdatasqlclient-and-systemdatasqlclient)
+  - [Q6. What is a pool exhaustion error, and what typically causes it?](#q6-what-is-a-pool-exhaustion-error-and-what-typically-causes-it)
+  - [Q7. What symptoms indicate a misconfigured or exhausted connection pool?](#q7-what-symptoms-indicate-a-misconfigured-or-exhausted-connection-pool)
+  - [Q8. How do unclosed connections affect pool availability?](#q8-how-do-unclosed-connections-affect-pool-availability)
 
 - [Chapter 03. SqlCommand & Parameters](#chapter-03-sqlcommand-parameters)
-  - [Q1. What is the difference between `ExecuteReader`, `ExecuteNonQ…](#chapter-03-sqlcommand-parameters-q1)
-  - [Q2. What is a parameterized query, and why is it preferred over …](#chapter-03-sqlcommand-parameters-q2)
-  - [Q3. What is SQL injection, and how do parameters prevent it?](#chapter-03-sqlcommand-parameters-q3)
-  - [Q4. What is the difference between `AddWithValue` and explicitly…](#chapter-03-sqlcommand-parameters-q4)
-  - [Q5. What is the difference between `Text` and `StoredProcedure` …](#chapter-03-sqlcommand-parameters-q5)
-  - [Q6. When would you use `ExecuteScalar` instead of `ExecuteReader…](#chapter-03-sqlcommand-parameters-q6)
+  - [Q1. What is the difference between `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteScalar`?](#q1-what-is-the-difference-between-executereader-executenonquery-and-executescalar)
+  - [Q2. What is a parameterized query, and why is it preferred over string concatenation?](#q2-what-is-a-parameterized-query-and-why-is-it-preferred-over-string-concatenation)
+  - [Q3. What is SQL injection, and how do parameters prevent it?](#q3-what-is-sql-injection-and-how-do-parameters-prevent-it)
+  - [Q4. What is the difference between `AddWithValue` and explicitly typed `SqlParameter`?](#q4-what-is-the-difference-between-addwithvalue-and-explicitly-typed-sqlparameter)
+  - [Q5. What is the difference between `Text` and `StoredProcedure` command types?](#q5-what-is-the-difference-between-text-and-storedprocedure-command-types)
+  - [Q6. When would you use `ExecuteScalar` instead of `ExecuteReader`?](#q6-when-would-you-use-executescalar-instead-of-executereader)
 
 - [Chapter 04. SqlDataReader](#chapter-04-sqldatareader)
-  - [Q1. Why is `SqlDataReader` described as a forward-only, read-onl…](#chapter-04-sqldatareader-q1)
-  - [Q2. What is the difference between connected streaming reads and…](#chapter-04-sqldatareader-q2)
-  - [Q3. Why must a `SqlDataReader` be closed or disposed before runn…](#chapter-04-sqldatareader-q3)
-  - [Q4. When is `SqlDataReader` the best choice for large result set…](#chapter-04-sqldatareader-q4)
-  - [Q5. How do you handle NULL database values when reading from a d…](#chapter-04-sqldatareader-q5)
-  - [Q6. What performance advantage does a reader have over filling a…](#chapter-04-sqldatareader-q6)
-  - [Q7. What happens if you do not dispose a data reader?](#chapter-04-sqldatareader-q7)
+  - [Q1. Why is `SqlDataReader` described as a forward-only, read-only cursor?](#q1-why-is-sqldatareader-described-as-a-forward-only-read-only-cursor)
+  - [Q2. What is the difference between connected streaming reads and loading everything into memory?](#q2-what-is-the-difference-between-connected-streaming-reads-and-loading-everything-into-memory)
+  - [Q3. Why must a `SqlDataReader` be closed or disposed before running another command on the same connection (without MARS)?](#q3-why-must-a-sqldatareader-be-closed-or-disposed-before-running-another-command-on-the-same-connection-without-mars)
+  - [Q4. When is `SqlDataReader` the best choice for large result sets?](#q4-when-is-sqldatareader-the-best-choice-for-large-result-sets)
+  - [Q5. How do you handle NULL database values when reading from a data reader?](#q5-how-do-you-handle-null-database-values-when-reading-from-a-data-reader)
+  - [Q6. What performance advantage does a reader have over filling a `DataTable`?](#q6-what-performance-advantage-does-a-reader-have-over-filling-a-datatable)
+  - [Q7. What happens if you do not dispose a data reader?](#q7-what-happens-if-you-do-not-dispose-a-data-reader)
 
 - [Chapter 05. DataSet, DataTable & SqlDataAdapter](#chapter-05-dataset-datatable-sqldataadapter)
-  - [Q1. What is the disconnected model that `DataSet`/`DataTable` su…](#chapter-05-dataset-datatable-sqldataadapter-q1)
-  - [Q2. What is the difference between `DataReader` streaming and `D…](#chapter-05-dataset-datatable-sqldataadapter-q2)
-  - [Q3. When would you still use `DataSet`/`DataTable` in modern .NE…](#chapter-05-dataset-datatable-sqldataadapter-q3)
-  - [Q4. What are the memory implications of filling a large table in…](#chapter-05-dataset-datatable-sqldataadapter-q4)
-  - [Q5. Why are `DataSet`/`DataTable` less common in ASP.NET Core AP…](#chapter-05-dataset-datatable-sqldataadapter-q5)
+  - [Q1. What is the disconnected model that `DataSet`/`DataTable` support?](#q1-what-is-the-disconnected-model-that-datasetdatatable-support)
+  - [Q2. What is the difference between `DataReader` streaming and `DataAdapter.Fill`?](#q2-what-is-the-difference-between-datareader-streaming-and-dataadapterfill)
+  - [Q3. When would you still use `DataSet`/`DataTable` in modern .NET applications?](#q3-when-would-you-still-use-datasetdatatable-in-modern-net-applications)
+  - [Q4. What are the memory implications of filling a large table into a `DataSet`?](#q4-what-are-the-memory-implications-of-filling-a-large-table-into-a-dataset)
+  - [Q5. Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older WinForms apps?](#q5-why-are-datasetdatatable-less-common-in-aspnet-core-apis-than-in-older-winforms-apps)
 
 - [Chapter 06. Transactions & Connection Pooling](#chapter-06-transactions-connection-pooling)
-  - [Q1. What are the ACID properties of a transaction?](#chapter-06-transactions-connection-pooling-q1)
-  - [Q2. How do you begin, commit, and rollback a transaction in ADO.…](#chapter-06-transactions-connection-pooling-q2)
-  - [Q3. Why must all commands in a transaction share the same connec…](#chapter-06-transactions-connection-pooling-q3)
-  - [Q4. What is `TransactionScope`, and how does it differ from `Sql…](#chapter-06-transactions-connection-pooling-q4)
-  - [Q5. What is a pool exhaustion error, and what typically causes i…](#chapter-06-transactions-connection-pooling-q5)
-  - [Q6. What isolation levels exist, and why do they matter?](#chapter-06-transactions-connection-pooling-q6)
-  - [Q7. What is the correct pattern for rollback in a `try/catch` ar…](#chapter-06-transactions-connection-pooling-q7)
+  - [Q1. What are the ACID properties of a transaction?](#q1-what-are-the-acid-properties-of-a-transaction)
+  - [Q2. How do you begin, commit, and rollback a transaction in ADO.NET?](#q2-how-do-you-begin-commit-and-rollback-a-transaction-in-adonet)
+  - [Q3. Why must all commands in a transaction share the same connection?](#q3-why-must-all-commands-in-a-transaction-share-the-same-connection)
+  - [Q4. What is `TransactionScope`, and how does it differ from `SqlTransaction`?](#q4-what-is-transactionscope-and-how-does-it-differ-from-sqltransaction)
+  - [Q5. What is a pool exhaustion error, and what typically causes it?](#q5-what-is-a-pool-exhaustion-error-and-what-typically-causes-it)
+  - [Q6. What isolation levels exist, and why do they matter?](#q6-what-isolation-levels-exist-and-why-do-they-matter)
+  - [Q7. What is the correct pattern for rollback in a `try/catch` around ADO.NET transactions?](#q7-what-is-the-correct-pattern-for-rollback-in-a-trycatch-around-adonet-transactions)
 
 - [Chapter 07. Stored Procedures & Output Parameters](#chapter-07-stored-procedures-output-parameters)
-  - [Q1. What is a stored procedure, and why use one from ADO.NET?](#chapter-07-stored-procedures-output-parameters-q1)
-  - [Q2. How do you execute a stored procedure with `SqlCommand`?](#chapter-07-stored-procedures-output-parameters-q2)
-  - [Q3. What is the difference between output parameters and return …](#chapter-07-stored-procedures-output-parameters-q3)
-  - [Q4. When are stored procedures preferred over inline SQL in ADO.…](#chapter-07-stored-procedures-output-parameters-q4)
-  - [Q5. What are the trade-offs of putting business logic in stored …](#chapter-07-stored-procedures-output-parameters-q5)
+  - [Q1. What is a stored procedure, and why use one from ADO.NET?](#q1-what-is-a-stored-procedure-and-why-use-one-from-adonet)
+  - [Q2. How do you execute a stored procedure with `SqlCommand`?](#q2-how-do-you-execute-a-stored-procedure-with-sqlcommand)
+  - [Q3. What is the difference between output parameters and return values (`ReturnValue`)?](#q3-what-is-the-difference-between-output-parameters-and-return-values-returnvalue)
+  - [Q4. When are stored procedures preferred over inline SQL in ADO.NET?](#q4-when-are-stored-procedures-preferred-over-inline-sql-in-adonet)
+  - [Q5. What are the trade-offs of putting business logic in stored procedures versus C#?](#q5-what-are-the-trade-offs-of-putting-business-logic-in-stored-procedures-versus-c)
 
 - [Chapter 08. Async ADO.NET](#chapter-08-async-adonet)
-  - [Q1. Why should database I/O be async in ASP.NET Core request han…](#chapter-08-async-adonet-q1)
-  - [Q2. What does `await using` provide when working with connection…](#chapter-08-async-adonet-q2)
-  - [Q3. What problems arise from calling `.Result` or `.Wait()` on a…](#chapter-08-async-adonet-q3)
-  - [Q4. What is `CancellationToken` support in async ADO.NET methods…](#chapter-08-async-adonet-q4)
-  - [Q5. What is the recommended async pattern for opening a connecti…](#chapter-08-async-adonet-q5)
-  - [Q6. When is synchronous ADO.NET still acceptable?](#chapter-08-async-adonet-q6)
+  - [Q1. Why should database I/O be async in ASP.NET Core request handlers?](#q1-why-should-database-io-be-async-in-aspnet-core-request-handlers)
+  - [Q2. What does `await using` provide when working with connections and readers?](#q2-what-does-await-using-provide-when-working-with-connections-and-readers)
+  - [Q3. What problems arise from calling `.Result` or `.Wait()` on async ADO.NET operations?](#q3-what-problems-arise-from-calling-result-or-wait-on-async-adonet-operations)
+  - [Q4. What is `CancellationToken` support in async ADO.NET methods?](#q4-what-is-cancellationtoken-support-in-async-adonet-methods)
+  - [Q5. What is the recommended async pattern for opening a connection, executing a command, and reading results?](#q5-what-is-the-recommended-async-pattern-for-opening-a-connection-executing-a-command-and-reading-results)
+  - [Q6. When is synchronous ADO.NET still acceptable?](#q6-when-is-synchronous-adonet-still-acceptable)
+- [Gotchas](#gotchas)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ## Chapter 01. Introduction to ADO.NET
 
-### Q1. What is ADO.NET? {#chapter-01-introduction-to-adonet-q1}
+### Q1. What is ADO.NET?
 
 What is ADO.NET?
 
@@ -89,7 +90,7 @@ What is ADO.NET?
 
 ---
 
-### Q2. What is the difference between connected and disconnected data access in ADO.NET? {#chapter-01-introduction-to-adonet-q2}
+### Q2. What is the difference between connected and disconnected data access in ADO.NET?
 
 What is the difference between connected and disconnected data access in ADO.NET?
 
@@ -102,7 +103,7 @@ What is the difference between connected and disconnected data access in ADO.NET
 
 ---
 
-### Q3. What are the core building blocks of ADO.NET (connection, command, reader, adapter)? {#chapter-01-introduction-to-adonet-q3}
+### Q3. What are the core building blocks of ADO.NET (connection, command, reader, adapter)?
 
 What are the core building blocks of ADO.NET (connection, command, reader, adapter)?
 
@@ -115,7 +116,7 @@ What are the core building blocks of ADO.NET (connection, command, reader, adapt
 
 ---
 
-### Q4. What is the difference between ADO.NET and an ORM like Entity Framework Core? {#chapter-01-introduction-to-adonet-q4}
+### Q4. What is the difference between ADO.NET and an ORM like Entity Framework Core?
 
 What is the difference between ADO.NET and an ORM like Entity Framework Core?
 
@@ -128,7 +129,7 @@ What is the difference between ADO.NET and an ORM like Entity Framework Core?
 
 ---
 
-### Q5. When would you choose ADO.NET over Dapper or EF Core? {#chapter-01-introduction-to-adonet-q5}
+### Q5. When would you choose ADO.NET over Dapper or EF Core?
 
 When would you choose ADO.NET over Dapper or EF Core?
 
@@ -141,7 +142,7 @@ When would you choose ADO.NET over Dapper or EF Core?
 
 ---
 
-### Q6. What is the connected model, and which ADO.NET types does it primarily use? {#chapter-01-introduction-to-adonet-q6}
+### Q6. What is the connected model, and which ADO.NET types does it primarily use?
 
 What is the connected model, and which ADO.NET types does it primarily use?
 
@@ -154,7 +155,7 @@ What is the connected model, and which ADO.NET types does it primarily use?
 
 ---
 
-### Q7. What is the disconnected model, and which ADO.NET types does it primarily use? {#chapter-01-introduction-to-adonet-q7}
+### Q7. What is the disconnected model, and which ADO.NET types does it primarily use?
 
 What is the disconnected model, and which ADO.NET types does it primarily use?
 
@@ -167,7 +168,7 @@ What is the disconnected model, and which ADO.NET types does it primarily use?
 
 ---
 
-### Q8. What are the trade-offs of hand-written SQL versus a higher-level ORM? {#chapter-01-introduction-to-adonet-q8}
+### Q8. What are the trade-offs of hand-written SQL versus a higher-level ORM?
 
 What are the trade-offs of hand-written SQL versus a higher-level ORM?
 
@@ -182,7 +183,7 @@ What are the trade-offs of hand-written SQL versus a higher-level ORM?
 
 ## Chapter 02. SqlConnection & Connection Strings
 
-### Q1. What is connection pooling in ADO.NET? {#chapter-02-sqlconnection-connection-strings-q1}
+### Q1. What is connection pooling in ADO.NET?
 
 What is connection pooling in ADO.NET?
 
@@ -195,7 +196,7 @@ What is connection pooling in ADO.NET?
 
 ---
 
-### Q2. Does creating `new SqlConnection()` every time open a new physical database connection? {#chapter-02-sqlconnection-connection-strings-q2}
+### Q2. Does creating `new SqlConnection()` every time open a new physical database connection?
 
 Does creating `new SqlConnection()` every time open a new physical database connection?
 
@@ -208,7 +209,7 @@ Does creating `new SqlConnection()` every time open a new physical database conn
 
 ---
 
-### Q3. Why should you use `using` or `await using` with connections? {#chapter-02-sqlconnection-connection-strings-q3}
+### Q3. Why should you use `using` or `await using` with connections?
 
 Why should you use `using` or `await using` with connections?
 
@@ -221,7 +222,7 @@ Why should you use `using` or `await using` with connections?
 
 ---
 
-### Q4. How do you store connection strings securely in ASP.NET Core? {#chapter-02-sqlconnection-connection-strings-q4}
+### Q4. How do you store connection strings securely in ASP.NET Core?
 
 How do you store connection strings securely in ASP.NET Core?
 
@@ -234,7 +235,7 @@ How do you store connection strings securely in ASP.NET Core?
 
 ---
 
-### Q5. What is the difference between `Microsoft.Data.SqlClient` and `System.Data.SqlClient`? {#chapter-02-sqlconnection-connection-strings-q5}
+### Q5. What is the difference between `Microsoft.Data.SqlClient` and `System.Data.SqlClient`?
 
 What is the difference between `Microsoft.Data.SqlClient` and `System.Data.SqlClient`?
 
@@ -247,7 +248,7 @@ What is the difference between `Microsoft.Data.SqlClient` and `System.Data.SqlCl
 
 ---
 
-### Q6. What is a pool exhaustion error, and what typically causes it? {#chapter-02-sqlconnection-connection-strings-q6}
+### Q6. What is a pool exhaustion error, and what typically causes it?
 
 What is a pool exhaustion error, and what typically causes it?
 
@@ -260,7 +261,7 @@ What is a pool exhaustion error, and what typically causes it?
 
 ---
 
-### Q7. What symptoms indicate a misconfigured or exhausted connection pool? {#chapter-02-sqlconnection-connection-strings-q7}
+### Q7. What symptoms indicate a misconfigured or exhausted connection pool?
 
 What symptoms indicate a misconfigured or exhausted connection pool?
 
@@ -273,7 +274,7 @@ What symptoms indicate a misconfigured or exhausted connection pool?
 
 ---
 
-### Q8. How do unclosed connections affect pool availability? {#chapter-02-sqlconnection-connection-strings-q8}
+### Q8. How do unclosed connections affect pool availability?
 
 How do unclosed connections affect pool availability?
 
@@ -288,7 +289,7 @@ How do unclosed connections affect pool availability?
 
 ## Chapter 03. SqlCommand & Parameters
 
-### Q1. What is the difference between `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteScalar`? {#chapter-03-sqlcommand-parameters-q1}
+### Q1. What is the difference between `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteScalar`?
 
 What is the difference between `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteScalar`?
 
@@ -301,7 +302,7 @@ What is the difference between `ExecuteReader`, `ExecuteNonQuery`, and `ExecuteS
 
 ---
 
-### Q2. What is a parameterized query, and why is it preferred over string concatenation? {#chapter-03-sqlcommand-parameters-q2}
+### Q2. What is a parameterized query, and why is it preferred over string concatenation?
 
 What is a parameterized query, and why is it preferred over string concatenation?
 
@@ -314,7 +315,7 @@ What is a parameterized query, and why is it preferred over string concatenation
 
 ---
 
-### Q3. What is SQL injection, and how do parameters prevent it? {#chapter-03-sqlcommand-parameters-q3}
+### Q3. What is SQL injection, and how do parameters prevent it?
 
 What is SQL injection, and how do parameters prevent it?
 
@@ -327,7 +328,7 @@ What is SQL injection, and how do parameters prevent it?
 
 ---
 
-### Q4. What is the difference between `AddWithValue` and explicitly typed `SqlParameter`? {#chapter-03-sqlcommand-parameters-q4}
+### Q4. What is the difference between `AddWithValue` and explicitly typed `SqlParameter`?
 
 What is the difference between `AddWithValue` and explicitly typed `SqlParameter`?
 
@@ -340,7 +341,7 @@ What is the difference between `AddWithValue` and explicitly typed `SqlParameter
 
 ---
 
-### Q5. What is the difference between `Text` and `StoredProcedure` command types? {#chapter-03-sqlcommand-parameters-q5}
+### Q5. What is the difference between `Text` and `StoredProcedure` command types?
 
 What is the difference between `Text` and `StoredProcedure` command types?
 
@@ -353,7 +354,7 @@ What is the difference between `Text` and `StoredProcedure` command types?
 
 ---
 
-### Q6. When would you use `ExecuteScalar` instead of `ExecuteReader`? {#chapter-03-sqlcommand-parameters-q6}
+### Q6. When would you use `ExecuteScalar` instead of `ExecuteReader`?
 
 When would you use `ExecuteScalar` instead of `ExecuteReader`?
 
@@ -368,7 +369,7 @@ When would you use `ExecuteScalar` instead of `ExecuteReader`?
 
 ## Chapter 04. SqlDataReader
 
-### Q1. Why is `SqlDataReader` described as a forward-only, read-only cursor? {#chapter-04-sqldatareader-q1}
+### Q1. Why is `SqlDataReader` described as a forward-only, read-only cursor?
 
 Why is `SqlDataReader` described as a forward-only, read-only cursor?
 
@@ -381,7 +382,7 @@ Why is `SqlDataReader` described as a forward-only, read-only cursor?
 
 ---
 
-### Q2. What is the difference between connected streaming reads and loading everything into memory? {#chapter-04-sqldatareader-q2}
+### Q2. What is the difference between connected streaming reads and loading everything into memory?
 
 What is the difference between connected streaming reads and loading everything into memory?
 
@@ -394,7 +395,7 @@ What is the difference between connected streaming reads and loading everything 
 
 ---
 
-### Q3. Why must a `SqlDataReader` be closed or disposed before running another command on the same connection (without MARS)? {#chapter-04-sqldatareader-q3}
+### Q3. Why must a `SqlDataReader` be closed or disposed before running another command on the same connection (without MARS)?
 
 Why must a `SqlDataReader` be closed or disposed before running another command on the same connection (without MARS)?
 
@@ -407,7 +408,7 @@ Why must a `SqlDataReader` be closed or disposed before running another command 
 
 ---
 
-### Q4. When is `SqlDataReader` the best choice for large result sets? {#chapter-04-sqldatareader-q4}
+### Q4. When is `SqlDataReader` the best choice for large result sets?
 
 When is `SqlDataReader` the best choice for large result sets?
 
@@ -420,7 +421,7 @@ When is `SqlDataReader` the best choice for large result sets?
 
 ---
 
-### Q5. How do you handle NULL database values when reading from a data reader? {#chapter-04-sqldatareader-q5}
+### Q5. How do you handle NULL database values when reading from a data reader?
 
 How do you handle NULL database values when reading from a data reader?
 
@@ -433,7 +434,7 @@ How do you handle NULL database values when reading from a data reader?
 
 ---
 
-### Q6. What performance advantage does a reader have over filling a `DataTable`? {#chapter-04-sqldatareader-q6}
+### Q6. What performance advantage does a reader have over filling a `DataTable`?
 
 What performance advantage does a reader have over filling a `DataTable`?
 
@@ -446,7 +447,7 @@ What performance advantage does a reader have over filling a `DataTable`?
 
 ---
 
-### Q7. What happens if you do not dispose a data reader? {#chapter-04-sqldatareader-q7}
+### Q7. What happens if you do not dispose a data reader?
 
 What happens if you do not dispose a data reader?
 
@@ -461,7 +462,7 @@ What happens if you do not dispose a data reader?
 
 ## Chapter 05. DataSet, DataTable & SqlDataAdapter
 
-### Q1. What is the disconnected model that `DataSet`/`DataTable` support? {#chapter-05-dataset-datatable-sqldataadapter-q1}
+### Q1. What is the disconnected model that `DataSet`/`DataTable` support?
 
 What is the disconnected model that `DataSet`/`DataTable` support?
 
@@ -474,7 +475,7 @@ What is the disconnected model that `DataSet`/`DataTable` support?
 
 ---
 
-### Q2. What is the difference between `DataReader` streaming and `DataAdapter.Fill`? {#chapter-05-dataset-datatable-sqldataadapter-q2}
+### Q2. What is the difference between `DataReader` streaming and `DataAdapter.Fill`?
 
 What is the difference between `DataReader` streaming and `DataAdapter.Fill`?
 
@@ -487,7 +488,7 @@ What is the difference between `DataReader` streaming and `DataAdapter.Fill`?
 
 ---
 
-### Q3. When would you still use `DataSet`/`DataTable` in modern .NET applications? {#chapter-05-dataset-datatable-sqldataadapter-q3}
+### Q3. When would you still use `DataSet`/`DataTable` in modern .NET applications?
 
 When would you still use `DataSet`/`DataTable` in modern .NET applications?
 
@@ -500,7 +501,7 @@ When would you still use `DataSet`/`DataTable` in modern .NET applications?
 
 ---
 
-### Q4. What are the memory implications of filling a large table into a `DataSet`? {#chapter-05-dataset-datatable-sqldataadapter-q4}
+### Q4. What are the memory implications of filling a large table into a `DataSet`?
 
 What are the memory implications of filling a large table into a `DataSet`?
 
@@ -513,7 +514,7 @@ What are the memory implications of filling a large table into a `DataSet`?
 
 ---
 
-### Q5. Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older WinForms apps? {#chapter-05-dataset-datatable-sqldataadapter-q5}
+### Q5. Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older WinForms apps?
 
 Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older WinForms apps?
 
@@ -528,7 +529,7 @@ Why are `DataSet`/`DataTable` less common in ASP.NET Core APIs than in older Win
 
 ## Chapter 06. Transactions & Connection Pooling
 
-### Q1. What are the ACID properties of a transaction? {#chapter-06-transactions-connection-pooling-q1}
+### Q1. What are the ACID properties of a transaction?
 
 What are the ACID properties of a transaction?
 
@@ -541,7 +542,7 @@ What are the ACID properties of a transaction?
 
 ---
 
-### Q2. How do you begin, commit, and rollback a transaction in ADO.NET? {#chapter-06-transactions-connection-pooling-q2}
+### Q2. How do you begin, commit, and rollback a transaction in ADO.NET?
 
 How do you begin, commit, and rollback a transaction in ADO.NET?
 
@@ -565,7 +566,7 @@ catch { await tx.RollbackAsync(); throw; }
 
 ---
 
-### Q3. Why must all commands in a transaction share the same connection? {#chapter-06-transactions-connection-pooling-q3}
+### Q3. Why must all commands in a transaction share the same connection?
 
 Why must all commands in a transaction share the same connection?
 
@@ -578,7 +579,7 @@ Why must all commands in a transaction share the same connection?
 
 ---
 
-### Q4. What is `TransactionScope`, and how does it differ from `SqlTransaction`? {#chapter-06-transactions-connection-pooling-q4}
+### Q4. What is `TransactionScope`, and how does it differ from `SqlTransaction`?
 
 What is `TransactionScope`, and how does it differ from `SqlTransaction`?
 
@@ -591,7 +592,7 @@ What is `TransactionScope`, and how does it differ from `SqlTransaction`?
 
 ---
 
-### Q5. What is a pool exhaustion error, and what typically causes it? {#chapter-06-transactions-connection-pooling-q5}
+### Q5. What is a pool exhaustion error, and what typically causes it?
 
 What is a pool exhaustion error, and what typically causes it?
 
@@ -604,7 +605,7 @@ What is a pool exhaustion error, and what typically causes it?
 
 ---
 
-### Q6. What isolation levels exist, and why do they matter? {#chapter-06-transactions-connection-pooling-q6}
+### Q6. What isolation levels exist, and why do they matter?
 
 What isolation levels exist, and why do they matter?
 
@@ -617,7 +618,7 @@ What isolation levels exist, and why do they matter?
 
 ---
 
-### Q7. What is the correct pattern for rollback in a `try/catch` around ADO.NET transactions? {#chapter-06-transactions-connection-pooling-q7}
+### Q7. What is the correct pattern for rollback in a `try/catch` around ADO.NET transactions?
 
 What is the correct pattern for rollback in a `try/catch` around ADO.NET transactions?
 
@@ -632,7 +633,7 @@ What is the correct pattern for rollback in a `try/catch` around ADO.NET transac
 
 ## Chapter 07. Stored Procedures & Output Parameters
 
-### Q1. What is a stored procedure, and why use one from ADO.NET? {#chapter-07-stored-procedures-output-parameters-q1}
+### Q1. What is a stored procedure, and why use one from ADO.NET?
 
 What is a stored procedure, and why use one from ADO.NET?
 
@@ -645,7 +646,7 @@ What is a stored procedure, and why use one from ADO.NET?
 
 ---
 
-### Q2. How do you execute a stored procedure with `SqlCommand`? {#chapter-07-stored-procedures-output-parameters-q2}
+### Q2. How do you execute a stored procedure with `SqlCommand`?
 
 How do you execute a stored procedure with `SqlCommand`?
 
@@ -664,7 +665,7 @@ await using var reader = await cmd.ExecuteReaderAsync();
 
 ---
 
-### Q3. What is the difference between output parameters and return values (`ReturnValue`)? {#chapter-07-stored-procedures-output-parameters-q3}
+### Q3. What is the difference between output parameters and return values (`ReturnValue`)?
 
 What is the difference between output parameters and return values (`ReturnValue`)?
 
@@ -677,7 +678,7 @@ What is the difference between output parameters and return values (`ReturnValue
 
 ---
 
-### Q4. When are stored procedures preferred over inline SQL in ADO.NET? {#chapter-07-stored-procedures-output-parameters-q4}
+### Q4. When are stored procedures preferred over inline SQL in ADO.NET?
 
 When are stored procedures preferred over inline SQL in ADO.NET?
 
@@ -690,7 +691,7 @@ When are stored procedures preferred over inline SQL in ADO.NET?
 
 ---
 
-### Q5. What are the trade-offs of putting business logic in stored procedures versus C#? {#chapter-07-stored-procedures-output-parameters-q5}
+### Q5. What are the trade-offs of putting business logic in stored procedures versus C#?
 
 What are the trade-offs of putting business logic in stored procedures versus C#?
 
@@ -705,7 +706,7 @@ What are the trade-offs of putting business logic in stored procedures versus C#
 
 ## Chapter 08. Async ADO.NET
 
-### Q1. Why should database I/O be async in ASP.NET Core request handlers? {#chapter-08-async-adonet-q1}
+### Q1. Why should database I/O be async in ASP.NET Core request handlers?
 
 Why should database I/O be async in ASP.NET Core request handlers?
 
@@ -718,7 +719,7 @@ Why should database I/O be async in ASP.NET Core request handlers?
 
 ---
 
-### Q2. What does `await using` provide when working with connections and readers? {#chapter-08-async-adonet-q2}
+### Q2. What does `await using` provide when working with connections and readers?
 
 What does `await using` provide when working with connections and readers?
 
@@ -731,7 +732,7 @@ What does `await using` provide when working with connections and readers?
 
 ---
 
-### Q3. What problems arise from calling `.Result` or `.Wait()` on async ADO.NET operations? {#chapter-08-async-adonet-q3}
+### Q3. What problems arise from calling `.Result` or `.Wait()` on async ADO.NET operations?
 
 What problems arise from calling `.Result` or `.Wait()` on async ADO.NET operations?
 
@@ -744,7 +745,7 @@ What problems arise from calling `.Result` or `.Wait()` on async ADO.NET operati
 
 ---
 
-### Q4. What is `CancellationToken` support in async ADO.NET methods? {#chapter-08-async-adonet-q4}
+### Q4. What is `CancellationToken` support in async ADO.NET methods?
 
 What is `CancellationToken` support in async ADO.NET methods?
 
@@ -757,7 +758,7 @@ What is `CancellationToken` support in async ADO.NET methods?
 
 ---
 
-### Q5. What is the recommended async pattern for opening a connection, executing a command, and reading results? {#chapter-08-async-adonet-q5}
+### Q5. What is the recommended async pattern for opening a connection, executing a command, and reading results?
 
 What is the recommended async pattern for opening a connection, executing a command, and reading results?
 
@@ -778,7 +779,7 @@ while (await reader.ReadAsync(ct)) { /* map row */ }
 
 ---
 
-### Q6. When is synchronous ADO.NET still acceptable? {#chapter-08-async-adonet-q6}
+### Q6. When is synchronous ADO.NET still acceptable?
 
 When is synchronous ADO.NET still acceptable?
 

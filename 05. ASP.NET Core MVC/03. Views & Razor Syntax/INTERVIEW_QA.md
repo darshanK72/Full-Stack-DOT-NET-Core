@@ -1,35 +1,30 @@
 # Views & Razor Syntax — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 03. Views & Razor Syntax](#chapter-03-views-razor-syntax)
-  - [Q1. What is a Razor view?](#chapter-03-views-razor-syntax-q1)
-  - [Q2. What is the `@model` directive?](#chapter-03-views-razor-syntax-q2)
-  - [Q3. What is the difference between `@` and `@@` in Razor?](#chapter-03-views-razor-syntax-q3)
-  - [Q4. How does Razor automatically encode output and why does it m…](#chapter-03-views-razor-syntax-q4)
-  - [Q5. What is the difference between `@Html.Raw` and default Razor…](#chapter-03-views-razor-syntax-q5)
-  - [Q6. What is a code block (`@{ }`) in Razor?](#chapter-03-views-razor-syntax-q6)
-  - [Q7. What is the difference between a strongly typed view and a d…](#chapter-03-views-razor-syntax-q7)
-  - [Q8. What logic should not belong in a Razor view?](#chapter-03-views-razor-syntax-q8)
-  - [Q9. What is `@inject` used for in Razor views?](#chapter-03-views-razor-syntax-q9)
-  - [Q10. What is the `@functions` block in Razor?](#chapter-03-views-razor-syntax-q10)
-  - [Q11. What is the difference between Razor runtime compilation and…](#chapter-03-views-razor-syntax-q11)
-  - [Q12. When would you enable `AddRazorRuntimeCompilation`?](#chapter-03-views-razor-syntax-q12)
-  - [Q13. What is a partial view and when do you use one?](#chapter-03-views-razor-syntax-q13)
-  - [Q14. What is the difference between `Html.PartialAsync` and the `…](#chapter-03-views-razor-syntax-q14)
-  - [Q15. What is `ViewData` and how is it accessed in Razor?](#chapter-03-views-razor-syntax-q15)
-  - [Q16. What causes "The view 'X' was not found" errors?](#chapter-03-views-razor-syntax-q16)
-  - [Q17. What is `_ViewImports.cshtml` used for?](#chapter-03-views-razor-syntax-q17)
-  - [Q18. What is `_ViewStart.cshtml` used for?](#chapter-03-views-razor-syntax-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is a Razor view?](#q1-what-is-a-razor-view)
+2. [Q2. What is the `@model` directive?](#q2-what-is-the-model-directive)
+3. [Q3. What is the difference between `@` and `@@` in Razor?](#q3-what-is-the-difference-between-and-in-razor)
+4. [Q4. How does Razor automatically encode output and why does it matter?](#q4-how-does-razor-automatically-encode-output-and-why-does-it-matter)
+5. [Q5. What is the difference between `@Html.Raw` and default Razor output?](#q5-what-is-the-difference-between-htmlraw-and-default-razor-output)
+6. [Q6. What is a code block (`@{ }`) in Razor?](#q6-what-is-a-code-block-in-razor)
+7. [Q7. What is the difference between a strongly typed view and a dynamic view?](#q7-what-is-the-difference-between-a-strongly-typed-view-and-a-dynamic-view)
+8. [Q8. What logic should not belong in a Razor view?](#q8-what-logic-should-not-belong-in-a-razor-view)
+9. [Q9. What is `@inject` used for in Razor views?](#q9-what-is-inject-used-for-in-razor-views)
+10. [Q10. What is the `@functions` block in Razor?](#q10-what-is-the-functions-block-in-razor)
+11. [Q11. What is the difference between Razor runtime compilation and precompilation?](#q11-what-is-the-difference-between-razor-runtime-compilation-and-precompilation)
+12. [Q12. When would you enable `AddRazorRuntimeCompilation`?](#q12-when-would-you-enable-addrazorruntimecompilation)
+13. [Q13. What is a partial view and when do you use one?](#q13-what-is-a-partial-view-and-when-do-you-use-one)
+14. [Q14. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?](#q14-what-is-the-difference-between-htmlpartialasync-and-the-partial-tag-helper)
+15. [Q15. What is `ViewData` and how is it accessed in Razor?](#q15-what-is-viewdata-and-how-is-it-accessed-in-razor)
+16. [Q16. What causes "The view 'X' was not found" errors?](#q16-what-causes-the-view-x-was-not-found-errors)
+17. [Q17. What is `_ViewImports.cshtml` used for?](#q17-what-is-_viewimportscshtml-used-for)
+18. [Q18. What is `_ViewStart.cshtml` used for?](#q18-what-is-_viewstartcshtml-used-for)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 03. Views & Razor Syntax
-
-### Q1. What is a Razor view? {#chapter-03-views-razor-syntax-q1}
+## Q1. What is a Razor view?
 
 What is a Razor view?
 
@@ -43,7 +38,7 @@ What is a Razor view?
 
 ---
 
-### Q2. What is the `@model` directive? {#chapter-03-views-razor-syntax-q2}
+## Q2. What is the `@model` directive?
 
 What is the `@model` directive?
 
@@ -57,7 +52,7 @@ What is the `@model` directive?
 
 ---
 
-### Q3. What is the difference between `@` and `@@` in Razor? {#chapter-03-views-razor-syntax-q3}
+## Q3. What is the difference between `@` and `@@` in Razor?
 
 What is the difference between `@` and `@@` in Razor?
 
@@ -71,7 +66,7 @@ What is the difference between `@` and `@@` in Razor?
 
 ---
 
-### Q4. How does Razor automatically encode output and why does it matter? {#chapter-03-views-razor-syntax-q4}
+## Q4. How does Razor automatically encode output and why does it matter?
 
 How does Razor automatically encode output and why does it matter?
 
@@ -85,7 +80,7 @@ How does Razor automatically encode output and why does it matter?
 
 ---
 
-### Q5. What is the difference between `@Html.Raw` and default Razor output? {#chapter-03-views-razor-syntax-q5}
+## Q5. What is the difference between `@Html.Raw` and default Razor output?
 
 What is the difference between `@Html.Raw` and default Razor output?
 
@@ -99,7 +94,7 @@ What is the difference between `@Html.Raw` and default Razor output?
 
 ---
 
-### Q6. What is a code block (`@{ }`) in Razor? {#chapter-03-views-razor-syntax-q6}
+## Q6. What is a code block (`@{ }`) in Razor?
 
 What is a code block (`@{ }`) in Razor?
 
@@ -113,7 +108,7 @@ What is a code block (`@{ }`) in Razor?
 
 ---
 
-### Q7. What is the difference between a strongly typed view and a dynamic view? {#chapter-03-views-razor-syntax-q7}
+## Q7. What is the difference between a strongly typed view and a dynamic view?
 
 What is the difference between a strongly typed view and a dynamic view?
 
@@ -127,7 +122,7 @@ What is the difference between a strongly typed view and a dynamic view?
 
 ---
 
-### Q8. What logic should not belong in a Razor view? {#chapter-03-views-razor-syntax-q8}
+## Q8. What logic should not belong in a Razor view?
 
 What logic should not belong in a Razor view?
 
@@ -141,7 +136,7 @@ What logic should not belong in a Razor view?
 
 ---
 
-### Q9. What is `@inject` used for in Razor views? {#chapter-03-views-razor-syntax-q9}
+## Q9. What is `@inject` used for in Razor views?
 
 What is `@inject` used for in Razor views?
 
@@ -155,7 +150,7 @@ What is `@inject` used for in Razor views?
 
 ---
 
-### Q10. What is the `@functions` block in Razor? {#chapter-03-views-razor-syntax-q10}
+## Q10. What is the `@functions` block in Razor?
 
 What is the `@functions` block in Razor?
 
@@ -169,7 +164,7 @@ What is the `@functions` block in Razor?
 
 ---
 
-### Q11. What is the difference between Razor runtime compilation and precompilation? {#chapter-03-views-razor-syntax-q11}
+## Q11. What is the difference between Razor runtime compilation and precompilation?
 
 What is the difference between Razor runtime compilation and precompilation?
 
@@ -183,7 +178,7 @@ What is the difference between Razor runtime compilation and precompilation?
 
 ---
 
-### Q12. When would you enable `AddRazorRuntimeCompilation`? {#chapter-03-views-razor-syntax-q12}
+## Q12. When would you enable `AddRazorRuntimeCompilation`?
 
 When would you enable `AddRazorRuntimeCompilation`?
 
@@ -197,7 +192,7 @@ When would you enable `AddRazorRuntimeCompilation`?
 
 ---
 
-### Q13. What is a partial view and when do you use one? {#chapter-03-views-razor-syntax-q13}
+## Q13. What is a partial view and when do you use one?
 
 What is a partial view and when do you use one?
 
@@ -211,7 +206,7 @@ What is a partial view and when do you use one?
 
 ---
 
-### Q14. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper? {#chapter-03-views-razor-syntax-q14}
+## Q14. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
 
 What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
 
@@ -225,7 +220,7 @@ What is the difference between `Html.PartialAsync` and the `<partial>` tag helpe
 
 ---
 
-### Q15. What is `ViewData` and how is it accessed in Razor? {#chapter-03-views-razor-syntax-q15}
+## Q15. What is `ViewData` and how is it accessed in Razor?
 
 What is `ViewData` and how is it accessed in Razor?
 
@@ -239,7 +234,7 @@ What is `ViewData` and how is it accessed in Razor?
 
 ---
 
-### Q16. What causes "The view 'X' was not found" errors? {#chapter-03-views-razor-syntax-q16}
+## Q16. What causes "The view 'X' was not found" errors?
 
 What causes "The view 'X' was not found" errors?
 
@@ -253,7 +248,7 @@ What causes "The view 'X' was not found" errors?
 
 ---
 
-### Q17. What is `_ViewImports.cshtml` used for? {#chapter-03-views-razor-syntax-q17}
+## Q17. What is `_ViewImports.cshtml` used for?
 
 What is `_ViewImports.cshtml` used for?
 
@@ -267,7 +262,7 @@ What is `_ViewImports.cshtml` used for?
 
 ---
 
-### Q18. What is `_ViewStart.cshtml` used for? {#chapter-03-views-razor-syntax-q18}
+## Q18. What is `_ViewStart.cshtml` used for?
 
 What is `_ViewStart.cshtml` used for?
 

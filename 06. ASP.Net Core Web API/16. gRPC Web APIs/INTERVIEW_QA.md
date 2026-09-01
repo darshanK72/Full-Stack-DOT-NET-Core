@@ -1,35 +1,30 @@
 # gRPC Web APIs — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 16. gRPC Web APIs](#chapter-16-grpc-web-apis)
-  - [Q1. What is gRPC?](#chapter-16-grpc-web-apis-q1)
-  - [Q2. What is the difference between gRPC and REST?](#chapter-16-grpc-web-apis-q2)
-  - [Q3. What are Protocol Buffers?](#chapter-16-grpc-web-apis-q3)
-  - [Q4. What is a `.proto` file?](#chapter-16-grpc-web-apis-q4)
-  - [Q5. What is gRPC-Web?](#chapter-16-grpc-web-apis-q5)
-  - [Q6. Why can't browsers use native gRPC directly?](#chapter-16-grpc-web-apis-q6)
-  - [Q7. What is a unary gRPC call?](#chapter-16-grpc-web-apis-q7)
-  - [Q8. What is server streaming in gRPC?](#chapter-16-grpc-web-apis-q8)
-  - [Q9. What is `RpcException`?](#chapter-16-grpc-web-apis-q9)
-  - [Q10. What are gRPC status codes?](#chapter-16-grpc-web-apis-q10)
-  - [Q11. What is a deadline in gRPC?](#chapter-16-grpc-web-apis-q11)
-  - [Q12. How does cancellation work in gRPC?](#chapter-16-grpc-web-apis-q12)
-  - [Q13. What is backward compatibility in Protocol Buffers?](#chapter-16-grpc-web-apis-q13)
-  - [Q14. What is `ServerCallContext`?](#chapter-16-grpc-web-apis-q14)
-  - [Q15. What is the difference between gRPC and JSON HTTP APIs?](#chapter-16-grpc-web-apis-q15)
-  - [Q16. What is `AddGrpc` used for?](#chapter-16-grpc-web-apis-q16)
-  - [Q17. What is `MapGrpcService`?](#chapter-16-grpc-web-apis-q17)
-  - [Q18. When should you choose gRPC over REST?](#chapter-16-grpc-web-apis-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is gRPC?](#q1-what-is-grpc)
+2. [Q2. What is the difference between gRPC and REST?](#q2-what-is-the-difference-between-grpc-and-rest)
+3. [Q3. What are Protocol Buffers?](#q3-what-are-protocol-buffers)
+4. [Q4. What is a `.proto` file?](#q4-what-is-a-proto-file)
+5. [Q5. What is gRPC-Web?](#q5-what-is-grpc-web)
+6. [Q6. Why can't browsers use native gRPC directly?](#q6-why-cant-browsers-use-native-grpc-directly)
+7. [Q7. What is a unary gRPC call?](#q7-what-is-a-unary-grpc-call)
+8. [Q8. What is server streaming in gRPC?](#q8-what-is-server-streaming-in-grpc)
+9. [Q9. What is `RpcException`?](#q9-what-is-rpcexception)
+10. [Q10. What are gRPC status codes?](#q10-what-are-grpc-status-codes)
+11. [Q11. What is a deadline in gRPC?](#q11-what-is-a-deadline-in-grpc)
+12. [Q12. How does cancellation work in gRPC?](#q12-how-does-cancellation-work-in-grpc)
+13. [Q13. What is backward compatibility in Protocol Buffers?](#q13-what-is-backward-compatibility-in-protocol-buffers)
+14. [Q14. What is `ServerCallContext`?](#q14-what-is-servercallcontext)
+15. [Q15. What is the difference between gRPC and JSON HTTP APIs?](#q15-what-is-the-difference-between-grpc-and-json-http-apis)
+16. [Q16. What is `AddGrpc` used for?](#q16-what-is-addgrpc-used-for)
+17. [Q17. What is `MapGrpcService`?](#q17-what-is-mapgrpcservice)
+18. [Q18. When should you choose gRPC over REST?](#q18-when-should-you-choose-grpc-over-rest)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 16. gRPC Web APIs
-
-### Q1. What is gRPC? {#chapter-16-grpc-web-apis-q1}
+## Q1. What is gRPC?
 
 What is gRPC?
 
@@ -42,7 +37,7 @@ What is gRPC?
 
 ---
 
-### Q2. What is the difference between gRPC and REST? {#chapter-16-grpc-web-apis-q2}
+## Q2. What is the difference between gRPC and REST?
 
 What is the difference between gRPC and REST?
 
@@ -55,7 +50,7 @@ What is the difference between gRPC and REST?
 
 ---
 
-### Q3. What are Protocol Buffers? {#chapter-16-grpc-web-apis-q3}
+## Q3. What are Protocol Buffers?
 
 What are Protocol Buffers?
 
@@ -68,7 +63,7 @@ What are Protocol Buffers?
 
 ---
 
-### Q4. What is a `.proto` file? {#chapter-16-grpc-web-apis-q4}
+## Q4. What is a `.proto` file?
 
 What is a `.proto` file?
 
@@ -81,7 +76,7 @@ What is a `.proto` file?
 
 ---
 
-### Q5. What is gRPC-Web? {#chapter-16-grpc-web-apis-q5}
+## Q5. What is gRPC-Web?
 
 What is gRPC-Web?
 
@@ -94,7 +89,7 @@ What is gRPC-Web?
 
 ---
 
-### Q6. Why can't browsers use native gRPC directly? {#chapter-16-grpc-web-apis-q6}
+## Q6. Why can't browsers use native gRPC directly?
 
 Why can't browsers use native gRPC directly?
 
@@ -107,7 +102,7 @@ Why can't browsers use native gRPC directly?
 
 ---
 
-### Q7. What is a unary gRPC call? {#chapter-16-grpc-web-apis-q7}
+## Q7. What is a unary gRPC call?
 
 What is a unary gRPC call?
 
@@ -120,7 +115,7 @@ What is a unary gRPC call?
 
 ---
 
-### Q8. What is server streaming in gRPC? {#chapter-16-grpc-web-apis-q8}
+## Q8. What is server streaming in gRPC?
 
 What is server streaming in gRPC?
 
@@ -133,7 +128,7 @@ What is server streaming in gRPC?
 
 ---
 
-### Q9. What is `RpcException`? {#chapter-16-grpc-web-apis-q9}
+## Q9. What is `RpcException`?
 
 What is `RpcException`?
 
@@ -146,7 +141,7 @@ What is `RpcException`?
 
 ---
 
-### Q10. What are gRPC status codes? {#chapter-16-grpc-web-apis-q10}
+## Q10. What are gRPC status codes?
 
 What are gRPC status codes?
 
@@ -159,7 +154,7 @@ What are gRPC status codes?
 
 ---
 
-### Q11. What is a deadline in gRPC? {#chapter-16-grpc-web-apis-q11}
+## Q11. What is a deadline in gRPC?
 
 What is a deadline in gRPC?
 
@@ -172,7 +167,7 @@ What is a deadline in gRPC?
 
 ---
 
-### Q12. How does cancellation work in gRPC? {#chapter-16-grpc-web-apis-q12}
+## Q12. How does cancellation work in gRPC?
 
 How does cancellation work in gRPC?
 
@@ -185,7 +180,7 @@ How does cancellation work in gRPC?
 
 ---
 
-### Q13. What is backward compatibility in Protocol Buffers? {#chapter-16-grpc-web-apis-q13}
+## Q13. What is backward compatibility in Protocol Buffers?
 
 What is backward compatibility in Protocol Buffers?
 
@@ -198,7 +193,7 @@ What is backward compatibility in Protocol Buffers?
 
 ---
 
-### Q14. What is `ServerCallContext`? {#chapter-16-grpc-web-apis-q14}
+## Q14. What is `ServerCallContext`?
 
 What is `ServerCallContext`?
 
@@ -211,7 +206,7 @@ What is `ServerCallContext`?
 
 ---
 
-### Q15. What is the difference between gRPC and JSON HTTP APIs? {#chapter-16-grpc-web-apis-q15}
+## Q15. What is the difference between gRPC and JSON HTTP APIs?
 
 What is the difference between gRPC and JSON HTTP APIs?
 
@@ -224,7 +219,7 @@ What is the difference between gRPC and JSON HTTP APIs?
 
 ---
 
-### Q16. What is `AddGrpc` used for? {#chapter-16-grpc-web-apis-q16}
+## Q16. What is `AddGrpc` used for?
 
 What is `AddGrpc` used for?
 
@@ -237,7 +232,7 @@ What is `AddGrpc` used for?
 
 ---
 
-### Q17. What is `MapGrpcService`? {#chapter-16-grpc-web-apis-q17}
+## Q17. What is `MapGrpcService`?
 
 What is `MapGrpcService`?
 
@@ -250,7 +245,7 @@ What is `MapGrpcService`?
 
 ---
 
-### Q18. When should you choose gRPC over REST? {#chapter-16-grpc-web-apis-q18}
+## Q18. When should you choose gRPC over REST?
 
 When should you choose gRPC over REST?
 

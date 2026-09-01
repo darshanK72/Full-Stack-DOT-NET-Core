@@ -4,113 +4,114 @@
 ## Table of Contents
 
 - [Chapter 01. Introduction to Entity Framework Core](#chapter-01-introduction-to-entity-framework-core)
-  - [Q1. What is Entity Framework Core?](#chapter-01-introduction-to-entity-framework-core-q1)
-  - [Q2. What is an ORM, and how does EF Core fit that definition?](#chapter-01-introduction-to-entity-framework-core-q2)
-  - [Q3. What is the difference between EF Core and EF6 (Entity Frame…](#chapter-01-introduction-to-entity-framework-core-q3)
-  - [Q4. What is code-first versus database-first in EF Core?](#chapter-01-introduction-to-entity-framework-core-q4)
-  - [Q5. When would you choose EF Core over ADO.NET or Dapper?](#chapter-01-introduction-to-entity-framework-core-q5)
-  - [Q6. What are the trade-offs of using EF Core?](#chapter-01-introduction-to-entity-framework-core-q6)
-  - [Q7. How does EF Core translate C# queries into SQL?](#chapter-01-introduction-to-entity-framework-core-q7)
-  - [Q8. How does EF Core handle schema evolution?](#chapter-01-introduction-to-entity-framework-core-q8)
+  - [Q1. What is Entity Framework Core?](#q1-what-is-entity-framework-core)
+  - [Q2. What is an ORM, and how does EF Core fit that definition?](#q2-what-is-an-orm-and-how-does-ef-core-fit-that-definition)
+  - [Q3. What is the difference between EF Core and EF6 (Entity Framework Classic)?](#q3-what-is-the-difference-between-ef-core-and-ef6-entity-framework-classic)
+  - [Q4. What is code-first versus database-first in EF Core?](#q4-what-is-code-first-versus-database-first-in-ef-core)
+  - [Q5. When would you choose EF Core over ADO.NET or Dapper?](#q5-when-would-you-choose-ef-core-over-adonet-or-dapper)
+  - [Q6. What are the trade-offs of using EF Core?](#q6-what-are-the-trade-offs-of-using-ef-core)
+  - [Q7. How does EF Core translate C# queries into SQL?](#q7-how-does-ef-core-translate-c-queries-into-sql)
+  - [Q8. How does EF Core handle schema evolution?](#q8-how-does-ef-core-handle-schema-evolution)
 
 - [Chapter 02. DbContext & DbSet](#chapter-02-dbcontext-dbset)
-  - [Q1. What is a `DbContext` in EF Core?](#chapter-02-dbcontext-dbset-q1)
-  - [Q2. What is a `DbSet<T>`?](#chapter-02-dbcontext-dbset-q2)
-  - [Q3. How do you register `DbContext` in ASP.NET Core dependency i…](#chapter-02-dbcontext-dbset-q3)
-  - [Q4. Why is `DbContext` typically registered as scoped?](#chapter-02-dbcontext-dbset-q4)
-  - [Q5. What is the difference between injecting `DbContext` and usi…](#chapter-02-dbcontext-dbset-q5)
-  - [Q6. What does `OnModelCreating` do in a `DbContext`?](#chapter-02-dbcontext-dbset-q6)
-  - [Q7. What is `EnsureCreated`, and how does it differ from migrati…](#chapter-02-dbcontext-dbset-q7)
-  - [Q8. Can you reuse one `DbContext` across multiple threads?](#chapter-02-dbcontext-dbset-q8)
+  - [Q1. What is a `DbContext` in EF Core?](#q1-what-is-a-dbcontext-in-ef-core)
+  - [Q2. What is a `DbSet<T>`?](#q2-what-is-a-dbsett)
+  - [Q3. How do you register `DbContext` in ASP.NET Core dependency injection?](#q3-how-do-you-register-dbcontext-in-aspnet-core-dependency-injection)
+  - [Q4. Why is `DbContext` typically registered as scoped?](#q4-why-is-dbcontext-typically-registered-as-scoped)
+  - [Q5. What is the difference between injecting `DbContext` and using `IDbContextFactory<TContext>`?](#q5-what-is-the-difference-between-injecting-dbcontext-and-using-idbcontextfactorytcontext)
+  - [Q6. What does `OnModelCreating` do in a `DbContext`?](#q6-what-does-onmodelcreating-do-in-a-dbcontext)
+  - [Q7. What is `EnsureCreated`, and how does it differ from migrations?](#q7-what-is-ensurecreated-and-how-does-it-differ-from-migrations)
+  - [Q8. Can you reuse one `DbContext` across multiple threads?](#q8-can-you-reuse-one-dbcontext-across-multiple-threads)
 
 - [Chapter 03. Code-First Models & Migrations](#chapter-03-code-first-models-migrations)
-  - [Q1. What is code-first in EF Core?](#chapter-03-code-first-models-migrations-q1)
-  - [Q2. What is a migration in EF Core?](#chapter-03-code-first-models-migrations-q2)
-  - [Q3. How do you create and apply migrations from the CLI?](#chapter-03-code-first-models-migrations-q3)
-  - [Q4. What is the difference between `Up` and `Down` in a migratio…](#chapter-03-code-first-models-migrations-q4)
-  - [Q5. What is a model snapshot in EF Core migrations?](#chapter-03-code-first-models-migrations-q5)
-  - [Q6. What happens if you change a model without creating a migrat…](#chapter-03-code-first-models-migrations-q6)
-  - [Q7. What is the difference between `EnsureCreated` and migration…](#chapter-03-code-first-models-migrations-q7)
-  - [Q8. When should migrations run automatically in production?](#chapter-03-code-first-models-migrations-q8)
+  - [Q1. What is code-first in EF Core?](#q1-what-is-code-first-in-ef-core)
+  - [Q2. What is a migration in EF Core?](#q2-what-is-a-migration-in-ef-core)
+  - [Q3. How do you create and apply migrations from the CLI?](#q3-how-do-you-create-and-apply-migrations-from-the-cli)
+  - [Q4. What is the difference between `Up` and `Down` in a migration?](#q4-what-is-the-difference-between-up-and-down-in-a-migration)
+  - [Q5. What is a model snapshot in EF Core migrations?](#q5-what-is-a-model-snapshot-in-ef-core-migrations)
+  - [Q6. What happens if you change a model without creating a migration?](#q6-what-happens-if-you-change-a-model-without-creating-a-migration)
+  - [Q7. What is the difference between `EnsureCreated` and migrations-based schema creation?](#q7-what-is-the-difference-between-ensurecreated-and-migrations-based-schema-creation)
+  - [Q8. When should migrations run automatically in production?](#q8-when-should-migrations-run-automatically-in-production)
 
 - [Chapter 04. Database-First & Reverse Engineering](#chapter-04-database-first-reverse-engineering)
-  - [Q1. What is database-first in EF Core?](#chapter-04-database-first-reverse-engineering-q1)
-  - [Q2. How do you scaffold a `DbContext` from an existing database?](#chapter-04-database-first-reverse-engineering-q2)
-  - [Q3. When is database-first preferred over code-first?](#chapter-04-database-first-reverse-engineering-q3)
-  - [Q4. What are the limitations of reverse-engineered models?](#chapter-04-database-first-reverse-engineering-q4)
-  - [Q5. How do you refresh a scaffolded model after database schema …](#chapter-04-database-first-reverse-engineering-q5)
-  - [Q6. Can you combine scaffolded models with manual partial classe…](#chapter-04-database-first-reverse-engineering-q6)
+  - [Q1. What is database-first in EF Core?](#q1-what-is-database-first-in-ef-core)
+  - [Q2. How do you scaffold a `DbContext` from an existing database?](#q2-how-do-you-scaffold-a-dbcontext-from-an-existing-database)
+  - [Q3. When is database-first preferred over code-first?](#q3-when-is-database-first-preferred-over-code-first)
+  - [Q4. What are the limitations of reverse-engineered models?](#q4-what-are-the-limitations-of-reverse-engineered-models)
+  - [Q5. How do you refresh a scaffolded model after database schema changes?](#q5-how-do-you-refresh-a-scaffolded-model-after-database-schema-changes)
+  - [Q6. Can you combine scaffolded models with manual partial classes?](#q6-can-you-combine-scaffolded-models-with-manual-partial-classes)
 
 - [Chapter 05. CRUD Operations & SaveChanges](#chapter-05-crud-operations-savechanges)
-  - [Q1. How do you insert, update, and delete entities with EF Core?](#chapter-05-crud-operations-savechanges-q1)
-  - [Q2. What does `SaveChanges()` do?](#chapter-05-crud-operations-savechanges-q2)
-  - [Q3. What is the difference between `Add`, `Update`, and `Remove`…](#chapter-05-crud-operations-savechanges-q3)
-  - [Q4. What is attach versus add when working with disconnected ent…](#chapter-05-crud-operations-savechanges-q4)
-  - [Q5. What is `ExecuteUpdate` / `ExecuteDelete` in EF Core 7+?](#chapter-05-crud-operations-savechanges-q5)
-  - [Q6. What is the unit-of-work pattern in relation to `DbContext`?](#chapter-05-crud-operations-savechanges-q6)
-  - [Q7. How do you perform a bulk update without loading entities in…](#chapter-05-crud-operations-savechanges-q7)
+  - [Q1. How do you insert, update, and delete entities with EF Core?](#q1-how-do-you-insert-update-and-delete-entities-with-ef-core)
+  - [Q2. What does `SaveChanges()` do?](#q2-what-does-savechanges-do)
+  - [Q3. What is the difference between `Add`, `Update`, and `Remove` on a `DbSet`?](#q3-what-is-the-difference-between-add-update-and-remove-on-a-dbset)
+  - [Q4. What is attach versus add when working with disconnected entities?](#q4-what-is-attach-versus-add-when-working-with-disconnected-entities)
+  - [Q5. What is `ExecuteUpdate` / `ExecuteDelete` in EF Core 7+?](#q5-what-is-executeupdate-executedelete-in-ef-core-7)
+  - [Q6. What is the unit-of-work pattern in relation to `DbContext`?](#q6-what-is-the-unit-of-work-pattern-in-relation-to-dbcontext)
+  - [Q7. How do you perform a bulk update without loading entities into memory?](#q7-how-do-you-perform-a-bulk-update-without-loading-entities-into-memory)
 
 - [Chapter 06. Relationships & Navigation Properties](#chapter-06-relationships-navigation-properties)
-  - [Q1. What is a navigation property in EF Core?](#chapter-06-relationships-navigation-properties-q1)
-  - [Q2. What is the difference between one-to-many and many-to-many …](#chapter-06-relationships-navigation-properties-q2)
-  - [Q3. How do you configure a one-to-many relationship in code-firs…](#chapter-06-relationships-navigation-properties-q3)
-  - [Q4. What is a foreign key property in EF Core?](#chapter-06-relationships-navigation-properties-q4)
-  - [Q5. What is cascade delete in EF Core?](#chapter-06-relationships-navigation-properties-q5)
-  - [Q6. When would you disable cascade delete?](#chapter-06-relationships-navigation-properties-q6)
-  - [Q7. What is a many-to-many relationship in EF Core 5+?](#chapter-06-relationships-navigation-properties-q7)
+  - [Q1. What is a navigation property in EF Core?](#q1-what-is-a-navigation-property-in-ef-core)
+  - [Q2. What is the difference between one-to-many and many-to-many relationships?](#q2-what-is-the-difference-between-one-to-many-and-many-to-many-relationships)
+  - [Q3. How do you configure a one-to-many relationship in code-first?](#q3-how-do-you-configure-a-one-to-many-relationship-in-code-first)
+  - [Q4. What is a foreign key property in EF Core?](#q4-what-is-a-foreign-key-property-in-ef-core)
+  - [Q5. What is cascade delete in EF Core?](#q5-what-is-cascade-delete-in-ef-core)
+  - [Q6. When would you disable cascade delete?](#q6-when-would-you-disable-cascade-delete)
+  - [Q7. What is a many-to-many relationship in EF Core 5+?](#q7-what-is-a-many-to-many-relationship-in-ef-core-5)
 
 - [Chapter 07. Fluent API & Data Annotations](#chapter-07-fluent-api-data-annotations)
-  - [Q1. What is the Fluent API in EF Core?](#chapter-07-fluent-api-data-annotations-q1)
-  - [Q2. When should you prefer Fluent API over data annotations?](#chapter-07-fluent-api-data-annotations-q2)
-  - [Q3. What is `IEntityTypeConfiguration<T>`?](#chapter-07-fluent-api-data-annotations-q3)
-  - [Q4. How do Fluent API and annotations interact when both configu…](#chapter-07-fluent-api-data-annotations-q4)
-  - [Q5. How do you configure indexes with Fluent API?](#chapter-07-fluent-api-data-annotations-q5)
+  - [Q1. What is the Fluent API in EF Core?](#q1-what-is-the-fluent-api-in-ef-core)
+  - [Q2. When should you prefer Fluent API over data annotations?](#q2-when-should-you-prefer-fluent-api-over-data-annotations)
+  - [Q3. What is `IEntityTypeConfiguration<T>`?](#q3-what-is-ientitytypeconfigurationt)
+  - [Q4. How do Fluent API and annotations interact when both configure the same property?](#q4-how-do-fluent-api-and-annotations-interact-when-both-configure-the-same-property)
+  - [Q5. How do you configure indexes with Fluent API?](#q5-how-do-you-configure-indexes-with-fluent-api)
 
 - [Chapter 08. LINQ to Entities & Query Patterns](#chapter-08-linq-to-entities-query-patterns)
-  - [Q1. What is the difference between LINQ to Objects and LINQ to E…](#chapter-08-linq-to-entities-query-patterns-q1)
-  - [Q2. What is `IQueryable<T>` versus `IEnumerable<T>` in EF Core q…](#chapter-08-linq-to-entities-query-patterns-q2)
-  - [Q3. When does query execution actually occur (deferred execution…](#chapter-08-linq-to-entities-query-patterns-q3)
-  - [Q4. What is the N+1 query problem?](#chapter-08-linq-to-entities-query-patterns-q4)
-  - [Q5. What causes client evaluation warnings or errors in EF Core?](#chapter-08-linq-to-entities-query-patterns-q5)
-  - [Q6. How do you filter, project, sort, and paginate with EF Core …](#chapter-08-linq-to-entities-query-patterns-q6)
-  - [Q7. What is the difference between `Select` projection and loadi…](#chapter-08-linq-to-entities-query-patterns-q7)
-  - [Q8. What is a global query filter in EF Core?](#chapter-08-linq-to-entities-query-patterns-q8)
-  - [Q9. How do you debug the SQL generated by EF Core?](#chapter-08-linq-to-entities-query-patterns-q9)
+  - [Q1. What is the difference between LINQ to Objects and LINQ to Entities?](#q1-what-is-the-difference-between-linq-to-objects-and-linq-to-entities)
+  - [Q2. What is `IQueryable<T>` versus `IEnumerable<T>` in EF Core queries?](#q2-what-is-iqueryablet-versus-ienumerablet-in-ef-core-queries)
+  - [Q3. When does query execution actually occur (deferred execution)?](#q3-when-does-query-execution-actually-occur-deferred-execution)
+  - [Q4. What is the N+1 query problem?](#q4-what-is-the-n1-query-problem)
+  - [Q5. What causes client evaluation warnings or errors in EF Core?](#q5-what-causes-client-evaluation-warnings-or-errors-in-ef-core)
+  - [Q6. How do you filter, project, sort, and paginate with EF Core LINQ?](#q6-how-do-you-filter-project-sort-and-paginate-with-ef-core-linq)
+  - [Q7. What is the difference between `Select` projection and loading full entities?](#q7-what-is-the-difference-between-select-projection-and-loading-full-entities)
+  - [Q8. What is a global query filter in EF Core?](#q8-what-is-a-global-query-filter-in-ef-core)
+  - [Q9. How do you debug the SQL generated by EF Core?](#q9-how-do-you-debug-the-sql-generated-by-ef-core)
 
 - [Chapter 09. Loading Related Data](#chapter-09-loading-related-data)
-  - [Q1. What is the difference between eager loading, lazy loading, …](#chapter-09-loading-related-data-q1)
-  - [Q2. How do you use `Include` and `ThenInclude` for eager loading…](#chapter-09-loading-related-data-q2)
-  - [Q3. What is the N+1 problem in the context of loading related da…](#chapter-09-loading-related-data-q3)
-  - [Q4. Why should you avoid lazy loading in ASP.NET Core applicatio…](#chapter-09-loading-related-data-q4)
-  - [Q5. What is a cartesian explosion when including multiple collec…](#chapter-09-loading-related-data-q5)
-  - [Q6. What is `AsSplitQuery`, and when should you use it?](#chapter-09-loading-related-data-q6)
-  - [Q7. How do you choose between eager loading, explicit loading, a…](#chapter-09-loading-related-data-q7)
+  - [Q1. What is the difference between eager loading, lazy loading, and explicit loading?](#q1-what-is-the-difference-between-eager-loading-lazy-loading-and-explicit-loading)
+  - [Q2. How do you use `Include` and `ThenInclude` for eager loading?](#q2-how-do-you-use-include-and-theninclude-for-eager-loading)
+  - [Q3. What is the N+1 problem in the context of loading related data?](#q3-what-is-the-n1-problem-in-the-context-of-loading-related-data)
+  - [Q4. Why should you avoid lazy loading in ASP.NET Core applications?](#q4-why-should-you-avoid-lazy-loading-in-aspnet-core-applications)
+  - [Q5. What is a cartesian explosion when including multiple collections?](#q5-what-is-a-cartesian-explosion-when-including-multiple-collections)
+  - [Q6. What is `AsSplitQuery`, and when should you use it?](#q6-what-is-assplitquery-and-when-should-you-use-it)
+  - [Q7. How do you choose between eager loading, explicit loading, and projection?](#q7-how-do-you-choose-between-eager-loading-explicit-loading-and-projection)
 
 - [Chapter 10. Raw SQL & Stored Procedures](#chapter-10-raw-sql-stored-procedures)
-  - [Q1. What is `FromSqlRaw` versus `FromSqlInterpolated`?](#chapter-10-raw-sql-stored-procedures-q1)
-  - [Q2. Why is `FromSqlInterpolated` preferred over string interpola…](#chapter-10-raw-sql-stored-procedures-q2)
-  - [Q3. When should you use raw SQL instead of LINQ in EF Core?](#chapter-10-raw-sql-stored-procedures-q3)
-  - [Q4. What are the security considerations for raw SQL in EF Core?](#chapter-10-raw-sql-stored-procedures-q4)
-  - [Q5. How do you call stored procedures with EF Core?](#chapter-10-raw-sql-stored-procedures-q5)
-  - [Q6. How do you execute non-query raw SQL (`ExecuteSqlRaw`)?](#chapter-10-raw-sql-stored-procedures-q6)
+  - [Q1. What is `FromSqlRaw` versus `FromSqlInterpolated`?](#q1-what-is-fromsqlraw-versus-fromsqlinterpolated)
+  - [Q2. Why is `FromSqlInterpolated` preferred over string interpolation for raw SQL?](#q2-why-is-fromsqlinterpolated-preferred-over-string-interpolation-for-raw-sql)
+  - [Q3. When should you use raw SQL instead of LINQ in EF Core?](#q3-when-should-you-use-raw-sql-instead-of-linq-in-ef-core)
+  - [Q4. What are the security considerations for raw SQL in EF Core?](#q4-what-are-the-security-considerations-for-raw-sql-in-ef-core)
+  - [Q5. How do you call stored procedures with EF Core?](#q5-how-do-you-call-stored-procedures-with-ef-core)
+  - [Q6. How do you execute non-query raw SQL (`ExecuteSqlRaw`)?](#q6-how-do-you-execute-non-query-raw-sql-executesqlraw)
 
 - [Chapter 11. Change Tracking, Async & Transactions](#chapter-11-change-tracking-async-transactions)
-  - [Q1. What is change tracking in EF Core?](#chapter-11-change-tracking-async-transactions-q1)
-  - [Q2. What entity states does EF Core track (`Added`, `Modified`, …](#chapter-11-change-tracking-async-transactions-q2)
-  - [Q3. What does `AsNoTracking` do, and when should you use it?](#chapter-11-change-tracking-async-transactions-q3)
-  - [Q4. What is the performance impact of change tracking on read-he…](#chapter-11-change-tracking-async-transactions-q4)
-  - [Q5. Why use async EF Core methods in ASP.NET Core?](#chapter-11-change-tracking-async-transactions-q5)
-  - [Q6. How do you begin and commit a transaction in EF Core?](#chapter-11-change-tracking-async-transactions-q6)
-  - [Q7. How does EF Core detect concurrency conflicts?](#chapter-11-change-tracking-async-transactions-q7)
-  - [Q8. What is a concurrency token or row version column?](#chapter-11-change-tracking-async-transactions-q8)
-  - [Q9. How do you handle `DbUpdateConcurrencyException`?](#chapter-11-change-tracking-async-transactions-q9)
+  - [Q1. What is change tracking in EF Core?](#q1-what-is-change-tracking-in-ef-core)
+  - [Q2. What entity states does EF Core track (`Added`, `Modified`, `Deleted`, `Unchanged`)?](#q2-what-entity-states-does-ef-core-track-added-modified-deleted-unchanged)
+  - [Q3. What does `AsNoTracking` do, and when should you use it?](#q3-what-does-asnotracking-do-and-when-should-you-use-it)
+  - [Q4. What is the performance impact of change tracking on read-heavy queries?](#q4-what-is-the-performance-impact-of-change-tracking-on-read-heavy-queries)
+  - [Q5. Why use async EF Core methods in ASP.NET Core?](#q5-why-use-async-ef-core-methods-in-aspnet-core)
+  - [Q6. How do you begin and commit a transaction in EF Core?](#q6-how-do-you-begin-and-commit-a-transaction-in-ef-core)
+  - [Q7. How does EF Core detect concurrency conflicts?](#q7-how-does-ef-core-detect-concurrency-conflicts)
+  - [Q8. What is a concurrency token or row version column?](#q8-what-is-a-concurrency-token-or-row-version-column)
+  - [Q9. How do you handle `DbUpdateConcurrencyException`?](#q9-how-do-you-handle-dbupdateconcurrencyexception)
+- [Gotchas](#gotchas)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ## Chapter 01. Introduction to Entity Framework Core
 
-### Q1. What is Entity Framework Core? {#chapter-01-introduction-to-entity-framework-core-q1}
+### Q1. What is Entity Framework Core?
 
 What is Entity Framework Core?
 
@@ -123,7 +124,7 @@ What is Entity Framework Core?
 
 ---
 
-### Q2. What is an ORM, and how does EF Core fit that definition? {#chapter-01-introduction-to-entity-framework-core-q2}
+### Q2. What is an ORM, and how does EF Core fit that definition?
 
 What is an ORM, and how does EF Core fit that definition?
 
@@ -136,7 +137,7 @@ What is an ORM, and how does EF Core fit that definition?
 
 ---
 
-### Q3. What is the difference between EF Core and EF6 (Entity Framework Classic)? {#chapter-01-introduction-to-entity-framework-core-q3}
+### Q3. What is the difference between EF Core and EF6 (Entity Framework Classic)?
 
 What is the difference between EF Core and EF6 (Entity Framework Classic)?
 
@@ -149,7 +150,7 @@ What is the difference between EF Core and EF6 (Entity Framework Classic)?
 
 ---
 
-### Q4. What is code-first versus database-first in EF Core? {#chapter-01-introduction-to-entity-framework-core-q4}
+### Q4. What is code-first versus database-first in EF Core?
 
 What is code-first versus database-first in EF Core?
 
@@ -162,7 +163,7 @@ What is code-first versus database-first in EF Core?
 
 ---
 
-### Q5. When would you choose EF Core over ADO.NET or Dapper? {#chapter-01-introduction-to-entity-framework-core-q5}
+### Q5. When would you choose EF Core over ADO.NET or Dapper?
 
 When would you choose EF Core over ADO.NET or Dapper?
 
@@ -175,7 +176,7 @@ When would you choose EF Core over ADO.NET or Dapper?
 
 ---
 
-### Q6. What are the trade-offs of using EF Core? {#chapter-01-introduction-to-entity-framework-core-q6}
+### Q6. What are the trade-offs of using EF Core?
 
 What are the trade-offs of using EF Core?
 
@@ -188,7 +189,7 @@ What are the trade-offs of using EF Core?
 
 ---
 
-### Q7. How does EF Core translate C# queries into SQL? {#chapter-01-introduction-to-entity-framework-core-q7}
+### Q7. How does EF Core translate C# queries into SQL?
 
 How does EF Core translate C# queries into SQL?
 
@@ -201,7 +202,7 @@ How does EF Core translate C# queries into SQL?
 
 ---
 
-### Q8. How does EF Core handle schema evolution? {#chapter-01-introduction-to-entity-framework-core-q8}
+### Q8. How does EF Core handle schema evolution?
 
 How does EF Core handle schema evolution?
 
@@ -216,7 +217,7 @@ How does EF Core handle schema evolution?
 
 ## Chapter 02. DbContext & DbSet
 
-### Q1. What is a `DbContext` in EF Core? {#chapter-02-dbcontext-dbset-q1}
+### Q1. What is a `DbContext` in EF Core?
 
 What is a `DbContext` in EF Core?
 
@@ -229,7 +230,7 @@ What is a `DbContext` in EF Core?
 
 ---
 
-### Q2. What is a `DbSet<T>`? {#chapter-02-dbcontext-dbset-q2}
+### Q2. What is a `DbSet<T>`?
 
 What is a `DbSet<T>`?
 
@@ -242,7 +243,7 @@ What is a `DbSet<T>`?
 
 ---
 
-### Q3. How do you register `DbContext` in ASP.NET Core dependency injection? {#chapter-02-dbcontext-dbset-q3}
+### Q3. How do you register `DbContext` in ASP.NET Core dependency injection?
 
 How do you register `DbContext` in ASP.NET Core dependency injection?
 
@@ -255,7 +256,7 @@ How do you register `DbContext` in ASP.NET Core dependency injection?
 
 ---
 
-### Q4. Why is `DbContext` typically registered as scoped? {#chapter-02-dbcontext-dbset-q4}
+### Q4. Why is `DbContext` typically registered as scoped?
 
 Why is `DbContext` typically registered as scoped?
 
@@ -268,7 +269,7 @@ Why is `DbContext` typically registered as scoped?
 
 ---
 
-### Q5. What is the difference between injecting `DbContext` and using `IDbContextFactory<TContext>`? {#chapter-02-dbcontext-dbset-q5}
+### Q5. What is the difference between injecting `DbContext` and using `IDbContextFactory<TContext>`?
 
 What is the difference between injecting `DbContext` and using `IDbContextFactory<TContext>`?
 
@@ -281,7 +282,7 @@ What is the difference between injecting `DbContext` and using `IDbContextFactor
 
 ---
 
-### Q6. What does `OnModelCreating` do in a `DbContext`? {#chapter-02-dbcontext-dbset-q6}
+### Q6. What does `OnModelCreating` do in a `DbContext`?
 
 What does `OnModelCreating` do in a `DbContext`?
 
@@ -294,7 +295,7 @@ What does `OnModelCreating` do in a `DbContext`?
 
 ---
 
-### Q7. What is `EnsureCreated`, and how does it differ from migrations? {#chapter-02-dbcontext-dbset-q7}
+### Q7. What is `EnsureCreated`, and how does it differ from migrations?
 
 What is `EnsureCreated`, and how does it differ from migrations?
 
@@ -307,7 +308,7 @@ What is `EnsureCreated`, and how does it differ from migrations?
 
 ---
 
-### Q8. Can you reuse one `DbContext` across multiple threads? {#chapter-02-dbcontext-dbset-q8}
+### Q8. Can you reuse one `DbContext` across multiple threads?
 
 Can you reuse one `DbContext` across multiple threads?
 
@@ -322,7 +323,7 @@ Can you reuse one `DbContext` across multiple threads?
 
 ## Chapter 03. Code-First Models & Migrations
 
-### Q1. What is code-first in EF Core? {#chapter-03-code-first-models-migrations-q1}
+### Q1. What is code-first in EF Core?
 
 What is code-first in EF Core?
 
@@ -335,7 +336,7 @@ What is code-first in EF Core?
 
 ---
 
-### Q2. What is a migration in EF Core? {#chapter-03-code-first-models-migrations-q2}
+### Q2. What is a migration in EF Core?
 
 What is a migration in EF Core?
 
@@ -348,7 +349,7 @@ What is a migration in EF Core?
 
 ---
 
-### Q3. How do you create and apply migrations from the CLI? {#chapter-03-code-first-models-migrations-q3}
+### Q3. How do you create and apply migrations from the CLI?
 
 How do you create and apply migrations from the CLI?
 
@@ -361,7 +362,7 @@ How do you create and apply migrations from the CLI?
 
 ---
 
-### Q4. What is the difference between `Up` and `Down` in a migration? {#chapter-03-code-first-models-migrations-q4}
+### Q4. What is the difference between `Up` and `Down` in a migration?
 
 What is the difference between `Up` and `Down` in a migration?
 
@@ -374,7 +375,7 @@ What is the difference between `Up` and `Down` in a migration?
 
 ---
 
-### Q5. What is a model snapshot in EF Core migrations? {#chapter-03-code-first-models-migrations-q5}
+### Q5. What is a model snapshot in EF Core migrations?
 
 What is a model snapshot in EF Core migrations?
 
@@ -387,7 +388,7 @@ What is a model snapshot in EF Core migrations?
 
 ---
 
-### Q6. What happens if you change a model without creating a migration? {#chapter-03-code-first-models-migrations-q6}
+### Q6. What happens if you change a model without creating a migration?
 
 What happens if you change a model without creating a migration?
 
@@ -400,7 +401,7 @@ What happens if you change a model without creating a migration?
 
 ---
 
-### Q7. What is the difference between `EnsureCreated` and migrations-based schema creation? {#chapter-03-code-first-models-migrations-q7}
+### Q7. What is the difference between `EnsureCreated` and migrations-based schema creation?
 
 What is the difference between `EnsureCreated` and migrations-based schema creation?
 
@@ -413,7 +414,7 @@ What is the difference between `EnsureCreated` and migrations-based schema creat
 
 ---
 
-### Q8. When should migrations run automatically in production? {#chapter-03-code-first-models-migrations-q8}
+### Q8. When should migrations run automatically in production?
 
 When should migrations run automatically in production?
 
@@ -428,7 +429,7 @@ When should migrations run automatically in production?
 
 ## Chapter 04. Database-First & Reverse Engineering
 
-### Q1. What is database-first in EF Core? {#chapter-04-database-first-reverse-engineering-q1}
+### Q1. What is database-first in EF Core?
 
 What is database-first in EF Core?
 
@@ -441,7 +442,7 @@ What is database-first in EF Core?
 
 ---
 
-### Q2. How do you scaffold a `DbContext` from an existing database? {#chapter-04-database-first-reverse-engineering-q2}
+### Q2. How do you scaffold a `DbContext` from an existing database?
 
 How do you scaffold a `DbContext` from an existing database?
 
@@ -454,7 +455,7 @@ How do you scaffold a `DbContext` from an existing database?
 
 ---
 
-### Q3. When is database-first preferred over code-first? {#chapter-04-database-first-reverse-engineering-q3}
+### Q3. When is database-first preferred over code-first?
 
 When is database-first preferred over code-first?
 
@@ -467,7 +468,7 @@ When is database-first preferred over code-first?
 
 ---
 
-### Q4. What are the limitations of reverse-engineered models? {#chapter-04-database-first-reverse-engineering-q4}
+### Q4. What are the limitations of reverse-engineered models?
 
 What are the limitations of reverse-engineered models?
 
@@ -480,7 +481,7 @@ What are the limitations of reverse-engineered models?
 
 ---
 
-### Q5. How do you refresh a scaffolded model after database schema changes? {#chapter-04-database-first-reverse-engineering-q5}
+### Q5. How do you refresh a scaffolded model after database schema changes?
 
 How do you refresh a scaffolded model after database schema changes?
 
@@ -493,7 +494,7 @@ How do you refresh a scaffolded model after database schema changes?
 
 ---
 
-### Q6. Can you combine scaffolded models with manual partial classes? {#chapter-04-database-first-reverse-engineering-q6}
+### Q6. Can you combine scaffolded models with manual partial classes?
 
 Can you combine scaffolded models with manual partial classes?
 
@@ -508,7 +509,7 @@ Can you combine scaffolded models with manual partial classes?
 
 ## Chapter 05. CRUD Operations & SaveChanges
 
-### Q1. How do you insert, update, and delete entities with EF Core? {#chapter-05-crud-operations-savechanges-q1}
+### Q1. How do you insert, update, and delete entities with EF Core?
 
 How do you insert, update, and delete entities with EF Core?
 
@@ -521,7 +522,7 @@ How do you insert, update, and delete entities with EF Core?
 
 ---
 
-### Q2. What does `SaveChanges()` do? {#chapter-05-crud-operations-savechanges-q2}
+### Q2. What does `SaveChanges()` do?
 
 What does `SaveChanges()` do?
 
@@ -534,7 +535,7 @@ What does `SaveChanges()` do?
 
 ---
 
-### Q3. What is the difference between `Add`, `Update`, and `Remove` on a `DbSet`? {#chapter-05-crud-operations-savechanges-q3}
+### Q3. What is the difference between `Add`, `Update`, and `Remove` on a `DbSet`?
 
 What is the difference between `Add`, `Update`, and `Remove` on a `DbSet`?
 
@@ -547,7 +548,7 @@ What is the difference between `Add`, `Update`, and `Remove` on a `DbSet`?
 
 ---
 
-### Q4. What is attach versus add when working with disconnected entities? {#chapter-05-crud-operations-savechanges-q4}
+### Q4. What is attach versus add when working with disconnected entities?
 
 What is attach versus add when working with disconnected entities?
 
@@ -560,7 +561,7 @@ What is attach versus add when working with disconnected entities?
 
 ---
 
-### Q5. What is `ExecuteUpdate` / `ExecuteDelete` in EF Core 7+? {#chapter-05-crud-operations-savechanges-q5}
+### Q5. What is `ExecuteUpdate` / `ExecuteDelete` in EF Core 7+?
 
 What is `ExecuteUpdate` / `ExecuteDelete` in EF Core 7+?
 
@@ -573,7 +574,7 @@ What is `ExecuteUpdate` / `ExecuteDelete` in EF Core 7+?
 
 ---
 
-### Q6. What is the unit-of-work pattern in relation to `DbContext`? {#chapter-05-crud-operations-savechanges-q6}
+### Q6. What is the unit-of-work pattern in relation to `DbContext`?
 
 What is the unit-of-work pattern in relation to `DbContext`?
 
@@ -586,7 +587,7 @@ What is the unit-of-work pattern in relation to `DbContext`?
 
 ---
 
-### Q7. How do you perform a bulk update without loading entities into memory? {#chapter-05-crud-operations-savechanges-q7}
+### Q7. How do you perform a bulk update without loading entities into memory?
 
 How do you perform a bulk update without loading entities into memory?
 
@@ -603,7 +604,7 @@ How do you perform a bulk update without loading entities into memory?
 
 ## Chapter 06. Relationships & Navigation Properties
 
-### Q1. What is a navigation property in EF Core? {#chapter-06-relationships-navigation-properties-q1}
+### Q1. What is a navigation property in EF Core?
 
 What is a navigation property in EF Core?
 
@@ -616,7 +617,7 @@ What is a navigation property in EF Core?
 
 ---
 
-### Q2. What is the difference between one-to-many and many-to-many relationships? {#chapter-06-relationships-navigation-properties-q2}
+### Q2. What is the difference between one-to-many and many-to-many relationships?
 
 What is the difference between one-to-many and many-to-many relationships?
 
@@ -629,7 +630,7 @@ What is the difference between one-to-many and many-to-many relationships?
 
 ---
 
-### Q3. How do you configure a one-to-many relationship in code-first? {#chapter-06-relationships-navigation-properties-q3}
+### Q3. How do you configure a one-to-many relationship in code-first?
 
 How do you configure a one-to-many relationship in code-first?
 
@@ -642,7 +643,7 @@ How do you configure a one-to-many relationship in code-first?
 
 ---
 
-### Q4. What is a foreign key property in EF Core? {#chapter-06-relationships-navigation-properties-q4}
+### Q4. What is a foreign key property in EF Core?
 
 What is a foreign key property in EF Core?
 
@@ -655,7 +656,7 @@ What is a foreign key property in EF Core?
 
 ---
 
-### Q5. What is cascade delete in EF Core? {#chapter-06-relationships-navigation-properties-q5}
+### Q5. What is cascade delete in EF Core?
 
 What is cascade delete in EF Core?
 
@@ -668,7 +669,7 @@ What is cascade delete in EF Core?
 
 ---
 
-### Q6. When would you disable cascade delete? {#chapter-06-relationships-navigation-properties-q6}
+### Q6. When would you disable cascade delete?
 
 When would you disable cascade delete?
 
@@ -681,7 +682,7 @@ When would you disable cascade delete?
 
 ---
 
-### Q7. What is a many-to-many relationship in EF Core 5+? {#chapter-06-relationships-navigation-properties-q7}
+### Q7. What is a many-to-many relationship in EF Core 5+?
 
 What is a many-to-many relationship in EF Core 5+?
 
@@ -696,7 +697,7 @@ What is a many-to-many relationship in EF Core 5+?
 
 ## Chapter 07. Fluent API & Data Annotations
 
-### Q1. What is the Fluent API in EF Core? {#chapter-07-fluent-api-data-annotations-q1}
+### Q1. What is the Fluent API in EF Core?
 
 What is the Fluent API in EF Core?
 
@@ -709,7 +710,7 @@ What is the Fluent API in EF Core?
 
 ---
 
-### Q2. When should you prefer Fluent API over data annotations? {#chapter-07-fluent-api-data-annotations-q2}
+### Q2. When should you prefer Fluent API over data annotations?
 
 When should you prefer Fluent API over data annotations?
 
@@ -722,7 +723,7 @@ When should you prefer Fluent API over data annotations?
 
 ---
 
-### Q3. What is `IEntityTypeConfiguration<T>`? {#chapter-07-fluent-api-data-annotations-q3}
+### Q3. What is `IEntityTypeConfiguration<T>`?
 
 What is `IEntityTypeConfiguration<T>`?
 
@@ -735,7 +736,7 @@ What is `IEntityTypeConfiguration<T>`?
 
 ---
 
-### Q4. How do Fluent API and annotations interact when both configure the same property? {#chapter-07-fluent-api-data-annotations-q4}
+### Q4. How do Fluent API and annotations interact when both configure the same property?
 
 How do Fluent API and annotations interact when both configure the same property?
 
@@ -748,7 +749,7 @@ How do Fluent API and annotations interact when both configure the same property
 
 ---
 
-### Q5. How do you configure indexes with Fluent API? {#chapter-07-fluent-api-data-annotations-q5}
+### Q5. How do you configure indexes with Fluent API?
 
 How do you configure indexes with Fluent API?
 
@@ -763,7 +764,7 @@ How do you configure indexes with Fluent API?
 
 ## Chapter 08. LINQ to Entities & Query Patterns
 
-### Q1. What is the difference between LINQ to Objects and LINQ to Entities? {#chapter-08-linq-to-entities-query-patterns-q1}
+### Q1. What is the difference between LINQ to Objects and LINQ to Entities?
 
 What is the difference between LINQ to Objects and LINQ to Entities?
 
@@ -776,7 +777,7 @@ What is the difference between LINQ to Objects and LINQ to Entities?
 
 ---
 
-### Q2. What is `IQueryable<T>` versus `IEnumerable<T>` in EF Core queries? {#chapter-08-linq-to-entities-query-patterns-q2}
+### Q2. What is `IQueryable<T>` versus `IEnumerable<T>` in EF Core queries?
 
 What is `IQueryable<T>` versus `IEnumerable<T>` in EF Core queries?
 
@@ -789,7 +790,7 @@ What is `IQueryable<T>` versus `IEnumerable<T>` in EF Core queries?
 
 ---
 
-### Q3. When does query execution actually occur (deferred execution)? {#chapter-08-linq-to-entities-query-patterns-q3}
+### Q3. When does query execution actually occur (deferred execution)?
 
 When does query execution actually occur (deferred execution)?
 
@@ -802,7 +803,7 @@ When does query execution actually occur (deferred execution)?
 
 ---
 
-### Q4. What is the N+1 query problem? {#chapter-08-linq-to-entities-query-patterns-q4}
+### Q4. What is the N+1 query problem?
 
 What is the N+1 query problem?
 
@@ -815,7 +816,7 @@ What is the N+1 query problem?
 
 ---
 
-### Q5. What causes client evaluation warnings or errors in EF Core? {#chapter-08-linq-to-entities-query-patterns-q5}
+### Q5. What causes client evaluation warnings or errors in EF Core?
 
 What causes client evaluation warnings or errors in EF Core?
 
@@ -828,7 +829,7 @@ What causes client evaluation warnings or errors in EF Core?
 
 ---
 
-### Q6. How do you filter, project, sort, and paginate with EF Core LINQ? {#chapter-08-linq-to-entities-query-patterns-q6}
+### Q6. How do you filter, project, sort, and paginate with EF Core LINQ?
 
 How do you filter, project, sort, and paginate with EF Core LINQ?
 
@@ -841,7 +842,7 @@ How do you filter, project, sort, and paginate with EF Core LINQ?
 
 ---
 
-### Q7. What is the difference between `Select` projection and loading full entities? {#chapter-08-linq-to-entities-query-patterns-q7}
+### Q7. What is the difference between `Select` projection and loading full entities?
 
 What is the difference between `Select` projection and loading full entities?
 
@@ -854,7 +855,7 @@ What is the difference between `Select` projection and loading full entities?
 
 ---
 
-### Q8. What is a global query filter in EF Core? {#chapter-08-linq-to-entities-query-patterns-q8}
+### Q8. What is a global query filter in EF Core?
 
 What is a global query filter in EF Core?
 
@@ -867,7 +868,7 @@ What is a global query filter in EF Core?
 
 ---
 
-### Q9. How do you debug the SQL generated by EF Core? {#chapter-08-linq-to-entities-query-patterns-q9}
+### Q9. How do you debug the SQL generated by EF Core?
 
 How do you debug the SQL generated by EF Core?
 
@@ -882,7 +883,7 @@ How do you debug the SQL generated by EF Core?
 
 ## Chapter 09. Loading Related Data
 
-### Q1. What is the difference between eager loading, lazy loading, and explicit loading? {#chapter-09-loading-related-data-q1}
+### Q1. What is the difference between eager loading, lazy loading, and explicit loading?
 
 What is the difference between eager loading, lazy loading, and explicit loading?
 
@@ -895,7 +896,7 @@ What is the difference between eager loading, lazy loading, and explicit loading
 
 ---
 
-### Q2. How do you use `Include` and `ThenInclude` for eager loading? {#chapter-09-loading-related-data-q2}
+### Q2. How do you use `Include` and `ThenInclude` for eager loading?
 
 How do you use `Include` and `ThenInclude` for eager loading?
 
@@ -908,7 +909,7 @@ How do you use `Include` and `ThenInclude` for eager loading?
 
 ---
 
-### Q3. What is the N+1 problem in the context of loading related data? {#chapter-09-loading-related-data-q3}
+### Q3. What is the N+1 problem in the context of loading related data?
 
 What is the N+1 problem in the context of loading related data?
 
@@ -921,7 +922,7 @@ What is the N+1 problem in the context of loading related data?
 
 ---
 
-### Q4. Why should you avoid lazy loading in ASP.NET Core applications? {#chapter-09-loading-related-data-q4}
+### Q4. Why should you avoid lazy loading in ASP.NET Core applications?
 
 Why should you avoid lazy loading in ASP.NET Core applications?
 
@@ -934,7 +935,7 @@ Why should you avoid lazy loading in ASP.NET Core applications?
 
 ---
 
-### Q5. What is a cartesian explosion when including multiple collections? {#chapter-09-loading-related-data-q5}
+### Q5. What is a cartesian explosion when including multiple collections?
 
 What is a cartesian explosion when including multiple collections?
 
@@ -947,7 +948,7 @@ What is a cartesian explosion when including multiple collections?
 
 ---
 
-### Q6. What is `AsSplitQuery`, and when should you use it? {#chapter-09-loading-related-data-q6}
+### Q6. What is `AsSplitQuery`, and when should you use it?
 
 What is `AsSplitQuery`, and when should you use it?
 
@@ -960,7 +961,7 @@ What is `AsSplitQuery`, and when should you use it?
 
 ---
 
-### Q7. How do you choose between eager loading, explicit loading, and projection? {#chapter-09-loading-related-data-q7}
+### Q7. How do you choose between eager loading, explicit loading, and projection?
 
 How do you choose between eager loading, explicit loading, and projection?
 
@@ -975,7 +976,7 @@ How do you choose between eager loading, explicit loading, and projection?
 
 ## Chapter 10. Raw SQL & Stored Procedures
 
-### Q1. What is `FromSqlRaw` versus `FromSqlInterpolated`? {#chapter-10-raw-sql-stored-procedures-q1}
+### Q1. What is `FromSqlRaw` versus `FromSqlInterpolated`?
 
 What is `FromSqlRaw` versus `FromSqlInterpolated`?
 
@@ -988,7 +989,7 @@ What is `FromSqlRaw` versus `FromSqlInterpolated`?
 
 ---
 
-### Q2. Why is `FromSqlInterpolated` preferred over string interpolation for raw SQL? {#chapter-10-raw-sql-stored-procedures-q2}
+### Q2. Why is `FromSqlInterpolated` preferred over string interpolation for raw SQL?
 
 Why is `FromSqlInterpolated` preferred over string interpolation for raw SQL?
 
@@ -1001,7 +1002,7 @@ Why is `FromSqlInterpolated` preferred over string interpolation for raw SQL?
 
 ---
 
-### Q3. When should you use raw SQL instead of LINQ in EF Core? {#chapter-10-raw-sql-stored-procedures-q3}
+### Q3. When should you use raw SQL instead of LINQ in EF Core?
 
 When should you use raw SQL instead of LINQ in EF Core?
 
@@ -1014,7 +1015,7 @@ When should you use raw SQL instead of LINQ in EF Core?
 
 ---
 
-### Q4. What are the security considerations for raw SQL in EF Core? {#chapter-10-raw-sql-stored-procedures-q4}
+### Q4. What are the security considerations for raw SQL in EF Core?
 
 What are the security considerations for raw SQL in EF Core?
 
@@ -1027,7 +1028,7 @@ What are the security considerations for raw SQL in EF Core?
 
 ---
 
-### Q5. How do you call stored procedures with EF Core? {#chapter-10-raw-sql-stored-procedures-q5}
+### Q5. How do you call stored procedures with EF Core?
 
 How do you call stored procedures with EF Core?
 
@@ -1040,7 +1041,7 @@ How do you call stored procedures with EF Core?
 
 ---
 
-### Q6. How do you execute non-query raw SQL (`ExecuteSqlRaw`)? {#chapter-10-raw-sql-stored-procedures-q6}
+### Q6. How do you execute non-query raw SQL (`ExecuteSqlRaw`)?
 
 How do you execute non-query raw SQL (`ExecuteSqlRaw`)?
 
@@ -1055,7 +1056,7 @@ How do you execute non-query raw SQL (`ExecuteSqlRaw`)?
 
 ## Chapter 11. Change Tracking, Async & Transactions
 
-### Q1. What is change tracking in EF Core? {#chapter-11-change-tracking-async-transactions-q1}
+### Q1. What is change tracking in EF Core?
 
 What is change tracking in EF Core?
 
@@ -1068,7 +1069,7 @@ What is change tracking in EF Core?
 
 ---
 
-### Q2. What entity states does EF Core track (`Added`, `Modified`, `Deleted`, `Unchanged`)? {#chapter-11-change-tracking-async-transactions-q2}
+### Q2. What entity states does EF Core track (`Added`, `Modified`, `Deleted`, `Unchanged`)?
 
 What entity states does EF Core track (`Added`, `Modified`, `Deleted`, `Unchanged`)?
 
@@ -1081,7 +1082,7 @@ What entity states does EF Core track (`Added`, `Modified`, `Deleted`, `Unchange
 
 ---
 
-### Q3. What does `AsNoTracking` do, and when should you use it? {#chapter-11-change-tracking-async-transactions-q3}
+### Q3. What does `AsNoTracking` do, and when should you use it?
 
 What does `AsNoTracking` do, and when should you use it?
 
@@ -1094,7 +1095,7 @@ What does `AsNoTracking` do, and when should you use it?
 
 ---
 
-### Q4. What is the performance impact of change tracking on read-heavy queries? {#chapter-11-change-tracking-async-transactions-q4}
+### Q4. What is the performance impact of change tracking on read-heavy queries?
 
 What is the performance impact of change tracking on read-heavy queries?
 
@@ -1107,7 +1108,7 @@ What is the performance impact of change tracking on read-heavy queries?
 
 ---
 
-### Q5. Why use async EF Core methods in ASP.NET Core? {#chapter-11-change-tracking-async-transactions-q5}
+### Q5. Why use async EF Core methods in ASP.NET Core?
 
 Why use async EF Core methods in ASP.NET Core?
 
@@ -1120,7 +1121,7 @@ Why use async EF Core methods in ASP.NET Core?
 
 ---
 
-### Q6. How do you begin and commit a transaction in EF Core? {#chapter-11-change-tracking-async-transactions-q6}
+### Q6. How do you begin and commit a transaction in EF Core?
 
 How do you begin and commit a transaction in EF Core?
 
@@ -1133,7 +1134,7 @@ How do you begin and commit a transaction in EF Core?
 
 ---
 
-### Q7. How does EF Core detect concurrency conflicts? {#chapter-11-change-tracking-async-transactions-q7}
+### Q7. How does EF Core detect concurrency conflicts?
 
 How does EF Core detect concurrency conflicts?
 
@@ -1146,7 +1147,7 @@ How does EF Core detect concurrency conflicts?
 
 ---
 
-### Q8. What is a concurrency token or row version column? {#chapter-11-change-tracking-async-transactions-q8}
+### Q8. What is a concurrency token or row version column?
 
 What is a concurrency token or row version column?
 
@@ -1159,7 +1160,7 @@ What is a concurrency token or row version column?
 
 ---
 
-### Q9. How do you handle `DbUpdateConcurrencyException`? {#chapter-11-change-tracking-async-transactions-q9}
+### Q9. How do you handle `DbUpdateConcurrencyException`?
 
 How do you handle `DbUpdateConcurrencyException`?
 

@@ -1,35 +1,30 @@
 # GraphQL with HotChocolate — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 15. GraphQL with HotChocolate](#chapter-15-graphql-with-hotchocolate)
-  - [Q1. What is GraphQL?](#chapter-15-graphql-with-hotchocolate-q1)
-  - [Q2. What is the difference between GraphQL and REST?](#chapter-15-graphql-with-hotchocolate-q2)
-  - [Q3. What is a GraphQL schema?](#chapter-15-graphql-with-hotchocolate-q3)
-  - [Q4. What is a GraphQL query vs mutation?](#chapter-15-graphql-with-hotchocolate-q4)
-  - [Q5. What is a resolver in GraphQL?](#chapter-15-graphql-with-hotchocolate-q5)
-  - [Q6. What is the N+1 problem in GraphQL?](#chapter-15-graphql-with-hotchocolate-q6)
-  - [Q7. What is DataLoader in Hot Chocolate?](#chapter-15-graphql-with-hotchocolate-q7)
-  - [Q8. What is over-fetching in REST vs GraphQL?](#chapter-15-graphql-with-hotchocolate-q8)
-  - [Q9. What is under-fetching in REST?](#chapter-15-graphql-with-hotchocolate-q9)
-  - [Q10. What is Hot Chocolate?](#chapter-15-graphql-with-hotchocolate-q10)
-  - [Q11. What is GraphQL introspection?](#chapter-15-graphql-with-hotchocolate-q11)
-  - [Q12. What is query depth limiting?](#chapter-15-graphql-with-hotchocolate-q12)
-  - [Q13. What is query complexity in GraphQL?](#chapter-15-graphql-with-hotchocolate-q13)
-  - [Q14. How does authorization work on GraphQL fields?](#chapter-15-graphql-with-hotchocolate-q14)
-  - [Q15. What is `AddGraphQLServer`?](#chapter-15-graphql-with-hotchocolate-q15)
-  - [Q16. What is `MapGraphQL`?](#chapter-15-graphql-with-hotchocolate-q16)
-  - [Q17. What is Banana Cake Pop?](#chapter-15-graphql-with-hotchocolate-q17)
-  - [Q18. When would you choose GraphQL over REST for an API?](#chapter-15-graphql-with-hotchocolate-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is GraphQL?](#q1-what-is-graphql)
+2. [Q2. What is the difference between GraphQL and REST?](#q2-what-is-the-difference-between-graphql-and-rest)
+3. [Q3. What is a GraphQL schema?](#q3-what-is-a-graphql-schema)
+4. [Q4. What is a GraphQL query vs mutation?](#q4-what-is-a-graphql-query-vs-mutation)
+5. [Q5. What is a resolver in GraphQL?](#q5-what-is-a-resolver-in-graphql)
+6. [Q6. What is the N+1 problem in GraphQL?](#q6-what-is-the-n1-problem-in-graphql)
+7. [Q7. What is DataLoader in Hot Chocolate?](#q7-what-is-dataloader-in-hot-chocolate)
+8. [Q8. What is over-fetching in REST vs GraphQL?](#q8-what-is-over-fetching-in-rest-vs-graphql)
+9. [Q9. What is under-fetching in REST?](#q9-what-is-under-fetching-in-rest)
+10. [Q10. What is Hot Chocolate?](#q10-what-is-hot-chocolate)
+11. [Q11. What is GraphQL introspection?](#q11-what-is-graphql-introspection)
+12. [Q12. What is query depth limiting?](#q12-what-is-query-depth-limiting)
+13. [Q13. What is query complexity in GraphQL?](#q13-what-is-query-complexity-in-graphql)
+14. [Q14. How does authorization work on GraphQL fields?](#q14-how-does-authorization-work-on-graphql-fields)
+15. [Q15. What is `AddGraphQLServer`?](#q15-what-is-addgraphqlserver)
+16. [Q16. What is `MapGraphQL`?](#q16-what-is-mapgraphql)
+17. [Q17. What is Banana Cake Pop?](#q17-what-is-banana-cake-pop)
+18. [Q18. When would you choose GraphQL over REST for an API?](#q18-when-would-you-choose-graphql-over-rest-for-an-api)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 15. GraphQL with HotChocolate
-
-### Q1. What is GraphQL? {#chapter-15-graphql-with-hotchocolate-q1}
+## Q1. What is GraphQL?
 
 What is GraphQL?
 
@@ -42,7 +37,7 @@ What is GraphQL?
 
 ---
 
-### Q2. What is the difference between GraphQL and REST? {#chapter-15-graphql-with-hotchocolate-q2}
+## Q2. What is the difference between GraphQL and REST?
 
 What is the difference between GraphQL and REST?
 
@@ -55,7 +50,7 @@ What is the difference between GraphQL and REST?
 
 ---
 
-### Q3. What is a GraphQL schema? {#chapter-15-graphql-with-hotchocolate-q3}
+## Q3. What is a GraphQL schema?
 
 What is a GraphQL schema?
 
@@ -68,7 +63,7 @@ What is a GraphQL schema?
 
 ---
 
-### Q4. What is a GraphQL query vs mutation? {#chapter-15-graphql-with-hotchocolate-q4}
+## Q4. What is a GraphQL query vs mutation?
 
 What is a GraphQL query vs mutation?
 
@@ -81,7 +76,7 @@ What is a GraphQL query vs mutation?
 
 ---
 
-### Q5. What is a resolver in GraphQL? {#chapter-15-graphql-with-hotchocolate-q5}
+## Q5. What is a resolver in GraphQL?
 
 What is a resolver in GraphQL?
 
@@ -94,7 +89,7 @@ What is a resolver in GraphQL?
 
 ---
 
-### Q6. What is the N+1 problem in GraphQL? {#chapter-15-graphql-with-hotchocolate-q6}
+## Q6. What is the N+1 problem in GraphQL?
 
 What is the N+1 problem in GraphQL?
 
@@ -107,7 +102,7 @@ What is the N+1 problem in GraphQL?
 
 ---
 
-### Q7. What is DataLoader in Hot Chocolate? {#chapter-15-graphql-with-hotchocolate-q7}
+## Q7. What is DataLoader in Hot Chocolate?
 
 What is DataLoader in Hot Chocolate?
 
@@ -120,7 +115,7 @@ What is DataLoader in Hot Chocolate?
 
 ---
 
-### Q8. What is over-fetching in REST vs GraphQL? {#chapter-15-graphql-with-hotchocolate-q8}
+## Q8. What is over-fetching in REST vs GraphQL?
 
 What is over-fetching in REST vs GraphQL?
 
@@ -133,7 +128,7 @@ What is over-fetching in REST vs GraphQL?
 
 ---
 
-### Q9. What is under-fetching in REST? {#chapter-15-graphql-with-hotchocolate-q9}
+## Q9. What is under-fetching in REST?
 
 What is under-fetching in REST?
 
@@ -146,7 +141,7 @@ What is under-fetching in REST?
 
 ---
 
-### Q10. What is Hot Chocolate? {#chapter-15-graphql-with-hotchocolate-q10}
+## Q10. What is Hot Chocolate?
 
 What is Hot Chocolate?
 
@@ -159,7 +154,7 @@ What is Hot Chocolate?
 
 ---
 
-### Q11. What is GraphQL introspection? {#chapter-15-graphql-with-hotchocolate-q11}
+## Q11. What is GraphQL introspection?
 
 What is GraphQL introspection?
 
@@ -172,7 +167,7 @@ What is GraphQL introspection?
 
 ---
 
-### Q12. What is query depth limiting? {#chapter-15-graphql-with-hotchocolate-q12}
+## Q12. What is query depth limiting?
 
 What is query depth limiting?
 
@@ -185,7 +180,7 @@ What is query depth limiting?
 
 ---
 
-### Q13. What is query complexity in GraphQL? {#chapter-15-graphql-with-hotchocolate-q13}
+## Q13. What is query complexity in GraphQL?
 
 What is query complexity in GraphQL?
 
@@ -198,7 +193,7 @@ What is query complexity in GraphQL?
 
 ---
 
-### Q14. How does authorization work on GraphQL fields? {#chapter-15-graphql-with-hotchocolate-q14}
+## Q14. How does authorization work on GraphQL fields?
 
 How does authorization work on GraphQL fields?
 
@@ -211,7 +206,7 @@ How does authorization work on GraphQL fields?
 
 ---
 
-### Q15. What is `AddGraphQLServer`? {#chapter-15-graphql-with-hotchocolate-q15}
+## Q15. What is `AddGraphQLServer`?
 
 What is `AddGraphQLServer`?
 
@@ -224,7 +219,7 @@ What is `AddGraphQLServer`?
 
 ---
 
-### Q16. What is `MapGraphQL`? {#chapter-15-graphql-with-hotchocolate-q16}
+## Q16. What is `MapGraphQL`?
 
 What is `MapGraphQL`?
 
@@ -237,7 +232,7 @@ What is `MapGraphQL`?
 
 ---
 
-### Q17. What is Banana Cake Pop? {#chapter-15-graphql-with-hotchocolate-q17}
+## Q17. What is Banana Cake Pop?
 
 What is Banana Cake Pop?
 
@@ -250,7 +245,7 @@ What is Banana Cake Pop?
 
 ---
 
-### Q18. When would you choose GraphQL over REST for an API? {#chapter-15-graphql-with-hotchocolate-q18}
+## Q18. When would you choose GraphQL over REST for an API?
 
 When would you choose GraphQL over REST for an API?
 

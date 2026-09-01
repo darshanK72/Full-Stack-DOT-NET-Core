@@ -1,6 +1,6 @@
 # 03. .NET Data Access
 
-ADO.NET, Dapper, and Entity Framework Core.
+ADO.NET, Dapper, and Entity Framework Core — connections, commands, ORMs, migrations, and performance.
 
 ## Topics
 

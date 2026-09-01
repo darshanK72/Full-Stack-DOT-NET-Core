@@ -1,35 +1,30 @@
 # Introduction to REST & Web API — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 01. Introduction to REST & Web API](#chapter-01-introduction-to-rest-web-api)
-  - [Q1. What is REST?](#chapter-01-introduction-to-rest-web-api-q1)
-  - [Q2. What is a Web API?](#chapter-01-introduction-to-rest-web-api-q2)
-  - [Q3. What are the main REST architectural constraints?](#chapter-01-introduction-to-rest-web-api-q3)
-  - [Q4. What is HTTP idempotency, and which methods are idempotent?](#chapter-01-introduction-to-rest-web-api-q4)
-  - [Q5. What is the difference between PUT and POST?](#chapter-01-introduction-to-rest-web-api-q5)
-  - [Q6. What is the difference between PUT and PATCH?](#chapter-01-introduction-to-rest-web-api-q6)
-  - [Q7. What does it mean for an HTTP method to be "safe"?](#chapter-01-introduction-to-rest-web-api-q7)
-  - [Q8. When should an API return HTTP 201 Created vs 200 OK?](#chapter-01-introduction-to-rest-web-api-q8)
-  - [Q9. When should an API return HTTP 204 No Content?](#chapter-01-introduction-to-rest-web-api-q9)
-  - [Q10. What is the difference between HTTP 400 Bad Request and 404 …](#chapter-01-introduction-to-rest-web-api-q10)
-  - [Q11. What is HATEOAS?](#chapter-01-introduction-to-rest-web-api-q11)
-  - [Q12. What is RPC-style API design vs RESTful resource design?](#chapter-01-introduction-to-rest-web-api-q12)
-  - [Q13. What is the difference between REST and SOAP?](#chapter-01-introduction-to-rest-web-api-q13)
-  - [Q14. Why should GET requests not perform state-changing operation…](#chapter-01-introduction-to-rest-web-api-q14)
-  - [Q15. What is a REST resource vs a REST collection?](#chapter-01-introduction-to-rest-web-api-q15)
-  - [Q16. What is the purpose of the Location header on a 201 response…](#chapter-01-introduction-to-rest-web-api-q16)
-  - [Q17. What is API versioning and why is it needed?](#chapter-01-introduction-to-rest-web-api-q17)
-  - [Q18. What makes an endpoint "RESTful" vs merely "HTTP-based"?](#chapter-01-introduction-to-rest-web-api-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is REST?](#q1-what-is-rest)
+2. [Q2. What is a Web API?](#q2-what-is-a-web-api)
+3. [Q3. What are the main REST architectural constraints?](#q3-what-are-the-main-rest-architectural-constraints)
+4. [Q4. What is HTTP idempotency, and which methods are idempotent?](#q4-what-is-http-idempotency-and-which-methods-are-idempotent)
+5. [Q5. What is the difference between PUT and POST?](#q5-what-is-the-difference-between-put-and-post)
+6. [Q6. What is the difference between PUT and PATCH?](#q6-what-is-the-difference-between-put-and-patch)
+7. [Q7. What does it mean for an HTTP method to be "safe"?](#q7-what-does-it-mean-for-an-http-method-to-be-safe)
+8. [Q8. When should an API return HTTP 201 Created vs 200 OK?](#q8-when-should-an-api-return-http-201-created-vs-200-ok)
+9. [Q9. When should an API return HTTP 204 No Content?](#q9-when-should-an-api-return-http-204-no-content)
+10. [Q10. What is the difference between HTTP 400 Bad Request and 404 Not Found?](#q10-what-is-the-difference-between-http-400-bad-request-and-404-not-found)
+11. [Q11. What is HATEOAS?](#q11-what-is-hateoas)
+12. [Q12. What is RPC-style API design vs RESTful resource design?](#q12-what-is-rpc-style-api-design-vs-restful-resource-design)
+13. [Q13. What is the difference between REST and SOAP?](#q13-what-is-the-difference-between-rest-and-soap)
+14. [Q14. Why should GET requests not perform state-changing operations?](#q14-why-should-get-requests-not-perform-state-changing-operations)
+15. [Q15. What is a REST resource vs a REST collection?](#q15-what-is-a-rest-resource-vs-a-rest-collection)
+16. [Q16. What is the purpose of the Location header on a 201 response?](#q16-what-is-the-purpose-of-the-location-header-on-a-201-response)
+17. [Q17. What is API versioning and why is it needed?](#q17-what-is-api-versioning-and-why-is-it-needed)
+18. [Q18. What makes an endpoint "RESTful" vs merely "HTTP-based"?](#q18-what-makes-an-endpoint-restful-vs-merely-http-based)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 01. Introduction to REST & Web API
-
-### Q1. What is REST? {#chapter-01-introduction-to-rest-web-api-q1}
+## Q1. What is REST?
 
 What is REST?
 
@@ -43,7 +38,7 @@ What is REST?
 
 ---
 
-### Q2. What is a Web API? {#chapter-01-introduction-to-rest-web-api-q2}
+## Q2. What is a Web API?
 
 What is a Web API?
 
@@ -57,7 +52,7 @@ What is a Web API?
 
 ---
 
-### Q3. What are the main REST architectural constraints? {#chapter-01-introduction-to-rest-web-api-q3}
+## Q3. What are the main REST architectural constraints?
 
 What are the main REST architectural constraints?
 
@@ -72,7 +67,7 @@ What are the main REST architectural constraints?
 
 ---
 
-### Q4. What is HTTP idempotency, and which methods are idempotent? {#chapter-01-introduction-to-rest-web-api-q4}
+## Q4. What is HTTP idempotency, and which methods are idempotent?
 
 What is HTTP idempotency, and which methods are idempotent?
 
@@ -86,7 +81,7 @@ What is HTTP idempotency, and which methods are idempotent?
 
 ---
 
-### Q5. What is the difference between PUT and POST? {#chapter-01-introduction-to-rest-web-api-q5}
+## Q5. What is the difference between PUT and POST?
 
 What is the difference between PUT and POST?
 
@@ -100,7 +95,7 @@ What is the difference between PUT and POST?
 
 ---
 
-### Q6. What is the difference between PUT and PATCH? {#chapter-01-introduction-to-rest-web-api-q6}
+## Q6. What is the difference between PUT and PATCH?
 
 What is the difference between PUT and PATCH?
 
@@ -114,7 +109,7 @@ What is the difference between PUT and PATCH?
 
 ---
 
-### Q7. What does it mean for an HTTP method to be "safe"? {#chapter-01-introduction-to-rest-web-api-q7}
+## Q7. What does it mean for an HTTP method to be "safe"?
 
 What does it mean for an HTTP method to be "safe"?
 
@@ -128,7 +123,7 @@ What does it mean for an HTTP method to be "safe"?
 
 ---
 
-### Q8. When should an API return HTTP 201 Created vs 200 OK? {#chapter-01-introduction-to-rest-web-api-q8}
+## Q8. When should an API return HTTP 201 Created vs 200 OK?
 
 When should an API return HTTP 201 Created vs 200 OK?
 
@@ -142,7 +137,7 @@ When should an API return HTTP 201 Created vs 200 OK?
 
 ---
 
-### Q9. When should an API return HTTP 204 No Content? {#chapter-01-introduction-to-rest-web-api-q9}
+## Q9. When should an API return HTTP 204 No Content?
 
 When should an API return HTTP 204 No Content?
 
@@ -156,7 +151,7 @@ When should an API return HTTP 204 No Content?
 
 ---
 
-### Q10. What is the difference between HTTP 400 Bad Request and 404 Not Found? {#chapter-01-introduction-to-rest-web-api-q10}
+## Q10. What is the difference between HTTP 400 Bad Request and 404 Not Found?
 
 What is the difference between HTTP 400 Bad Request and 404 Not Found?
 
@@ -170,7 +165,7 @@ What is the difference between HTTP 400 Bad Request and 404 Not Found?
 
 ---
 
-### Q11. What is HATEOAS? {#chapter-01-introduction-to-rest-web-api-q11}
+## Q11. What is HATEOAS?
 
 What is HATEOAS?
 
@@ -184,7 +179,7 @@ What is HATEOAS?
 
 ---
 
-### Q12. What is RPC-style API design vs RESTful resource design? {#chapter-01-introduction-to-rest-web-api-q12}
+## Q12. What is RPC-style API design vs RESTful resource design?
 
 What is RPC-style API design vs RESTful resource design?
 
@@ -198,7 +193,7 @@ What is RPC-style API design vs RESTful resource design?
 
 ---
 
-### Q13. What is the difference between REST and SOAP? {#chapter-01-introduction-to-rest-web-api-q13}
+## Q13. What is the difference between REST and SOAP?
 
 What is the difference between REST and SOAP?
 
@@ -212,7 +207,7 @@ What is the difference between REST and SOAP?
 
 ---
 
-### Q14. Why should GET requests not perform state-changing operations? {#chapter-01-introduction-to-rest-web-api-q14}
+## Q14. Why should GET requests not perform state-changing operations?
 
 Why should GET requests not perform state-changing operations?
 
@@ -226,7 +221,7 @@ Why should GET requests not perform state-changing operations?
 
 ---
 
-### Q15. What is a REST resource vs a REST collection? {#chapter-01-introduction-to-rest-web-api-q15}
+## Q15. What is a REST resource vs a REST collection?
 
 What is a REST resource vs a REST collection?
 
@@ -240,7 +235,7 @@ What is a REST resource vs a REST collection?
 
 ---
 
-### Q16. What is the purpose of the Location header on a 201 response? {#chapter-01-introduction-to-rest-web-api-q16}
+## Q16. What is the purpose of the Location header on a 201 response?
 
 What is the purpose of the Location header on a 201 response?
 
@@ -254,7 +249,7 @@ What is the purpose of the Location header on a 201 response?
 
 ---
 
-### Q17. What is API versioning and why is it needed? {#chapter-01-introduction-to-rest-web-api-q17}
+## Q17. What is API versioning and why is it needed?
 
 What is API versioning and why is it needed?
 
@@ -268,7 +263,7 @@ What is API versioning and why is it needed?
 
 ---
 
-### Q18. What makes an endpoint "RESTful" vs merely "HTTP-based"? {#chapter-01-introduction-to-rest-web-api-q18}
+## Q18. What makes an endpoint "RESTful" vs merely "HTTP-based"?
 
 What makes an endpoint "RESTful" vs merely "HTTP-based"?
 

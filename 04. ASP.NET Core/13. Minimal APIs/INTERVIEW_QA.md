@@ -1,35 +1,30 @@
 # Minimal APIs — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 13. Minimal APIs](#chapter-13-minimal-apis)
-  - [Q1. What are Minimal APIs in ASP.NET Core?](#chapter-13-minimal-apis-q1)
-  - [Q2. How do Minimal APIs differ from controller-based APIs?](#chapter-13-minimal-apis-q2)
-  - [Q3. How do you define a GET endpoint with Minimal APIs?](#chapter-13-minimal-apis-q3)
-  - [Q4. What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`?](#chapter-13-minimal-apis-q4)
-  - [Q5. How does parameter binding work in Minimal API route handler…](#chapter-13-minimal-apis-q5)
-  - [Q6. What is the difference between `Results.Ok()` and `TypedResu…](#chapter-13-minimal-apis-q6)
-  - [Q7. What is `IResult`, and why use it?](#chapter-13-minimal-apis-q7)
-  - [Q8. What are endpoint filters in Minimal APIs?](#chapter-13-minimal-apis-q8)
-  - [Q9. How do you add validation to a Minimal API endpoint?](#chapter-13-minimal-apis-q9)
-  - [Q10. How do you organize Minimal APIs with `MapGroup`?](#chapter-13-minimal-apis-q10)
-  - [Q11. How do you apply authorization to Minimal API endpoints?](#chapter-13-minimal-apis-q11)
-  - [Q12. How does OpenAPI/Swagger discover Minimal API endpoints?](#chapter-13-minimal-apis-q12)
-  - [Q13. What is `ExcludeFromDescription()` used for?](#chapter-13-minimal-apis-q13)
-  - [Q14. When would you choose Minimal APIs over controllers?](#chapter-13-minimal-apis-q14)
-  - [Q15. When would Minimal APIs become a poor long-term choice?](#chapter-13-minimal-apis-q15)
-  - [Q16. How is DI used in Minimal API handlers?](#chapter-13-minimal-apis-q16)
-  - [Q17. What is `AddEndpointsApiExplorer()`?](#chapter-13-minimal-apis-q17)
-  - [Q18. How do you return HTTP 201 Created from a Minimal API?](#chapter-13-minimal-apis-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are Minimal APIs in ASP.NET Core?](#q1-what-are-minimal-apis-in-aspnet-core)
+2. [Q2. How do Minimal APIs differ from controller-based APIs?](#q2-how-do-minimal-apis-differ-from-controller-based-apis)
+3. [Q3. How do you define a GET endpoint with Minimal APIs?](#q3-how-do-you-define-a-get-endpoint-with-minimal-apis)
+4. [Q4. What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`?](#q4-what-is-mapget-mappost-mapput-mapdelete)
+5. [Q5. How does parameter binding work in Minimal API route handlers?](#q5-how-does-parameter-binding-work-in-minimal-api-route-handlers)
+6. [Q6. What is the difference between `Results.Ok()` and `TypedResults.Ok()`?](#q6-what-is-the-difference-between-resultsok-and-typedresultsok)
+7. [Q7. What is `IResult`, and why use it?](#q7-what-is-iresult-and-why-use-it)
+8. [Q8. What are endpoint filters in Minimal APIs?](#q8-what-are-endpoint-filters-in-minimal-apis)
+9. [Q9. How do you add validation to a Minimal API endpoint?](#q9-how-do-you-add-validation-to-a-minimal-api-endpoint)
+10. [Q10. How do you organize Minimal APIs with `MapGroup`?](#q10-how-do-you-organize-minimal-apis-with-mapgroup)
+11. [Q11. How do you apply authorization to Minimal API endpoints?](#q11-how-do-you-apply-authorization-to-minimal-api-endpoints)
+12. [Q12. How does OpenAPI/Swagger discover Minimal API endpoints?](#q12-how-does-openapiswagger-discover-minimal-api-endpoints)
+13. [Q13. What is `ExcludeFromDescription()` used for?](#q13-what-is-excludefromdescription-used-for)
+14. [Q14. When would you choose Minimal APIs over controllers?](#q14-when-would-you-choose-minimal-apis-over-controllers)
+15. [Q15. When would Minimal APIs become a poor long-term choice?](#q15-when-would-minimal-apis-become-a-poor-long-term-choice)
+16. [Q16. How is DI used in Minimal API handlers?](#q16-how-is-di-used-in-minimal-api-handlers)
+17. [Q17. What is `AddEndpointsApiExplorer()`?](#q17-what-is-addendpointsapiexplorer)
+18. [Q18. How do you return HTTP 201 Created from a Minimal API?](#q18-how-do-you-return-http-201-created-from-a-minimal-api)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 13. Minimal APIs
-
-### Q1. What are Minimal APIs in ASP.NET Core? {#chapter-13-minimal-apis-q1}
+## Q1. What are Minimal APIs in ASP.NET Core?
 
 What are Minimal APIs in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What are Minimal APIs in ASP.NET Core?
 
 ---
 
-### Q2. How do Minimal APIs differ from controller-based APIs? {#chapter-13-minimal-apis-q2}
+## Q2. How do Minimal APIs differ from controller-based APIs?
 
 How do Minimal APIs differ from controller-based APIs?
 
@@ -55,7 +50,7 @@ How do Minimal APIs differ from controller-based APIs?
 
 ---
 
-### Q3. How do you define a GET endpoint with Minimal APIs? {#chapter-13-minimal-apis-q3}
+## Q3. How do you define a GET endpoint with Minimal APIs?
 
 How do you define a GET endpoint with Minimal APIs?
 
@@ -75,7 +70,7 @@ app.MapGet("/items/{id:int}", (int id, IItemService items) =>
 
 ---
 
-### Q4. What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`? {#chapter-13-minimal-apis-q4}
+## Q4. What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`?
 
 What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`?
 
@@ -88,7 +83,7 @@ What is `MapGet`, `MapPost`, `MapPut`, `MapDelete`?
 
 ---
 
-### Q5. How does parameter binding work in Minimal API route handlers? {#chapter-13-minimal-apis-q5}
+## Q5. How does parameter binding work in Minimal API route handlers?
 
 How does parameter binding work in Minimal API route handlers?
 
@@ -101,7 +96,7 @@ How does parameter binding work in Minimal API route handlers?
 
 ---
 
-### Q6. What is the difference between `Results.Ok()` and `TypedResults.Ok()`? {#chapter-13-minimal-apis-q6}
+## Q6. What is the difference between `Results.Ok()` and `TypedResults.Ok()`?
 
 What is the difference between `Results.Ok()` and `TypedResults.Ok()`?
 
@@ -114,7 +109,7 @@ What is the difference between `Results.Ok()` and `TypedResults.Ok()`?
 
 ---
 
-### Q7. What is `IResult`, and why use it? {#chapter-13-minimal-apis-q7}
+## Q7. What is `IResult`, and why use it?
 
 What is `IResult`, and why use it?
 
@@ -127,7 +122,7 @@ What is `IResult`, and why use it?
 
 ---
 
-### Q8. What are endpoint filters in Minimal APIs? {#chapter-13-minimal-apis-q8}
+## Q8. What are endpoint filters in Minimal APIs?
 
 What are endpoint filters in Minimal APIs?
 
@@ -140,7 +135,7 @@ What are endpoint filters in Minimal APIs?
 
 ---
 
-### Q9. How do you add validation to a Minimal API endpoint? {#chapter-13-minimal-apis-q9}
+## Q9. How do you add validation to a Minimal API endpoint?
 
 How do you add validation to a Minimal API endpoint?
 
@@ -153,7 +148,7 @@ How do you add validation to a Minimal API endpoint?
 
 ---
 
-### Q10. How do you organize Minimal APIs with `MapGroup`? {#chapter-13-minimal-apis-q10}
+## Q10. How do you organize Minimal APIs with `MapGroup`?
 
 How do you organize Minimal APIs with `MapGroup`?
 
@@ -176,7 +171,7 @@ todos.MapGet("/{id:int}", GetById);
 
 ---
 
-### Q11. How do you apply authorization to Minimal API endpoints? {#chapter-13-minimal-apis-q11}
+## Q11. How do you apply authorization to Minimal API endpoints?
 
 How do you apply authorization to Minimal API endpoints?
 
@@ -189,7 +184,7 @@ How do you apply authorization to Minimal API endpoints?
 
 ---
 
-### Q12. How does OpenAPI/Swagger discover Minimal API endpoints? {#chapter-13-minimal-apis-q12}
+## Q12. How does OpenAPI/Swagger discover Minimal API endpoints?
 
 How does OpenAPI/Swagger discover Minimal API endpoints?
 
@@ -202,7 +197,7 @@ How does OpenAPI/Swagger discover Minimal API endpoints?
 
 ---
 
-### Q13. What is `ExcludeFromDescription()` used for? {#chapter-13-minimal-apis-q13}
+## Q13. What is `ExcludeFromDescription()` used for?
 
 What is `ExcludeFromDescription()` used for?
 
@@ -215,7 +210,7 @@ What is `ExcludeFromDescription()` used for?
 
 ---
 
-### Q14. When would you choose Minimal APIs over controllers? {#chapter-13-minimal-apis-q14}
+## Q14. When would you choose Minimal APIs over controllers?
 
 When would you choose Minimal APIs over controllers?
 
@@ -228,7 +223,7 @@ When would you choose Minimal APIs over controllers?
 
 ---
 
-### Q15. When would Minimal APIs become a poor long-term choice? {#chapter-13-minimal-apis-q15}
+## Q15. When would Minimal APIs become a poor long-term choice?
 
 When would Minimal APIs become a poor long-term choice?
 
@@ -241,7 +236,7 @@ When would Minimal APIs become a poor long-term choice?
 
 ---
 
-### Q16. How is DI used in Minimal API handlers? {#chapter-13-minimal-apis-q16}
+## Q16. How is DI used in Minimal API handlers?
 
 How is DI used in Minimal API handlers?
 
@@ -254,7 +249,7 @@ How is DI used in Minimal API handlers?
 
 ---
 
-### Q17. What is `AddEndpointsApiExplorer()`? {#chapter-13-minimal-apis-q17}
+## Q17. What is `AddEndpointsApiExplorer()`?
 
 What is `AddEndpointsApiExplorer()`?
 
@@ -267,7 +262,7 @@ What is `AddEndpointsApiExplorer()`?
 
 ---
 
-### Q18. How do you return HTTP 201 Created from a Minimal API? {#chapter-13-minimal-apis-q18}
+## Q18. How do you return HTTP 201 Created from a Minimal API?
 
 How do you return HTTP 201 Created from a Minimal API?
 

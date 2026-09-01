@@ -1,35 +1,30 @@
 # TempData, ViewData & ViewBag — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 12. TempData, ViewData & ViewBag](#chapter-12-tempdata-viewdata-viewbag)
-  - [Q1. What is `ViewBag` in ASP.NET Core MVC?](#chapter-12-tempdata-viewdata-viewbag-q1)
-  - [Q2. What is `ViewData` and how does it differ from `ViewBag`?](#chapter-12-tempdata-viewdata-viewbag-q2)
-  - [Q3. What is `TempData` and when is it used?](#chapter-12-tempdata-viewdata-viewbag-q3)
-  - [Q4. What is the difference between `ViewBag`, `ViewData`, and `T…](#chapter-12-tempdata-viewdata-viewbag-q4)
-  - [Q5. Why is `TempData` used after `RedirectToAction`?](#chapter-12-tempdata-viewdata-viewbag-q5)
-  - [Q6. What is the Post-Redirect-Get (PRG) pattern?](#chapter-12-tempdata-viewdata-viewbag-q6)
-  - [Q7. Why doesn't `ModelState` survive a redirect?](#chapter-12-tempdata-viewdata-viewbag-q7)
-  - [Q8. How can validation errors survive a redirect?](#chapter-12-tempdata-viewdata-viewbag-q8)
-  - [Q9. What is the difference between cookie-based and session-base…](#chapter-12-tempdata-viewdata-viewbag-q9)
-  - [Q10. What happens to TempData when it is read?](#chapter-12-tempdata-viewdata-viewbag-q10)
-  - [Q11. What is `TempData.Keep()` used for?](#chapter-12-tempdata-viewdata-viewbag-q11)
-  - [Q12. What is `TempData.Peek()` used for?](#chapter-12-tempdata-viewdata-viewbag-q12)
-  - [Q13. What are the size limits of cookie-based TempData?](#chapter-12-tempdata-viewdata-viewbag-q13)
-  - [Q14. Why does session-based TempData fail behind load balancers w…](#chapter-12-tempdata-viewdata-viewbag-q14)
-  - [Q15. When should you use `ViewBag`/`ViewData` instead of a ViewMo…](#chapter-12-tempdata-viewdata-viewbag-q15)
-  - [Q16. When should you not use `ViewBag` for layout data?](#chapter-12-tempdata-viewdata-viewbag-q16)
-  - [Q17. Does TempData work on AJAX partial responses the same as ful…](#chapter-12-tempdata-viewdata-viewbag-q17)
-  - [Q18. What data should never be stored in TempData?](#chapter-12-tempdata-viewdata-viewbag-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is `ViewBag` in ASP.NET Core MVC?](#q1-what-is-viewbag-in-aspnet-core-mvc)
+2. [Q2. What is `ViewData` and how does it differ from `ViewBag`?](#q2-what-is-viewdata-and-how-does-it-differ-from-viewbag)
+3. [Q3. What is `TempData` and when is it used?](#q3-what-is-tempdata-and-when-is-it-used)
+4. [Q4. What is the difference between `ViewBag`, `ViewData`, and `TempData`?](#q4-what-is-the-difference-between-viewbag-viewdata-and-tempdata)
+5. [Q5. Why is `TempData` used after `RedirectToAction`?](#q5-why-is-tempdata-used-after-redirecttoaction)
+6. [Q6. What is the Post-Redirect-Get (PRG) pattern?](#q6-what-is-the-post-redirect-get-prg-pattern)
+7. [Q7. Why doesn't `ModelState` survive a redirect?](#q7-why-doesnt-modelstate-survive-a-redirect)
+8. [Q8. How can validation errors survive a redirect?](#q8-how-can-validation-errors-survive-a-redirect)
+9. [Q9. What is the difference between cookie-based and session-based TempData?](#q9-what-is-the-difference-between-cookie-based-and-session-based-tempdata)
+10. [Q10. What happens to TempData when it is read?](#q10-what-happens-to-tempdata-when-it-is-read)
+11. [Q11. What is `TempData.Keep()` used for?](#q11-what-is-tempdatakeep-used-for)
+12. [Q12. What is `TempData.Peek()` used for?](#q12-what-is-tempdatapeek-used-for)
+13. [Q13. What are the size limits of cookie-based TempData?](#q13-what-are-the-size-limits-of-cookie-based-tempdata)
+14. [Q14. Why does session-based TempData fail behind load balancers without sticky sessions?](#q14-why-does-session-based-tempdata-fail-behind-load-balancers-without-sticky-sessions)
+15. [Q15. When should you use `ViewBag`/`ViewData` instead of a ViewModel?](#q15-when-should-you-use-viewbagviewdata-instead-of-a-viewmodel)
+16. [Q16. When should you not use `ViewBag` for layout data?](#q16-when-should-you-not-use-viewbag-for-layout-data)
+17. [Q17. Does TempData work on AJAX partial responses the same as full page redirects?](#q17-does-tempdata-work-on-ajax-partial-responses-the-same-as-full-page-redirects)
+18. [Q18. What data should never be stored in TempData?](#q18-what-data-should-never-be-stored-in-tempdata)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 12. TempData, ViewData & ViewBag
-
-### Q1. What is `ViewBag` in ASP.NET Core MVC? {#chapter-12-tempdata-viewdata-viewbag-q1}
+## Q1. What is `ViewBag` in ASP.NET Core MVC?
 
 What is `ViewBag` in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is `ViewBag` in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is `ViewData` and how does it differ from `ViewBag`? {#chapter-12-tempdata-viewdata-viewbag-q2}
+## Q2. What is `ViewData` and how does it differ from `ViewBag`?
 
 What is `ViewData` and how does it differ from `ViewBag`?
 
@@ -55,7 +50,7 @@ What is `ViewData` and how does it differ from `ViewBag`?
 
 ---
 
-### Q3. What is `TempData` and when is it used? {#chapter-12-tempdata-viewdata-viewbag-q3}
+## Q3. What is `TempData` and when is it used?
 
 What is `TempData` and when is it used?
 
@@ -68,7 +63,7 @@ What is `TempData` and when is it used?
 
 ---
 
-### Q4. What is the difference between `ViewBag`, `ViewData`, and `TempData`? {#chapter-12-tempdata-viewdata-viewbag-q4}
+## Q4. What is the difference between `ViewBag`, `ViewData`, and `TempData`?
 
 What is the difference between `ViewBag`, `ViewData`, and `TempData`?
 
@@ -81,7 +76,7 @@ What is the difference between `ViewBag`, `ViewData`, and `TempData`?
 
 ---
 
-### Q5. Why is `TempData` used after `RedirectToAction`? {#chapter-12-tempdata-viewdata-viewbag-q5}
+## Q5. Why is `TempData` used after `RedirectToAction`?
 
 Why is `TempData` used after `RedirectToAction`?
 
@@ -94,7 +89,7 @@ Why is `TempData` used after `RedirectToAction`?
 
 ---
 
-### Q6. What is the Post-Redirect-Get (PRG) pattern? {#chapter-12-tempdata-viewdata-viewbag-q6}
+## Q6. What is the Post-Redirect-Get (PRG) pattern?
 
 What is the Post-Redirect-Get (PRG) pattern?
 
@@ -107,7 +102,7 @@ What is the Post-Redirect-Get (PRG) pattern?
 
 ---
 
-### Q7. Why doesn't `ModelState` survive a redirect? {#chapter-12-tempdata-viewdata-viewbag-q7}
+## Q7. Why doesn't `ModelState` survive a redirect?
 
 Why doesn't `ModelState` survive a redirect?
 
@@ -120,7 +115,7 @@ Why doesn't `ModelState` survive a redirect?
 
 ---
 
-### Q8. How can validation errors survive a redirect? {#chapter-12-tempdata-viewdata-viewbag-q8}
+## Q8. How can validation errors survive a redirect?
 
 How can validation errors survive a redirect?
 
@@ -133,7 +128,7 @@ How can validation errors survive a redirect?
 
 ---
 
-### Q9. What is the difference between cookie-based and session-based TempData? {#chapter-12-tempdata-viewdata-viewbag-q9}
+## Q9. What is the difference between cookie-based and session-based TempData?
 
 What is the difference between cookie-based and session-based TempData?
 
@@ -146,7 +141,7 @@ What is the difference between cookie-based and session-based TempData?
 
 ---
 
-### Q10. What happens to TempData when it is read? {#chapter-12-tempdata-viewdata-viewbag-q10}
+## Q10. What happens to TempData when it is read?
 
 What happens to TempData when it is read?
 
@@ -159,7 +154,7 @@ What happens to TempData when it is read?
 
 ---
 
-### Q11. What is `TempData.Keep()` used for? {#chapter-12-tempdata-viewdata-viewbag-q11}
+## Q11. What is `TempData.Keep()` used for?
 
 What is `TempData.Keep()` used for?
 
@@ -172,7 +167,7 @@ What is `TempData.Keep()` used for?
 
 ---
 
-### Q12. What is `TempData.Peek()` used for? {#chapter-12-tempdata-viewdata-viewbag-q12}
+## Q12. What is `TempData.Peek()` used for?
 
 What is `TempData.Peek()` used for?
 
@@ -185,7 +180,7 @@ What is `TempData.Peek()` used for?
 
 ---
 
-### Q13. What are the size limits of cookie-based TempData? {#chapter-12-tempdata-viewdata-viewbag-q13}
+## Q13. What are the size limits of cookie-based TempData?
 
 What are the size limits of cookie-based TempData?
 
@@ -198,7 +193,7 @@ What are the size limits of cookie-based TempData?
 
 ---
 
-### Q14. Why does session-based TempData fail behind load balancers without sticky sessions? {#chapter-12-tempdata-viewdata-viewbag-q14}
+## Q14. Why does session-based TempData fail behind load balancers without sticky sessions?
 
 Why does session-based TempData fail behind load balancers without sticky sessions?
 
@@ -211,7 +206,7 @@ Why does session-based TempData fail behind load balancers without sticky sessio
 
 ---
 
-### Q15. When should you use `ViewBag`/`ViewData` instead of a ViewModel? {#chapter-12-tempdata-viewdata-viewbag-q15}
+## Q15. When should you use `ViewBag`/`ViewData` instead of a ViewModel?
 
 When should you use `ViewBag`/`ViewData` instead of a ViewModel?
 
@@ -224,7 +219,7 @@ When should you use `ViewBag`/`ViewData` instead of a ViewModel?
 
 ---
 
-### Q16. When should you not use `ViewBag` for layout data? {#chapter-12-tempdata-viewdata-viewbag-q16}
+## Q16. When should you not use `ViewBag` for layout data?
 
 When should you not use `ViewBag` for layout data?
 
@@ -237,7 +232,7 @@ When should you not use `ViewBag` for layout data?
 
 ---
 
-### Q17. Does TempData work on AJAX partial responses the same as full page redirects? {#chapter-12-tempdata-viewdata-viewbag-q17}
+## Q17. Does TempData work on AJAX partial responses the same as full page redirects?
 
 Does TempData work on AJAX partial responses the same as full page redirects?
 
@@ -250,7 +245,7 @@ Does TempData work on AJAX partial responses the same as full page redirects?
 
 ---
 
-### Q18. What data should never be stored in TempData? {#chapter-12-tempdata-viewdata-viewbag-q18}
+## Q18. What data should never be stored in TempData?
 
 What data should never be stored in TempData?
 

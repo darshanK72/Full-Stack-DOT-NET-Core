@@ -1,35 +1,30 @@
 # Routing & Attribute Routing — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 09. Routing & Attribute Routing](#chapter-09-routing-attribute-routing)
-  - [Q1. What is conventional routing in ASP.NET Core MVC?](#chapter-09-routing-attribute-routing-q1)
-  - [Q2. What is the default route pattern `{controller=Home}/{action…](#chapter-09-routing-attribute-routing-q2)
-  - [Q3. What is attribute routing in MVC controllers?](#chapter-09-routing-attribute-routing-q3)
-  - [Q4. What is the difference between conventional routing and attr…](#chapter-09-routing-attribute-routing-q4)
-  - [Q5. What are route constraints (e.g., `:int`, `:exists`)?](#chapter-09-routing-attribute-routing-q5)
-  - [Q6. Why does route registration order matter in `MapControllerRo…](#chapter-09-routing-attribute-routing-q6)
-  - [Q7. How does the `{area:exists}` constraint work?](#chapter-09-routing-attribute-routing-q7)
-  - [Q8. What is the difference between `[Route]` on a controller vs …](#chapter-09-routing-attribute-routing-q8)
-  - [Q9. What does a leading slash in `[HttpGet("/export/{year}")]` m…](#chapter-09-routing-attribute-routing-q9)
-  - [Q10. What is a catch-all route parameter (`{*slug}`)?](#chapter-09-routing-attribute-routing-q10)
-  - [Q11. How do HTTP verbs (`[HttpGet]`, `[HttpPost]`) affect action …](#chapter-09-routing-attribute-routing-q11)
-  - [Q12. What happens when two actions match the same route?](#chapter-09-routing-attribute-routing-q12)
-  - [Q13. How does Tag Helper link generation (`asp-controller`, `asp-…](#chapter-09-routing-attribute-routing-q13)
-  - [Q14. Why must `area` be specified when generating links to area c…](#chapter-09-routing-attribute-routing-q14)
-  - [Q15. What is `LowercaseUrls` and how does it affect link generati…](#chapter-09-routing-attribute-routing-q15)
-  - [Q16. What is the difference between "no route matched" and "405 M…](#chapter-09-routing-attribute-routing-q16)
-  - [Q17. How do optional route parameters (`{id?}`) and defaults inte…](#chapter-09-routing-attribute-routing-q17)
-  - [Q18. What is the areas route pattern and how does it differ from …](#chapter-09-routing-attribute-routing-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is conventional routing in ASP.NET Core MVC?](#q1-what-is-conventional-routing-in-aspnet-core-mvc)
+2. [Q2. What is the default route pattern `{controller=Home}/{action=Index}/{id?}`?](#q2-what-is-the-default-route-pattern-controllerhomeactionindexid)
+3. [Q3. What is attribute routing in MVC controllers?](#q3-what-is-attribute-routing-in-mvc-controllers)
+4. [Q4. What is the difference between conventional routing and attribute routing?](#q4-what-is-the-difference-between-conventional-routing-and-attribute-routing)
+5. [Q5. What are route constraints (e.g., `:int`, `:exists`)?](#q5-what-are-route-constraints-eg-int-exists)
+6. [Q6. Why does route registration order matter in `MapControllerRoute`?](#q6-why-does-route-registration-order-matter-in-mapcontrollerroute)
+7. [Q7. How does the `{area:exists}` constraint work?](#q7-how-does-the-areaexists-constraint-work)
+8. [Q8. What is the difference between `[Route]` on a controller vs on an action?](#q8-what-is-the-difference-between-route-on-a-controller-vs-on-an-action)
+9. [Q9. What does a leading slash in `[HttpGet("/export/{year}")]` mean?](#q9-what-does-a-leading-slash-in-httpgetexportyear-mean)
+10. [Q10. What is a catch-all route parameter (`{*slug}`)?](#q10-what-is-a-catch-all-route-parameter-slug)
+11. [Q11. How do HTTP verbs (`[HttpGet]`, `[HttpPost]`) affect action selection?](#q11-how-do-http-verbs-httpget-httppost-affect-action-selection)
+12. [Q12. What happens when two actions match the same route?](#q12-what-happens-when-two-actions-match-the-same-route)
+13. [Q13. How does Tag Helper link generation (`asp-controller`, `asp-action`) relate to routing?](#q13-how-does-tag-helper-link-generation-asp-controller-asp-action-relate-to-routing)
+14. [Q14. Why must `area` be specified when generating links to area controllers from outside the area?](#q14-why-must-area-be-specified-when-generating-links-to-area-controllers-from-outside-the-area)
+15. [Q15. What is `LowercaseUrls` and how does it affect link generation?](#q15-what-is-lowercaseurls-and-how-does-it-affect-link-generation)
+16. [Q16. What is the difference between "no route matched" and "405 Method Not Allowed"?](#q16-what-is-the-difference-between-no-route-matched-and-405-method-not-allowed)
+17. [Q17. How do optional route parameters (`{id?}`) and defaults interact?](#q17-how-do-optional-route-parameters-id-and-defaults-interact)
+18. [Q18. What is the areas route pattern and how does it differ from the default route?](#q18-what-is-the-areas-route-pattern-and-how-does-it-differ-from-the-default-route)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 09. Routing & Attribute Routing
-
-### Q1. What is conventional routing in ASP.NET Core MVC? {#chapter-09-routing-attribute-routing-q1}
+## Q1. What is conventional routing in ASP.NET Core MVC?
 
 What is conventional routing in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is conventional routing in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is the default route pattern `{controller=Home}/{action=Index}/{id?}`? {#chapter-09-routing-attribute-routing-q2}
+## Q2. What is the default route pattern `{controller=Home}/{action=Index}/{id?}`?
 
 What is the default route pattern `{controller=Home}/{action=Index}/{id?}`?
 
@@ -55,7 +50,7 @@ What is the default route pattern `{controller=Home}/{action=Index}/{id?}`?
 
 ---
 
-### Q3. What is attribute routing in MVC controllers? {#chapter-09-routing-attribute-routing-q3}
+## Q3. What is attribute routing in MVC controllers?
 
 What is attribute routing in MVC controllers?
 
@@ -68,7 +63,7 @@ What is attribute routing in MVC controllers?
 
 ---
 
-### Q4. What is the difference between conventional routing and attribute routing? {#chapter-09-routing-attribute-routing-q4}
+## Q4. What is the difference between conventional routing and attribute routing?
 
 What is the difference between conventional routing and attribute routing?
 
@@ -81,7 +76,7 @@ What is the difference between conventional routing and attribute routing?
 
 ---
 
-### Q5. What are route constraints (e.g., `:int`, `:exists`)? {#chapter-09-routing-attribute-routing-q5}
+## Q5. What are route constraints (e.g., `:int`, `:exists`)?
 
 What are route constraints (e.g., `:int`, `:exists`)?
 
@@ -94,7 +89,7 @@ What are route constraints (e.g., `:int`, `:exists`)?
 
 ---
 
-### Q6. Why does route registration order matter in `MapControllerRoute`? {#chapter-09-routing-attribute-routing-q6}
+## Q6. Why does route registration order matter in `MapControllerRoute`?
 
 Why does route registration order matter in `MapControllerRoute`?
 
@@ -107,7 +102,7 @@ Why does route registration order matter in `MapControllerRoute`?
 
 ---
 
-### Q7. How does the `{area:exists}` constraint work? {#chapter-09-routing-attribute-routing-q7}
+## Q7. How does the `{area:exists}` constraint work?
 
 How does the `{area:exists}` constraint work?
 
@@ -120,7 +115,7 @@ How does the `{area:exists}` constraint work?
 
 ---
 
-### Q8. What is the difference between `[Route]` on a controller vs on an action? {#chapter-09-routing-attribute-routing-q8}
+## Q8. What is the difference between `[Route]` on a controller vs on an action?
 
 What is the difference between `[Route]` on a controller vs on an action?
 
@@ -133,7 +128,7 @@ What is the difference between `[Route]` on a controller vs on an action?
 
 ---
 
-### Q9. What does a leading slash in `[HttpGet("/export/{year}")]` mean? {#chapter-09-routing-attribute-routing-q9}
+## Q9. What does a leading slash in `[HttpGet("/export/{year}")]` mean?
 
 What does a leading slash in `[HttpGet("/export/{year}")]` mean?
 
@@ -146,7 +141,7 @@ What does a leading slash in `[HttpGet("/export/{year}")]` mean?
 
 ---
 
-### Q10. What is a catch-all route parameter (`{*slug}`)? {#chapter-09-routing-attribute-routing-q10}
+## Q10. What is a catch-all route parameter (`{*slug}`)?
 
 What is a catch-all route parameter (`{*slug}`)?
 
@@ -159,7 +154,7 @@ What is a catch-all route parameter (`{*slug}`)?
 
 ---
 
-### Q11. How do HTTP verbs (`[HttpGet]`, `[HttpPost]`) affect action selection? {#chapter-09-routing-attribute-routing-q11}
+## Q11. How do HTTP verbs (`[HttpGet]`, `[HttpPost]`) affect action selection?
 
 How do HTTP verbs (`[HttpGet]`, `[HttpPost]`) affect action selection?
 
@@ -172,7 +167,7 @@ How do HTTP verbs (`[HttpGet]`, `[HttpPost]`) affect action selection?
 
 ---
 
-### Q12. What happens when two actions match the same route? {#chapter-09-routing-attribute-routing-q12}
+## Q12. What happens when two actions match the same route?
 
 What happens when two actions match the same route?
 
@@ -185,7 +180,7 @@ What happens when two actions match the same route?
 
 ---
 
-### Q13. How does Tag Helper link generation (`asp-controller`, `asp-action`) relate to routing? {#chapter-09-routing-attribute-routing-q13}
+## Q13. How does Tag Helper link generation (`asp-controller`, `asp-action`) relate to routing?
 
 How does Tag Helper link generation (`asp-controller`, `asp-action`) relate to routing?
 
@@ -198,7 +193,7 @@ How does Tag Helper link generation (`asp-controller`, `asp-action`) relate to r
 
 ---
 
-### Q14. Why must `area` be specified when generating links to area controllers from outside the area? {#chapter-09-routing-attribute-routing-q14}
+## Q14. Why must `area` be specified when generating links to area controllers from outside the area?
 
 Why must `area` be specified when generating links to area controllers from outside the area?
 
@@ -211,7 +206,7 @@ Why must `area` be specified when generating links to area controllers from outs
 
 ---
 
-### Q15. What is `LowercaseUrls` and how does it affect link generation? {#chapter-09-routing-attribute-routing-q15}
+## Q15. What is `LowercaseUrls` and how does it affect link generation?
 
 What is `LowercaseUrls` and how does it affect link generation?
 
@@ -224,7 +219,7 @@ What is `LowercaseUrls` and how does it affect link generation?
 
 ---
 
-### Q16. What is the difference between "no route matched" and "405 Method Not Allowed"? {#chapter-09-routing-attribute-routing-q16}
+## Q16. What is the difference between "no route matched" and "405 Method Not Allowed"?
 
 What is the difference between "no route matched" and "405 Method Not Allowed"?
 
@@ -237,7 +232,7 @@ What is the difference between "no route matched" and "405 Method Not Allowed"?
 
 ---
 
-### Q17. How do optional route parameters (`{id?}`) and defaults interact? {#chapter-09-routing-attribute-routing-q17}
+## Q17. How do optional route parameters (`{id?}`) and defaults interact?
 
 How do optional route parameters (`{id?}`) and defaults interact?
 
@@ -250,7 +245,7 @@ How do optional route parameters (`{id?}`) and defaults interact?
 
 ---
 
-### Q18. What is the areas route pattern and how does it differ from the default route? {#chapter-09-routing-attribute-routing-q18}
+## Q18. What is the areas route pattern and how does it differ from the default route?
 
 What is the areas route pattern and how does it differ from the default route?
 

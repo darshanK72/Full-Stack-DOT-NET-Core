@@ -1,35 +1,30 @@
 # Background & Hosted Services — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 14. Background & Hosted Services](#chapter-14-background-hosted-services)
-  - [Q1. What is a hosted service in ASP.NET Core?](#chapter-14-background-hosted-services-q1)
-  - [Q2. What is `IHostedService`?](#chapter-14-background-hosted-services-q2)
-  - [Q3. What is `BackgroundService`, and how does it differ from `IH…](#chapter-14-background-hosted-services-q3)
-  - [Q4. What is the difference between `StartAsync` and `ExecuteAsyn…](#chapter-14-background-hosted-services-q4)
-  - [Q5. How do you register a hosted service in DI?](#chapter-14-background-hosted-services-q5)
-  - [Q6. Why can't you inject a Scoped service directly into a Single…](#chapter-14-background-hosted-services-q6)
-  - [Q7. What is `IServiceScopeFactory`, and how is it used in backgr…](#chapter-14-background-hosted-services-q7)
-  - [Q8. What is `Channel<T>`, and how is it used for in-process queu…](#chapter-14-background-hosted-services-q8)
-  - [Q9. How does graceful shutdown work for hosted services?](#chapter-14-background-hosted-services-q9)
-  - [Q10. What is the role of `CancellationToken` in `BackgroundServic…](#chapter-14-background-hosted-services-q10)
-  - [Q11. What happens when Kubernetes sends SIGTERM to a pod?](#chapter-14-background-hosted-services-q11)
-  - [Q12. What is `PeriodicTimer`, and when would you use it in a host…](#chapter-14-background-hosted-services-q12)
-  - [Q13. What is the difference between polling and event-driven back…](#chapter-14-background-hosted-services-q13)
-  - [Q14. When should background work stay in-process vs move to an ex…](#chapter-14-background-hosted-services-q14)
-  - [Q15. What is the outbox pattern?](#chapter-14-background-hosted-services-q15)
-  - [Q16. What problems arise from unbounded parallelism in a backgrou…](#chapter-14-background-hosted-services-q16)
-  - [Q17. How does a hosted service relate to the ASP.NET Core applica…](#chapter-14-background-hosted-services-q17)
-  - [Q18. What is the difference between `IHostedService` and a `Task.…](#chapter-14-background-hosted-services-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is a hosted service in ASP.NET Core?](#q1-what-is-a-hosted-service-in-aspnet-core)
+2. [Q2. What is `IHostedService`?](#q2-what-is-ihostedservice)
+3. [Q3. What is `BackgroundService`, and how does it differ from `IHostedService`?](#q3-what-is-backgroundservice-and-how-does-it-differ-from-ihostedservice)
+4. [Q4. What is the difference between `StartAsync` and `ExecuteAsync`?](#q4-what-is-the-difference-between-startasync-and-executeasync)
+5. [Q5. How do you register a hosted service in DI?](#q5-how-do-you-register-a-hosted-service-in-di)
+6. [Q6. Why can't you inject a Scoped service directly into a Singleton hosted service?](#q6-why-cant-you-inject-a-scoped-service-directly-into-a-singleton-hosted-service)
+7. [Q7. What is `IServiceScopeFactory`, and how is it used in background work?](#q7-what-is-iservicescopefactory-and-how-is-it-used-in-background-work)
+8. [Q8. What is `Channel<T>`, and how is it used for in-process queuing?](#q8-what-is-channelt-and-how-is-it-used-for-in-process-queuing)
+9. [Q9. How does graceful shutdown work for hosted services?](#q9-how-does-graceful-shutdown-work-for-hosted-services)
+10. [Q10. What is the role of `CancellationToken` in `BackgroundService`?](#q10-what-is-the-role-of-cancellationtoken-in-backgroundservice)
+11. [Q11. What happens when Kubernetes sends SIGTERM to a pod?](#q11-what-happens-when-kubernetes-sends-sigterm-to-a-pod)
+12. [Q12. What is `PeriodicTimer`, and when would you use it in a hosted service?](#q12-what-is-periodictimer-and-when-would-you-use-it-in-a-hosted-service)
+13. [Q13. What is the difference between polling and event-driven background processing?](#q13-what-is-the-difference-between-polling-and-event-driven-background-processing)
+14. [Q14. When should background work stay in-process vs move to an external queue/broker?](#q14-when-should-background-work-stay-in-process-vs-move-to-an-external-queuebroker)
+15. [Q15. What is the outbox pattern?](#q15-what-is-the-outbox-pattern)
+16. [Q16. What problems arise from unbounded parallelism in a background worker?](#q16-what-problems-arise-from-unbounded-parallelism-in-a-background-worker)
+17. [Q17. How does a hosted service relate to the ASP.NET Core application lifetime?](#q17-how-does-a-hosted-service-relate-to-the-aspnet-core-application-lifetime)
+18. [Q18. What is the difference between `IHostedService` and a `Task.Run` fire-and-forget call?](#q18-what-is-the-difference-between-ihostedservice-and-a-taskrun-fire-and-forget-call)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 14. Background & Hosted Services
-
-### Q1. What is a hosted service in ASP.NET Core? {#chapter-14-background-hosted-services-q1}
+## Q1. What is a hosted service in ASP.NET Core?
 
 What is a hosted service in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is a hosted service in ASP.NET Core?
 
 ---
 
-### Q2. What is `IHostedService`? {#chapter-14-background-hosted-services-q2}
+## Q2. What is `IHostedService`?
 
 What is `IHostedService`?
 
@@ -55,7 +50,7 @@ What is `IHostedService`?
 
 ---
 
-### Q3. What is `BackgroundService`, and how does it differ from `IHostedService`? {#chapter-14-background-hosted-services-q3}
+## Q3. What is `BackgroundService`, and how does it differ from `IHostedService`?
 
 What is `BackgroundService`, and how does it differ from `IHostedService`?
 
@@ -68,7 +63,7 @@ What is `BackgroundService`, and how does it differ from `IHostedService`?
 
 ---
 
-### Q4. What is the difference between `StartAsync` and `ExecuteAsync`? {#chapter-14-background-hosted-services-q4}
+## Q4. What is the difference between `StartAsync` and `ExecuteAsync`?
 
 What is the difference between `StartAsync` and `ExecuteAsync`?
 
@@ -81,7 +76,7 @@ What is the difference between `StartAsync` and `ExecuteAsync`?
 
 ---
 
-### Q5. How do you register a hosted service in DI? {#chapter-14-background-hosted-services-q5}
+## Q5. How do you register a hosted service in DI?
 
 How do you register a hosted service in DI?
 
@@ -100,7 +95,7 @@ builder.Services.AddHostedService(sp => new OutboxPublisher(sp.GetRequiredServic
 
 ---
 
-### Q6. Why can't you inject a Scoped service directly into a Singleton hosted service? {#chapter-14-background-hosted-services-q6}
+## Q6. Why can't you inject a Scoped service directly into a Singleton hosted service?
 
 Why can't you inject a Scoped service directly into a Singleton hosted service?
 
@@ -113,7 +108,7 @@ Why can't you inject a Scoped service directly into a Singleton hosted service?
 
 ---
 
-### Q7. What is `IServiceScopeFactory`, and how is it used in background work? {#chapter-14-background-hosted-services-q7}
+## Q7. What is `IServiceScopeFactory`, and how is it used in background work?
 
 What is `IServiceScopeFactory`, and how is it used in background work?
 
@@ -132,7 +127,7 @@ await db.SaveChangesAsync(stoppingToken);
 
 ---
 
-### Q8. What is `Channel<T>`, and how is it used for in-process queuing? {#chapter-14-background-hosted-services-q8}
+## Q8. What is `Channel<T>`, and how is it used for in-process queuing?
 
 What is `Channel<T>`, and how is it used for in-process queuing?
 
@@ -145,7 +140,7 @@ What is `Channel<T>`, and how is it used for in-process queuing?
 
 ---
 
-### Q9. How does graceful shutdown work for hosted services? {#chapter-14-background-hosted-services-q9}
+## Q9. How does graceful shutdown work for hosted services?
 
 How does graceful shutdown work for hosted services?
 
@@ -158,7 +153,7 @@ How does graceful shutdown work for hosted services?
 
 ---
 
-### Q10. What is the role of `CancellationToken` in `BackgroundService`? {#chapter-14-background-hosted-services-q10}
+## Q10. What is the role of `CancellationToken` in `BackgroundService`?
 
 What is the role of `CancellationToken` in `BackgroundService`?
 
@@ -171,7 +166,7 @@ What is the role of `CancellationToken` in `BackgroundService`?
 
 ---
 
-### Q11. What happens when Kubernetes sends SIGTERM to a pod? {#chapter-14-background-hosted-services-q11}
+## Q11. What happens when Kubernetes sends SIGTERM to a pod?
 
 What happens when Kubernetes sends SIGTERM to a pod?
 
@@ -184,7 +179,7 @@ What happens when Kubernetes sends SIGTERM to a pod?
 
 ---
 
-### Q12. What is `PeriodicTimer`, and when would you use it in a hosted service? {#chapter-14-background-hosted-services-q12}
+## Q12. What is `PeriodicTimer`, and when would you use it in a hosted service?
 
 What is `PeriodicTimer`, and when would you use it in a hosted service?
 
@@ -205,7 +200,7 @@ while (await timer.WaitForNextTickAsync(stoppingToken))
 
 ---
 
-### Q13. What is the difference between polling and event-driven background processing? {#chapter-14-background-hosted-services-q13}
+## Q13. What is the difference between polling and event-driven background processing?
 
 What is the difference between polling and event-driven background processing?
 
@@ -218,7 +213,7 @@ What is the difference between polling and event-driven background processing?
 
 ---
 
-### Q14. When should background work stay in-process vs move to an external queue/broker? {#chapter-14-background-hosted-services-q14}
+## Q14. When should background work stay in-process vs move to an external queue/broker?
 
 When should background work stay in-process vs move to an external queue/broker?
 
@@ -231,7 +226,7 @@ When should background work stay in-process vs move to an external queue/broker?
 
 ---
 
-### Q15. What is the outbox pattern? {#chapter-14-background-hosted-services-q15}
+## Q15. What is the outbox pattern?
 
 What is the outbox pattern?
 
@@ -244,7 +239,7 @@ What is the outbox pattern?
 
 ---
 
-### Q16. What problems arise from unbounded parallelism in a background worker? {#chapter-14-background-hosted-services-q16}
+## Q16. What problems arise from unbounded parallelism in a background worker?
 
 What problems arise from unbounded parallelism in a background worker?
 
@@ -257,7 +252,7 @@ What problems arise from unbounded parallelism in a background worker?
 
 ---
 
-### Q17. How does a hosted service relate to the ASP.NET Core application lifetime? {#chapter-14-background-hosted-services-q17}
+## Q17. How does a hosted service relate to the ASP.NET Core application lifetime?
 
 How does a hosted service relate to the ASP.NET Core application lifetime?
 
@@ -270,7 +265,7 @@ How does a hosted service relate to the ASP.NET Core application lifetime?
 
 ---
 
-### Q18. What is the difference between `IHostedService` and a `Task.Run` fire-and-forget call? {#chapter-14-background-hosted-services-q18}
+## Q18. What is the difference between `IHostedService` and a `Task.Run` fire-and-forget call?
 
 What is the difference between `IHostedService` and a `Task.Run` fire-and-forget call?
 

@@ -1,35 +1,30 @@
 # Layouts, Sections & Partial Views — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 04. Layouts, Sections & Partial Views](#chapter-04-layouts-sections-partial-views)
-  - [Q1. What is a layout in ASP.NET Core MVC?](#chapter-04-layouts-sections-partial-views-q1)
-  - [Q2. What does `@RenderBody()` do in a layout?](#chapter-04-layouts-sections-partial-views-q2)
-  - [Q3. What is a section in Razor (`@section`)?](#chapter-04-layouts-sections-partial-views-q3)
-  - [Q4. What is the difference between `@RenderSection("Scripts", re…](#chapter-04-layouts-sections-partial-views-q4)
-  - [Q5. What is `_ViewStart.cshtml` and how does it apply layouts?](#chapter-04-layouts-sections-partial-views-q5)
-  - [Q6. What is the difference between a layout and a partial view?](#chapter-04-layouts-sections-partial-views-q6)
-  - [Q7. How do nested layouts work?](#chapter-04-layouts-sections-partial-views-q7)
-  - [Q8. How are `@section` definitions passed from a view to a layou…](#chapter-04-layouts-sections-partial-views-q8)
-  - [Q9. Can a view define the same section name twice? What happens?](#chapter-04-layouts-sections-partial-views-q9)
-  - [Q10. What is the difference between `Html.PartialAsync` and the `…](#chapter-04-layouts-sections-partial-views-q10)
-  - [Q11. How does Razor locate partial views?](#chapter-04-layouts-sections-partial-views-q11)
-  - [Q12. How does partial view resolution differ in Areas?](#chapter-04-layouts-sections-partial-views-q12)
-  - [Q13. What is the difference between `@RenderSection` and `@await …](#chapter-04-layouts-sections-partial-views-q13)
-  - [Q14. Why pass a strongly typed model to a partial instead of `Vie…](#chapter-04-layouts-sections-partial-views-q14)
-  - [Q15. How does a child view override the layout assigned in `_View…](#chapter-04-layouts-sections-partial-views-q15)
-  - [Q16. What happens if a required section is not defined in a view?](#chapter-04-layouts-sections-partial-views-q16)
-  - [Q17. What is the `Shared` folder under `Views` used for?](#chapter-04-layouts-sections-partial-views-q17)
-  - [Q18. How does `_ViewStart` layout resolution work in Areas?](#chapter-04-layouts-sections-partial-views-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is a layout in ASP.NET Core MVC?](#q1-what-is-a-layout-in-aspnet-core-mvc)
+2. [Q2. What does `@RenderBody()` do in a layout?](#q2-what-does-renderbody-do-in-a-layout)
+3. [Q3. What is a section in Razor (`@section`)?](#q3-what-is-a-section-in-razor-section)
+4. [Q4. What is the difference between `@RenderSection("Scripts", required: true)` and `required: false`?](#q4-what-is-the-difference-between-rendersectionscripts-required-true-and-required-false)
+5. [Q5. What is `_ViewStart.cshtml` and how does it apply layouts?](#q5-what-is-_viewstartcshtml-and-how-does-it-apply-layouts)
+6. [Q6. What is the difference between a layout and a partial view?](#q6-what-is-the-difference-between-a-layout-and-a-partial-view)
+7. [Q7. How do nested layouts work?](#q7-how-do-nested-layouts-work)
+8. [Q8. How are `@section` definitions passed from a view to a layout?](#q8-how-are-section-definitions-passed-from-a-view-to-a-layout)
+9. [Q9. Can a view define the same section name twice? What happens?](#q9-can-a-view-define-the-same-section-name-twice-what-happens)
+10. [Q10. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?](#q10-what-is-the-difference-between-htmlpartialasync-and-the-partial-tag-helper)
+11. [Q11. How does Razor locate partial views?](#q11-how-does-razor-locate-partial-views)
+12. [Q12. How does partial view resolution differ in Areas?](#q12-how-does-partial-view-resolution-differ-in-areas)
+13. [Q13. What is the difference between `@RenderSection` and `@await Html.PartialAsync`?](#q13-what-is-the-difference-between-rendersection-and-await-htmlpartialasync)
+14. [Q14. Why pass a strongly typed model to a partial instead of `ViewBag`?](#q14-why-pass-a-strongly-typed-model-to-a-partial-instead-of-viewbag)
+15. [Q15. How does a child view override the layout assigned in `_ViewStart`?](#q15-how-does-a-child-view-override-the-layout-assigned-in-_viewstart)
+16. [Q16. What happens if a required section is not defined in a view?](#q16-what-happens-if-a-required-section-is-not-defined-in-a-view)
+17. [Q17. What is the `Shared` folder under `Views` used for?](#q17-what-is-the-shared-folder-under-views-used-for)
+18. [Q18. How does `_ViewStart` layout resolution work in Areas?](#q18-how-does-_viewstart-layout-resolution-work-in-areas)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 04. Layouts, Sections & Partial Views
-
-### Q1. What is a layout in ASP.NET Core MVC? {#chapter-04-layouts-sections-partial-views-q1}
+## Q1. What is a layout in ASP.NET Core MVC?
 
 What is a layout in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is a layout in ASP.NET Core MVC?
 
 ---
 
-### Q2. What does `@RenderBody()` do in a layout? {#chapter-04-layouts-sections-partial-views-q2}
+## Q2. What does `@RenderBody()` do in a layout?
 
 What does `@RenderBody()` do in a layout?
 
@@ -55,7 +50,7 @@ What does `@RenderBody()` do in a layout?
 
 ---
 
-### Q3. What is a section in Razor (`@section`)? {#chapter-04-layouts-sections-partial-views-q3}
+## Q3. What is a section in Razor (`@section`)?
 
 What is a section in Razor (`@section`)?
 
@@ -68,7 +63,7 @@ What is a section in Razor (`@section`)?
 
 ---
 
-### Q4. What is the difference between `@RenderSection("Scripts", required: true)` and `required: false`? {#chapter-04-layouts-sections-partial-views-q4}
+## Q4. What is the difference between `@RenderSection("Scripts", required: true)` and `required: false`?
 
 What is the difference between `@RenderSection("Scripts", required: true)` and `required: false`?
 
@@ -81,7 +76,7 @@ What is the difference between `@RenderSection("Scripts", required: true)` and `
 
 ---
 
-### Q5. What is `_ViewStart.cshtml` and how does it apply layouts? {#chapter-04-layouts-sections-partial-views-q5}
+## Q5. What is `_ViewStart.cshtml` and how does it apply layouts?
 
 What is `_ViewStart.cshtml` and how does it apply layouts?
 
@@ -94,7 +89,7 @@ What is `_ViewStart.cshtml` and how does it apply layouts?
 
 ---
 
-### Q6. What is the difference between a layout and a partial view? {#chapter-04-layouts-sections-partial-views-q6}
+## Q6. What is the difference between a layout and a partial view?
 
 What is the difference between a layout and a partial view?
 
@@ -107,7 +102,7 @@ What is the difference between a layout and a partial view?
 
 ---
 
-### Q7. How do nested layouts work? {#chapter-04-layouts-sections-partial-views-q7}
+## Q7. How do nested layouts work?
 
 How do nested layouts work?
 
@@ -120,7 +115,7 @@ How do nested layouts work?
 
 ---
 
-### Q8. How are `@section` definitions passed from a view to a layout? {#chapter-04-layouts-sections-partial-views-q8}
+## Q8. How are `@section` definitions passed from a view to a layout?
 
 How are `@section` definitions passed from a view to a layout?
 
@@ -133,7 +128,7 @@ How are `@section` definitions passed from a view to a layout?
 
 ---
 
-### Q9. Can a view define the same section name twice? What happens? {#chapter-04-layouts-sections-partial-views-q9}
+## Q9. Can a view define the same section name twice? What happens?
 
 Can a view define the same section name twice? What happens?
 
@@ -146,7 +141,7 @@ Can a view define the same section name twice? What happens?
 
 ---
 
-### Q10. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper? {#chapter-04-layouts-sections-partial-views-q10}
+## Q10. What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
 
 What is the difference between `Html.PartialAsync` and the `<partial>` tag helper?
 
@@ -159,7 +154,7 @@ What is the difference between `Html.PartialAsync` and the `<partial>` tag helpe
 
 ---
 
-### Q11. How does Razor locate partial views? {#chapter-04-layouts-sections-partial-views-q11}
+## Q11. How does Razor locate partial views?
 
 How does Razor locate partial views?
 
@@ -172,7 +167,7 @@ How does Razor locate partial views?
 
 ---
 
-### Q12. How does partial view resolution differ in Areas? {#chapter-04-layouts-sections-partial-views-q12}
+## Q12. How does partial view resolution differ in Areas?
 
 How does partial view resolution differ in Areas?
 
@@ -185,7 +180,7 @@ How does partial view resolution differ in Areas?
 
 ---
 
-### Q13. What is the difference between `@RenderSection` and `@await Html.PartialAsync`? {#chapter-04-layouts-sections-partial-views-q13}
+## Q13. What is the difference between `@RenderSection` and `@await Html.PartialAsync`?
 
 What is the difference between `@RenderSection` and `@await Html.PartialAsync`?
 
@@ -198,7 +193,7 @@ What is the difference between `@RenderSection` and `@await Html.PartialAsync`?
 
 ---
 
-### Q14. Why pass a strongly typed model to a partial instead of `ViewBag`? {#chapter-04-layouts-sections-partial-views-q14}
+## Q14. Why pass a strongly typed model to a partial instead of `ViewBag`?
 
 Why pass a strongly typed model to a partial instead of `ViewBag`?
 
@@ -211,7 +206,7 @@ Why pass a strongly typed model to a partial instead of `ViewBag`?
 
 ---
 
-### Q15. How does a child view override the layout assigned in `_ViewStart`? {#chapter-04-layouts-sections-partial-views-q15}
+## Q15. How does a child view override the layout assigned in `_ViewStart`?
 
 How does a child view override the layout assigned in `_ViewStart`?
 
@@ -224,7 +219,7 @@ How does a child view override the layout assigned in `_ViewStart`?
 
 ---
 
-### Q16. What happens if a required section is not defined in a view? {#chapter-04-layouts-sections-partial-views-q16}
+## Q16. What happens if a required section is not defined in a view?
 
 What happens if a required section is not defined in a view?
 
@@ -237,7 +232,7 @@ What happens if a required section is not defined in a view?
 
 ---
 
-### Q17. What is the `Shared` folder under `Views` used for? {#chapter-04-layouts-sections-partial-views-q17}
+## Q17. What is the `Shared` folder under `Views` used for?
 
 What is the `Shared` folder under `Views` used for?
 
@@ -250,7 +245,7 @@ What is the `Shared` folder under `Views` used for?
 
 ---
 
-### Q18. How does `_ViewStart` layout resolution work in Areas? {#chapter-04-layouts-sections-partial-views-q18}
+## Q18. How does `_ViewStart` layout resolution work in Areas?
 
 How does `_ViewStart` layout resolution work in Areas?
 

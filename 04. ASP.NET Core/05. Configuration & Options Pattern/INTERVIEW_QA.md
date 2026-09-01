@@ -1,35 +1,30 @@
 # Configuration & Options Pattern — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 05. Configuration & Options Pattern](#chapter-05-configuration-options-pattern)
-  - [Q1. What is `IConfiguration` in ASP.NET Core?](#chapter-05-configuration-options-pattern-q1)
-  - [Q2. What configuration sources does ASP.NET Core load by default…](#chapter-05-configuration-options-pattern-q2)
-  - [Q3. How does configuration key precedence work when the same key…](#chapter-05-configuration-options-pattern-q3)
-  - [Q4. What is the Options pattern?](#chapter-05-configuration-options-pattern-q4)
-  - [Q5. What is the difference between `IOptions<T>`, `IOptionsSnaps…](#chapter-05-configuration-options-pattern-q5)
-  - [Q6. When would you use `IOptionsMonitor<T>` over `IOptions<T>`?](#chapter-05-configuration-options-pattern-q6)
-  - [Q7. How do you bind a configuration section to a strongly typed …](#chapter-05-configuration-options-pattern-q7)
-  - [Q8. What does `Configure<TOptions>(configuration.GetSection("...…](#chapter-05-configuration-options-pattern-q8)
-  - [Q9. What are named options, and when are they needed?](#chapter-05-configuration-options-pattern-q9)
-  - [Q10. How do environment variables map to configuration keys?](#chapter-05-configuration-options-pattern-q10)
-  - [Q11. What is `ReloadOnChange` on JSON configuration files?](#chapter-05-configuration-options-pattern-q11)
-  - [Q12. What is the purpose of User Secrets in development?](#chapter-05-configuration-options-pattern-q12)
-  - [Q13. How should production secrets be managed?](#chapter-05-configuration-options-pattern-q13)
-  - [Q14. What is options validation (`ValidateDataAnnotations`, `Vali…](#chapter-05-configuration-options-pattern-q14)
-  - [Q15. What is the difference between reading `configuration["Key"]…](#chapter-05-configuration-options-pattern-q15)
-  - [Q16. How does `appsettings.{Environment}.json` override base sett…](#chapter-05-configuration-options-pattern-q16)
-  - [Q17. What is `IConfigureOptions<T>`?](#chapter-05-configuration-options-pattern-q17)
-  - [Q18. Can singleton services safely use `IOptionsSnapshot<T>`? Why…](#chapter-05-configuration-options-pattern-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is `IConfiguration` in ASP.NET Core?](#q1-what-is-iconfiguration-in-aspnet-core)
+2. [Q2. What configuration sources does ASP.NET Core load by default?](#q2-what-configuration-sources-does-aspnet-core-load-by-default)
+3. [Q3. How does configuration key precedence work when the same key exists in multiple sources?](#q3-how-does-configuration-key-precedence-work-when-the-same-key-exists-in-multiple-sources)
+4. [Q4. What is the Options pattern?](#q4-what-is-the-options-pattern)
+5. [Q5. What is the difference between `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>`?](#q5-what-is-the-difference-between-ioptionst-ioptionssnapshott-and-ioptionsmonitort)
+6. [Q6. When would you use `IOptionsMonitor<T>` over `IOptions<T>`?](#q6-when-would-you-use-ioptionsmonitort-over-ioptionst)
+7. [Q7. How do you bind a configuration section to a strongly typed class?](#q7-how-do-you-bind-a-configuration-section-to-a-strongly-typed-class)
+8. [Q8. What does `Configure<TOptions>(configuration.GetSection("..."))` do?](#q8-what-does-configuretoptionsconfigurationgetsection-do)
+9. [Q9. What are named options, and when are they needed?](#q9-what-are-named-options-and-when-are-they-needed)
+10. [Q10. How do environment variables map to configuration keys?](#q10-how-do-environment-variables-map-to-configuration-keys)
+11. [Q11. What is `ReloadOnChange` on JSON configuration files?](#q11-what-is-reloadonchange-on-json-configuration-files)
+12. [Q12. What is the purpose of User Secrets in development?](#q12-what-is-the-purpose-of-user-secrets-in-development)
+13. [Q13. How should production secrets be managed?](#q13-how-should-production-secrets-be-managed)
+14. [Q14. What is options validation (`ValidateDataAnnotations`, `ValidateOnStart`)?](#q14-what-is-options-validation-validatedataannotations-validateonstart)
+15. [Q15. What is the difference between reading `configuration["Key"]` and injecting `IOptions<T>`?](#q15-what-is-the-difference-between-reading-configurationkey-and-injecting-ioptionst)
+16. [Q16. How does `appsettings.{Environment}.json` override base settings?](#q16-how-does-appsettingsenvironmentjson-override-base-settings)
+17. [Q17. What is `IConfigureOptions<T>`?](#q17-what-is-iconfigureoptionst)
+18. [Q18. Can singleton services safely use `IOptionsSnapshot<T>`? Why or why not?](#q18-can-singleton-services-safely-use-ioptionssnapshott-why-or-why-not)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 05. Configuration & Options Pattern
-
-### Q1. What is `IConfiguration` in ASP.NET Core? {#chapter-05-configuration-options-pattern-q1}
+## Q1. What is `IConfiguration` in ASP.NET Core?
 
 What is `IConfiguration` in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is `IConfiguration` in ASP.NET Core?
 
 ---
 
-### Q2. What configuration sources does ASP.NET Core load by default? {#chapter-05-configuration-options-pattern-q2}
+## Q2. What configuration sources does ASP.NET Core load by default?
 
 What configuration sources does ASP.NET Core load by default?
 
@@ -55,7 +50,7 @@ What configuration sources does ASP.NET Core load by default?
 
 ---
 
-### Q3. How does configuration key precedence work when the same key exists in multiple sources? {#chapter-05-configuration-options-pattern-q3}
+## Q3. How does configuration key precedence work when the same key exists in multiple sources?
 
 How does configuration key precedence work when the same key exists in multiple sources?
 
@@ -68,7 +63,7 @@ How does configuration key precedence work when the same key exists in multiple 
 
 ---
 
-### Q4. What is the Options pattern? {#chapter-05-configuration-options-pattern-q4}
+## Q4. What is the Options pattern?
 
 What is the Options pattern?
 
@@ -81,7 +76,7 @@ What is the Options pattern?
 
 ---
 
-### Q5. What is the difference between `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>`? {#chapter-05-configuration-options-pattern-q5}
+## Q5. What is the difference between `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>`?
 
 What is the difference between `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>`?
 
@@ -99,7 +94,7 @@ What is the difference between `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptio
 
 ---
 
-### Q6. When would you use `IOptionsMonitor<T>` over `IOptions<T>`? {#chapter-05-configuration-options-pattern-q6}
+## Q6. When would you use `IOptionsMonitor<T>` over `IOptions<T>`?
 
 When would you use `IOptionsMonitor<T>` over `IOptions<T>`?
 
@@ -112,7 +107,7 @@ When would you use `IOptionsMonitor<T>` over `IOptions<T>`?
 
 ---
 
-### Q7. How do you bind a configuration section to a strongly typed class? {#chapter-05-configuration-options-pattern-q7}
+## Q7. How do you bind a configuration section to a strongly typed class?
 
 How do you bind a configuration section to a strongly typed class?
 
@@ -125,7 +120,7 @@ How do you bind a configuration section to a strongly typed class?
 
 ---
 
-### Q8. What does `Configure<TOptions>(configuration.GetSection("..."))` do? {#chapter-05-configuration-options-pattern-q8}
+## Q8. What does `Configure<TOptions>(configuration.GetSection("..."))` do?
 
 What does `Configure<TOptions>(configuration.GetSection("..."))` do?
 
@@ -138,7 +133,7 @@ What does `Configure<TOptions>(configuration.GetSection("..."))` do?
 
 ---
 
-### Q9. What are named options, and when are they needed? {#chapter-05-configuration-options-pattern-q9}
+## Q9. What are named options, and when are they needed?
 
 What are named options, and when are they needed?
 
@@ -151,7 +146,7 @@ What are named options, and when are they needed?
 
 ---
 
-### Q10. How do environment variables map to configuration keys? {#chapter-05-configuration-options-pattern-q10}
+## Q10. How do environment variables map to configuration keys?
 
 How do environment variables map to configuration keys?
 
@@ -164,7 +159,7 @@ How do environment variables map to configuration keys?
 
 ---
 
-### Q11. What is `ReloadOnChange` on JSON configuration files? {#chapter-05-configuration-options-pattern-q11}
+## Q11. What is `ReloadOnChange` on JSON configuration files?
 
 What is `ReloadOnChange` on JSON configuration files?
 
@@ -177,7 +172,7 @@ What is `ReloadOnChange` on JSON configuration files?
 
 ---
 
-### Q12. What is the purpose of User Secrets in development? {#chapter-05-configuration-options-pattern-q12}
+## Q12. What is the purpose of User Secrets in development?
 
 What is the purpose of User Secrets in development?
 
@@ -190,7 +185,7 @@ What is the purpose of User Secrets in development?
 
 ---
 
-### Q13. How should production secrets be managed? {#chapter-05-configuration-options-pattern-q13}
+## Q13. How should production secrets be managed?
 
 How should production secrets be managed?
 
@@ -203,7 +198,7 @@ How should production secrets be managed?
 
 ---
 
-### Q14. What is options validation (`ValidateDataAnnotations`, `ValidateOnStart`)? {#chapter-05-configuration-options-pattern-q14}
+## Q14. What is options validation (`ValidateDataAnnotations`, `ValidateOnStart`)?
 
 What is options validation (`ValidateDataAnnotations`, `ValidateOnStart`)?
 
@@ -216,7 +211,7 @@ What is options validation (`ValidateDataAnnotations`, `ValidateOnStart`)?
 
 ---
 
-### Q15. What is the difference between reading `configuration["Key"]` and injecting `IOptions<T>`? {#chapter-05-configuration-options-pattern-q15}
+## Q15. What is the difference between reading `configuration["Key"]` and injecting `IOptions<T>`?
 
 What is the difference between reading `configuration["Key"]` and injecting `IOptions<T>`?
 
@@ -229,7 +224,7 @@ What is the difference between reading `configuration["Key"]` and injecting `IOp
 
 ---
 
-### Q16. How does `appsettings.{Environment}.json` override base settings? {#chapter-05-configuration-options-pattern-q16}
+## Q16. How does `appsettings.{Environment}.json` override base settings?
 
 How does `appsettings.{Environment}.json` override base settings?
 
@@ -242,7 +237,7 @@ How does `appsettings.{Environment}.json` override base settings?
 
 ---
 
-### Q17. What is `IConfigureOptions<T>`? {#chapter-05-configuration-options-pattern-q17}
+## Q17. What is `IConfigureOptions<T>`?
 
 What is `IConfigureOptions<T>`?
 
@@ -255,7 +250,7 @@ What is `IConfigureOptions<T>`?
 
 ---
 
-### Q18. Can singleton services safely use `IOptionsSnapshot<T>`? Why or why not? {#chapter-05-configuration-options-pattern-q18}
+## Q18. Can singleton services safely use `IOptionsSnapshot<T>`? Why or why not?
 
 Can singleton services safely use `IOptionsSnapshot<T>`? Why or why not?
 

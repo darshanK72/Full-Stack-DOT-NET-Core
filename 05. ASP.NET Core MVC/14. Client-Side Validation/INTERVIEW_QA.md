@@ -1,35 +1,30 @@
 # Client-Side Validation — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 14. Client-Side Validation](#chapter-14-client-side-validation)
-  - [Q1. What is client-side validation in ASP.NET Core MVC?](#chapter-14-client-side-validation-q1)
-  - [Q2. What is unobtrusive validation?](#chapter-14-client-side-validation-q2)
-  - [Q3. What scripts are required for unobtrusive client validation?](#chapter-14-client-side-validation-q3)
-  - [Q4. What is `_ValidationScriptsPartial`?](#chapter-14-client-side-validation-q4)
-  - [Q5. What are `data-val-*` attributes and how are they generated?](#chapter-14-client-side-validation-q5)
-  - [Q6. What is the relationship between Data Annotations and client…](#chapter-14-client-side-validation-q6)
-  - [Q7. Why is client-side validation not sufficient for security?](#chapter-14-client-side-validation-q7)
-  - [Q8. What is `jquery.validate.unobtrusive.js` responsible for?](#chapter-14-client-side-validation-q8)
-  - [Q9. What is `asp-validation-for` used for?](#chapter-14-client-side-validation-q9)
-  - [Q10. What is the difference between `asp-validation-summary="All"…](#chapter-14-client-side-validation-q10)
-  - [Q11. How does `[Remote]` validation work on the client?](#chapter-14-client-side-validation-q11)
-  - [Q12. What is a client validation adapter for custom `ValidationAt…](#chapter-14-client-side-validation-q12)
-  - [Q13. What is `ClientValidationEnabled` on `ViewContext`?](#chapter-14-client-side-validation-q13)
-  - [Q14. Why does hand-written HTML input lose client-side validation…](#chapter-14-client-side-validation-q14)
-  - [Q15. How do you localize jQuery Validate error messages?](#chapter-14-client-side-validation-q15)
-  - [Q16. Why must server actions still check `ModelState.IsValid` whe…](#chapter-14-client-side-validation-q16)
-  - [Q17. Why doesn't client validation fire when using a button click…](#chapter-14-client-side-validation-q17)
-  - [Q18. What is the difference between MVC unobtrusive validation an…](#chapter-14-client-side-validation-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is client-side validation in ASP.NET Core MVC?](#q1-what-is-client-side-validation-in-aspnet-core-mvc)
+2. [Q2. What is unobtrusive validation?](#q2-what-is-unobtrusive-validation)
+3. [Q3. What scripts are required for unobtrusive client validation?](#q3-what-scripts-are-required-for-unobtrusive-client-validation)
+4. [Q4. What is `_ValidationScriptsPartial`?](#q4-what-is-_validationscriptspartial)
+5. [Q5. What are `data-val-*` attributes and how are they generated?](#q5-what-are-data-val--attributes-and-how-are-they-generated)
+6. [Q6. What is the relationship between Data Annotations and client-side validation?](#q6-what-is-the-relationship-between-data-annotations-and-client-side-validation)
+7. [Q7. Why is client-side validation not sufficient for security?](#q7-why-is-client-side-validation-not-sufficient-for-security)
+8. [Q8. What is `jquery.validate.unobtrusive.js` responsible for?](#q8-what-is-jqueryvalidateunobtrusivejs-responsible-for)
+9. [Q9. What is `asp-validation-for` used for?](#q9-what-is-asp-validation-for-used-for)
+10. [Q10. What is the difference between `asp-validation-summary="All"` and `"ModelOnly"`?](#q10-what-is-the-difference-between-asp-validation-summaryall-and-modelonly)
+11. [Q11. How does `[Remote]` validation work on the client?](#q11-how-does-remote-validation-work-on-the-client)
+12. [Q12. What is a client validation adapter for custom `ValidationAttribute`s?](#q12-what-is-a-client-validation-adapter-for-custom-validationattributes)
+13. [Q13. What is `ClientValidationEnabled` on `ViewContext`?](#q13-what-is-clientvalidationenabled-on-viewcontext)
+14. [Q14. Why does hand-written HTML input lose client-side validation?](#q14-why-does-hand-written-html-input-lose-client-side-validation)
+15. [Q15. How do you localize jQuery Validate error messages?](#q15-how-do-you-localize-jquery-validate-error-messages)
+16. [Q16. Why must server actions still check `ModelState.IsValid` when client validation is enabled?](#q16-why-must-server-actions-still-check-modelstateisvalid-when-client-validation-is-enabled)
+17. [Q17. Why doesn't client validation fire when using a button click handler instead of form submit?](#q17-why-doesnt-client-validation-fire-when-using-a-button-click-handler-instead-of-form-submit)
+18. [Q18. What is the difference between MVC unobtrusive validation and SPA/API validation?](#q18-what-is-the-difference-between-mvc-unobtrusive-validation-and-spaapi-validation)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 14. Client-Side Validation
-
-### Q1. What is client-side validation in ASP.NET Core MVC? {#chapter-14-client-side-validation-q1}
+## Q1. What is client-side validation in ASP.NET Core MVC?
 
 What is client-side validation in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is client-side validation in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is unobtrusive validation? {#chapter-14-client-side-validation-q2}
+## Q2. What is unobtrusive validation?
 
 What is unobtrusive validation?
 
@@ -55,7 +50,7 @@ What is unobtrusive validation?
 
 ---
 
-### Q3. What scripts are required for unobtrusive client validation? {#chapter-14-client-side-validation-q3}
+## Q3. What scripts are required for unobtrusive client validation?
 
 What scripts are required for unobtrusive client validation?
 
@@ -68,7 +63,7 @@ What scripts are required for unobtrusive client validation?
 
 ---
 
-### Q4. What is `_ValidationScriptsPartial`? {#chapter-14-client-side-validation-q4}
+## Q4. What is `_ValidationScriptsPartial`?
 
 What is `_ValidationScriptsPartial`?
 
@@ -81,7 +76,7 @@ What is `_ValidationScriptsPartial`?
 
 ---
 
-### Q5. What are `data-val-*` attributes and how are they generated? {#chapter-14-client-side-validation-q5}
+## Q5. What are `data-val-*` attributes and how are they generated?
 
 What are `data-val-*` attributes and how are they generated?
 
@@ -94,7 +89,7 @@ What are `data-val-*` attributes and how are they generated?
 
 ---
 
-### Q6. What is the relationship between Data Annotations and client-side validation? {#chapter-14-client-side-validation-q6}
+## Q6. What is the relationship between Data Annotations and client-side validation?
 
 What is the relationship between Data Annotations and client-side validation?
 
@@ -107,7 +102,7 @@ What is the relationship between Data Annotations and client-side validation?
 
 ---
 
-### Q7. Why is client-side validation not sufficient for security? {#chapter-14-client-side-validation-q7}
+## Q7. Why is client-side validation not sufficient for security?
 
 Why is client-side validation not sufficient for security?
 
@@ -120,7 +115,7 @@ Why is client-side validation not sufficient for security?
 
 ---
 
-### Q8. What is `jquery.validate.unobtrusive.js` responsible for? {#chapter-14-client-side-validation-q8}
+## Q8. What is `jquery.validate.unobtrusive.js` responsible for?
 
 What is `jquery.validate.unobtrusive.js` responsible for?
 
@@ -133,7 +128,7 @@ What is `jquery.validate.unobtrusive.js` responsible for?
 
 ---
 
-### Q9. What is `asp-validation-for` used for? {#chapter-14-client-side-validation-q9}
+## Q9. What is `asp-validation-for` used for?
 
 What is `asp-validation-for` used for?
 
@@ -146,7 +141,7 @@ What is `asp-validation-for` used for?
 
 ---
 
-### Q10. What is the difference between `asp-validation-summary="All"` and `"ModelOnly"`? {#chapter-14-client-side-validation-q10}
+## Q10. What is the difference between `asp-validation-summary="All"` and `"ModelOnly"`?
 
 What is the difference between `asp-validation-summary="All"` and `"ModelOnly"`?
 
@@ -159,7 +154,7 @@ What is the difference between `asp-validation-summary="All"` and `"ModelOnly"`?
 
 ---
 
-### Q11. How does `[Remote]` validation work on the client? {#chapter-14-client-side-validation-q11}
+## Q11. How does `[Remote]` validation work on the client?
 
 How does `[Remote]` validation work on the client?
 
@@ -172,7 +167,7 @@ How does `[Remote]` validation work on the client?
 
 ---
 
-### Q12. What is a client validation adapter for custom `ValidationAttribute`s? {#chapter-14-client-side-validation-q12}
+## Q12. What is a client validation adapter for custom `ValidationAttribute`s?
 
 What is a client validation adapter for custom `ValidationAttribute`s?
 
@@ -185,7 +180,7 @@ What is a client validation adapter for custom `ValidationAttribute`s?
 
 ---
 
-### Q13. What is `ClientValidationEnabled` on `ViewContext`? {#chapter-14-client-side-validation-q13}
+## Q13. What is `ClientValidationEnabled` on `ViewContext`?
 
 What is `ClientValidationEnabled` on `ViewContext`?
 
@@ -198,7 +193,7 @@ What is `ClientValidationEnabled` on `ViewContext`?
 
 ---
 
-### Q14. Why does hand-written HTML input lose client-side validation? {#chapter-14-client-side-validation-q14}
+## Q14. Why does hand-written HTML input lose client-side validation?
 
 Why does hand-written HTML input lose client-side validation?
 
@@ -211,7 +206,7 @@ Why does hand-written HTML input lose client-side validation?
 
 ---
 
-### Q15. How do you localize jQuery Validate error messages? {#chapter-14-client-side-validation-q15}
+## Q15. How do you localize jQuery Validate error messages?
 
 How do you localize jQuery Validate error messages?
 
@@ -224,7 +219,7 @@ How do you localize jQuery Validate error messages?
 
 ---
 
-### Q16. Why must server actions still check `ModelState.IsValid` when client validation is enabled? {#chapter-14-client-side-validation-q16}
+## Q16. Why must server actions still check `ModelState.IsValid` when client validation is enabled?
 
 Why must server actions still check `ModelState.IsValid` when client validation is enabled?
 
@@ -237,7 +232,7 @@ Why must server actions still check `ModelState.IsValid` when client validation 
 
 ---
 
-### Q17. Why doesn't client validation fire when using a button click handler instead of form submit? {#chapter-14-client-side-validation-q17}
+## Q17. Why doesn't client validation fire when using a button click handler instead of form submit?
 
 Why doesn't client validation fire when using a button click handler instead of form submit?
 
@@ -250,7 +245,7 @@ Why doesn't client validation fire when using a button click handler instead of 
 
 ---
 
-### Q18. What is the difference between MVC unobtrusive validation and SPA/API validation? {#chapter-14-client-side-validation-q18}
+## Q18. What is the difference between MVC unobtrusive validation and SPA/API validation?
 
 What is the difference between MVC unobtrusive validation and SPA/API validation?
 

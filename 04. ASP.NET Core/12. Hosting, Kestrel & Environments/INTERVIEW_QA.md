@@ -1,35 +1,30 @@
 # Hosting, Kestrel & Environments — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 12. Hosting, Kestrel & Environments](#chapter-12-hosting-kestrel-environments)
-  - [Q1. What is Kestrel?](#chapter-12-hosting-kestrel-environments-q1)
-  - [Q2. What is the role of IIS in hosting ASP.NET Core on Windows?](#chapter-12-hosting-kestrel-environments-q2)
-  - [Q3. What is a reverse proxy, and why use one with ASP.NET Core?](#chapter-12-hosting-kestrel-environments-q3)
-  - [Q4. Who terminates TLS in a typical nginx + Kestrel deployment?](#chapter-12-hosting-kestrel-environments-q4)
-  - [Q5. What is `ASPNETCORE_ENVIRONMENT`?](#chapter-12-hosting-kestrel-environments-q5)
-  - [Q6. What is `IHostEnvironment` / `IWebHostEnvironment`?](#chapter-12-hosting-kestrel-environments-q6)
-  - [Q7. How does the environment name affect application behavior?](#chapter-12-hosting-kestrel-environments-q7)
-  - [Q8. What is `ASPNETCORE_URLS`?](#chapter-12-hosting-kestrel-environments-q8)
-  - [Q9. How do you configure Kestrel to listen on a specific port?](#chapter-12-hosting-kestrel-environments-q9)
-  - [Q10. What is the difference between Kestrel endpoint configuratio…](#chapter-12-hosting-kestrel-environments-q10)
-  - [Q11. What are forwarded headers (`X-Forwarded-For`, `X-Forwarded-…](#chapter-12-hosting-kestrel-environments-q11)
-  - [Q12. What does `UseForwardedHeaders()` do, and why must it run ea…](#chapter-12-hosting-kestrel-environments-q12)
-  - [Q13. What is the difference between in-process and out-of-process…](#chapter-12-hosting-kestrel-environments-q13)
-  - [Q14. What are health checks in ASP.NET Core?](#chapter-12-hosting-kestrel-environments-q14)
-  - [Q15. What is the difference between a liveness probe and a readin…](#chapter-12-hosting-kestrel-environments-q15)
-  - [Q16. How do container `EXPOSE` directives relate to Kestrel liste…](#chapter-12-hosting-kestrel-environments-q16)
-  - [Q17. What breaks if Production is accidentally set to Development…](#chapter-12-hosting-kestrel-environments-q17)
-  - [Q18. What belongs in `appsettings.Development.json` vs environmen…](#chapter-12-hosting-kestrel-environments-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is Kestrel?](#q1-what-is-kestrel)
+2. [Q2. What is the role of IIS in hosting ASP.NET Core on Windows?](#q2-what-is-the-role-of-iis-in-hosting-aspnet-core-on-windows)
+3. [Q3. What is a reverse proxy, and why use one with ASP.NET Core?](#q3-what-is-a-reverse-proxy-and-why-use-one-with-aspnet-core)
+4. [Q4. Who terminates TLS in a typical nginx + Kestrel deployment?](#q4-who-terminates-tls-in-a-typical-nginx-kestrel-deployment)
+5. [Q5. What is `ASPNETCORE_ENVIRONMENT`?](#q5-what-is-aspnetcore_environment)
+6. [Q6. What is `IHostEnvironment` / `IWebHostEnvironment`?](#q6-what-is-ihostenvironment-iwebhostenvironment)
+7. [Q7. How does the environment name affect application behavior?](#q7-how-does-the-environment-name-affect-application-behavior)
+8. [Q8. What is `ASPNETCORE_URLS`?](#q8-what-is-aspnetcore_urls)
+9. [Q9. How do you configure Kestrel to listen on a specific port?](#q9-how-do-you-configure-kestrel-to-listen-on-a-specific-port)
+10. [Q10. What is the difference between Kestrel endpoint configuration and IIS bindings?](#q10-what-is-the-difference-between-kestrel-endpoint-configuration-and-iis-bindings)
+11. [Q11. What are forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`)?](#q11-what-are-forwarded-headers-x-forwarded-for-x-forwarded-proto)
+12. [Q12. What does `UseForwardedHeaders()` do, and why must it run early?](#q12-what-does-useforwardedheaders-do-and-why-must-it-run-early)
+13. [Q13. What is the difference between in-process and out-of-process IIS hosting?](#q13-what-is-the-difference-between-in-process-and-out-of-process-iis-hosting)
+14. [Q14. What are health checks in ASP.NET Core?](#q14-what-are-health-checks-in-aspnet-core)
+15. [Q15. What is the difference between a liveness probe and a readiness probe?](#q15-what-is-the-difference-between-a-liveness-probe-and-a-readiness-probe)
+16. [Q16. How do container `EXPOSE` directives relate to Kestrel listening ports?](#q16-how-do-container-expose-directives-relate-to-kestrel-listening-ports)
+17. [Q17. What breaks if Production is accidentally set to Development?](#q17-what-breaks-if-production-is-accidentally-set-to-development)
+18. [Q18. What belongs in `appsettings.Development.json` vs environment variables in Production?](#q18-what-belongs-in-appsettingsdevelopmentjson-vs-environment-variables-in-production)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 12. Hosting, Kestrel & Environments
-
-### Q1. What is Kestrel? {#chapter-12-hosting-kestrel-environments-q1}
+## Q1. What is Kestrel?
 
 What is Kestrel?
 
@@ -42,7 +37,7 @@ What is Kestrel?
 
 ---
 
-### Q2. What is the role of IIS in hosting ASP.NET Core on Windows? {#chapter-12-hosting-kestrel-environments-q2}
+## Q2. What is the role of IIS in hosting ASP.NET Core on Windows?
 
 What is the role of IIS in hosting ASP.NET Core on Windows?
 
@@ -55,7 +50,7 @@ What is the role of IIS in hosting ASP.NET Core on Windows?
 
 ---
 
-### Q3. What is a reverse proxy, and why use one with ASP.NET Core? {#chapter-12-hosting-kestrel-environments-q3}
+## Q3. What is a reverse proxy, and why use one with ASP.NET Core?
 
 What is a reverse proxy, and why use one with ASP.NET Core?
 
@@ -68,7 +63,7 @@ What is a reverse proxy, and why use one with ASP.NET Core?
 
 ---
 
-### Q4. Who terminates TLS in a typical nginx + Kestrel deployment? {#chapter-12-hosting-kestrel-environments-q4}
+## Q4. Who terminates TLS in a typical nginx + Kestrel deployment?
 
 Who terminates TLS in a typical nginx + Kestrel deployment?
 
@@ -81,7 +76,7 @@ Who terminates TLS in a typical nginx + Kestrel deployment?
 
 ---
 
-### Q5. What is `ASPNETCORE_ENVIRONMENT`? {#chapter-12-hosting-kestrel-environments-q5}
+## Q5. What is `ASPNETCORE_ENVIRONMENT`?
 
 What is `ASPNETCORE_ENVIRONMENT`?
 
@@ -94,7 +89,7 @@ What is `ASPNETCORE_ENVIRONMENT`?
 
 ---
 
-### Q6. What is `IHostEnvironment` / `IWebHostEnvironment`? {#chapter-12-hosting-kestrel-environments-q6}
+## Q6. What is `IHostEnvironment` / `IWebHostEnvironment`?
 
 What is `IHostEnvironment` / `IWebHostEnvironment`?
 
@@ -107,7 +102,7 @@ What is `IHostEnvironment` / `IWebHostEnvironment`?
 
 ---
 
-### Q7. How does the environment name affect application behavior? {#chapter-12-hosting-kestrel-environments-q7}
+## Q7. How does the environment name affect application behavior?
 
 How does the environment name affect application behavior?
 
@@ -120,7 +115,7 @@ How does the environment name affect application behavior?
 
 ---
 
-### Q8. What is `ASPNETCORE_URLS`? {#chapter-12-hosting-kestrel-environments-q8}
+## Q8. What is `ASPNETCORE_URLS`?
 
 What is `ASPNETCORE_URLS`?
 
@@ -133,7 +128,7 @@ What is `ASPNETCORE_URLS`?
 
 ---
 
-### Q9. How do you configure Kestrel to listen on a specific port? {#chapter-12-hosting-kestrel-environments-q9}
+## Q9. How do you configure Kestrel to listen on a specific port?
 
 How do you configure Kestrel to listen on a specific port?
 
@@ -146,7 +141,7 @@ How do you configure Kestrel to listen on a specific port?
 
 ---
 
-### Q10. What is the difference between Kestrel endpoint configuration and IIS bindings? {#chapter-12-hosting-kestrel-environments-q10}
+## Q10. What is the difference between Kestrel endpoint configuration and IIS bindings?
 
 What is the difference between Kestrel endpoint configuration and IIS bindings?
 
@@ -159,7 +154,7 @@ What is the difference between Kestrel endpoint configuration and IIS bindings?
 
 ---
 
-### Q11. What are forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`)? {#chapter-12-hosting-kestrel-environments-q11}
+## Q11. What are forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`)?
 
 What are forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`)?
 
@@ -172,7 +167,7 @@ What are forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`)?
 
 ---
 
-### Q12. What does `UseForwardedHeaders()` do, and why must it run early? {#chapter-12-hosting-kestrel-environments-q12}
+## Q12. What does `UseForwardedHeaders()` do, and why must it run early?
 
 What does `UseForwardedHeaders()` do, and why must it run early?
 
@@ -185,7 +180,7 @@ What does `UseForwardedHeaders()` do, and why must it run early?
 
 ---
 
-### Q13. What is the difference between in-process and out-of-process IIS hosting? {#chapter-12-hosting-kestrel-environments-q13}
+## Q13. What is the difference between in-process and out-of-process IIS hosting?
 
 What is the difference between in-process and out-of-process IIS hosting?
 
@@ -198,7 +193,7 @@ What is the difference between in-process and out-of-process IIS hosting?
 
 ---
 
-### Q14. What are health checks in ASP.NET Core? {#chapter-12-hosting-kestrel-environments-q14}
+## Q14. What are health checks in ASP.NET Core?
 
 What are health checks in ASP.NET Core?
 
@@ -211,7 +206,7 @@ What are health checks in ASP.NET Core?
 
 ---
 
-### Q15. What is the difference between a liveness probe and a readiness probe? {#chapter-12-hosting-kestrel-environments-q15}
+## Q15. What is the difference between a liveness probe and a readiness probe?
 
 What is the difference between a liveness probe and a readiness probe?
 
@@ -224,7 +219,7 @@ What is the difference between a liveness probe and a readiness probe?
 
 ---
 
-### Q16. How do container `EXPOSE` directives relate to Kestrel listening ports? {#chapter-12-hosting-kestrel-environments-q16}
+## Q16. How do container `EXPOSE` directives relate to Kestrel listening ports?
 
 How do container `EXPOSE` directives relate to Kestrel listening ports?
 
@@ -237,7 +232,7 @@ How do container `EXPOSE` directives relate to Kestrel listening ports?
 
 ---
 
-### Q17. What breaks if Production is accidentally set to Development? {#chapter-12-hosting-kestrel-environments-q17}
+## Q17. What breaks if Production is accidentally set to Development?
 
 What breaks if Production is accidentally set to Development?
 
@@ -250,7 +245,7 @@ What breaks if Production is accidentally set to Development?
 
 ---
 
-### Q18. What belongs in `appsettings.Development.json` vs environment variables in Production? {#chapter-12-hosting-kestrel-environments-q18}
+## Q18. What belongs in `appsettings.Development.json` vs environment variables in Production?
 
 What belongs in `appsettings.Development.json` vs environment variables in Production?
 

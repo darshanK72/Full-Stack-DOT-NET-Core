@@ -1,35 +1,30 @@
 # Exception Handling — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 10. Exception Handling](#chapter-10-exception-handling)
-  - [Q1. How does ASP.NET Core handle unhandled exceptions by default…](#chapter-10-exception-handling-q1)
-  - [Q2. What is `UseExceptionHandler` middleware?](#chapter-10-exception-handling-q2)
-  - [Q3. What is `DeveloperExceptionPage`, and when is it enabled?](#chapter-10-exception-handling-q3)
-  - [Q4. What is the difference between Development and Production ex…](#chapter-10-exception-handling-q4)
-  - [Q5. What is RFC 7807 ProblemDetails?](#chapter-10-exception-handling-q5)
-  - [Q6. How do you return ProblemDetails from an API?](#chapter-10-exception-handling-q6)
-  - [Q7. What is `IExceptionHandler` in .NET 8+?](#chapter-10-exception-handling-q7)
-  - [Q8. What is the difference between `throw;` and `throw ex;`?](#chapter-10-exception-handling-q8)
-  - [Q9. Why should you log the full exception object, not just `ex.M…](#chapter-10-exception-handling-q9)
-  - [Q10. Where should global exception handling middleware be placed …](#chapter-10-exception-handling-q10)
-  - [Q11. What is an exception filter, and how does it differ from exc…](#chapter-10-exception-handling-q11)
-  - [Q12. What information should never be exposed to external API cli…](#chapter-10-exception-handling-q12)
-  - [Q13. How do you map domain exceptions to HTTP status codes centra…](#chapter-10-exception-handling-q13)
-  - [Q14. What is `AddProblemDetails()`?](#chapter-10-exception-handling-q14)
-  - [Q15. What happens when an exception is thrown in middleware vs in…](#chapter-10-exception-handling-q15)
-  - [Q16. How do you customize error responses per exception type?](#chapter-10-exception-handling-q16)
-  - [Q17. What is the difference between client errors (4xx) and serve…](#chapter-10-exception-handling-q17)
-  - [Q18. How does `[ApiController]` affect exception handling for val…](#chapter-10-exception-handling-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. How does ASP.NET Core handle unhandled exceptions by default?](#q1-how-does-aspnet-core-handle-unhandled-exceptions-by-default)
+2. [Q2. What is `UseExceptionHandler` middleware?](#q2-what-is-useexceptionhandler-middleware)
+3. [Q3. What is `DeveloperExceptionPage`, and when is it enabled?](#q3-what-is-developerexceptionpage-and-when-is-it-enabled)
+4. [Q4. What is the difference between Development and Production exception behavior?](#q4-what-is-the-difference-between-development-and-production-exception-behavior)
+5. [Q5. What is RFC 7807 ProblemDetails?](#q5-what-is-rfc-7807-problemdetails)
+6. [Q6. How do you return ProblemDetails from an API?](#q6-how-do-you-return-problemdetails-from-an-api)
+7. [Q7. What is `IExceptionHandler` in .NET 8+?](#q7-what-is-iexceptionhandler-in-net-8)
+8. [Q8. What is the difference between `throw;` and `throw ex;`?](#q8-what-is-the-difference-between-throw-and-throw-ex)
+9. [Q9. Why should you log the full exception object, not just `ex.Message`?](#q9-why-should-you-log-the-full-exception-object-not-just-exmessage)
+10. [Q10. Where should global exception handling middleware be placed in the pipeline?](#q10-where-should-global-exception-handling-middleware-be-placed-in-the-pipeline)
+11. [Q11. What is an exception filter, and how does it differ from exception middleware?](#q11-what-is-an-exception-filter-and-how-does-it-differ-from-exception-middleware)
+12. [Q12. What information should never be exposed to external API clients in error responses?](#q12-what-information-should-never-be-exposed-to-external-api-clients-in-error-responses)
+13. [Q13. How do you map domain exceptions to HTTP status codes centrally?](#q13-how-do-you-map-domain-exceptions-to-http-status-codes-centrally)
+14. [Q14. What is `AddProblemDetails()`?](#q14-what-is-addproblemdetails)
+15. [Q15. What happens when an exception is thrown in middleware vs in a controller action?](#q15-what-happens-when-an-exception-is-thrown-in-middleware-vs-in-a-controller-action)
+16. [Q16. How do you customize error responses per exception type?](#q16-how-do-you-customize-error-responses-per-exception-type)
+17. [Q17. What is the difference between client errors (4xx) and server errors (5xx)?](#q17-what-is-the-difference-between-client-errors-4xx-and-server-errors-5xx)
+18. [Q18. How does `[ApiController]` affect exception handling for validation failures?](#q18-how-does-apicontroller-affect-exception-handling-for-validation-failures)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 10. Exception Handling
-
-### Q1. How does ASP.NET Core handle unhandled exceptions by default? {#chapter-10-exception-handling-q1}
+## Q1. How does ASP.NET Core handle unhandled exceptions by default?
 
 How does ASP.NET Core handle unhandled exceptions by default?
 
@@ -42,7 +37,7 @@ How does ASP.NET Core handle unhandled exceptions by default?
 
 ---
 
-### Q2. What is `UseExceptionHandler` middleware? {#chapter-10-exception-handling-q2}
+## Q2. What is `UseExceptionHandler` middleware?
 
 What is `UseExceptionHandler` middleware?
 
@@ -55,7 +50,7 @@ What is `UseExceptionHandler` middleware?
 
 ---
 
-### Q3. What is `DeveloperExceptionPage`, and when is it enabled? {#chapter-10-exception-handling-q3}
+## Q3. What is `DeveloperExceptionPage`, and when is it enabled?
 
 What is `DeveloperExceptionPage`, and when is it enabled?
 
@@ -68,7 +63,7 @@ What is `DeveloperExceptionPage`, and when is it enabled?
 
 ---
 
-### Q4. What is the difference between Development and Production exception behavior? {#chapter-10-exception-handling-q4}
+## Q4. What is the difference between Development and Production exception behavior?
 
 What is the difference between Development and Production exception behavior?
 
@@ -81,7 +76,7 @@ What is the difference between Development and Production exception behavior?
 
 ---
 
-### Q5. What is RFC 7807 ProblemDetails? {#chapter-10-exception-handling-q5}
+## Q5. What is RFC 7807 ProblemDetails?
 
 What is RFC 7807 ProblemDetails?
 
@@ -94,7 +89,7 @@ What is RFC 7807 ProblemDetails?
 
 ---
 
-### Q6. How do you return ProblemDetails from an API? {#chapter-10-exception-handling-q6}
+## Q6. How do you return ProblemDetails from an API?
 
 How do you return ProblemDetails from an API?
 
@@ -107,7 +102,7 @@ How do you return ProblemDetails from an API?
 
 ---
 
-### Q7. What is `IExceptionHandler` in .NET 8+? {#chapter-10-exception-handling-q7}
+## Q7. What is `IExceptionHandler` in .NET 8+?
 
 What is `IExceptionHandler` in .NET 8+?
 
@@ -120,7 +115,7 @@ What is `IExceptionHandler` in .NET 8+?
 
 ---
 
-### Q8. What is the difference between `throw;` and `throw ex;`? {#chapter-10-exception-handling-q8}
+## Q8. What is the difference between `throw;` and `throw ex;`?
 
 What is the difference between `throw;` and `throw ex;`?
 
@@ -133,7 +128,7 @@ What is the difference between `throw;` and `throw ex;`?
 
 ---
 
-### Q9. Why should you log the full exception object, not just `ex.Message`? {#chapter-10-exception-handling-q9}
+## Q9. Why should you log the full exception object, not just `ex.Message`?
 
 Why should you log the full exception object, not just `ex.Message`?
 
@@ -146,7 +141,7 @@ Why should you log the full exception object, not just `ex.Message`?
 
 ---
 
-### Q10. Where should global exception handling middleware be placed in the pipeline? {#chapter-10-exception-handling-q10}
+## Q10. Where should global exception handling middleware be placed in the pipeline?
 
 Where should global exception handling middleware be placed in the pipeline?
 
@@ -159,7 +154,7 @@ Where should global exception handling middleware be placed in the pipeline?
 
 ---
 
-### Q11. What is an exception filter, and how does it differ from exception middleware? {#chapter-10-exception-handling-q11}
+## Q11. What is an exception filter, and how does it differ from exception middleware?
 
 What is an exception filter, and how does it differ from exception middleware?
 
@@ -172,7 +167,7 @@ What is an exception filter, and how does it differ from exception middleware?
 
 ---
 
-### Q12. What information should never be exposed to external API clients in error responses? {#chapter-10-exception-handling-q12}
+## Q12. What information should never be exposed to external API clients in error responses?
 
 What information should never be exposed to external API clients in error responses?
 
@@ -185,7 +180,7 @@ What information should never be exposed to external API clients in error respon
 
 ---
 
-### Q13. How do you map domain exceptions to HTTP status codes centrally? {#chapter-10-exception-handling-q13}
+## Q13. How do you map domain exceptions to HTTP status codes centrally?
 
 How do you map domain exceptions to HTTP status codes centrally?
 
@@ -198,7 +193,7 @@ How do you map domain exceptions to HTTP status codes centrally?
 
 ---
 
-### Q14. What is `AddProblemDetails()`? {#chapter-10-exception-handling-q14}
+## Q14. What is `AddProblemDetails()`?
 
 What is `AddProblemDetails()`?
 
@@ -211,7 +206,7 @@ What is `AddProblemDetails()`?
 
 ---
 
-### Q15. What happens when an exception is thrown in middleware vs in a controller action? {#chapter-10-exception-handling-q15}
+## Q15. What happens when an exception is thrown in middleware vs in a controller action?
 
 What happens when an exception is thrown in middleware vs in a controller action?
 
@@ -224,7 +219,7 @@ What happens when an exception is thrown in middleware vs in a controller action
 
 ---
 
-### Q16. How do you customize error responses per exception type? {#chapter-10-exception-handling-q16}
+## Q16. How do you customize error responses per exception type?
 
 How do you customize error responses per exception type?
 
@@ -237,7 +232,7 @@ How do you customize error responses per exception type?
 
 ---
 
-### Q17. What is the difference between client errors (4xx) and server errors (5xx)? {#chapter-10-exception-handling-q17}
+## Q17. What is the difference between client errors (4xx) and server errors (5xx)?
 
 What is the difference between client errors (4xx) and server errors (5xx)?
 
@@ -250,7 +245,7 @@ What is the difference between client errors (4xx) and server errors (5xx)?
 
 ---
 
-### Q18. How does `[ApiController]` affect exception handling for validation failures? {#chapter-10-exception-handling-q18}
+## Q18. How does `[ApiController]` affect exception handling for validation failures?
 
 How does `[ApiController]` affect exception handling for validation failures?
 

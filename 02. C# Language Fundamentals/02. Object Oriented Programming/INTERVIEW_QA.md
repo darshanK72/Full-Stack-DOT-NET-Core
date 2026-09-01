@@ -4,190 +4,275 @@
 ## Table of Contents
 
 - [01. Classes & Objects](#01-classes-objects)
-  - [Q1. What is a class and what is an object in C#?](#01-classes-objects-q1)
-  - [Q2. What is the difference between `struct` and `class` in C#?](#01-classes-objects-q2)
-  - [Q3. What are the different principles of OOP supported in C#?](#01-classes-objects-q3)
-  - [Q4. What is a partial class in C#?](#01-classes-objects-q4)
-  - [Q5. Explain object initializers and collection initializers in C…](#01-classes-objects-q5)
-  - [Q6. What is the difference between shallow copy and deep copy in…](#01-classes-objects-q6)
-  - [Q7. What is the difference between object identity and object eq…](#01-classes-objects-q7)
-  - [Q8. What is the difference between `IDisposable` and a finalizer…](#01-classes-objects-q8)
-  - [Q9. What happens at runtime when you execute `new MyClass()` — a…](#01-classes-objects-q9)
-  - [Q10. Where are class instances stored vs where are struct instanc…](#01-classes-objects-q10)
-  - [Q11. What is the difference between a field, a property, and a me…](#01-classes-objects-q11)
-  - [Q12. What is a static class vs an instance class — can you instan…](#01-classes-objects-q12)
-  - [Q13. What is the `null` reference for reference types, and what i…](#01-classes-objects-q13)
-  - [Q14. What is object initializer syntax, and how does it interact …](#01-classes-objects-q14)
-  - [Q15. What is the difference between `ReferenceEquals`, `==`, and …](#01-classes-objects-q15)
-  - [Q16. When is a struct copied vs when is a reference copied when p…](#01-classes-objects-q16)
-  - [Q17. What is the fragile base class problem at a high level?](#01-classes-objects-q17)
-  - [Q18. What is the difference between stack allocation (`stackalloc…](#01-classes-objects-q18)
-  - [Q19. What does `GC.GetTotalMemory` measure, and why is it only a …](#01-classes-objects-q19)
-  - [Q20. What is the difference between an anemic class (data-only) a…](#01-classes-objects-q20)
+  - [Q1. What is a class and what is an object in C#?](#q1-what-is-a-class-and-what-is-an-object-in-c)
+  - [Q2. What is the difference between `struct` and `class` in C#?](#q2-what-is-the-difference-between-struct-and-class-in-c)
+  - [Q3. What are the different principles of OOP supported in C#?](#q3-what-are-the-different-principles-of-oop-supported-in-c)
+  - [Q4. What is a partial class in C#?](#q4-what-is-a-partial-class-in-c)
+  - [Q5. Explain object initializers and collection initializers in C#.](#q5-explain-object-initializers-and-collection-initializers-in-c)
+  - [Q6. What is the difference between shallow copy and deep copy in C#?](#q6-what-is-the-difference-between-shallow-copy-and-deep-copy-in-c)
+  - [Q7. What is the difference between object identity and object equality?](#q7-what-is-the-difference-between-object-identity-and-object-equality)
+  - [Q8. What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?](#q8-what-is-the-difference-between-idisposable-and-a-finalizer-classname)
+  - [Q9. What happens at runtime when you execute `new MyClass()` — allocation, constructor, and reference assignment?](#q9-what-happens-at-runtime-when-you-execute-new-myclass-allocation-constructor-and-reference-assignment)
+  - [Q10. Where are class instances stored vs where are struct instances typically stored when local variables?](#q10-where-are-class-instances-stored-vs-where-are-struct-instances-typically-stored-when-local-variables)
+  - [Q11. What is the difference between a field, a property, and a method on a class?](#q11-what-is-the-difference-between-a-field-a-property-and-a-method-on-a-class)
+  - [Q12. What is a static class vs an instance class — can you instantiate a static class?](#q12-what-is-a-static-class-vs-an-instance-class-can-you-instantiate-a-static-class)
+  - [Q13. What is the `null` reference for reference types, and what is `default` for a struct vs a class?](#q13-what-is-the-null-reference-for-reference-types-and-what-is-default-for-a-struct-vs-a-class)
+  - [Q14. What is object initializer syntax, and how does it interact with constructors?](#q14-what-is-object-initializer-syntax-and-how-does-it-interact-with-constructors)
+  - [Q15. What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes that do not override equality?](#q15-what-is-the-difference-between-referenceequals-and-equals-for-classes-that-do-not-override-equality)
+  - [Q16. When is a struct copied vs when is a reference copied when passed to a method?](#q16-when-is-a-struct-copied-vs-when-is-a-reference-copied-when-passed-to-a-method)
+  - [Q17. What is the fragile base class problem at a high level?](#q17-what-is-the-fragile-base-class-problem-at-a-high-level)
+  - [Q18. What is the difference between stack allocation (`stackalloc`, local structs) and heap allocation for objects?](#q18-what-is-the-difference-between-stack-allocation-stackalloc-local-structs-and-heap-allocation-for-objects)
+  - [Q19. What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?](#q19-what-does-gcgettotalmemory-measure-and-why-is-it-only-a-rough-indicator)
+  - [Q20. What is the difference between an anemic class (data-only) and a rich domain object?](#q20-what-is-the-difference-between-an-anemic-class-data-only-and-a-rich-domain-object)
 
 - [02. Properties & Indexers](#02-properties-indexers)
-  - [Q1. Explain properties and fields in C#.](#02-properties-indexers-q1)
-  - [Q2. What are auto-implemented properties?](#02-properties-indexers-q2)
-  - [Q3. What are indexers in C#?](#02-properties-indexers-q3)
-  - [Q4. What is the difference between a `public` field and a `publi…](#02-properties-indexers-q4)
-  - [Q5. What are init-only properties (`get; init;`), and how do the…](#02-properties-indexers-q5)
-  - [Q6. What is the difference between `{ get; private set; }` and a…](#02-properties-indexers-q6)
-  - [Q7. What are expression-bodied properties (`public string Label …](#02-properties-indexers-q7)
-  - [Q8. Can indexers be overloaded — what distinguishes overloads?](#02-properties-indexers-q8)
-  - [Q9. What is the syntax for an indexer (`this[int index]`, `this[…](#02-properties-indexers-q9)
-  - [Q10. When should you use a full property with validation vs an au…](#02-properties-indexers-q10)
-  - [Q11. What is a computed/read-only property that derives its value…](#02-properties-indexers-q11)
-  - [Q12. What is the difference between `init` properties and constru…](#02-properties-indexers-q12)
-  - [Q13. How do properties participate in object initializer syntax?](#02-properties-indexers-q13)
-  - [Q14. What is a preview-level understanding of `record` types and …](#02-properties-indexers-q14)
-  - [Q15. Why might exposing a public `{ get; set; }` on a collection-…](#02-properties-indexers-q15)
-  - [Q16. What is the difference between an indexer and a method named…](#02-properties-indexers-q16)
-  - [Q17. Can interface types declare indexers, and how are they imple…](#02-properties-indexers-q17)
-  - [Q18. What is the relationship between properties and data binding…](#02-properties-indexers-q18)
+  - [Q1. Explain properties and fields in C#.](#q1-explain-properties-and-fields-in-c)
+  - [Q2. What are auto-implemented properties?](#q2-what-are-auto-implemented-properties)
+  - [Q3. What are indexers in C#?](#q3-what-are-indexers-in-c)
+  - [Q4. What is the difference between a `public` field and a `public` auto-property — if they behave similarly, why prefer properties?](#q4-what-is-the-difference-between-a-public-field-and-a-public-auto-property-if-they-behave-similarly-why-prefer-properties)
+  - [Q5. What are init-only properties (`get; init;`), and how do they differ from get-only and `{ get; set; }`?](#q5-what-are-init-only-properties-get-init-and-how-do-they-differ-from-get-only-and-get-set)
+  - [Q6. What is the difference between `{ get; private set; }` and a property with only a public getter backed by a private setter method?](#q6-what-is-the-difference-between-get-private-set-and-a-property-with-only-a-public-getter-backed-by-a-private-setter-method)
+  - [Q7. What are expression-bodied properties (`public string Label => $"{Title}";`)?](#q7-what-are-expression-bodied-properties-public-string-label-title)
+  - [Q8. Can indexers be overloaded — what distinguishes overloads?](#q8-can-indexers-be-overloaded-what-distinguishes-overloads)
+  - [Q9. What is the syntax for an indexer (`this[int index]`, `this[string key]`)?](#q9-what-is-the-syntax-for-an-indexer-thisint-index-thisstring-key)
+  - [Q10. When should you use a full property with validation vs an auto-property?](#q10-when-should-you-use-a-full-property-with-validation-vs-an-auto-property)
+  - [Q11. What is a computed/read-only property that derives its value from other members?](#q11-what-is-a-computedread-only-property-that-derives-its-value-from-other-members)
+  - [Q12. What is the difference between `init` properties and constructor parameters for immutable objects?](#q12-what-is-the-difference-between-init-properties-and-constructor-parameters-for-immutable-objects)
+  - [Q13. How do properties participate in object initializer syntax?](#q13-how-do-properties-participate-in-object-initializer-syntax)
+  - [Q14. What is a preview-level understanding of `record` types and synthesized properties?](#q14-what-is-a-preview-level-understanding-of-record-types-and-synthesized-properties)
+  - [Q15. Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?](#q15-why-might-exposing-a-public-get-set-on-a-collection-typed-property-break-encapsulation)
+  - [Q16. What is the difference between an indexer and a method named `GetByIndex`?](#q16-what-is-the-difference-between-an-indexer-and-a-method-named-getbyindex)
+  - [Q17. Can interface types declare indexers, and how are they implemented?](#q17-can-interface-types-declare-indexers-and-how-are-they-implemented)
+  - [Q18. What is the relationship between properties and data binding / serialization frameworks?](#q18-what-is-the-relationship-between-properties-and-data-binding-serialization-frameworks)
 
 - [03. Constructors & Method Overloading](#03-constructors-method-overloading)
-  - [Q1. Explain constructors and their types in C# (default, paramet…](#03-constructors-method-overloading-q1)
-  - [Q2. What is a destructor/finalizer in C#?](#03-constructors-method-overloading-q2)
-  - [Q3. Explain constructor chaining in C# (`: this(...)` vs `: base…](#03-constructors-method-overloading-q3)
-  - [Q4. How can you call the base class constructor from a derived c…](#03-constructors-method-overloading-q4)
-  - [Q5. In what order do constructors and field initializers run in …](#03-constructors-method-overloading-q5)
-  - [Q6. Explain method overloading and method overriding in C#.](#03-constructors-method-overloading-q6)
-  - [Q7. What is a static constructor, and when does it run?](#03-constructors-method-overloading-q7)
-  - [Q8. Can a struct have a parameterless constructor (C# 10+ rules …](#03-constructors-method-overloading-q8)
-  - [Q9. What is the difference between a primary constructor (C# 12 …](#03-constructors-method-overloading-q9)
-  - [Q10. What happens if you do not define any constructor — what def…](#03-constructors-method-overloading-q10)
-  - [Q11. Why might you mark a constructor `private` (singleton, facto…](#03-constructors-method-overloading-q11)
-  - [Q12. What is constructor overloading, and how does `: this(...)` …](#03-constructors-method-overloading-q12)
-  - [Q13. What is the exact order: static constructor, instance field …](#03-constructors-method-overloading-q13)
-  - [Q14. What is the difference between method overloading (compile-t…](#03-constructors-method-overloading-q14)
-  - [Q15. When does the compiler fail to pick an overload due to ambig…](#03-constructors-method-overloading-q15)
-  - [Q16. Can constructors be inherited — how does a derived class get…](#03-constructors-method-overloading-q16)
-  - [Q17. What validation belongs in a constructor vs a factory method…](#03-constructors-method-overloading-q17)
-  - [Q18. What is the difference between calling an overloaded instanc…](#03-constructors-method-overloading-q18)
+  - [Q1. Explain constructors and their types in C# (default, parameterized, static, private).](#q1-explain-constructors-and-their-types-in-c-default-parameterized-static-private)
+  - [Q2. What is a destructor/finalizer in C#?](#q2-what-is-a-destructorfinalizer-in-c)
+  - [Q3. Explain constructor chaining in C# (`: this(...)` vs `: base(...)`).](#q3-explain-constructor-chaining-in-c-this-vs-base)
+  - [Q4. How can you call the base class constructor from a derived class?](#q4-how-can-you-call-the-base-class-constructor-from-a-derived-class)
+  - [Q5. In what order do constructors and field initializers run in an inheritance chain?](#q5-in-what-order-do-constructors-and-field-initializers-run-in-an-inheritance-chain)
+  - [Q6. Explain method overloading and method overriding in C#.](#q6-explain-method-overloading-and-method-overriding-in-c)
+  - [Q7. What is a static constructor, and when does it run?](#q7-what-is-a-static-constructor-and-when-does-it-run)
+  - [Q8. Can a struct have a parameterless constructor (C# 10+ rules vs earlier)?](#q8-can-a-struct-have-a-parameterless-constructor-c-10-rules-vs-earlier)
+  - [Q9. What is the difference between a primary constructor (C# 12 on classes/records) and traditional constructors?](#q9-what-is-the-difference-between-a-primary-constructor-c-12-on-classesrecords-and-traditional-constructors)
+  - [Q10. What happens if you do not define any constructor — what default constructor is provided?](#q10-what-happens-if-you-do-not-define-any-constructor-what-default-constructor-is-provided)
+  - [Q11. Why might you mark a constructor `private` (singleton, factory patterns)?](#q11-why-might-you-mark-a-constructor-private-singleton-factory-patterns)
+  - [Q12. What is constructor overloading, and how does `: this(...)` reduce duplication?](#q12-what-is-constructor-overloading-and-how-does-this-reduce-duplication)
+  - [Q13. What is the exact order: static constructor, instance field initializers, instance constructor body, base constructor?](#q13-what-is-the-exact-order-static-constructor-instance-field-initializers-instance-constructor-body-base-constructor)
+  - [Q14. What is the difference between method overloading (compile-time) and method overriding (runtime polymorphism)?](#q14-what-is-the-difference-between-method-overloading-compile-time-and-method-overriding-runtime-polymorphism)
+  - [Q15. When does the compiler fail to pick an overload due to ambiguity involving optional parameters and `params`?](#q15-when-does-the-compiler-fail-to-pick-an-overload-due-to-ambiguity-involving-optional-parameters-and-params)
+  - [Q16. Can constructors be inherited — how does a derived class get a base constructor?](#q16-can-constructors-be-inherited-how-does-a-derived-class-get-a-base-constructor)
+  - [Q17. What validation belongs in a constructor vs a factory method?](#q17-what-validation-belongs-in-a-constructor-vs-a-factory-method)
+  - [Q18. What is the difference between calling an overloaded instance method vs a static overloaded method?](#q18-what-is-the-difference-between-calling-an-overloaded-instance-method-vs-a-static-overloaded-method)
 
 - [04. Static Members & Static Classes](#04-static-members-static-classes)
-  - [Q1. Explain the `static` keyword in detail.](#04-static-members-static-classes-q1)
-  - [Q2. What is a static class in C#?](#04-static-members-static-classes-q2)
-  - [Q3. Why can you not override a `static` method?](#04-static-members-static-classes-q3)
-  - [Q4. What is the difference between a static class and the single…](#04-static-members-static-classes-q4)
-  - [Q5. What is a static field, and how is lifetime different from a…](#04-static-members-static-classes-q5)
-  - [Q6. What is a static property and static method — what is the `t…](#04-static-members-static-classes-q6)
-  - [Q7. Why can static methods not access instance members directly?](#04-static-members-static-classes-q7)
-  - [Q8. When are static constructors executed, and how many times pe…](#04-static-members-static-classes-q8)
-  - [Q9. What is the difference between `const` (implicitly static) a…](#04-static-members-static-classes-q9)
-  - [Q10. Can a static class implement interfaces?](#04-static-members-static-classes-q10)
-  - [Q11. What thread-safety concerns apply to mutable static fields?](#04-static-members-static-classes-q11)
-  - [Q12. Why is overusing static state a testing and maintainability …](#04-static-members-static-classes-q12)
-  - [Q13. What is the difference between static nested classes and non…](#04-static-members-static-classes-q13)
-  - [Q14. How do static members participate in inheritance — are they …](#04-static-members-static-classes-q14)
+  - [Q1. Explain the `static` keyword in detail.](#q1-explain-the-static-keyword-in-detail)
+  - [Q2. What is a static class in C#?](#q2-what-is-a-static-class-in-c)
+  - [Q3. Why can you not override a `static` method?](#q3-why-can-you-not-override-a-static-method)
+  - [Q4. What is the difference between a static class and the singleton pattern?](#q4-what-is-the-difference-between-a-static-class-and-the-singleton-pattern)
+  - [Q5. What is a static field, and how is lifetime different from an instance field?](#q5-what-is-a-static-field-and-how-is-lifetime-different-from-an-instance-field)
+  - [Q6. What is a static property and static method — what is the `this` reference inside them?](#q6-what-is-a-static-property-and-static-method-what-is-the-this-reference-inside-them)
+  - [Q7. Why can static methods not access instance members directly?](#q7-why-can-static-methods-not-access-instance-members-directly)
+  - [Q8. When are static constructors executed, and how many times per AppDomain/process?](#q8-when-are-static-constructors-executed-and-how-many-times-per-appdomainprocess)
+  - [Q9. What is the difference between `const` (implicitly static) and `static readonly`?](#q9-what-is-the-difference-between-const-implicitly-static-and-static-readonly)
+  - [Q10. Can a static class implement interfaces?](#q10-can-a-static-class-implement-interfaces)
+  - [Q11. What thread-safety concerns apply to mutable static fields?](#q11-what-thread-safety-concerns-apply-to-mutable-static-fields)
+  - [Q12. Why is overusing static state a testing and maintainability problem?](#q12-why-is-overusing-static-state-a-testing-and-maintainability-problem)
+  - [Q13. What is the difference between static nested classes and non-static nested classes?](#q13-what-is-the-difference-between-static-nested-classes-and-non-static-nested-classes)
+  - [Q14. How do static members participate in inheritance — are they polymorphic?](#q14-how-do-static-members-participate-in-inheritance-are-they-polymorphic)
 
 - [05. Inheritance & Polymorphism](#05-inheritance-polymorphism)
-  - [Q1. Explain inheritance in detail in C#.](#05-inheritance-polymorphism-q1)
-  - [Q2. Explain polymorphism in C# and how it can be achieved.](#05-inheritance-polymorphism-q2)
-  - [Q3. What is the difference between compile-time (static) and run…](#05-inheritance-polymorphism-q3)
-  - [Q4. What is a sealed class in C#?](#05-inheritance-polymorphism-q4)
-  - [Q5. What is a virtual method in C#?](#05-inheritance-polymorphism-q5)
-  - [Q6. What is the difference between `this` and `base` keywords?](#05-inheritance-polymorphism-q6)
-  - [Q7. What is operator overloading in C#?](#05-inheritance-polymorphism-q7)
-  - [Q8. Explain the difference between `virtual`, `abstract`, and `o…](#05-inheritance-polymorphism-q8)
-  - [Q9. Explain the `new` keyword in the context of method hiding.](#05-inheritance-polymorphism-q9)
-  - [Q10. Explain how C# handles multiple inheritance (using interface…](#05-inheritance-polymorphism-q10)
-  - [Q11. Why does C# not support multiple inheritance of classes?](#05-inheritance-polymorphism-q11)
-  - [Q12. What is the fragile base class problem?](#05-inheritance-polymorphism-q12)
-  - [Q13. Why is "favor composition over inheritance" a common guideli…](#05-inheritance-polymorphism-q13)
-  - [Q14. What is runtime dispatch — how does the CLR resolve `overrid…](#05-inheritance-polymorphism-q14)
-  - [Q15. What is the difference between hiding with `new` and overrid…](#05-inheritance-polymorphism-q15)
-  - [Q16. Can you inherit from a sealed class?](#05-inheritance-polymorphism-q16)
-  - [Q17. What is the difference between `is` type testing and casting…](#05-inheritance-polymorphism-q17)
-  - [Q18. What is the Liskov Substitution Principle in one sentence, a…](#05-inheritance-polymorphism-q18)
-  - [Q19. When does `base.Method()` call the parent's implementation v…](#05-inheritance-polymorphism-q19)
-  - [Q20. What is the difference between extending behavior with inher…](#05-inheritance-polymorphism-q20)
+  - [Q1. Explain inheritance in detail in C#.](#q1-explain-inheritance-in-detail-in-c)
+  - [Q2. Explain polymorphism in C# and how it can be achieved.](#q2-explain-polymorphism-in-c-and-how-it-can-be-achieved)
+  - [Q3. What is the difference between compile-time (static) and runtime (dynamic) polymorphism?](#q3-what-is-the-difference-between-compile-time-static-and-runtime-dynamic-polymorphism)
+  - [Q4. What is a sealed class in C#?](#q4-what-is-a-sealed-class-in-c)
+  - [Q5. What is a virtual method in C#?](#q5-what-is-a-virtual-method-in-c)
+  - [Q6. What is the difference between `this` and `base` keywords?](#q6-what-is-the-difference-between-this-and-base-keywords)
+  - [Q7. What is operator overloading in C#?](#q7-what-is-operator-overloading-in-c)
+  - [Q8. Explain the difference between `virtual`, `abstract`, and `override` keywords.](#q8-explain-the-difference-between-virtual-abstract-and-override-keywords)
+  - [Q9. Explain the `new` keyword in the context of method hiding.](#q9-explain-the-new-keyword-in-the-context-of-method-hiding)
+  - [Q10. Explain how C# handles multiple inheritance (using interfaces).](#q10-explain-how-c-handles-multiple-inheritance-using-interfaces)
+  - [Q11. Why does C# not support multiple inheritance of classes?](#q11-why-does-c-not-support-multiple-inheritance-of-classes)
+  - [Q12. What is the fragile base class problem?](#q12-what-is-the-fragile-base-class-problem)
+  - [Q13. Why is "favor composition over inheritance" a common guideline?](#q13-why-is-favor-composition-over-inheritance-a-common-guideline)
+  - [Q14. What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?](#q14-what-is-runtime-dispatch-how-does-the-clr-resolve-override-calls-through-a-base-reference)
+  - [Q15. What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable?](#q15-what-is-the-difference-between-hiding-with-new-and-overriding-with-override-when-calling-through-a-base-typed-variable)
+  - [Q16. Can you inherit from a sealed class?](#q16-can-you-inherit-from-a-sealed-class)
+  - [Q17. What is the difference between `is` type testing and casting in polymorphic code paths?](#q17-what-is-the-difference-between-is-type-testing-and-casting-in-polymorphic-code-paths)
+  - [Q18. What is the Liskov Substitution Principle in one sentence, and how does it relate to inheritance?](#q18-what-is-the-liskov-substitution-principle-in-one-sentence-and-how-does-it-relate-to-inheritance)
+  - [Q19. When does `base.Method()` call the parent's implementation vs the current type's override?](#q19-when-does-basemethod-call-the-parents-implementation-vs-the-current-types-override)
+  - [Q20. What is the difference between extending behavior with inheritance vs wrapping with composition?](#q20-what-is-the-difference-between-extending-behavior-with-inheritance-vs-wrapping-with-composition)
 
 - [06. Abstract Classes & Interfaces](#06-abstract-classes-interfaces)
-  - [Q1. Explain abstraction in detail in C#.](#06-abstract-classes-interfaces-q1)
-  - [Q2. What is the difference between abstraction and encapsulation…](#06-abstract-classes-interfaces-q2)
-  - [Q3. What is the difference between abstraction and polymorphism?](#06-abstract-classes-interfaces-q3)
-  - [Q4. What is the difference between an abstract class and an inte…](#06-abstract-classes-interfaces-q4)
-  - [Q5. What is the difference between an abstract class and an inte…](#06-abstract-classes-interfaces-q5)
-  - [Q6. Why do we need interfaces in C#?](#06-abstract-classes-interfaces-q6)
-  - [Q7. What is explicit interface implementation and when is it use…](#06-abstract-classes-interfaces-q7)
-  - [Q8. What are static abstract members in interfaces (C# 11)?](#06-abstract-classes-interfaces-q8)
-  - [Q9. Can an abstract class have concrete (non-abstract) methods?](#06-abstract-classes-interfaces-q9)
-  - [Q10. Can a class implement multiple interfaces — what about an in…](#06-abstract-classes-interfaces-q10)
-  - [Q11. When would you choose an abstract base class over an interfa…](#06-abstract-classes-interfaces-q11)
-  - [Q12. What is the diamond problem, and how does C# avoid it for cl…](#06-abstract-classes-interfaces-q12)
-  - [Q13. What is explicit interface implementation — why might `((IMy…](#06-abstract-classes-interfaces-q13)
-  - [Q14. Can interfaces declare fields, constructors, or static concr…](#06-abstract-classes-interfaces-q14)
-  - [Q15. What is the difference between `IReadOnlyList<T>` as a param…](#06-abstract-classes-interfaces-q15)
-  - [Q16. When should API surface depend on interfaces vs abstract cla…](#06-abstract-classes-interfaces-q16)
+  - [Q1. Explain abstraction in detail in C#.](#q1-explain-abstraction-in-detail-in-c)
+  - [Q2. What is the difference between abstraction and encapsulation?](#q2-what-is-the-difference-between-abstraction-and-encapsulation)
+  - [Q3. What is the difference between abstraction and polymorphism?](#q3-what-is-the-difference-between-abstraction-and-polymorphism)
+  - [Q4. What is the difference between an abstract class and an interface?](#q4-what-is-the-difference-between-an-abstract-class-and-an-interface)
+  - [Q5. What is the difference between an abstract class and an interface before C# 8 vs after (default interface methods)?](#q5-what-is-the-difference-between-an-abstract-class-and-an-interface-before-c-8-vs-after-default-interface-methods)
+  - [Q6. Why do we need interfaces in C#?](#q6-why-do-we-need-interfaces-in-c)
+  - [Q7. What is explicit interface implementation and when is it used?](#q7-what-is-explicit-interface-implementation-and-when-is-it-used)
+  - [Q8. What are static abstract members in interfaces (C# 11)?](#q8-what-are-static-abstract-members-in-interfaces-c-11)
+  - [Q9. Can an abstract class have concrete (non-abstract) methods?](#q9-can-an-abstract-class-have-concrete-non-abstract-methods)
+  - [Q10. Can a class implement multiple interfaces — what about an interface inheriting another interface?](#q10-can-a-class-implement-multiple-interfaces-what-about-an-interface-inheriting-another-interface)
+  - [Q11. When would you choose an abstract base class over an interface for shared implementation?](#q11-when-would-you-choose-an-abstract-base-class-over-an-interface-for-shared-implementation)
+  - [Q12. What is the diamond problem, and how does C# avoid it for classes but address it for interfaces with default methods?](#q12-what-is-the-diamond-problem-and-how-does-c-avoid-it-for-classes-but-address-it-for-interfaces-with-default-methods)
+  - [Q13. What is explicit interface implementation — why might `((IMyInterface)obj).Method()` work when `obj.Method()` does not?](#q13-what-is-explicit-interface-implementation-why-might-imyinterfaceobjmethod-work-when-objmethod-does-not)
+  - [Q14. Can interfaces declare fields, constructors, or static concrete state (pre- and post-C# 8)?](#q14-can-interfaces-declare-fields-constructors-or-static-concrete-state-pre--and-post-c-8)
+  - [Q15. What is the difference between `IReadOnlyList<T>` as a parameter type and `List<T>` for abstraction?](#q15-what-is-the-difference-between-ireadonlylistt-as-a-parameter-type-and-listt-for-abstraction)
+  - [Q16. When should API surface depend on interfaces vs abstract classes?](#q16-when-should-api-surface-depend-on-interfaces-vs-abstract-classes)
 
 - [07. Encapsulation & Access Modifiers](#07-encapsulation-access-modifiers)
-  - [Q1. Explain encapsulation in C# with examples.](#07-encapsulation-access-modifiers-q1)
-  - [Q2. What are the different access modifiers in C#? (`private`, `…](#07-encapsulation-access-modifiers-q2)
-  - [Q3. What is the difference between "information hiding" and "dat…](#07-encapsulation-access-modifiers-q3)
-  - [Q4. Why is exposing a mutable collection through a public getter…](#07-encapsulation-access-modifiers-q4)
-  - [Q5. What is the difference between `protected internal` and `pri…](#07-encapsulation-access-modifiers-q5)
-  - [Q6. What does `internal` mean in the context of assemblies and `…](#07-encapsulation-access-modifiers-q6)
-  - [Q7. What is the default access level for class members if you om…](#07-encapsulation-access-modifiers-q7)
-  - [Q8. How do access modifiers apply to nested types vs top-level t…](#07-encapsulation-access-modifiers-q8)
-  - [Q9. What is defensive copying when returning collections from pr…](#07-encapsulation-access-modifiers-q9)
-  - [Q10. What is the difference between encapsulation and immutabilit…](#07-encapsulation-access-modifiers-q10)
-  - [Q11. Why are public fields discouraged in public APIs even for si…](#07-encapsulation-access-modifiers-q11)
-  - [Q12. How does `private protected` restrict visibility compared to…](#07-encapsulation-access-modifiers-q12)
-  - [Q13. What is a friend assembly pattern, and what are its trade-of…](#07-encapsulation-access-modifiers-q13)
-  - [Q14. How do property accessors use asymmetric access (`public get…](#07-encapsulation-access-modifiers-q14)
+  - [Q1. Explain encapsulation in C# with examples.](#q1-explain-encapsulation-in-c-with-examples)
+  - [Q2. What are the different access modifiers in C#? (`private`, `protected`, `internal`, `protected internal`, `private protected`)](#q2-what-are-the-different-access-modifiers-in-c-private-protected-internal-protected-internal-private-protected)
+  - [Q3. What is the difference between "information hiding" and "data hiding"?](#q3-what-is-the-difference-between-information-hiding-and-data-hiding)
+  - [Q4. Why is exposing a mutable collection through a public getter an encapsulation break?](#q4-why-is-exposing-a-mutable-collection-through-a-public-getter-an-encapsulation-break)
+  - [Q5. What is the difference between `protected internal` and `private protected`?](#q5-what-is-the-difference-between-protected-internal-and-private-protected)
+  - [Q6. What does `internal` mean in the context of assemblies and `InternalsVisibleTo`?](#q6-what-does-internal-mean-in-the-context-of-assemblies-and-internalsvisibleto)
+  - [Q7. What is the default access level for class members if you omit an modifier?](#q7-what-is-the-default-access-level-for-class-members-if-you-omit-an-modifier)
+  - [Q8. How do access modifiers apply to nested types vs top-level types?](#q8-how-do-access-modifiers-apply-to-nested-types-vs-top-level-types)
+  - [Q9. What is defensive copying when returning collections from properties?](#q9-what-is-defensive-copying-when-returning-collections-from-properties)
+  - [Q10. What is the difference between encapsulation and immutability?](#q10-what-is-the-difference-between-encapsulation-and-immutability)
+  - [Q11. Why are public fields discouraged in public APIs even for simple DTOs in some codebases?](#q11-why-are-public-fields-discouraged-in-public-apis-even-for-simple-dtos-in-some-codebases)
+  - [Q12. How does `private protected` restrict visibility compared to `protected` alone?](#q12-how-does-private-protected-restrict-visibility-compared-to-protected-alone)
+  - [Q13. What is a friend assembly pattern, and what are its trade-offs?](#q13-what-is-a-friend-assembly-pattern-and-what-are-its-trade-offs)
+  - [Q14. How do property accessors use asymmetric access (`public get; private set;`)?](#q14-how-do-property-accessors-use-asymmetric-access-public-get-private-set)
 
 - [08. Events](#08-events)
-  - [Q1. Explain events in C# (including event handling and publisher…](#08-events-q1)
-  - [Q2. What is the difference between an `event` and a plain public…](#08-events-q2)
-  - [Q3. Why should you unsubscribe from events, and what problem doe…](#08-events-q3)
-  - [Q4. What happens during multicast delegate invocation if one sub…](#08-events-q4)
-  - [Q5. What is the standard `EventHandler` / `EventHandler<TEventAr…](#08-events-q5)
-  - [Q6. How do you raise an event safely (null-check, `?.Invoke`, lo…](#08-events-q6)
-  - [Q7. What is the difference between custom delegate types and `Ev…](#08-events-q7)
-  - [Q8. Can interfaces declare events, and how are they implemented?](#08-events-q8)
-  - [Q9. What memory-leak scenario arises when a long-lived publisher…](#08-events-q9)
-  - [Q10. What is the difference between events and the Observer patte…](#08-events-q10)
-  - [Q11. Can you assign to an event from outside the declaring class …](#08-events-q11)
-  - [Q12. What is thread-safe event raising, and when is locking requi…](#08-events-q12)
+  - [Q1. Explain events in C# (including event handling and publisher-subscriber pattern).](#q1-explain-events-in-c-including-event-handling-and-publisher-subscriber-pattern)
+  - [Q2. What is the difference between an `event` and a plain public delegate field?](#q2-what-is-the-difference-between-an-event-and-a-plain-public-delegate-field)
+  - [Q3. Why should you unsubscribe from events, and what problem does this prevent?](#q3-why-should-you-unsubscribe-from-events-and-what-problem-does-this-prevent)
+  - [Q4. What happens during multicast delegate invocation if one subscriber throws?](#q4-what-happens-during-multicast-delegate-invocation-if-one-subscriber-throws)
+  - [Q5. What is the standard `EventHandler` / `EventHandler<TEventArgs>` pattern?](#q5-what-is-the-standard-eventhandler-eventhandlerteventargs-pattern)
+  - [Q6. How do you raise an event safely (null-check, `?.Invoke`, local copy pattern)?](#q6-how-do-you-raise-an-event-safely-null-check-invoke-local-copy-pattern)
+  - [Q7. What is the difference between custom delegate types and `EventHandler` for events?](#q7-what-is-the-difference-between-custom-delegate-types-and-eventhandler-for-events)
+  - [Q8. Can interfaces declare events, and how are they implemented?](#q8-can-interfaces-declare-events-and-how-are-they-implemented)
+  - [Q9. What memory-leak scenario arises when a long-lived publisher holds references to short-lived subscribers?](#q9-what-memory-leak-scenario-arises-when-a-long-lived-publisher-holds-references-to-short-lived-subscribers)
+  - [Q10. What is the difference between events and the Observer pattern / IObservable?](#q10-what-is-the-difference-between-events-and-the-observer-pattern-iobservable)
+  - [Q11. Can you assign to an event from outside the declaring class (`event += handler` vs `event = handler`)?](#q11-can-you-assign-to-an-event-from-outside-the-declaring-class-event-handler-vs-event-handler)
+  - [Q12. What is thread-safe event raising, and when is locking required?](#q12-what-is-thread-safe-event-raising-and-when-is-locking-required)
 
 - [09. OOP Real-World Examples](#09-oop-real-world-examples)
-  - [Q1. Explain the SOLID principles with concrete C# examples.](#09-oop-real-world-examples-q1)
-  - [Q2. What is the Liskov Substitution Principle? Give a classic vi…](#09-oop-real-world-examples-q2)
-  - [Q3. What is Dependency Inversion, and how does constructor injec…](#09-oop-real-world-examples-q3)
-  - [Q4. What is the difference between Dependency Injection and the …](#09-oop-real-world-examples-q4)
-  - [Q5. What is the difference between "has-a" and "is-a" relationsh…](#09-oop-real-world-examples-q5)
-  - [Q6. What is the anemic domain model anti-pattern?](#09-oop-real-world-examples-q6)
-  - [Q7. What is the Open/Closed Principle, and how do interfaces sup…](#09-oop-real-world-examples-q7)
-  - [Q8. What is the Single Responsibility Principle — how do you rec…](#09-oop-real-world-examples-q8)
-  - [Q9. What is the Interface Segregation Principle — why are fat in…](#09-oop-real-world-examples-q9)
-  - [Q10. What is a factory method vs a simple constructor — when do y…](#09-oop-real-world-examples-q10)
-  - [Q11. What is the Strategy pattern, and how does it map to interfa…](#09-oop-real-world-examples-q11)
-  - [Q12. What is the Repository pattern at a high level, and why depe…](#09-oop-real-world-examples-q12)
-  - [Q13. How does polymorphism simplify replacing implementations in …](#09-oop-real-world-examples-q13)
-  - [Q14. What is the difference between domain modeling with rich beh…](#09-oop-real-world-examples-q14)
-  - [Q15. **Virtual method from base constructor** — Calling an overri…](#09-oop-real-world-examples-q15)
-  - [Q16. **Method hiding vs overriding** — `new` hides by compile-tim…](#09-oop-real-world-examples-q16)
-  - [Q17. **`Equals()` without `GetHashCode()`** — Breaks the hash con…](#09-oop-real-world-examples-q17)
-  - [Q18. **Mutable object as dictionary key** — Changing a key after …](#09-oop-real-world-examples-q18)
-  - [Q19. **Struct boxing via interface** — Assigning a struct to an i…](#09-oop-real-world-examples-q19)
-  - [Q20. **`protected internal` vs `private protected`** — `protected…](#09-oop-real-world-examples-q20)
-  - [Q21. **Type-checking anti-pattern** — Long `if (animal is Dog)` c…](#09-oop-real-world-examples-q21)
-  - [Q22. **Memory leaks despite GC** — Event handlers and static cach…](#09-oop-real-world-examples-q22)
-  - [Q23. **Exposing `List<T>` directly** — Callers can mutate interna…](#09-oop-real-world-examples-q23)
-  - [Q24. **`init` after construction** — Init-only properties can be …](#09-oop-real-world-examples-q24)
-  - [Q25. **Static "singleton" vs DI singleton** — A static class is h…](#09-oop-real-world-examples-q25)
-  - [Q26. **Explicit interface hiding** — Public class method and expl…](#09-oop-real-world-examples-q26)
-  - [Q27. **Finalizer timing** — `~ClassName()` runs non-deterministic…](#09-oop-real-world-examples-q27)
-  - [Q28. **Overriding `==` without consistent `Equals`/`GetHashCode`*…](#09-oop-real-world-examples-q28)
-  - [Q29. **Default interface methods on structs** — Calling a default…](#09-oop-real-world-examples-q29)
+  - [Q1. Explain the SOLID principles with concrete C# examples.](#q1-explain-the-solid-principles-with-concrete-c-examples)
+  - [Q2. What is the Liskov Substitution Principle? Give a classic violation (e.g., `Square`/`Rectangle`).](#q2-what-is-the-liskov-substitution-principle-give-a-classic-violation-eg-squarerectangle)
+  - [Q3. What is Dependency Inversion, and how does constructor injection implement it?](#q3-what-is-dependency-inversion-and-how-does-constructor-injection-implement-it)
+  - [Q4. What is the difference between Dependency Injection and the Service Locator pattern?](#q4-what-is-the-difference-between-dependency-injection-and-the-service-locator-pattern)
+  - [Q5. What is the difference between "has-a" and "is-a" relationships? When is inheritance the wrong choice?](#q5-what-is-the-difference-between-has-a-and-is-a-relationships-when-is-inheritance-the-wrong-choice)
+  - [Q6. What is the anemic domain model anti-pattern?](#q6-what-is-the-anemic-domain-model-anti-pattern)
+  - [Q7. What is the Open/Closed Principle, and how do interfaces support extension without modification?](#q7-what-is-the-openclosed-principle-and-how-do-interfaces-support-extension-without-modification)
+  - [Q8. What is the Single Responsibility Principle — how do you recognize a class that violates it?](#q8-what-is-the-single-responsibility-principle-how-do-you-recognize-a-class-that-violates-it)
+  - [Q9. What is the Interface Segregation Principle — why are fat interfaces problematic?](#q9-what-is-the-interface-segregation-principle-why-are-fat-interfaces-problematic)
+  - [Q10. What is a factory method vs a simple constructor — when do you introduce a factory?](#q10-what-is-a-factory-method-vs-a-simple-constructor-when-do-you-introduce-a-factory)
+  - [Q11. What is the Strategy pattern, and how does it map to interfaces/delegates in C#?](#q11-what-is-the-strategy-pattern-and-how-does-it-map-to-interfacesdelegates-in-c)
+  - [Q12. What is the Repository pattern at a high level, and why depend on abstractions?](#q12-what-is-the-repository-pattern-at-a-high-level-and-why-depend-on-abstractions)
+  - [Q13. How does polymorphism simplify replacing implementations in tests (mock/stub scenarios)?](#q13-how-does-polymorphism-simplify-replacing-implementations-in-tests-mockstub-scenarios)
+  - [Q14. What is the difference between domain modeling with rich behavior vs CRUD-style service objects?](#q14-what-is-the-difference-between-domain-modeling-with-rich-behavior-vs-crud-style-service-objects)
+  - [Q15. **Virtual method from base constructor** — Calling an overridden virtual method from a base constructor runs before derived field initializers complete; overridden code sees default values.](#q15-virtual-method-from-base-constructor-calling-an-overridden-virtual-method-from-a-base-constructor-runs-before-derived-field-initializers-complete-overridden-code-sees-default-values)
+  - [Q16. **Method hiding vs overriding** — `new` hides by compile-time type; `override` dispatches by runtime type. Mixing them breaks expected polymorphism.](#q16-method-hiding-vs-overriding-new-hides-by-compile-time-type-override-dispatches-by-runtime-type-mixing-them-breaks-expected-polymorphism)
+  - [Q17. **`Equals()` without `GetHashCode()`** — Breaks the hash contract; objects can exist in a `Dictionary`/`HashSet` but not be found again after mutation.](#q17-equals-without-gethashcode-breaks-the-hash-contract-objects-can-exist-in-a-dictionaryhashset-but-not-be-found-again-after-mutation)
+  - [Q18. **Mutable object as dictionary key** — Changing a key after insertion causes "lost" entries at runtime.](#q18-mutable-object-as-dictionary-key-changing-a-key-after-insertion-causes-lost-entries-at-runtime)
+  - [Q19. **Struct boxing via interface** — Assigning a struct to an interface type boxes; subsequent struct mutations don't affect the boxed copy.](#q19-struct-boxing-via-interface-assigning-a-struct-to-an-interface-type-boxes-subsequent-struct-mutations-dont-affect-the-boxed-copy)
+  - [Q20. **`protected internal` vs `private protected`** — `protected internal` = protected OR internal; `private protected` = protected AND internal (same assembly only).](#q20-protected-internal-vs-private-protected-protected-internal-protected-or-internal-private-protected-protected-and-internal-same-assembly-only)
+  - [Q21. **Type-checking anti-pattern** — Long `if (animal is Dog)` chains defeat polymorphism; prefer virtual methods or pattern matching on a common abstraction.](#q21-type-checking-anti-pattern-long-if-animal-is-dog-chains-defeat-polymorphism-prefer-virtual-methods-or-pattern-matching-on-a-common-abstraction)
+  - [Q22. **Memory leaks despite GC** — Event handlers and static caches holding references to short-lived objects are the classic managed leak.](#q22-memory-leaks-despite-gc-event-handlers-and-static-caches-holding-references-to-short-lived-objects-are-the-classic-managed-leak)
+  - [Q23. **Exposing `List<T>` directly** — Callers can mutate internal state without invariant checks; return `IReadOnlyList<T>` or defensive copies.](#q23-exposing-listt-directly-callers-can-mutate-internal-state-without-invariant-checks-return-ireadonlylistt-or-defensive-copies)
+  - [Q24. **`init` after construction** — Init-only properties can be set in object initializers and constructors but not arbitrary code afterward; confusing with `{ get; private set; }`.](#q24-init-after-construction-init-only-properties-can-be-set-in-object-initializers-and-constructors-but-not-arbitrary-code-afterward-confusing-with-get-private-set)
+  - [Q25. **Static "singleton" vs DI singleton** — A static class is hard to test and replace; instance singletons registered in DI are still mockable if designed carefully.](#q25-static-singleton-vs-di-singleton-a-static-class-is-hard-to-test-and-replace-instance-singletons-registered-in-di-are-still-mockable-if-designed-carefully)
+  - [Q26. **Explicit interface hiding** — Public class method and explicit interface method can coexist with different behavior; callers must know which API they use.](#q26-explicit-interface-hiding-public-class-method-and-explicit-interface-method-can-coexist-with-different-behavior-callers-must-know-which-api-they-use)
+  - [Q27. **Finalizer timing** — `~ClassName()` runs non-deterministically; do not rely on it for timely resource release — use `Dispose`.](#q27-finalizer-timing-classname-runs-non-deterministically-do-not-rely-on-it-for-timely-resource-release-use-dispose)
+  - [Q28. **Overriding `==` without consistent `Equals`/`GetHashCode`** — Custom equality operators that disagree with `Equals` break collections and LINQ.](#q28-overriding-without-consistent-equalsgethashcode-custom-equality-operators-that-disagree-with-equals-break-collections-and-linq)
+  - [Q29. **Default interface methods on structs** — Calling a default interface method on a struct may box the struct depending on how it is invoked.](#q29-default-interface-methods-on-structs-calling-a-default-interface-method-on-a-struct-may-box-the-struct-depending-on-how-it-is-invoked)
+  - [Q1. (R) A loan portal caches `Customer` instances in memory between requests. After one user edits a profile, another user sees the same name and loan amount. Review:](#q1-r-a-loan-portal-caches-customer-instances-in-memory-between-requests-after-one-user-edits-a-profile-another-user-sees-the-same-name-and-loan-amount-review)
+  - [Q2. (R) A student lookup API throws `NullReferenceException` in production when a roll number is missing. Review the service:](#q2-r-a-student-lookup-api-throws-nullreferenceexception-in-production-when-a-roll-number-is-missing-review-the-service)
+  - [Q3. (R) After `Student` gained only a parameterized constructor (`Student(string studentName, int rollNumber)`), a teammate adds a factory method. `dotnet build` fails. Review:](#q3-r-after-student-gained-only-a-parameterized-constructor-studentstring-studentname-int-rollnumber-a-teammate-adds-a-factory-method-dotnet-build-fails-review)
+  - [Q4. (D) Your team models loans with the chapter's `Customer` class — public fields plus `CalculateTotalInterest()` on the instance. A new developer moves all interest math into a static `LoanCalculator` and leaves `Customer` as a data bag. Review both approaches. Which would you standardize on for a production lending module, and why?](#q4-d-your-team-models-loans-with-the-chapters-customer-class-public-fields-plus-calculatetotalinterest-on-the-instance-a-new-developer-moves-all-interest-math-into-a-static-loancalculator-and-leaves-customer-as-a-data-bag-review-both-approaches-which-would-you-standardize-on-for-a-production-lending-module-and-why)
+  - [Q5. (M) A scheduling feature stores each student's date of birth and a "next review date." A bug report says review dates never update on the student record. Review:](#q5-m-a-scheduling-feature-stores-each-students-date-of-birth-and-a-next-review-date-a-bug-report-says-review-dates-never-update-on-the-student-record-review)
+  - [Q6. (R) An enrollment module aliases student records for audit trails. Roll numbers change unexpectedly in downstream reports. Review:](#q6-r-an-enrollment-module-aliases-student-records-for-audit-trails-roll-numbers-change-unexpectedly-in-downstream-reports-review)
+
+- [02. Properties & Indexers - Done](#02-properties-indexers---done)
+
+- [02. Properties & Indexers - Done](#02-properties-indexers---done-1)
+  - [Q1. (R) A catalog service persists book records. A junior dev refactors `Isbn` to an auto-property "for consistency." Review the change — what breaks in production, and how should `Isbn` be implemented?](#q1-r-a-catalog-service-persists-book-records-a-junior-dev-refactors-isbn-to-an-auto-property-for-consistency-review-the-change-what-breaks-in-production-and-how-should-isbn-be-implemented)
+  - [Q2. (R) An API team models catalog metadata with init-only properties. After code review, a developer adds a "sync" method. What is wrong, and what pattern should they use instead?](#q2-r-an-api-team-models-catalog-metadata-with-init-only-properties-after-code-review-a-developer-adds-a-sync-method-what-is-wrong-and-what-pattern-should-they-use-instead)
+  - [Q3. (R) A dashboard reads `DisplayLabel` on every row render. A teammate adds "helpful" logic inside the expression-bodied getter. Review — what problems does this introduce?](#q3-r-a-dashboard-reads-displaylabel-on-every-row-render-a-teammate-adds-helpful-logic-inside-the-expression-bodied-getter-review-what-problems-does-this-introduce)
+  - [Q4. (R) A `BookShelf` indexer passes QA with small test data, but production reports `NullReferenceException` and "empty slot" bugs. Review the indexer — what's wrong with bounds checking?](#q4-r-a-bookshelf-indexer-passes-qa-with-small-test-data-but-production-reports-nullreferenceexception-and-empty-slot-bugs-review-the-indexer-whats-wrong-with-bounds-checking)
+  - [Q5. (R) A library module exposes the internal book list through a property so callers can "query and filter easily." Review the API surface — what can go wrong?](#q5-r-a-library-module-exposes-the-internal-book-list-through-a-property-so-callers-can-query-and-filter-easily-review-the-api-surface-what-can-go-wrong)
+  - [Q6. (D) You inherit a domain model mixing auto-properties, init-only metadata, expression-bodied labels, and a collection property. A PR proposes fixing all five categories above in one sprint. How do you prioritize encapsulation fixes before a catalog migration goes live?](#q6-d-you-inherit-a-domain-model-mixing-auto-properties-init-only-metadata-expression-bodied-labels-and-a-collection-property-a-pr-proposes-fixing-all-five-categories-above-in-one-sprint-how-do-you-prioritize-encapsulation-fixes-before-a-catalog-migration-goes-live)
+
+- [03. Constructors & Method Overloading](#03-constructors-method-overloading-1)
+
+- [03. Constructors & Method Overloading](#03-constructors-method-overloading-2)
+  - [Q1. (R) A teammate refactors `OrderLine` to chain constructors like the chapter's `Product` type. QA reports invalid lines in production — empty SKU and zero quantity slip through. Review the ctors. What went wrong, and how do you fix it?](#q1-r-a-teammate-refactors-orderline-to-chain-constructors-like-the-chapters-product-type-qa-reports-invalid-lines-in-production-empty-sku-and-zero-quantity-slip-through-review-the-ctors-what-went-wrong-and-how-do-you-fix-it)
+  - [Q2. (R) A .NET 8 service adopts a **primary constructor** for a warehouse DTO. Unit tests expecting `ArgumentException` on bad input fail with `NullReferenceException` instead. Review the type. What is the initialization order problem, and how would you enforce invariants?](#q2-r-a-net-8-service-adopts-a-primary-constructor-for-a-warehouse-dto-unit-tests-expecting-argumentexception-on-bad-input-fail-with-nullreferenceexception-instead-review-the-type-what-is-the-initialization-order-problem-and-how-would-you-enforce-invariants)
+  - [Q3. (R) After adding a convenience overload to `LineItemCalculator`-style pricing helpers, `dotnet build` fails with **CS0121** ("The call is ambiguous"). Which overloads conflict, and how do you resolve the call site or signatures?](#q3-r-after-adding-a-convenience-overload-to-lineitemcalculator-style-pricing-helpers-dotnet-build-fails-with-cs0121-the-call-is-ambiguous-which-overloads-conflict-and-how-do-you-resolve-the-call-site-or-signatures)
+  - [Q4. (M) A junior dev models discounted inventory items by inheriting from `Product` (chapter pattern). `dotnet build` reports **CS2506** and **CS7036**. Diagnose **`: this(...)` vs `: base(...)`** mistakes and state the correct ctor initialization order.](#q4-m-a-junior-dev-models-discounted-inventory-items-by-inheriting-from-product-chapter-pattern-dotnet-build-reports-cs2506-and-cs7036-diagnose-this-vs-base-mistakes-and-state-the-correct-ctor-initialization-order)
+  - [Q5. (P) An ASP.NET Core API maps inbound JSON to a **`required`** init-only request type before calling domain ctors. A client omits `Name` but the payload still deserializes and reaches `new Product(...)`. What happened at compile time vs runtime, and how do you align API contracts with constructor validation?](#q5-p-an-aspnet-core-api-maps-inbound-json-to-a-required-init-only-request-type-before-calling-domain-ctors-a-client-omits-name-but-the-payload-still-deserializes-and-reaches-new-product-what-happened-at-compile-time-vs-runtime-and-how-do-you-align-api-contracts-with-constructor-validation)
+  - [Q6. (D) A warehouse microservice registers services in DI but still constructs dependencies manually inside ctors. Review startup and `InventorySyncService`. What breaks in tests, lifetimes, and startup, and what pattern replaces it?](#q6-d-a-warehouse-microservice-registers-services-in-di-but-still-constructs-dependencies-manually-inside-ctors-review-startup-and-inventorysyncservice-what-breaks-in-tests-lifetimes-and-startup-and-what-pattern-replaces-it)
+
+- [04. Static Members & Static Classes](#04-static-members-static-classes-1)
+
+- [04. Static Members & Static Classes](#04-static-members-static-classes-2)
+  - [Q1. (R) An ASP.NET Core API caches the "current user's cart" in a static field so every controller can read it without DI. Under load, users report seeing each other's items. Review the code — what is wrong and how do you fix it?](#q1-r-an-aspnet-core-api-caches-the-current-users-cart-in-a-static-field-so-every-controller-can-read-it-without-di-under-load-users-report-seeing-each-others-items-review-the-code-what-is-wrong-and-how-do-you-fix-it)
+  - [Q2. (M) A teammate adds runtime config loading to `AppSettings` and reports intermittent `TypeInitializationException` on first request. Review the static initialization — what ordering traps exist, and how would you make startup deterministic?](#q2-m-a-teammate-adds-runtime-config-loading-to-appsettings-and-reports-intermittent-typeinitializationexception-on-first-request-review-the-static-initialization-what-ordering-traps-exist-and-how-would-you-make-startup-deterministic)
+  - [Q3. (R) Production logging uses the tutorial's `AuditLogger` singleton instead of `ILogger`. Tests pass locally but CI flakes and log counts are wrong under concurrent requests. Review the pattern — what's broken and what replaces it?](#q3-r-production-logging-uses-the-tutorials-auditlogger-singleton-instead-of-ilogger-tests-pass-locally-but-ci-flakes-and-log-counts-are-wrong-under-concurrent-requests-review-the-pattern-whats-broken-and-what-replaces-it)
+  - [Q4. (R) A developer refactors `TaxHelper` to support per-region tax profiles and adds instance state. Build fails. Review the changes — what rules did they violate, and what structure should replace a static class here?](#q4-r-a-developer-refactors-taxhelper-to-support-per-region-tax-profiles-and-adds-instance-state-build-fails-review-the-changes-what-rules-did-they-violate-and-what-structure-should-replace-a-static-class-here)
+  - [Q5. (R) `BankAccount` account numbers duplicate in production after traffic increases. The team uses the tutorial counter as-is. Review the static field usage — what race exists and how do you fix it without abandoning a shared sequence?](#q5-r-bankaccount-account-numbers-duplicate-in-production-after-traffic-increases-the-team-uses-the-tutorial-counter-as-is-review-the-static-field-usage-what-race-exists-and-how-do-you-fix-it-without-abandoning-a-shared-sequence)
+  - [Q6. (D) Your API team debates three approaches for shared, read-mostly configuration: `public const` literals, `static readonly` loaded at type init, and mutable `public static` properties set from middleware. Which would you allow in a multi-instance ASP.NET Core deployment, and which would you ban? Why?](#q6-d-your-api-team-debates-three-approaches-for-shared-read-mostly-configuration-public-const-literals-static-readonly-loaded-at-type-init-and-mutable-public-static-properties-set-from-middleware-which-would-you-allow-in-a-multi-instance-aspnet-core-deployment-and-which-would-you-ban-why)
+
+- [05. Inheritance &  Polymorphism](#05-inheritance-polymorphism-1)
+
+- [05. Inheritance &  Polymorphism](#05-inheritance-polymorphism-2)
+  - [Q1. (R) Badge printing in production shows `"EMP"` for every staff member, including managers and contractors. Review this excerpt from the payroll service (pattern matches this chapter's `GetBadgeThroughEmployeeReference`). What is wrong, and how do you fix it?](#q1-r-badge-printing-in-production-shows-emp-for-every-staff-member-including-managers-and-contractors-review-this-excerpt-from-the-payroll-service-pattern-matches-this-chapters-getbadgethroughemployeereference-what-is-wrong-and-how-do-you-fix-it)
+  - [Q2. (R) After adding `InternEmployee` to the payroll hierarchy, `ProcessPayroll` sometimes throws and totals are wrong. Review the new type and the unchanged payroll loop. What design rule did this violate, and what is the prioritized fix?](#q2-r-after-adding-internemployee-to-the-payroll-hierarchy-processpayroll-sometimes-throws-and-totals-are-wrong-review-the-new-type-and-the-unchanged-payroll-loop-what-design-rule-did-this-violate-and-what-is-the-prioritized-fix)
+  - [Q3. (R) A developer adds `Director : Manager` but the project fails to compile. Review the constructors. What is wrong with the chain, and what runs (in order) when `new Director(...)` succeeds?](#q3-r-a-developer-adds-director-manager-but-the-project-fails-to-compile-review-the-constructors-what-is-wrong-with-the-chain-and-what-runs-in-order-when-new-director-succeeds)
+  - [Q4. (R) A refactor adds validation to the base payroll method. Contract net pay drops unexpectedly for some employees. Review the change. What broke, and how do you fix it without duplicating validation in every derived class?](#q4-r-a-refactor-adds-validation-to-the-base-payroll-method-contract-net-pay-drops-unexpectedly-for-some-employees-review-the-change-what-broke-and-how-do-you-fix-it-without-duplicating-validation-in-every-derived-class)
+  - [Q5. (P) A teammate replaces the polymorphic payroll loop with explicit type checks "for clarity." New `ContractEmployee` rows are added to the database but never appear in the exported total. Review the method. What failed at runtime, and what pattern from this chapter should drive payroll aggregation instead?](#q5-p-a-teammate-replaces-the-polymorphic-payroll-loop-with-explicit-type-checks-for-clarity-new-contractemployee-rows-are-added-to-the-database-but-never-appear-in-the-exported-total-review-the-method-what-failed-at-runtime-and-what-pattern-from-this-chapter-should-drive-payroll-aggregation-instead)
+  - [Q6. (D) Product wants `Employee` to inherit from a shared `AuditableEntity` base that already inherits `EntityBase`, while payroll still needs `Person → Employee → PermanentEmployee → Manager`. The team also proposes `Employee : Department` so every employee "is a department" for reporting. What breaks in C#, and where do LSP and fragile-base-class risks show up even if it compiles?](#q6-d-product-wants-employee-to-inherit-from-a-shared-auditableentity-base-that-already-inherits-entitybase-while-payroll-still-needs-person-employee-permanentemployee-manager-the-team-also-proposes-employee-department-so-every-employee-is-a-department-for-reporting-what-breaks-in-c-and-where-do-lsp-and-fragile-base-class-risks-show-up-even-if-it-compiles)
+
+- [06. Abstract Classes & Interfaces](#06-abstract-classes-interfaces-1)
+
+- [06. Abstract Classes & Interfaces](#06-abstract-classes-interfaces-2)
+  - [Q1. (D) Your team is adding a `SpreadsheetDocument` to the document archive. It shares `Title` and `CreatedOn` with invoices and reports, but also needs optional CSV export and a separate audit trail that other document types may never use. A junior dev proposes making everything an interface:](#q1-d-your-team-is-adding-a-spreadsheetdocument-to-the-document-archive-it-shares-title-and-createdon-with-invoices-and-reports-but-also-needs-optional-csv-export-and-a-separate-audit-trail-that-other-document-types-may-never-use-a-junior-dev-proposes-making-everything-an-interface)
+  - [Q2. (R) A storage service saves file names for archived documents. After deployment, some invoices overwrite each other on disk. Review:](#q2-r-a-storage-service-saves-file-names-for-archived-documents-after-deployment-some-invoices-overwrite-each-other-on-disk-review)
+  - [Q3. (R) A PR introduces a "kitchen sink" capability interface for the export pipeline. Review:](#q3-r-a-pr-introduces-a-kitchen-sink-capability-interface-for-the-export-pipeline-review)
+  - [Q4. (M) The team ships a NuGet package with `IExportable` consumed by ten internal services. To add optional metadata without breaking implementers, they add a C# 8 default method:](#q4-m-the-team-ships-a-nuget-package-with-iexportable-consumed-by-ten-internal-services-to-add-optional-metadata-without-breaking-implementers-they-add-a-c-8-default-method)
+  - [Q5. (R) Unit tests for `DocumentProcessor` are slow and require real PDF files on disk because production code was wired to concrete types. Review:](#q5-r-unit-tests-for-documentprocessor-are-slow-and-require-real-pdf-files-on-disk-because-production-code-was-wired-to-concrete-types-review)
+  - [Q6. (D) Code review: two approaches for a payment-notification feature.](#q6-d-code-review-two-approaches-for-a-payment-notification-feature)
+
+- [07. Encapsulation & Access Modifiers](#07-encapsulation-access-modifiers-1)
+
+- [07. Encapsulation & Access Modifiers](#07-encapsulation-access-modifiers-2)
+  - [Q1. (R) A junior developer "simplifies" the chapter's `BankAccount` for a payments microservice. QA reports negative balances in production. Review the change — what broke the invariant, and how do you fix it?](#q1-r-a-junior-developer-simplifies-the-chapters-bankaccount-for-a-payments-microservice-qa-reports-negative-balances-in-production-review-the-change-what-broke-the-invariant-and-how-do-you-fix-it)
+  - [Q2. (R) A shared library ships both a public façade and internal implementation types. A consuming team references the NuGet package and complains they cannot unit-test ledger entries. Review the library surface:](#q2-r-a-shared-library-ships-both-a-public-façade-and-internal-implementation-types-a-consuming-team-references-the-nuget-package-and-complains-they-cannot-unit-test-ledger-entries-review-the-library-surface)
+  - [Q3. (P) Two assemblies in the same solution — `Billing.Core` (library) and `Billing.Tests` — need test access to `internal` pricing helpers without exposing them on the public NuGet surface. A developer adds this to `Billing.Core.csproj`:](#q3-p-two-assemblies-in-the-same-solution-billingcore-library-and-billingtests-need-test-access-to-internal-pricing-helpers-without-exposing-them-on-the-public-nuget-surface-a-developer-adds-this-to-billingcorecsproj)
+  - [Q4. (R) A domain hierarchy models employee compensation. A subclass "optimizes" payroll by writing directly to protected state. Review:](#q4-r-a-domain-hierarchy-models-employee-compensation-a-subclass-optimizes-payroll-by-writing-directly-to-protected-state-review)
+  - [Q5. (D) Your team designs an immutable `MemberProfile` DTO for cross-service messaging (similar to this chapter's `MemberProfile`). Two proposals:](#q5-d-your-team-designs-an-immutable-memberprofile-dto-for-cross-service-messaging-similar-to-this-chapters-memberprofile-two-proposals)
+  - [Q6. (M) A plugin assembly (`Plugins.Payroll`) references your core HR assembly and defines `PayrollProcessor : Employee`. Developers expect to read `InternalCounter` on a base instance from the plugin, but the build fails with CS0122. Given this base class from the chapter:](#q6-m-a-plugin-assembly-pluginspayroll-references-your-core-hr-assembly-and-defines-payrollprocessor-employee-developers-expect-to-read-internalcounter-on-a-base-instance-from-the-plugin-but-the-build-fails-with-cs0122-given-this-base-class-from-the-chapter)
+
+- [08. Events](#08-events-1)
+  - [Q1. (R) A WPF-style desktop app keeps growing in memory after users open and close account detail panels. Review this wiring. What keeps `AccountDetailPanel` instances alive, and how do you fix it?](#q1-r-a-wpf-style-desktop-app-keeps-growing-in-memory-after-users-open-and-close-account-detail-panels-review-this-wiring-what-keeps-accountdetailpanel-instances-alive-and-how-do-you-fix-it)
+  - [Q2. (R) After a refactor, balance notifications crash when no UI is subscribed. Review the publisher change:](#q2-r-after-a-refactor-balance-notifications-crash-when-no-ui-is-subscribed-review-the-publisher-change)
+  - [Q3. (R) A teammate exposes a notification hook as a public delegate field "for flexibility." Review usage from another assembly:](#q3-r-a-teammate-exposes-a-notification-hook-as-a-public-delegate-field-for-flexibility-review-usage-from-another-assembly)
+  - [Q4. (P) A background `BankAccount` service raises `BalanceChanged` from worker threads while the UI thread subscribes handlers. A developer uses only null-conditional invoke inside `OnBalanceChanged`:](#q4-p-a-background-bankaccount-service-raises-balancechanged-from-worker-threads-while-the-ui-thread-subscribes-handlers-a-developer-uses-only-null-conditional-invoke-inside-onbalancechanged)
+  - [Q5. (P) An ASP.NET Core API registers a **Singleton** `OrderStateTracker` that exposes `event EventHandler<OrderPlacedEventArgs>? OrderPlaced`. Scoped services subscribe in their constructors to push SignalR updates. After a few thousand requests, memory climbs and old connections still receive events. What is wrong with this wiring, and what pattern replaces in-process events for web apps?](#q5-p-an-aspnet-core-api-registers-a-singleton-orderstatetracker-that-exposes-event-eventhandlerorderplacedeventargs-orderplaced-scoped-services-subscribe-in-their-constructors-to-push-signalr-updates-after-a-few-thousand-requests-memory-climbs-and-old-connections-still-receive-events-what-is-wrong-with-this-wiring-and-what-pattern-replaces-in-process-events-for-web-apps)
+  - [Q6. (D) Your team debates three ways to notify downstream code when `BankAccount` balance changes: (A) `public event EventHandler<T>`, (B) `public Action<T>?` callback field, (C) `INotificationService` injected and called directly from `Deposit`/`TryWithdraw`. When would you choose each in a production ASP.NET Core domain layer, and what is the unsubscribe/lifetime rule of thumb?](#q6-d-your-team-debates-three-ways-to-notify-downstream-code-when-bankaccount-balance-changes-a-public-event-eventhandlert-b-public-actiont-callback-field-c-inotificationservice-injected-and-called-directly-from-deposittrywithdraw-when-would-you-choose-each-in-a-production-aspnet-core-domain-layer-and-what-is-the-unsubscribelifetime-rule-of-thumb)
+
+- [09. OOP Real-World Examples](#09-oop-real-world-examples-1)
+
+- [09. OOP Real-World Examples](#09-oop-real-world-examples-2)
+  - [Q1. (R) A team ports the chapter's order-fulfillment payment flow into a service class. Support sees duplicate debits and failed rollbacks after card declines. Review:](#q1-r-a-team-ports-the-chapters-order-fulfillment-payment-flow-into-a-service-class-support-sees-duplicate-debits-and-failed-rollbacks-after-card-declines-review)
+  - [Q2. (R) A logistics API quotes delivery cost from the chapter's `Vehicle` fleet. After adding `Motorcycle` to the fleet, quotes are wrong and every new vehicle type requires editing this method. Review:](#q2-r-a-logistics-api-quotes-delivery-cost-from-the-chapters-vehicle-fleet-after-adding-motorcycle-to-the-fleet-quotes-are-wrong-and-every-new-vehicle-type-requires-editing-this-method-review)
+  - [Q3. (R) A PR consolidates payment, delivery, labels, notifications, and invoicing into one coordinator for "simplicity." Review:](#q3-r-a-pr-consolidates-payment-delivery-labels-notifications-and-invoicing-into-one-coordinator-for-simplicity-review)
+  - [Q4. (D) Product wants **push notifications** and a shared **retry-with-backoff** helper for all channels. Two proposals land in code review:](#q4-d-product-wants-push-notifications-and-a-shared-retry-with-backoff-helper-for-all-channels-two-proposals-land-in-code-review)
+  - [Q5. (P) An ASP.NET Core team registers the chapter's fulfillment types in `Program.cs` for a checkout API:](#q5-p-an-aspnet-core-team-registers-the-chapters-fulfillment-types-in-programcs-for-a-checkout-api)
+  - [Q6. (R) A developer splits `BankAccount` into partial files (as in this chapter) but adds a "fast path" for internal ops. Frozen accounts still accept money in staging. Review both fragments:](#q6-r-a-developer-splits-bankaccount-into-partial-files-as-in-this-chapter-but-adds-a-fast-path-for-internal-ops-frozen-accounts-still-accept-money-in-staging-review-both-fragments)
+  - [Q7. (D) You inherit a monolithic fulfillment codebase that mirrors this chapter's demo `Main` — one method creates every object, mutates wallet state, picks a truck by array index, renders shapes, sends notifications, and prints the invoice. The team has one sprint to improve production readiness without a full rewrite.](#q7-d-you-inherit-a-monolithic-fulfillment-codebase-that-mirrors-this-chapters-demo-main-one-method-creates-every-object-mutates-wallet-state-picks-a-truck-by-array-index-renders-shapes-sends-notifications-and-prints-the-invoice-the-team-has-one-sprint-to-improve-production-readiness-without-a-full-rewrite)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. Classes & Objects
 
-#### Q1. What is a class and what is an object in C#? {#01-classes-objects-q1}
+#### Q1. What is a class and what is an object in C#?
 
 What is a class and what is an object in C#?
 
@@ -200,7 +285,7 @@ What is a class and what is an object in C#?
 
 ---
 
-#### Q2. What is the difference between `struct` and `class` in C#? {#01-classes-objects-q2}
+#### Q2. What is the difference between `struct` and `class` in C#?
 
 What is the difference between `struct` and `class` in C#?
 
@@ -217,7 +302,7 @@ Choose structs for small immutable data; classes for identity, shared mutable st
 
 ---
 
-#### Q3. What are the different principles of OOP supported in C#? {#01-classes-objects-q3}
+#### Q3. What are the different principles of OOP supported in C#?
 
 What are the different principles of OOP supported in C#?
 
@@ -230,7 +315,7 @@ What are the different principles of OOP supported in C#?
 
 ---
 
-#### Q4. What is a partial class in C#? {#01-classes-objects-q4}
+#### Q4. What is a partial class in C#?
 
 What is a partial class in C#?
 
@@ -243,7 +328,7 @@ What is a partial class in C#?
 
 ---
 
-#### Q5. Explain object initializers and collection initializers in C#. {#01-classes-objects-q5}
+#### Q5. Explain object initializers and collection initializers in C#.
 
 Explain object initializers and collection initializers in C#.
 
@@ -256,7 +341,7 @@ Explain object initializers and collection initializers in C#.
 
 ---
 
-#### Q6. What is the difference between shallow copy and deep copy in C#? {#01-classes-objects-q6}
+#### Q6. What is the difference between shallow copy and deep copy in C#?
 
 What is the difference between shallow copy and deep copy in C#?
 
@@ -269,7 +354,7 @@ What is the difference between shallow copy and deep copy in C#?
 
 ---
 
-#### Q7. What is the difference between object identity and object equality? {#01-classes-objects-q7}
+#### Q7. What is the difference between object identity and object equality?
 
 What is the difference between object identity and object equality?
 
@@ -282,7 +367,7 @@ What is the difference between object identity and object equality?
 
 ---
 
-#### Q8. What is the difference between `IDisposable` and a finalizer (`~ClassName()`)? {#01-classes-objects-q8}
+#### Q8. What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?
 
 What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?
 
@@ -295,7 +380,7 @@ What is the difference between `IDisposable` and a finalizer (`~ClassName()`)?
 
 ---
 
-#### Q9. What happens at runtime when you execute `new MyClass()` — allocation, constructor, and reference assignment? {#01-classes-objects-q9}
+#### Q9. What happens at runtime when you execute `new MyClass()` — allocation, constructor, and reference assignment?
 
 What happens at runtime when you execute `new MyClass()` — allocation, constructor, and reference assignment?
 
@@ -310,7 +395,7 @@ No object exists for instance methods until `new` completes successfully.
 
 ---
 
-#### Q10. Where are class instances stored vs where are struct instances typically stored when local variables? {#01-classes-objects-q10}
+#### Q10. Where are class instances stored vs where are struct instances typically stored when local variables?
 
 Where are class instances stored vs where are struct instances typically stored when local variables?
 
@@ -323,7 +408,7 @@ Where are class instances stored vs where are struct instances typically stored 
 
 ---
 
-#### Q11. What is the difference between a field, a property, and a method on a class? {#01-classes-objects-q11}
+#### Q11. What is the difference between a field, a property, and a method on a class?
 
 What is the difference between a field, a property, and a method on a class?
 
@@ -336,7 +421,7 @@ What is the difference between a field, a property, and a method on a class?
 
 ---
 
-#### Q12. What is a static class vs an instance class — can you instantiate a static class? {#01-classes-objects-q12}
+#### Q12. What is a static class vs an instance class — can you instantiate a static class?
 
 What is a static class vs an instance class — can you instantiate a static class?
 
@@ -349,7 +434,7 @@ What is a static class vs an instance class — can you instantiate a static cla
 
 ---
 
-#### Q13. What is the `null` reference for reference types, and what is `default` for a struct vs a class? {#01-classes-objects-q13}
+#### Q13. What is the `null` reference for reference types, and what is `default` for a struct vs a class?
 
 What is the `null` reference for reference types, and what is `default` for a struct vs a class?
 
@@ -362,7 +447,7 @@ What is the `null` reference for reference types, and what is `default` for a st
 
 ---
 
-#### Q14. What is object initializer syntax, and how does it interact with constructors? {#01-classes-objects-q14}
+#### Q14. What is object initializer syntax, and how does it interact with constructors?
 
 What is object initializer syntax, and how does it interact with constructors?
 
@@ -375,7 +460,7 @@ What is object initializer syntax, and how does it interact with constructors?
 
 ---
 
-#### Q15. What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes that do not override equality? {#01-classes-objects-q15}
+#### Q15. What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes that do not override equality?
 
 What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes that do not override equality?
 
@@ -388,7 +473,7 @@ What is the difference between `ReferenceEquals`, `==`, and `Equals` for classes
 
 ---
 
-#### Q16. When is a struct copied vs when is a reference copied when passed to a method? {#01-classes-objects-q16}
+#### Q16. When is a struct copied vs when is a reference copied when passed to a method?
 
 When is a struct copied vs when is a reference copied when passed to a method?
 
@@ -401,7 +486,7 @@ When is a struct copied vs when is a reference copied when passed to a method?
 
 ---
 
-#### Q17. What is the fragile base class problem at a high level? {#01-classes-objects-q17}
+#### Q17. What is the fragile base class problem at a high level?
 
 What is the fragile base class problem at a high level?
 
@@ -414,7 +499,7 @@ What is the fragile base class problem at a high level?
 
 ---
 
-#### Q18. What is the difference between stack allocation (`stackalloc`, local structs) and heap allocation for objects? {#01-classes-objects-q18}
+#### Q18. What is the difference between stack allocation (`stackalloc`, local structs) and heap allocation for objects?
 
 What is the difference between stack allocation (`stackalloc`, local structs) and heap allocation for objects?
 
@@ -427,7 +512,7 @@ What is the difference between stack allocation (`stackalloc`, local structs) an
 
 ---
 
-#### Q19. What does `GC.GetTotalMemory` measure, and why is it only a rough indicator? {#01-classes-objects-q19}
+#### Q19. What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?
 
 What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?
 
@@ -440,7 +525,7 @@ What does `GC.GetTotalMemory` measure, and why is it only a rough indicator?
 
 ---
 
-#### Q20. What is the difference between an anemic class (data-only) and a rich domain object? {#01-classes-objects-q20}
+#### Q20. What is the difference between an anemic class (data-only) and a rich domain object?
 
 What is the difference between an anemic class (data-only) and a rich domain object?
 
@@ -455,7 +540,7 @@ What is the difference between an anemic class (data-only) and a rich domain obj
 
 ### 02. Properties & Indexers
 
-#### Q1. Explain properties and fields in C#. {#02-properties-indexers-q1}
+#### Q1. Explain properties and fields in C#.
 
 Explain properties and fields in C#.
 
@@ -468,7 +553,7 @@ Explain properties and fields in C#.
 
 ---
 
-#### Q2. What are auto-implemented properties? {#02-properties-indexers-q2}
+#### Q2. What are auto-implemented properties?
 
 What are auto-implemented properties?
 
@@ -481,7 +566,7 @@ What are auto-implemented properties?
 
 ---
 
-#### Q3. What are indexers in C#? {#02-properties-indexers-q3}
+#### Q3. What are indexers in C#?
 
 What are indexers in C#?
 
@@ -494,7 +579,7 @@ What are indexers in C#?
 
 ---
 
-#### Q4. What is the difference between a `public` field and a `public` auto-property — if they behave similarly, why prefer properties? {#02-properties-indexers-q4}
+#### Q4. What is the difference between a `public` field and a `public` auto-property — if they behave similarly, why prefer properties?
 
 What is the difference between a `public` field and a `public` auto-property — if they behave similarly, why prefer properties?
 
@@ -507,7 +592,7 @@ What is the difference between a `public` field and a `public` auto-property —
 
 ---
 
-#### Q5. What are init-only properties (`get; init;`), and how do they differ from get-only and `{ get; set; }`? {#02-properties-indexers-q5}
+#### Q5. What are init-only properties (`get; init;`), and how do they differ from get-only and `{ get; set; }`?
 
 What are init-only properties (`get; init;`), and how do they differ from get-only and `{ get; set; }`?
 
@@ -520,7 +605,7 @@ What are init-only properties (`get; init;`), and how do they differ from get-on
 
 ---
 
-#### Q6. What is the difference between `{ get; private set; }` and a property with only a public getter backed by a private setter method? {#02-properties-indexers-q6}
+#### Q6. What is the difference between `{ get; private set; }` and a property with only a public getter backed by a private setter method?
 
 What is the difference between `{ get; private set; }` and a property with only a public getter backed by a private setter method?
 
@@ -533,7 +618,7 @@ What is the difference between `{ get; private set; }` and a property with only 
 
 ---
 
-#### Q7. What are expression-bodied properties (`public string Label => $"{Title}";`)? {#02-properties-indexers-q7}
+#### Q7. What are expression-bodied properties (`public string Label => $"{Title}";`)?
 
 What are expression-bodied properties (`public string Label => $"{Title}";`)?
 
@@ -546,7 +631,7 @@ What are expression-bodied properties (`public string Label => $"{Title}";`)?
 
 ---
 
-#### Q8. Can indexers be overloaded — what distinguishes overloads? {#02-properties-indexers-q8}
+#### Q8. Can indexers be overloaded — what distinguishes overloads?
 
 Can indexers be overloaded — what distinguishes overloads?
 
@@ -559,7 +644,7 @@ Can indexers be overloaded — what distinguishes overloads?
 
 ---
 
-#### Q9. What is the syntax for an indexer (`this[int index]`, `this[string key]`)? {#02-properties-indexers-q9}
+#### Q9. What is the syntax for an indexer (`this[int index]`, `this[string key]`)?
 
 What is the syntax for an indexer (`this[int index]`, `this[string key]`)?
 
@@ -572,7 +657,7 @@ What is the syntax for an indexer (`this[int index]`, `this[string key]`)?
 
 ---
 
-#### Q10. When should you use a full property with validation vs an auto-property? {#02-properties-indexers-q10}
+#### Q10. When should you use a full property with validation vs an auto-property?
 
 When should you use a full property with validation vs an auto-property?
 
@@ -585,7 +670,7 @@ When should you use a full property with validation vs an auto-property?
 
 ---
 
-#### Q11. What is a computed/read-only property that derives its value from other members? {#02-properties-indexers-q11}
+#### Q11. What is a computed/read-only property that derives its value from other members?
 
 What is a computed/read-only property that derives its value from other members?
 
@@ -598,7 +683,7 @@ What is a computed/read-only property that derives its value from other members?
 
 ---
 
-#### Q12. What is the difference between `init` properties and constructor parameters for immutable objects? {#02-properties-indexers-q12}
+#### Q12. What is the difference between `init` properties and constructor parameters for immutable objects?
 
 What is the difference between `init` properties and constructor parameters for immutable objects?
 
@@ -611,7 +696,7 @@ What is the difference between `init` properties and constructor parameters for 
 
 ---
 
-#### Q13. How do properties participate in object initializer syntax? {#02-properties-indexers-q13}
+#### Q13. How do properties participate in object initializer syntax?
 
 How do properties participate in object initializer syntax?
 
@@ -624,7 +709,7 @@ How do properties participate in object initializer syntax?
 
 ---
 
-#### Q14. What is a preview-level understanding of `record` types and synthesized properties? {#02-properties-indexers-q14}
+#### Q14. What is a preview-level understanding of `record` types and synthesized properties?
 
 What is a preview-level understanding of `record` types and synthesized properties?
 
@@ -637,7 +722,7 @@ What is a preview-level understanding of `record` types and synthesized properti
 
 ---
 
-#### Q15. Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation? {#02-properties-indexers-q15}
+#### Q15. Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?
 
 Why might exposing a public `{ get; set; }` on a collection-typed property break encapsulation?
 
@@ -650,7 +735,7 @@ Why might exposing a public `{ get; set; }` on a collection-typed property break
 
 ---
 
-#### Q16. What is the difference between an indexer and a method named `GetByIndex`? {#02-properties-indexers-q16}
+#### Q16. What is the difference between an indexer and a method named `GetByIndex`?
 
 What is the difference between an indexer and a method named `GetByIndex`?
 
@@ -663,7 +748,7 @@ What is the difference between an indexer and a method named `GetByIndex`?
 
 ---
 
-#### Q17. Can interface types declare indexers, and how are they implemented? {#02-properties-indexers-q17}
+#### Q17. Can interface types declare indexers, and how are they implemented?
 
 Can interface types declare indexers, and how are they implemented?
 
@@ -676,7 +761,7 @@ Can interface types declare indexers, and how are they implemented?
 
 ---
 
-#### Q18. What is the relationship between properties and data binding / serialization frameworks? {#02-properties-indexers-q18}
+#### Q18. What is the relationship between properties and data binding / serialization frameworks?
 
 What is the relationship between properties and data binding / serialization frameworks?
 
@@ -691,7 +776,7 @@ What is the relationship between properties and data binding / serialization fra
 
 ### 03. Constructors & Method Overloading
 
-#### Q1. Explain constructors and their types in C# (default, parameterized, static, private). {#03-constructors-method-overloading-q1}
+#### Q1. Explain constructors and their types in C# (default, parameterized, static, private).
 
 (R) A teammate refactors `OrderLine` to chain constructors like the chapter's `Product` type. QA reports invalid lines in production — empty SKU and zero quantity slip through. Review the ctors. What went wrong, and how do you fix it?
 
@@ -723,7 +808,7 @@ public OrderLine(string sku)
 
 ---
 
-#### Q2. What is a destructor/finalizer in C#? {#03-constructors-method-overloading-q2}
+#### Q2. What is a destructor/finalizer in C#?
 
 (R) A .NET 8 service adopts a **primary constructor** for a warehouse DTO. Unit tests expecting `ArgumentException` on bad input fail with `NullReferenceException` instead. Review the type. What is the initialization order problem, and how would you enforce invariants?
 
@@ -771,7 +856,7 @@ public sealed class StockReceipt
 
 ---
 
-#### Q3. Explain constructor chaining in C# (`: this(...)` vs `: base(...)`). {#03-constructors-method-overloading-q3}
+#### Q3. Explain constructor chaining in C# (`: this(...)` vs `: base(...)`).
 
 (R) After adding a convenience overload to `LineItemCalculator`-style pricing helpers, `dotnet build` fails with **CS0121** ("The call is ambiguous"). Which overloads conflict, and how do you resolve the call site or signatures?
 
@@ -796,7 +881,7 @@ public sealed class StockReceipt
 
 ---
 
-#### Q4. How can you call the base class constructor from a derived class? {#03-constructors-method-overloading-q4}
+#### Q4. How can you call the base class constructor from a derived class?
 
 (M) A junior dev models discounted inventory items by inheriting from `Product` (chapter pattern). The project does not compile. Diagnose **`: this(...)` vs `: base(...)`** mistakes and state the correct ctor initialization order.
 
@@ -822,7 +907,7 @@ public sealed class StockReceipt
 
 ---
 
-#### Q5. In what order do constructors and field initializers run in an inheritance chain? {#03-constructors-method-overloading-q5}
+#### Q5. In what order do constructors and field initializers run in an inheritance chain?
 
 (P) An ASP.NET Core API maps inbound JSON to a **`required`** init-only request type before calling domain ctors. A client omits `Name` but the payload still deserializes and reaches `new Product(...)`. What happened at compile time vs runtime, and how do you align API contracts with constructor validation?
 
@@ -846,7 +931,7 @@ if (string.IsNullOrWhiteSpace(body.Name))
 
 ---
 
-#### Q6. Explain method overloading and method overriding in C#. {#03-constructors-method-overloading-q6}
+#### Q6. Explain method overloading and method overriding in C#.
 
 (D) A warehouse microservice registers services in DI but still constructs dependencies manually inside ctors. Review startup and `InventorySyncService`. What breaks in tests, lifetimes, and startup, and what pattern replaces it?
 
@@ -892,73 +977,73 @@ public sealed class InventorySyncService : IInventorySyncService
 
 ---
 
-#### Q7. What is a static constructor, and when does it run? {#03-constructors-method-overloading-q7}
+#### Q7. What is a static constructor, and when does it run?
 
 _Answer not found._
 
 ---
 
-#### Q8. Can a struct have a parameterless constructor (C# 10+ rules vs earlier)? {#03-constructors-method-overloading-q8}
+#### Q8. Can a struct have a parameterless constructor (C# 10+ rules vs earlier)?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the difference between a primary constructor (C# 12 on classes/records) and traditional constructors? {#03-constructors-method-overloading-q9}
+#### Q9. What is the difference between a primary constructor (C# 12 on classes/records) and traditional constructors?
 
 _Answer not found._
 
 ---
 
-#### Q10. What happens if you do not define any constructor — what default constructor is provided? {#03-constructors-method-overloading-q10}
+#### Q10. What happens if you do not define any constructor — what default constructor is provided?
 
 _Answer not found._
 
 ---
 
-#### Q11. Why might you mark a constructor `private` (singleton, factory patterns)? {#03-constructors-method-overloading-q11}
+#### Q11. Why might you mark a constructor `private` (singleton, factory patterns)?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is constructor overloading, and how does `: this(...)` reduce duplication? {#03-constructors-method-overloading-q12}
+#### Q12. What is constructor overloading, and how does `: this(...)` reduce duplication?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the exact order: static constructor, instance field initializers, instance constructor body, base constructor? {#03-constructors-method-overloading-q13}
+#### Q13. What is the exact order: static constructor, instance field initializers, instance constructor body, base constructor?
 
 _Answer not found._
 
 ---
 
-#### Q14. What is the difference between method overloading (compile-time) and method overriding (runtime polymorphism)? {#03-constructors-method-overloading-q14}
+#### Q14. What is the difference between method overloading (compile-time) and method overriding (runtime polymorphism)?
 
 _Answer not found._
 
 ---
 
-#### Q15. When does the compiler fail to pick an overload due to ambiguity involving optional parameters and `params`? {#03-constructors-method-overloading-q15}
+#### Q15. When does the compiler fail to pick an overload due to ambiguity involving optional parameters and `params`?
 
 _Answer not found._
 
 ---
 
-#### Q16. Can constructors be inherited — how does a derived class get a base constructor? {#03-constructors-method-overloading-q16}
+#### Q16. Can constructors be inherited — how does a derived class get a base constructor?
 
 _Answer not found._
 
 ---
 
-#### Q17. What validation belongs in a constructor vs a factory method? {#03-constructors-method-overloading-q17}
+#### Q17. What validation belongs in a constructor vs a factory method?
 
 _Answer not found._
 
 ---
 
-#### Q18. What is the difference between calling an overloaded instance method vs a static overloaded method? {#03-constructors-method-overloading-q18}
+#### Q18. What is the difference between calling an overloaded instance method vs a static overloaded method?
 
 _Answer not found._
 
@@ -966,7 +1051,7 @@ _Answer not found._
 
 ### 04. Static Members & Static Classes
 
-#### Q1. Explain the `static` keyword in detail. {#04-static-members-static-classes-q1}
+#### Q1. Explain the `static` keyword in detail.
 
 (R) An ASP.NET Core API caches the "current user's cart" in a static field so every controller can read it without DI. Under load, users report seeing each other's items. Review the code — what is wrong and how do you fix it?
 
@@ -992,7 +1077,7 @@ _Answer not found._
 
 ---
 
-#### Q2. What is a static class in C#? {#04-static-members-static-classes-q2}
+#### Q2. What is a static class in C#?
 
 (M) A teammate adds runtime config loading to `AppSettings` and reports intermittent `TypeInitializationException` on first request. Review the static initialization — what ordering traps exist, and how would you make startup deterministic?
 
@@ -1026,7 +1111,7 @@ builder.Services.AddOptions<LoginOptions>()
 
 ---
 
-#### Q3. Why can you not override a `static` method? {#04-static-members-static-classes-q3}
+#### Q3. Why can you not override a `static` method?
 
 (R) Production logging uses the tutorial's `AuditLogger` singleton instead of `ILogger`. Tests pass locally but CI flakes and log counts are wrong under concurrent requests. Review the pattern — what's broken and what replaces it?
 
@@ -1067,7 +1152,7 @@ public class CheckoutController : ControllerBase
 
 ---
 
-#### Q4. What is the difference between a static class and the singleton pattern? {#04-static-members-static-classes-q4}
+#### Q4. What is the difference between a static class and the singleton pattern?
 
 (R) A developer refactors `TaxHelper` to support per-region tax profiles and adds instance state. Build fails. Review the changes — what rules did they violate, and what structure should replace a static class here?
 
@@ -1107,7 +1192,7 @@ public sealed class TaxCalculator : ITaxCalculator
 
 ---
 
-#### Q5. What is a static field, and how is lifetime different from an instance field? {#04-static-members-static-classes-q5}
+#### Q5. What is a static field, and how is lifetime different from an instance field?
 
 (R) `BankAccount` account numbers duplicate in production after traffic increases. The team uses the tutorial counter as-is. Review the static field usage — what race exists and how do you fix it without abandoning a shared sequence?
 
@@ -1141,7 +1226,7 @@ public BankAccount(string ownerName, decimal openingDeposit)
 
 ---
 
-#### Q6. What is a static property and static method — what is the `this` reference inside them? {#04-static-members-static-classes-q6}
+#### Q6. What is a static property and static method — what is the `this` reference inside them?
 
 (D) Your API team debates three approaches for shared, read-mostly configuration: `public const` literals, `static readonly` loaded at type init, and mutable `public static` properties set from middleware. Which would you allow in a multi-instance ASP.NET Core deployment, and which would you ban? Why?
 
@@ -1172,49 +1257,49 @@ public BankAccount(string ownerName, decimal openingDeposit)
 
 ---
 
-#### Q7. Why can static methods not access instance members directly? {#04-static-members-static-classes-q7}
+#### Q7. Why can static methods not access instance members directly?
 
 _Answer not found._
 
 ---
 
-#### Q8. When are static constructors executed, and how many times per AppDomain/process? {#04-static-members-static-classes-q8}
+#### Q8. When are static constructors executed, and how many times per AppDomain/process?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the difference between `const` (implicitly static) and `static readonly`? {#04-static-members-static-classes-q9}
+#### Q9. What is the difference between `const` (implicitly static) and `static readonly`?
 
 _Answer not found._
 
 ---
 
-#### Q10. Can a static class implement interfaces? {#04-static-members-static-classes-q10}
+#### Q10. Can a static class implement interfaces?
 
 _Answer not found._
 
 ---
 
-#### Q11. What thread-safety concerns apply to mutable static fields? {#04-static-members-static-classes-q11}
+#### Q11. What thread-safety concerns apply to mutable static fields?
 
 _Answer not found._
 
 ---
 
-#### Q12. Why is overusing static state a testing and maintainability problem? {#04-static-members-static-classes-q12}
+#### Q12. Why is overusing static state a testing and maintainability problem?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the difference between static nested classes and non-static nested classes? {#04-static-members-static-classes-q13}
+#### Q13. What is the difference between static nested classes and non-static nested classes?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do static members participate in inheritance — are they polymorphic? {#04-static-members-static-classes-q14}
+#### Q14. How do static members participate in inheritance — are they polymorphic?
 
 _Answer not found._
 
@@ -1222,7 +1307,7 @@ _Answer not found._
 
 ### 05. Inheritance & Polymorphism
 
-#### Q1. Explain inheritance in detail in C#. {#05-inheritance-polymorphism-q1}
+#### Q1. Explain inheritance in detail in C#.
 
 Explain inheritance in detail in C#.
 
@@ -1235,7 +1320,7 @@ Explain inheritance in detail in C#.
 
 ---
 
-#### Q2. Explain polymorphism in C# and how it can be achieved. {#05-inheritance-polymorphism-q2}
+#### Q2. Explain polymorphism in C# and how it can be achieved.
 
 Explain polymorphism in C# and how it can be achieved.
 
@@ -1248,7 +1333,7 @@ Explain polymorphism in C# and how it can be achieved.
 
 ---
 
-#### Q3. What is the difference between compile-time (static) and runtime (dynamic) polymorphism? {#05-inheritance-polymorphism-q3}
+#### Q3. What is the difference between compile-time (static) and runtime (dynamic) polymorphism?
 
 What is the difference between compile-time (static) and runtime (dynamic) polymorphism?
 
@@ -1261,7 +1346,7 @@ What is the difference between compile-time (static) and runtime (dynamic) polym
 
 ---
 
-#### Q4. What is a sealed class in C#? {#05-inheritance-polymorphism-q4}
+#### Q4. What is a sealed class in C#?
 
 What is a sealed class in C#?
 
@@ -1274,7 +1359,7 @@ What is a sealed class in C#?
 
 ---
 
-#### Q5. What is a virtual method in C#? {#05-inheritance-polymorphism-q5}
+#### Q5. What is a virtual method in C#?
 
 What is a virtual method in C#?
 
@@ -1287,7 +1372,7 @@ What is a virtual method in C#?
 
 ---
 
-#### Q6. What is the difference between `this` and `base` keywords? {#05-inheritance-polymorphism-q6}
+#### Q6. What is the difference between `this` and `base` keywords?
 
 What is the difference between `this` and `base` keywords?
 
@@ -1300,7 +1385,7 @@ What is the difference between `this` and `base` keywords?
 
 ---
 
-#### Q7. What is operator overloading in C#? {#05-inheritance-polymorphism-q7}
+#### Q7. What is operator overloading in C#?
 
 What is operator overloading in C#?
 
@@ -1313,7 +1398,7 @@ What is operator overloading in C#?
 
 ---
 
-#### Q8. Explain the difference between `virtual`, `abstract`, and `override` keywords. {#05-inheritance-polymorphism-q8}
+#### Q8. Explain the difference between `virtual`, `abstract`, and `override` keywords.
 
 Explain the difference between `virtual`, `abstract`, and `override` keywords.
 
@@ -1329,7 +1414,7 @@ Abstract class can mix concrete and abstract methods—chapter 06 Q9.
 
 ---
 
-#### Q9. Explain the `new` keyword in the context of method hiding. {#05-inheritance-polymorphism-q9}
+#### Q9. Explain the `new` keyword in the context of method hiding.
 
 Explain the `new` keyword in the context of method hiding.
 
@@ -1342,7 +1427,7 @@ Explain the `new` keyword in the context of method hiding.
 
 ---
 
-#### Q10. Explain how C# handles multiple inheritance (using interfaces). {#05-inheritance-polymorphism-q10}
+#### Q10. Explain how C# handles multiple inheritance (using interfaces).
 
 Explain how C# handles multiple inheritance (using interfaces).
 
@@ -1355,7 +1440,7 @@ Explain how C# handles multiple inheritance (using interfaces).
 
 ---
 
-#### Q11. Why does C# not support multiple inheritance of classes? {#05-inheritance-polymorphism-q11}
+#### Q11. Why does C# not support multiple inheritance of classes?
 
 Why does C# not support multiple inheritance of classes?
 
@@ -1368,7 +1453,7 @@ Why does C# not support multiple inheritance of classes?
 
 ---
 
-#### Q12. What is the fragile base class problem? {#05-inheritance-polymorphism-q12}
+#### Q12. What is the fragile base class problem?
 
 What is the fragile base class problem?
 
@@ -1381,7 +1466,7 @@ What is the fragile base class problem?
 
 ---
 
-#### Q13. Why is "favor composition over inheritance" a common guideline? {#05-inheritance-polymorphism-q13}
+#### Q13. Why is "favor composition over inheritance" a common guideline?
 
 Why is "favor composition over inheritance" a common guideline?
 
@@ -1394,7 +1479,7 @@ Why is "favor composition over inheritance" a common guideline?
 
 ---
 
-#### Q14. What is runtime dispatch — how does the CLR resolve `override` calls through a base reference? {#05-inheritance-polymorphism-q14}
+#### Q14. What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?
 
 What is runtime dispatch — how does the CLR resolve `override` calls through a base reference?
 
@@ -1407,7 +1492,7 @@ What is runtime dispatch — how does the CLR resolve `override` calls through a
 
 ---
 
-#### Q15. What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable? {#05-inheritance-polymorphism-q15}
+#### Q15. What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable?
 
 What is the difference between hiding with `new` and overriding with `override` when calling through a base-typed variable?
 
@@ -1420,7 +1505,7 @@ What is the difference between hiding with `new` and overriding with `override` 
 
 ---
 
-#### Q16. Can you inherit from a sealed class? {#05-inheritance-polymorphism-q16}
+#### Q16. Can you inherit from a sealed class?
 
 Can you inherit from a sealed class?
 
@@ -1433,7 +1518,7 @@ Can you inherit from a sealed class?
 
 ---
 
-#### Q17. What is the difference between `is` type testing and casting in polymorphic code paths? {#05-inheritance-polymorphism-q17}
+#### Q17. What is the difference between `is` type testing and casting in polymorphic code paths?
 
 What is the difference between `is` type testing and casting in polymorphic code paths?
 
@@ -1446,7 +1531,7 @@ What is the difference between `is` type testing and casting in polymorphic code
 
 ---
 
-#### Q18. What is the Liskov Substitution Principle in one sentence, and how does it relate to inheritance? {#05-inheritance-polymorphism-q18}
+#### Q18. What is the Liskov Substitution Principle in one sentence, and how does it relate to inheritance?
 
 What is the Liskov Substitution Principle in one sentence, and how does it relate to inheritance?
 
@@ -1459,7 +1544,7 @@ What is the Liskov Substitution Principle in one sentence, and how does it relat
 
 ---
 
-#### Q19. When does `base.Method()` call the parent's implementation vs the current type's override? {#05-inheritance-polymorphism-q19}
+#### Q19. When does `base.Method()` call the parent's implementation vs the current type's override?
 
 When does `base.Method()` call the parent's implementation vs the current type's override?
 
@@ -1472,7 +1557,7 @@ When does `base.Method()` call the parent's implementation vs the current type's
 
 ---
 
-#### Q20. What is the difference between extending behavior with inheritance vs wrapping with composition? {#05-inheritance-polymorphism-q20}
+#### Q20. What is the difference between extending behavior with inheritance vs wrapping with composition?
 
 What is the difference between extending behavior with inheritance vs wrapping with composition?
 
@@ -1487,7 +1572,7 @@ What is the difference between extending behavior with inheritance vs wrapping w
 
 ### 06. Abstract Classes & Interfaces
 
-#### Q1. Explain abstraction in detail in C#. {#06-abstract-classes-interfaces-q1}
+#### Q1. Explain abstraction in detail in C#.
 
 (D) Your team is adding a `SpreadsheetDocument` to the document archive. It shares `Title` and `CreatedOn` with invoices and reports, but also needs optional CSV export and a separate audit trail that other document types may never use. A junior dev proposes making everything an interface:
 
@@ -1516,7 +1601,7 @@ How would you model this using abstract classes and interfaces (as in this chapt
 
 ---
 
-#### Q2. What is the difference between abstraction and encapsulation? {#06-abstract-classes-interfaces-q2}
+#### Q2. What is the difference between abstraction and encapsulation?
 
 (R) A storage service saves file names for archived documents. After deployment, some invoices overwrite each other on disk. Review:
 
@@ -1568,7 +1653,7 @@ public string ResolveFileName(INamedDocument named)
 
 ---
 
-#### Q3. What is the difference between abstraction and polymorphism? {#06-abstract-classes-interfaces-q3}
+#### Q3. What is the difference between abstraction and polymorphism?
 
 (R) A PR introduces a "kitchen sink" capability interface for the export pipeline. Review:
 
@@ -1619,7 +1704,7 @@ Only invoices need signing; reports only export. What design problems do you see
 
 ---
 
-#### Q4. What is the difference between an abstract class and an interface? {#06-abstract-classes-interfaces-q4}
+#### Q4. What is the difference between an abstract class and an interface?
 
 (M) The team ships a NuGet package with `IExportable` consumed by ten internal services. To add optional metadata without breaking implementers, they add a C# 8 default method:
 
@@ -1649,7 +1734,7 @@ An older service still targets `netstandard2.0` and references the updated packa
 
 ---
 
-#### Q5. What is the difference between an abstract class and an interface before C# 8 vs after (default interface methods)? {#06-abstract-classes-interfaces-q5}
+#### Q5. What is the difference between an abstract class and an interface before C# 8 vs after (default interface methods)?
 
 (R) Unit tests for `DocumentProcessor` are slow and require real PDF files on disk because production code was wired to concrete types. Review:
 
@@ -1715,7 +1800,7 @@ public sealed class DocumentProcessor
 
 ---
 
-#### Q6. Why do we need interfaces in C#? {#06-abstract-classes-interfaces-q6}
+#### Q6. Why do we need interfaces in C#?
 
 (D) Code review: two approaches for a payment-notification feature.
 
@@ -1763,61 +1848,61 @@ Some notifiers are `EmailNotifier : NotifierBase`; others are `SmsNotifier : INo
 
 ---
 
-#### Q7. What is explicit interface implementation and when is it used? {#06-abstract-classes-interfaces-q7}
+#### Q7. What is explicit interface implementation and when is it used?
 
 _Answer not found._
 
 ---
 
-#### Q8. What are static abstract members in interfaces (C# 11)? {#06-abstract-classes-interfaces-q8}
+#### Q8. What are static abstract members in interfaces (C# 11)?
 
 _Answer not found._
 
 ---
 
-#### Q9. Can an abstract class have concrete (non-abstract) methods? {#06-abstract-classes-interfaces-q9}
+#### Q9. Can an abstract class have concrete (non-abstract) methods?
 
 _Answer not found._
 
 ---
 
-#### Q10. Can a class implement multiple interfaces — what about an interface inheriting another interface? {#06-abstract-classes-interfaces-q10}
+#### Q10. Can a class implement multiple interfaces — what about an interface inheriting another interface?
 
 _Answer not found._
 
 ---
 
-#### Q11. When would you choose an abstract base class over an interface for shared implementation? {#06-abstract-classes-interfaces-q11}
+#### Q11. When would you choose an abstract base class over an interface for shared implementation?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is the diamond problem, and how does C# avoid it for classes but address it for interfaces with default methods? {#06-abstract-classes-interfaces-q12}
+#### Q12. What is the diamond problem, and how does C# avoid it for classes but address it for interfaces with default methods?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is explicit interface implementation — why might `((IMyInterface)obj).Method()` work when `obj.Method()` does not? {#06-abstract-classes-interfaces-q13}
+#### Q13. What is explicit interface implementation — why might `((IMyInterface)obj).Method()` work when `obj.Method()` does not?
 
 _Answer not found._
 
 ---
 
-#### Q14. Can interfaces declare fields, constructors, or static concrete state (pre- and post-C# 8)? {#06-abstract-classes-interfaces-q14}
+#### Q14. Can interfaces declare fields, constructors, or static concrete state (pre- and post-C# 8)?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is the difference between `IReadOnlyList<T>` as a parameter type and `List<T>` for abstraction? {#06-abstract-classes-interfaces-q15}
+#### Q15. What is the difference between `IReadOnlyList<T>` as a parameter type and `List<T>` for abstraction?
 
 _Answer not found._
 
 ---
 
-#### Q16. When should API surface depend on interfaces vs abstract classes? {#06-abstract-classes-interfaces-q16}
+#### Q16. When should API surface depend on interfaces vs abstract classes?
 
 _Answer not found._
 
@@ -1825,7 +1910,7 @@ _Answer not found._
 
 ### 07. Encapsulation & Access Modifiers
 
-#### Q1. Explain encapsulation in C# with examples. {#07-encapsulation-access-modifiers-q1}
+#### Q1. Explain encapsulation in C# with examples.
 
 (R) A junior developer "simplifies" the chapter's `BankAccount` for a payments microservice. QA reports negative balances in production. Review the change — what broke the invariant, and how do you fix it?
 
@@ -1863,7 +1948,7 @@ public bool TryWithdraw(decimal amount, out string message)
 
 ---
 
-#### Q2. What are the different access modifiers in C#? (`private`, `protected`, `internal`, `protected internal`, `private protected`) {#07-encapsulation-access-modifiers-q2}
+#### Q2. What are the different access modifiers in C#? (`private`, `protected`, `internal`, `protected internal`, `private protected`)
 
 (R) A shared library ships both a public façade and internal implementation types. A consuming team references the NuGet package and complains they cannot unit-test ledger entries. Review the library surface:
 
@@ -1901,7 +1986,7 @@ public static class LedgerGateway
 
 ---
 
-#### Q3. What is the difference between "information hiding" and "data hiding"? {#07-encapsulation-access-modifiers-q3}
+#### Q3. What is the difference between "information hiding" and "data hiding"?
 
 (P) Two assemblies in the same solution — `Billing.Core` (library) and `Billing.Tests` — need test access to `internal` pricing helpers without exposing them on the public NuGet surface. A developer adds `InternalsVisibleTo` to the csproj. What does it grant, what risks does it introduce, and what guardrails apply?
 
@@ -1917,7 +2002,7 @@ public static class LedgerGateway
 
 ---
 
-#### Q4. Why is exposing a mutable collection through a public getter an encapsulation break? {#07-encapsulation-access-modifiers-q4}
+#### Q4. Why is exposing a mutable collection through a public getter an encapsulation break?
 
 (R) A domain hierarchy models employee compensation. A subclass "optimizes" payroll by writing directly to protected state. Review:
 
@@ -1956,7 +2041,7 @@ protected void AdjustBaseSalary(decimal newSalary, string reason)
 
 ---
 
-#### Q5. What is the difference between `protected internal` and `private protected`? {#07-encapsulation-access-modifiers-q5}
+#### Q5. What is the difference between `protected internal` and `private protected`?
 
 (D) Your team designs an immutable `MemberProfile` DTO for cross-service messaging. Proposal A (init-only + `List<string>`) vs Proposal B (factory + `IReadOnlyList`). Which do you ship, and what breaks if callers treat Proposal A as immutable?
 
@@ -1987,7 +2072,7 @@ Roles = roles.ToList().AsReadOnly();
 
 ---
 
-#### Q6. What does `internal` mean in the context of assemblies and `InternalsVisibleTo`? {#07-encapsulation-access-modifiers-q6}
+#### Q6. What does `internal` mean in the context of assemblies and `InternalsVisibleTo`?
 
 (M) A plugin assembly references your core HR assembly and defines `PayrollProcessor : Employee`. Developers expect to read `InternalCounter` on a base instance from the plugin, but the build fails with CS0122. Explain visibility for `InternalCounter`, `ProtectedInternalCounter`, and `PrivateProtectedCounter` from a derived class in another assembly, and which modifier fits same-assembly first-party plugins.
 
@@ -2009,49 +2094,49 @@ Roles = roles.ToList().AsReadOnly();
 
 ---
 
-#### Q7. What is the default access level for class members if you omit an modifier? {#07-encapsulation-access-modifiers-q7}
+#### Q7. What is the default access level for class members if you omit an modifier?
 
 _Answer not found._
 
 ---
 
-#### Q8. How do access modifiers apply to nested types vs top-level types? {#07-encapsulation-access-modifiers-q8}
+#### Q8. How do access modifiers apply to nested types vs top-level types?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is defensive copying when returning collections from properties? {#07-encapsulation-access-modifiers-q9}
+#### Q9. What is defensive copying when returning collections from properties?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is the difference between encapsulation and immutability? {#07-encapsulation-access-modifiers-q10}
+#### Q10. What is the difference between encapsulation and immutability?
 
 _Answer not found._
 
 ---
 
-#### Q11. Why are public fields discouraged in public APIs even for simple DTOs in some codebases? {#07-encapsulation-access-modifiers-q11}
+#### Q11. Why are public fields discouraged in public APIs even for simple DTOs in some codebases?
 
 _Answer not found._
 
 ---
 
-#### Q12. How does `private protected` restrict visibility compared to `protected` alone? {#07-encapsulation-access-modifiers-q12}
+#### Q12. How does `private protected` restrict visibility compared to `protected` alone?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is a friend assembly pattern, and what are its trade-offs? {#07-encapsulation-access-modifiers-q13}
+#### Q13. What is a friend assembly pattern, and what are its trade-offs?
 
 _Answer not found._
 
 ---
 
-#### Q14. How do property accessors use asymmetric access (`public get; private set;`)? {#07-encapsulation-access-modifiers-q14}
+#### Q14. How do property accessors use asymmetric access (`public get; private set;`)?
 
 _Answer not found._
 
@@ -2059,7 +2144,7 @@ _Answer not found._
 
 ### 08. Events
 
-#### Q1. Explain events in C# (including event handling and publisher-subscriber pattern). {#08-events-q1}
+#### Q1. Explain events in C# (including event handling and publisher-subscriber pattern).
 
 (R) A WPF-style desktop app keeps growing in memory after users open and close account detail panels. Review this wiring. What keeps `AccountDetailPanel` instances alive, and how do you fix it?
 
@@ -2100,7 +2185,7 @@ public void Dispose()
 
 ---
 
-#### Q2. What is the difference between an `event` and a plain public delegate field? {#08-events-q2}
+#### Q2. What is the difference between an `event` and a plain public delegate field?
 
 (R) After a refactor, balance notifications crash when no UI is subscribed. Review the publisher change:
 
@@ -2142,7 +2227,7 @@ What breaks at runtime, and what is the idiomatic raise pattern in modern C#?
 
 ---
 
-#### Q3. Why should you unsubscribe from events, and what problem does this prevent? {#08-events-q3}
+#### Q3. Why should you unsubscribe from events, and what problem does this prevent?
 
 (R) A teammate exposes a notification hook as a public delegate field "for flexibility." Review usage from another assembly:
 
@@ -2199,7 +2284,7 @@ public class PaymentGateway
 
 ---
 
-#### Q4. What happens during multicast delegate invocation if one subscriber throws? {#08-events-q4}
+#### Q4. What happens during multicast delegate invocation if one subscriber throws?
 
 (P) A background `BankAccount` service raises `BalanceChanged` from worker threads while the UI thread subscribes handlers. A developer uses only null-conditional invoke inside `OnBalanceChanged`:
 
@@ -2233,7 +2318,7 @@ protected virtual void OnBalanceChanged(BalanceChangedEventArgs e)
 
 ---
 
-#### Q5. What is the standard `EventHandler` / `EventHandler<TEventArgs>` pattern? {#08-events-q5}
+#### Q5. What is the standard `EventHandler` / `EventHandler<TEventArgs>` pattern?
 
 (P) An ASP.NET Core API registers a **Singleton** `OrderStateTracker` that exposes `event EventHandler<OrderPlacedEventArgs>? OrderPlaced`. Scoped services subscribe in their constructors to push SignalR updates. After a few thousand requests, memory climbs and old connections still receive events. What is wrong with this wiring, and what pattern replaces in-process events for web apps?
 
@@ -2267,7 +2352,7 @@ public sealed class OrderApplicationService
 
 ---
 
-#### Q6. How do you raise an event safely (null-check, `?.Invoke`, local copy pattern)? {#08-events-q6}
+#### Q6. How do you raise an event safely (null-check, `?.Invoke`, local copy pattern)?
 
 (D) Your team debates three ways to notify downstream code when `BankAccount` balance changes: (A) `public event EventHandler<T>`, (B) `public Action<T>?` callback field, (C) `INotificationService` injected and called directly from `Deposit`/`TryWithdraw`. When would you choose each in a production ASP.NET Core domain layer, and what is the unsubscribe/lifetime rule of thumb?
 
@@ -2290,37 +2375,37 @@ public sealed class OrderApplicationService
 
 ---
 
-#### Q7. What is the difference between custom delegate types and `EventHandler` for events? {#08-events-q7}
+#### Q7. What is the difference between custom delegate types and `EventHandler` for events?
 
 _Answer not found._
 
 ---
 
-#### Q8. Can interfaces declare events, and how are they implemented? {#08-events-q8}
+#### Q8. Can interfaces declare events, and how are they implemented?
 
 _Answer not found._
 
 ---
 
-#### Q9. What memory-leak scenario arises when a long-lived publisher holds references to short-lived subscribers? {#08-events-q9}
+#### Q9. What memory-leak scenario arises when a long-lived publisher holds references to short-lived subscribers?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is the difference between events and the Observer pattern / IObservable? {#08-events-q10}
+#### Q10. What is the difference between events and the Observer pattern / IObservable?
 
 _Answer not found._
 
 ---
 
-#### Q11. Can you assign to an event from outside the declaring class (`event += handler` vs `event = handler`)? {#08-events-q11}
+#### Q11. Can you assign to an event from outside the declaring class (`event += handler` vs `event = handler`)?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is thread-safe event raising, and when is locking required? {#08-events-q12}
+#### Q12. What is thread-safe event raising, and when is locking required?
 
 _Answer not found._
 
@@ -2328,7 +2413,7 @@ _Answer not found._
 
 ### 09. OOP Real-World Examples
 
-#### Q1. Explain the SOLID principles with concrete C# examples. {#09-oop-real-world-examples-q1}
+#### Q1. Explain the SOLID principles with concrete C# examples.
 
 (R) A team ports the chapter's order-fulfillment payment flow into a service class. Support sees duplicate debits and failed rollbacks after card declines. Review:
 
@@ -2410,7 +2495,7 @@ public sealed class OrderPaymentService
 
 ---
 
-#### Q2. What is the Liskov Substitution Principle? Give a classic violation (e.g., `Square`/`Rectangle`). {#09-oop-real-world-examples-q2}
+#### Q2. What is the Liskov Substitution Principle? Give a classic violation (e.g., `Square`/`Rectangle`).
 
 (R) A logistics API quotes delivery cost from the chapter's `Vehicle` fleet. After adding `Motorcycle` to the fleet, quotes are wrong and every new vehicle type requires editing this method. Review:
 
@@ -2452,7 +2537,7 @@ What design problems do you see, and how does the chapter's polymorphism model r
 
 ---
 
-#### Q3. What is Dependency Inversion, and how does constructor injection implement it? {#09-oop-real-world-examples-q3}
+#### Q3. What is Dependency Inversion, and how does constructor injection implement it?
 
 (R) A PR consolidates payment, delivery, labels, notifications, and invoicing into one coordinator for "simplicity." Review:
 
@@ -2510,7 +2595,7 @@ Identify stacked OOP and SOLID issues. What would you split, inject, or abstract
 
 ---
 
-#### Q4. What is the difference between Dependency Injection and the Service Locator pattern? {#09-oop-real-world-examples-q4}
+#### Q4. What is the difference between Dependency Injection and the Service Locator pattern?
 
 (D) Product wants **push notifications** and a shared **retry-with-backoff** helper for all channels. Two proposals land in code review:
 
@@ -2555,7 +2640,7 @@ Email and SMS already implement `INotificationSender` with no common base. Which
 
 ---
 
-#### Q5. What is the difference between "has-a" and "is-a" relationships? When is inheritance the wrong choice? {#09-oop-real-world-examples-q5}
+#### Q5. What is the difference between "has-a" and "is-a" relationships? When is inheritance the wrong choice?
 
 (P) An ASP.NET Core team registers the chapter's fulfillment types in `Program.cs` for a checkout API:
 
@@ -2590,7 +2675,7 @@ builder.Services.AddTransient<INotificationSender, SmsNotificationSender>();
 
 ---
 
-#### Q6. What is the anemic domain model anti-pattern? {#09-oop-real-world-examples-q6}
+#### Q6. What is the anemic domain model anti-pattern?
 
 (R) A developer splits `BankAccount` into partial files (as in this chapter) but adds a "fast path" for internal ops. Frozen accounts still accept money in staging. Review both fragments:
 
@@ -2662,7 +2747,7 @@ public bool IsActive { get; private set; } = true;
 
 ---
 
-#### Q7. What is the Open/Closed Principle, and how do interfaces support extension without modification? {#09-oop-real-world-examples-q7}
+#### Q7. What is the Open/Closed Principle, and how do interfaces support extension without modification?
 
 (D) You inherit a monolithic fulfillment codebase that mirrors this chapter's demo `Main` — one method creates every object, mutates wallet state, picks a truck by array index, renders shapes, sends notifications, and prints the invoice. The team has one sprint to improve production readiness without a full rewrite.
 
@@ -2690,133 +2775,133 @@ What refactor order would you choose (encapsulation fixes, introduce interfaces,
 
 ---
 
-#### Q8. What is the Single Responsibility Principle — how do you recognize a class that violates it? {#09-oop-real-world-examples-q8}
+#### Q8. What is the Single Responsibility Principle — how do you recognize a class that violates it?
 
 _Answer not found._
 
 ---
 
-#### Q9. What is the Interface Segregation Principle — why are fat interfaces problematic? {#09-oop-real-world-examples-q9}
+#### Q9. What is the Interface Segregation Principle — why are fat interfaces problematic?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is a factory method vs a simple constructor — when do you introduce a factory? {#09-oop-real-world-examples-q10}
+#### Q10. What is a factory method vs a simple constructor — when do you introduce a factory?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is the Strategy pattern, and how does it map to interfaces/delegates in C#? {#09-oop-real-world-examples-q11}
+#### Q11. What is the Strategy pattern, and how does it map to interfaces/delegates in C#?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is the Repository pattern at a high level, and why depend on abstractions? {#09-oop-real-world-examples-q12}
+#### Q12. What is the Repository pattern at a high level, and why depend on abstractions?
 
 _Answer not found._
 
 ---
 
-#### Q13. How does polymorphism simplify replacing implementations in tests (mock/stub scenarios)? {#09-oop-real-world-examples-q13}
+#### Q13. How does polymorphism simplify replacing implementations in tests (mock/stub scenarios)?
 
 _Answer not found._
 
 ---
 
-#### Q14. What is the difference between domain modeling with rich behavior vs CRUD-style service objects? {#09-oop-real-world-examples-q14}
+#### Q14. What is the difference between domain modeling with rich behavior vs CRUD-style service objects?
 
 _Answer not found._
 
 ---
 
-#### Q15. **Virtual method from base constructor** — Calling an overridden virtual method from a base constructor runs before derived field initializers complete; overridden code sees default values. {#09-oop-real-world-examples-q15}
+#### Q15. **Virtual method from base constructor** — Calling an overridden virtual method from a base constructor runs before derived field initializers complete; overridden code sees default values.
 
 _Answer not found._
 
 ---
 
-#### Q16. **Method hiding vs overriding** — `new` hides by compile-time type; `override` dispatches by runtime type. Mixing them breaks expected polymorphism. {#09-oop-real-world-examples-q16}
+#### Q16. **Method hiding vs overriding** — `new` hides by compile-time type; `override` dispatches by runtime type. Mixing them breaks expected polymorphism.
 
 _Answer not found._
 
 ---
 
-#### Q17. **`Equals()` without `GetHashCode()`** — Breaks the hash contract; objects can exist in a `Dictionary`/`HashSet` but not be found again after mutation. {#09-oop-real-world-examples-q17}
+#### Q17. **`Equals()` without `GetHashCode()`** — Breaks the hash contract; objects can exist in a `Dictionary`/`HashSet` but not be found again after mutation.
 
 _Answer not found._
 
 ---
 
-#### Q18. **Mutable object as dictionary key** — Changing a key after insertion causes "lost" entries at runtime. {#09-oop-real-world-examples-q18}
+#### Q18. **Mutable object as dictionary key** — Changing a key after insertion causes "lost" entries at runtime.
 
 _Answer not found._
 
 ---
 
-#### Q19. **Struct boxing via interface** — Assigning a struct to an interface type boxes; subsequent struct mutations don't affect the boxed copy. {#09-oop-real-world-examples-q19}
+#### Q19. **Struct boxing via interface** — Assigning a struct to an interface type boxes; subsequent struct mutations don't affect the boxed copy.
 
 _Answer not found._
 
 ---
 
-#### Q20. **`protected internal` vs `private protected`** — `protected internal` = protected OR internal; `private protected` = protected AND internal (same assembly only). {#09-oop-real-world-examples-q20}
+#### Q20. **`protected internal` vs `private protected`** — `protected internal` = protected OR internal; `private protected` = protected AND internal (same assembly only).
 
 _Answer not found._
 
 ---
 
-#### Q21. **Type-checking anti-pattern** — Long `if (animal is Dog)` chains defeat polymorphism; prefer virtual methods or pattern matching on a common abstraction. {#09-oop-real-world-examples-q21}
+#### Q21. **Type-checking anti-pattern** — Long `if (animal is Dog)` chains defeat polymorphism; prefer virtual methods or pattern matching on a common abstraction.
 
 _Answer not found._
 
 ---
 
-#### Q22. **Memory leaks despite GC** — Event handlers and static caches holding references to short-lived objects are the classic managed leak. {#09-oop-real-world-examples-q22}
+#### Q22. **Memory leaks despite GC** — Event handlers and static caches holding references to short-lived objects are the classic managed leak.
 
 _Answer not found._
 
 ---
 
-#### Q23. **Exposing `List<T>` directly** — Callers can mutate internal state without invariant checks; return `IReadOnlyList<T>` or defensive copies. {#09-oop-real-world-examples-q23}
+#### Q23. **Exposing `List<T>` directly** — Callers can mutate internal state without invariant checks; return `IReadOnlyList<T>` or defensive copies.
 
 _Answer not found._
 
 ---
 
-#### Q24. **`init` after construction** — Init-only properties can be set in object initializers and constructors but not arbitrary code afterward; confusing with `{ get; private set; }`. {#09-oop-real-world-examples-q24}
+#### Q24. **`init` after construction** — Init-only properties can be set in object initializers and constructors but not arbitrary code afterward; confusing with `{ get; private set; }`.
 
 _Answer not found._
 
 ---
 
-#### Q25. **Static "singleton" vs DI singleton** — A static class is hard to test and replace; instance singletons registered in DI are still mockable if designed carefully. {#09-oop-real-world-examples-q25}
+#### Q25. **Static "singleton" vs DI singleton** — A static class is hard to test and replace; instance singletons registered in DI are still mockable if designed carefully.
 
 _Answer not found._
 
 ---
 
-#### Q26. **Explicit interface hiding** — Public class method and explicit interface method can coexist with different behavior; callers must know which API they use. {#09-oop-real-world-examples-q26}
+#### Q26. **Explicit interface hiding** — Public class method and explicit interface method can coexist with different behavior; callers must know which API they use.
 
 _Answer not found._
 
 ---
 
-#### Q27. **Finalizer timing** — `~ClassName()` runs non-deterministically; do not rely on it for timely resource release — use `Dispose`. {#09-oop-real-world-examples-q27}
+#### Q27. **Finalizer timing** — `~ClassName()` runs non-deterministically; do not rely on it for timely resource release — use `Dispose`.
 
 _Answer not found._
 
 ---
 
-#### Q28. **Overriding `==` without consistent `Equals`/`GetHashCode`** — Custom equality operators that disagree with `Equals` break collections and LINQ. {#09-oop-real-world-examples-q28}
+#### Q28. **Overriding `==` without consistent `Equals`/`GetHashCode`** — Custom equality operators that disagree with `Equals` break collections and LINQ.
 
 _Answer not found._
 
 ---
 
-#### Q29. **Default interface methods on structs** — Calling a default interface method on a struct may box the struct depending on how it is invoked. {#09-oop-real-world-examples-q29}
+#### Q29. **Default interface methods on structs** — Calling a default interface method on a struct may box the struct depending on how it is invoked.
 
 _Answer not found._
 

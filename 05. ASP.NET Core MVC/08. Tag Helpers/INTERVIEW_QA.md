@@ -1,35 +1,30 @@
 # Tag Helpers — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 08. Tag Helpers](#chapter-08-tag-helpers)
-  - [Q1. What are Tag Helpers in ASP.NET Core MVC?](#chapter-08-tag-helpers-q1)
-  - [Q2. What is the difference between Tag Helpers and HTML Helpers?](#chapter-08-tag-helpers-q2)
-  - [Q3. What does `asp-for` do on an input element?](#chapter-08-tag-helpers-q3)
-  - [Q4. What do `asp-action` and `asp-controller` do on a form or an…](#chapter-08-tag-helpers-q4)
-  - [Q5. What is `asp-validation-for`?](#chapter-08-tag-helpers-q5)
-  - [Q6. What is `asp-validation-summary`?](#chapter-08-tag-helpers-q6)
-  - [Q7. How do Tag Helpers generate antiforgery tokens for forms?](#chapter-08-tag-helpers-q7)
-  - [Q8. What is `asp-route-*` used for?](#chapter-08-tag-helpers-q8)
-  - [Q9. What does `asp-append-version` do?](#chapter-08-tag-helpers-q9)
-  - [Q10. What is the `<environment>` tag helper used for?](#chapter-08-tag-helpers-q10)
-  - [Q11. How are Tag Helpers registered in `_ViewImports.cshtml`?](#chapter-08-tag-helpers-q11)
-  - [Q12. What are `@addTagHelper` and `@removeTagHelper`?](#chapter-08-tag-helpers-q12)
-  - [Q13. What is the difference between `<partial>` and `Html.Partial…](#chapter-08-tag-helpers-q13)
-  - [Q14. What is the `!` prefix (opt-out) on Tag Helpers?](#chapter-08-tag-helpers-q14)
-  - [Q15. How does a custom Tag Helper work (`TagHelper` base class)?](#chapter-08-tag-helpers-q15)
-  - [Q16. What is Tag Helper processing order and why does it matter?](#chapter-08-tag-helpers-q16)
-  - [Q17. How do you register Tag Helpers from a Razor Class Library?](#chapter-08-tag-helpers-q17)
-  - [Q18. What HTML attributes do Tag Helpers emit for client-side val…](#chapter-08-tag-helpers-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are Tag Helpers in ASP.NET Core MVC?](#q1-what-are-tag-helpers-in-aspnet-core-mvc)
+2. [Q2. What is the difference between Tag Helpers and HTML Helpers?](#q2-what-is-the-difference-between-tag-helpers-and-html-helpers)
+3. [Q3. What does `asp-for` do on an input element?](#q3-what-does-asp-for-do-on-an-input-element)
+4. [Q4. What do `asp-action` and `asp-controller` do on a form or anchor?](#q4-what-do-asp-action-and-asp-controller-do-on-a-form-or-anchor)
+5. [Q5. What is `asp-validation-for`?](#q5-what-is-asp-validation-for)
+6. [Q6. What is `asp-validation-summary`?](#q6-what-is-asp-validation-summary)
+7. [Q7. How do Tag Helpers generate antiforgery tokens for forms?](#q7-how-do-tag-helpers-generate-antiforgery-tokens-for-forms)
+8. [Q8. What is `asp-route-*` used for?](#q8-what-is-asp-route--used-for)
+9. [Q9. What does `asp-append-version` do?](#q9-what-does-asp-append-version-do)
+10. [Q10. What is the `<environment>` tag helper used for?](#q10-what-is-the-environment-tag-helper-used-for)
+11. [Q11. How are Tag Helpers registered in `_ViewImports.cshtml`?](#q11-how-are-tag-helpers-registered-in-_viewimportscshtml)
+12. [Q12. What are `@addTagHelper` and `@removeTagHelper`?](#q12-what-are-addtaghelper-and-removetaghelper)
+13. [Q13. What is the difference between `<partial>` and `Html.PartialAsync` as a tag helper?](#q13-what-is-the-difference-between-partial-and-htmlpartialasync-as-a-tag-helper)
+14. [Q14. What is the `!` prefix (opt-out) on Tag Helpers?](#q14-what-is-the-prefix-opt-out-on-tag-helpers)
+15. [Q15. How does a custom Tag Helper work (`TagHelper` base class)?](#q15-how-does-a-custom-tag-helper-work-taghelper-base-class)
+16. [Q16. What is Tag Helper processing order and why does it matter?](#q16-what-is-tag-helper-processing-order-and-why-does-it-matter)
+17. [Q17. How do you register Tag Helpers from a Razor Class Library?](#q17-how-do-you-register-tag-helpers-from-a-razor-class-library)
+18. [Q18. What HTML attributes do Tag Helpers emit for client-side validation (`data-val-*`)?](#q18-what-html-attributes-do-tag-helpers-emit-for-client-side-validation-data-val)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 08. Tag Helpers
-
-### Q1. What are Tag Helpers in ASP.NET Core MVC? {#chapter-08-tag-helpers-q1}
+## Q1. What are Tag Helpers in ASP.NET Core MVC?
 
 What are Tag Helpers in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What are Tag Helpers in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is the difference between Tag Helpers and HTML Helpers? {#chapter-08-tag-helpers-q2}
+## Q2. What is the difference between Tag Helpers and HTML Helpers?
 
 What is the difference between Tag Helpers and HTML Helpers?
 
@@ -55,7 +50,7 @@ What is the difference between Tag Helpers and HTML Helpers?
 
 ---
 
-### Q3. What does `asp-for` do on an input element? {#chapter-08-tag-helpers-q3}
+## Q3. What does `asp-for` do on an input element?
 
 What does `asp-for` do on an input element?
 
@@ -68,7 +63,7 @@ What does `asp-for` do on an input element?
 
 ---
 
-### Q4. What do `asp-action` and `asp-controller` do on a form or anchor? {#chapter-08-tag-helpers-q4}
+## Q4. What do `asp-action` and `asp-controller` do on a form or anchor?
 
 What do `asp-action` and `asp-controller` do on a form or anchor?
 
@@ -81,7 +76,7 @@ What do `asp-action` and `asp-controller` do on a form or anchor?
 
 ---
 
-### Q5. What is `asp-validation-for`? {#chapter-08-tag-helpers-q5}
+## Q5. What is `asp-validation-for`?
 
 What is `asp-validation-for`?
 
@@ -94,7 +89,7 @@ What is `asp-validation-for`?
 
 ---
 
-### Q6. What is `asp-validation-summary`? {#chapter-08-tag-helpers-q6}
+## Q6. What is `asp-validation-summary`?
 
 What is `asp-validation-summary`?
 
@@ -107,7 +102,7 @@ What is `asp-validation-summary`?
 
 ---
 
-### Q7. How do Tag Helpers generate antiforgery tokens for forms? {#chapter-08-tag-helpers-q7}
+## Q7. How do Tag Helpers generate antiforgery tokens for forms?
 
 How do Tag Helpers generate antiforgery tokens for forms?
 
@@ -120,7 +115,7 @@ How do Tag Helpers generate antiforgery tokens for forms?
 
 ---
 
-### Q8. What is `asp-route-*` used for? {#chapter-08-tag-helpers-q8}
+## Q8. What is `asp-route-*` used for?
 
 What is `asp-route-*` used for?
 
@@ -133,7 +128,7 @@ What is `asp-route-*` used for?
 
 ---
 
-### Q9. What does `asp-append-version` do? {#chapter-08-tag-helpers-q9}
+## Q9. What does `asp-append-version` do?
 
 What does `asp-append-version` do?
 
@@ -146,7 +141,7 @@ What does `asp-append-version` do?
 
 ---
 
-### Q10. What is the `<environment>` tag helper used for? {#chapter-08-tag-helpers-q10}
+## Q10. What is the `<environment>` tag helper used for?
 
 What is the `<environment>` tag helper used for?
 
@@ -159,7 +154,7 @@ What is the `<environment>` tag helper used for?
 
 ---
 
-### Q11. How are Tag Helpers registered in `_ViewImports.cshtml`? {#chapter-08-tag-helpers-q11}
+## Q11. How are Tag Helpers registered in `_ViewImports.cshtml`?
 
 How are Tag Helpers registered in `_ViewImports.cshtml`?
 
@@ -172,7 +167,7 @@ How are Tag Helpers registered in `_ViewImports.cshtml`?
 
 ---
 
-### Q12. What are `@addTagHelper` and `@removeTagHelper`? {#chapter-08-tag-helpers-q12}
+## Q12. What are `@addTagHelper` and `@removeTagHelper`?
 
 What are `@addTagHelper` and `@removeTagHelper`?
 
@@ -185,7 +180,7 @@ What are `@addTagHelper` and `@removeTagHelper`?
 
 ---
 
-### Q13. What is the difference between `<partial>` and `Html.PartialAsync` as a tag helper? {#chapter-08-tag-helpers-q13}
+## Q13. What is the difference between `<partial>` and `Html.PartialAsync` as a tag helper?
 
 What is the difference between `<partial>` and `Html.PartialAsync` as a tag helper?
 
@@ -198,7 +193,7 @@ What is the difference between `<partial>` and `Html.PartialAsync` as a tag help
 
 ---
 
-### Q14. What is the `!` prefix (opt-out) on Tag Helpers? {#chapter-08-tag-helpers-q14}
+## Q14. What is the `!` prefix (opt-out) on Tag Helpers?
 
 What is the `!` prefix (opt-out) on Tag Helpers?
 
@@ -211,7 +206,7 @@ What is the `!` prefix (opt-out) on Tag Helpers?
 
 ---
 
-### Q15. How does a custom Tag Helper work (`TagHelper` base class)? {#chapter-08-tag-helpers-q15}
+## Q15. How does a custom Tag Helper work (`TagHelper` base class)?
 
 How does a custom Tag Helper work (`TagHelper` base class)?
 
@@ -224,7 +219,7 @@ How does a custom Tag Helper work (`TagHelper` base class)?
 
 ---
 
-### Q16. What is Tag Helper processing order and why does it matter? {#chapter-08-tag-helpers-q16}
+## Q16. What is Tag Helper processing order and why does it matter?
 
 What is Tag Helper processing order and why does it matter?
 
@@ -237,7 +232,7 @@ What is Tag Helper processing order and why does it matter?
 
 ---
 
-### Q17. How do you register Tag Helpers from a Razor Class Library? {#chapter-08-tag-helpers-q17}
+## Q17. How do you register Tag Helpers from a Razor Class Library?
 
 How do you register Tag Helpers from a Razor Class Library?
 
@@ -250,7 +245,7 @@ How do you register Tag Helpers from a Razor Class Library?
 
 ---
 
-### Q18. What HTML attributes do Tag Helpers emit for client-side validation (`data-val-*`)? {#chapter-08-tag-helpers-q18}
+## Q18. What HTML attributes do Tag Helpers emit for client-side validation (`data-val-*`)?
 
 What HTML attributes do Tag Helpers emit for client-side validation (`data-val-*`)?
 

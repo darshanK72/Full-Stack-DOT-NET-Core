@@ -1,35 +1,30 @@
 # Dependency Injection & Service Lifetimes — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 04. Dependency Injection & Service Lifetimes](#chapter-04-dependency-injection-service-lifetimes)
-  - [Q1. What is dependency injection in ASP.NET Core?](#chapter-04-dependency-injection-service-lifetimes-q1)
-  - [Q2. What is the built-in DI container in ASP.NET Core?](#chapter-04-dependency-injection-service-lifetimes-q2)
-  - [Q3. What are the three service lifetimes in ASP.NET Core DI?](#chapter-04-dependency-injection-service-lifetimes-q3)
-  - [Q4. What is the difference between Singleton, Scoped, and Transi…](#chapter-04-dependency-injection-service-lifetimes-q4)
-  - [Q5. When should you register a service as Scoped?](#chapter-04-dependency-injection-service-lifetimes-q5)
-  - [Q6. What is a "captive dependency," and why is it a problem?](#chapter-04-dependency-injection-service-lifetimes-q6)
-  - [Q7. How does ASP.NET Core create a scope per HTTP request?](#chapter-04-dependency-injection-service-lifetimes-q7)
-  - [Q8. What happens when you register the same interface twice?](#chapter-04-dependency-injection-service-lifetimes-q8)
-  - [Q9. What is `IHttpClientFactory`, and why should you use it inst…](#chapter-04-dependency-injection-service-lifetimes-q9)
-  - [Q10. What are keyed services in .NET 8?](#chapter-04-dependency-injection-service-lifetimes-q10)
-  - [Q11. What is `IServiceScopeFactory`, and when do you need it?](#chapter-04-dependency-injection-service-lifetimes-q11)
-  - [Q12. What is `IDbContextFactory<TContext>`, and when is it prefer…](#chapter-04-dependency-injection-service-lifetimes-q12)
-  - [Q13. What do `ValidateOnBuild` and `ValidateScopes` do?](#chapter-04-dependency-injection-service-lifetimes-q13)
-  - [Q14. How do you register an interface with its implementation?](#chapter-04-dependency-injection-service-lifetimes-q14)
-  - [Q15. What is constructor injection?](#chapter-04-dependency-injection-service-lifetimes-q15)
-  - [Q16. Can you inject a Scoped service into a Singleton? What happe…](#chapter-04-dependency-injection-service-lifetimes-q16)
-  - [Q17. What is the difference between `AddSingleton`, `AddScoped`, …](#chapter-04-dependency-injection-service-lifetimes-q17)
-  - [Q18. How does DI work in Minimal API route handlers?](#chapter-04-dependency-injection-service-lifetimes-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is dependency injection in ASP.NET Core?](#q1-what-is-dependency-injection-in-aspnet-core)
+2. [Q2. What is the built-in DI container in ASP.NET Core?](#q2-what-is-the-built-in-di-container-in-aspnet-core)
+3. [Q3. What are the three service lifetimes in ASP.NET Core DI?](#q3-what-are-the-three-service-lifetimes-in-aspnet-core-di)
+4. [Q4. What is the difference between Singleton, Scoped, and Transient?](#q4-what-is-the-difference-between-singleton-scoped-and-transient)
+5. [Q5. When should you register a service as Scoped?](#q5-when-should-you-register-a-service-as-scoped)
+6. [Q6. What is a "captive dependency," and why is it a problem?](#q6-what-is-a-captive-dependency-and-why-is-it-a-problem)
+7. [Q7. How does ASP.NET Core create a scope per HTTP request?](#q7-how-does-aspnet-core-create-a-scope-per-http-request)
+8. [Q8. What happens when you register the same interface twice?](#q8-what-happens-when-you-register-the-same-interface-twice)
+9. [Q9. What is `IHttpClientFactory`, and why should you use it instead of `new HttpClient()`?](#q9-what-is-ihttpclientfactory-and-why-should-you-use-it-instead-of-new-httpclient)
+10. [Q10. What are keyed services in .NET 8?](#q10-what-are-keyed-services-in-net-8)
+11. [Q11. What is `IServiceScopeFactory`, and when do you need it?](#q11-what-is-iservicescopefactory-and-when-do-you-need-it)
+12. [Q12. What is `IDbContextFactory<TContext>`, and when is it preferred over injecting `DbContext` directly?](#q12-what-is-idbcontextfactorytcontext-and-when-is-it-preferred-over-injecting-dbcontext-directly)
+13. [Q13. What do `ValidateOnBuild` and `ValidateScopes` do?](#q13-what-do-validateonbuild-and-validatescopes-do)
+14. [Q14. How do you register an interface with its implementation?](#q14-how-do-you-register-an-interface-with-its-implementation)
+15. [Q15. What is constructor injection?](#q15-what-is-constructor-injection)
+16. [Q16. Can you inject a Scoped service into a Singleton? What happens?](#q16-can-you-inject-a-scoped-service-into-a-singleton-what-happens)
+17. [Q17. What is the difference between `AddSingleton`, `AddScoped`, and `AddTransient`?](#q17-what-is-the-difference-between-addsingleton-addscoped-and-addtransient)
+18. [Q18. How does DI work in Minimal API route handlers?](#q18-how-does-di-work-in-minimal-api-route-handlers)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 04. Dependency Injection & Service Lifetimes
-
-### Q1. What is dependency injection in ASP.NET Core? {#chapter-04-dependency-injection-service-lifetimes-q1}
+## Q1. What is dependency injection in ASP.NET Core?
 
 What is dependency injection in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is dependency injection in ASP.NET Core?
 
 ---
 
-### Q2. What is the built-in DI container in ASP.NET Core? {#chapter-04-dependency-injection-service-lifetimes-q2}
+## Q2. What is the built-in DI container in ASP.NET Core?
 
 What is the built-in DI container in ASP.NET Core?
 
@@ -55,7 +50,7 @@ What is the built-in DI container in ASP.NET Core?
 
 ---
 
-### Q3. What are the three service lifetimes in ASP.NET Core DI? {#chapter-04-dependency-injection-service-lifetimes-q3}
+## Q3. What are the three service lifetimes in ASP.NET Core DI?
 
 What are the three service lifetimes in ASP.NET Core DI?
 
@@ -68,7 +63,7 @@ What are the three service lifetimes in ASP.NET Core DI?
 
 ---
 
-### Q4. What is the difference between Singleton, Scoped, and Transient? {#chapter-04-dependency-injection-service-lifetimes-q4}
+## Q4. What is the difference between Singleton, Scoped, and Transient?
 
 What is the difference between Singleton, Scoped, and Transient?
 
@@ -86,7 +81,7 @@ What is the difference between Singleton, Scoped, and Transient?
 
 ---
 
-### Q5. When should you register a service as Scoped? {#chapter-04-dependency-injection-service-lifetimes-q5}
+## Q5. When should you register a service as Scoped?
 
 When should you register a service as Scoped?
 
@@ -99,7 +94,7 @@ When should you register a service as Scoped?
 
 ---
 
-### Q6. What is a "captive dependency," and why is it a problem? {#chapter-04-dependency-injection-service-lifetimes-q6}
+## Q6. What is a "captive dependency," and why is it a problem?
 
 What is a "captive dependency," and why is it a problem?
 
@@ -112,7 +107,7 @@ What is a "captive dependency," and why is it a problem?
 
 ---
 
-### Q7. How does ASP.NET Core create a scope per HTTP request? {#chapter-04-dependency-injection-service-lifetimes-q7}
+## Q7. How does ASP.NET Core create a scope per HTTP request?
 
 How does ASP.NET Core create a scope per HTTP request?
 
@@ -125,7 +120,7 @@ How does ASP.NET Core create a scope per HTTP request?
 
 ---
 
-### Q8. What happens when you register the same interface twice? {#chapter-04-dependency-injection-service-lifetimes-q8}
+## Q8. What happens when you register the same interface twice?
 
 What happens when you register the same interface twice?
 
@@ -138,7 +133,7 @@ What happens when you register the same interface twice?
 
 ---
 
-### Q9. What is `IHttpClientFactory`, and why should you use it instead of `new HttpClient()`? {#chapter-04-dependency-injection-service-lifetimes-q9}
+## Q9. What is `IHttpClientFactory`, and why should you use it instead of `new HttpClient()`?
 
 What is `IHttpClientFactory`, and why should you use it instead of `new HttpClient()`?
 
@@ -151,7 +146,7 @@ What is `IHttpClientFactory`, and why should you use it instead of `new HttpClie
 
 ---
 
-### Q10. What are keyed services in .NET 8? {#chapter-04-dependency-injection-service-lifetimes-q10}
+## Q10. What are keyed services in .NET 8?
 
 What are keyed services in .NET 8?
 
@@ -164,7 +159,7 @@ What are keyed services in .NET 8?
 
 ---
 
-### Q11. What is `IServiceScopeFactory`, and when do you need it? {#chapter-04-dependency-injection-service-lifetimes-q11}
+## Q11. What is `IServiceScopeFactory`, and when do you need it?
 
 What is `IServiceScopeFactory`, and when do you need it?
 
@@ -177,7 +172,7 @@ What is `IServiceScopeFactory`, and when do you need it?
 
 ---
 
-### Q12. What is `IDbContextFactory<TContext>`, and when is it preferred over injecting `DbContext` directly? {#chapter-04-dependency-injection-service-lifetimes-q12}
+## Q12. What is `IDbContextFactory<TContext>`, and when is it preferred over injecting `DbContext` directly?
 
 What is `IDbContextFactory<TContext>`, and when is it preferred over injecting `DbContext` directly?
 
@@ -190,7 +185,7 @@ What is `IDbContextFactory<TContext>`, and when is it preferred over injecting `
 
 ---
 
-### Q13. What do `ValidateOnBuild` and `ValidateScopes` do? {#chapter-04-dependency-injection-service-lifetimes-q13}
+## Q13. What do `ValidateOnBuild` and `ValidateScopes` do?
 
 What do `ValidateOnBuild` and `ValidateScopes` do?
 
@@ -203,7 +198,7 @@ What do `ValidateOnBuild` and `ValidateScopes` do?
 
 ---
 
-### Q14. How do you register an interface with its implementation? {#chapter-04-dependency-injection-service-lifetimes-q14}
+## Q14. How do you register an interface with its implementation?
 
 How do you register an interface with its implementation?
 
@@ -216,7 +211,7 @@ How do you register an interface with its implementation?
 
 ---
 
-### Q15. What is constructor injection? {#chapter-04-dependency-injection-service-lifetimes-q15}
+## Q15. What is constructor injection?
 
 What is constructor injection?
 
@@ -229,7 +224,7 @@ What is constructor injection?
 
 ---
 
-### Q16. Can you inject a Scoped service into a Singleton? What happens? {#chapter-04-dependency-injection-service-lifetimes-q16}
+## Q16. Can you inject a Scoped service into a Singleton? What happens?
 
 Can you inject a Scoped service into a Singleton? What happens?
 
@@ -242,7 +237,7 @@ Can you inject a Scoped service into a Singleton? What happens?
 
 ---
 
-### Q17. What is the difference between `AddSingleton`, `AddScoped`, and `AddTransient`? {#chapter-04-dependency-injection-service-lifetimes-q17}
+## Q17. What is the difference between `AddSingleton`, `AddScoped`, and `AddTransient`?
 
 What is the difference between `AddSingleton`, `AddScoped`, and `AddTransient`?
 
@@ -255,7 +250,7 @@ What is the difference between `AddSingleton`, `AddScoped`, and `AddTransient`?
 
 ---
 
-### Q18. How does DI work in Minimal API route handlers? {#chapter-04-dependency-injection-service-lifetimes-q18}
+## Q18. How does DI work in Minimal API route handlers?
 
 How does DI work in Minimal API route handlers?
 

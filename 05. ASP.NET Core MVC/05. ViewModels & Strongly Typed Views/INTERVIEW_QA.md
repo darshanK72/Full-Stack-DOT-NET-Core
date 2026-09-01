@@ -1,35 +1,30 @@
 # ViewModels & Strongly Typed Views — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 05. ViewModels & Strongly Typed Views](#chapter-05-viewmodels-strongly-typed-views)
-  - [Q1. What is a ViewModel in ASP.NET Core MVC?](#chapter-05-viewmodels-strongly-typed-views-q1)
-  - [Q2. What is the difference between a domain entity and a ViewMod…](#chapter-05-viewmodels-strongly-typed-views-q2)
-  - [Q3. What is a strongly typed view?](#chapter-05-viewmodels-strongly-typed-views-q3)
-  - [Q4. Why should you not pass EF entities directly to Razor views?](#chapter-05-viewmodels-strongly-typed-views-q4)
-  - [Q5. What is over-posting (mass assignment) and how do ViewModels…](#chapter-05-viewmodels-strongly-typed-views-q5)
-  - [Q6. What is the difference between a Create ViewModel and an Edi…](#chapter-05-viewmodels-strongly-typed-views-q6)
-  - [Q7. What is the purpose of a read-only/details ViewModel?](#chapter-05-viewmodels-strongly-typed-views-q7)
-  - [Q8. Why should sensitive fields (e.g., `IsAdmin`, internal margi…](#chapter-05-viewmodels-strongly-typed-views-q8)
-  - [Q9. What is the difference between mapping in the controller vs …](#chapter-05-viewmodels-strongly-typed-views-q9)
-  - [Q10. What problems occur when one DTO is shared between MVC views…](#chapter-05-viewmodels-strongly-typed-views-q10)
-  - [Q11. How should navigation properties be handled in ViewModels fo…](#chapter-05-viewmodels-strongly-typed-views-q11)
-  - [Q12. Where should validation attributes be placed — entity or Vie…](#chapter-05-viewmodels-strongly-typed-views-q12)
-  - [Q13. What is the difference between presentation logic and busine…](#chapter-05-viewmodels-strongly-typed-views-q13)
-  - [Q14. How do ViewModels help with unit testing controllers?](#chapter-05-viewmodels-strongly-typed-views-q14)
-  - [Q15. What is a composite/page ViewModel and when might you split …](#chapter-05-viewmodels-strongly-typed-views-q15)
-  - [Q16. Why can returning an entity to `PartialView` cause serializa…](#chapter-05-viewmodels-strongly-typed-views-q16)
-  - [Q17. What is `[BindNever]` and when is it used on ViewModels?](#chapter-05-viewmodels-strongly-typed-views-q17)
-  - [Q18. How do nullable reference types affect ViewModel design?](#chapter-05-viewmodels-strongly-typed-views-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is a ViewModel in ASP.NET Core MVC?](#q1-what-is-a-viewmodel-in-aspnet-core-mvc)
+2. [Q2. What is the difference between a domain entity and a ViewModel?](#q2-what-is-the-difference-between-a-domain-entity-and-a-viewmodel)
+3. [Q3. What is a strongly typed view?](#q3-what-is-a-strongly-typed-view)
+4. [Q4. Why should you not pass EF entities directly to Razor views?](#q4-why-should-you-not-pass-ef-entities-directly-to-razor-views)
+5. [Q5. What is over-posting (mass assignment) and how do ViewModels prevent it?](#q5-what-is-over-posting-mass-assignment-and-how-do-viewmodels-prevent-it)
+6. [Q6. What is the difference between a Create ViewModel and an Edit ViewModel?](#q6-what-is-the-difference-between-a-create-viewmodel-and-an-edit-viewmodel)
+7. [Q7. What is the purpose of a read-only/details ViewModel?](#q7-what-is-the-purpose-of-a-read-onlydetails-viewmodel)
+8. [Q8. Why should sensitive fields (e.g., `IsAdmin`, internal margin) be excluded from ViewModels?](#q8-why-should-sensitive-fields-eg-isadmin-internal-margin-be-excluded-from-viewmodels)
+9. [Q9. What is the difference between mapping in the controller vs using AutoMapper?](#q9-what-is-the-difference-between-mapping-in-the-controller-vs-using-automapper)
+10. [Q10. What problems occur when one DTO is shared between MVC views and REST APIs?](#q10-what-problems-occur-when-one-dto-is-shared-between-mvc-views-and-rest-apis)
+11. [Q11. How should navigation properties be handled in ViewModels for partial views?](#q11-how-should-navigation-properties-be-handled-in-viewmodels-for-partial-views)
+12. [Q12. Where should validation attributes be placed — entity or ViewModel?](#q12-where-should-validation-attributes-be-placed-entity-or-viewmodel)
+13. [Q13. What is the difference between presentation logic and business logic in ViewModels?](#q13-what-is-the-difference-between-presentation-logic-and-business-logic-in-viewmodels)
+14. [Q14. How do ViewModels help with unit testing controllers?](#q14-how-do-viewmodels-help-with-unit-testing-controllers)
+15. [Q15. What is a composite/page ViewModel and when might you split it?](#q15-what-is-a-compositepage-viewmodel-and-when-might-you-split-it)
+16. [Q16. Why can returning an entity to `PartialView` cause serialization errors?](#q16-why-can-returning-an-entity-to-partialview-cause-serialization-errors)
+17. [Q17. What is `[BindNever]` and when is it used on ViewModels?](#q17-what-is-bindnever-and-when-is-it-used-on-viewmodels)
+18. [Q18. How do nullable reference types affect ViewModel design?](#q18-how-do-nullable-reference-types-affect-viewmodel-design)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 05. ViewModels & Strongly Typed Views
-
-### Q1. What is a ViewModel in ASP.NET Core MVC? {#chapter-05-viewmodels-strongly-typed-views-q1}
+## Q1. What is a ViewModel in ASP.NET Core MVC?
 
 What is a ViewModel in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What is a ViewModel in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is the difference between a domain entity and a ViewModel? {#chapter-05-viewmodels-strongly-typed-views-q2}
+## Q2. What is the difference between a domain entity and a ViewModel?
 
 What is the difference between a domain entity and a ViewModel?
 
@@ -55,7 +50,7 @@ What is the difference between a domain entity and a ViewModel?
 
 ---
 
-### Q3. What is a strongly typed view? {#chapter-05-viewmodels-strongly-typed-views-q3}
+## Q3. What is a strongly typed view?
 
 What is a strongly typed view?
 
@@ -68,7 +63,7 @@ What is a strongly typed view?
 
 ---
 
-### Q4. Why should you not pass EF entities directly to Razor views? {#chapter-05-viewmodels-strongly-typed-views-q4}
+## Q4. Why should you not pass EF entities directly to Razor views?
 
 Why should you not pass EF entities directly to Razor views?
 
@@ -81,7 +76,7 @@ Why should you not pass EF entities directly to Razor views?
 
 ---
 
-### Q5. What is over-posting (mass assignment) and how do ViewModels prevent it? {#chapter-05-viewmodels-strongly-typed-views-q5}
+## Q5. What is over-posting (mass assignment) and how do ViewModels prevent it?
 
 What is over-posting (mass assignment) and how do ViewModels prevent it?
 
@@ -94,7 +89,7 @@ What is over-posting (mass assignment) and how do ViewModels prevent it?
 
 ---
 
-### Q6. What is the difference between a Create ViewModel and an Edit ViewModel? {#chapter-05-viewmodels-strongly-typed-views-q6}
+## Q6. What is the difference between a Create ViewModel and an Edit ViewModel?
 
 What is the difference between a Create ViewModel and an Edit ViewModel?
 
@@ -107,7 +102,7 @@ What is the difference between a Create ViewModel and an Edit ViewModel?
 
 ---
 
-### Q7. What is the purpose of a read-only/details ViewModel? {#chapter-05-viewmodels-strongly-typed-views-q7}
+## Q7. What is the purpose of a read-only/details ViewModel?
 
 What is the purpose of a read-only/details ViewModel?
 
@@ -120,7 +115,7 @@ What is the purpose of a read-only/details ViewModel?
 
 ---
 
-### Q8. Why should sensitive fields (e.g., `IsAdmin`, internal margin) be excluded from ViewModels? {#chapter-05-viewmodels-strongly-typed-views-q8}
+## Q8. Why should sensitive fields (e.g., `IsAdmin`, internal margin) be excluded from ViewModels?
 
 Why should sensitive fields (e.g., `IsAdmin`, internal margin) be excluded from ViewModels?
 
@@ -133,7 +128,7 @@ Why should sensitive fields (e.g., `IsAdmin`, internal margin) be excluded from 
 
 ---
 
-### Q9. What is the difference between mapping in the controller vs using AutoMapper? {#chapter-05-viewmodels-strongly-typed-views-q9}
+## Q9. What is the difference between mapping in the controller vs using AutoMapper?
 
 What is the difference between mapping in the controller vs using AutoMapper?
 
@@ -146,7 +141,7 @@ What is the difference between mapping in the controller vs using AutoMapper?
 
 ---
 
-### Q10. What problems occur when one DTO is shared between MVC views and REST APIs? {#chapter-05-viewmodels-strongly-typed-views-q10}
+## Q10. What problems occur when one DTO is shared between MVC views and REST APIs?
 
 What problems occur when one DTO is shared between MVC views and REST APIs?
 
@@ -159,7 +154,7 @@ What problems occur when one DTO is shared between MVC views and REST APIs?
 
 ---
 
-### Q11. How should navigation properties be handled in ViewModels for partial views? {#chapter-05-viewmodels-strongly-typed-views-q11}
+## Q11. How should navigation properties be handled in ViewModels for partial views?
 
 How should navigation properties be handled in ViewModels for partial views?
 
@@ -172,7 +167,7 @@ How should navigation properties be handled in ViewModels for partial views?
 
 ---
 
-### Q12. Where should validation attributes be placed — entity or ViewModel? {#chapter-05-viewmodels-strongly-typed-views-q12}
+## Q12. Where should validation attributes be placed — entity or ViewModel?
 
 Where should validation attributes be placed — entity or ViewModel?
 
@@ -185,7 +180,7 @@ Where should validation attributes be placed — entity or ViewModel?
 
 ---
 
-### Q13. What is the difference between presentation logic and business logic in ViewModels? {#chapter-05-viewmodels-strongly-typed-views-q13}
+## Q13. What is the difference between presentation logic and business logic in ViewModels?
 
 What is the difference between presentation logic and business logic in ViewModels?
 
@@ -198,7 +193,7 @@ What is the difference between presentation logic and business logic in ViewMode
 
 ---
 
-### Q14. How do ViewModels help with unit testing controllers? {#chapter-05-viewmodels-strongly-typed-views-q14}
+## Q14. How do ViewModels help with unit testing controllers?
 
 How do ViewModels help with unit testing controllers?
 
@@ -211,7 +206,7 @@ How do ViewModels help with unit testing controllers?
 
 ---
 
-### Q15. What is a composite/page ViewModel and when might you split it? {#chapter-05-viewmodels-strongly-typed-views-q15}
+## Q15. What is a composite/page ViewModel and when might you split it?
 
 What is a composite/page ViewModel and when might you split it?
 
@@ -224,7 +219,7 @@ What is a composite/page ViewModel and when might you split it?
 
 ---
 
-### Q16. Why can returning an entity to `PartialView` cause serialization errors? {#chapter-05-viewmodels-strongly-typed-views-q16}
+## Q16. Why can returning an entity to `PartialView` cause serialization errors?
 
 Why can returning an entity to `PartialView` cause serialization errors?
 
@@ -237,7 +232,7 @@ Why can returning an entity to `PartialView` cause serialization errors?
 
 ---
 
-### Q17. What is `[BindNever]` and when is it used on ViewModels? {#chapter-05-viewmodels-strongly-typed-views-q17}
+## Q17. What is `[BindNever]` and when is it used on ViewModels?
 
 What is `[BindNever]` and when is it used on ViewModels?
 
@@ -250,7 +245,7 @@ What is `[BindNever]` and when is it used on ViewModels?
 
 ---
 
-### Q18. How do nullable reference types affect ViewModel design? {#chapter-05-viewmodels-strongly-typed-views-q18}
+## Q18. How do nullable reference types affect ViewModel design?
 
 How do nullable reference types affect ViewModel design?
 

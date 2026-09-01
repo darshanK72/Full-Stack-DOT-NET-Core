@@ -1,35 +1,30 @@
 # Middleware Pipeline — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 03. Middleware Pipeline](#chapter-03-middleware-pipeline)
-  - [Q1. What is middleware in ASP.NET Core?](#chapter-03-middleware-pipeline-q1)
-  - [Q2. How does the middleware pipeline process an HTTP request?](#chapter-03-middleware-pipeline-q2)
-  - [Q3. What is a `RequestDelegate`?](#chapter-03-middleware-pipeline-q3)
-  - [Q4. What does calling `_next(context)` do in custom middleware?](#chapter-03-middleware-pipeline-q4)
-  - [Q5. What happens when middleware returns without calling `_next`…](#chapter-03-middleware-pipeline-q5)
-  - [Q6. Why does middleware order matter?](#chapter-03-middleware-pipeline-q6)
-  - [Q7. What is the recommended order for routing, authentication, a…](#chapter-03-middleware-pipeline-q7)
-  - [Q8. What is the difference between `Use`, `Run`, and `Map`?](#chapter-03-middleware-pipeline-q8)
-  - [Q9. What does `Map("/path", ...)` do to the pipeline?](#chapter-03-middleware-pipeline-q9)
-  - [Q10. What is `MapWhen`, and when would you use it?](#chapter-03-middleware-pipeline-q10)
-  - [Q11. How do you register custom middleware in `Program.cs`?](#chapter-03-middleware-pipeline-q11)
-  - [Q12. What is the difference between middleware and MVC filters?](#chapter-03-middleware-pipeline-q12)
-  - [Q13. Where should exception-handling middleware be placed in the …](#chapter-03-middleware-pipeline-q13)
-  - [Q14. What is `UseForwardedHeaders`, and why must it run early?](#chapter-03-middleware-pipeline-q14)
-  - [Q15. What is built-in rate limiting middleware, and where does it…](#chapter-03-middleware-pipeline-q15)
-  - [Q16. What does "short-circuiting the pipeline" mean?](#chapter-03-middleware-pipeline-q16)
-  - [Q17. How does middleware differ from an endpoint filter?](#chapter-03-middleware-pipeline-q17)
-  - [Q18. Can middleware access DI-registered services? How?](#chapter-03-middleware-pipeline-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is middleware in ASP.NET Core?](#q1-what-is-middleware-in-aspnet-core)
+2. [Q2. How does the middleware pipeline process an HTTP request?](#q2-how-does-the-middleware-pipeline-process-an-http-request)
+3. [Q3. What is a `RequestDelegate`?](#q3-what-is-a-requestdelegate)
+4. [Q4. What does calling `_next(context)` do in custom middleware?](#q4-what-does-calling-_nextcontext-do-in-custom-middleware)
+5. [Q5. What happens when middleware returns without calling `_next`?](#q5-what-happens-when-middleware-returns-without-calling-_next)
+6. [Q6. Why does middleware order matter?](#q6-why-does-middleware-order-matter)
+7. [Q7. What is the recommended order for routing, authentication, and authorization middleware?](#q7-what-is-the-recommended-order-for-routing-authentication-and-authorization-middleware)
+8. [Q8. What is the difference between `Use`, `Run`, and `Map`?](#q8-what-is-the-difference-between-use-run-and-map)
+9. [Q9. What does `Map("/path", ...)` do to the pipeline?](#q9-what-does-mappath-do-to-the-pipeline)
+10. [Q10. What is `MapWhen`, and when would you use it?](#q10-what-is-mapwhen-and-when-would-you-use-it)
+11. [Q11. How do you register custom middleware in `Program.cs`?](#q11-how-do-you-register-custom-middleware-in-programcs)
+12. [Q12. What is the difference between middleware and MVC filters?](#q12-what-is-the-difference-between-middleware-and-mvc-filters)
+13. [Q13. Where should exception-handling middleware be placed in the pipeline?](#q13-where-should-exception-handling-middleware-be-placed-in-the-pipeline)
+14. [Q14. What is `UseForwardedHeaders`, and why must it run early?](#q14-what-is-useforwardedheaders-and-why-must-it-run-early)
+15. [Q15. What is built-in rate limiting middleware, and where does it belong in the pipeline?](#q15-what-is-built-in-rate-limiting-middleware-and-where-does-it-belong-in-the-pipeline)
+16. [Q16. What does "short-circuiting the pipeline" mean?](#q16-what-does-short-circuiting-the-pipeline-mean)
+17. [Q17. How does middleware differ from an endpoint filter?](#q17-how-does-middleware-differ-from-an-endpoint-filter)
+18. [Q18. Can middleware access DI-registered services? How?](#q18-can-middleware-access-di-registered-services-how)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 03. Middleware Pipeline
-
-### Q1. What is middleware in ASP.NET Core? {#chapter-03-middleware-pipeline-q1}
+## Q1. What is middleware in ASP.NET Core?
 
 What is middleware in ASP.NET Core?
 
@@ -42,7 +37,7 @@ What is middleware in ASP.NET Core?
 
 ---
 
-### Q2. How does the middleware pipeline process an HTTP request? {#chapter-03-middleware-pipeline-q2}
+## Q2. How does the middleware pipeline process an HTTP request?
 
 How does the middleware pipeline process an HTTP request?
 
@@ -55,7 +50,7 @@ How does the middleware pipeline process an HTTP request?
 
 ---
 
-### Q3. What is a `RequestDelegate`? {#chapter-03-middleware-pipeline-q3}
+## Q3. What is a `RequestDelegate`?
 
 What is a `RequestDelegate`?
 
@@ -68,7 +63,7 @@ What is a `RequestDelegate`?
 
 ---
 
-### Q4. What does calling `_next(context)` do in custom middleware? {#chapter-03-middleware-pipeline-q4}
+## Q4. What does calling `_next(context)` do in custom middleware?
 
 What does calling `_next(context)` do in custom middleware?
 
@@ -81,7 +76,7 @@ What does calling `_next(context)` do in custom middleware?
 
 ---
 
-### Q5. What happens when middleware returns without calling `_next`? {#chapter-03-middleware-pipeline-q5}
+## Q5. What happens when middleware returns without calling `_next`?
 
 What happens when middleware returns without calling `_next`?
 
@@ -94,7 +89,7 @@ What happens when middleware returns without calling `_next`?
 
 ---
 
-### Q6. Why does middleware order matter? {#chapter-03-middleware-pipeline-q6}
+## Q6. Why does middleware order matter?
 
 Why does middleware order matter?
 
@@ -107,7 +102,7 @@ Why does middleware order matter?
 
 ---
 
-### Q7. What is the recommended order for routing, authentication, and authorization middleware? {#chapter-03-middleware-pipeline-q7}
+## Q7. What is the recommended order for routing, authentication, and authorization middleware?
 
 What is the recommended order for routing, authentication, and authorization middleware?
 
@@ -120,7 +115,7 @@ What is the recommended order for routing, authentication, and authorization mid
 
 ---
 
-### Q8. What is the difference between `Use`, `Run`, and `Map`? {#chapter-03-middleware-pipeline-q8}
+## Q8. What is the difference between `Use`, `Run`, and `Map`?
 
 What is the difference between `Use`, `Run`, and `Map`?
 
@@ -133,7 +128,7 @@ What is the difference between `Use`, `Run`, and `Map`?
 
 ---
 
-### Q9. What does `Map("/path", ...)` do to the pipeline? {#chapter-03-middleware-pipeline-q9}
+## Q9. What does `Map("/path", ...)` do to the pipeline?
 
 What does `Map("/path", ...)` do to the pipeline?
 
@@ -146,7 +141,7 @@ What does `Map("/path", ...)` do to the pipeline?
 
 ---
 
-### Q10. What is `MapWhen`, and when would you use it? {#chapter-03-middleware-pipeline-q10}
+## Q10. What is `MapWhen`, and when would you use it?
 
 What is `MapWhen`, and when would you use it?
 
@@ -159,7 +154,7 @@ What is `MapWhen`, and when would you use it?
 
 ---
 
-### Q11. How do you register custom middleware in `Program.cs`? {#chapter-03-middleware-pipeline-q11}
+## Q11. How do you register custom middleware in `Program.cs`?
 
 How do you register custom middleware in `Program.cs`?
 
@@ -172,7 +167,7 @@ How do you register custom middleware in `Program.cs`?
 
 ---
 
-### Q12. What is the difference between middleware and MVC filters? {#chapter-03-middleware-pipeline-q12}
+## Q12. What is the difference between middleware and MVC filters?
 
 What is the difference between middleware and MVC filters?
 
@@ -185,7 +180,7 @@ What is the difference between middleware and MVC filters?
 
 ---
 
-### Q13. Where should exception-handling middleware be placed in the pipeline? {#chapter-03-middleware-pipeline-q13}
+## Q13. Where should exception-handling middleware be placed in the pipeline?
 
 Where should exception-handling middleware be placed in the pipeline?
 
@@ -198,7 +193,7 @@ Where should exception-handling middleware be placed in the pipeline?
 
 ---
 
-### Q14. What is `UseForwardedHeaders`, and why must it run early? {#chapter-03-middleware-pipeline-q14}
+## Q14. What is `UseForwardedHeaders`, and why must it run early?
 
 What is `UseForwardedHeaders`, and why must it run early?
 
@@ -211,7 +206,7 @@ What is `UseForwardedHeaders`, and why must it run early?
 
 ---
 
-### Q15. What is built-in rate limiting middleware, and where does it belong in the pipeline? {#chapter-03-middleware-pipeline-q15}
+## Q15. What is built-in rate limiting middleware, and where does it belong in the pipeline?
 
 What is built-in rate limiting middleware, and where does it belong in the pipeline?
 
@@ -224,7 +219,7 @@ What is built-in rate limiting middleware, and where does it belong in the pipel
 
 ---
 
-### Q16. What does "short-circuiting the pipeline" mean? {#chapter-03-middleware-pipeline-q16}
+## Q16. What does "short-circuiting the pipeline" mean?
 
 What does "short-circuiting the pipeline" mean?
 
@@ -237,7 +232,7 @@ What does "short-circuiting the pipeline" mean?
 
 ---
 
-### Q17. How does middleware differ from an endpoint filter? {#chapter-03-middleware-pipeline-q17}
+## Q17. How does middleware differ from an endpoint filter?
 
 How does middleware differ from an endpoint filter?
 
@@ -250,7 +245,7 @@ How does middleware differ from an endpoint filter?
 
 ---
 
-### Q18. Can middleware access DI-registered services? How? {#chapter-03-middleware-pipeline-q18}
+## Q18. Can middleware access DI-registered services? How?
 
 Can middleware access DI-registered services? How?
 

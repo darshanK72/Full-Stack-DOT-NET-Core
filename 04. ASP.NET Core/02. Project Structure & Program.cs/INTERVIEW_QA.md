@@ -1,35 +1,30 @@
 # Project Structure & Program.cs — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 02. Project Structure & Program.cs](#chapter-02-project-structure-programcs)
-  - [Q1. What is the purpose of `Program.cs` in an ASP.NET Core appli…](#chapter-02-project-structure-programcs-q1)
-  - [Q2. What is the difference between the `builder` phase and the `…](#chapter-02-project-structure-programcs-q2)
-  - [Q3. What does `WebApplication.CreateBuilder(args)` return and co…](#chapter-02-project-structure-programcs-q3)
-  - [Q4. What happens when you call `builder.Build()`?](#chapter-02-project-structure-programcs-q4)
-  - [Q5. What happens when you call `app.Run()`?](#chapter-02-project-structure-programcs-q5)
-  - [Q6. What is `launchSettings.json`, and does it apply in producti…](#chapter-02-project-structure-programcs-q6)
-  - [Q7. How does ASP.NET Core load `appsettings.json` and environmen…](#chapter-02-project-structure-programcs-q7)
-  - [Q8. What is the default configuration provider precedence order?](#chapter-02-project-structure-programcs-q8)
-  - [Q9. What is the difference between registering services and regi…](#chapter-02-project-structure-programcs-q9)
-  - [Q10. Why must `MapControllers()` or `MapGet()` be called for endp…](#chapter-02-project-structure-programcs-q10)
-  - [Q11. What is `ASPNETCORE_URLS`, and how does it relate to Kestrel…](#chapter-02-project-structure-programcs-q11)
-  - [Q12. What is the purpose of `Properties/launchSettings.json` prof…](#chapter-02-project-structure-programcs-q12)
-  - [Q13. How do you organize a growing `Program.cs` without losing cl…](#chapter-02-project-structure-programcs-q13)
-  - [Q14. What is the difference between `Startup.cs` and putting ever…](#chapter-02-project-structure-programcs-q14)
-  - [Q15. When do misconfigured DI registrations typically surface — a…](#chapter-02-project-structure-programcs-q15)
-  - [Q16. What is the `WebApplication` type?](#chapter-02-project-structure-programcs-q16)
-  - [Q17. How does `builder.Environment` differ from reading config ma…](#chapter-02-project-structure-programcs-q17)
-  - [Q18. What files are typically part of a new ASP.NET Core Web API …](#chapter-02-project-structure-programcs-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is the purpose of `Program.cs` in an ASP.NET Core application?](#q1-what-is-the-purpose-of-programcs-in-an-aspnet-core-application)
+2. [Q2. What is the difference between the `builder` phase and the `app` phase in `Program.cs`?](#q2-what-is-the-difference-between-the-builder-phase-and-the-app-phase-in-programcs)
+3. [Q3. What does `WebApplication.CreateBuilder(args)` return and configure?](#q3-what-does-webapplicationcreatebuilderargs-return-and-configure)
+4. [Q4. What happens when you call `builder.Build()`?](#q4-what-happens-when-you-call-builderbuild)
+5. [Q5. What happens when you call `app.Run()`?](#q5-what-happens-when-you-call-apprun)
+6. [Q6. What is `launchSettings.json`, and does it apply in production?](#q6-what-is-launchsettingsjson-and-does-it-apply-in-production)
+7. [Q7. How does ASP.NET Core load `appsettings.json` and environment-specific overrides?](#q7-how-does-aspnet-core-load-appsettingsjson-and-environment-specific-overrides)
+8. [Q8. What is the default configuration provider precedence order?](#q8-what-is-the-default-configuration-provider-precedence-order)
+9. [Q9. What is the difference between registering services and registering middleware?](#q9-what-is-the-difference-between-registering-services-and-registering-middleware)
+10. [Q10. Why must `MapControllers()` or `MapGet()` be called for endpoints to work?](#q10-why-must-mapcontrollers-or-mapget-be-called-for-endpoints-to-work)
+11. [Q11. What is `ASPNETCORE_URLS`, and how does it relate to Kestrel binding?](#q11-what-is-aspnetcore_urls-and-how-does-it-relate-to-kestrel-binding)
+12. [Q12. What is the purpose of `Properties/launchSettings.json` profiles?](#q12-what-is-the-purpose-of-propertieslaunchsettingsjson-profiles)
+13. [Q13. How do you organize a growing `Program.cs` without losing clarity?](#q13-how-do-you-organize-a-growing-programcs-without-losing-clarity)
+14. [Q14. What is the difference between `Startup.cs` and putting everything in `Program.cs`?](#q14-what-is-the-difference-between-startupcs-and-putting-everything-in-programcs)
+15. [Q15. When do misconfigured DI registrations typically surface — at build, startup, or first request?](#q15-when-do-misconfigured-di-registrations-typically-surface-at-build-startup-or-first-request)
+16. [Q16. What is the `WebApplication` type?](#q16-what-is-the-webapplication-type)
+17. [Q17. How does `builder.Environment` differ from reading config manually?](#q17-how-does-builderenvironment-differ-from-reading-config-manually)
+18. [Q18. What files are typically part of a new ASP.NET Core Web API project structure?](#q18-what-files-are-typically-part-of-a-new-aspnet-core-web-api-project-structure)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 02. Project Structure & Program.cs
-
-### Q1. What is the purpose of `Program.cs` in an ASP.NET Core application? {#chapter-02-project-structure-programcs-q1}
+## Q1. What is the purpose of `Program.cs` in an ASP.NET Core application?
 
 What is the purpose of `Program.cs` in an ASP.NET Core application?
 
@@ -42,7 +37,7 @@ What is the purpose of `Program.cs` in an ASP.NET Core application?
 
 ---
 
-### Q2. What is the difference between the `builder` phase and the `app` phase in `Program.cs`? {#chapter-02-project-structure-programcs-q2}
+## Q2. What is the difference between the `builder` phase and the `app` phase in `Program.cs`?
 
 What is the difference between the `builder` phase and the `app` phase in `Program.cs`?
 
@@ -55,7 +50,7 @@ What is the difference between the `builder` phase and the `app` phase in `Progr
 
 ---
 
-### Q3. What does `WebApplication.CreateBuilder(args)` return and configure? {#chapter-02-project-structure-programcs-q3}
+## Q3. What does `WebApplication.CreateBuilder(args)` return and configure?
 
 What does `WebApplication.CreateBuilder(args)` return and configure?
 
@@ -68,7 +63,7 @@ What does `WebApplication.CreateBuilder(args)` return and configure?
 
 ---
 
-### Q4. What happens when you call `builder.Build()`? {#chapter-02-project-structure-programcs-q4}
+## Q4. What happens when you call `builder.Build()`?
 
 What happens when you call `builder.Build()`?
 
@@ -81,7 +76,7 @@ What happens when you call `builder.Build()`?
 
 ---
 
-### Q5. What happens when you call `app.Run()`? {#chapter-02-project-structure-programcs-q5}
+## Q5. What happens when you call `app.Run()`?
 
 What happens when you call `app.Run()`?
 
@@ -94,7 +89,7 @@ What happens when you call `app.Run()`?
 
 ---
 
-### Q6. What is `launchSettings.json`, and does it apply in production? {#chapter-02-project-structure-programcs-q6}
+## Q6. What is `launchSettings.json`, and does it apply in production?
 
 What is `launchSettings.json`, and does it apply in production?
 
@@ -107,7 +102,7 @@ What is `launchSettings.json`, and does it apply in production?
 
 ---
 
-### Q7. How does ASP.NET Core load `appsettings.json` and environment-specific overrides? {#chapter-02-project-structure-programcs-q7}
+## Q7. How does ASP.NET Core load `appsettings.json` and environment-specific overrides?
 
 How does ASP.NET Core load `appsettings.json` and environment-specific overrides?
 
@@ -120,7 +115,7 @@ How does ASP.NET Core load `appsettings.json` and environment-specific overrides
 
 ---
 
-### Q8. What is the default configuration provider precedence order? {#chapter-02-project-structure-programcs-q8}
+## Q8. What is the default configuration provider precedence order?
 
 What is the default configuration provider precedence order?
 
@@ -133,7 +128,7 @@ What is the default configuration provider precedence order?
 
 ---
 
-### Q9. What is the difference between registering services and registering middleware? {#chapter-02-project-structure-programcs-q9}
+## Q9. What is the difference between registering services and registering middleware?
 
 What is the difference between registering services and registering middleware?
 
@@ -146,7 +141,7 @@ What is the difference between registering services and registering middleware?
 
 ---
 
-### Q10. Why must `MapControllers()` or `MapGet()` be called for endpoints to work? {#chapter-02-project-structure-programcs-q10}
+## Q10. Why must `MapControllers()` or `MapGet()` be called for endpoints to work?
 
 Why must `MapControllers()` or `MapGet()` be called for endpoints to work?
 
@@ -159,7 +154,7 @@ Why must `MapControllers()` or `MapGet()` be called for endpoints to work?
 
 ---
 
-### Q11. What is `ASPNETCORE_URLS`, and how does it relate to Kestrel binding? {#chapter-02-project-structure-programcs-q11}
+## Q11. What is `ASPNETCORE_URLS`, and how does it relate to Kestrel binding?
 
 What is `ASPNETCORE_URLS`, and how does it relate to Kestrel binding?
 
@@ -172,7 +167,7 @@ What is `ASPNETCORE_URLS`, and how does it relate to Kestrel binding?
 
 ---
 
-### Q12. What is the purpose of `Properties/launchSettings.json` profiles? {#chapter-02-project-structure-programcs-q12}
+## Q12. What is the purpose of `Properties/launchSettings.json` profiles?
 
 What is the purpose of `Properties/launchSettings.json` profiles?
 
@@ -185,7 +180,7 @@ What is the purpose of `Properties/launchSettings.json` profiles?
 
 ---
 
-### Q13. How do you organize a growing `Program.cs` without losing clarity? {#chapter-02-project-structure-programcs-q13}
+## Q13. How do you organize a growing `Program.cs` without losing clarity?
 
 How do you organize a growing `Program.cs` without losing clarity?
 
@@ -198,7 +193,7 @@ How do you organize a growing `Program.cs` without losing clarity?
 
 ---
 
-### Q14. What is the difference between `Startup.cs` and putting everything in `Program.cs`? {#chapter-02-project-structure-programcs-q14}
+## Q14. What is the difference between `Startup.cs` and putting everything in `Program.cs`?
 
 What is the difference between `Startup.cs` and putting everything in `Program.cs`?
 
@@ -211,7 +206,7 @@ What is the difference between `Startup.cs` and putting everything in `Program.c
 
 ---
 
-### Q15. When do misconfigured DI registrations typically surface — at build, startup, or first request? {#chapter-02-project-structure-programcs-q15}
+## Q15. When do misconfigured DI registrations typically surface — at build, startup, or first request?
 
 When do misconfigured DI registrations typically surface — at build, startup, or first request?
 
@@ -224,7 +219,7 @@ When do misconfigured DI registrations typically surface — at build, startup, 
 
 ---
 
-### Q16. What is the `WebApplication` type? {#chapter-02-project-structure-programcs-q16}
+## Q16. What is the `WebApplication` type?
 
 What is the `WebApplication` type?
 
@@ -237,7 +232,7 @@ What is the `WebApplication` type?
 
 ---
 
-### Q17. How does `builder.Environment` differ from reading config manually? {#chapter-02-project-structure-programcs-q17}
+## Q17. How does `builder.Environment` differ from reading config manually?
 
 How does `builder.Environment` differ from reading config manually?
 
@@ -250,7 +245,7 @@ How does `builder.Environment` differ from reading config manually?
 
 ---
 
-### Q18. What files are typically part of a new ASP.NET Core Web API project structure? {#chapter-02-project-structure-programcs-q18}
+## Q18. What files are typically part of a new ASP.NET Core Web API project structure?
 
 What files are typically part of a new ASP.NET Core Web API project structure?
 

@@ -1,35 +1,30 @@
 # Problem Details & Error Responses — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 09. Problem Details & Error Responses](#chapter-09-problem-details-error-responses)
-  - [Q1. What is RFC 7807 Problem Details?](#chapter-09-problem-details-error-responses-q1)
-  - [Q2. What is the `ProblemDetails` class in ASP.NET Core?](#chapter-09-problem-details-error-responses-q2)
-  - [Q3. What is `ValidationProblemDetails`?](#chapter-09-problem-details-error-responses-q3)
-  - [Q4. What is the difference between `ProblemDetails` and a custom…](#chapter-09-problem-details-error-responses-q4)
-  - [Q5. What HTTP status code does `[ApiController]` return for vali…](#chapter-09-problem-details-error-responses-q5)
-  - [Q6. What is centralized exception handling for Web APIs?](#chapter-09-problem-details-error-responses-q6)
-  - [Q7. What is `IExceptionHandler` in .NET 8?](#chapter-09-problem-details-error-responses-q7)
-  - [Q8. What should Production error responses exclude?](#chapter-09-problem-details-error-responses-q8)
-  - [Q9. What is the difference between 400 Bad Request and 404 Not F…](#chapter-09-problem-details-error-responses-q9)
-  - [Q10. When should an API return 409 Conflict?](#chapter-09-problem-details-error-responses-q10)
-  - [Q11. What is the `type` field in ProblemDetails?](#chapter-09-problem-details-error-responses-q11)
-  - [Q12. What is the `title` field in ProblemDetails?](#chapter-09-problem-details-error-responses-q12)
-  - [Q13. What is the `detail` field in ProblemDetails?](#chapter-09-problem-details-error-responses-q13)
-  - [Q14. What is the difference between Development and Production er…](#chapter-09-problem-details-error-responses-q14)
-  - [Q15. What is `AddProblemDetails()` used for?](#chapter-09-problem-details-error-responses-q15)
-  - [Q16. What is the `errors` dictionary in `ValidationProblemDetails…](#chapter-09-problem-details-error-responses-q16)
-  - [Q17. What is the difference between returning `NotFound()` and a …](#chapter-09-problem-details-error-responses-q17)
-  - [Q18. How do API clients reliably parse validation errors?](#chapter-09-problem-details-error-responses-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is RFC 7807 Problem Details?](#q1-what-is-rfc-7807-problem-details)
+2. [Q2. What is the `ProblemDetails` class in ASP.NET Core?](#q2-what-is-the-problemdetails-class-in-aspnet-core)
+3. [Q3. What is `ValidationProblemDetails`?](#q3-what-is-validationproblemdetails)
+4. [Q4. What is the difference between `ProblemDetails` and a custom `{ error: "..." }` object?](#q4-what-is-the-difference-between-problemdetails-and-a-custom-error-object)
+5. [Q5. What HTTP status code does `[ApiController]` return for validation failures?](#q5-what-http-status-code-does-apicontroller-return-for-validation-failures)
+6. [Q6. What is centralized exception handling for Web APIs?](#q6-what-is-centralized-exception-handling-for-web-apis)
+7. [Q7. What is `IExceptionHandler` in .NET 8?](#q7-what-is-iexceptionhandler-in-net-8)
+8. [Q8. What should Production error responses exclude?](#q8-what-should-production-error-responses-exclude)
+9. [Q9. What is the difference between 400 Bad Request and 404 Not Found for APIs?](#q9-what-is-the-difference-between-400-bad-request-and-404-not-found-for-apis)
+10. [Q10. When should an API return 409 Conflict?](#q10-when-should-an-api-return-409-conflict)
+11. [Q11. What is the `type` field in ProblemDetails?](#q11-what-is-the-type-field-in-problemdetails)
+12. [Q12. What is the `title` field in ProblemDetails?](#q12-what-is-the-title-field-in-problemdetails)
+13. [Q13. What is the `detail` field in ProblemDetails?](#q13-what-is-the-detail-field-in-problemdetails)
+14. [Q14. What is the difference between Development and Production error responses?](#q14-what-is-the-difference-between-development-and-production-error-responses)
+15. [Q15. What is `AddProblemDetails()` used for?](#q15-what-is-addproblemdetails-used-for)
+16. [Q16. What is the `errors` dictionary in `ValidationProblemDetails`?](#q16-what-is-the-errors-dictionary-in-validationproblemdetails)
+17. [Q17. What is the difference between returning `NotFound()` and a custom ProblemDetails for 404?](#q17-what-is-the-difference-between-returning-notfound-and-a-custom-problemdetails-for-404)
+18. [Q18. How do API clients reliably parse validation errors?](#q18-how-do-api-clients-reliably-parse-validation-errors)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 09. Problem Details & Error Responses
-
-### Q1. What is RFC 7807 Problem Details? {#chapter-09-problem-details-error-responses-q1}
+## Q1. What is RFC 7807 Problem Details?
 
 What is RFC 7807 Problem Details?
 
@@ -43,7 +38,7 @@ What is RFC 7807 Problem Details?
 
 ---
 
-### Q2. What is the `ProblemDetails` class in ASP.NET Core? {#chapter-09-problem-details-error-responses-q2}
+## Q2. What is the `ProblemDetails` class in ASP.NET Core?
 
 What is the `ProblemDetails` class in ASP.NET Core?
 
@@ -57,7 +52,7 @@ What is the `ProblemDetails` class in ASP.NET Core?
 
 ---
 
-### Q3. What is `ValidationProblemDetails`? {#chapter-09-problem-details-error-responses-q3}
+## Q3. What is `ValidationProblemDetails`?
 
 What is `ValidationProblemDetails`?
 
@@ -71,7 +66,7 @@ What is `ValidationProblemDetails`?
 
 ---
 
-### Q4. What is the difference between `ProblemDetails` and a custom `{ error: "..." }` object? {#chapter-09-problem-details-error-responses-q4}
+## Q4. What is the difference between `ProblemDetails` and a custom `{ error: "..." }` object?
 
 What is the difference between `ProblemDetails` and a custom `{ error: "..." }` object?
 
@@ -85,7 +80,7 @@ What is the difference between `ProblemDetails` and a custom `{ error: "..." }` 
 
 ---
 
-### Q5. What HTTP status code does `[ApiController]` return for validation failures? {#chapter-09-problem-details-error-responses-q5}
+## Q5. What HTTP status code does `[ApiController]` return for validation failures?
 
 What HTTP status code does `[ApiController]` return for validation failures?
 
@@ -99,7 +94,7 @@ What HTTP status code does `[ApiController]` return for validation failures?
 
 ---
 
-### Q6. What is centralized exception handling for Web APIs? {#chapter-09-problem-details-error-responses-q6}
+## Q6. What is centralized exception handling for Web APIs?
 
 What is centralized exception handling for Web APIs?
 
@@ -113,7 +108,7 @@ What is centralized exception handling for Web APIs?
 
 ---
 
-### Q7. What is `IExceptionHandler` in .NET 8? {#chapter-09-problem-details-error-responses-q7}
+## Q7. What is `IExceptionHandler` in .NET 8?
 
 What is `IExceptionHandler` in .NET 8?
 
@@ -127,7 +122,7 @@ What is `IExceptionHandler` in .NET 8?
 
 ---
 
-### Q8. What should Production error responses exclude? {#chapter-09-problem-details-error-responses-q8}
+## Q8. What should Production error responses exclude?
 
 What should Production error responses exclude?
 
@@ -141,7 +136,7 @@ What should Production error responses exclude?
 
 ---
 
-### Q9. What is the difference between 400 Bad Request and 404 Not Found for APIs? {#chapter-09-problem-details-error-responses-q9}
+## Q9. What is the difference between 400 Bad Request and 404 Not Found for APIs?
 
 What is the difference between 400 Bad Request and 404 Not Found for APIs?
 
@@ -155,7 +150,7 @@ What is the difference between 400 Bad Request and 404 Not Found for APIs?
 
 ---
 
-### Q10. When should an API return 409 Conflict? {#chapter-09-problem-details-error-responses-q10}
+## Q10. When should an API return 409 Conflict?
 
 When should an API return 409 Conflict?
 
@@ -169,7 +164,7 @@ When should an API return 409 Conflict?
 
 ---
 
-### Q11. What is the `type` field in ProblemDetails? {#chapter-09-problem-details-error-responses-q11}
+## Q11. What is the `type` field in ProblemDetails?
 
 What is the `type` field in ProblemDetails?
 
@@ -183,7 +178,7 @@ What is the `type` field in ProblemDetails?
 
 ---
 
-### Q12. What is the `title` field in ProblemDetails? {#chapter-09-problem-details-error-responses-q12}
+## Q12. What is the `title` field in ProblemDetails?
 
 What is the `title` field in ProblemDetails?
 
@@ -197,7 +192,7 @@ What is the `title` field in ProblemDetails?
 
 ---
 
-### Q13. What is the `detail` field in ProblemDetails? {#chapter-09-problem-details-error-responses-q13}
+## Q13. What is the `detail` field in ProblemDetails?
 
 What is the `detail` field in ProblemDetails?
 
@@ -211,7 +206,7 @@ What is the `detail` field in ProblemDetails?
 
 ---
 
-### Q14. What is the difference between Development and Production error responses? {#chapter-09-problem-details-error-responses-q14}
+## Q14. What is the difference between Development and Production error responses?
 
 What is the difference between Development and Production error responses?
 
@@ -225,7 +220,7 @@ What is the difference between Development and Production error responses?
 
 ---
 
-### Q15. What is `AddProblemDetails()` used for? {#chapter-09-problem-details-error-responses-q15}
+## Q15. What is `AddProblemDetails()` used for?
 
 What is `AddProblemDetails()` used for?
 
@@ -239,7 +234,7 @@ What is `AddProblemDetails()` used for?
 
 ---
 
-### Q16. What is the `errors` dictionary in `ValidationProblemDetails`? {#chapter-09-problem-details-error-responses-q16}
+## Q16. What is the `errors` dictionary in `ValidationProblemDetails`?
 
 What is the `errors` dictionary in `ValidationProblemDetails`?
 
@@ -253,7 +248,7 @@ What is the `errors` dictionary in `ValidationProblemDetails`?
 
 ---
 
-### Q17. What is the difference between returning `NotFound()` and a custom ProblemDetails for 404? {#chapter-09-problem-details-error-responses-q17}
+## Q17. What is the difference between returning `NotFound()` and a custom ProblemDetails for 404?
 
 What is the difference between returning `NotFound()` and a custom ProblemDetails for 404?
 
@@ -267,7 +262,7 @@ What is the difference between returning `NotFound()` and a custom ProblemDetail
 
 ---
 
-### Q18. How do API clients reliably parse validation errors? {#chapter-09-problem-details-error-responses-q18}
+## Q18. How do API clients reliably parse validation errors?
 
 How do API clients reliably parse validation errors?
 

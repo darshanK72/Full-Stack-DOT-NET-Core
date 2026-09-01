@@ -1,35 +1,30 @@
 # Action Filters in MVC — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 11. Action Filters in MVC](#chapter-11-action-filters-in-mvc)
-  - [Q1. What are action filters in ASP.NET Core MVC?](#chapter-11-action-filters-in-mvc-q1)
-  - [Q2. What is the MVC filter pipeline?](#chapter-11-action-filters-in-mvc-q2)
-  - [Q3. What are the filter stages (authorization, resource, action,…](#chapter-11-action-filters-in-mvc-q3)
-  - [Q4. What is the difference between action filters and middleware…](#chapter-11-action-filters-in-mvc-q4)
-  - [Q5. What are `IActionFilter` and `IAsyncActionFilter`?](#chapter-11-action-filters-in-mvc-q5)
-  - [Q6. What is `IAuthorizationFilter`?](#chapter-11-action-filters-in-mvc-q6)
-  - [Q7. What is `IExceptionFilter`?](#chapter-11-action-filters-in-mvc-q7)
-  - [Q8. What is `IResultFilter`?](#chapter-11-action-filters-in-mvc-q8)
-  - [Q9. What is `IResourceFilter`?](#chapter-11-action-filters-in-mvc-q9)
-  - [Q10. What is the difference between global, controller-level, and…](#chapter-11-action-filters-in-mvc-q10)
-  - [Q11. How does filter order (`IOrderedFilter`) work?](#chapter-11-action-filters-in-mvc-q11)
-  - [Q12. What is the difference between `[ServiceFilter]` and `[TypeF…](#chapter-11-action-filters-in-mvc-q12)
-  - [Q13. How do you register a global filter in `AddControllersWithVi…](#chapter-11-action-filters-in-mvc-q13)
-  - [Q14. What is `[ValidateAntiForgeryToken]` as a filter?](#chapter-11-action-filters-in-mvc-q14)
-  - [Q15. What is `[AutoValidateAntiforgeryToken]`?](#chapter-11-action-filters-in-mvc-q15)
-  - [Q16. What is `[IgnoreAntiforgeryToken]`?](#chapter-11-action-filters-in-mvc-q16)
-  - [Q17. What is `[Authorize]` as an authorization filter?](#chapter-11-action-filters-in-mvc-q17)
-  - [Q18. When should you use a filter instead of middleware for MVC-s…](#chapter-11-action-filters-in-mvc-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What are action filters in ASP.NET Core MVC?](#q1-what-are-action-filters-in-aspnet-core-mvc)
+2. [Q2. What is the MVC filter pipeline?](#q2-what-is-the-mvc-filter-pipeline)
+3. [Q3. What are the filter stages (authorization, resource, action, exception, result)?](#q3-what-are-the-filter-stages-authorization-resource-action-exception-result)
+4. [Q4. What is the difference between action filters and middleware?](#q4-what-is-the-difference-between-action-filters-and-middleware)
+5. [Q5. What are `IActionFilter` and `IAsyncActionFilter`?](#q5-what-are-iactionfilter-and-iasyncactionfilter)
+6. [Q6. What is `IAuthorizationFilter`?](#q6-what-is-iauthorizationfilter)
+7. [Q7. What is `IExceptionFilter`?](#q7-what-is-iexceptionfilter)
+8. [Q8. What is `IResultFilter`?](#q8-what-is-iresultfilter)
+9. [Q9. What is `IResourceFilter`?](#q9-what-is-iresourcefilter)
+10. [Q10. What is the difference between global, controller-level, and action-level filters?](#q10-what-is-the-difference-between-global-controller-level-and-action-level-filters)
+11. [Q11. How does filter order (`IOrderedFilter`) work?](#q11-how-does-filter-order-iorderedfilter-work)
+12. [Q12. What is the difference between `[ServiceFilter]` and `[TypeFilter]`?](#q12-what-is-the-difference-between-servicefilter-and-typefilter)
+13. [Q13. How do you register a global filter in `AddControllersWithViews`?](#q13-how-do-you-register-a-global-filter-in-addcontrollerswithviews)
+14. [Q14. What is `[ValidateAntiForgeryToken]` as a filter?](#q14-what-is-validateantiforgerytoken-as-a-filter)
+15. [Q15. What is `[AutoValidateAntiforgeryToken]`?](#q15-what-is-autovalidateantiforgerytoken)
+16. [Q16. What is `[IgnoreAntiforgeryToken]`?](#q16-what-is-ignoreantiforgerytoken)
+17. [Q17. What is `[Authorize]` as an authorization filter?](#q17-what-is-authorize-as-an-authorization-filter)
+18. [Q18. When should you use a filter instead of middleware for MVC-specific concerns?](#q18-when-should-you-use-a-filter-instead-of-middleware-for-mvc-specific-concerns)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 11. Action Filters in MVC
-
-### Q1. What are action filters in ASP.NET Core MVC? {#chapter-11-action-filters-in-mvc-q1}
+## Q1. What are action filters in ASP.NET Core MVC?
 
 What are action filters in ASP.NET Core MVC?
 
@@ -42,7 +37,7 @@ What are action filters in ASP.NET Core MVC?
 
 ---
 
-### Q2. What is the MVC filter pipeline? {#chapter-11-action-filters-in-mvc-q2}
+## Q2. What is the MVC filter pipeline?
 
 What is the MVC filter pipeline?
 
@@ -55,7 +50,7 @@ What is the MVC filter pipeline?
 
 ---
 
-### Q3. What are the filter stages (authorization, resource, action, exception, result)? {#chapter-11-action-filters-in-mvc-q3}
+## Q3. What are the filter stages (authorization, resource, action, exception, result)?
 
 What are the filter stages (authorization, resource, action, exception, result)?
 
@@ -69,7 +64,7 @@ What are the filter stages (authorization, resource, action, exception, result)?
 
 ---
 
-### Q4. What is the difference between action filters and middleware? {#chapter-11-action-filters-in-mvc-q4}
+## Q4. What is the difference between action filters and middleware?
 
 What is the difference between action filters and middleware?
 
@@ -82,7 +77,7 @@ What is the difference between action filters and middleware?
 
 ---
 
-### Q5. What are `IActionFilter` and `IAsyncActionFilter`? {#chapter-11-action-filters-in-mvc-q5}
+## Q5. What are `IActionFilter` and `IAsyncActionFilter`?
 
 What are `IActionFilter` and `IAsyncActionFilter`?
 
@@ -95,7 +90,7 @@ What are `IActionFilter` and `IAsyncActionFilter`?
 
 ---
 
-### Q6. What is `IAuthorizationFilter`? {#chapter-11-action-filters-in-mvc-q6}
+## Q6. What is `IAuthorizationFilter`?
 
 What is `IAuthorizationFilter`?
 
@@ -108,7 +103,7 @@ What is `IAuthorizationFilter`?
 
 ---
 
-### Q7. What is `IExceptionFilter`? {#chapter-11-action-filters-in-mvc-q7}
+## Q7. What is `IExceptionFilter`?
 
 What is `IExceptionFilter`?
 
@@ -121,7 +116,7 @@ What is `IExceptionFilter`?
 
 ---
 
-### Q8. What is `IResultFilter`? {#chapter-11-action-filters-in-mvc-q8}
+## Q8. What is `IResultFilter`?
 
 What is `IResultFilter`?
 
@@ -134,7 +129,7 @@ What is `IResultFilter`?
 
 ---
 
-### Q9. What is `IResourceFilter`? {#chapter-11-action-filters-in-mvc-q9}
+## Q9. What is `IResourceFilter`?
 
 What is `IResourceFilter`?
 
@@ -147,7 +142,7 @@ What is `IResourceFilter`?
 
 ---
 
-### Q10. What is the difference between global, controller-level, and action-level filters? {#chapter-11-action-filters-in-mvc-q10}
+## Q10. What is the difference between global, controller-level, and action-level filters?
 
 What is the difference between global, controller-level, and action-level filters?
 
@@ -160,7 +155,7 @@ What is the difference between global, controller-level, and action-level filter
 
 ---
 
-### Q11. How does filter order (`IOrderedFilter`) work? {#chapter-11-action-filters-in-mvc-q11}
+## Q11. How does filter order (`IOrderedFilter`) work?
 
 How does filter order (`IOrderedFilter`) work?
 
@@ -173,7 +168,7 @@ How does filter order (`IOrderedFilter`) work?
 
 ---
 
-### Q12. What is the difference between `[ServiceFilter]` and `[TypeFilter]`? {#chapter-11-action-filters-in-mvc-q12}
+## Q12. What is the difference between `[ServiceFilter]` and `[TypeFilter]`?
 
 What is the difference between `[ServiceFilter]` and `[TypeFilter]`?
 
@@ -186,7 +181,7 @@ What is the difference between `[ServiceFilter]` and `[TypeFilter]`?
 
 ---
 
-### Q13. How do you register a global filter in `AddControllersWithViews`? {#chapter-11-action-filters-in-mvc-q13}
+## Q13. How do you register a global filter in `AddControllersWithViews`?
 
 How do you register a global filter in `AddControllersWithViews`?
 
@@ -207,7 +202,7 @@ builder.Services.AddControllersWithViews(options =>
 
 ---
 
-### Q14. What is `[ValidateAntiForgeryToken]` as a filter? {#chapter-11-action-filters-in-mvc-q14}
+## Q14. What is `[ValidateAntiForgeryToken]` as a filter?
 
 What is `[ValidateAntiForgeryToken]` as a filter?
 
@@ -220,7 +215,7 @@ What is `[ValidateAntiForgeryToken]` as a filter?
 
 ---
 
-### Q15. What is `[AutoValidateAntiforgeryToken]`? {#chapter-11-action-filters-in-mvc-q15}
+## Q15. What is `[AutoValidateAntiforgeryToken]`?
 
 What is `[AutoValidateAntiforgeryToken]`?
 
@@ -233,7 +228,7 @@ What is `[AutoValidateAntiforgeryToken]`?
 
 ---
 
-### Q16. What is `[IgnoreAntiforgeryToken]`? {#chapter-11-action-filters-in-mvc-q16}
+## Q16. What is `[IgnoreAntiforgeryToken]`?
 
 What is `[IgnoreAntiforgeryToken]`?
 
@@ -246,7 +241,7 @@ What is `[IgnoreAntiforgeryToken]`?
 
 ---
 
-### Q17. What is `[Authorize]` as an authorization filter? {#chapter-11-action-filters-in-mvc-q17}
+## Q17. What is `[Authorize]` as an authorization filter?
 
 What is `[Authorize]` as an authorization filter?
 
@@ -259,7 +254,7 @@ What is `[Authorize]` as an authorization filter?
 
 ---
 
-### Q18. When should you use a filter instead of middleware for MVC-specific concerns? {#chapter-11-action-filters-in-mvc-q18}
+## Q18. When should you use a filter instead of middleware for MVC-specific concerns?
 
 When should you use a filter instead of middleware for MVC-specific concerns?
 

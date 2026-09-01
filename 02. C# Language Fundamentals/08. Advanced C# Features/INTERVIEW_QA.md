@@ -4,173 +4,234 @@
 ## Table of Contents
 
 - [01. Serialization & Deserialization](#01-serialization-deserialization)
-  - [Q1. What is serialization and deserialization, and what is an ob…](#01-serialization-deserialization-q1)
-  - [Q2. Does deserialization resurrect original object identity or c…](#01-serialization-deserialization-q2)
-  - [Q3. Compare JSON, XML, and binary as wire formats — trade-offs f…](#01-serialization-deserialization-q3)
-  - [Q4. Explain `System.Text.Json.JsonSerializer.Serialize` and `Des…](#01-serialization-deserialization-q4)
-  - [Q5. What is `JsonSerializerOptions`, and which settings affect n…](#01-serialization-deserialization-q5)
-  - [Q6. Why is creating a new `JsonSerializerOptions` on every call …](#01-serialization-deserialization-q6)
-  - [Q7. When should you use `JsonSerializerContext` source generator…](#01-serialization-deserialization-q7)
-  - [Q8. Explain `[JsonPropertyName]`, `[JsonIgnore]`, `[JsonInclude]…](#01-serialization-deserialization-q8)
-  - [Q9. What happens when JSON contains properties not present on th…](#01-serialization-deserialization-q9)
-  - [Q10. What happens when JSON is missing a property mapped to a non…](#01-serialization-deserialization-q10)
-  - [Q11. How do enums serialize by default in `System.Text.Json`, and…](#01-serialization-deserialization-q11)
-  - [Q12. How do you serialize enums as strings using `JsonStringEnumC…](#01-serialization-deserialization-q12)
-  - [Q13. How do you handle circular references in an object graph (`R…](#01-serialization-deserialization-q13)
-  - [Q14. Why does serializing `Animal pet = new Dog()` sometimes drop…](#01-serialization-deserialization-q14)
-  - [Q15. How do you enable polymorphic serialization in modern `Syste…](#01-serialization-deserialization-q15)
-  - [Q16. What is `JsonNode`, `JsonObject`, and `JsonArray`, and when …](#01-serialization-deserialization-q16)
-  - [Q17. How do you navigate and mutate JSON with `JsonNode` without …](#01-serialization-deserialization-q17)
-  - [Q18. What is a custom `JsonConverter<T>`, and when would you impl…](#01-serialization-deserialization-q18)
-  - [Q19. How do `Utf8JsonReader` and `Utf8JsonWriter` differ from `Js…](#01-serialization-deserialization-q19)
-  - [Q20. Explain `XmlSerializer` requirements (parameterless construc…](#01-serialization-deserialization-q20)
-  - [Q21. What do `[XmlRoot]`, `[XmlElement]`, `[XmlAttribute]`, and `…](#01-serialization-deserialization-q21)
-  - [Q22. Why can `XmlSerializer` fail at runtime even when the projec…](#01-serialization-deserialization-q22)
-  - [Q23. What is `[Serializable]` actually used for in modern .NET?](#01-serialization-deserialization-q23)
-  - [Q24. Explain `BinaryFormatter` — why is it obsolete, and what sec…](#01-serialization-deserialization-q24)
-  - [Q25. What are recommended modern alternatives to `BinaryFormatter…](#01-serialization-deserialization-q25)
-  - [Q26. How does `DateTime` with unspecified `Kind` behave across ti…](#01-serialization-deserialization-q26)
-  - [Q27. Why is `DateTimeOffset` often safer on the wire than `DateTi…](#01-serialization-deserialization-q27)
-  - [Q28. Can a type with only get-only properties serialize but fail …](#01-serialization-deserialization-q28)
-  - [Q29. How do `[JsonConstructor]` and parameterized constructors in…](#01-serialization-deserialization-q29)
-  - [Q30. What is the difference between `System.Text.Json` and `Newto…](#01-serialization-deserialization-q30)
+  - [Q1. What is serialization and deserialization, and what is an object graph?](#q1-what-is-serialization-and-deserialization-and-what-is-an-object-graph)
+  - [Q2. Does deserialization resurrect original object identity or create new instances?](#q2-does-deserialization-resurrect-original-object-identity-or-create-new-instances)
+  - [Q3. Compare JSON, XML, and binary as wire formats — trade-offs for APIs, config, and storage.](#q3-compare-json-xml-and-binary-as-wire-formats-trade-offs-for-apis-config-and-storage)
+  - [Q4. Explain `System.Text.Json.JsonSerializer.Serialize` and `Deserialize` for files and streams.](#q4-explain-systemtextjsonjsonserializerserialize-and-deserialize-for-files-and-streams)
+  - [Q5. What is `JsonSerializerOptions`, and which settings affect naming, indentation, and enum handling?](#q5-what-is-jsonserializeroptions-and-which-settings-affect-naming-indentation-and-enum-handling)
+  - [Q6. Why is creating a new `JsonSerializerOptions` on every call a performance problem?](#q6-why-is-creating-a-new-jsonserializeroptions-on-every-call-a-performance-problem)
+  - [Q7. When should you use `JsonSerializerContext` source generators vs reflection-based serialization?](#q7-when-should-you-use-jsonserializercontext-source-generators-vs-reflection-based-serialization)
+  - [Q8. Explain `[JsonPropertyName]`, `[JsonIgnore]`, `[JsonInclude]`, and `[JsonPropertyOrder]`.](#q8-explain-jsonpropertyname-jsonignore-jsoninclude-and-jsonpropertyorder)
+  - [Q9. What happens when JSON contains properties not present on the C# type (extra members)?](#q9-what-happens-when-json-contains-properties-not-present-on-the-c-type-extra-members)
+  - [Q10. What happens when JSON is missing a property mapped to a non-nullable reference type vs a value type?](#q10-what-happens-when-json-is-missing-a-property-mapped-to-a-non-nullable-reference-type-vs-a-value-type)
+  - [Q11. How do enums serialize by default in `System.Text.Json`, and what production risk does numeric enum wire format create?](#q11-how-do-enums-serialize-by-default-in-systemtextjson-and-what-production-risk-does-numeric-enum-wire-format-create)
+  - [Q12. How do you serialize enums as strings using `JsonStringEnumConverter`?](#q12-how-do-you-serialize-enums-as-strings-using-jsonstringenumconverter)
+  - [Q13. How do you handle circular references in an object graph (`ReferenceHandler.Preserve` / `IgnoreCycles`)?](#q13-how-do-you-handle-circular-references-in-an-object-graph-referencehandlerpreserve-ignorecycles)
+  - [Q14. Why does serializing `Animal pet = new Dog()` sometimes drop `Dog`-only properties?](#q14-why-does-serializing-animal-pet-new-dog-sometimes-drop-dog-only-properties)
+  - [Q15. How do you enable polymorphic serialization in modern `System.Text.Json`?](#q15-how-do-you-enable-polymorphic-serialization-in-modern-systemtextjson)
+  - [Q16. What is `JsonNode`, `JsonObject`, and `JsonArray`, and when prefer them over strongly typed models?](#q16-what-is-jsonnode-jsonobject-and-jsonarray-and-when-prefer-them-over-strongly-typed-models)
+  - [Q17. How do you navigate and mutate JSON with `JsonNode` without deserializing to a fixed class?](#q17-how-do-you-navigate-and-mutate-json-with-jsonnode-without-deserializing-to-a-fixed-class)
+  - [Q18. What is a custom `JsonConverter<T>`, and when would you implement `Read`/`Write` manually?](#q18-what-is-a-custom-jsonconvertert-and-when-would-you-implement-readwrite-manually)
+  - [Q19. How do `Utf8JsonReader` and `Utf8JsonWriter` differ from `JsonSerializer` helpers?](#q19-how-do-utf8jsonreader-and-utf8jsonwriter-differ-from-jsonserializer-helpers)
+  - [Q20. Explain `XmlSerializer` requirements (parameterless constructor, public read/write properties).](#q20-explain-xmlserializer-requirements-parameterless-constructor-public-readwrite-properties)
+  - [Q21. What do `[XmlRoot]`, `[XmlElement]`, `[XmlAttribute]`, and `[XmlIgnore]` control?](#q21-what-do-xmlroot-xmlelement-xmlattribute-and-xmlignore-control)
+  - [Q22. Why can `XmlSerializer` fail at runtime even when the project compiles?](#q22-why-can-xmlserializer-fail-at-runtime-even-when-the-project-compiles)
+  - [Q23. What is `[Serializable]` actually used for in modern .NET?](#q23-what-is-serializable-actually-used-for-in-modern-net)
+  - [Q24. Explain `BinaryFormatter` — why is it obsolete, and what security risks led to its removal?](#q24-explain-binaryformatter-why-is-it-obsolete-and-what-security-risks-led-to-its-removal)
+  - [Q25. What are recommended modern alternatives to `BinaryFormatter` for trusted internal persistence?](#q25-what-are-recommended-modern-alternatives-to-binaryformatter-for-trusted-internal-persistence)
+  - [Q26. How does `DateTime` with unspecified `Kind` behave across time zones during serialization?](#q26-how-does-datetime-with-unspecified-kind-behave-across-time-zones-during-serialization)
+  - [Q27. Why is `DateTimeOffset` often safer on the wire than `DateTime`?](#q27-why-is-datetimeoffset-often-safer-on-the-wire-than-datetime)
+  - [Q28. Can a type with only get-only properties serialize but fail to deserialize? Why?](#q28-can-a-type-with-only-get-only-properties-serialize-but-fail-to-deserialize-why)
+  - [Q29. How do `[JsonConstructor]` and parameterized constructors interact with deserialization?](#q29-how-do-jsonconstructor-and-parameterized-constructors-interact-with-deserialization)
+  - [Q30. What is the difference between `System.Text.Json` and `Newtonsoft.Json` feature sets (contract customization, references)?](#q30-what-is-the-difference-between-systemtextjson-and-newtonsoftjson-feature-sets-contract-customization-references)
 
 - [02. Reflection & Attributes](#02-reflection-attributes)
-  - [Q1. What is reflection in C#, and what problems does it solve?](#02-reflection-attributes-q1)
-  - [Q2. What is the difference between early binding and late bindin…](#02-reflection-attributes-q2)
-  - [Q3. Explain `typeof(T)` vs `obj.GetType()` — compile-time token …](#02-reflection-attributes-q3)
-  - [Q4. Why does `typeof(List<int>) == typeof(List<string>)` return …](#02-reflection-attributes-q4)
-  - [Q5. How do you obtain the generic type definition from a closed …](#02-reflection-attributes-q5)
-  - [Q6. What is the `Type` class, and what members expose metadata (…](#02-reflection-attributes-q6)
-  - [Q7. What is `BindingFlags`, and how do `Instance`, `Static`, `Pu…](#02-reflection-attributes-q7)
-  - [Q8. How do you enumerate properties, methods, fields, and constr…](#02-reflection-attributes-q8)
-  - [Q9. How do you invoke a method dynamically via `MethodInfo.Invok…](#02-reflection-attributes-q9)
-  - [Q10. What is `Activator.CreateInstance`, and how do you pass cons…](#02-reflection-attributes-q10)
-  - [Q11. How do you create generic types at runtime (`MakeGenericType…](#02-reflection-attributes-q11)
-  - [Q12. How do you get and set property and field values through `Pr…](#02-reflection-attributes-q12)
-  - [Q13. How can reflection access private members, and why is that a…](#02-reflection-attributes-q13)
-  - [Q14. Explain `Assembly`, `Module`, `MemberInfo`, `MethodInfo`, `P…](#02-reflection-attributes-q14)
-  - [Q15. What is the difference between `Assembly.Load`, `Assembly.Lo…](#02-reflection-attributes-q15)
-  - [Q16. Can you unload an assembly in .NET Framework vs .NET Core / …](#02-reflection-attributes-q16)
-  - [Q17. How do you discover and read custom attributes at runtime (`…](#02-reflection-attributes-q17)
-  - [Q18. How do you define and apply your own attribute classes (`Att…](#02-reflection-attributes-q18)
-  - [Q19. What are performance costs of reflection vs compiled code, a…](#02-reflection-attributes-q19)
-  - [Q20. What is `Reflection.Emit`, and when is dynamic IL generation…](#02-reflection-attributes-q20)
-  - [Q21. How does reflection interact with nullable reference type an…](#02-reflection-attributes-q21)
-  - [Q22. What security permissions historically gated reflection, and…](#02-reflection-attributes-q22)
+  - [Q1. What is reflection in C#, and what problems does it solve?](#q1-what-is-reflection-in-c-and-what-problems-does-it-solve)
+  - [Q2. What is the difference between early binding and late binding?](#q2-what-is-the-difference-between-early-binding-and-late-binding)
+  - [Q3. Explain `typeof(T)` vs `obj.GetType()` — compile-time token vs runtime type.](#q3-explain-typeoft-vs-objgettype-compile-time-token-vs-runtime-type)
+  - [Q4. Why does `typeof(List<int>) == typeof(List<string>)` return false?](#q4-why-does-typeoflistint-typeofliststring-return-false)
+  - [Q5. How do you obtain the generic type definition from a closed generic type?](#q5-how-do-you-obtain-the-generic-type-definition-from-a-closed-generic-type)
+  - [Q6. What is the `Type` class, and what members expose metadata (methods, properties, fields, attributes)?](#q6-what-is-the-type-class-and-what-members-expose-metadata-methods-properties-fields-attributes)
+  - [Q7. What is `BindingFlags`, and how do `Instance`, `Static`, `Public`, `NonPublic`, and `DeclaredOnly` combine?](#q7-what-is-bindingflags-and-how-do-instance-static-public-nonpublic-and-declaredonly-combine)
+  - [Q8. How do you enumerate properties, methods, fields, and constructors with reflection?](#q8-how-do-you-enumerate-properties-methods-fields-and-constructors-with-reflection)
+  - [Q9. How do you invoke a method dynamically via `MethodInfo.Invoke`?](#q9-how-do-you-invoke-a-method-dynamically-via-methodinfoinvoke)
+  - [Q10. What is `Activator.CreateInstance`, and how do you pass constructor arguments?](#q10-what-is-activatorcreateinstance-and-how-do-you-pass-constructor-arguments)
+  - [Q11. How do you create generic types at runtime (`MakeGenericType`) and invoke generic methods (`MakeGenericMethod`)?](#q11-how-do-you-create-generic-types-at-runtime-makegenerictype-and-invoke-generic-methods-makegenericmethod)
+  - [Q12. How do you get and set property and field values through `PropertyInfo` / `FieldInfo`?](#q12-how-do-you-get-and-set-property-and-field-values-through-propertyinfo-fieldinfo)
+  - [Q13. How can reflection access private members, and why is that a maintenance and security concern?](#q13-how-can-reflection-access-private-members-and-why-is-that-a-maintenance-and-security-concern)
+  - [Q14. Explain `Assembly`, `Module`, `MemberInfo`, `MethodInfo`, `PropertyInfo`, and `FieldInfo` relationships.](#q14-explain-assembly-module-memberinfo-methodinfo-propertyinfo-and-fieldinfo-relationships)
+  - [Q15. What is the difference between `Assembly.Load`, `Assembly.LoadFrom`, and `AssemblyLoadContext`?](#q15-what-is-the-difference-between-assemblyload-assemblyloadfrom-and-assemblyloadcontext)
+  - [Q16. Can you unload an assembly in .NET Framework vs .NET Core / .NET 5+?](#q16-can-you-unload-an-assembly-in-net-framework-vs-net-core-net-5)
+  - [Q17. How do you discover and read custom attributes at runtime (`GetCustomAttribute`, `IsDefined`)?](#q17-how-do-you-discover-and-read-custom-attributes-at-runtime-getcustomattribute-isdefined)
+  - [Q18. How do you define and apply your own attribute classes (`AttributeUsage`)?](#q18-how-do-you-define-and-apply-your-own-attribute-classes-attributeusage)
+  - [Q19. What are performance costs of reflection vs compiled code, and how do trimming/AOT affect it?](#q19-what-are-performance-costs-of-reflection-vs-compiled-code-and-how-do-trimmingaot-affect-it)
+  - [Q20. What is `Reflection.Emit`, and when is dynamic IL generation justified?](#q20-what-is-reflectionemit-and-when-is-dynamic-il-generation-justified)
+  - [Q21. How does reflection interact with nullable reference type annotations?](#q21-how-does-reflection-interact-with-nullable-reference-type-annotations)
+  - [Q22. What security permissions historically gated reflection, and what changed in modern .NET?](#q22-what-security-permissions-historically-gated-reflection-and-what-changed-in-modern-net)
 
 - [03. Regular Expressions](#03-regular-expressions)
-  - [Q1. What is the purpose of the `Regex` class in C#?](#03-regular-expressions-q1)
-  - [Q2. Explain `Regex.IsMatch`, `Match`, `Matches`, `Replace`, and …](#03-regular-expressions-q2)
-  - [Q3. What is the difference between verbatim regex strings (`@"\d…](#03-regular-expressions-q3)
-  - [Q4. What are common metacharacters candidates should know (`.`, …](#03-regular-expressions-q4)
-  - [Q5. What is catastrophic backtracking, and what pattern shapes t…](#03-regular-expressions-q5)
-  - [Q6. How do you mitigate ReDoS using `Regex.MatchTimeout` or the …](#03-regular-expressions-q6)
-  - [Q7. What happens when a regex times out — which exception is thr…](#03-regular-expressions-q7)
-  - [Q8. What is atomic grouping's role in preventing backtracking ex…](#03-regular-expressions-q8)
-  - [Q9. How does culture affect case-insensitive matching, and what …](#03-regular-expressions-q9)
-  - [Q10. When should you compile regexes with `RegexOptions.Compiled`…](#03-regular-expressions-q10)
-  - [Q11. What is `RegexOptions.NonBacktracking` (.NET 7+), and what t…](#03-regular-expressions-q11)
-  - [Q12. How do named capture groups work, and how do you read them f…](#03-regular-expressions-q12)
-  - [Q13. What is the difference between greedy and lazy quantifiers (…](#03-regular-expressions-q13)
-  - [Q14. When should you prefer `Regex` over simple `string.Contains`…](#03-regular-expressions-q14)
-  - [Q15. How do you validate input with regex without using it as a f…](#03-regular-expressions-q15)
+  - [Q1. What is the purpose of the `Regex` class in C#?](#q1-what-is-the-purpose-of-the-regex-class-in-c)
+  - [Q2. Explain `Regex.IsMatch`, `Match`, `Matches`, `Replace`, and `Split`.](#q2-explain-regexismatch-match-matches-replace-and-split)
+  - [Q3. What is the difference between verbatim regex strings (`@"\d+"`) and escaped regular strings?](#q3-what-is-the-difference-between-verbatim-regex-strings-d-and-escaped-regular-strings)
+  - [Q4. What are common metacharacters candidates should know (`.`, `*`, `+`, `?`, `^`, `$`, `\d`, `\w`, groups)?](#q4-what-are-common-metacharacters-candidates-should-know-d-w-groups)
+  - [Q5. What is catastrophic backtracking, and what pattern shapes trigger it?](#q5-what-is-catastrophic-backtracking-and-what-pattern-shapes-trigger-it)
+  - [Q6. How do you mitigate ReDoS using `Regex.MatchTimeout` or the `matchTimeout` parameter in .NET?](#q6-how-do-you-mitigate-redos-using-regexmatchtimeout-or-the-matchtimeout-parameter-in-net)
+  - [Q7. What happens when a regex times out — which exception is thrown?](#q7-what-happens-when-a-regex-times-out-which-exception-is-thrown)
+  - [Q8. What is atomic grouping's role in preventing backtracking explosions?](#q8-what-is-atomic-groupings-role-in-preventing-backtracking-explosions)
+  - [Q9. How does culture affect case-insensitive matching, and what does `RegexOptions.CultureInvariant` do?](#q9-how-does-culture-affect-case-insensitive-matching-and-what-does-regexoptionscultureinvariant-do)
+  - [Q10. When should you compile regexes with `RegexOptions.Compiled` (or source generators in .NET 7+)?](#q10-when-should-you-compile-regexes-with-regexoptionscompiled-or-source-generators-in-net-7)
+  - [Q11. What is `RegexOptions.NonBacktracking` (.NET 7+), and what trade-offs does it have?](#q11-what-is-regexoptionsnonbacktracking-net-7-and-what-trade-offs-does-it-have)
+  - [Q12. How do named capture groups work, and how do you read them from `Match.Groups`?](#q12-how-do-named-capture-groups-work-and-how-do-you-read-them-from-matchgroups)
+  - [Q13. What is the difference between greedy and lazy quantifiers (`+` vs `+?`)?](#q13-what-is-the-difference-between-greedy-and-lazy-quantifiers-vs)
+  - [Q14. When should you prefer `Regex` over simple `string.Contains` / `Split` for maintainability?](#q14-when-should-you-prefer-regex-over-simple-stringcontains-split-for-maintainability)
+  - [Q15. How do you validate input with regex without using it as a full parser (e.g., email, phone)?](#q15-how-do-you-validate-input-with-regex-without-using-it-as-a-full-parser-eg-email-phone)
 
 - [04. Var, Dynamic & Special Keywords](#04-var-dynamic-special-keywords)
-  - [Q1. Explain `var` — what is known at compile time vs runtime?](#04-var-dynamic-special-keywords-q1)
-  - [Q2. When is `var` required (anonymous types) vs merely convenien…](#04-var-dynamic-special-keywords-q2)
-  - [Q3. Explain the `dynamic` keyword and the DLR's role.](#04-var-dynamic-special-keywords-q3)
-  - [Q4. What is the difference between `var`, `dynamic`, and `object…](#04-var-dynamic-special-keywords-q4)
-  - [Q5. When does `dynamic` defer member binding to runtime, and wha…](#04-var-dynamic-special-keywords-q5)
-  - [Q6. What is `DynamicObject`, and when would you subclass it?](#04-var-dynamic-special-keywords-q6)
-  - [Q7. What is `ExpandoObject`, and how does it differ from `Dictio…](#04-var-dynamic-special-keywords-q7)
-  - [Q8. Explain `nameof` — how does it help refactoring and logging?](#04-var-dynamic-special-keywords-q8)
-  - [Q9. What is the `global::` qualifier, and when is it needed to d…](#04-var-dynamic-special-keywords-q9)
-  - [Q10. What is `default` literal (C# 7.1+) vs `default(T)`?](#04-var-dynamic-special-keywords-q10)
-  - [Q11. What is `@` verbatim identifier syntax (`@class`, `@event`) …](#04-var-dynamic-special-keywords-q11)
-  - [Q12. What is unsafe code, and when are pointers justified in C#?](#04-var-dynamic-special-keywords-q12)
-  - [Q13. What is `stackalloc`, and how does it relate to performance-…](#04-var-dynamic-special-keywords-q13)
-  - [Q14. What is `ref readonly` return, and how does it differ from r…](#04-var-dynamic-special-keywords-q14)
-  - [Q15. How does `dynamic` interact with extension methods (why don'…](#04-var-dynamic-special-keywords-q15)
+  - [Q1. Explain `var` — what is known at compile time vs runtime?](#q1-explain-var-what-is-known-at-compile-time-vs-runtime)
+  - [Q2. When is `var` required (anonymous types) vs merely convenient?](#q2-when-is-var-required-anonymous-types-vs-merely-convenient)
+  - [Q3. Explain the `dynamic` keyword and the DLR's role.](#q3-explain-the-dynamic-keyword-and-the-dlrs-role)
+  - [Q4. What is the difference between `var`, `dynamic`, and `object`?](#q4-what-is-the-difference-between-var-dynamic-and-object)
+  - [Q5. When does `dynamic` defer member binding to runtime, and what errors appear only then?](#q5-when-does-dynamic-defer-member-binding-to-runtime-and-what-errors-appear-only-then)
+  - [Q6. What is `DynamicObject`, and when would you subclass it?](#q6-what-is-dynamicobject-and-when-would-you-subclass-it)
+  - [Q7. What is `ExpandoObject`, and how does it differ from `Dictionary<string, object>`?](#q7-what-is-expandoobject-and-how-does-it-differ-from-dictionarystring-object)
+  - [Q8. Explain `nameof` — how does it help refactoring and logging?](#q8-explain-nameof-how-does-it-help-refactoring-and-logging)
+  - [Q9. What is the `global::` qualifier, and when is it needed to disambiguate namespaces?](#q9-what-is-the-global-qualifier-and-when-is-it-needed-to-disambiguate-namespaces)
+  - [Q10. What is `default` literal (C# 7.1+) vs `default(T)`?](#q10-what-is-default-literal-c-71-vs-defaultt)
+  - [Q11. What is `@` verbatim identifier syntax (`@class`, `@event`) used for?](#q11-what-is-verbatim-identifier-syntax-class-event-used-for)
+  - [Q12. What is unsafe code, and when are pointers justified in C#?](#q12-what-is-unsafe-code-and-when-are-pointers-justified-in-c)
+  - [Q13. What is `stackalloc`, and how does it relate to performance-sensitive code?](#q13-what-is-stackalloc-and-how-does-it-relate-to-performance-sensitive-code)
+  - [Q14. What is `ref readonly` return, and how does it differ from returning by value?](#q14-what-is-ref-readonly-return-and-how-does-it-differ-from-returning-by-value)
+  - [Q15. How does `dynamic` interact with extension methods (why don't they bind dynamically)?](#q15-how-does-dynamic-interact-with-extension-methods-why-dont-they-bind-dynamically)
 
 - [05. C# 7 Features](#05-c-7-features)
-  - [Q1. What are tuple deconstruction and named tuple elements?](#05-c-7-features-q1)
-  - [Q2. How do `out` variables declared inline in method calls work?](#05-c-7-features-q2)
-  - [Q3. What are discards (`_`), and where are they used (deconstruc…](#05-c-7-features-q3)
-  - [Q4. Explain pattern matching enhancements in C# 7 — `is` type pa…](#05-c-7-features-q4)
-  - [Q5. What are `ref` returns and `ref` locals, and what safety rul…](#05-c-7-features-q5)
-  - [Q6. What is `ref`/`in`/`out` in the context of `ReadOnlySpan`-er…](#05-c-7-features-q6)
-  - [Q7. What are local functions, and how do they differ from lambda…](#05-c-7-features-q7)
-  - [Q8. What are expression-bodied members beyond properties (method…](#05-c-7-features-q8)
-  - [Q9. What binary literals and digit separators (`0b1010`, `1_000_…](#05-c-7-features-q9)
-  - [Q10. What is `throw` as an expression inside ternary/null-coalesc…](#05-c-7-features-q10)
-  - [Q11. How do generalized async return types work (`ValueTask` as a…](#05-c-7-features-q11)
-  - [Q12. What are `default` in generic constraints improvements in C#…](#05-c-7-features-q12)
+  - [Q1. What are tuple deconstruction and named tuple elements?](#q1-what-are-tuple-deconstruction-and-named-tuple-elements)
+  - [Q2. How do `out` variables declared inline in method calls work?](#q2-how-do-out-variables-declared-inline-in-method-calls-work)
+  - [Q3. What are discards (`_`), and where are they used (deconstruction, unused returns)?](#q3-what-are-discards-_-and-where-are-they-used-deconstruction-unused-returns)
+  - [Q4. Explain pattern matching enhancements in C# 7 — `is` type patterns and `switch` patterns.](#q4-explain-pattern-matching-enhancements-in-c-7-is-type-patterns-and-switch-patterns)
+  - [Q5. What are `ref` returns and `ref` locals, and what safety rules apply?](#q5-what-are-ref-returns-and-ref-locals-and-what-safety-rules-apply)
+  - [Q6. What is `ref`/`in`/`out` in the context of `ReadOnlySpan`-era performance APIs (conceptual link)?](#q6-what-is-refinout-in-the-context-of-readonlyspan-era-performance-apis-conceptual-link)
+  - [Q7. What are local functions, and how do they differ from lambdas for recursion and capture?](#q7-what-are-local-functions-and-how-do-they-differ-from-lambdas-for-recursion-and-capture)
+  - [Q8. What are expression-bodied members beyond properties (methods, constructors, finalizers)?](#q8-what-are-expression-bodied-members-beyond-properties-methods-constructors-finalizers)
+  - [Q9. What binary literals and digit separators (`0b1010`, `1_000_000`) improve in readability?](#q9-what-binary-literals-and-digit-separators-0b1010-1_000_000-improve-in-readability)
+  - [Q10. What is `throw` as an expression inside ternary/null-coalescing forms?](#q10-what-is-throw-as-an-expression-inside-ternarynull-coalescing-forms)
+  - [Q11. How do generalized async return types work (`ValueTask` as async return)?](#q11-how-do-generalized-async-return-types-work-valuetask-as-async-return)
+  - [Q12. What are `default` in generic constraints improvements in C# 7?](#q12-what-are-default-in-generic-constraints-improvements-in-c-7)
 
 - [06. C# 8 Features](#06-c-8-features)
-  - [Q1. Explain nullable reference types — how do they differ from `…](#06-c-8-features-q1)
-  - [Q2. What do `?`, `!`, and `#nullable` directives mean at compile…](#06-c-8-features-q2)
-  - [Q3. Are nullable reference annotations enforced at runtime?](#06-c-8-features-q3)
-  - [Q4. What are default interface methods, and how do they relate t…](#06-c-8-features-q4)
-  - [Q5. What are asynchronous streams (`IAsyncEnumerable<T>` and `aw…](#06-c-8-features-q5)
-  - [Q6. Explain null-coalescing assignment (`??=`) with examples.](#06-c-8-features-q6)
-  - [Q7. Explain range (`..`) and index (`^`) operators — how does `^…](#06-c-8-features-q7)
-  - [Q8. What are `using` declarations vs `using` statements for IDis…](#06-c-8-features-q8)
-  - [Q9. What are nullable-aware APIs in the BCL reacting to NRT (`No…](#06-c-8-features-q9)
-  - [Q10. What is `IAsyncDisposable`, and how does `await using` work?](#06-c-8-features-q10)
-  - [Q11. What are static local functions, and why were they added?](#06-c-8-features-q11)
-  - [Q12. What is a `readonly struct`, and what mutability restriction…](#06-c-8-features-q12)
-  - [Q13. What is the `readonly` modifier on struct instance members (…](#06-c-8-features-q13)
-  - [Q14. What are stackalloc in safe contexts and `Span<T>` integrati…](#06-c-8-features-q14)
-  - [Q15. What is target-typed `new()` vs explicit type names?](#06-c-8-features-q15)
+  - [Q1. Explain nullable reference types — how do they differ from `Nullable<T>` value types?](#q1-explain-nullable-reference-types-how-do-they-differ-from-nullablet-value-types)
+  - [Q2. What do `?`, `!`, and `#nullable` directives mean at compile time?](#q2-what-do-and-nullable-directives-mean-at-compile-time)
+  - [Q3. Are nullable reference annotations enforced at runtime?](#q3-are-nullable-reference-annotations-enforced-at-runtime)
+  - [Q4. What are default interface methods, and how do they relate to the diamond problem?](#q4-what-are-default-interface-methods-and-how-do-they-relate-to-the-diamond-problem)
+  - [Q5. What are asynchronous streams (`IAsyncEnumerable<T>` and `await foreach`)?](#q5-what-are-asynchronous-streams-iasyncenumerablet-and-await-foreach)
+  - [Q6. Explain null-coalescing assignment (`??=`) with examples.](#q6-explain-null-coalescing-assignment-with-examples)
+  - [Q7. Explain range (`..`) and index (`^`) operators — how does `^1` differ from `Length - 1`?](#q7-explain-range-and-index-operators-how-does-1-differ-from-length---1)
+  - [Q8. What are `using` declarations vs `using` statements for IDisposable?](#q8-what-are-using-declarations-vs-using-statements-for-idisposable)
+  - [Q9. What are nullable-aware APIs in the BCL reacting to NRT (`NotNullWhen`, `MaybeNull`)?](#q9-what-are-nullable-aware-apis-in-the-bcl-reacting-to-nrt-notnullwhen-maybenull)
+  - [Q10. What is `IAsyncDisposable`, and how does `await using` work?](#q10-what-is-iasyncdisposable-and-how-does-await-using-work)
+  - [Q11. What are static local functions, and why were they added?](#q11-what-are-static-local-functions-and-why-were-they-added)
+  - [Q12. What is a `readonly struct`, and what mutability restrictions apply to its members?](#q12-what-is-a-readonly-struct-and-what-mutability-restrictions-apply-to-its-members)
+  - [Q13. What is the `readonly` modifier on struct instance members (C# 8)?](#q13-what-is-the-readonly-modifier-on-struct-instance-members-c-8)
+  - [Q14. What are stackalloc in safe contexts and `Span<T>` integrations introduced alongside C# 8?](#q14-what-are-stackalloc-in-safe-contexts-and-spant-integrations-introduced-alongside-c-8)
+  - [Q15. What is target-typed `new()` vs explicit type names?](#q15-what-is-target-typed-new-vs-explicit-type-names)
 
 - [Cross-chapter — Records & Pattern Matching *(C# 9–11; grouped here)*](#cross-chapter-records-pattern-matching-c-911-grouped-here)
-  - [Q1. What are records (C# 9), and what boilerplate do they synthe…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q1)
-  - [Q2. What is the difference between `record class` and `record st…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q2)
-  - [Q3. How does value-based equality in records differ from default…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q3)
-  - [Q4. What is the difference between positional records and record…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q4)
-  - [Q5. Explain `with` expressions — how do they relate to non-destr…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q5)
-  - [Q6. What are init-only setters (`init`), and how do they differ …](#cross-chapter-records-pattern-matching-c-911-grouped-here-q6)
-  - [Q7. Can init-only properties be set inside the type's constructo…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q7)
-  - [Q8. What is primary constructor syntax for records/classes (C# 1…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q8)
-  - [Q9. What is pattern matching in modern C# beyond C# 7 — switch e…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q9)
-  - [Q10. Explain property patterns (`person is { Age: > 18, Name: var…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q10)
-  - [Q11. What are relational patterns (`>`, `<=`) and combinator patt…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q11)
-  - [Q12. What is list patterns (C# 11) — `[_, .., var last]`?](#cross-chapter-records-pattern-matching-c-911-grouped-here-q12)
-  - [Q13. What is `switch` expression vs traditional `switch` statemen…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q13)
-  - [Q14. What happens when a `switch` expression is not exhaustive ov…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q14)
-  - [Q15. What is the difference between `is null` and `== null` when …](#cross-chapter-records-pattern-matching-c-911-grouped-here-q15)
-  - [Q16. What are expression trees (`Expression<T>`), and how do they…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q16)
-  - [Q17. How are expression trees used by LINQ providers (EF Core, `I…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q17)
-  - [Q18. Why can't all C# lambdas be converted to expression trees?](#cross-chapter-records-pattern-matching-c-911-grouped-here-q18)
-  - [Q19. What is the difference between compile-time constant pattern…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q19)
-  - [Q20. When should you prefer records over classes for DTOs and dom…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q20)
-  - [Q21. **`typeof` vs `GetType()`** — `typeof(Base)` is known at com…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q21)
-  - [Q22. **Serialization type loss** — Assigning `Animal ref = new Do…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q22)
-  - [Q23. **`[Serializable]` ignored by System.Text.Json** — Candidate…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q23)
-  - [Q24. **`BinaryFormatter` is a security footgun** — Deserializing …](#cross-chapter-records-pattern-matching-c-911-grouped-here-q24)
-  - [Q25. **Missing JSON property on non-nullable value type** — Deser…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q25)
-  - [Q26. **Enum numeric wire values** — Renumbering enum members brea…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q26)
-  - [Q27. **`JsonSerializerOptions` not thread-safe for mutation** — C…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q27)
-  - [Q28. **`dynamic` hides errors until runtime** — Misspelled member…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q28)
-  - [Q29. **Extension methods do not dispatch on `dynamic`** — Must ca…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q29)
-  - [Q30. **Reflection string names don't refactor** — Renaming a prop…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q30)
-  - [Q31. **Regex without timeout on user input** — Crafted input can …](#cross-chapter-records-pattern-matching-c-911-grouped-here-q31)
-  - [Q32. **Nullable reference types are annotations only** — `#nullab…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q32)
-  - [Q33. **Records are still reference types (`record class`)** — Ide…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q33)
-  - [Q34. **Expression trees cannot contain statements arbitrarily** —…](#cross-chapter-records-pattern-matching-c-911-grouped-here-q34)
+  - [Q1. What are records (C# 9), and what boilerplate do they synthesize?](#q1-what-are-records-c-9-and-what-boilerplate-do-they-synthesize)
+  - [Q2. What is the difference between `record class` and `record struct`?](#q2-what-is-the-difference-between-record-class-and-record-struct)
+  - [Q3. How does value-based equality in records differ from default class equality?](#q3-how-does-value-based-equality-in-records-differ-from-default-class-equality)
+  - [Q4. What is the difference between positional records and records with manual properties?](#q4-what-is-the-difference-between-positional-records-and-records-with-manual-properties)
+  - [Q5. Explain `with` expressions — how do they relate to non-destructive mutation?](#q5-explain-with-expressions-how-do-they-relate-to-non-destructive-mutation)
+  - [Q6. What are init-only setters (`init`), and how do they differ from `{ get; set; }` and `{ get; }`?](#q6-what-are-init-only-setters-init-and-how-do-they-differ-from-get-set-and-get)
+  - [Q7. Can init-only properties be set inside the type's constructors after object creation semantics?](#q7-can-init-only-properties-be-set-inside-the-types-constructors-after-object-creation-semantics)
+  - [Q8. What is primary constructor syntax for records/classes (C# 12 preview cross-ref) vs positional records?](#q8-what-is-primary-constructor-syntax-for-recordsclasses-c-12-preview-cross-ref-vs-positional-records)
+  - [Q9. What is pattern matching in modern C# beyond C# 7 — switch expressions, relational, logical, and property patterns?](#q9-what-is-pattern-matching-in-modern-c-beyond-c-7-switch-expressions-relational-logical-and-property-patterns)
+  - [Q10. Explain property patterns (`person is { Age: > 18, Name: var n }`).](#q10-explain-property-patterns-person-is-age-18-name-var-n)
+  - [Q11. What are relational patterns (`>`, `<=`) and combinator patterns (`and`, `or`, `not`)?](#q11-what-are-relational-patterns-and-combinator-patterns-and-or-not)
+  - [Q12. What is list patterns (C# 11) — `[_, .., var last]`?](#q12-what-is-list-patterns-c-11-_-var-last)
+  - [Q13. What is `switch` expression vs traditional `switch` statement for exhaustiveness?](#q13-what-is-switch-expression-vs-traditional-switch-statement-for-exhaustiveness)
+  - [Q14. What happens when a `switch` expression is not exhaustive over an enum?](#q14-what-happens-when-a-switch-expression-is-not-exhaustive-over-an-enum)
+  - [Q15. What is the difference between `is null` and `== null` when a type overloads `==`?](#q15-what-is-the-difference-between-is-null-and-null-when-a-type-overloads)
+  - [Q16. What are expression trees (`Expression<T>`), and how do they differ from delegates?](#q16-what-are-expression-trees-expressiont-and-how-do-they-differ-from-delegates)
+  - [Q17. How are expression trees used by LINQ providers (EF Core, `IQueryable`)?](#q17-how-are-expression-trees-used-by-linq-providers-ef-core-iqueryable)
+  - [Q18. Why can't all C# lambdas be converted to expression trees?](#q18-why-cant-all-c-lambdas-be-converted-to-expression-trees)
+  - [Q19. What is the difference between compile-time constant patterns and runtime type patterns?](#q19-what-is-the-difference-between-compile-time-constant-patterns-and-runtime-type-patterns)
+  - [Q20. When should you prefer records over classes for DTOs and domain models?](#q20-when-should-you-prefer-records-over-classes-for-dtos-and-domain-models)
+  - [Q21. **`typeof` vs `GetType()`** — `typeof(Base)` is known at compile time; `instance.GetType()` returns the actual runtime derived type.](#q21-typeof-vs-gettype-typeofbase-is-known-at-compile-time-instancegettype-returns-the-actual-runtime-derived-type)
+  - [Q22. **Serialization type loss** — Assigning `Animal ref = new Dog()` and serializing as `Animal` drops derived-only properties unless polymorphism is configured.](#q22-serialization-type-loss-assigning-animal-ref-new-dog-and-serializing-as-animal-drops-derived-only-properties-unless-polymorphism-is-configured)
+  - [Q23. **`[Serializable]` ignored by System.Text.Json** — Candidates conflate legacy binary markers with modern JSON/XML serializers.](#q23-serializable-ignored-by-systemtextjson-candidates-conflate-legacy-binary-markers-with-modern-jsonxml-serializers)
+  - [Q24. **`BinaryFormatter` is a security footgun** — Deserializing untrusted payloads enables remote code execution; obsolete/removed on modern .NET.](#q24-binaryformatter-is-a-security-footgun-deserializing-untrusted-payloads-enables-remote-code-execution-obsoleteremoved-on-modern-net)
+  - [Q25. **Missing JSON property on non-nullable value type** — Deserialization may default the value silently; missing `required`/`[JsonRequired]` validation causes subtle bugs.](#q25-missing-json-property-on-non-nullable-value-type-deserialization-may-default-the-value-silently-missing-requiredjsonrequired-validation-causes-subtle-bugs)
+  - [Q26. **Enum numeric wire values** — Renumbering enum members breaks persisted JSON; prefer string enums for long-lived contracts.](#q26-enum-numeric-wire-values-renumbering-enum-members-breaks-persisted-json-prefer-string-enums-for-long-lived-contracts)
+  - [Q27. **`JsonSerializerOptions` not thread-safe for mutation** — Cache a configured instance; do not tweak shared options concurrently.](#q27-jsonserializeroptions-not-thread-safe-for-mutation-cache-a-configured-instance-do-not-tweak-shared-options-concurrently)
+  - [Q28. **`dynamic` hides errors until runtime** — Misspelled members compile; also blocks many refactorings and overload resolution surprises.](#q28-dynamic-hides-errors-until-runtime-misspelled-members-compile-also-blocks-many-refactorings-and-overload-resolution-surprises)
+  - [Q29. **Extension methods do not dispatch on `dynamic`** — Must cast to static type or call like static methods.](#q29-extension-methods-do-not-dispatch-on-dynamic-must-cast-to-static-type-or-call-like-static-methods)
+  - [Q30. **Reflection string names don't refactor** — Renaming a property breaks reflection unless tests catch it.](#q30-reflection-string-names-dont-refactor-renaming-a-property-breaks-reflection-unless-tests-catch-it)
+  - [Q31. **Regex without timeout on user input** — Crafted input can hang the process via catastrophic backtracking.](#q31-regex-without-timeout-on-user-input-crafted-input-can-hang-the-process-via-catastrophic-backtracking)
+  - [Q32. **Nullable reference types are annotations only** — `#nullable enable` does not stop null at runtime without guards.](#q32-nullable-reference-types-are-annotations-only-nullable-enable-does-not-stop-null-at-runtime-without-guards)
+  - [Q33. **Records are still reference types (`record class`)** — Identity semantics differ from `record struct`; boxing/equality surprises follow.](#q33-records-are-still-reference-types-record-class-identity-semantics-differ-from-record-struct-boxingequality-surprises-follow)
+  - [Q34. **Expression trees cannot contain statements arbitrarily** — Many C# constructs are not translatable for EF/LINQ providers.](#q34-expression-trees-cannot-contain-statements-arbitrarily-many-c-constructs-are-not-translatable-for-eflinq-providers)
 
-- [03. Regular Expressions](#03-regular-expressions)
-  - [Q1. `Regex.IsMatch(email, pattern)` inline in the action](#03-regular-expressions-q1)
-  - [Q2. `static readonly Regex` field with `RegexOptions.Compiled | …](#03-regular-expressions-q2)
-  - [Q3. `[RegularExpression(@"…")]` on the DTO property](#03-regular-expressions-q3)
+- [03. Regular Expressions](#03-regular-expressions-1)
+  - [Q1. `Regex.IsMatch(email, pattern)` inline in the action](#q1-regexismatchemail-pattern-inline-in-the-action)
+  - [Q2. `static readonly Regex` field with `RegexOptions.Compiled | RegexOptions.CultureInvariant`](#q2-static-readonly-regex-field-with-regexoptionscompiled-regexoptionscultureinvariant)
+  - [Q3. `[RegularExpression(@"…")]` on the DTO property](#q3-regularexpression-on-the-dto-property)
+  - [Q1. (R) A Redis-backed session service deserializes cached JSON on every request. Review this code — what breaks under load or attack, and what do you fix first?](#q1-r-a-redis-backed-session-service-deserializes-cached-json-on-every-request-review-this-code-what-breaks-under-load-or-attack-and-what-do-you-fix-first)
+  - [Q2. (R) After deploying a new order endpoint, mobile clients get `400`/`500` on deserialize while Postman with the old payload works. Review the handler:](#q2-r-after-deploying-a-new-order-endpoint-mobile-clients-get-400500-on-deserialize-while-postman-with-the-old-payload-works-review-the-handler)
+  - [Q3. (R) A partner integration writes invoice lines to XML nightly; the job fails on first deploy with `InvalidOperationException`. Review the model and serializer usage:](#q3-r-a-partner-integration-writes-invoice-lines-to-xml-nightly-the-job-fails-on-first-deploy-with-invalidoperationexception-review-the-model-and-serializer-usage)
+  - [Q4. (P) Production still reads `.bin` session files produced years ago with `BinaryFormatter`. You must migrate to System.Text.Json without taking downtime. What is your rollout strategy, and why is "just flip a switch" unsafe?](#q4-p-production-still-reads-bin-session-files-produced-years-ago-with-binaryformatter-you-must-migrate-to-systemtextjson-without-taking-downtime-what-is-your-rollout-strategy-and-why-is-just-flip-a-switch-unsafe)
+  - [Q5. (D) You are adding an optional `IsVerified` flag to a public REST DTO. v1 clients never send the field; v2 clients may send `true`, `false`, or omit it. You need to distinguish "not verified yet" from "explicitly false." Should the property be `bool` or `bool?`, and how does System.Text.Json treat a missing member for each?](#q5-d-you-are-adding-an-optional-isverified-flag-to-a-public-rest-dto-v1-clients-never-send-the-field-v2-clients-may-send-true-false-or-omit-it-you-need-to-distinguish-not-verified-yet-from-explicitly-false-should-the-property-be-bool-or-bool-and-how-does-systemtextjson-treat-a-missing-member-for-each)
+  - [Q6. (M) An org-chart API returns departments with parent/child links wired both ways. A developer enables cycle handling and ships:](#q6-m-an-org-chart-api-returns-departments-with-parentchild-links-wired-both-ways-a-developer-enables-cycle-handling-and-ships)
+  - [Q7. (R) A config-sync worker reads JSON settings files from a shared folder (any authenticated internal user can drop files). Review the ingestion path:](#q7-r-a-config-sync-worker-reads-json-settings-files-from-a-shared-folder-any-authenticated-internal-user-can-drop-files-review-the-ingestion-path)
+
+- [02. Reflection & Attributes](#02-reflection-attributes-1)
+
+- [02. Reflection & Attributes](#02-reflection-attributes-2)
+  - [Q1. (R) A warehouse API loads pricing plugins from a separate assembly at runtime. It works on a developer machine but `LoadPlugin` always returns null in staging. Review the loader:](#q1-r-a-warehouse-api-loads-pricing-plugins-from-a-separate-assembly-at-runtime-it-works-on-a-developer-machine-but-loadplugin-always-returns-null-in-staging-review-the-loader)
+  - [Q2. (R) A metadata-driven audit interceptor invokes controller actions and logs failures, but operators only see `TargetInvocationException` in Splunk — never the real fault. Review the handler:](#q2-r-a-metadata-driven-audit-interceptor-invokes-controller-actions-and-logs-failures-but-operators-only-see-targetinvocationexception-in-splunk-never-the-real-fault-review-the-handler)
+  - [Q3. (R) After a rename refactor from `CalculateLineTotal` to `CalculateOrderTotal`, order totals silently become zero in production. Review the pricing service:](#q3-r-after-a-rename-refactor-from-calculatelinetotal-to-calculateordertotal-order-totals-silently-become-zero-in-production-review-the-pricing-service)
+  - [Q4. (R) A margin-report job reads private cost fields from `CostRecord`-like DTOs but always gets null and skips rows. Review the extractor:](#q4-r-a-margin-report-job-reads-private-cost-fields-from-costrecord-like-dtos-but-always-gets-null-and-skips-rows-review-the-extractor)
+  - [Q5. (P) An ASP.NET Core API discovers `[EntityTable]`-decorated export types by scanning `Assembly.GetExecutingAssembly().GetTypes()` at startup. After enabling `<PublishTrimmed>true</PublishTrimmed>` for a Native AOT experiment, several entity types vanish from the export manifest with no compile errors. Why does trimming break this pattern, and what production-safe alternatives exist?](#q5-p-an-aspnet-core-api-discovers-entitytable-decorated-export-types-by-scanning-assemblygetexecutingassemblygettypes-at-startup-after-enabling-publishtrimmedtruepublishtrimmed-for-a-native-aot-experiment-several-entity-types-vanish-from-the-export-manifest-with-no-compile-errors-why-does-trimming-break-this-pattern-and-what-production-safe-alternatives-exist)
+  - [Q6. (D) Your team ships a CSV export endpoint. One developer scans every request with `type.GetProperties()` and `GetCustomAttribute<ExportableAttribute>()` (same pattern as `ExportManifestBuilder` in this chapter). Another caches `PropertyInfo[]` and attribute metadata in a `ConcurrentDictionary<Type, ExportColumn[]>` built once at startup. Under 500 RPS with 40 exportable properties per row, which approach do you choose and why?](#q6-d-your-team-ships-a-csv-export-endpoint-one-developer-scans-every-request-with-typegetproperties-and-getcustomattributeexportableattribute-same-pattern-as-exportmanifestbuilder-in-this-chapter-another-caches-propertyinfo-and-attribute-metadata-in-a-concurrentdictionarytype-exportcolumn-built-once-at-startup-under-500-rps-with-40-exportable-properties-per-row-which-approach-do-you-choose-and-why)
+  - [Q7. (M) A `PremiumProduct : Product` subclass is added for a loyalty tier. The ORM layer reads `[EntityTable]` from the base `Product` type to resolve table names. Export works for `Product` but `PremiumProduct` rows fail with "table not mapped." Given this attribute definition from the tutorial:](#q7-m-a-premiumproduct-product-subclass-is-added-for-a-loyalty-tier-the-orm-layer-reads-entitytable-from-the-base-product-type-to-resolve-table-names-export-works-for-product-but-premiumproduct-rows-fail-with-table-not-mapped-given-this-attribute-definition-from-the-tutorial)
+
+- [03. Regular Expressions](#03-regular-expressions-2)
+
+- [03. Regular Expressions](#03-regular-expressions-3)
+  - [Q1. (R) A bulk-import API validates thousands of customer rows per request. After deploy, CPU spikes and some requests time out. Review this validator and prioritize fixes.](#q1-r-a-bulk-import-api-validates-thousands-of-customer-rows-per-request-after-deploy-cpu-spikes-and-some-requests-time-out-review-this-validator-and-prioritize-fixes)
+  - [Q2. (R) A support portal lets agents paste a custom regex to search and redact matches in uploaded log files (multi-MB). Review this endpoint helper:](#q2-r-a-support-portal-lets-agents-paste-a-custom-regex-to-search-and-redact-matches-in-uploaded-log-files-multi-mb-review-this-endpoint-helper)
+  - [Q3. (R) A notes-processing job extracts phone fragments for a CRM sync. Review this extractor:](#q3-r-a-notes-processing-job-extracts-phone-fragments-for-a-crm-sync-review-this-extractor)
+  - [Q4. (P) Your registration API validates email on every POST (~2k RPS). A teammate proposes three options:](#q4-p-your-registration-api-validates-email-on-every-post-2k-rps-a-teammate-proposes-three-options)
+  - [Q5. (D) Product wants import rejection for disposable email domains (`mailinator.com`, `tempmail.org`, …) and a regex that only allows corporate TLDs. A developer merges the blocklist into one giant pattern:](#q5-d-product-wants-import-rejection-for-disposable-email-domains-mailinatorcom-tempmailorg-and-a-regex-that-only-allows-corporate-tlds-a-developer-merges-the-blocklist-into-one-giant-pattern)
+  - [Q6. (M) A config-ingestion worker parses key/value lines from Windows-generated files. Keys on lines after the first never match:](#q6-m-a-config-ingestion-worker-parses-keyvalue-lines-from-windows-generated-files-keys-on-lines-after-the-first-never-match)
+  - [Q7. (R) An internal tool "sanitizes" HTML fragments before storing them in a knowledge base:](#q7-r-an-internal-tool-sanitizes-html-fragments-before-storing-them-in-a-knowledge-base)
+
+- [04. Var Dynamic & Special Keywords](#04-var-dynamic-special-keywords-1)
+
+- [04. Var Dynamic & Special Keywords](#04-var-dynamic-special-keywords-2)
+  - [Q1. (R) A warehouse integration service parses third-party CSV rows into `dynamic` bags before posting to inventory. It passes QA with two sample files but throws in production on the first malformed row. Review the mapper:](#q1-r-a-warehouse-integration-service-parses-third-party-csv-rows-into-dynamic-bags-before-posting-to-inventory-it-passes-qa-with-two-sample-files-but-throws-in-production-on-the-first-malformed-row-review-the-mapper)
+  - [Q2. (R) A pricing dashboard uses `var` with LINQ and mutates the source collection between query definition and enumeration. Review:](#q2-r-a-pricing-dashboard-uses-var-with-linq-and-mutates-the-source-collection-between-query-definition-and-enumeration-review)
+  - [Q3. (R) A generic repository uses `nameof` and `default` for reflection-based updates. After a refactor, updates silently stop working for value-type columns. Review:](#q3-r-a-generic-repository-uses-nameof-and-default-for-reflection-based-updates-after-a-refactor-updates-silently-stop-working-for-value-type-columns-review)
+  - [Q4. (P) Your team ingests nightly plugin config from a legacy host that exposes JSON whose shape changes per warehouse (extra keys, missing booleans, numeric strings). A junior dev proposes `dynamic` + `ExpandoObject` for the entire pipeline; another proposes strongly typed records + `System.Text.Json` with `[JsonExtensionData]`. When is `dynamic` justified here, and what production risks push you toward typed or semi-typed models?](#q4-p-your-team-ingests-nightly-plugin-config-from-a-legacy-host-that-exposes-json-whose-shape-changes-per-warehouse-extra-keys-missing-booleans-numeric-strings-a-junior-dev-proposes-dynamic-expandoobject-for-the-entire-pipeline-another-proposes-strongly-typed-records-systemtextjson-with-jsonextensiondata-when-is-dynamic-justified-here-and-what-production-risks-push-you-toward-typed-or-semi-typed-models)
+  - [Q5. (M) A background price-refresh worker should stop within seconds when ops clicks "Cancel" in the admin UI. The flag works in dev (single core, low load) but the worker occasionally runs for minutes in production. Review:](#q5-m-a-background-price-refresh-worker-should-stop-within-seconds-when-ops-clicks-cancel-in-the-admin-ui-the-flag-works-in-dev-single-core-low-load-but-the-worker-occasionally-runs-for-minutes-in-production-review)
+  - [Q6. (D) Two teams share a `WarehouseAnalytics` namespace. Team A added a helper type named `Math` for domain-specific rounding; Team B assumed BCL `System.Math` in unqualified calls. Review the pricing snippet:](#q6-d-two-teams-share-a-warehouseanalytics-namespace-team-a-added-a-helper-type-named-math-for-domain-specific-rounding-team-b-assumed-bcl-systemmath-in-unqualified-calls-review-the-pricing-snippet)
+
+- [05. C# 7 Features](#05-c-7-features-1)
+
+- [05. C# 7 Features](#05-c-7-features-2)
+  - [Q1. (R) Express VIP orders are routed to the standard express lane in production. Review this C# 7 switch with `when` guards (mirrors the warehouse routing demo):](#q1-r-express-vip-orders-are-routed-to-the-standard-express-lane-in-production-review-this-c-7-switch-with-when-guards-mirrors-the-warehouse-routing-demo)
+  - [Q2. (R) A product lookup was optimized with `ValueTask<string>` for cache hits. Under retry logic, intermittent `InvalidOperationException` appears. Review:](#q2-r-a-product-lookup-was-optimized-with-valuetaskstring-for-cache-hits-under-retry-logic-intermittent-invalidoperationexception-appears-review)
+  - [Q3. (R) A developer refactors inventory reservation to use C# 7 ref returns for in-place updates. The build fails; after a workaround it crashes in QA. Review:](#q3-r-a-developer-refactors-inventory-reservation-to-use-c-7-ref-returns-for-in-place-updates-the-build-fails-after-a-workaround-it-crashes-in-qa-review)
+  - [Q4. (R) A CSV import pipeline uses C# 7 out variables. Finance sees rows with quantity `0` marked as successfully imported. Review:](#q4-r-a-csv-import-pipeline-uses-c-7-out-variables-finance-sees-rows-with-quantity-0-marked-as-successfully-imported-review)
+  - [Q5. (P) A warehouse fulfillment microservice returns `(bool CanFulfill, string Note)` tuples from `CheckFulfillment` — the same shape as the tutorial's tuple demo. The team debates replacing tuples with a `FulfillmentResult` record before exposing the method on a public NuGet contract. When is the tuple idiomatic, and when does it break production maintainability?](#q5-p-a-warehouse-fulfillment-microservice-returns-bool-canfulfill-string-note-tuples-from-checkfulfillment-the-same-shape-as-the-tutorials-tuple-demo-the-team-debates-replacing-tuples-with-a-fulfillmentresult-record-before-exposing-the-method-on-a-public-nuget-contract-when-is-the-tuple-idiomatic-and-when-does-it-break-production-maintainability)
+  - [Q6. (M) A batch job uses a local function with captured outer state to retry flaky lane assignments. Ops reports duplicate reservations on the same SKU after parallel batch splits. Review:](#q6-m-a-batch-job-uses-a-local-function-with-captured-outer-state-to-retry-flaky-lane-assignments-ops-reports-duplicate-reservations-on-the-same-sku-after-parallel-batch-splits-review)
+  - [Q7. (D) Two teammates implement guard clauses for order validation. Which approach do you standardize on for a shared domain library, and why?](#q7-d-two-teammates-implement-guard-clauses-for-order-validation-which-approach-do-you-standardize-on-for-a-shared-domain-library-and-why)
+
+- [06. C# 8 Features](#06-c-8-features-1)
+
+- [06. C# 8 Features](#06-c-8-features-2)
+  - [Q1. (R) After enabling `<Nullable>enable</Nullable>` on the document-ingest API, QA reports intermittent `NullReferenceException` on documents with no footnotes. Review the service:](#q1-r-after-enabling-nullableenablenullable-on-the-document-ingest-api-qa-reports-intermittent-nullreferenceexception-on-documents-with-no-footnotes-review-the-service)
+  - [Q2. (R) A background worker streams archive pages to blob storage. Under deploy cancellation, the job keeps running for minutes and sometimes OOMs. Review the consumer and producer:](#q2-r-a-background-worker-streams-archive-pages-to-blob-storage-under-deploy-cancellation-the-job-keeps-running-for-minutes-and-sometimes-ooms-review-the-consumer-and-producer)
+  - [Q3. (R) A routing microservice parses document IDs with C# 8 ranges after a format change. Production throws `ArgumentOutOfRangeException` on valid-looking IDs. Review:](#q3-r-a-routing-microservice-parses-document-ids-with-c-8-ranges-after-a-format-change-production-throws-argumentoutofrangeexception-on-valid-looking-ids-review)
+  - [Q4. (R) A teammate refactors chunk parsing to overlap I/O with processing. The build fails and code review finds async/ref-struct mixing. Review:](#q4-r-a-teammate-refactors-chunk-parsing-to-overlap-io-with-processing-the-build-fails-and-code-review-finds-asyncref-struct-mixing-review)
+  - [Q5. (P) Your team ships `IDocumentProcessor` as a shared NuGet package. Version 1 has `Process` and `ProcessorName`. Version 2 needs a `Describe()` helper without forcing every consumer to recompile. A consumer already implements both `IDocumentProcessor` and `IArchiveReporter`, each adding a default `Describe()`. How do you evolve the interface using C# 8 default interface methods, and what breaks if you ignore diamond ambiguity?](#q5-p-your-team-ships-idocumentprocessor-as-a-shared-nuget-package-version-1-has-process-and-processorname-version-2-needs-a-describe-helper-without-forcing-every-consumer-to-recompile-a-consumer-already-implements-both-idocumentprocessor-and-iarchivereporter-each-adding-a-default-describe-how-do-you-evolve-the-interface-using-c-8-default-interface-methods-and-what-breaks-if-you-ignore-diamond-ambiguity)
+  - [Q6. (M) A nightly batch opens thousands of small files under a shared directory. After migrating to `using var`, ops reports "too many open files" and memory climbs until the job finishes. Review the loop:](#q6-m-a-nightly-batch-opens-thousands-of-small-files-under-a-shared-directory-after-migrating-to-using-var-ops-reports-too-many-open-files-and-memory-climbs-until-the-job-finishes-review-the-loop)
+  - [Q7. (D) A 400-project solution enables nullable reference types repo-wide. CI surfaces 8,000 warnings; developers blanket `#nullable disable` on touched files and sprinkle `!` to merge PRs. As tech lead, what migration strategy do you recommend for a document-archive domain with heavy `string` metadata (IDs, paths, optional notes), and where do `string?`, null checks, and `[NotNullWhen]` belong versus suppressions?](#q7-d-a-400-project-solution-enables-nullable-reference-types-repo-wide-ci-surfaces-8000-warnings-developers-blanket-nullable-disable-on-touched-files-and-sprinkle-to-merge-prs-as-tech-lead-what-migration-strategy-do-you-recommend-for-a-document-archive-domain-with-heavy-string-metadata-ids-paths-optional-notes-and-where-do-string-null-checks-and-notnullwhen-belong-versus-suppressions)
 - [Scenario-Based Questions](#scenario-based-questions-karat-format)
 
 ---
 
 ### 01. Serialization & Deserialization
 
-#### Q1. What is serialization and deserialization, and what is an object graph? {#01-serialization-deserialization-q1}
+#### Q1. What is serialization and deserialization, and what is an object graph?
 
 What is serialization and deserialization, and what is an object graph?
 
@@ -183,7 +244,7 @@ What is serialization and deserialization, and what is an object graph?
 
 ---
 
-#### Q2. Does deserialization resurrect original object identity or create new instances? {#01-serialization-deserialization-q2}
+#### Q2. Does deserialization resurrect original object identity or create new instances?
 
 Does deserialization resurrect original object identity or create new instances?
 
@@ -196,7 +257,7 @@ Does deserialization resurrect original object identity or create new instances?
 
 ---
 
-#### Q3. Compare JSON, XML, and binary as wire formats — trade-offs for APIs, config, and storage. {#01-serialization-deserialization-q3}
+#### Q3. Compare JSON, XML, and binary as wire formats — trade-offs for APIs, config, and storage.
 
 Compare JSON, XML, and binary as wire formats — trade-offs for APIs, config, and storage.
 
@@ -212,7 +273,7 @@ JSON balances interoperability and tooling; XML when XSD validation or mixed con
 
 ---
 
-#### Q4. Explain `System.Text.Json.JsonSerializer.Serialize` and `Deserialize` for files and streams. {#01-serialization-deserialization-q4}
+#### Q4. Explain `System.Text.Json.JsonSerializer.Serialize` and `Deserialize` for files and streams.
 
 Explain `System.Text.Json.JsonSerializer.Serialize` and `Deserialize` for files and streams.
 
@@ -225,7 +286,7 @@ Explain `System.Text.Json.JsonSerializer.Serialize` and `Deserialize` for files 
 
 ---
 
-#### Q5. What is `JsonSerializerOptions`, and which settings affect naming, indentation, and enum handling? {#01-serialization-deserialization-q5}
+#### Q5. What is `JsonSerializerOptions`, and which settings affect naming, indentation, and enum handling?
 
 What is `JsonSerializerOptions`, and which settings affect naming, indentation, and enum handling?
 
@@ -238,7 +299,7 @@ What is `JsonSerializerOptions`, and which settings affect naming, indentation, 
 
 ---
 
-#### Q6. Why is creating a new `JsonSerializerOptions` on every call a performance problem? {#01-serialization-deserialization-q6}
+#### Q6. Why is creating a new `JsonSerializerOptions` on every call a performance problem?
 
 Why is creating a new `JsonSerializerOptions` on every call a performance problem?
 
@@ -251,7 +312,7 @@ Why is creating a new `JsonSerializerOptions` on every call a performance proble
 
 ---
 
-#### Q7. When should you use `JsonSerializerContext` source generators vs reflection-based serialization? {#01-serialization-deserialization-q7}
+#### Q7. When should you use `JsonSerializerContext` source generators vs reflection-based serialization?
 
 When should you use `JsonSerializerContext` source generators vs reflection-based serialization?
 
@@ -264,7 +325,7 @@ When should you use `JsonSerializerContext` source generators vs reflection-base
 
 ---
 
-#### Q8. Explain `[JsonPropertyName]`, `[JsonIgnore]`, `[JsonInclude]`, and `[JsonPropertyOrder]`. {#01-serialization-deserialization-q8}
+#### Q8. Explain `[JsonPropertyName]`, `[JsonIgnore]`, `[JsonInclude]`, and `[JsonPropertyOrder]`.
 
 Explain `[JsonPropertyName]`, `[JsonIgnore]`, `[JsonInclude]`, and `[JsonPropertyOrder]`.
 
@@ -277,7 +338,7 @@ Explain `[JsonPropertyName]`, `[JsonIgnore]`, `[JsonInclude]`, and `[JsonPropert
 
 ---
 
-#### Q9. What happens when JSON contains properties not present on the C# type (extra members)? {#01-serialization-deserialization-q9}
+#### Q9. What happens when JSON contains properties not present on the C# type (extra members)?
 
 What happens when JSON contains properties not present on the C# type (extra members)?
 
@@ -290,7 +351,7 @@ What happens when JSON contains properties not present on the C# type (extra mem
 
 ---
 
-#### Q10. What happens when JSON is missing a property mapped to a non-nullable reference type vs a value type? {#01-serialization-deserialization-q10}
+#### Q10. What happens when JSON is missing a property mapped to a non-nullable reference type vs a value type?
 
 What happens when JSON is missing a property mapped to a non-nullable reference type vs a value type?
 
@@ -303,7 +364,7 @@ What happens when JSON is missing a property mapped to a non-nullable reference 
 
 ---
 
-#### Q11. How do enums serialize by default in `System.Text.Json`, and what production risk does numeric enum wire format create? {#01-serialization-deserialization-q11}
+#### Q11. How do enums serialize by default in `System.Text.Json`, and what production risk does numeric enum wire format create?
 
 How do enums serialize by default in `System.Text.Json`, and what production risk does numeric enum wire format create?
 
@@ -316,7 +377,7 @@ How do enums serialize by default in `System.Text.Json`, and what production ris
 
 ---
 
-#### Q12. How do you serialize enums as strings using `JsonStringEnumConverter`? {#01-serialization-deserialization-q12}
+#### Q12. How do you serialize enums as strings using `JsonStringEnumConverter`?
 
 How do you serialize enums as strings using `JsonStringEnumConverter`?
 
@@ -333,7 +394,7 @@ options.Converters.Add(new JsonStringEnumConverter());
 
 ---
 
-#### Q13. How do you handle circular references in an object graph (`ReferenceHandler.Preserve` / `IgnoreCycles`)? {#01-serialization-deserialization-q13}
+#### Q13. How do you handle circular references in an object graph (`ReferenceHandler.Preserve` / `IgnoreCycles`)?
 
 How do you handle circular references in an object graph (`ReferenceHandler.Preserve` / `IgnoreCycles`)?
 
@@ -346,7 +407,7 @@ How do you handle circular references in an object graph (`ReferenceHandler.Pres
 
 ---
 
-#### Q14. Why does serializing `Animal pet = new Dog()` sometimes drop `Dog`-only properties? {#01-serialization-deserialization-q14}
+#### Q14. Why does serializing `Animal pet = new Dog()` sometimes drop `Dog`-only properties?
 
 Why does serializing `Animal pet = new Dog()` sometimes drop `Dog`-only properties?
 
@@ -359,7 +420,7 @@ Why does serializing `Animal pet = new Dog()` sometimes drop `Dog`-only properti
 
 ---
 
-#### Q15. How do you enable polymorphic serialization in modern `System.Text.Json`? {#01-serialization-deserialization-q15}
+#### Q15. How do you enable polymorphic serialization in modern `System.Text.Json`?
 
 How do you enable polymorphic serialization in modern `System.Text.Json`?
 
@@ -372,7 +433,7 @@ How do you enable polymorphic serialization in modern `System.Text.Json`?
 
 ---
 
-#### Q16. What is `JsonNode`, `JsonObject`, and `JsonArray`, and when prefer them over strongly typed models? {#01-serialization-deserialization-q16}
+#### Q16. What is `JsonNode`, `JsonObject`, and `JsonArray`, and when prefer them over strongly typed models?
 
 What is `JsonNode`, `JsonObject`, and `JsonArray`, and when prefer them over strongly typed models?
 
@@ -385,7 +446,7 @@ What is `JsonNode`, `JsonObject`, and `JsonArray`, and when prefer them over str
 
 ---
 
-#### Q17. How do you navigate and mutate JSON with `JsonNode` without deserializing to a fixed class? {#01-serialization-deserialization-q17}
+#### Q17. How do you navigate and mutate JSON with `JsonNode` without deserializing to a fixed class?
 
 How do you navigate and mutate JSON with `JsonNode` without deserializing to a fixed class?
 
@@ -398,7 +459,7 @@ How do you navigate and mutate JSON with `JsonNode` without deserializing to a f
 
 ---
 
-#### Q18. What is a custom `JsonConverter<T>`, and when would you implement `Read`/`Write` manually? {#01-serialization-deserialization-q18}
+#### Q18. What is a custom `JsonConverter<T>`, and when would you implement `Read`/`Write` manually?
 
 What is a custom `JsonConverter<T>`, and when would you implement `Read`/`Write` manually?
 
@@ -411,7 +472,7 @@ What is a custom `JsonConverter<T>`, and when would you implement `Read`/`Write`
 
 ---
 
-#### Q19. How do `Utf8JsonReader` and `Utf8JsonWriter` differ from `JsonSerializer` helpers? {#01-serialization-deserialization-q19}
+#### Q19. How do `Utf8JsonReader` and `Utf8JsonWriter` differ from `JsonSerializer` helpers?
 
 How do `Utf8JsonReader` and `Utf8JsonWriter` differ from `JsonSerializer` helpers?
 
@@ -424,7 +485,7 @@ How do `Utf8JsonReader` and `Utf8JsonWriter` differ from `JsonSerializer` helper
 
 ---
 
-#### Q20. Explain `XmlSerializer` requirements (parameterless constructor, public read/write properties). {#01-serialization-deserialization-q20}
+#### Q20. Explain `XmlSerializer` requirements (parameterless constructor, public read/write properties).
 
 Explain `XmlSerializer` requirements (parameterless constructor, public read/write properties).
 
@@ -437,7 +498,7 @@ Explain `XmlSerializer` requirements (parameterless constructor, public read/wri
 
 ---
 
-#### Q21. What do `[XmlRoot]`, `[XmlElement]`, `[XmlAttribute]`, and `[XmlIgnore]` control? {#01-serialization-deserialization-q21}
+#### Q21. What do `[XmlRoot]`, `[XmlElement]`, `[XmlAttribute]`, and `[XmlIgnore]` control?
 
 What do `[XmlRoot]`, `[XmlElement]`, `[XmlAttribute]`, and `[XmlIgnore]` control?
 
@@ -450,7 +511,7 @@ What do `[XmlRoot]`, `[XmlElement]`, `[XmlAttribute]`, and `[XmlIgnore]` control
 
 ---
 
-#### Q22. Why can `XmlSerializer` fail at runtime even when the project compiles? {#01-serialization-deserialization-q22}
+#### Q22. Why can `XmlSerializer` fail at runtime even when the project compiles?
 
 Why can `XmlSerializer` fail at runtime even when the project compiles?
 
@@ -463,7 +524,7 @@ Why can `XmlSerializer` fail at runtime even when the project compiles?
 
 ---
 
-#### Q23. What is `[Serializable]` actually used for in modern .NET? {#01-serialization-deserialization-q23}
+#### Q23. What is `[Serializable]` actually used for in modern .NET?
 
 What is `[Serializable]` actually used for in modern .NET?
 
@@ -476,7 +537,7 @@ What is `[Serializable]` actually used for in modern .NET?
 
 ---
 
-#### Q24. Explain `BinaryFormatter` — why is it obsolete, and what security risks led to its removal? {#01-serialization-deserialization-q24}
+#### Q24. Explain `BinaryFormatter` — why is it obsolete, and what security risks led to its removal?
 
 Explain `BinaryFormatter` — why is it obsolete, and what security risks led to its removal?
 
@@ -489,7 +550,7 @@ Explain `BinaryFormatter` — why is it obsolete, and what security risks led to
 
 ---
 
-#### Q25. What are recommended modern alternatives to `BinaryFormatter` for trusted internal persistence? {#01-serialization-deserialization-q25}
+#### Q25. What are recommended modern alternatives to `BinaryFormatter` for trusted internal persistence?
 
 What are recommended modern alternatives to `BinaryFormatter` for trusted internal persistence?
 
@@ -502,7 +563,7 @@ What are recommended modern alternatives to `BinaryFormatter` for trusted intern
 
 ---
 
-#### Q26. How does `DateTime` with unspecified `Kind` behave across time zones during serialization? {#01-serialization-deserialization-q26}
+#### Q26. How does `DateTime` with unspecified `Kind` behave across time zones during serialization?
 
 How does `DateTime` with unspecified `Kind` behave across time zones during serialization?
 
@@ -515,7 +576,7 @@ How does `DateTime` with unspecified `Kind` behave across time zones during seri
 
 ---
 
-#### Q27. Why is `DateTimeOffset` often safer on the wire than `DateTime`? {#01-serialization-deserialization-q27}
+#### Q27. Why is `DateTimeOffset` often safer on the wire than `DateTime`?
 
 Why is `DateTimeOffset` often safer on the wire than `DateTime`?
 
@@ -528,7 +589,7 @@ Why is `DateTimeOffset` often safer on the wire than `DateTime`?
 
 ---
 
-#### Q28. Can a type with only get-only properties serialize but fail to deserialize? Why? {#01-serialization-deserialization-q28}
+#### Q28. Can a type with only get-only properties serialize but fail to deserialize? Why?
 
 Can a type with only get-only properties serialize but fail to deserialize? Why?
 
@@ -541,7 +602,7 @@ Can a type with only get-only properties serialize but fail to deserialize? Why?
 
 ---
 
-#### Q29. How do `[JsonConstructor]` and parameterized constructors interact with deserialization? {#01-serialization-deserialization-q29}
+#### Q29. How do `[JsonConstructor]` and parameterized constructors interact with deserialization?
 
 How do `[JsonConstructor]` and parameterized constructors interact with deserialization?
 
@@ -554,7 +615,7 @@ How do `[JsonConstructor]` and parameterized constructors interact with deserial
 
 ---
 
-#### Q30. What is the difference between `System.Text.Json` and `Newtonsoft.Json` feature sets (contract customization, references)? {#01-serialization-deserialization-q30}
+#### Q30. What is the difference between `System.Text.Json` and `Newtonsoft.Json` feature sets (contract customization, references)?
 
 What is the difference between `System.Text.Json` and `Newtonsoft.Json` feature sets (contract customization, references)?
 
@@ -573,7 +634,7 @@ New greenfield ASP.NET Core APIs typically standardize on System.Text.Json unles
 
 ### 02. Reflection & Attributes
 
-#### Q1. What is reflection in C#, and what problems does it solve? {#02-reflection-attributes-q1}
+#### Q1. What is reflection in C#, and what problems does it solve?
 
 (R) A warehouse API loads pricing plugins from a separate assembly at runtime. It works on a developer machine but `LoadPlugin` always returns null in staging. Review the loader:
 
@@ -619,7 +680,7 @@ What fails cross-assembly, and how do you fix type resolution for production plu
 
 ---
 
-#### Q2. What is the difference between early binding and late binding? {#02-reflection-attributes-q2}
+#### Q2. What is the difference between early binding and late binding?
 
 (R) A metadata-driven audit interceptor invokes controller actions and logs failures, but operators only see `TargetInvocationException` in Splunk — never the real fault. Review the handler:
 
@@ -676,7 +737,7 @@ catch (TargetInvocationException tie)
 
 ---
 
-#### Q3. Explain `typeof(T)` vs `obj.GetType()` — compile-time token vs runtime type. {#02-reflection-attributes-q3}
+#### Q3. Explain `typeof(T)` vs `obj.GetType()` — compile-time token vs runtime type.
 
 (R) After a rename refactor from `CalculateLineTotal` to `CalculateOrderTotal`, order totals silently become zero in production. Review the pricing service:
 
@@ -715,7 +776,7 @@ Identify the stacked problems (compile-time, runtime, maintainability) and prior
 
 ---
 
-#### Q4. Why does `typeof(List<int>) == typeof(List<string>)` return false? {#02-reflection-attributes-q4}
+#### Q4. Why does `typeof(List<int>) == typeof(List<string>)` return false?
 
 (R) A margin-report job reads private cost fields from `CostRecord`-like DTOs but always gets null and skips rows. Review the extractor:
 
@@ -762,7 +823,7 @@ FieldInfo? field = type.GetField("_costBasis", flags);
 
 ---
 
-#### Q5. How do you obtain the generic type definition from a closed generic type? {#02-reflection-attributes-q5}
+#### Q5. How do you obtain the generic type definition from a closed generic type?
 
 (P) An ASP.NET Core API discovers `[EntityTable]`-decorated export types by scanning `Assembly.GetExecutingAssembly().GetTypes()` at startup. After enabling `<PublishTrimmed>true</PublishTrimmed>` for a Native AOT experiment, several entity types vanish from the export manifest with no compile errors. Why does trimming break this pattern, and what production-safe alternatives exist?
 
@@ -777,7 +838,7 @@ FieldInfo? field = type.GetField("_costBasis", flags);
 
 ---
 
-#### Q6. What is the `Type` class, and what members expose metadata (methods, properties, fields, attributes)? {#02-reflection-attributes-q6}
+#### Q6. What is the `Type` class, and what members expose metadata (methods, properties, fields, attributes)?
 
 (D) Your team ships a CSV export endpoint. One developer scans every request with `type.GetProperties()` and `GetCustomAttribute<ExportableAttribute>()` (same pattern as `ExportManifestBuilder` in this chapter). Another caches `PropertyInfo[]` and attribute metadata in a `ConcurrentDictionary<Type, ExportColumn[]>` built once at startup. Under 500 RPS with 40 exportable properties per row, which approach do you choose and why?
 
@@ -793,7 +854,7 @@ FieldInfo? field = type.GetField("_costBasis", flags);
 
 ---
 
-#### Q7. What is `BindingFlags`, and how do `Instance`, `Static`, `Public`, `NonPublic`, and `DeclaredOnly` combine? {#02-reflection-attributes-q7}
+#### Q7. What is `BindingFlags`, and how do `Instance`, `Static`, `Public`, `NonPublic`, and `DeclaredOnly` combine?
 
 (M) A `PremiumProduct : Product` subclass is added for a loyalty tier. The ORM layer reads `[EntityTable]` from the base `Product` type to resolve table names. Export works for `Product` but `PremiumProduct` rows fail with "table not mapped." Given this attribute definition from the tutorial:
 
@@ -815,91 +876,91 @@ Why does inheritance behave this way, and what are two correct fixes at the call
 
 ---
 
-#### Q8. How do you enumerate properties, methods, fields, and constructors with reflection? {#02-reflection-attributes-q8}
+#### Q8. How do you enumerate properties, methods, fields, and constructors with reflection?
 
 _Answer not found._
 
 ---
 
-#### Q9. How do you invoke a method dynamically via `MethodInfo.Invoke`? {#02-reflection-attributes-q9}
+#### Q9. How do you invoke a method dynamically via `MethodInfo.Invoke`?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `Activator.CreateInstance`, and how do you pass constructor arguments? {#02-reflection-attributes-q10}
+#### Q10. What is `Activator.CreateInstance`, and how do you pass constructor arguments?
 
 _Answer not found._
 
 ---
 
-#### Q11. How do you create generic types at runtime (`MakeGenericType`) and invoke generic methods (`MakeGenericMethod`)? {#02-reflection-attributes-q11}
+#### Q11. How do you create generic types at runtime (`MakeGenericType`) and invoke generic methods (`MakeGenericMethod`)?
 
 _Answer not found._
 
 ---
 
-#### Q12. How do you get and set property and field values through `PropertyInfo` / `FieldInfo`? {#02-reflection-attributes-q12}
+#### Q12. How do you get and set property and field values through `PropertyInfo` / `FieldInfo`?
 
 _Answer not found._
 
 ---
 
-#### Q13. How can reflection access private members, and why is that a maintenance and security concern? {#02-reflection-attributes-q13}
+#### Q13. How can reflection access private members, and why is that a maintenance and security concern?
 
 _Answer not found._
 
 ---
 
-#### Q14. Explain `Assembly`, `Module`, `MemberInfo`, `MethodInfo`, `PropertyInfo`, and `FieldInfo` relationships. {#02-reflection-attributes-q14}
+#### Q14. Explain `Assembly`, `Module`, `MemberInfo`, `MethodInfo`, `PropertyInfo`, and `FieldInfo` relationships.
 
 _Answer not found._
 
 ---
 
-#### Q15. What is the difference between `Assembly.Load`, `Assembly.LoadFrom`, and `AssemblyLoadContext`? {#02-reflection-attributes-q15}
+#### Q15. What is the difference between `Assembly.Load`, `Assembly.LoadFrom`, and `AssemblyLoadContext`?
 
 _Answer not found._
 
 ---
 
-#### Q16. Can you unload an assembly in .NET Framework vs .NET Core / .NET 5+? {#02-reflection-attributes-q16}
+#### Q16. Can you unload an assembly in .NET Framework vs .NET Core / .NET 5+?
 
 _Answer not found._
 
 ---
 
-#### Q17. How do you discover and read custom attributes at runtime (`GetCustomAttribute`, `IsDefined`)? {#02-reflection-attributes-q17}
+#### Q17. How do you discover and read custom attributes at runtime (`GetCustomAttribute`, `IsDefined`)?
 
 _Answer not found._
 
 ---
 
-#### Q18. How do you define and apply your own attribute classes (`AttributeUsage`)? {#02-reflection-attributes-q18}
+#### Q18. How do you define and apply your own attribute classes (`AttributeUsage`)?
 
 _Answer not found._
 
 ---
 
-#### Q19. What are performance costs of reflection vs compiled code, and how do trimming/AOT affect it? {#02-reflection-attributes-q19}
+#### Q19. What are performance costs of reflection vs compiled code, and how do trimming/AOT affect it?
 
 _Answer not found._
 
 ---
 
-#### Q20. What is `Reflection.Emit`, and when is dynamic IL generation justified? {#02-reflection-attributes-q20}
+#### Q20. What is `Reflection.Emit`, and when is dynamic IL generation justified?
 
 _Answer not found._
 
 ---
 
-#### Q21. How does reflection interact with nullable reference type annotations? {#02-reflection-attributes-q21}
+#### Q21. How does reflection interact with nullable reference type annotations?
 
 _Answer not found._
 
 ---
 
-#### Q22. What security permissions historically gated reflection, and what changed in modern .NET? {#02-reflection-attributes-q22}
+#### Q22. What security permissions historically gated reflection, and what changed in modern .NET?
 
 _Answer not found._
 
@@ -907,7 +968,7 @@ _Answer not found._
 
 ### 03. Regular Expressions
 
-#### Q1. What is the purpose of the `Regex` class in C#? {#03-regular-expressions-q1}
+#### Q1. What is the purpose of the `Regex` class in C#?
 
 (R) A bulk-import API validates thousands of customer rows per request. After deploy, CPU spikes and some requests time out. Review this validator and prioritize fixes.
 
@@ -946,7 +1007,7 @@ private static readonly Regex OrderInNotes = new(
 
 ---
 
-#### Q2. Explain `Regex.IsMatch`, `Match`, `Matches`, `Replace`, and `Split`. {#03-regular-expressions-q2}
+#### Q2. Explain `Regex.IsMatch`, `Match`, `Matches`, `Replace`, and `Split`.
 
 (R) A support portal lets agents paste a custom regex to search and redact matches in uploaded log files (multi-MB). Review this endpoint helper:
 
@@ -994,7 +1055,7 @@ var safe = new Regex(
 
 ---
 
-#### Q3. What is the difference between verbatim regex strings (`@"\d+"`) and escaped regular strings? {#03-regular-expressions-q3}
+#### Q3. What is the difference between verbatim regex strings (`@"\d+"`) and escaped regular strings?
 
 (R) A notes-processing job extracts phone fragments for a CRM sync. Review this extractor:
 
@@ -1052,7 +1113,7 @@ public bool HasUsPhone(string notes) => PhonePattern.IsMatch(notes);
 
 ---
 
-#### Q4. What are common metacharacters candidates should know (`.`, `*`, `+`, `?`, `^`, `$`, `\d`, `\w`, groups)? {#03-regular-expressions-q4}
+#### Q4. What are common metacharacters candidates should know (`.`, `*`, `+`, `?`, `^`, `$`, `\d`, `\w`, groups)?
 
 (P) Your registration API validates email on every POST (~2k RPS). A teammate proposes three options:
 
@@ -1074,7 +1135,7 @@ When would you choose each, and what companion settings (timeout, anchoring, cac
 
 ---
 
-#### Q5. What is catastrophic backtracking, and what pattern shapes trigger it? {#03-regular-expressions-q5}
+#### Q5. What is catastrophic backtracking, and what pattern shapes trigger it?
 
 (D) Product wants import rejection for disposable email domains (`mailinator.com`, `tempmail.org`, …) and a regex that only allows corporate TLDs. A developer merges the blocklist into one giant pattern:
 
@@ -1097,7 +1158,7 @@ What breaks in maintainability, testability, and correctness compared to splitti
 
 ---
 
-#### Q6. How do you mitigate ReDoS using `Regex.MatchTimeout` or the `matchTimeout` parameter in .NET? {#03-regular-expressions-q6}
+#### Q6. How do you mitigate ReDoS using `Regex.MatchTimeout` or the `matchTimeout` parameter in .NET?
 
 (M) A config-ingestion worker parses key/value lines from Windows-generated files. Keys on lines after the first never match:
 
@@ -1121,7 +1182,7 @@ Explain why default regex behavior fails here and what minimal change fixes it w
 
 ---
 
-#### Q7. What happens when a regex times out — which exception is thrown? {#03-regular-expressions-q7}
+#### Q7. What happens when a regex times out — which exception is thrown?
 
 (R) An internal tool "sanitizes" HTML fragments before storing them in a knowledge base:
 
@@ -1163,49 +1224,49 @@ string collapsed = Regex.Replace(html, @"<.*?>", string.Empty);
 
 ---
 
-#### Q8. What is atomic grouping's role in preventing backtracking explosions? {#03-regular-expressions-q8}
+#### Q8. What is atomic grouping's role in preventing backtracking explosions?
 
 _Answer not found._
 
 ---
 
-#### Q9. How does culture affect case-insensitive matching, and what does `RegexOptions.CultureInvariant` do? {#03-regular-expressions-q9}
+#### Q9. How does culture affect case-insensitive matching, and what does `RegexOptions.CultureInvariant` do?
 
 _Answer not found._
 
 ---
 
-#### Q10. When should you compile regexes with `RegexOptions.Compiled` (or source generators in .NET 7+)? {#03-regular-expressions-q10}
+#### Q10. When should you compile regexes with `RegexOptions.Compiled` (or source generators in .NET 7+)?
 
 _Answer not found._
 
 ---
 
-#### Q11. What is `RegexOptions.NonBacktracking` (.NET 7+), and what trade-offs does it have? {#03-regular-expressions-q11}
+#### Q11. What is `RegexOptions.NonBacktracking` (.NET 7+), and what trade-offs does it have?
 
 _Answer not found._
 
 ---
 
-#### Q12. How do named capture groups work, and how do you read them from `Match.Groups`? {#03-regular-expressions-q12}
+#### Q12. How do named capture groups work, and how do you read them from `Match.Groups`?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the difference between greedy and lazy quantifiers (`+` vs `+?`)? {#03-regular-expressions-q13}
+#### Q13. What is the difference between greedy and lazy quantifiers (`+` vs `+?`)?
 
 _Answer not found._
 
 ---
 
-#### Q14. When should you prefer `Regex` over simple `string.Contains` / `Split` for maintainability? {#03-regular-expressions-q14}
+#### Q14. When should you prefer `Regex` over simple `string.Contains` / `Split` for maintainability?
 
 _Answer not found._
 
 ---
 
-#### Q15. How do you validate input with regex without using it as a full parser (e.g., email, phone)? {#03-regular-expressions-q15}
+#### Q15. How do you validate input with regex without using it as a full parser (e.g., email, phone)?
 
 _Answer not found._
 
@@ -1213,7 +1274,7 @@ _Answer not found._
 
 ### 04. Var, Dynamic & Special Keywords
 
-#### Q1. Explain `var` — what is known at compile time vs runtime? {#04-var-dynamic-special-keywords-q1}
+#### Q1. Explain `var` — what is known at compile time vs runtime?
 
 Explain `var` — what is known at compile time vs runtime?
 
@@ -1226,7 +1287,7 @@ Explain `var` — what is known at compile time vs runtime?
 
 ---
 
-#### Q2. When is `var` required (anonymous types) vs merely convenient? {#04-var-dynamic-special-keywords-q2}
+#### Q2. When is `var` required (anonymous types) vs merely convenient?
 
 When is `var` required (anonymous types) vs merely convenient?
 
@@ -1239,7 +1300,7 @@ When is `var` required (anonymous types) vs merely convenient?
 
 ---
 
-#### Q3. Explain the `dynamic` keyword and the DLR's role. {#04-var-dynamic-special-keywords-q3}
+#### Q3. Explain the `dynamic` keyword and the DLR's role.
 
 Explain the `dynamic` keyword and the DLR's role.
 
@@ -1252,7 +1313,7 @@ Explain the `dynamic` keyword and the DLR's role.
 
 ---
 
-#### Q4. What is the difference between `var`, `dynamic`, and `object`? {#04-var-dynamic-special-keywords-q4}
+#### Q4. What is the difference between `var`, `dynamic`, and `object`?
 
 What is the difference between `var`, `dynamic`, and `object`?
 
@@ -1270,7 +1331,7 @@ What is the difference between `var`, `dynamic`, and `object`?
 
 ---
 
-#### Q5. When does `dynamic` defer member binding to runtime, and what errors appear only then? {#04-var-dynamic-special-keywords-q5}
+#### Q5. When does `dynamic` defer member binding to runtime, and what errors appear only then?
 
 When does `dynamic` defer member binding to runtime, and what errors appear only then?
 
@@ -1283,7 +1344,7 @@ When does `dynamic` defer member binding to runtime, and what errors appear only
 
 ---
 
-#### Q6. What is `DynamicObject`, and when would you subclass it? {#04-var-dynamic-special-keywords-q6}
+#### Q6. What is `DynamicObject`, and when would you subclass it?
 
 What is `DynamicObject`, and when would you subclass it?
 
@@ -1296,7 +1357,7 @@ What is `DynamicObject`, and when would you subclass it?
 
 ---
 
-#### Q7. What is `ExpandoObject`, and how does it differ from `Dictionary<string, object>`? {#04-var-dynamic-special-keywords-q7}
+#### Q7. What is `ExpandoObject`, and how does it differ from `Dictionary<string, object>`?
 
 What is `ExpandoObject`, and how does it differ from `Dictionary<string, object>`?
 
@@ -1309,7 +1370,7 @@ What is `ExpandoObject`, and how does it differ from `Dictionary<string, object>
 
 ---
 
-#### Q8. Explain `nameof` — how does it help refactoring and logging? {#04-var-dynamic-special-keywords-q8}
+#### Q8. Explain `nameof` — how does it help refactoring and logging?
 
 Explain `nameof` — how does it help refactoring and logging?
 
@@ -1322,7 +1383,7 @@ Explain `nameof` — how does it help refactoring and logging?
 
 ---
 
-#### Q9. What is the `global::` qualifier, and when is it needed to disambiguate namespaces? {#04-var-dynamic-special-keywords-q9}
+#### Q9. What is the `global::` qualifier, and when is it needed to disambiguate namespaces?
 
 What is the `global::` qualifier, and when is it needed to disambiguate namespaces?
 
@@ -1335,7 +1396,7 @@ What is the `global::` qualifier, and when is it needed to disambiguate namespac
 
 ---
 
-#### Q10. What is `default` literal (C# 7.1+) vs `default(T)`? {#04-var-dynamic-special-keywords-q10}
+#### Q10. What is `default` literal (C# 7.1+) vs `default(T)`?
 
 What is `default` literal (C# 7.1+) vs `default(T)`?
 
@@ -1348,7 +1409,7 @@ What is `default` literal (C# 7.1+) vs `default(T)`?
 
 ---
 
-#### Q11. What is `@` verbatim identifier syntax (`@class`, `@event`) used for? {#04-var-dynamic-special-keywords-q11}
+#### Q11. What is `@` verbatim identifier syntax (`@class`, `@event`) used for?
 
 What is `@` verbatim identifier syntax (`@class`, `@event`) used for?
 
@@ -1361,7 +1422,7 @@ What is `@` verbatim identifier syntax (`@class`, `@event`) used for?
 
 ---
 
-#### Q12. What is unsafe code, and when are pointers justified in C#? {#04-var-dynamic-special-keywords-q12}
+#### Q12. What is unsafe code, and when are pointers justified in C#?
 
 What is unsafe code, and when are pointers justified in C#?
 
@@ -1374,7 +1435,7 @@ What is unsafe code, and when are pointers justified in C#?
 
 ---
 
-#### Q13. What is `stackalloc`, and how does it relate to performance-sensitive code? {#04-var-dynamic-special-keywords-q13}
+#### Q13. What is `stackalloc`, and how does it relate to performance-sensitive code?
 
 What is `stackalloc`, and how does it relate to performance-sensitive code?
 
@@ -1387,7 +1448,7 @@ What is `stackalloc`, and how does it relate to performance-sensitive code?
 
 ---
 
-#### Q14. What is `ref readonly` return, and how does it differ from returning by value? {#04-var-dynamic-special-keywords-q14}
+#### Q14. What is `ref readonly` return, and how does it differ from returning by value?
 
 What is `ref readonly` return, and how does it differ from returning by value?
 
@@ -1400,7 +1461,7 @@ What is `ref readonly` return, and how does it differ from returning by value?
 
 ---
 
-#### Q15. How does `dynamic` interact with extension methods (why don't they bind dynamically)? {#04-var-dynamic-special-keywords-q15}
+#### Q15. How does `dynamic` interact with extension methods (why don't they bind dynamically)?
 
 How does `dynamic` interact with extension methods (why don't they bind dynamically)?
 
@@ -1415,7 +1476,7 @@ How does `dynamic` interact with extension methods (why don't they bind dynamica
 
 ### 05. C# 7 Features
 
-#### Q1. What are tuple deconstruction and named tuple elements? {#05-c-7-features-q1}
+#### Q1. What are tuple deconstruction and named tuple elements?
 
 (R) Express VIP orders are routed to the standard express lane in production. Review this C# 7 switch with `when` guards (mirrors the warehouse routing demo):
 
@@ -1458,7 +1519,7 @@ switch (order.Priority)
 
 ---
 
-#### Q2. How do `out` variables declared inline in method calls work? {#05-c-7-features-q2}
+#### Q2. How do `out` variables declared inline in method calls work?
 
 (R) A product lookup was optimized with `ValueTask<string>` for cache hits. Under retry logic, intermittent `InvalidOperationException` appears. Review:
 
@@ -1491,7 +1552,7 @@ if (string.IsNullOrEmpty(order.ProductName))
 
 ---
 
-#### Q3. What are discards (`_`), and where are they used (deconstruction, unused returns)? {#05-c-7-features-q3}
+#### Q3. What are discards (`_`), and where are they used (deconstruction, unused returns)?
 
 (R) A developer refactors inventory reservation to use C# 7 ref returns for in-place updates. The build fails; after a workaround it crashes in QA. Review:
 
@@ -1525,7 +1586,7 @@ public async Task ReserveAsync(Order order, int[] inventory, int skuIndex)
 
 ---
 
-#### Q4. Explain pattern matching enhancements in C# 7 — `is` type patterns and `switch` patterns. {#05-c-7-features-q4}
+#### Q4. Explain pattern matching enhancements in C# 7 — `is` type patterns and `switch` patterns.
 
 (R) A CSV import pipeline uses C# 7 out variables. Finance sees rows with quantity `0` marked as successfully imported. Review:
 
@@ -1558,7 +1619,7 @@ row.Quantity = qty;
 
 ---
 
-#### Q5. What are `ref` returns and `ref` locals, and what safety rules apply? {#05-c-7-features-q5}
+#### Q5. What are `ref` returns and `ref` locals, and what safety rules apply?
 
 (P) A warehouse fulfillment microservice returns `(bool CanFulfill, string Note)` tuples from `CheckFulfillment` — the same shape as the tutorial's tuple demo. The team debates replacing tuples with a `FulfillmentResult` record before exposing the method on a public NuGet contract. When is the tuple idiomatic, and when does it break production maintainability?
 
@@ -1573,7 +1634,7 @@ row.Quantity = qty;
 
 ---
 
-#### Q6. What is `ref`/`in`/`out` in the context of `ReadOnlySpan`-era performance APIs (conceptual link)? {#05-c-7-features-q6}
+#### Q6. What is `ref`/`in`/`out` in the context of `ReadOnlySpan`-era performance APIs (conceptual link)?
 
 (M) A batch job uses a local function with captured outer state to retry flaky lane assignments. Ops reports duplicate reservations on the same SKU after parallel batch splits. Review:
 
@@ -1598,7 +1659,7 @@ row.Quantity = qty;
 
 ---
 
-#### Q7. What are local functions, and how do they differ from lambdas for recursion and capture? {#05-c-7-features-q7}
+#### Q7. What are local functions, and how do they differ from lambdas for recursion and capture?
 
 (D) Two teammates implement guard clauses for order validation. Which approach do you standardize on for a shared domain library, and why?
 
@@ -1613,31 +1674,31 @@ row.Quantity = qty;
 
 ---
 
-#### Q8. What are expression-bodied members beyond properties (methods, constructors, finalizers)? {#05-c-7-features-q8}
+#### Q8. What are expression-bodied members beyond properties (methods, constructors, finalizers)?
 
 _Answer not found._
 
 ---
 
-#### Q9. What binary literals and digit separators (`0b1010`, `1_000_000`) improve in readability? {#05-c-7-features-q9}
+#### Q9. What binary literals and digit separators (`0b1010`, `1_000_000`) improve in readability?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `throw` as an expression inside ternary/null-coalescing forms? {#05-c-7-features-q10}
+#### Q10. What is `throw` as an expression inside ternary/null-coalescing forms?
 
 _Answer not found._
 
 ---
 
-#### Q11. How do generalized async return types work (`ValueTask` as async return)? {#05-c-7-features-q11}
+#### Q11. How do generalized async return types work (`ValueTask` as async return)?
 
 _Answer not found._
 
 ---
 
-#### Q12. What are `default` in generic constraints improvements in C# 7? {#05-c-7-features-q12}
+#### Q12. What are `default` in generic constraints improvements in C# 7?
 
 _Answer not found._
 
@@ -1645,7 +1706,7 @@ _Answer not found._
 
 ### 06. C# 8 Features
 
-#### Q1. Explain nullable reference types — how do they differ from `Nullable<T>` value types? {#06-c-8-features-q1}
+#### Q1. Explain nullable reference types — how do they differ from `Nullable<T>` value types?
 
 (R) After enabling `<Nullable>enable</Nullable>` on the document-ingest API, QA reports intermittent `NullReferenceException` on documents with no footnotes. Review the service:
 
@@ -1699,7 +1760,7 @@ What problems remain after the developer "fixed" compiler warnings with `!`, and
 
 ---
 
-#### Q2. What do `?`, `!`, and `#nullable` directives mean at compile time? {#06-c-8-features-q2}
+#### Q2. What do `?`, `!`, and `#nullable` directives mean at compile time?
 
 (R) A background worker streams archive pages to blob storage. Under deploy cancellation, the job keeps running for minutes and sometimes OOMs. Review the consumer and producer:
 
@@ -1753,7 +1814,7 @@ Identify stacked compile-time, runtime, and scalability issues. What is the corr
 
 ---
 
-#### Q3. Are nullable reference annotations enforced at runtime? {#06-c-8-features-q3}
+#### Q3. Are nullable reference annotations enforced at runtime?
 
 (R) A routing microservice parses document IDs with C# 8 ranges after a format change. Production throws `ArgumentOutOfRangeException` on valid-looking IDs. Review:
 
@@ -1808,7 +1869,7 @@ Expected format: `DOC-YYYY-NNN` (minimum 12 characters). What assumptions break 
 
 ---
 
-#### Q4. What are default interface methods, and how do they relate to the diamond problem? {#06-c-8-features-q4}
+#### Q4. What are default interface methods, and how do they relate to the diamond problem?
 
 (R) A teammate refactors chunk parsing to overlap I/O with processing. The build fails and code review finds async/ref-struct mixing. Review:
 
@@ -1870,7 +1931,7 @@ public async Task<int> ProcessHeaderAsync(string headerLine)
 
 ---
 
-#### Q5. What are asynchronous streams (`IAsyncEnumerable<T>` and `await foreach`)? {#06-c-8-features-q5}
+#### Q5. What are asynchronous streams (`IAsyncEnumerable<T>` and `await foreach`)?
 
 (P) Your team ships `IDocumentProcessor` as a shared NuGet package. Version 1 has `Process` and `ProcessorName`. Version 2 needs a `Describe()` helper without forcing every consumer to recompile. A consumer already implements both `IDocumentProcessor` and `IArchiveReporter`, each adding a default `Describe()`. How do you evolve the interface using C# 8 default interface methods, and what breaks if you ignore diamond ambiguity?
 
@@ -1887,7 +1948,7 @@ public async Task<int> ProcessHeaderAsync(string headerLine)
 
 ---
 
-#### Q6. Explain null-coalescing assignment (`??=`) with examples. {#06-c-8-features-q6}
+#### Q6. Explain null-coalescing assignment (`??=`) with examples.
 
 (M) A nightly batch opens thousands of small files under a shared directory. After migrating to `using var`, ops reports "too many open files" and memory climbs until the job finishes. Review the loop:
 
@@ -1949,7 +2010,7 @@ foreach (string path in paths)
 
 ---
 
-#### Q7. Explain range (`..`) and index (`^`) operators — how does `^1` differ from `Length - 1`? {#06-c-8-features-q7}
+#### Q7. Explain range (`..`) and index (`^`) operators — how does `^1` differ from `Length - 1`?
 
 (D) A 400-project solution enables nullable reference types repo-wide. CI surfaces 8,000 warnings; developers blanket `#nullable disable` on touched files and sprinkle `!` to merge PRs. As tech lead, what migration strategy do you recommend for a document-archive domain with heavy `string` metadata (IDs, paths, optional notes), and where do `string?`, null checks, `[NotNullWhen]`, and suppressions belong versus suppressions?
 
@@ -1967,49 +2028,49 @@ foreach (string path in paths)
 
 ---
 
-#### Q8. What are `using` declarations vs `using` statements for IDisposable? {#06-c-8-features-q8}
+#### Q8. What are `using` declarations vs `using` statements for IDisposable?
 
 _Answer not found._
 
 ---
 
-#### Q9. What are nullable-aware APIs in the BCL reacting to NRT (`NotNullWhen`, `MaybeNull`)? {#06-c-8-features-q9}
+#### Q9. What are nullable-aware APIs in the BCL reacting to NRT (`NotNullWhen`, `MaybeNull`)?
 
 _Answer not found._
 
 ---
 
-#### Q10. What is `IAsyncDisposable`, and how does `await using` work? {#06-c-8-features-q10}
+#### Q10. What is `IAsyncDisposable`, and how does `await using` work?
 
 _Answer not found._
 
 ---
 
-#### Q11. What are static local functions, and why were they added? {#06-c-8-features-q11}
+#### Q11. What are static local functions, and why were they added?
 
 _Answer not found._
 
 ---
 
-#### Q12. What is a `readonly struct`, and what mutability restrictions apply to its members? {#06-c-8-features-q12}
+#### Q12. What is a `readonly struct`, and what mutability restrictions apply to its members?
 
 _Answer not found._
 
 ---
 
-#### Q13. What is the `readonly` modifier on struct instance members (C# 8)? {#06-c-8-features-q13}
+#### Q13. What is the `readonly` modifier on struct instance members (C# 8)?
 
 _Answer not found._
 
 ---
 
-#### Q14. What are stackalloc in safe contexts and `Span<T>` integrations introduced alongside C# 8? {#06-c-8-features-q14}
+#### Q14. What are stackalloc in safe contexts and `Span<T>` integrations introduced alongside C# 8?
 
 _Answer not found._
 
 ---
 
-#### Q15. What is target-typed `new()` vs explicit type names? {#06-c-8-features-q15}
+#### Q15. What is target-typed `new()` vs explicit type names?
 
 _Answer not found._
 
@@ -2017,7 +2078,7 @@ _Answer not found._
 
 ### Cross-chapter — Records & Pattern Matching *(C# 9–11; grouped here)*
 
-#### Q1. What are records (C# 9), and what boilerplate do they synthesize? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q1}
+#### Q1. What are records (C# 9), and what boilerplate do they synthesize?
 
 What are records (C# 9), and what boilerplate do they synthesize?
 
@@ -2030,7 +2091,7 @@ What are records (C# 9), and what boilerplate do they synthesize?
 
 ---
 
-#### Q2. What is the difference between `record class` and `record struct`? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q2}
+#### Q2. What is the difference between `record class` and `record struct`?
 
 What is the difference between `record class` and `record struct`?
 
@@ -2043,7 +2104,7 @@ What is the difference between `record class` and `record struct`?
 
 ---
 
-#### Q3. How does value-based equality in records differ from default class equality? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q3}
+#### Q3. How does value-based equality in records differ from default class equality?
 
 How does value-based equality in records differ from default class equality?
 
@@ -2056,7 +2117,7 @@ How does value-based equality in records differ from default class equality?
 
 ---
 
-#### Q4. What is the difference between positional records and records with manual properties? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q4}
+#### Q4. What is the difference between positional records and records with manual properties?
 
 What is the difference between positional records and records with manual properties?
 
@@ -2069,7 +2130,7 @@ What is the difference between positional records and records with manual proper
 
 ---
 
-#### Q5. Explain `with` expressions — how do they relate to non-destructive mutation? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q5}
+#### Q5. Explain `with` expressions — how do they relate to non-destructive mutation?
 
 Explain `with` expressions — how do they relate to non-destructive mutation?
 
@@ -2082,7 +2143,7 @@ Explain `with` expressions — how do they relate to non-destructive mutation?
 
 ---
 
-#### Q6. What are init-only setters (`init`), and how do they differ from `{ get; set; }` and `{ get; }`? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q6}
+#### Q6. What are init-only setters (`init`), and how do they differ from `{ get; set; }` and `{ get; }`?
 
 What are init-only setters (`init`), and how do they differ from `{ get; set; }` and `{ get; }`?
 
@@ -2095,7 +2156,7 @@ What are init-only setters (`init`), and how do they differ from `{ get; set; }`
 
 ---
 
-#### Q7. Can init-only properties be set inside the type's constructors after object creation semantics? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q7}
+#### Q7. Can init-only properties be set inside the type's constructors after object creation semantics?
 
 Can init-only properties be set inside the type's constructors after object creation semantics?
 
@@ -2108,7 +2169,7 @@ Can init-only properties be set inside the type's constructors after object crea
 
 ---
 
-#### Q8. What is primary constructor syntax for records/classes (C# 12 preview cross-ref) vs positional records? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q8}
+#### Q8. What is primary constructor syntax for records/classes (C# 12 preview cross-ref) vs positional records?
 
 What is primary constructor syntax for records/classes (C# 12 preview cross-ref) vs positional records?
 
@@ -2121,7 +2182,7 @@ What is primary constructor syntax for records/classes (C# 12 preview cross-ref)
 
 ---
 
-#### Q9. What is pattern matching in modern C# beyond C# 7 — switch expressions, relational, logical, and property patterns? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q9}
+#### Q9. What is pattern matching in modern C# beyond C# 7 — switch expressions, relational, logical, and property patterns?
 
 What is pattern matching in modern C# beyond C# 7 — switch expressions, relational, logical, and property patterns?
 
@@ -2134,7 +2195,7 @@ What is pattern matching in modern C# beyond C# 7 — switch expressions, relati
 
 ---
 
-#### Q10. Explain property patterns (`person is { Age: > 18, Name: var n }`). {#cross-chapter-records-pattern-matching-c-911-grouped-here-q10}
+#### Q10. Explain property patterns (`person is { Age: > 18, Name: var n }`).
 
 Explain property patterns (`person is { Age: > 18, Name: var n }`).
 
@@ -2147,7 +2208,7 @@ Explain property patterns (`person is { Age: > 18, Name: var n }`).
 
 ---
 
-#### Q11. What are relational patterns (`>`, `<=`) and combinator patterns (`and`, `or`, `not`)? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q11}
+#### Q11. What are relational patterns (`>`, `<=`) and combinator patterns (`and`, `or`, `not`)?
 
 What are relational patterns (`>`, `<=`) and combinator patterns (`and`, `or`, `not`)?
 
@@ -2160,7 +2221,7 @@ What are relational patterns (`>`, `<=`) and combinator patterns (`and`, `or`, `
 
 ---
 
-#### Q12. What is list patterns (C# 11) — `[_, .., var last]`? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q12}
+#### Q12. What is list patterns (C# 11) — `[_, .., var last]`?
 
 What is list patterns (C# 11) — `[_, .., var last]`?
 
@@ -2173,7 +2234,7 @@ What is list patterns (C# 11) — `[_, .., var last]`?
 
 ---
 
-#### Q13. What is `switch` expression vs traditional `switch` statement for exhaustiveness? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q13}
+#### Q13. What is `switch` expression vs traditional `switch` statement for exhaustiveness?
 
 What is `switch` expression vs traditional `switch` statement for exhaustiveness?
 
@@ -2186,7 +2247,7 @@ What is `switch` expression vs traditional `switch` statement for exhaustiveness
 
 ---
 
-#### Q14. What happens when a `switch` expression is not exhaustive over an enum? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q14}
+#### Q14. What happens when a `switch` expression is not exhaustive over an enum?
 
 What happens when a `switch` expression is not exhaustive over an enum?
 
@@ -2199,7 +2260,7 @@ What happens when a `switch` expression is not exhaustive over an enum?
 
 ---
 
-#### Q15. What is the difference between `is null` and `== null` when a type overloads `==`? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q15}
+#### Q15. What is the difference between `is null` and `== null` when a type overloads `==`?
 
 What is the difference between `is null` and `== null` when a type overloads `==`?
 
@@ -2212,7 +2273,7 @@ What is the difference between `is null` and `== null` when a type overloads `==
 
 ---
 
-#### Q16. What are expression trees (`Expression<T>`), and how do they differ from delegates? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q16}
+#### Q16. What are expression trees (`Expression<T>`), and how do they differ from delegates?
 
 What are expression trees (`Expression<T>`), and how do they differ from delegates?
 
@@ -2225,7 +2286,7 @@ What are expression trees (`Expression<T>`), and how do they differ from delegat
 
 ---
 
-#### Q17. How are expression trees used by LINQ providers (EF Core, `IQueryable`)? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q17}
+#### Q17. How are expression trees used by LINQ providers (EF Core, `IQueryable`)?
 
 How are expression trees used by LINQ providers (EF Core, `IQueryable`)?
 
@@ -2238,7 +2299,7 @@ How are expression trees used by LINQ providers (EF Core, `IQueryable`)?
 
 ---
 
-#### Q18. Why can't all C# lambdas be converted to expression trees? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q18}
+#### Q18. Why can't all C# lambdas be converted to expression trees?
 
 Why can't all C# lambdas be converted to expression trees?
 
@@ -2251,7 +2312,7 @@ Why can't all C# lambdas be converted to expression trees?
 
 ---
 
-#### Q19. What is the difference between compile-time constant patterns and runtime type patterns? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q19}
+#### Q19. What is the difference between compile-time constant patterns and runtime type patterns?
 
 What is the difference between compile-time constant patterns and runtime type patterns?
 
@@ -2264,7 +2325,7 @@ What is the difference between compile-time constant patterns and runtime type p
 
 ---
 
-#### Q20. When should you prefer records over classes for DTOs and domain models? {#cross-chapter-records-pattern-matching-c-911-grouped-here-q20}
+#### Q20. When should you prefer records over classes for DTOs and domain models?
 
 When should you prefer records over classes for DTOs and domain models?
 
@@ -2439,85 +2500,85 @@ When should you prefer records over classes for DTOs and domain models?
 
 ---
 
-#### Q21. **`typeof` vs `GetType()`** — `typeof(Base)` is known at compile time; `instance.GetType()` returns the actual runtime derived type. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q21}
+#### Q21. **`typeof` vs `GetType()`** — `typeof(Base)` is known at compile time; `instance.GetType()` returns the actual runtime derived type.
 
 _Answer not found._
 
 ---
 
-#### Q22. **Serialization type loss** — Assigning `Animal ref = new Dog()` and serializing as `Animal` drops derived-only properties unless polymorphism is configured. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q22}
+#### Q22. **Serialization type loss** — Assigning `Animal ref = new Dog()` and serializing as `Animal` drops derived-only properties unless polymorphism is configured.
 
 _Answer not found._
 
 ---
 
-#### Q23. **`[Serializable]` ignored by System.Text.Json** — Candidates conflate legacy binary markers with modern JSON/XML serializers. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q23}
+#### Q23. **`[Serializable]` ignored by System.Text.Json** — Candidates conflate legacy binary markers with modern JSON/XML serializers.
 
 _Answer not found._
 
 ---
 
-#### Q24. **`BinaryFormatter` is a security footgun** — Deserializing untrusted payloads enables remote code execution; obsolete/removed on modern .NET. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q24}
+#### Q24. **`BinaryFormatter` is a security footgun** — Deserializing untrusted payloads enables remote code execution; obsolete/removed on modern .NET.
 
 _Answer not found._
 
 ---
 
-#### Q25. **Missing JSON property on non-nullable value type** — Deserialization may default the value silently; missing `required`/`[JsonRequired]` validation causes subtle bugs. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q25}
+#### Q25. **Missing JSON property on non-nullable value type** — Deserialization may default the value silently; missing `required`/`[JsonRequired]` validation causes subtle bugs.
 
 _Answer not found._
 
 ---
 
-#### Q26. **Enum numeric wire values** — Renumbering enum members breaks persisted JSON; prefer string enums for long-lived contracts. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q26}
+#### Q26. **Enum numeric wire values** — Renumbering enum members breaks persisted JSON; prefer string enums for long-lived contracts.
 
 _Answer not found._
 
 ---
 
-#### Q27. **`JsonSerializerOptions` not thread-safe for mutation** — Cache a configured instance; do not tweak shared options concurrently. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q27}
+#### Q27. **`JsonSerializerOptions` not thread-safe for mutation** — Cache a configured instance; do not tweak shared options concurrently.
 
 _Answer not found._
 
 ---
 
-#### Q28. **`dynamic` hides errors until runtime** — Misspelled members compile; also blocks many refactorings and overload resolution surprises. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q28}
+#### Q28. **`dynamic` hides errors until runtime** — Misspelled members compile; also blocks many refactorings and overload resolution surprises.
 
 _Answer not found._
 
 ---
 
-#### Q29. **Extension methods do not dispatch on `dynamic`** — Must cast to static type or call like static methods. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q29}
+#### Q29. **Extension methods do not dispatch on `dynamic`** — Must cast to static type or call like static methods.
 
 _Answer not found._
 
 ---
 
-#### Q30. **Reflection string names don't refactor** — Renaming a property breaks reflection unless tests catch it. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q30}
+#### Q30. **Reflection string names don't refactor** — Renaming a property breaks reflection unless tests catch it.
 
 _Answer not found._
 
 ---
 
-#### Q31. **Regex without timeout on user input** — Crafted input can hang the process via catastrophic backtracking. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q31}
+#### Q31. **Regex without timeout on user input** — Crafted input can hang the process via catastrophic backtracking.
 
 _Answer not found._
 
 ---
 
-#### Q32. **Nullable reference types are annotations only** — `#nullable enable` does not stop null at runtime without guards. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q32}
+#### Q32. **Nullable reference types are annotations only** — `#nullable enable` does not stop null at runtime without guards.
 
 _Answer not found._
 
 ---
 
-#### Q33. **Records are still reference types (`record class`)** — Identity semantics differ from `record struct`; boxing/equality surprises follow. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q33}
+#### Q33. **Records are still reference types (`record class`)** — Identity semantics differ from `record struct`; boxing/equality surprises follow.
 
 _Answer not found._
 
 ---
 
-#### Q34. **Expression trees cannot contain statements arbitrarily** — Many C# constructs are not translatable for EF/LINQ providers. {#cross-chapter-records-pattern-matching-c-911-grouped-here-q34}
+#### Q34. **Expression trees cannot contain statements arbitrarily** — Many C# constructs are not translatable for EF/LINQ providers.
 
 _Answer not found._
 
@@ -2525,7 +2586,7 @@ _Answer not found._
 
 ### 03. Regular Expressions
 
-#### Q1. `Regex.IsMatch(email, pattern)` inline in the action   {#03-regular-expressions-q1}
+#### Q1. `Regex.IsMatch(email, pattern)` inline in the action
 
 (R) A bulk-import API validates thousands of customer rows per request. After deploy, CPU spikes and some requests time out. Review this validator and prioritize fixes.
 
@@ -2564,7 +2625,7 @@ private static readonly Regex OrderInNotes = new(
 
 ---
 
-#### Q2. `static readonly Regex` field with `RegexOptions.Compiled | RegexOptions.CultureInvariant`   {#03-regular-expressions-q2}
+#### Q2. `static readonly Regex` field with `RegexOptions.Compiled | RegexOptions.CultureInvariant`
 
 (R) A support portal lets agents paste a custom regex to search and redact matches in uploaded log files (multi-MB). Review this endpoint helper:
 
@@ -2612,7 +2673,7 @@ var safe = new Regex(
 
 ---
 
-#### Q3. `[RegularExpression(@"…")]` on the DTO property   {#03-regular-expressions-q3}
+#### Q3. `[RegularExpression(@"…")]` on the DTO property
 
 (R) A notes-processing job extracts phone fragments for a CRM sync. Review this extractor:
 

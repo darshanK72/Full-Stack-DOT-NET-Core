@@ -1,35 +1,30 @@
 # Swagger & OpenAPI — Interview Q&A
-> Back to [README](../README.md)
+> 18 questions · Back to [README](../README.md)
 
 ## Table of Contents
-
-- [Chapter 06. Swagger & OpenAPI](#chapter-06-swagger-openapi)
-  - [Q1. What is OpenAPI?](#chapter-06-swagger-openapi-q1)
-  - [Q2. What is Swagger in the context of ASP.NET Core?](#chapter-06-swagger-openapi-q2)
-  - [Q3. What is the difference between OpenAPI and Swagger UI?](#chapter-06-swagger-openapi-q3)
-  - [Q4. What does `AddEndpointsApiExplorer` do?](#chapter-06-swagger-openapi-q4)
-  - [Q5. What does `AddSwaggerGen` do?](#chapter-06-swagger-openapi-q5)
-  - [Q6. What is a Swagger document (`swagger.json`)?](#chapter-06-swagger-openapi-q6)
-  - [Q7. What is Swashbuckle?](#chapter-06-swagger-openapi-q7)
-  - [Q8. How does Swagger discover API endpoints?](#chapter-06-swagger-openapi-q8)
-  - [Q9. What is a schema in OpenAPI?](#chapter-06-swagger-openapi-q9)
-  - [Q10. What does `[ProducesResponseType]` contribute to OpenAPI?](#chapter-06-swagger-openapi-q10)
-  - [Q11. What is the purpose of Swagger UI?](#chapter-06-swagger-openapi-q11)
-  - [Q12. What is a security scheme in OpenAPI?](#chapter-06-swagger-openapi-q12)
-  - [Q13. What is schema ID collision in Swagger generation?](#chapter-06-swagger-openapi-q13)
-  - [Q14. What does `IncludeXmlComments` do?](#chapter-06-swagger-openapi-q14)
-  - [Q15. What is the difference between documenting controllers vs mi…](#chapter-06-swagger-openapi-q15)
-  - [Q16. Why should Swagger UI be restricted in production?](#chapter-06-swagger-openapi-q16)
-  - [Q17. What is `DocInclusionPredicate` in Swagger?](#chapter-06-swagger-openapi-q17)
-  - [Q18. What is the relationship between DTOs and OpenAPI schemas?](#chapter-06-swagger-openapi-q18)
-- [Gotchas](#gotchas)
-- [Scenario-Based Questions](#scenario-based-questions-karat-format)
+1. [Q1. What is OpenAPI?](#q1-what-is-openapi)
+2. [Q2. What is Swagger in the context of ASP.NET Core?](#q2-what-is-swagger-in-the-context-of-aspnet-core)
+3. [Q3. What is the difference between OpenAPI and Swagger UI?](#q3-what-is-the-difference-between-openapi-and-swagger-ui)
+4. [Q4. What does `AddEndpointsApiExplorer` do?](#q4-what-does-addendpointsapiexplorer-do)
+5. [Q5. What does `AddSwaggerGen` do?](#q5-what-does-addswaggergen-do)
+6. [Q6. What is a Swagger document (`swagger.json`)?](#q6-what-is-a-swagger-document-swaggerjson)
+7. [Q7. What is Swashbuckle?](#q7-what-is-swashbuckle)
+8. [Q8. How does Swagger discover API endpoints?](#q8-how-does-swagger-discover-api-endpoints)
+9. [Q9. What is a schema in OpenAPI?](#q9-what-is-a-schema-in-openapi)
+10. [Q10. What does `[ProducesResponseType]` contribute to OpenAPI?](#q10-what-does-producesresponsetype-contribute-to-openapi)
+11. [Q11. What is the purpose of Swagger UI?](#q11-what-is-the-purpose-of-swagger-ui)
+12. [Q12. What is a security scheme in OpenAPI?](#q12-what-is-a-security-scheme-in-openapi)
+13. [Q13. What is schema ID collision in Swagger generation?](#q13-what-is-schema-id-collision-in-swagger-generation)
+14. [Q14. What does `IncludeXmlComments` do?](#q14-what-does-includexmlcomments-do)
+15. [Q15. What is the difference between documenting controllers vs minimal APIs in Swagger?](#q15-what-is-the-difference-between-documenting-controllers-vs-minimal-apis-in-swagger)
+16. [Q16. Why should Swagger UI be restricted in production?](#q16-why-should-swagger-ui-be-restricted-in-production)
+17. [Q17. What is `DocInclusionPredicate` in Swagger?](#q17-what-is-docinclusionpredicate-in-swagger)
+18. [Q18. What is the relationship between DTOs and OpenAPI schemas?](#q18-what-is-the-relationship-between-dtos-and-openapi-schemas)
+- [Scenario-Based Questions (Karat Format)](#scenario-based-questions-karat-format)
 
 ---
 
-## Chapter 06. Swagger & OpenAPI
-
-### Q1. What is OpenAPI? {#chapter-06-swagger-openapi-q1}
+## Q1. What is OpenAPI?
 
 What is OpenAPI?
 
@@ -42,7 +37,7 @@ What is OpenAPI?
 
 ---
 
-### Q2. What is Swagger in the context of ASP.NET Core? {#chapter-06-swagger-openapi-q2}
+## Q2. What is Swagger in the context of ASP.NET Core?
 
 What is Swagger in the context of ASP.NET Core?
 
@@ -55,7 +50,7 @@ What is Swagger in the context of ASP.NET Core?
 
 ---
 
-### Q3. What is the difference between OpenAPI and Swagger UI? {#chapter-06-swagger-openapi-q3}
+## Q3. What is the difference between OpenAPI and Swagger UI?
 
 What is the difference between OpenAPI and Swagger UI?
 
@@ -68,7 +63,7 @@ What is the difference between OpenAPI and Swagger UI?
 
 ---
 
-### Q4. What does `AddEndpointsApiExplorer` do? {#chapter-06-swagger-openapi-q4}
+## Q4. What does `AddEndpointsApiExplorer` do?
 
 What does `AddEndpointsApiExplorer` do?
 
@@ -81,7 +76,7 @@ What does `AddEndpointsApiExplorer` do?
 
 ---
 
-### Q5. What does `AddSwaggerGen` do? {#chapter-06-swagger-openapi-q5}
+## Q5. What does `AddSwaggerGen` do?
 
 What does `AddSwaggerGen` do?
 
@@ -94,7 +89,7 @@ What does `AddSwaggerGen` do?
 
 ---
 
-### Q6. What is a Swagger document (`swagger.json`)? {#chapter-06-swagger-openapi-q6}
+## Q6. What is a Swagger document (`swagger.json`)?
 
 What is a Swagger document (`swagger.json`)?
 
@@ -107,7 +102,7 @@ What is a Swagger document (`swagger.json`)?
 
 ---
 
-### Q7. What is Swashbuckle? {#chapter-06-swagger-openapi-q7}
+## Q7. What is Swashbuckle?
 
 What is Swashbuckle?
 
@@ -120,7 +115,7 @@ What is Swashbuckle?
 
 ---
 
-### Q8. How does Swagger discover API endpoints? {#chapter-06-swagger-openapi-q8}
+## Q8. How does Swagger discover API endpoints?
 
 How does Swagger discover API endpoints?
 
@@ -133,7 +128,7 @@ How does Swagger discover API endpoints?
 
 ---
 
-### Q9. What is a schema in OpenAPI? {#chapter-06-swagger-openapi-q9}
+## Q9. What is a schema in OpenAPI?
 
 What is a schema in OpenAPI?
 
@@ -146,7 +141,7 @@ What is a schema in OpenAPI?
 
 ---
 
-### Q10. What does `[ProducesResponseType]` contribute to OpenAPI? {#chapter-06-swagger-openapi-q10}
+## Q10. What does `[ProducesResponseType]` contribute to OpenAPI?
 
 What does `[ProducesResponseType]` contribute to OpenAPI?
 
@@ -159,7 +154,7 @@ What does `[ProducesResponseType]` contribute to OpenAPI?
 
 ---
 
-### Q11. What is the purpose of Swagger UI? {#chapter-06-swagger-openapi-q11}
+## Q11. What is the purpose of Swagger UI?
 
 What is the purpose of Swagger UI?
 
@@ -172,7 +167,7 @@ What is the purpose of Swagger UI?
 
 ---
 
-### Q12. What is a security scheme in OpenAPI? {#chapter-06-swagger-openapi-q12}
+## Q12. What is a security scheme in OpenAPI?
 
 What is a security scheme in OpenAPI?
 
@@ -185,7 +180,7 @@ What is a security scheme in OpenAPI?
 
 ---
 
-### Q13. What is schema ID collision in Swagger generation? {#chapter-06-swagger-openapi-q13}
+## Q13. What is schema ID collision in Swagger generation?
 
 What is schema ID collision in Swagger generation?
 
@@ -198,7 +193,7 @@ What is schema ID collision in Swagger generation?
 
 ---
 
-### Q14. What does `IncludeXmlComments` do? {#chapter-06-swagger-openapi-q14}
+## Q14. What does `IncludeXmlComments` do?
 
 What does `IncludeXmlComments` do?
 
@@ -211,7 +206,7 @@ What does `IncludeXmlComments` do?
 
 ---
 
-### Q15. What is the difference between documenting controllers vs minimal APIs in Swagger? {#chapter-06-swagger-openapi-q15}
+## Q15. What is the difference between documenting controllers vs minimal APIs in Swagger?
 
 What is the difference between documenting controllers vs minimal APIs in Swagger?
 
@@ -224,7 +219,7 @@ What is the difference between documenting controllers vs minimal APIs in Swagge
 
 ---
 
-### Q16. Why should Swagger UI be restricted in production? {#chapter-06-swagger-openapi-q16}
+## Q16. Why should Swagger UI be restricted in production?
 
 Why should Swagger UI be restricted in production?
 
@@ -237,7 +232,7 @@ Why should Swagger UI be restricted in production?
 
 ---
 
-### Q17. What is `DocInclusionPredicate` in Swagger? {#chapter-06-swagger-openapi-q17}
+## Q17. What is `DocInclusionPredicate` in Swagger?
 
 What is `DocInclusionPredicate` in Swagger?
 
@@ -250,7 +245,7 @@ What is `DocInclusionPredicate` in Swagger?
 
 ---
 
-### Q18. What is the relationship between DTOs and OpenAPI schemas? {#chapter-06-swagger-openapi-q18}
+## Q18. What is the relationship between DTOs and OpenAPI schemas?
 
 What is the relationship between DTOs and OpenAPI schemas?
 
