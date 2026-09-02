@@ -1,5 +1,27 @@
-# C# 8 Features — Interview Q&A
+﻿# C# 8 Features — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are nullable reference types (NRT) and what problem do they solve?](#q1-what-are-nullable-reference-types-nrt-and-what-problem-do-they-solve)
+2. [Q2. What is the null-forgiving operator ! and when is it safe to use?](#q2-what-is-the-null-forgiving-operator-and-when-is-it-safe-to-use)
+3. [Q3. What is IAsyncEnumerable<T> and how does it differ from IEnumerable<T>?](#q3-what-is-iasyncenumerablet-and-how-does-it-differ-from-ienumerablet)
+4. [Q4. What are switch expressions in C# 8 and how do they differ from switch statements?](#q4-what-are-switch-expressions-in-c-8-and-how-do-they-differ-from-switch-statements)
+5. [Q5. What are default interface methods (DIM) and what problem do they solve?](#q5-what-are-default-interface-methods-dim-and-what-problem-do-they-solve)
+6. [Q6. What are indices and ranges in C# 8 and how do they work?](#q6-what-are-indices-and-ranges-in-c-8-and-how-do-they-work)
+7. [Q7. What does using var (using declaration) do in C# 8?](#q7-what-does-using-var-using-declaration-do-in-c-8)
+8. [Q8. What is the null-coalescing assignment operator ??= in C# 8?](#q8-what-is-the-null-coalescing-assignment-operator-in-c-8)
+9. [Q9. What are readonly struct members in C# 8?](#q9-what-are-readonly-struct-members-in-c-8)
+10. [Q10. What is the property pattern in C# 8 and how is it used in switch expressions?](#q10-what-is-the-property-pattern-in-c-8-and-how-is-it-used-in-switch-expressions)
+11. [Q11. What is async stream consumption with await foreach and WithCancellation?](#q11-what-is-async-stream-consumption-with-await-foreach-and-withcancellation)
+12. [Q12. Why does using ! to silence NRT warnings on nullable properties cause NullReferenceException at runtime?](#q12-why-does-using-to-silence-nrt-warnings-on-nullable-properties-cause-nullreferenceexception-at-runtime)
+13. [Q13. What is the C# 8 async stream anti-pattern of calling ToListAsync followed by synchronous foreach?](#q13-what-is-the-c-8-async-stream-anti-pattern-of-calling-tolistasync-followed-by-synchronous-foreach)
+14. [Q14. What are the C# 8 rules that prevent ref struct and Span<T> from crossing async await boundaries?](#q14-what-are-the-c-8-rules-that-prevent-ref-struct-and-spant-from-crossing-async-await-boundaries)
+15. [Q15. (Code Review) After enabling NRT, a document service still throws NullReferenceException on Notes. Review the service.](#q15-code-review-after-enabling-nrt-a-document-service-still-throws-nullreferenceexception-on-notes-review-the-service)
+16. [Q16. (Code Review) An async stream worker OOMs and ignores cancellation on deploy. Review the consumer and producer.](#q16-code-review-an-async-stream-worker-ooms-and-ignores-cancellation-on-deploy-review-the-consumer-and-producer)
+17. [Q17. (Design) A 400-project solution enables NRT repo-wide. What migration strategy avoids the 8,000-warning chokepoint?](#q17-design-a-400-project-solution-enables-nrt-repo-wide-what-migration-strategy-avoids-the-8000-warning-chokepoint)
+
+---
 > **Module:** 02. C# Language Fundamentals › 08. Advanced C# Features › 06. C# 8 Features  
 > **Stack:** .NET 10 · C# 8.0 · Nullable Reference Types · IAsyncEnumerable
 

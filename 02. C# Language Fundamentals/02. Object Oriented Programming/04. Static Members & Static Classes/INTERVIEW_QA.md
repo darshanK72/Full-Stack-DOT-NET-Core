@@ -1,5 +1,29 @@
-# C# Static Members & Static Classes — Interview Q&A
+﻿# C# Static Members & Static Classes — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a static member in C#, and how does it differ from an instance member?](#q1-what-is-a-static-member-in-c-and-how-does-it-differ-from-an-instance-member)
+2. [Q2. What is a static class, and what restrictions does the C# compiler enforce on it?](#q2-what-is-a-static-class-and-what-restrictions-does-the-c-compiler-enforce-on-it)
+3. [Q3. What is a static constructor, and when is it guaranteed to run?](#q3-what-is-a-static-constructor-and-when-is-it-guaranteed-to-run)
+4. [Q4. What is the difference between `static readonly` and `const`?](#q4-what-is-the-difference-between-static-readonly-and-const)
+5. [Q5. What thread-safety problems arise from mutable static fields, and how do you address them?](#q5-what-thread-safety-problems-arise-from-mutable-static-fields-and-how-do-you-address-them)
+6. [Q6. What are extension methods, and why must they live in static classes?](#q6-what-are-extension-methods-and-why-must-they-live-in-static-classes)
+7. [Q7. What is the Singleton design pattern, and how does a static class differ from a Singleton?](#q7-what-is-the-singleton-design-pattern-and-how-does-a-static-class-differ-from-a-singleton)
+8. [Q8. Can static members access instance members, and vice versa?](#q8-can-static-members-access-instance-members-and-vice-versa)
+9. [Q9. What happens to static state when multiple threads access a static counter concurrently without synchronization?](#q9-what-happens-to-static-state-when-multiple-threads-access-a-static-counter-concurrently-without-synchronization)
+10. [Q10. What is `static readonly object _lock = new()` used for, and when is `lock` insufficient?](#q10-what-is-static-readonly-object-lock-new-used-for-and-when-is-lock-insufficient)
+11. [Q11. What is `ThreadLocal<T>`, and when should it be used instead of a static field?](#q11-what-is-threadlocalt-and-when-should-it-be-used-instead-of-a-static-field)
+12. [Q12. How does a static class in C# handle the Singleton concern differently from a manual Singleton pattern?](#q12-how-does-a-static-class-in-c-handle-the-singleton-concern-differently-from-a-manual-singleton-pattern)
+13. [Q13. A static field in an ASP.NET Core controller stores the "current user's cart" to avoid DI. What specific failure mode will occur under concurrent requests?](#q13-a-static-field-in-an-aspnet-core-controller-stores-the-current-users-cart-to-avoid-di-what-specific-failure-mode-will-occur-under-concurrent-requests)
+14. [Q14. A static constructor reads a config file. What happens if the file is missing on the first deployment, and how can it be recovered without restarting?](#q14-a-static-constructor-reads-a-config-file-what-happens-if-the-file-is-missing-on-the-first-deployment-and-how-can-it-be-recovered-without-restarting)
+15. [Q15. Why is `public static class TaxHelper` with a constructor and instance field a compile error?](#q15-why-is-public-static-class-taxhelper-with-a-constructor-and-instance-field-a-compile-error)
+16. [Q16. Why does registering `AuditLogger.Instance` as a singleton in DI and using a non-thread-safe `_entryCount++` field produce wrong log counts under load?](#q16-why-does-registering-auditloggerinstance-as-a-singleton-in-di-and-using-a-non-thread-safe-entrycount-field-produce-wrong-log-counts-under-load)
+17. [Q17. An ASP.NET Core API uses a static list to cache all products. Under moderate load, `InvalidOperationException: Collection was modified` appears. Diagnose and fix.](#q17-an-aspnet-core-api-uses-a-static-list-to-cache-all-products-under-moderate-load-invalidoperationexception-collection-was-modified-appears-diagnose-and-fix)
+18. [Q18. A static counter generates bank account numbers in production. Under high concurrency, duplicate account numbers appear. How do you fix it with `Interlocked`?](#q18-a-static-counter-generates-bank-account-numbers-in-production-under-high-concurrency-duplicate-account-numbers-appear-how-do-you-fix-it-with-interlocked)
+19. [Q19. A developer adds mutable `public static` properties for per-request config in a multi-instance ASP.NET Core deployment. What breaks?](#q19-a-developer-adds-mutable-public-static-properties-for-per-request-config-in-a-multi-instance-aspnet-core-deployment-what-breaks)
+
+---
 ## Foundation Questions
 
 ---

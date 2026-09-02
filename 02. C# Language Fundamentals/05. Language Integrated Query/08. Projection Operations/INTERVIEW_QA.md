@@ -1,7 +1,26 @@
-# LINQ: Projection Operations — Interview Q&A
+﻿# LINQ: Projection Operations — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does the `Select` operator do?](#q1-what-does-the-select-operator-do)
+2. [Q2. What is the `Select` overload that provides an index?](#q2-what-is-the-select-overload-that-provides-an-index)
+3. [Q3. What does `SelectMany` do and when would you use it?](#q3-what-does-selectmany-do-and-when-would-you-use-it)
+4. [Q4. What are anonymous types and how are they used in LINQ projections?](#q4-what-are-anonymous-types-and-how-are-they-used-in-linq-projections)
+5. [Q5. What are named tuples and how do they compare to anonymous types in projections?](#q5-what-are-named-tuples-and-how-do-they-compare-to-anonymous-types-in-projections)
+6. [Q6. How does `SelectMany` differ from `Select` followed by `Concat`?](#q6-how-does-selectmany-differ-from-select-followed-by-concat)
+7. [Q7. What is the `Zip` operator and when is it useful?](#q7-what-is-the-zip-operator-and-when-is-it-useful)
+8. [Q8. How does LINQ projection interact with EF Core's SQL generation?](#q8-how-does-linq-projection-interact-with-ef-cores-sql-generation)
+9. [Q9. What happens when you call `Select` inside a `Select` (nested projections)?](#q9-what-happens-when-you-call-select-inside-a-select-nested-projections)
+10. [Q10. How do you project to a `record` type in LINQ? (Scenario)](#q10-how-do-you-project-to-a-record-type-in-linq-scenario)
+11. [Q11. What is the difference between `Select(x => x)` and simply passing the collection? (Gotcha)](#q11-what-is-the-difference-between-selectx-x-and-simply-passing-the-collection-gotcha)
+12. [Q12. Can `Select` change the number of elements in the sequence? (Gotcha)](#q12-can-select-change-the-number-of-elements-in-the-sequence-gotcha)
+13. [Q13. Scenario: A developer projects 10 columns in a `Select` but only uses 2 in the view. What do you raise in a code review? (Scenario)](#q13-scenario-a-developer-projects-10-columns-in-a-select-but-only-uses-2-in-the-view-what-do-you-raise-in-a-code-review-scenario)
+14. [Q14. Scenario: You need to flatten a jagged array of string arrays into one sequence of strings. How do you do it? (Scenario)](#q14-scenario-you-need-to-flatten-a-jagged-array-of-string-arrays-into-one-sequence-of-strings-how-do-you-do-it-scenario)
+
+---
 ## Q1. What does the `Select` operator do?
 
 **Concepts**

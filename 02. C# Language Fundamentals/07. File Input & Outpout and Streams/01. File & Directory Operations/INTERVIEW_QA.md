@@ -1,5 +1,37 @@
-# 01. File & Directory Operations — Interview Q&A
+﻿# 01. File & Directory Operations — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. When should you choose `File`/`Directory` (static) over `FileInfo`/`DirectoryInfo` (instance) classes?](#q1-when-should-you-choose-filedirectory-static-over-fileinfodirectoryinfo-instance-classes)
+2. [Q2. What does `Directory.CreateDirectory` do when intermediate folders already exist?](#q2-what-does-directorycreatedirectory-do-when-intermediate-folders-already-exist)
+3. [Q3. What is the memory difference between `Directory.GetFiles` and `Directory.EnumerateFiles`?](#q3-what-is-the-memory-difference-between-directorygetfiles-and-directoryenumeratefiles)
+4. [Q4. How do `File.ReadAllLines`, `File.ReadAllText`, and `File.ReadLines` differ for large files?](#q4-how-do-filereadalllines-filereadalltext-and-filereadlines-differ-for-large-files)
+5. [Q5. What is the difference between `File.Copy` with `overwrite: false` vs `overwrite: true`?](#q5-what-is-the-difference-between-filecopy-with-overwrite-false-vs-overwrite-true)
+6. [Q6. How does `File.Move` differ from a copy-then-delete sequence?](#q6-how-does-filemove-differ-from-a-copy-then-delete-sequence)
+7. [Q7. What happens on Windows when you call `File.Delete` on a file with open handles?](#q7-what-happens-on-windows-when-you-call-filedelete-on-a-file-with-open-handles)
+8. [Q8. How do `FileAttributes` flags work, and how do you set and clear individual flags?](#q8-how-do-fileattributes-flags-work-and-how-do-you-set-and-clear-individual-flags)
+9. [Q9. Explain `File.GetCreationTime`, `GetLastWriteTime`, and `GetLastAccessTime` — why prefer UTC variants?](#q9-explain-filegetcreationtime-getlastwritetime-and-getlastaccesstime-why-prefer-utc-variants)
+10. [Q10. Why is `File.Exists` insufficient as a guard before open or delete? What is the TOCTOU risk?](#q10-why-is-fileexists-insufficient-as-a-guard-before-open-or-delete-what-is-the-toctou-risk)
+11. [Q11. What is the difference between `Directory.Delete(path)` and `Directory.Delete(path, recursive: true)`?](#q11-what-is-the-difference-between-directorydeletepath-and-directorydeletepath-recursive-true)
+12. [Q12. What metadata does `FileInfo` cache, and when must you call `Refresh()`?](#q12-what-metadata-does-fileinfo-cache-and-when-must-you-call-refresh)
+13. [Q13. What do `File.Create`, `File.OpenRead`, `File.OpenWrite`, and `File.Open` imply about mode and access?](#q13-what-do-filecreate-fileopenread-fileopenwrite-and-fileopen-imply-about-mode-and-access)
+14. [Q14. What is the difference between `SearchOption.TopDirectoryOnly` and `SearchOption.AllDirectories`?](#q14-what-is-the-difference-between-searchoptiontopdirectoryonly-and-searchoptionalldirectories)
+15. [Q15. How does `File.AppendAllText` differ from holding a `FileStream` open with `FileMode.Append`?](#q15-how-does-fileappendalltext-differ-from-holding-a-filestream-open-with-filemodeappend)
+16. [Q16. What exceptions should you handle for typical file operations?](#q16-what-exceptions-should-you-handle-for-typical-file-operations)
+17. [Q17. When is `File.ReadAllBytes` / `File.WriteAllBytes` appropriate vs a `FileStream`?](#q17-when-is-filereadallbytes-filewriteallbytes-appropriate-vs-a-filestream)
+18. [Q18. (Gotcha) Why does `File.ReadAllLines` on a 2 GB log file throw `OutOfMemoryException`?](#q18-gotcha-why-does-filereadalllines-on-a-2-gb-log-file-throw-outofmemoryexception)
+19. [Q19. (Gotcha) Why does `Directory.Delete(path)` throw even after deleting all visible files?](#q19-gotcha-why-does-directorydeletepath-throw-even-after-deleting-all-visible-files)
+20. [Q20. (Gotcha) What does `FileInfo` metadata staleness mean in practice?](#q20-gotcha-what-does-fileinfo-metadata-staleness-mean-in-practice)
+21. [Q21. (Gotcha) Why does `File.OpenWrite` leave stale tail bytes when used to update file content?](#q21-gotcha-why-does-fileopenwrite-leave-stale-tail-bytes-when-used-to-update-file-content)
+22. [Q22. (Gotcha) Why can relative paths produce `FileNotFoundException` in unexpected locations?](#q22-gotcha-why-can-relative-paths-produce-filenotfoundexception-in-unexpected-locations)
+23. [Q23. (Scenario R) A report export service uses `File.Exists` + `File.Create` to guard concurrent writes — two threads occasionally get `IOException` or silently skip writing. What is wrong and how do you fix it?](#q23-scenario-r-a-report-export-service-uses-fileexists-filecreate-to-guard-concurrent-writes-two-threads-occasionally-get-ioexception-or-silently-skip-writing-what-is-wrong-and-how-do-you-fix-it)
+24. [Q24. (Scenario R) An upload service stages files in `Path.GetTempPath()` then calls `File.Move` to a different volume. It leaks temp files on exception and fails on Linux containers. What is wrong?](#q24-scenario-r-an-upload-service-stages-files-in-pathgettemppath-then-calls-filemove-to-a-different-volume-it-leaks-temp-files-on-exception-and-fails-on-linux-containers-what-is-wrong)
+25. [Q25. (Scenario R) A cleanup job calls `Directory.Delete(root, recursive: false)` after a file-loop — throws in production on non-empty directories. What is wrong?](#q25-scenario-r-a-cleanup-job-calls-directorydeleteroot-recursive-false-after-a-file-loop-throws-in-production-on-non-empty-directories-what-is-wrong)
+26. [Q26. (Scenario M) An ASP.NET Core endpoint reads a 200 MB CSV with `File.ReadAllText` on every request — thread-pool starvation and LOH pressure under load. What is wrong?](#q26-scenario-m-an-aspnet-core-endpoint-reads-a-200-mb-csv-with-filereadalltext-on-every-request-thread-pool-starvation-and-loh-pressure-under-load-what-is-wrong)
+27. [Q27. (Scenario D) A containerized API creates per-request scratch directories under `Path.GetTempPath()` but never cleans them up on exception. Compare three strategies.](#q27-scenario-d-a-containerized-api-creates-per-request-scratch-directories-under-pathgettemppath-but-never-cleans-them-up-on-exception-compare-three-strategies)
+
+---
 > Back to [Module Index](../INTERVIEW_QA.md)
 
 ---

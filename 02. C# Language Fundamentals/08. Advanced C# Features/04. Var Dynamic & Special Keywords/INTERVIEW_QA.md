@@ -1,5 +1,26 @@
-# Var, Dynamic & Special Keywords — Interview Q&A
+﻿# Var, Dynamic & Special Keywords — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What does the var keyword do and what does it mean for type safety?](#q1-what-does-the-var-keyword-do-and-what-does-it-mean-for-type-safety)
+2. [Q2. What is the dynamic keyword and how does it differ from var and object?](#q2-what-is-the-dynamic-keyword-and-how-does-it-differ-from-var-and-object)
+3. [Q3. What is ExpandoObject and when would you use it?](#q3-what-is-expandoobject-and-when-would-you-use-it)
+4. [Q4. What are nameof and typeof, and why should you prefer nameof over string literals?](#q4-what-are-nameof-and-typeof-and-why-should-you-prefer-nameof-over-string-literals)
+5. [Q5. What does the default keyword do in C# 10+?](#q5-what-does-the-default-keyword-do-in-c-10)
+6. [Q6. What is the checked keyword and when would you use it?](#q6-what-is-the-checked-keyword-and-when-would-you-use-it)
+7. [Q7. What is the volatile keyword and what threading problem does it solve?](#q7-what-is-the-volatile-keyword-and-what-threading-problem-does-it-solve)
+8. [Q8. What does the unsafe keyword enable and what risks does it introduce?](#q8-what-does-the-unsafe-keyword-enable-and-what-risks-does-it-introduce)
+9. [Q9. What is stackalloc and when is it preferred over heap allocation?](#q9-what-is-stackalloc-and-when-is-it-preferred-over-heap-allocation)
+10. [Q10. What is the difference between ref, in, and out parameters?](#q10-what-is-the-difference-between-ref-in-and-out-parameters)
+11. [Q11. What does the global:: qualifier do and when is it needed?](#q11-what-does-the-global-qualifier-do-and-when-is-it-needed)
+12. [Q12. Why does dynamic typed code miss typos and broken contracts until runtime?](#q12-why-does-dynamic-typed-code-miss-typos-and-broken-contracts-until-runtime)
+13. [Q13. Why does var capture a deferred LINQ query, and what is the deferred-execution trap?](#q13-why-does-var-capture-a-deferred-linq-query-and-what-is-the-deferred-execution-trap)
+14. [Q14. Why is volatile insufficient for a counter incremented by multiple threads?](#q14-why-is-volatile-insufficient-for-a-counter-incremented-by-multiple-threads)
+15. [Q15. (Code Review) A warehouse integration mapper uses dynamic for CSV rows and throws in production. Review and harden it.](#q15-code-review-a-warehouse-integration-mapper-uses-dynamic-for-csv-rows-and-throws-in-production-review-and-harden-it)
+16. [Q16. A price-refresh worker ignores a stop request in production. Review the stop flag mechanism.](#q16-a-price-refresh-worker-ignores-a-stop-request-in-production-review-the-stop-flag-mechanism)
+
+---
 > **Module:** 02. C# Language Fundamentals › 08. Advanced C# Features › 04. Var Dynamic & Special Keywords  
 > **Stack:** .NET 10 · C# 13 · DLR · ExpandoObject
 

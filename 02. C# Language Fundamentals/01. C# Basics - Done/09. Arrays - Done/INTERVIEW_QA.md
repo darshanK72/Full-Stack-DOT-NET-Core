@@ -1,5 +1,36 @@
-# C# Arrays — Interview Q&A
+﻿# C# Arrays — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is an array in C# and how does its contiguous memory layout affect performance?](#q1-what-is-an-array-in-c-and-how-does-its-contiguous-memory-layout-affect-performance)
+2. [Q2. What are the different ways to declare and initialize a single-dimensional array in C#?](#q2-what-are-the-different-ways-to-declare-and-initialize-a-single-dimensional-array-in-c)
+3. [Q3. What is zero-based indexing, what is `IndexOutOfRangeException`, and how do you guard against it?](#q3-what-is-zero-based-indexing-what-is-indexoutofrangeexception-and-how-do-you-guard-against-it)
+4. [Q4. When should you use a `for` loop versus `foreach` to iterate an array?](#q4-when-should-you-use-a-for-loop-versus-foreach-to-iterate-an-array)
+5. [Q5. How do you declare and work with rectangular two-dimensional arrays in C#?](#q5-how-do-you-declare-and-work-with-rectangular-two-dimensional-arrays-in-c)
+6. [Q6. What is a jagged array and when would you choose it over a rectangular array?](#q6-what-is-a-jagged-array-and-when-would-you-choose-it-over-a-rectangular-array)
+7. [Q7. How do `Array.Sort` and `Array.BinarySearch` work, and what is the prerequisite for `BinarySearch`?](#q7-how-do-arraysort-and-arraybinarysearch-work-and-what-is-the-prerequisite-for-binarysearch)
+8. [Q8. What does `Array.Copy` do, how does it differ from `Clone`, and when would you use each?](#q8-what-does-arraycopy-do-how-does-it-differ-from-clone-and-when-would-you-use-each)
+9. [Q9. What does `Array.Resize` do and how does the `ref` parameter affect the calling code?](#q9-what-does-arrayresize-do-and-how-does-the-ref-parameter-affect-the-calling-code)
+10. [Q10. How do `Array.Clear` and `Array.Fill` work, and what values do they write?](#q10-how-do-arrayclear-and-arrayfill-work-and-what-values-do-they-write)
+11. [Q11. What is `Span<T>` and how does it provide a zero-allocation view over an array?](#q11-what-is-spant-and-how-does-it-provide-a-zero-allocation-view-over-an-array)
+12. [Q12. What is array covariance in C# and why can it cause a runtime exception?](#q12-what-is-array-covariance-in-c-and-why-can-it-cause-a-runtime-exception)
+13. [Q13. What is a fixed-size buffer in C# and when would you use one?](#q13-what-is-a-fixed-size-buffer-in-c-and-when-would-you-use-one)
+14. [Q14. How does passing an array to a method work in C#, and what is the difference between modifying elements versus reassigning the parameter?](#q14-how-does-passing-an-array-to-a-method-work-in-c-and-what-is-the-difference-between-modifying-elements-versus-reassigning-the-parameter)
+15. [Q15. What is the `params` keyword and how does the compiler handle a params array parameter?](#q15-what-is-the-params-keyword-and-how-does-the-compiler-handle-a-params-array-parameter)
+16. [Q16. What is the off-by-one bug with `i <= array.Length` and why does the compiler not catch it?](#q16-what-is-the-off-by-one-bug-with-i-arraylength-and-why-does-the-compiler-not-catch-it)
+17. [Q17. Why does assigning to a `foreach` iteration variable not update the array element?](#q17-why-does-assigning-to-a-foreach-iteration-variable-not-update-the-array-element)
+18. [Q18. Why does `Array.BinarySearch` give wrong results on an unsorted array?](#q18-why-does-arraybinarysearch-give-wrong-results-on-an-unsorted-array)
+19. [Q19. What is the `ArrayTypeMismatchException` covariance trap and how do you avoid it?](#q19-what-is-the-arraytypemismatchexception-covariance-trap-and-how-do-you-avoid-it)
+20. [Q20. Why does `Clone` on an array of reference types not produce an independent copy?](#q20-why-does-clone-on-an-array-of-reference-types-not-produce-an-independent-copy)
+21. [Q21. Code Review — Exam score averager throws intermittently in production](#q21-code-review-exam-score-averager-throws-intermittently-in-production)
+22. [Q22. Code Review — Pricing service corrupts the audit log on every request](#q22-code-review-pricing-service-corrupts-the-audit-log-on-every-request)
+23. [Q23. Code Review — Pass-rate normaliser fails silently on failing scores](#q23-code-review-pass-rate-normaliser-fails-silently-on-failing-scores)
+24. [Q24. Code Review — Report builder fails to compile after partial migration from arrays to `List<T>`](#q24-code-review-report-builder-fails-to-compile-after-partial-migration-from-arrays-to-listt)
+25. [Q25. Scenario — Processing a large binary protocol buffer without heap allocation](#q25-scenario-processing-a-large-binary-protocol-buffer-without-heap-allocation)
+26. [Q26. Scenario — Sorting students by score while keeping names and scores aligned](#q26-scenario-sorting-students-by-score-while-keeping-names-and-scores-aligned)
+
+---
 > **Folder:** `02. C# Language Fundamentals/01. C# Basics - Done/09. Arrays - Done`
 > **Topics:** Single/multi-dimensional arrays, jagged arrays, Array class methods (Sort, BinarySearch, Copy, Resize), array covariance, fixed-size buffers, array initialization, bounds checking, Span\<T\> and Memory\<T\> as array views, passing arrays to methods.
 

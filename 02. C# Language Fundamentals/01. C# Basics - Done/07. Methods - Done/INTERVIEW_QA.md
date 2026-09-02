@@ -1,5 +1,36 @@
-# C# Methods — Interview Q&A
+﻿# C# Methods — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a C# method and what does a method declaration consist of?](#q1-what-is-a-c-method-and-what-does-a-method-declaration-consist-of)
+2. [Q2. What is the difference between parameters and arguments?](#q2-what-is-the-difference-between-parameters-and-arguments)
+3. [Q3. How do expression-bodied methods work and when should you prefer them?](#q3-how-do-expression-bodied-methods-work-and-when-should-you-prefer-them)
+4. [Q4. What does the void return type mean, and how does early return work in void and non-void methods?](#q4-what-does-the-void-return-type-mean-and-how-does-early-return-work-in-void-and-non-void-methods)
+5. [Q5. What is method overloading and what constitutes a distinct method signature?](#q5-what-is-method-overloading-and-what-constitutes-a-distinct-method-signature)
+6. [Q6. How does overload resolution work — how does the compiler pick the best match among applicable overloads?](#q6-how-does-overload-resolution-work-how-does-the-compiler-pick-the-best-match-among-applicable-overloads)
+7. [Q7. What is the difference between passing a value type and a reference type to a method by default (no modifier)?](#q7-what-is-the-difference-between-passing-a-value-type-and-a-reference-type-to-a-method-by-default-no-modifier)
+8. [Q8. What does the ref modifier do, and what requirements must both the declaration and the call site satisfy?](#q8-what-does-the-ref-modifier-do-and-what-requirements-must-both-the-declaration-and-the-call-site-satisfy)
+9. [Q9. What does the out modifier do, and how does it differ from ref in contract and usage?](#q9-what-does-the-out-modifier-do-and-how-does-it-differ-from-ref-in-contract-and-usage)
+10. [Q10. What is the in modifier and when does it give a performance benefit?](#q10-what-is-the-in-modifier-and-when-does-it-give-a-performance-benefit)
+11. [Q11. How does the params keyword work and what are its constraints on the parameter list?](#q11-how-does-the-params-keyword-work-and-what-are-its-constraints-on-the-parameter-list)
+12. [Q12. What are optional parameters and what is the key caveat about changing their default values in a library?](#q12-what-are-optional-parameters-and-what-is-the-key-caveat-about-changing-their-default-values-in-a-library)
+13. [Q13. How do named arguments work, and what is the rule about mixing them with positional arguments?](#q13-how-do-named-arguments-work-and-what-is-the-rule-about-mixing-them-with-positional-arguments)
+14. [Q14. What is a local function and how does it differ from a private static helper method on the class?](#q14-what-is-a-local-function-and-how-does-it-differ-from-a-private-static-helper-method-on-the-class)
+15. [Q15. How does recursion work in C# and what risk does deep recursion carry?](#q15-how-does-recursion-work-in-c-and-what-risk-does-deep-recursion-carry)
+16. [Q16. What compiler error results from declaring two methods that differ only in return type, and why does C# prohibit it?](#q16-what-compiler-error-results-from-declaring-two-methods-that-differ-only-in-return-type-and-why-does-c-prohibit-it)
+17. [Q17. Optional parameter defaults are baked into the call site at compile time — why is this a library versioning trap?](#q17-optional-parameter-defaults-are-baked-into-the-call-site-at-compile-time-why-is-this-a-library-versioning-trap)
+18. [Q18. Named arguments do not participate in overload resolution — what does this mean and what mistake does it prevent?](#q18-named-arguments-do-not-participate-in-overload-resolution-what-does-this-mean-and-what-mistake-does-it-prevent)
+19. [Q19. When you pass a reference-type argument and the method reassigns the parameter, why does the caller's variable remain unchanged?](#q19-when-you-pass-a-reference-type-argument-and-the-method-reassigns-the-parameter-why-does-the-callers-variable-remain-unchanged)
+20. [Q20. How can two numeric overloads produce a CS0121 ambiguous call, and what is the correct fix?](#q20-how-can-two-numeric-overloads-produce-a-cs0121-ambiguous-call-and-what-is-the-correct-fix)
+21. [Q21. You are reviewing the following warehouse-discount helper. Identify the issues and state your fix priority.](#q21-you-are-reviewing-the-following-warehouse-discount-helper-identify-the-issues-and-state-your-fix-priority)
+22. [Q22. An intern submitted the following shipping-label builder. Identify the issues and state your fix priority.](#q22-an-intern-submitted-the-following-shipping-label-builder-identify-the-issues-and-state-your-fix-priority)
+23. [Q23. A developer wrote the following recursive order-quantity accumulator. Identify the issues and state your fix priority.](#q23-a-developer-wrote-the-following-recursive-order-quantity-accumulator-identify-the-issues-and-state-your-fix-priority)
+24. [Q24. When would you choose `in` over `ref` or a plain value pass for a struct parameter, and what is the risk if the struct is not declared `readonly`?](#q24-when-would-you-choose-in-over-ref-or-a-plain-value-pass-for-a-struct-parameter-and-what-is-the-risk-if-the-struct-is-not-declared-readonly)
+25. [Q25. When should you prefer method overloads over optional parameters for a public API, and what are the trade-offs of each approach?](#q25-when-should-you-prefer-method-overloads-over-optional-parameters-for-a-public-api-and-what-are-the-trade-offs-of-each-approach)
+26. [Q26. A colleague argues that any iterative algorithm can be rewritten as a recursive method with no downside. How would you respond, and what does the warehouse codebase illustrate?](#q26-a-colleague-argues-that-any-iterative-algorithm-can-be-rewritten-as-a-recursive-method-with-no-downside-how-would-you-respond-and-what-does-the-warehouse-codebase-illustrate)
+
+---
 ## Foundation Questions
 
 ---

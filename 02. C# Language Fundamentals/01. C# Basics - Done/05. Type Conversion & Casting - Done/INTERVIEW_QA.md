@@ -1,5 +1,37 @@
-# Type Conversion & Casting — Interview Q&A
+﻿# Type Conversion & Casting — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is an implicit conversion and when does the compiler allow one without explicit cast syntax?](#q1-what-is-an-implicit-conversion-and-when-does-the-compiler-allow-one-without-explicit-cast-syntax)
+2. [Q2. What is a narrowing conversion and why does C# require an explicit cast for one?](#q2-what-is-a-narrowing-conversion-and-why-does-c-require-an-explicit-cast-for-one)
+3. [Q3. How does the C-style cast `(T)expr` behave differently for value types versus reference types?](#q3-how-does-the-c-style-cast-texpr-behave-differently-for-value-types-versus-reference-types)
+4. [Q4. What happens to the fractional part when you cast a floating-point or decimal value to an integer type?](#q4-what-happens-to-the-fractional-part-when-you-cast-a-floating-point-or-decimal-value-to-an-integer-type)
+5. [Q5. How do `checked` and `unchecked` contexts affect narrowing casts?](#q5-how-do-checked-and-unchecked-contexts-affect-narrowing-casts)
+6. [Q6. What is the difference between `int.Parse` and `int.TryParse`, and when should you prefer each?](#q6-what-is-the-difference-between-intparse-and-inttryparse-and-when-should-you-prefer-each)
+7. [Q7. How does `Convert.ToInt32` handle a `null` argument differently from `int.Parse`?](#q7-how-does-converttoint32-handle-a-null-argument-differently-from-intparse)
+8. [Q8. What is `Convert.ChangeType` and when would you use it over `Parse` or a direct cast?](#q8-what-is-convertchangetype-and-when-would-you-use-it-over-parse-or-a-direct-cast)
+9. [Q9. What is boxing in C# and what happens at the memory level when a value type is boxed?](#q9-what-is-boxing-in-c-and-what-happens-at-the-memory-level-when-a-value-type-is-boxed)
+10. [Q10. Why must you unbox to the exact stored type and not a compatible widening type?](#q10-why-must-you-unbox-to-the-exact-stored-type-and-not-a-compatible-widening-type)
+11. [Q11. What is the difference between the `as` operator and a direct cast `(T)` for reference type downcasting?](#q11-what-is-the-difference-between-the-as-operator-and-a-direct-cast-t-for-reference-type-downcasting)
+12. [Q12. How does `is` declaration pattern matching compare to using `as` followed by a null check?](#q12-how-does-is-declaration-pattern-matching-compare-to-using-as-followed-by-a-null-check)
+13. [Q13. What is `IConvertible` and how does it relate to the `Convert` class?](#q13-what-is-iconvertible-and-how-does-it-relate-to-the-convert-class)
+14. [Q14. How do you define custom implicit and explicit conversion operators in C#?](#q14-how-do-you-define-custom-implicit-and-explicit-conversion-operators-in-c)
+15. [Q15. What is `TryFormat` and how does it differ from `ToString` in allocation behavior?](#q15-what-is-tryformat-and-how-does-it-differ-from-tostring-in-allocation-behavior)
+16. [Q16. Why does `(long)(object)42` throw `InvalidCastException` even though `42` fits in a `long`?](#q16-why-does-longobject42-throw-invalidcastexception-even-though-42-fits-in-a-long)
+17. [Q17. Why does `(int)3.9999` produce `3` and not `4`?](#q17-why-does-int39999-produce-3-and-not-4)
+18. [Q18. Why does `Convert.ToString(null)` return an empty string instead of throwing?](#q18-why-does-converttostringnull-return-an-empty-string-instead-of-throwing)
+19. [Q19. Why is `obj as int` a compile error when `obj as string` compiles fine?](#q19-why-is-obj-as-int-a-compile-error-when-obj-as-string-compiles-fine)
+20. [Q20. Does placing a narrowing cast inside a `checked` block prevent all forms of data loss?](#q20-does-placing-a-narrowing-cast-inside-a-checked-block-prevent-all-forms-of-data-loss)
+21. [Q21. (Code Review) A warehouse pricing service receives boxed quantities and tries to unbox them as `long`. What fails at runtime and how would you fix it?](#q21-code-review-a-warehouse-pricing-service-receives-boxed-quantities-and-tries-to-unbox-them-as-long-what-fails-at-runtime-and-how-would-you-fix-it)
+22. [Q22. (Code Review) An ASP.NET Core controller calls `int.Parse` directly on a URL route segment. What is wrong and how do you fix it?](#q22-code-review-an-aspnet-core-controller-calls-intparse-directly-on-a-url-route-segment-what-is-wrong-and-how-do-you-fix-it)
+23. [Q23. (Code Review) An inventory service casts `int` location IDs to `byte` for a shelf-slot database column. What corrupts data silently and how do you prevent it?](#q23-code-review-an-inventory-service-casts-int-location-ids-to-byte-for-a-shelf-slot-database-column-what-corrupts-data-silently-and-how-do-you-prevent-it)
+24. [Q24. (Code Review) A shipping label builder uses `as` without null-checking the result. What throws and what is the cleaner fix?](#q24-code-review-a-shipping-label-builder-uses-as-without-null-checking-the-result-what-throws-and-what-is-the-cleaner-fix)
+25. [Q25. A partner integration POSTs prices formatted as German decimal strings (`"1.234,56"`) to an en-US server. How do you parse them safely and what API contract prevents the problem entirely?](#q25-a-partner-integration-posts-prices-formatted-as-german-decimal-strings-123456-to-an-en-us-server-how-do-you-parse-them-safely-and-what-api-contract-prevents-the-problem-entirely)
+26. [Q26. You are designing a `Money` value type. How would you use custom conversion operators to allow `Money price = 49.99m` but require `(decimal)price` when extracting the raw amount?](#q26-you-are-designing-a-money-value-type-how-would-you-use-custom-conversion-operators-to-allow-money-price-4999m-but-require-decimalprice-when-extracting-the-raw-amount)
+27. [Q27. A legacy service stores thousands of integers per second in an `ArrayList`, then retrieves them for calculation. How does boxing affect correctness and performance, and what is the migration path?](#q27-a-legacy-service-stores-thousands-of-integers-per-second-in-an-arraylist-then-retrieves-them-for-calculation-how-does-boxing-affect-correctness-and-performance-and-what-is-the-migration-path)
+
+---
 ## Foundation Questions
 
 ---

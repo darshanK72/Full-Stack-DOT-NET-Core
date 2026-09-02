@@ -1,7 +1,44 @@
-# C# `List<T>` — Interview Q&A
+﻿# C# `List<T>` — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is `List<T>` and what problem does it solve over plain arrays?](#q1-what-is-listt-and-what-problem-does-it-solve-over-plain-arrays)
+2. [Q2. What is the difference between `Count` and `Capacity`?](#q2-what-is-the-difference-between-count-and-capacity)
+3. [Q3. How does the capacity growth sequence work and why does pre-sizing matter?](#q3-how-does-the-capacity-growth-sequence-work-and-why-does-pre-sizing-matter)
+4. [Q4. What is the difference between `Add`, `AddRange`, and `Insert`?](#q4-what-is-the-difference-between-add-addrange-and-insert)
+5. [Q5. Explain `Remove`, `RemoveAt`, and `RemoveAll` — how does each work and when do you use each?](#q5-explain-remove-removeat-and-removeall-how-does-each-work-and-when-do-you-use-each)
+6. [Q6. How does `Find` work, and what is the return value when nothing matches?](#q6-how-does-find-work-and-what-is-the-return-value-when-nothing-matches)
+7. [Q7. How does `Sort()` work on `List<int>` and `List<string>`, and what happens when T is your own class?](#q7-how-does-sort-work-on-listint-and-liststring-and-what-happens-when-t-is-your-own-class)
+8. [Q8. What is `IComparable<T>` and how do you implement it for a custom sort order?](#q8-what-is-icomparablet-and-how-do-you-implement-it-for-a-custom-sort-order)
+9. [Q9. What is `IComparer<T>` and when should you use it instead of `IComparable<T>`?](#q9-what-is-icomparert-and-when-should-you-use-it-instead-of-icomparablet)
+10. [Q10. What is `Comparison<T>` and when would you choose it over `IComparer<T>`?](#q10-what-is-comparisont-and-when-would-you-choose-it-over-icomparert)
+11. [Q11. How does `BinarySearch` work and what are its prerequisites and return-value semantics?](#q11-how-does-binarysearch-work-and-what-are-its-prerequisites-and-return-value-semantics)
+12. [Q12. What does `AsReadOnly()` return, and what are its limits?](#q12-what-does-asreadonly-return-and-what-are-its-limits)
+13. [Q13. What does `ConvertAll` do, and how does it compare to LINQ `Select`?](#q13-what-does-convertall-do-and-how-does-it-compare-to-linq-select)
+14. [Q14. What is `TrimExcess()` and when should you call it?](#q14-what-is-trimexcess-and-when-should-you-call-it)
+15. [Q15. When should you choose `List<T>` over a plain `T[]` array?](#q15-when-should-you-choose-listt-over-a-plain-t-array)
+16. [Q16. How does `List<T>.ForEach` differ from a `foreach` loop?](#q16-how-does-listtforeach-differ-from-a-foreach-loop)
+17. [Q17. How do `Contains` and `IndexOf` determine equality, and what must you do for custom types?](#q17-how-do-contains-and-indexof-determine-equality-and-what-must-you-do-for-custom-types)
+18. [Q18. What does `List<T>` do during `Sort` internally, and is it a stable sort?](#q18-what-does-listt-do-during-sort-internally-and-is-it-a-stable-sort)
+19. [Q19. What happens if you call `Remove` inside a `foreach` loop over the same list?](#q19-what-happens-if-you-call-remove-inside-a-foreach-loop-over-the-same-list)
+20. [Q20. What is the gotcha with `default(T)` when using `Find` on a `List<int>` or `List<bool>`?](#q20-what-is-the-gotcha-with-defaultt-when-using-find-on-a-listint-or-listbool)
+21. [Q21. What happens when you call `Sort()` on a `List<T>` where T does not implement `IComparable<T>`?](#q21-what-happens-when-you-call-sort-on-a-listt-where-t-does-not-implement-icomparablet)
+22. [Q22. Why does `BinarySearch` return unexpected results on an unsorted list?](#q22-why-does-binarysearch-return-unexpected-results-on-an-unsorted-list)
+23. [Q23. What is the `List<T>` thread-safety guarantee (or lack thereof)?](#q23-what-is-the-listt-thread-safety-guarantee-or-lack-thereof)
+24. [Q24. What is the gotcha with `Clear()` and memory, and when do you actually need `TrimExcess()`?](#q24-what-is-the-gotcha-with-clear-and-memory-and-when-do-you-actually-need-trimexcess)
+25. [Q25. Code Review — Bulk import with repeated capacity growth](#q25-code-review-bulk-import-with-repeated-capacity-growth)
+26. [Q26. Code Review — Modifying a list during `foreach`](#q26-code-review-modifying-a-list-during-foreach)
+27. [Q27. Code Review — Leaking a mutable internal list through a public property](#q27-code-review-leaking-a-mutable-internal-list-through-a-public-property)
+28. [Q28. Code Review — Thread-unsafe shared static list](#q28-code-review-thread-unsafe-shared-static-list)
+29. [Q29. Scenario — Choosing between three sort approaches for a reporting service](#q29-scenario-choosing-between-three-sort-approaches-for-a-reporting-service)
+30. [Q30. Scenario — Performance regression from nested `IndexOf` / `Contains` calls at scale](#q30-scenario-performance-regression-from-nested-indexof-contains-calls-at-scale)
+31. [Q31. Scenario — Building a pipeline that reads, filters, sorts, and exposes a read-only result](#q31-scenario-building-a-pipeline-that-reads-filters-sorts-and-exposes-a-read-only-result)
+32. [Q32. Scenario — Deciding between `List<T>`, array, and `IReadOnlyList<T>` for three API boundaries](#q32-scenario-deciding-between-listt-array-and-ireadonlylistt-for-three-api-boundaries)
+
+---
 ## Foundation Questions
 
 ---

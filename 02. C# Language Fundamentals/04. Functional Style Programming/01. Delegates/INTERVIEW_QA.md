@@ -1,7 +1,41 @@
-# C# Delegates — Interview Q&A
+﻿# C# Delegates — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is a delegate in C# and how does it differ from a direct method call?](#q1-what-is-a-delegate-in-c-and-how-does-it-differ-from-a-direct-method-call)
+2. [Q2. How do you declare and instantiate a custom delegate type?](#q2-how-do-you-declare-and-instantiate-a-custom-delegate-type)
+3. [Q3. What is method group conversion and when does the compiler perform it?](#q3-what-is-method-group-conversion-and-when-does-the-compiler-perform-it)
+4. [Q4. How do you invoke a delegate safely, and why is null checking necessary?](#q4-how-do-you-invoke-a-delegate-safely-and-why-is-null-checking-necessary)
+5. [Q5. What are multicast delegates, and how does the invocation chain work?](#q5-what-are-multicast-delegates-and-how-does-the-invocation-chain-work)
+6. [Q6. What are the built-in generic delegate types Func, Action, and Predicate?](#q6-what-are-the-built-in-generic-delegate-types-func-action-and-predicate)
+7. [Q7. How does delegate covariance and contravariance work?](#q7-how-does-delegate-covariance-and-contravariance-work)
+8. [Q8. How does the event keyword build on top of delegates?](#q8-how-does-the-event-keyword-build-on-top-of-delegates)
+9. [Q9. What is GetInvocationList and when do you need it?](#q9-what-is-getinvocationlist-and-when-do-you-need-it)
+10. [Q10. What are the trade-offs between delegates and interfaces for callbacks?](#q10-what-are-the-trade-offs-between-delegates-and-interfaces-for-callbacks)
+11. [Q11. How does delegate chaining work with += and -= operators?](#q11-how-does-delegate-chaining-work-with-and-operators)
+12. [Q12. How do async and await interact with delegates?](#q12-how-do-async-and-await-interact-with-delegates)
+13. [Q13. What are closed-over variables in delegates and how do they behave?](#q13-what-are-closed-over-variables-in-delegates-and-how-do-they-behave)
+14. [Q14. How does delegate equality work?](#q14-how-does-delegate-equality-work)
+15. [Q15. What is the difference between Delegate.Combine returning null and an empty invocation list?](#q15-what-is-the-difference-between-delegatecombine-returning-null-and-an-empty-invocation-list)
+16. [Q16. How does delegate variance interact with generic constraints?](#q16-how-does-delegate-variance-interact-with-generic-constraints)
+17. [Q17. How do you use delegates to implement a strategy pattern at runtime?](#q17-how-do-you-use-delegates-to-implement-a-strategy-pattern-at-runtime)
+18. [Q18. How does GetInvocationList enable collecting per-subscriber results from a multicast delegate?](#q18-how-does-getinvocationlist-enable-collecting-per-subscriber-results-from-a-multicast-delegate)
+19. [Q19. Why does invoking a multicast delegate with a return type only give you the last result?](#q19-why-does-invoking-a-multicast-delegate-with-a-return-type-only-give-you-the-last-result)
+20. [Q20. What happens when one subscriber in a multicast chain throws an exception?](#q20-what-happens-when-one-subscriber-in-a-multicast-chain-throws-an-exception)
+21. [Q21. Why does adding a lambda with += and removing it with -= (using a different expression) fail silently?](#q21-why-does-adding-a-lambda-with-and-removing-it-with-using-a-different-expression-fail-silently)
+22. [Q22. What is the += null delegate pitfall and why does it work?](#q22-what-is-the-null-delegate-pitfall-and-why-does-it-work)
+23. [Q23. How can closed-over loop variables cause subtle bugs in delegate-heavy code?](#q23-how-can-closed-over-loop-variables-cause-subtle-bugs-in-delegate-heavy-code)
+24. [Q24. Design a callback-based progress reporting system using delegates for a long-running file import.](#q24-design-a-callback-based-progress-reporting-system-using-delegates-for-a-long-running-file-import)
+25. [Q25. How would you implement a simple event aggregator using delegates to decouple publishers and subscribers in a multi-layer application?](#q25-how-would-you-implement-a-simple-event-aggregator-using-delegates-to-decouple-publishers-and-subscribers-in-a-multi-layer-application)
+26. [Q26. A colleague writes the following delegate-based plugin loader. Review it for defects.](#q26-a-colleague-writes-the-following-delegate-based-plugin-loader-review-it-for-defects)
+27. [Q27. How would you use a delegate dictionary to replace a sprawling if-else chain that routes commands in a CQRS command dispatcher?](#q27-how-would-you-use-a-delegate-dictionary-to-replace-a-sprawling-if-else-chain-that-routes-commands-in-a-cqrs-command-dispatcher)
+28. [Q28. How do delegates enable a middleware pipeline pattern similar to ASP.NET Core's RequestDelegate chain?](#q28-how-do-delegates-enable-a-middleware-pipeline-pattern-similar-to-aspnet-cores-requestdelegate-chain)
+29. [Q29. How do you implement a reliable async callback pattern where the caller can await the result and handle exceptions from subscriber code?](#q29-how-do-you-implement-a-reliable-async-callback-pattern-where-the-caller-can-await-the-result-and-handle-exceptions-from-subscriber-code)
+
+---
 ## Foundation Questions
 
 ---

@@ -1,5 +1,37 @@
-# Hello World in C# — Interview Q&A
+﻿# Hello World in C# — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are the essential structural layers of a minimal C# console program?](#q1-what-are-the-essential-structural-layers-of-a-minimal-c-console-program)
+2. [Q2. What is the purpose of the `using` directive and when is it required?](#q2-what-is-the-purpose-of-the-using-directive-and-when-is-it-required)
+3. [Q3. What is a namespace and what problem does it solve?](#q3-what-is-a-namespace-and-what-problem-does-it-solve)
+4. [Q4. What is the `Program` class and why is it conventionally named that way?](#q4-what-is-the-program-class-and-why-is-it-conventionally-named-that-way)
+5. [Q5. What is the `Main` method and why is it the entry point of a C# console application?](#q5-what-is-the-main-method-and-why-is-it-the-entry-point-of-a-c-console-application)
+6. [Q6. Why must the `Main` method be declared `static`?](#q6-why-must-the-main-method-be-declared-static)
+7. [Q7. What valid signatures can the `Main` entry-point method have in C#?](#q7-what-valid-signatures-can-the-main-entry-point-method-have-in-c)
+8. [Q8. What is the difference between `Console.WriteLine` and `Console.Write`?](#q8-what-is-the-difference-between-consolewriteline-and-consolewrite)
+9. [Q9. What are top-level statements in C# 9 and what code does the compiler generate from them?](#q9-what-are-top-level-statements-in-c-9-and-what-code-does-the-compiler-generate-from-them)
+10. [Q10. What is `ImplicitUsings` and how does enabling it affect what you write in source files?](#q10-what-is-implicitusings-and-how-does-enabling-it-affect-what-you-write-in-source-files)
+11. [Q11. What is the `.csproj` project file and what key properties does it configure for a console app?](#q11-what-is-the-csproj-project-file-and-what-key-properties-does-it-configure-for-a-console-app)
+12. [Q12. What are common string escape sequences in C# and when is each used?](#q12-what-are-common-string-escape-sequences-in-c-and-when-is-each-used)
+13. [Q13. What is the .NET CLR and what does it do when a C# program runs?](#q13-what-is-the-net-clr-and-what-does-it-do-when-a-c-program-runs)
+14. [Q14. What is a .NET assembly and what artifacts does `dotnet build` produce?](#q14-what-is-a-net-assembly-and-what-artifacts-does-dotnet-build-produce)
+15. [Q15. What is the difference between .NET Framework and modern .NET (Core / .NET 5+)?](#q15-what-is-the-difference-between-net-framework-and-modern-net-core-net-5)
+16. [Q16. What does file-scoped namespace syntax do and how does it differ from block syntax?](#q16-what-does-file-scoped-namespace-syntax-do-and-how-does-it-differ-from-block-syntax)
+17. [Q17. What happens during compilation versus execution of a C# program?](#q17-what-happens-during-compilation-versus-execution-of-a-c-program)
+18. [Q18. What compile error occurs when `Console.WriteLine` is called without `using System;` and ImplicitUsings is disabled?](#q18-what-compile-error-occurs-when-consolewriteline-is-called-without-using-system-and-implicitusings-is-disabled)
+19. [Q19. What happens when a C# project contains two methods both named `Main`?](#q19-what-happens-when-a-c-project-contains-two-methods-both-named-main)
+20. [Q20. Why does `Console.WriteLine('H');` behave differently from `Console.WriteLine("H");`?](#q20-why-does-consolewritelineh-behave-differently-from-consolewritelineh)
+21. [Q21. What is the behavioral difference between embedding `\n` in a string argument and calling `Console.WriteLine` twice?](#q21-what-is-the-behavioral-difference-between-embedding-n-in-a-string-argument-and-calling-consolewriteline-twice)
+22. [Q22. What is surprising about the `args` variable in a top-level statements file?](#q22-what-is-surprising-about-the-args-variable-in-a-top-level-statements-file)
+23. [Q23. A new developer joins the team, clones the repository, and runs `dotnet run` in the HelloWorld project folder. The build fails with CS0103: `The name 'Console' does not exist in the current context`. How do you diagnose and resolve this?](#q23-a-new-developer-joins-the-team-clones-the-repository-and-runs-dotnet-run-in-the-helloworld-project-folder-the-build-fails-with-cs0103-the-name-console-does-not-exist-in-the-current-context-how-do-you-diagnose-and-resolve-this)
+24. [Q24. You are reviewing the following pull request from a new developer. Identify all defects, explain their impact, and prioritize the fixes.](#q24-you-are-reviewing-the-following-pull-request-from-a-new-developer-identify-all-defects-explain-their-impact-and-prioritize-the-fixes)
+25. [Q25. Your team is starting a greenfield microservice that runs as a background worker. A junior developer proposes using top-level statements to keep the entry-point file small. A senior developer pushes back and wants the explicit `Program`/`Main` pattern. How do you evaluate the trade-off?](#q25-your-team-is-starting-a-greenfield-microservice-that-runs-as-a-background-worker-a-junior-developer-proposes-using-top-level-statements-to-keep-the-entry-point-file-small-a-senior-developer-pushes-back-and-wants-the-explicit-programmain-pattern-how-do-you-evaluate-the-trade-off)
+26. [Q26. A developer asks: "Why does the same `.dll` I compiled on my Windows machine run unchanged on a Linux container without recompiling?" Explain the portability model.](#q26-a-developer-asks-why-does-the-same-dll-i-compiled-on-my-windows-machine-run-unchanged-on-a-linux-container-without-recompiling-explain-the-portability-model)
+27. [Q27. A DevOps engineer reports that deploying the console application to a production server fails because .NET is not installed. What deployment strategies are available and what are their trade-offs?](#q27-a-devops-engineer-reports-that-deploying-the-console-application-to-a-production-server-fails-because-net-is-not-installed-what-deployment-strategies-are-available-and-what-are-their-trade-offs)
+
+---
 ## Foundation Questions
 
 ---

@@ -1,7 +1,22 @@
-# LINQ: Generation Operations — Interview Q&A
+﻿# LINQ: Generation Operations — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does `Enumerable.Range` do?](#q1-what-does-enumerablerange-do)
+2. [Q2. What does `Enumerable.Repeat` do?](#q2-what-does-enumerablerepeat-do)
+3. [Q3. What does `Enumerable.Empty<T>` do?](#q3-what-does-enumerableemptyt-do)
+4. [Q4. How does `DefaultIfEmpty` generate elements?](#q4-how-does-defaultifempty-generate-elements)
+5. [Q5. Can you use `Range` to generate non-integer sequences?](#q5-can-you-use-range-to-generate-non-integer-sequences)
+6. [Q6. When should you prefer `Enumerable.Empty<T>` over `null`? (Gotcha)](#q6-when-should-you-prefer-enumerableemptyt-over-null-gotcha)
+7. [Q7. What is the difference between `Enumerable.Range(0, 0)` and `Enumerable.Empty<int>()`? (Gotcha)](#q7-what-is-the-difference-between-enumerablerange0-0-and-enumerableemptyint-gotcha)
+8. [Q8. How does `Repeat` behave with mutable reference types? (Gotcha)](#q8-how-does-repeat-behave-with-mutable-reference-types-gotcha)
+9. [Q9. Scenario: You need to generate test data — 1,000 orders with random amounts and sequential IDs. How do you use generation operators? (Scenario)](#q9-scenario-you-need-to-generate-test-data-1000-orders-with-random-amounts-and-sequential-ids-how-do-you-use-generation-operators-scenario)
+10. [Q10. Scenario: A service method returns null instead of an empty collection and callers are crashing with NullReferenceException. How do you fix this systematically? (Scenario)](#q10-scenario-a-service-method-returns-null-instead-of-an-empty-collection-and-callers-are-crashing-with-nullreferenceexception-how-do-you-fix-this-systematically-scenario)
+
+---
 ## Q1. What does `Enumerable.Range` do?
 
 **Concepts**

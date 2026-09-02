@@ -1,7 +1,37 @@
-# Foundation Questions
+﻿# Foundation Questions
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between integer division and floating-point division in C#, and when does each occur?](#q1-what-is-the-difference-between-integer-division-and-floating-point-division-in-c-and-when-does-each-occur)
+2. [Q2. How do the prefix (++x) and postfix (x++) forms of the increment operator differ in C#?](#q2-how-do-the-prefix-x-and-postfix-x-forms-of-the-increment-operator-differ-in-c)
+3. [Q3. How does short-circuit evaluation work with && and ||, and how do they differ from & and | on bool operands?](#q3-how-does-short-circuit-evaluation-work-with-and-and-how-do-they-differ-from-and-on-bool-operands)
+4. [Q4. What does the null-coalescing operator (??) do, and how does ??= extend it in C# 8+?](#q4-what-does-the-null-coalescing-operator-do-and-how-does-extend-it-in-c-8)
+5. [Q5. What does the null-conditional operator (?.) return when applied to a null reference, and what type does it produce?](#q5-what-does-the-null-conditional-operator-return-when-applied-to-a-null-reference-and-what-type-does-it-produce)
+6. [Q6. How does operator precedence determine evaluation order in an expression that mixes *, +, and ??? ](#q6-how-does-operator-precedence-determine-evaluation-order-in-an-expression-that-mixes-and)
+7. [Q7. What is the ternary conditional operator (?:) and what constraints apply to its two value branches?](#q7-what-is-the-ternary-conditional-operator-and-what-constraints-apply-to-its-two-value-branches)
+8. [Q8. How do the bitwise operators &, |, ^, ~, <<, and >> work on integer types, and what is the idiomatic pattern for permission flags?](#q8-how-do-the-bitwise-operators-and-work-on-integer-types-and-what-is-the-idiomatic-pattern-for-permission-flags)
+9. [Q9. What are compound assignment operators, and how do bitwise compound forms behave differently from arithmetic ones on bitmasks?](#q9-what-are-compound-assignment-operators-and-how-do-bitwise-compound-forms-behave-differently-from-arithmetic-ones-on-bitmasks)
+10. [Q10. What is the checked context in C#, what overflow behavior does it change, and when should it be used?](#q10-what-is-the-checked-context-in-c-what-overflow-behavior-does-it-change-and-when-should-it-be-used)
+11. [Q11. How do the is and as operators differ in C#, and when should each be used?](#q11-how-do-the-is-and-as-operators-differ-in-c-and-when-should-each-be-used)
+12. [Q12. How does string == comparison work in C# and how does it differ from reference equality for other types?](#q12-how-does-string-comparison-work-in-c-and-how-does-it-differ-from-reference-equality-for-other-types)
+13. [Q13. What is operator associativity and how does it affect expressions like a = b = 5 and nested ternary chains?](#q13-what-is-operator-associativity-and-how-does-it-affect-expressions-like-a-b-5-and-nested-ternary-chains)
+14. [Q14. What is the modulo operator (%) in C# and how does it behave with negative integer operands?](#q14-what-is-the-modulo-operator-in-c-and-how-does-it-behave-with-negative-integer-operands)
+15. [Q15. Why does 7 / 2 evaluate to 3 instead of 3.5 in C#, and what is the simplest fix when a fractional result is needed?](#q15-why-does-7-2-evaluate-to-3-instead-of-35-in-c-and-what-is-the-simplest-fix-when-a-fractional-result-is-needed)
+16. [Q16. What is the danger of using & instead of && in a boolean guard expression that contains side-effecting methods?](#q16-what-is-the-danger-of-using-instead-of-in-a-boolean-guard-expression-that-contains-side-effecting-methods)
+17. [Q17. Why does code?.Length ?? 0 + 1 not produce "the string length, or 1 when null" in C#?](#q17-why-does-codelength-0-1-not-produce-the-string-length-or-1-when-null-in-c)
+18. [Q18. How does integer overflow silently corrupt arithmetic in C# by default, and what tools prevent it?](#q18-how-does-integer-overflow-silently-corrupt-arithmetic-in-c-by-default-and-what-tools-prevent-it)
+19. [Q19. Why is ^= (XOR-assign) the wrong operator for unconditionally removing a permission flag, and what should replace it?](#q19-why-is-xor-assign-the-wrong-operator-for-unconditionally-removing-a-permission-flag-and-what-should-replace-it)
+20. [Q20. (Code Review) A developer submits this daily-reporting helper to compute the average order value. Review the code and identify all operator and type issues before it ships.](#q20-code-review-a-developer-submits-this-daily-reporting-helper-to-compute-the-average-order-value-review-the-code-and-identify-all-operator-and-type-issues-before-it-ships)
+21. [Q21. (Code Review) A team member submits this user-preference update method for a .NET 10 SaaS application. What operator issues would you flag before merging?](#q21-code-review-a-team-member-submits-this-user-preference-update-method-for-a-net-10-saas-application-what-operator-issues-would-you-flag-before-merging)
+22. [Q22. (Code Review) A shipping-cost helper returns wrong surcharges for zones with an explicit base rate. Identify the precedence issues before the method ships.](#q22-code-review-a-shipping-cost-helper-returns-wrong-surcharges-for-zones-with-an-explicit-base-rate-identify-the-precedence-issues-before-the-method-ships)
+23. [Q23. Your team needs a role-based permission system for a .NET 10 warehouse picker application. Roles must combine Read, Write, Delete, and Admin capabilities in a single int stored as a database column, and support grant, revoke, and test operations at runtime. How would you design and implement it using bitwise operators?](#q23-your-team-needs-a-role-based-permission-system-for-a-net-10-warehouse-picker-application-roles-must-combine-read-write-delete-and-admin-capabilities-in-a-single-int-stored-as-a-database-column-and-support-grant-revoke-and-test-operations-at-runtime-how-would-you-design-and-implement-it-using-bitwise-operators)
+24. [Q24. Your team's LINQ projection crashes with NullReferenceException when processing orders from inactive customers whose Address or PostalCode property is null. How would you use null-conditional and null-coalescing operators to make the projection safe without adding if-chains or defensive helper methods?](#q24-your-teams-linq-projection-crashes-with-nullreferenceexception-when-processing-orders-from-inactive-customers-whose-address-or-postalcode-property-is-null-how-would-you-use-null-conditional-and-null-coalescing-operators-to-make-the-projection-safe-without-adding-if-chains-or-defensive-helper-methods)
+25. [Q25. You are reviewing a pull request where a developer computed tiered discounts using only int literals and variables throughout. The unit tests pass with round-number inputs but fail with real order values. How do you identify and fix the operator and data-type issues?](#q25-you-are-reviewing-a-pull-request-where-a-developer-computed-tiered-discounts-using-only-int-literals-and-variables-throughout-the-unit-tests-pass-with-round-number-inputs-but-fail-with-real-order-values-how-do-you-identify-and-fix-the-operator-and-data-type-issues)
+
+---
 ## Q1. What is the difference between integer division and floating-point division in C#, and when does each occur?
 
 **Concepts**

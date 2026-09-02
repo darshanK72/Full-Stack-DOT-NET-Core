@@ -1,5 +1,28 @@
-# C# Events — Interview Q&A
+﻿# C# Events — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is an event in C#, and how does it differ from a plain delegate field?](#q1-what-is-an-event-in-c-and-how-does-it-differ-from-a-plain-delegate-field)
+2. [Q2. What is the `EventHandler<TEventArgs>` pattern, and why is it the standard for .NET events?](#q2-what-is-the-eventhandlerteventargs-pattern-and-why-is-it-the-standard-for-net-events)
+3. [Q3. How do you safely raise an event in C#, and what is the null-conditional pattern?](#q3-how-do-you-safely-raise-an-event-in-c-and-what-is-the-null-conditional-pattern)
+4. [Q4. What is a multicast delegate, and what happens when one subscriber throws?](#q4-what-is-a-multicast-delegate-and-what-happens-when-one-subscriber-throws)
+5. [Q5. What is an event memory leak, and how does it occur with lambda subscriptions?](#q5-what-is-an-event-memory-leak-and-how-does-it-occur-with-lambda-subscriptions)
+6. [Q6. What is the weak event pattern, and when should you use it?](#q6-what-is-the-weak-event-pattern-and-when-should-you-use-it)
+7. [Q7. What is `INotifyPropertyChanged`, and how does it leverage events?](#q7-what-is-inotifypropertychanged-and-how-does-it-leverage-events)
+8. [Q8. What are custom event accessors (`add`/`remove`), and when do you need them?](#q8-what-are-custom-event-accessors-addremove-and-when-do-you-need-them)
+9. [Q9. What is `IObservable<T>` / `IObserver<T>`, and how does it compare to events?](#q9-what-is-iobservablet-iobservert-and-how-does-it-compare-to-events)
+10. [Q10. What is thread safety with events, and why does `?.Invoke` not eliminate all races?](#q10-what-is-thread-safety-with-events-and-why-does-invoke-not-eliminate-all-races)
+11. [Q11. When would you choose an event over an injected callback or an `INotificationService` dependency?](#q11-when-would-you-choose-an-event-over-an-injected-callback-or-an-inotificationservice-dependency)
+12. [Q12. What happens when an event subscriber throws an exception during the raise?](#q12-what-happens-when-an-event-subscriber-throws-an-exception-during-the-raise)
+13. [Q13. A lambda subscribed to an event holds a reference to `this`. After `Dispose()`, memory usage does not drop. Why?](#q13-a-lambda-subscribed-to-an-event-holds-a-reference-to-this-after-dispose-memory-usage-does-not-drop-why)
+14. [Q14. A delegate field `public Action<string>? PaymentCompleted` is used instead of `event`. A test resets it with `= null`. What production risks exist?](#q14-a-delegate-field-public-actionstring-paymentcompleted-is-used-instead-of-event-a-test-resets-it-with-null-what-production-risks-exist)
+15. [Q15. A scoped `OrderNotificationService` subscribes to a singleton `OrderStateTracker` event in its constructor. After thousands of requests, memory climbs. Why?](#q15-a-scoped-ordernotificationservice-subscribes-to-a-singleton-orderstatetracker-event-in-its-constructor-after-thousands-of-requests-memory-climbs-why)
+16. [Q16. A balance notification system crashes when no UI is subscribed. Diagnose the null-check race and show the correct idiomatic raise pattern.](#q16-a-balance-notification-system-crashes-when-no-ui-is-subscribed-diagnose-the-null-check-race-and-show-the-correct-idiomatic-raise-pattern)
+17. [Q17. Design a `BankAccount` that raises `BalanceChanged` safely from background threads. Show the thread-safe subscription pattern using custom event accessors.](#q17-design-a-bankaccount-that-raises-balancechanged-safely-from-background-threads-show-the-thread-safe-subscription-pattern-using-custom-event-accessors)
+18. [Q18. An ASP.NET Core API exposes `event` for order notifications in a singleton service. Compare three notification approaches and choose one for production.](#q18-an-aspnet-core-api-exposes-event-for-order-notifications-in-a-singleton-service-compare-three-notification-approaches-and-choose-one-for-production)
+
+---
 ## Foundation Questions
 
 ---

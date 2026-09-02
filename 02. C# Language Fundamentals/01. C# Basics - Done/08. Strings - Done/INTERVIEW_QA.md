@@ -1,5 +1,36 @@
-# C# Strings — Interview Q&A
+﻿# C# Strings — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What does string immutability mean in C#, and what practical consequences does it have for code that "modifies" a string?](#q1-what-does-string-immutability-mean-in-c-and-what-practical-consequences-does-it-have-for-code-that-modifies-a-string)
+2. [Q2. What is the string intern pool, and when does the runtime automatically intern string literals?](#q2-what-is-the-string-intern-pool-and-when-does-the-runtime-automatically-intern-string-literals)
+3. [Q3. What is the difference between `string.IsNullOrEmpty` and `string.IsNullOrWhiteSpace`, and when should you prefer each?](#q3-what-is-the-difference-between-stringisnullorempty-and-stringisnullorwhitespace-and-when-should-you-prefer-each)
+4. [Q4. How does `string.Split` work? What are the `StringSplitOptions` flags and when do you use them?](#q4-how-does-stringsplit-work-what-are-the-stringsplitoptions-flags-and-when-do-you-use-them)
+5. [Q5. What does `string.Join` do, and how does it compare to manual concatenation for combining collections?](#q5-what-does-stringjoin-do-and-how-does-it-compare-to-manual-concatenation-for-combining-collections)
+6. [Q6. Explain `IndexOf`, `LastIndexOf`, and `Contains` on strings — what do they return, and when should you pass a `StringComparison` argument?](#q6-explain-indexof-lastindexof-and-contains-on-strings-what-do-they-return-and-when-should-you-pass-a-stringcomparison-argument)
+7. [Q7. How does `Substring` work, and what modern alternatives exist in .NET?](#q7-how-does-substring-work-and-what-modern-alternatives-exist-in-net)
+8. [Q8. What is `Span<char>` / `ReadOnlySpan<char>`, and what problem does it solve that `Substring` cannot?](#q8-what-is-spanchar-readonlyspanchar-and-what-problem-does-it-solve-that-substring-cannot)
+9. [Q9. Explain string interpolation (`$"..."`). What does the compiler generate, and how does it relate to `string.Format`?](#q9-explain-string-interpolation-what-does-the-compiler-generate-and-how-does-it-relate-to-stringformat)
+10. [Q10. What are verbatim string literals (`@"..."`) and raw string literals (`"""..."""`), and when do you use each?](#q10-what-are-verbatim-string-literals-and-raw-string-literals-and-when-do-you-use-each)
+11. [Q11. What are the `StringComparison` enumeration members, which should you use for machine identifiers, and which for user-facing text?](#q11-what-are-the-stringcomparison-enumeration-members-which-should-you-use-for-machine-identifiers-and-which-for-user-facing-text)
+12. [Q12. How does the `==` operator work for strings, and how does it differ from `ReferenceEquals`?](#q12-how-does-the-operator-work-for-strings-and-how-does-it-differ-from-referenceequals)
+13. [Q13. What is `StringBuilder`, when should you use it over string concatenation, and what is the cost of calling `ToString()` before you are done building?](#q13-what-is-stringbuilder-when-should-you-use-it-over-string-concatenation-and-what-is-the-cost-of-calling-tostring-before-you-are-done-building)
+14. [Q14. What does `PadLeft` / `PadRight` do, and where are they commonly used in production code?](#q14-what-does-padleft-padright-do-and-where-are-they-commonly-used-in-production-code)
+15. [Q15. What is `string.Concat` and how does it differ from the `+` operator for combining two or more strings?](#q15-what-is-stringconcat-and-how-does-it-differ-from-the-operator-for-combining-two-or-more-strings)
+16. [Q16. A developer writes `rawInput.ToUpperInvariant();` on a separate line but the resulting data is never normalized. What went wrong?](#q16-a-developer-writes-rawinputtoupperinvariant-on-a-separate-line-but-the-resulting-data-is-never-normalized-what-went-wrong)
+17. [Q17. `"abc" == new string(new[] { 'a', 'b', 'c' })` — will this be `true` or `false`? What about `ReferenceEquals`?](#q17-abc-new-stringnew-a-b-c-will-this-be-true-or-false-what-about-referenceequals)
+18. [Q18. What does `string.Split('|')` return when the input string contains no pipe character?](#q18-what-does-stringsplit-return-when-the-input-string-contains-no-pipe-character)
+19. [Q19. Why can `$"{orderTotal:C}"` produce different output on different production servers even with identical code?](#q19-why-can-ordertotalc-produce-different-output-on-different-production-servers-even-with-identical-code)
+20. [Q20. What is the pitfall of calling `StartsWith`, `EndsWith`, or `Contains` without a `StringComparison` argument?](#q20-what-is-the-pitfall-of-calling-startswith-endswith-or-contains-without-a-stringcomparison-argument)
+21. [Q21. (Code Review) Review the following nightly export builder and identify the problems. Propose fixes in priority order.](#q21-code-review-review-the-following-nightly-export-builder-and-identify-the-problems-propose-fixes-in-priority-order)
+22. [Q22. (Code Review) Review the following order-ID normalization and lookup. Identify what fails and how to fix it.](#q22-code-review-review-the-following-order-id-normalization-and-lookup-identify-what-fails-and-how-to-fix-it)
+23. [Q23. (Code Review) Review the following label builder for null/empty handling defects.](#q23-code-review-review-the-following-label-builder-for-nullempty-handling-defects)
+24. [Q24. (Code Review) A shared API validates incoming scan requests. Review the following method for security and correctness issues.](#q24-code-review-a-shared-api-validates-incoming-scan-requests-review-the-following-method-for-security-and-correctness-issues)
+25. [Q25. Your team runs shipping-label services on US, German, and Japanese servers. Finance reports that decimal totals in nightly audit logs do not reconcile across regions. Diagnose the root cause and explain the correct formatting strategy for display vs storage.](#q25-your-team-runs-shipping-label-services-on-us-german-and-japanese-servers-finance-reports-that-decimal-totals-in-nightly-audit-logs-do-not-reconcile-across-regions-diagnose-the-root-cause-and-explain-the-correct-formatting-strategy-for-display-vs-storage)
+26. [Q26. A team proposes replacing high-throughput log-line parsing (10 million lines per minute) that currently uses `Substring` with a `Span<char>`-based approach. Explain when this trade-off is justified and what constraints it introduces.](#q26-a-team-proposes-replacing-high-throughput-log-line-parsing-10-million-lines-per-minute-that-currently-uses-substring-with-a-spanchar-based-approach-explain-when-this-trade-off-is-justified-and-what-constraints-it-introduces)
+
+---
 > **Folder:** `02. C# Language Fundamentals/01. C# Basics - Done/08. Strings - Done`
 > **Source:** `Program.cs` — warehouse shipping-label scenario covering immutability, intern pool, common methods, comparison, interpolation, verbatim/raw literals, culture formatting, and StringBuilder.
 

@@ -1,5 +1,27 @@
-# Regular Expressions — Interview Q&A
+﻿# Regular Expressions — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a regular expression and what does the Regex class provide in C#?](#q1-what-is-a-regular-expression-and-what-does-the-regex-class-provide-in-c)
+2. [Q2. What are RegexOptions and which flags are most commonly needed in production?](#q2-what-are-regexoptions-and-which-flags-are-most-commonly-needed-in-production)
+3. [Q3. What are capturing groups, named groups, and how do you access them?](#q3-what-are-capturing-groups-named-groups-and-how-do-you-access-them)
+4. [Q4. What is catastrophic backtracking (ReDoS) and how do you prevent it?](#q4-what-is-catastrophic-backtracking-redos-and-how-do-you-prevent-it)
+5. [Q5. What is [GeneratedRegex] and what are its benefits over compiled Regex?](#q5-what-is-generatedregex-and-what-are-its-benefits-over-compiled-regex)
+6. [Q6. What is the difference between greedy and lazy quantifiers?](#q6-what-is-the-difference-between-greedy-and-lazy-quantifiers)
+7. [Q7. How do lookahead and lookbehind assertions work?](#q7-how-do-lookahead-and-lookbehind-assertions-work)
+8. [Q8. What is the difference between Regex.IsMatch static method and a static readonly Regex field?](#q8-what-is-the-difference-between-regexismatch-static-method-and-a-static-readonly-regex-field)
+9. [Q9. How does RegexOptions.Multiline affect ^ and $?](#q9-how-does-regexoptionsmultiline-affect-and)
+10. [Q10. How do you use Regex.Replace and when should you use a MatchEvaluator?](#q10-how-do-you-use-regexreplace-and-when-should-you-use-a-matchevaluator)
+11. [Q11. Why does creating a new Regex with RegexOptions.Compiled inside a hot loop cause memory pressure?](#q11-why-does-creating-a-new-regex-with-regexoptionscompiled-inside-a-hot-loop-cause-memory-pressure)
+12. [Q12. What is the ReDoS risk of the pattern (order\s+\d+)+ on a malformed input?](#q12-what-is-the-redos-risk-of-the-pattern-ordersd-on-a-malformed-input)
+13. [Q13. Why does greedy matching cause HTML tag stripping to fail?](#q13-why-does-greedy-matching-cause-html-tag-stripping-to-fail)
+14. [Q14. What is the Multiline / CRLF gotcha when parsing Windows-generated config files?](#q14-what-is-the-multiline-crlf-gotcha-when-parsing-windows-generated-config-files)
+15. [Q15. (Code Review) A bulk-import validator creates new Regex instances per row and uses an exponentially backtracking pattern. Review and prioritize fixes.](#q15-code-review-a-bulk-import-validator-creates-new-regex-instances-per-row-and-uses-an-exponentially-backtracking-pattern-review-and-prioritize-fixes)
+16. [Q16. A support portal lets agents paste a custom regex that is applied to multi-MB log files. What production risks exist and how do you harden it?](#q16-a-support-portal-lets-agents-paste-a-custom-regex-that-is-applied-to-multi-mb-log-files-what-production-risks-exist-and-how-do-you-harden-it)
+17. [Q17. A notes CRM sync extracts phone numbers but area code is always empty on notes without the +1 prefix. Review the extractor.](#q17-a-notes-crm-sync-extracts-phone-numbers-but-area-code-is-always-empty-on-notes-without-the-1-prefix-review-the-extractor)
+
+---
 > **Module:** 02. C# Language Fundamentals › 08. Advanced C# Features › 03. Regular Expressions  
 > **Stack:** .NET 10 · System.Text.RegularExpressions · [GeneratedRegex]
 

@@ -1,5 +1,29 @@
-# C# Closures — Interview Q&A
+﻿# C# Closures — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a closure in C# and how does it work?](#q1-what-is-a-closure-in-c-and-how-does-it-work)
+2. [Q2. What does "captured by reference" mean for closure variables?](#q2-what-does-captured-by-reference-mean-for-closure-variables)
+3. [Q3. What is a compiler-generated display class and how does it enable closures?](#q3-what-is-a-compiler-generated-display-class-and-how-does-it-enable-closures)
+4. [Q4. How are closures affected by variable scope boundaries?](#q4-how-are-closures-affected-by-variable-scope-boundaries)
+5. [Q5. What is the classic loop-capture bug and how do you fix it?](#q5-what-is-the-classic-loop-capture-bug-and-how-do-you-fix-it)
+6. [Q6. How does capturing a variable in a closure extend its lifetime?](#q6-how-does-capturing-a-variable-in-a-closure-extend-its-lifetime)
+7. [Q7. Can closures cause memory leaks in event-driven applications?](#q7-can-closures-cause-memory-leaks-in-event-driven-applications)
+8. [Q8. What happens when multiple closures in the same scope share a captured variable?](#q8-what-happens-when-multiple-closures-in-the-same-scope-share-a-captured-variable)
+9. [Q9. How do closures behave inside async methods?](#q9-how-do-closures-behave-inside-async-methods)
+10. [Q10. What are static lambdas and how do they relate to closures?](#q10-what-are-static-lambdas-and-how-do-they-relate-to-closures)
+11. [Q11. How do closures in LINQ queries interact with deferred execution?](#q11-how-do-closures-in-linq-queries-interact-with-deferred-execution)
+12. [Q12. How can closures lead to unexpected shared state in multi-threaded code?](#q12-how-can-closures-lead-to-unexpected-shared-state-in-multi-threaded-code)
+13. [Q13. Why do all lambdas in a `for` loop print the same final value?](#q13-why-do-all-lambdas-in-a-for-loop-print-the-same-final-value)
+14. [Q14. What is the "async lambda captures large object" memory leak pattern?](#q14-what-is-the-async-lambda-captures-large-object-memory-leak-pattern)
+15. [Q15. Why can sharing a display class between two closures cause subtle bugs that are hard to reproduce?](#q15-why-can-sharing-a-display-class-between-two-closures-cause-subtle-bugs-that-are-hard-to-reproduce)
+16. [Q16. Does `foreach` have the same loop-capture bug as `for`?](#q16-does-foreach-have-the-same-loop-capture-bug-as-for)
+17. [Q17. A production service has a memory leak. Heap profiling shows event delegates retaining subscriber objects. Describe the diagnosis and fix.](#q17-a-production-service-has-a-memory-leak-heap-profiling-shows-event-delegates-retaining-subscriber-objects-describe-the-diagnosis-and-fix)
+18. [Q18. You need a memoize function that caches the results of an expensive computation. Implement it using closures and explain the design.](#q18-you-need-a-memoize-function-that-caches-the-results-of-an-expensive-computation-implement-it-using-closures-and-explain-the-design)
+19. [Q19. Review the following code and identify closure-related problems:](#q19-review-the-following-code-and-identify-closure-related-problems)
+
+---
 ## Foundation Questions
 
 ---

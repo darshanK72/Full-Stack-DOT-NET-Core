@@ -1,5 +1,36 @@
-# 02. StreamReader & StreamWriter — Interview Q&A
+﻿# 02. StreamReader & StreamWriter — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are `TextReader` and `TextWriter`, and why do APIs accept these abstractions instead of `StreamReader`/`StreamWriter`?](#q1-what-are-textreader-and-textwriter-and-why-do-apis-accept-these-abstractions-instead-of-streamreaderstreamwriter)
+2. [Q2. What are the key `StreamWriter` constructor overloads, and what does each imply?](#q2-what-are-the-key-streamwriter-constructor-overloads-and-what-does-each-imply)
+3. [Q3. What are the key `StreamReader` constructor overloads?](#q3-what-are-the-key-streamreader-constructor-overloads)
+4. [Q4. How do `ReadLine`, `ReadToEnd`, and `ReadBlock` differ for large files?](#q4-how-do-readline-readtoend-and-readblock-differ-for-large-files)
+5. [Q5. What is the default encoding of `StreamReader` and `StreamWriter`, and when does `Encoding.Default` cause mojibake?](#q5-what-is-the-default-encoding-of-streamreader-and-streamwriter-and-when-does-encodingdefault-cause-mojibake)
+6. [Q6. What is the difference between `Encoding.UTF8` and `new UTF8Encoding(false)`?](#q6-what-is-the-difference-between-encodingutf8-and-new-utf8encodingfalse)
+7. [Q7. What is `StreamWriter.AutoFlush`, and what is the performance trade-off vs explicit `Flush()`?](#q7-what-is-streamwriterautoflush-and-what-is-the-performance-trade-off-vs-explicit-flush)
+8. [Q8. When must you call `Flush()` explicitly, and when is `Dispose` enough?](#q8-when-must-you-call-flush-explicitly-and-when-is-dispose-enough)
+9. [Q9. What happens when a `StreamWriter` is not disposed?](#q9-what-happens-when-a-streamwriter-is-not-disposed)
+10. [Q10. What are `StringReader` and `StringWriter`, and when should you use them?](#q10-what-are-stringreader-and-stringwriter-and-when-should-you-use-them)
+11. [Q11. What is the correct loop pattern for `ReadLine()`, and what is the common mistake with empty-line detection?](#q11-what-is-the-correct-loop-pattern-for-readline-and-what-is-the-common-mistake-with-empty-line-detection)
+12. [Q12. When is `StreamReader.EndOfStream` available, and when should you use `ReadLine() == null` instead?](#q12-when-is-streamreaderendofstream-available-and-when-should-you-use-readline-null-instead)
+13. [Q13. What does `leaveOpen: true` do in `StreamReader`/`StreamWriter` constructors?](#q13-what-does-leaveopen-true-do-in-streamreaderstreamwriter-constructors)
+14. [Q14. How do `ReadLineAsync`, `WriteLineAsync`, and `ReadToEndAsync` free thread-pool threads?](#q14-how-do-readlineasync-writelineasync-and-readtoendasync-free-thread-pool-threads)
+15. [Q15. What does `StreamReader.Peek()` do, and when is it useful?](#q15-what-does-streamreaderpeek-do-and-when-is-it-useful)
+16. [Q16. What is the difference between wrapping a `FileStream` in `StreamWriter` vs using the path constructor?](#q16-what-is-the-difference-between-wrapping-a-filestream-in-streamwriter-vs-using-the-path-constructor)
+17. [Q17. (Gotcha) Why does `ReadToEnd()` on a 10 GB customer log cause `OutOfMemoryException`?](#q17-gotcha-why-does-readtoend-on-a-10-gb-customer-log-cause-outofmemoryexception)
+18. [Q18. (Gotcha) How does an encoding mismatch between writer and reader cause mojibake silently?](#q18-gotcha-how-does-an-encoding-mismatch-between-writer-and-reader-cause-mojibake-silently)
+19. [Q19. (Gotcha) Why does `while (line != string.Empty)` terminate early on blank lines?](#q19-gotcha-why-does-while-line-stringempty-terminate-early-on-blank-lines)
+20. [Q20. (Gotcha) What is the performance cost of `AutoFlush = true` in a high-throughput logger?](#q20-gotcha-what-is-the-performance-cost-of-autoflush-true-in-a-high-throughput-logger)
+21. [Q21. (Scenario R) A nightly audit job throws on bad rows and the log file stays locked until the worker restarts. What is wrong?](#q21-scenario-r-a-nightly-audit-job-throws-on-bad-rows-and-the-log-file-stays-locked-until-the-worker-restarts-what-is-wrong)
+22. [Q22. (Scenario R) A CSV export written on Windows with `Encoding.Default` fails header validation on Linux containers. What is the root cause?](#q22-scenario-r-a-csv-export-written-on-windows-with-encodingdefault-fails-header-validation-on-linux-containers-what-is-the-root-cause)
+23. [Q23. (Scenario R) A support dashboard calls `ReadToEnd()` on customer logs up to 10 GB — `OutOfMemoryException` under concurrent load. What is the replacement?](#q23-scenario-r-a-support-dashboard-calls-readtoend-on-customer-logs-up-to-10-gb-outofmemoryexception-under-concurrent-load-what-is-the-replacement)
+24. [Q24. (Scenario R) A status file writer sets `IN_PROGRESS` then `COMPLETE`, but operators see `IN_PROGRESS` forever after a crash. What causes it?](#q24-scenario-r-a-status-file-writer-sets-inprogress-then-complete-but-operators-see-inprogress-forever-after-a-crash-what-causes-it)
+25. [Q25. (Scenario R) A log tailer and log writer in the same app produce intermittent `IOException: sharing violation`. What sharing rule is missing?](#q25-scenario-r-a-log-tailer-and-log-writer-in-the-same-app-produce-intermittent-ioexception-sharing-violation-what-sharing-rule-is-missing)
+26. [Q26. (Scenario P) An ASP.NET Core hosted service calls synchronous `ReadLine()` inside an async loop. Thread-pool queue depth grows under load. What is the problem?](#q26-scenario-p-an-aspnet-core-hosted-service-calls-synchronous-readline-inside-an-async-loop-thread-pool-queue-depth-grows-under-load-what-is-the-problem)
+
+---
 > Back to [Module Index](../INTERVIEW_QA.md)
 
 ---

@@ -1,7 +1,39 @@
-# C# Classes & Objects — Interview Q&A
+﻿# C# Classes & Objects — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between a class and an object in C#?](#q1-what-is-the-difference-between-a-class-and-an-object-in-c)
+2. [Q2. What does the `new` keyword do when creating a class instance?](#q2-what-does-the-new-keyword-do-when-creating-a-class-instance)
+3. [Q3. What is the `this` keyword, and what are its three distinct uses in a class?](#q3-what-is-the-this-keyword-and-what-are-its-three-distinct-uses-in-a-class)
+4. [Q4. When does the compiler generate a default (parameterless) constructor, and when does it stop?](#q4-when-does-the-compiler-generate-a-default-parameterless-constructor-and-when-does-it-stop)
+5. [Q5. What are reference semantics, and how do they differ from value semantics?](#q5-what-are-reference-semantics-and-how-do-they-differ-from-value-semantics)
+6. [Q6. What methods does every C# class inherit from `System.Object`, and which are commonly overridden?](#q6-what-methods-does-every-c-class-inherit-from-systemobject-and-which-are-commonly-overridden)
+7. [Q7. What is the difference between `typeof(T)` and `obj.GetType()`?](#q7-what-is-the-difference-between-typeoft-and-objgettype)
+8. [Q8. What are object initializers, and what constraints must the target type satisfy?](#q8-what-are-object-initializers-and-what-constraints-must-the-target-type-satisfy)
+9. [Q9. What are partial classes, and what problem do they solve?](#q9-what-are-partial-classes-and-what-problem-do-they-solve)
+10. [Q10. What are record types (C# 9+), and how do they differ from a regular class?](#q10-what-are-record-types-c-9-and-how-do-they-differ-from-a-regular-class)
+11. [Q11. What is an anonymous type, and where can it be used?](#q11-what-is-an-anonymous-type-and-where-can-it-be-used)
+12. [Q12. What is a nested class, and when would you use one over a top-level private class?](#q12-what-is-a-nested-class-and-when-would-you-use-one-over-a-top-level-private-class)
+13. [Q13. How does enabling nullable reference types (`<Nullable>enable</Nullable>`) change class design?](#q13-how-does-enabling-nullable-reference-types-nullableenablenullable-change-class-design)
+14. [Q14. How is a class instance laid out in managed heap memory?](#q14-how-is-a-class-instance-laid-out-in-managed-heap-memory)
+15. [Q15. What makes an object eligible for garbage collection, and what is the `IDisposable` pattern?](#q15-what-makes-an-object-eligible-for-garbage-collection-and-what-is-the-idisposable-pattern)
+16. [Q16. What are the differences between `==`, `Equals()`, and `ReferenceEquals()` for class instances?](#q16-what-are-the-differences-between-equals-and-referenceequals-for-class-instances)
+17. [Q17. What is the `dynamic` type, and when should you use it (or avoid it) in class design?](#q17-what-is-the-dynamic-type-and-when-should-you-use-it-or-avoid-it-in-class-design)
+18. [Q18. If you declare a class with only a parameterized constructor and then use an object initializer in another file, will it compile? Why or why not?](#q18-if-you-declare-a-class-with-only-a-parameterized-constructor-and-then-use-an-object-initializer-in-another-file-will-it-compile-why-or-why-not)
+19. [Q19. Does `==` always compare by reference for class types in C#?](#q19-does-always-compare-by-reference-for-class-types-in-c)
+20. [Q20. What happens to an object's fields before the constructor body runs?](#q20-what-happens-to-an-objects-fields-before-the-constructor-body-runs)
+21. [Q21. Can a `struct` be `null` when used as a field inside a class?](#q21-can-a-struct-be-null-when-used-as-a-field-inside-a-class)
+22. [Q22. Is `var x = new Student()` statically typed or dynamically typed?](#q22-is-var-x-new-student-statically-typed-or-dynamically-typed)
+23. [Q23. (Code Review) Your team's customer service module has a shared cache that returns the same `Customer` reference to all concurrent requests. Review the following code and identify the defects:](#q23-code-review-your-teams-customer-service-module-has-a-shared-cache-that-returns-the-same-customer-reference-to-all-concurrent-requests-review-the-following-code-and-identify-the-defects)
+24. [Q24. (Scenario) A student enrollment system needs an `IDisposable` resource-holder class that wraps a file handle. Design the class correctly, explaining each decision.](#q24-scenario-a-student-enrollment-system-needs-an-idisposable-resource-holder-class-that-wraps-a-file-handle-design-the-class-correctly-explaining-each-decision)
+25. [Q25. (Scenario) You are designing a domain model for a lending application. The team debates whether `LoanApplication` should be a `class` or a `record`. Walk through your decision process.](#q25-scenario-you-are-designing-a-domain-model-for-a-lending-application-the-team-debates-whether-loanapplication-should-be-a-class-or-a-record-walk-through-your-decision-process)
+26. [Q26. (Code Review) A report generator passes student objects by reference alias without making copies. Downstream reports show wrong historical data. Review:](#q26-code-review-a-report-generator-passes-student-objects-by-reference-alias-without-making-copies-downstream-reports-show-wrong-historical-data-review)
+27. [Q27. (Scenario) A code generator produces a `CustomerEntity` partial class file with persistence logic. Your team needs to add validation and domain methods without touching the generated file. Design the solution.](#q27-scenario-a-code-generator-produces-a-customerentity-partial-class-file-with-persistence-logic-your-team-needs-to-add-validation-and-domain-methods-without-touching-the-generated-file-design-the-solution)
+
+---
 ## Foundation Questions
 
 ---

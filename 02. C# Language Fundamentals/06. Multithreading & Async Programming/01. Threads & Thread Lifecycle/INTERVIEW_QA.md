@@ -1,5 +1,36 @@
-# Threads & Thread Lifecycle — Interview Q&A
+﻿# Threads & Thread Lifecycle — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a Thread in C# and how do you create one?](#q1-what-is-a-thread-in-c-and-how-do-you-create-one)
+2. [Q2. What are the thread lifecycle states in .NET?](#q2-what-are-the-thread-lifecycle-states-in-net)
+3. [Q3. What is the difference between a foreground thread and a background thread?](#q3-what-is-the-difference-between-a-foreground-thread-and-a-background-thread)
+4. [Q4. How does Thread.Join() work and what are its overloads?](#q4-how-does-threadjoin-work-and-what-are-its-overloads)
+5. [Q5. What does Thread.Sleep() do and how does it differ from Thread.Yield()?](#q5-what-does-threadsleep-do-and-how-does-it-differ-from-threadyield)
+6. [Q6. How do you pass data to a thread and retrieve results?](#q6-how-do-you-pass-data-to-a-thread-and-retrieve-results)
+7. [Q7. What is Thread.CurrentThread and what properties does it expose?](#q7-what-is-threadcurrentthread-and-what-properties-does-it-expose)
+8. [Q8. How does thread priority work in .NET?](#q8-how-does-thread-priority-work-in-net)
+9. [Q9. What is thread-local storage and how do you use it in C#?](#q9-what-is-thread-local-storage-and-how-do-you-use-it-in-c)
+10. [Q10. What happens when an exception is thrown on a thread and is not caught?](#q10-what-happens-when-an-exception-is-thrown-on-a-thread-and-is-not-caught)
+11. [Q11. What is the managed thread ID vs OS thread ID?](#q11-what-is-the-managed-thread-id-vs-os-thread-id)
+12. [Q12. How do you set and read a thread's name for debugging purposes?](#q12-how-do-you-set-and-read-a-threads-name-for-debugging-purposes)
+13. [Q13. What is thread stack size and when would you change it?](#q13-what-is-thread-stack-size-and-when-would-you-change-it)
+14. [Q14. What does Thread.IsAlive return and when is it reliable?](#q14-what-does-threadisalive-return-and-when-is-it-reliable)
+15. [Q15. How does thread affinity relate to UI threads in WPF/WinForms?](#q15-how-does-thread-affinity-relate-to-ui-threads-in-wpfwinforms)
+16. [Q16. Why was Thread.Abort() removed in .NET Core and what should you use instead?](#q16-why-was-threadabort-removed-in-net-core-and-what-should-you-use-instead)
+17. [Q17. What is the variable capture trap in loop-started threads?](#q17-what-is-the-variable-capture-trap-in-loop-started-threads)
+18. [Q18. How can a long-running foreground thread prevent a process from exiting?](#q18-how-can-a-long-running-foreground-thread-prevent-a-process-from-exiting)
+19. [Q19. What is priority inversion and how can it occur in .NET?](#q19-what-is-priority-inversion-and-how-can-it-occur-in-net)
+20. [Q20. What are the risks of using ThreadLocal<T> with ThreadPool threads?](#q20-what-are-the-risks-of-using-threadlocalt-with-threadpool-threads)
+21. [Q21. You need to implement a producer thread that signals when it has finished producing items. How do you design this?](#q21-you-need-to-implement-a-producer-thread-that-signals-when-it-has-finished-producing-items-how-do-you-design-this)
+22. [Q22. You have a console application that returns from Main but the process does not exit. How do you diagnose and fix this?](#q22-you-have-a-console-application-that-returns-from-main-but-the-process-does-not-exit-how-do-you-diagnose-and-fix-this)
+23. [Q23. A developer wrote the following code. Identify all issues and describe fixes.](#q23-a-developer-wrote-the-following-code-identify-all-issues-and-describe-fixes)
+24. [Q24. How would you choose between using Thread directly versus using Task for CPU-bound work?](#q24-how-would-you-choose-between-using-thread-directly-versus-using-task-for-cpu-bound-work)
+25. [Q25. How would you implement a simple thread-based worker with proper lifecycle management (start, run, stop, dispose)?](#q25-how-would-you-implement-a-simple-thread-based-worker-with-proper-lifecycle-management-start-run-stop-dispose)
+26. [Q26. Production monitoring shows a .NET service with 500+ threads. How do you diagnose the root cause?](#q26-production-monitoring-shows-a-net-service-with-500-threads-how-do-you-diagnose-the-root-cause)
+
+---
 ## Foundation Questions
 
 ---

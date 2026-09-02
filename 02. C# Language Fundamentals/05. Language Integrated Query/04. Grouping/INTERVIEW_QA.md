@@ -1,7 +1,30 @@
-# LINQ: Grouping — Interview Q&A
+﻿# LINQ: Grouping — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does `GroupBy` do and what does it return?](#q1-what-does-groupby-do-and-what-does-it-return)
+2. [Q2. What is `IGrouping<TKey, TElement>`?](#q2-what-is-igroupingtkey-telement)
+3. [Q3. How do you write a `group...by` query in query expression syntax?](#q3-how-do-you-write-a-groupby-query-in-query-expression-syntax)
+4. [Q4. How do you compute aggregates per group?](#q4-how-do-you-compute-aggregates-per-group)
+5. [Q5. What is the difference between `GroupBy` and `ToLookup`?](#q5-what-is-the-difference-between-groupby-and-tolookup)
+6. [Q6. How do you group by multiple keys (composite key)?](#q6-how-do-you-group-by-multiple-keys-composite-key)
+7. [Q7. How do you flatten a grouped result back to elements?](#q7-how-do-you-flatten-a-grouped-result-back-to-elements)
+8. [Q8. What is nested grouping and how do you implement it?](#q8-what-is-nested-grouping-and-how-do-you-implement-it)
+9. [Q9. How does `GroupBy` handle null keys?](#q9-how-does-groupby-handle-null-keys)
+10. [Q10. What is the difference between `GroupBy` with an element selector vs. a nested `Select`?](#q10-what-is-the-difference-between-groupby-with-an-element-selector-vs-a-nested-select)
+11. [Q11. How does `GroupBy` behave differently for LINQ to Objects vs. EF Core?](#q11-how-does-groupby-behave-differently-for-linq-to-objects-vs-ef-core)
+12. [Q12. Can you iterate a group more than once?](#q12-can-you-iterate-a-group-more-than-once)
+13. [Q13. What is `ToLookup` and when is it preferred over `GroupBy`?](#q13-what-is-tolookup-and-when-is-it-preferred-over-groupby)
+14. [Q14. How do you group and then sort within each group?](#q14-how-do-you-group-and-then-sort-within-each-group)
+15. [Q15. What is the result type when you group with a result selector?](#q15-what-is-the-result-type-when-you-group-with-a-result-selector)
+16. [Q16. Scenario: A dashboard query is grouping orders by status but the page loads very slowly for large order tables. What changes would you make? (Scenario)](#q16-scenario-a-dashboard-query-is-grouping-orders-by-status-but-the-page-loads-very-slowly-for-large-order-tables-what-changes-would-you-make-scenario)
+17. [Q17. Scenario: A reporting service needs to show a customer's top 3 spending categories. How do you write the LINQ query? (Scenario)](#q17-scenario-a-reporting-service-needs-to-show-a-customers-top-3-spending-categories-how-do-you-write-the-linq-query-scenario)
+18. [Q18. Scenario: A developer uses `GroupBy` but accidentally groups in memory after loading 1 million rows. How do you identify this in code review? (Scenario)](#q18-scenario-a-developer-uses-groupby-but-accidentally-groups-in-memory-after-loading-1-million-rows-how-do-you-identify-this-in-code-review-scenario)
+
+---
 ## Q1. What does `GroupBy` do and what does it return?
 
 **Concepts**

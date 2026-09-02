@@ -1,5 +1,35 @@
-# ThreadPool — Interview Q&A
+﻿# ThreadPool — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is the ThreadPool and why does it exist?](#q1-what-is-the-threadpool-and-why-does-it-exist)
+2. [Q2. How do you queue work on the ThreadPool using QueueUserWorkItem?](#q2-how-do-you-queue-work-on-the-threadpool-using-queueuserworkitem)
+3. [Q3. How does the ThreadPool decide how many threads to maintain?](#q3-how-does-the-threadpool-decide-how-many-threads-to-maintain)
+4. [Q4. What are ThreadPool.SetMinThreads and SetMaxThreads used for?](#q4-what-are-threadpoolsetminthreads-and-setmaxthreads-used-for)
+5. [Q5. What is the difference between worker threads and I/O completion threads in the ThreadPool?](#q5-what-is-the-difference-between-worker-threads-and-io-completion-threads-in-the-threadpool)
+6. [Q6. How do Tasks use the ThreadPool internally?](#q6-how-do-tasks-use-the-threadpool-internally)
+7. [Q7. What is ThreadPool starvation and how does it manifest?](#q7-what-is-threadpool-starvation-and-how-does-it-manifest)
+8. [Q8. How do you register a wait handle callback with RegisterWaitForSingleObject?](#q8-how-do-you-register-a-wait-handle-callback-with-registerwaitforsingleobject)
+9. [Q9. What is a thread-local queue and how does work-stealing work in the ThreadPool?](#q9-what-is-a-thread-local-queue-and-how-does-work-stealing-work-in-the-threadpool)
+10. [Q10. Why should you avoid long-running or blocking work in ThreadPool threads?](#q10-why-should-you-avoid-long-running-or-blocking-work-in-threadpool-threads)
+11. [Q11. How do you handle exceptions thrown by ThreadPool work items?](#q11-how-do-you-handle-exceptions-thrown-by-threadpool-work-items)
+12. [Q12. What does ThreadPool.GetAvailableThreads return and how is it useful for monitoring?](#q12-what-does-threadpoolgetavailablethreads-return-and-how-is-it-useful-for-monitoring)
+13. [Q13. What is the difference between a short-lived task and a long-running task in the context of the ThreadPool?](#q13-what-is-the-difference-between-a-short-lived-task-and-a-long-running-task-in-the-context-of-the-threadpool)
+14. [Q14. How does the ThreadPool interact with async/await and I/O-bound operations?](#q14-how-does-the-threadpool-interact-with-asyncawait-and-io-bound-operations)
+15. [Q15. What happens when you call Task.Wait() or .Result inside a ThreadPool work item?](#q15-what-happens-when-you-call-taskwait-or-result-inside-a-threadpool-work-item)
+16. [Q16. Why can you not rely on ThreadLocal<T> values persisting correctly across ThreadPool work items?](#q16-why-can-you-not-rely-on-threadlocalt-values-persisting-correctly-across-threadpool-work-items)
+17. [Q17. What are the risks of swallowed exceptions in QueueUserWorkItem?](#q17-what-are-the-risks-of-swallowed-exceptions-in-queueuserworkitem)
+18. [Q18. What happens if you call Thread.Sleep inside a ThreadPool thread?](#q18-what-happens-if-you-call-threadsleep-inside-a-threadpool-thread)
+19. [Q19. What are the risks of overriding the maximum ThreadPool thread count in production?](#q19-what-are-the-risks-of-overriding-the-maximum-threadpool-thread-count-in-production)
+20. [Q20. An ASP.NET Core API starts slowly and becomes healthy after ~5 seconds under load. How do you diagnose and fix this?](#q20-an-aspnet-core-api-starts-slowly-and-becomes-healthy-after-5-seconds-under-load-how-do-you-diagnose-and-fix-this)
+21. [Q21. How would you migrate a QueueUserWorkItem-based work dispatch system to Task.Run?](#q21-how-would-you-migrate-a-queueuserworkitem-based-work-dispatch-system-to-taskrun)
+22. [Q22. How would you diagnose and fix ThreadPool starvation in a high-throughput message processor?](#q22-how-would-you-diagnose-and-fix-threadpool-starvation-in-a-high-throughput-message-processor)
+23. [Q23. A library method needs to do CPU-bound computation. Should it use Task.Run internally?](#q23-a-library-method-needs-to-do-cpu-bound-computation-should-it-use-taskrun-internally)
+24. [Q24. How would you implement bounded concurrency for a batch of 1000 parallel tasks?](#q24-how-would-you-implement-bounded-concurrency-for-a-batch-of-1000-parallel-tasks)
+25. [Q25. How would you handle ThreadPool exhaustion in a production emergency?](#q25-how-would-you-handle-threadpool-exhaustion-in-a-production-emergency)
+
+---
 ## Foundation Questions
 
 ---

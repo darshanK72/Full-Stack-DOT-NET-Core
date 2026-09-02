@@ -1,7 +1,24 @@
-# LINQ: Partitioning Operations — Interview Q&A
+﻿# LINQ: Partitioning Operations — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does `Skip` do?](#q1-what-does-skip-do)
+2. [Q2. What does `Take` do?](#q2-what-does-take-do)
+3. [Q3. What does `SkipWhile` do and how does it differ from `Skip` + `Where`?](#q3-what-does-skipwhile-do-and-how-does-it-differ-from-skip-where)
+4. [Q4. What does `TakeWhile` do and how does it complement `SkipWhile`?](#q4-what-does-takewhile-do-and-how-does-it-complement-skipwhile)
+5. [Q5. What are `SkipLast` and `TakeLast`?](#q5-what-are-skiplast-and-takelast)
+6. [Q6. What is `Chunk` and when was it introduced?](#q6-what-is-chunk-and-when-was-it-introduced)
+7. [Q7. How do you implement pagination using LINQ?](#q7-how-do-you-implement-pagination-using-linq)
+8. [Q8. What is the difference between `Take(n)` and `First()`?](#q8-what-is-the-difference-between-taken-and-first)
+9. [Q9. Does `Skip` work efficiently on all collection types?](#q9-does-skip-work-efficiently-on-all-collection-types)
+10. [Q10. What happens if you call `Skip` with a negative count? (Gotcha)](#q10-what-happens-if-you-call-skip-with-a-negative-count-gotcha)
+11. [Q11. Scenario: A paginated search endpoint is slow for high page numbers. What is the root cause? (Scenario)](#q11-scenario-a-paginated-search-endpoint-is-slow-for-high-page-numbers-what-is-the-root-cause-scenario)
+12. [Q12. Scenario: A batch processing job reads all records and processes them in memory. How do you refactor it using `Chunk`? (Scenario)](#q12-scenario-a-batch-processing-job-reads-all-records-and-processes-them-in-memory-how-do-you-refactor-it-using-chunk-scenario)
+
+---
 ## Q1. What does `Skip` do?
 
 **Concepts**

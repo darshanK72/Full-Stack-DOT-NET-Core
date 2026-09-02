@@ -1,5 +1,31 @@
-# C# Anonymous Methods — Interview Q&A
+﻿# C# Anonymous Methods — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is an anonymous method in C# and how do you declare one?](#q1-what-is-an-anonymous-method-in-c-and-how-do-you-declare-one)
+2. [Q2. How does an anonymous method differ from a lambda expression?](#q2-how-does-an-anonymous-method-differ-from-a-lambda-expression)
+3. [Q3. Can an anonymous method access variables from the enclosing scope?](#q3-can-an-anonymous-method-access-variables-from-the-enclosing-scope)
+4. [Q4. When can you omit the parameter list in an anonymous method?](#q4-when-can-you-omit-the-parameter-list-in-an-anonymous-method)
+5. [Q5. How does the compiler implement an anonymous method internally?](#q5-how-does-the-compiler-implement-an-anonymous-method-internally)
+6. [Q6. What restrictions apply to anonymous methods that do not apply to regular methods?](#q6-what-restrictions-apply-to-anonymous-methods-that-do-not-apply-to-regular-methods)
+7. [Q7. How do anonymous methods interact with the event pattern in C#?](#q7-how-do-anonymous-methods-interact-with-the-event-pattern-in-c)
+8. [Q8. What is the relationship between anonymous methods and multicast delegates?](#q8-what-is-the-relationship-between-anonymous-methods-and-multicast-delegates)
+9. [Q9. Can an anonymous method be used as a method argument?](#q9-can-an-anonymous-method-be-used-as-a-method-argument)
+10. [Q10. How do anonymous methods compare to named methods for testability and maintainability?](#q10-how-do-anonymous-methods-compare-to-named-methods-for-testability-and-maintainability)
+11. [Q11. What happens if you capture a variable in an anonymous method that is later reassigned?](#q11-what-happens-if-you-capture-a-variable-in-an-anonymous-method-that-is-later-reassigned)
+12. [Q12. How do you convert an anonymous method to a lambda expression?](#q12-how-do-you-convert-an-anonymous-method-to-a-lambda-expression)
+13. [Q13. Why can you not use `yield return` inside an anonymous method?](#q13-why-can-you-not-use-yield-return-inside-an-anonymous-method)
+14. [Q14. What happens when two anonymous methods capture the same outer variable?](#q14-what-happens-when-two-anonymous-methods-capture-the-same-outer-variable)
+15. [Q15. Why does an event handler using an anonymous method create a memory leak risk?](#q15-why-does-an-event-handler-using-an-anonymous-method-create-a-memory-leak-risk)
+16. [Q16. Can an anonymous method be used where an `Expression<Func<T>>` is expected?](#q16-can-an-anonymous-method-be-used-where-an-expressionfunct-is-expected)
+17. [Q17. Is it safe to use an anonymous method inside a multi-threaded loop?](#q17-is-it-safe-to-use-an-anonymous-method-inside-a-multi-threaded-loop)
+18. [Q18. You are reviewing legacy C# 2.0 code that uses anonymous methods throughout. When should you migrate them to lambdas and when should you leave them alone?](#q18-you-are-reviewing-legacy-c-20-code-that-uses-anonymous-methods-throughout-when-should-you-migrate-them-to-lambdas-and-when-should-you-leave-them-alone)
+19. [Q19. A colleague has written an event handler using an anonymous method and the application is leaking memory in a long-running service. Walk through the diagnosis and fix.](#q19-a-colleague-has-written-an-event-handler-using-an-anonymous-method-and-the-application-is-leaking-memory-in-a-long-running-service-walk-through-the-diagnosis-and-fix)
+20. [Q20. You are onboarding a junior developer who is confused about why their anonymous method sees a different value than they expected. Explain the capture semantics with a minimal example.](#q20-you-are-onboarding-a-junior-developer-who-is-confused-about-why-their-anonymous-method-sees-a-different-value-than-they-expected-explain-the-capture-semantics-with-a-minimal-example)
+21. [Q21. Review the following code and identify problems:](#q21-review-the-following-code-and-identify-problems)
+
+---
 ## Foundation Questions
 
 ---

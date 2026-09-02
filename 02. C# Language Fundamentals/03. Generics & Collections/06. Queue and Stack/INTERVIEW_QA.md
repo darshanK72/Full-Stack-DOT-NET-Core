@@ -1,5 +1,38 @@
-# Queue and Stack — Interview Q&A
+﻿# Queue and Stack — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between Queue\<T\> and Stack\<T\> in terms of ordering model?](#q1-what-is-the-difference-between-queuet-and-stackt-in-terms-of-ordering-model)
+2. [Q2. What are the core operations of Queue\<T\> and what happens when the queue is empty?](#q2-what-are-the-core-operations-of-queuet-and-what-happens-when-the-queue-is-empty)
+3. [Q3. What are the core operations of Stack\<T\> and what happens when the stack is empty?](#q3-what-are-the-core-operations-of-stackt-and-what-happens-when-the-stack-is-empty)
+4. [Q4. How is Queue\<T\> implemented internally, and what is a circular buffer?](#q4-how-is-queuet-implemented-internally-and-what-is-a-circular-buffer)
+5. [Q5. What is the difference between Peek and TryPeek on both Queue\<T\> and Stack\<T\>?](#q5-what-is-the-difference-between-peek-and-trypeek-on-both-queuet-and-stackt)
+6. [Q6. What is PriorityQueue\<TElement, TPriority\> and how does it differ from Queue\<T\>?](#q6-what-is-priorityqueuetelement-tpriority-and-how-does-it-differ-from-queuet)
+7. [Q7. What is the time complexity of the fundamental operations on Queue\<T\> and Stack\<T\>?](#q7-what-is-the-time-complexity-of-the-fundamental-operations-on-queuet-and-stackt)
+8. [Q8. How does iteration order differ between Queue\<T\> and Stack\<T\>?](#q8-how-does-iteration-order-differ-between-queuet-and-stackt)
+9. [Q9. When should you choose Queue\<T\> vs Stack\<T\> vs List\<T\>?](#q9-when-should-you-choose-queuet-vs-stackt-vs-listt)
+10. [Q10. What is the difference between Queue\<T\> and the non-generic System.Collections.Queue?](#q10-what-is-the-difference-between-queuet-and-the-non-generic-systemcollectionsqueue)
+11. [Q11. How do you implement breadth-first search (BFS) using Queue\<T\>?](#q11-how-do-you-implement-breadth-first-search-bfs-using-queuet)
+12. [Q12. How do you implement iterative depth-first search (DFS) using Stack\<T\>?](#q12-how-do-you-implement-iterative-depth-first-search-dfs-using-stackt)
+13. [Q13. What is ConcurrentQueue\<T\> and when should you use it instead of Queue\<T\>?](#q13-what-is-concurrentqueuet-and-when-should-you-use-it-instead-of-queuet)
+14. [Q14. What is ConcurrentStack\<T\> and in which scenarios does it appear?](#q14-what-is-concurrentstackt-and-in-which-scenarios-does-it-appear)
+15. [Q15. How do you implement an undo/redo system using two Stack\<T\> instances?](#q15-how-do-you-implement-an-undoredo-system-using-two-stackt-instances)
+16. [Q16. What is a circular buffer pattern and how does Queue\<T\> relate to it?](#q16-what-is-a-circular-buffer-pattern-and-how-does-queuet-relate-to-it)
+17. [Q17. How does Queue\<T\>.ToArray() differ from draining the queue via Dequeue?](#q17-how-does-queuettoarray-differ-from-draining-the-queue-via-dequeue)
+18. [Q18. Queue\<T\>.Dequeue and Stack\<T\>.Pop throw on empty collections — how do you prevent unhandled exceptions in production?](#q18-queuetdequeue-and-stacktpop-throw-on-empty-collections-how-do-you-prevent-unhandled-exceptions-in-production)
+19. [Q19. Stack\<T\>.foreach iterates top-to-bottom — why does this catch developers off guard?](#q19-stacktforeach-iterates-top-to-bottom-why-does-this-catch-developers-off-guard)
+20. [Q20. Queue\<T\> and Stack\<T\> are not thread-safe — what can go wrong silently?](#q20-queuet-and-stackt-are-not-thread-safe-what-can-go-wrong-silently)
+21. [Q21. PriorityQueue\<TElement, TPriority\> does not guarantee stable ordering for equal-priority elements — what are the consequences?](#q21-priorityqueuetelement-tpriority-does-not-guarantee-stable-ordering-for-equal-priority-elements-what-are-the-consequences)
+22. [Q22. Calling ToArray() on a Stack\<T\> or Queue\<T\> inside a foreach loop invalidates the enumerator — why?](#q22-calling-toarray-on-a-stackt-or-queuet-inside-a-foreach-loop-invalidates-the-enumerator-why)
+23. [Q23. A billing service processes customer invoices in strict arrival order using the following worker. Under moderate load the host logs unhandled exceptions and restarts. Review the code, identify all issues, and provide a prioritised fix list.](#q23-a-billing-service-processes-customer-invoices-in-strict-arrival-order-using-the-following-worker-under-moderate-load-the-host-logs-unhandled-exceptions-and-restarts-review-the-code-identify-all-issues-and-provide-a-prioritised-fix-list)
+24. [Q24. A code-review task: this ASP.NET Core feature was written by a junior developer to track recent user activity for a "Recently Viewed" sidebar. Identify all issues and give a prioritised fix list.](#q24-a-code-review-task-this-aspnet-core-feature-was-written-by-a-junior-developer-to-track-recent-user-activity-for-a-recently-viewed-sidebar-identify-all-issues-and-give-a-prioritised-fix-list)
+25. [Q25. Design a background task scheduler for a CI/CD pipeline that must run high-priority builds (hotfix branches) before normal builds, and within the same priority tier run builds in submission order. Describe your collection strategy and sketch the implementation.](#q25-design-a-background-task-scheduler-for-a-cicd-pipeline-that-must-run-high-priority-builds-hotfix-branches-before-normal-builds-and-within-the-same-priority-tier-run-builds-in-submission-order-describe-your-collection-strategy-and-sketch-the-implementation)
+26. [Q26. A code-review task: a navigation history feature for a single-page application is implemented below. The team reports that the Back button sometimes skips pages and Forward never works. Identify every defect and provide a prioritised fix list.](#q26-a-code-review-task-a-navigation-history-feature-for-a-single-page-application-is-implemented-below-the-team-reports-that-the-back-button-sometimes-skips-pages-and-forward-never-works-identify-every-defect-and-provide-a-prioritised-fix-list)
+27. [Q27. Design a thread-safe audit event pipeline for an ASP.NET Core application where multiple request handlers enqueue audit events and a single hosted background service batches them to a remote logging endpoint. Walk through your collection and lifetime choices.](#q27-design-a-thread-safe-audit-event-pipeline-for-an-aspnet-core-application-where-multiple-request-handlers-enqueue-audit-events-and-a-single-hosted-background-service-batches-them-to-a-remote-logging-endpoint-walk-through-your-collection-and-lifetime-choices)
+28. [Q28. A game engine uses a Stack\<T\> to implement scene loading history for a "go back to previous scene" feature. A code review notices a StackOverflowException in load tests when the game has been running for hours and players have navigated through thousands of menus. Explain the cause and recommend a fix.](#q28-a-game-engine-uses-a-stackt-to-implement-scene-loading-history-for-a-go-back-to-previous-scene-feature-a-code-review-notices-a-stackoverflowexception-in-load-tests-when-the-game-has-been-running-for-hours-and-players-have-navigated-through-thousands-of-menus-explain-the-cause-and-recommend-a-fix)
+
+---
 > **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/06. Queue and Stack`
 
 ---

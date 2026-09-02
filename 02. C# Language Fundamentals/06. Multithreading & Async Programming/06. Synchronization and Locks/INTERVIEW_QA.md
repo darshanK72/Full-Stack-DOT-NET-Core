@@ -1,5 +1,38 @@
-# Synchronization and Locks — Interview Q&A
+﻿# Synchronization and Locks — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What does the lock statement do and how is it implemented?](#q1-what-does-the-lock-statement-do-and-how-is-it-implemented)
+2. [Q2. What should you use as a lock object and what should you avoid?](#q2-what-should-you-use-as-a-lock-object-and-what-should-you-avoid)
+3. [Q3. What is Monitor and how does it differ from the lock statement?](#q3-what-is-monitor-and-how-does-it-differ-from-the-lock-statement)
+4. [Q4. What is the difference between Mutex and lock?](#q4-what-is-the-difference-between-mutex-and-lock)
+5. [Q5. What is SemaphoreSlim and when would you use it over Semaphore?](#q5-what-is-semaphoreslim-and-when-would-you-use-it-over-semaphore)
+6. [Q6. What is ReaderWriterLockSlim and when should you use it?](#q6-what-is-readerwriterlockslim-and-when-should-you-use-it)
+7. [Q7. What are ManualResetEvent and AutoResetEvent?](#q7-what-are-manualresetevent-and-autoresetevent)
+8. [Q8. What is CountdownEvent and when is it useful?](#q8-what-is-countdownevent-and-when-is-it-useful)
+9. [Q9. What is Barrier and how does it implement phased parallel algorithms?](#q9-what-is-barrier-and-how-does-it-implement-phased-parallel-algorithms)
+10. [Q10. What are Interlocked operations and when should you use them?](#q10-what-are-interlocked-operations-and-when-should-you-use-them)
+11. [Q11. What is the volatile keyword and how does it differ from Interlocked?](#q11-what-is-the-volatile-keyword-and-how-does-it-differ-from-interlocked)
+12. [Q12. What is SpinLock and when is it appropriate?](#q12-what-is-spinlock-and-when-is-it-appropriate)
+13. [Q13. How does lock-free programming with ConcurrentStack compare to lock-based approaches?](#q13-how-does-lock-free-programming-with-concurrentstack-compare-to-lock-based-approaches)
+14. [Q14. What is the difference between lock-based and lockless approaches for a shared counter?](#q14-what-is-the-difference-between-lock-based-and-lockless-approaches-for-a-shared-counter)
+15. [Q15. What is the SynchronizationContext and how does it relate to locking?](#q15-what-is-the-synchronizationcontext-and-how-does-it-relate-to-locking)
+16. [Q16. How does inconsistent lock ordering cause a deadlock?](#q16-how-does-inconsistent-lock-ordering-cause-a-deadlock)
+17. [Q17. What are the dangers of locking on `this` or `typeof(T)`?](#q17-what-are-the-dangers-of-locking-on-this-or-typeoft)
+18. [Q18. What happens if you throw an exception inside a lock block?](#q18-what-happens-if-you-throw-an-exception-inside-a-lock-block)
+19. [Q19. What is the missing Release in SemaphoreSlim?](#q19-what-is-the-missing-release-in-semaphoreslim)
+20. [Q20. What is lock convoy and how does it affect high-throughput systems?](#q20-what-is-lock-convoy-and-how-does-it-affect-high-throughput-systems)
+21. [Q21. What is the volatile not-enough-for-compound-operations trap?](#q21-what-is-the-volatile-not-enough-for-compound-operations-trap)
+22. [Q22. Implement a thread-safe lazy singleton with double-checked locking.](#q22-implement-a-thread-safe-lazy-singleton-with-double-checked-locking)
+23. [Q23. Build a read-write cache with ReaderWriterLockSlim.](#q23-build-a-read-write-cache-with-readerwriterlockslim)
+24. [Q24. Diagnose a production deadlock from a thread dump.](#q24-diagnose-a-production-deadlock-from-a-thread-dump)
+25. [Q25. Replace a lock-based counter with Interlocked for maximum throughput.](#q25-replace-a-lock-based-counter-with-interlocked-for-maximum-throughput)
+26. [Q26. How do you build a rate limiter with SemaphoreSlim?](#q26-how-do-you-build-a-rate-limiter-with-semaphoreslim)
+27. [Q27. Implement a phased parallel pipeline using Barrier.](#q27-implement-a-phased-parallel-pipeline-using-barrier)
+28. [Q28. How do you choose between lock, SemaphoreSlim, and ReaderWriterLockSlim for a given scenario?](#q28-how-do-you-choose-between-lock-semaphoreslim-and-readerwriterlockslim-for-a-given-scenario)
+
+---
 ## Foundation Questions
 
 ---

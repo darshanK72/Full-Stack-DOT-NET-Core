@@ -1,5 +1,40 @@
-# HashSet&lt;T&gt; — Interview Q&A
+﻿# HashSet&lt;T&gt; — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is `HashSet<T>` and what problem does it solve that `List<T>` does not?](#q1-what-is-hashsett-and-what-problem-does-it-solve-that-listt-does-not)
+2. [Q2. What are the time complexities for `Add`, `Remove`, `Contains`, and `Count` on `HashSet<T>`?](#q2-what-are-the-time-complexities-for-add-remove-contains-and-count-on-hashsett)
+3. [Q3. `HashSet<T>.Add` returns `bool`. What does the return value mean and why does it matter?](#q3-hashsettadd-returns-bool-what-does-the-return-value-mean-and-why-does-it-matter)
+4. [Q4. Explain the hash table bucket model inside `HashSet<T>`. How does the runtime find an element?](#q4-explain-the-hash-table-bucket-model-inside-hashsett-how-does-the-runtime-find-an-element)
+5. [Q5. What is `IEqualityComparer<T>` and how do you pass one to `HashSet<T>`?](#q5-what-is-iequalitycomparert-and-how-do-you-pass-one-to-hashsett)
+6. [Q6. What is the difference between the mutating set operations and the LINQ equivalents?](#q6-what-is-the-difference-between-the-mutating-set-operations-and-the-linq-equivalents)
+7. [Q7. Explain `IsSubsetOf`, `IsProperSubsetOf`, `IsSupersetOf`, `Overlaps`, and `SetEquals`.](#q7-explain-issubsetof-ispropersubsetof-issupersetof-overlaps-and-setequals)
+8. [Q8. How does `HashSet<T>` handle `null` elements?](#q8-how-does-hashsett-handle-null-elements)
+9. [Q9. What is `SortedSet<T>` and how does it differ from `HashSet<T>`?](#q9-what-is-sortedsett-and-how-does-it-differ-from-hashsett)
+10. [Q10. What is `ImmutableHashSet<T>` and when should it be preferred over `HashSet<T>`?](#q10-what-is-immutablehashsett-and-when-should-it-be-preferred-over-hashsett)
+11. [Q11. Is `HashSet<T>` thread-safe? What are the thread-safe alternatives?](#q11-is-hashsett-thread-safe-what-are-the-thread-safe-alternatives)
+12. [Q12. Explain how `StringComparer.OrdinalIgnoreCase` integrates with `HashSet<string>`.](#q12-explain-how-stringcomparerordinalignorecase-integrates-with-hashsetstring)
+13. [Q13. What is the contract between `GetHashCode` and `Equals`, and what breaks when it is violated?](#q13-what-is-the-contract-between-gethashcode-and-equals-and-what-breaks-when-it-is-violated)
+14. [Q14. How do you implement `IEquatable<T>` on an element type and why is it preferred over just overriding `Object.Equals`?](#q14-how-do-you-implement-iequatablet-on-an-element-type-and-why-is-it-preferred-over-just-overriding-objectequals)
+15. [Q15. What happens to iteration order when you `foreach` over a `HashSet<T>`?](#q15-what-happens-to-iteration-order-when-you-foreach-over-a-hashsett)
+16. [Q16. What is `EnsureCapacity` on `HashSet<T>` and when should you call it?](#q16-what-is-ensurecapacity-on-hashsett-and-when-should-you-call-it)
+17. [Q17. How does `HashSet<T>.TryGetValue` work and why does it exist?](#q17-how-does-hashsetttrygetvalue-work-and-why-does-it-exist)
+18. [Q18. When should you choose `HashSet<T>` over `Dictionary<TKey, TValue>` with a dummy value?](#q18-when-should-you-choose-hashsett-over-dictionarytkey-tvalue-with-a-dummy-value)
+19. [Q19. What happens if you mutate a field used by `GetHashCode` on an element that is already in a `HashSet<T>`?](#q19-what-happens-if-you-mutate-a-field-used-by-gethashcode-on-an-element-that-is-already-in-a-hashsett)
+20. [Q20. Why is relying on `HashSet<T>` iteration order a bug waiting to happen?](#q20-why-is-relying-on-hashsett-iteration-order-a-bug-waiting-to-happen)
+21. [Q21. What goes wrong when you wrap a LINQ set result in a new `HashSet<T>` without passing the original comparer?](#q21-what-goes-wrong-when-you-wrap-a-linq-set-result-in-a-new-hashsett-without-passing-the-original-comparer)
+22. [Q22. Why does adding two distinct objects with identical field values to a default `HashSet<T>` keep both?](#q22-why-does-adding-two-distinct-objects-with-identical-field-values-to-a-default-hashsett-keep-both)
+23. [Q23. What goes wrong when `Equals` is not symmetric or not transitive inside `IEqualityComparer<T>`?](#q23-what-goes-wrong-when-equals-is-not-symmetric-or-not-transitive-inside-iequalitycomparert)
+24. [Q24. (Code Review) A developer wrote this deduplication helper for user IDs arriving from multiple API pages. Review the code and identify the issues.](#q24-code-review-a-developer-wrote-this-deduplication-helper-for-user-ids-arriving-from-multiple-api-pages-review-the-code-and-identify-the-issues)
+25. [Q25. A content platform needs to enforce that every published article has at least one tag from the required taxonomy and none from a banned list. How would you model this with `HashSet<T>` operations?](#q25-a-content-platform-needs-to-enforce-that-every-published-article-has-at-least-one-tag-from-the-required-taxonomy-and-none-from-a-banned-list-how-would-you-model-this-with-hashsett-operations)
+26. [Q26. (Code Review) A developer implemented a subscriber deduplication service. Review the code.](#q26-code-review-a-developer-implemented-a-subscriber-deduplication-service-review-the-code)
+27. [Q27. How would you use `HashSet<T>` to build an efficient graph-traversal visited-node tracker for a BFS over a large social-network graph?](#q27-how-would-you-use-hashsett-to-build-an-efficient-graph-traversal-visited-node-tracker-for-a-bfs-over-a-large-social-network-graph)
+28. [Q28. (Code Review) A permissions system builds a user's effective permission set from role assignments. Review the code.](#q28-code-review-a-permissions-system-builds-a-users-effective-permission-set-from-role-assignments-review-the-code)
+29. [Q29. You need a thread-safe "seen items" cache for a high-throughput event processor where events arrive from 16 concurrent partitions. What data structure do you choose and why?](#q29-you-need-a-thread-safe-seen-items-cache-for-a-high-throughput-event-processor-where-events-arrive-from-16-concurrent-partitions-what-data-structure-do-you-choose-and-why)
+30. [Q30. How would you design a tag-normalisation pipeline that merges tags from multiple sources, removes blocked tags, and produces a canonical sorted list, using `HashSet<T>` operations throughout?](#q30-how-would-you-design-a-tag-normalisation-pipeline-that-merges-tags-from-multiple-sources-removes-blocked-tags-and-produces-a-canonical-sorted-list-using-hashsett-operations-throughout)
+
+---
 ## Foundation Questions
 
 ---

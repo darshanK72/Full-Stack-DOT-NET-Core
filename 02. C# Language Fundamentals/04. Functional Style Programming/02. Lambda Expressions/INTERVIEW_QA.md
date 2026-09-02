@@ -1,7 +1,30 @@
-# C# Lambda Expressions — Interview Q&A
+﻿# C# Lambda Expressions — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is a lambda expression in C# and what does the `=>` operator mean?](#q1-what-is-a-lambda-expression-in-c-and-what-does-the-operator-mean)
+2. [Q2. What is the difference between an expression lambda and a statement lambda?](#q2-what-is-the-difference-between-an-expression-lambda-and-a-statement-lambda)
+3. [Q3. What are the valid parameter list forms for a lambda, and when must you add parentheses?](#q3-what-are-the-valid-parameter-list-forms-for-a-lambda-and-when-must-you-add-parentheses)
+4. [Q4. How does the compiler perform type inference for a lambda, and what is "target typing"?](#q4-how-does-the-compiler-perform-type-inference-for-a-lambda-and-what-is-target-typing)
+5. [Q5. How do you assign a lambda to a custom delegate type, and how does that differ from using `Func` or `Action`?](#q5-how-do-you-assign-a-lambda-to-a-custom-delegate-type-and-how-does-that-differ-from-using-func-or-action)
+6. [Q6. What is an expression tree, and how does a lambda become one?](#q6-what-is-an-expression-tree-and-how-does-a-lambda-become-one)
+7. [Q7. What are closures and captured variables in the context of lambda expressions?](#q7-what-are-closures-and-captured-variables-in-the-context-of-lambda-expressions)
+8. [Q8. How does a lambda relate to the `delegate` keyword and anonymous methods?](#q8-how-does-a-lambda-relate-to-the-delegate-keyword-and-anonymous-methods)
+9. [Q9. How do lambdas work with LINQ operators such as `Where`, `Select`, and `OrderBy`?](#q9-how-do-lambdas-work-with-linq-operators-such-as-where-select-and-orderby)
+10. [Q10. What are discards (`_`) in lambda parameter lists, and when should you use them?](#q10-what-are-discards-in-lambda-parameter-lists-and-when-should-you-use-them)
+11. [Q11. What is the natural type of a lambda in C# 10, and why does it matter?](#q11-what-is-the-natural-type-of-a-lambda-in-c-10-and-why-does-it-matter)
+12. [Q12. What is a static lambda, and what problem does it solve?](#q12-what-is-a-static-lambda-and-what-problem-does-it-solve)
+13. [Q13. What happens when a lambda is passed to an overloaded method that has both a `Func<T,bool>` and an `Expression<Func<T,bool>>` overload?](#q13-what-happens-when-a-lambda-is-passed-to-an-overloaded-method-that-has-both-a-functbool-and-an-expressionfunctbool-overload)
+14. [Q14. How do lambda expressions interact with `async` and `await`?](#q14-how-do-lambda-expressions-interact-with-async-and-await)
+15. [Q15. What compile errors are unique to lambda expressions and what causes each one?](#q15-what-compile-errors-are-unique-to-lambda-expressions-and-what-causes-each-one)
+16. [Q16. How does a lambda differ from a local function, and when should you choose each?](#q16-how-does-a-lambda-differ-from-a-local-function-and-when-should-you-choose-each)
+17. [Q17. What does method group conversion mean, and how does it compare to a wrapping lambda?](#q17-what-does-method-group-conversion-mean-and-how-does-it-compare-to-a-wrapping-lambda)
+18. [Q18. When should you prefer a named method over a lambda, despite lambda being more concise?](#q18-when-should-you-prefer-a-named-method-over-a-lambda-despite-lambda-being-more-concise)
+
+---
 ## Foundation Questions
 
 ---

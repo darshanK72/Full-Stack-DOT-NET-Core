@@ -1,7 +1,40 @@
-# Data Types & Variables in C# — Interview Q&A
+﻿# Data Types & Variables in C# — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between a value type and a reference type in C#?](#q1-what-is-the-difference-between-a-value-type-and-a-reference-type-in-c)
+2. [Q2. Where are value types and reference types stored in memory?](#q2-where-are-value-types-and-reference-types-stored-in-memory)
+3. [Q3. What primitive numeric types does C# provide, and how do you choose between them?](#q3-what-primitive-numeric-types-does-c-provide-and-how-do-you-choose-between-them)
+4. [Q4. What is `var` in C#, and is it the same as `dynamic`?](#q4-what-is-var-in-c-and-is-it-the-same-as-dynamic)
+5. [Q5. How do nullable value types work, and what is `Nullable<T>`?](#q5-how-do-nullable-value-types-work-and-what-is-nullablet)
+6. [Q6. What is the difference between `const` and `readonly`?](#q6-what-is-the-difference-between-const-and-readonly)
+7. [Q7. What are the default values for common C# types?](#q7-what-are-the-default-values-for-common-c-types)
+8. [Q8. What is boxing and unboxing, and why does it matter for performance?](#q8-what-is-boxing-and-unboxing-and-why-does-it-matter-for-performance)
+9. [Q9. How does `==` compare value types versus reference types?](#q9-how-does-compare-value-types-versus-reference-types)
+10. [Q10. What is type inference with `var`, and what are its limitations?](#q10-what-is-type-inference-with-var-and-what-are-its-limitations)
+11. [Q11. What is integer overflow in C#, and how do `checked` and `unchecked` contexts affect it?](#q11-what-is-integer-overflow-in-c-and-how-do-checked-and-unchecked-contexts-affect-it)
+12. [Q12. How does `string` differ from other reference types in C#?](#q12-how-does-string-differ-from-other-reference-types-in-c)
+13. [Q13. What are nullable reference types, and how do they differ from nullable value types?](#q13-what-are-nullable-reference-types-and-how-do-they-differ-from-nullable-value-types)
+14. [Q14. What does `default` return for different types in C#?](#q14-what-does-default-return-for-different-types-in-c)
+15. [Q15. What is the purpose of literal suffixes in C#, and what happens when they are omitted?](#q15-what-is-the-purpose-of-literal-suffixes-in-c-and-what-happens-when-they-are-omitted)
+16. [Q16. How do `==` and `Equals()` differ for strings that were interned versus newly allocated?](#q16-how-do-and-equals-differ-for-strings-that-were-interned-versus-newly-allocated)
+17. [Q17. Why does `(double)0.1 + (double)0.2` not equal `0.3`, and how does this affect financial calculations?](#q17-why-does-double01-double02-not-equal-03-and-how-does-this-affect-financial-calculations)
+18. [Q18. What happens when you call `.Value` on a null `int?`, and how should nullable values be accessed safely?](#q18-what-happens-when-you-call-value-on-a-null-int-and-how-should-nullable-values-be-accessed-safely)
+19. [Q19. Why does assigning one reference-type variable to another not create a copy of the object?](#q19-why-does-assigning-one-reference-type-variable-to-another-not-create-a-copy-of-the-object)
+20. [Q20. Why can a `const` field not be assigned from a method call, and what should you use instead?](#q20-why-can-a-const-field-not-be-assigned-from-a-method-call-and-what-should-you-use-instead)
+21. [Q21. What is the difference between `int?` and `string?`, and why is one a runtime change and the other is not?](#q21-what-is-the-difference-between-int-and-string-and-why-is-one-a-runtime-change-and-the-other-is-not)
+22. [Q22. What happens to integer overflow in unchecked arithmetic, and why is this dangerous in ID generation?](#q22-what-happens-to-integer-overflow-in-unchecked-arithmetic-and-why-is-this-dangerous-in-id-generation)
+23. [Q23. Finance QA reports order totals off by one cent on some invoices. A developer submits this pricing helper from a prototype:](#q23-finance-qa-reports-order-totals-off-by-one-cent-on-some-invoices-a-developer-submits-this-pricing-helper-from-a-prototype)
+24. [Q24. A loyalty API returns `int?` for optional points. After deploy, logs show both `InvalidOperationException` and `NullReferenceException`. Review this method:](#q24-a-loyalty-api-returns-int-for-optional-points-after-deploy-logs-show-both-invalidoperationexception-and-nullreferenceexception-review-this-method)
+25. [Q25. A metrics exporter builds a snapshot for a dashboard. Under load, Gen2 GC collections spike. Review:](#q25-a-metrics-exporter-builds-a-snapshot-for-a-dashboard-under-load-gen2-gc-collections-spike-review)
+26. [Q26. A warehouse service increments a 32-bit `int transactionId` inside a tight loop for bulk imports. In staging, IDs look fine; in production, duplicate IDs and negative values appear after long runs.](#q26-a-warehouse-service-increments-a-32-bit-int-transactionid-inside-a-tight-loop-for-bulk-imports-in-staging-ids-look-fine-in-production-duplicate-ids-and-negative-values-appear-after-long-runs)
+27. [Q27. A developer models per-store configuration using `const` for a tax rate loaded from environment variables. The build fails. They propose `static readonly`. Is that sufficient?](#q27-a-developer-models-per-store-configuration-using-const-for-a-tax-rate-loaded-from-environment-variables-the-build-fails-they-propose-static-readonly-is-that-sufficient)
+28. [Q28. Your team debates whether to use `var` or explicit types in service-layer financial code. A junior developer proposes using `var` everywhere for consistency.](#q28-your-team-debates-whether-to-use-var-or-explicit-types-in-service-layer-financial-code-a-junior-developer-proposes-using-var-everywhere-for-consistency)
+
+---
 ## Foundation Questions
 
 ---

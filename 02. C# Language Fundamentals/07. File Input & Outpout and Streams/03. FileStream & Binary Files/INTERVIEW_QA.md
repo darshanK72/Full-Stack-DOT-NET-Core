@@ -1,5 +1,35 @@
-# 03. FileStream & Binary Files — Interview Q&A
+﻿# 03. FileStream & Binary Files — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between the `File` static class, the `Stream` abstract base, and `FileStream`?](#q1-what-is-the-difference-between-the-file-static-class-the-stream-abstract-base-and-filestream)
+2. [Q2. Explain each `FileMode` value and when to use it.](#q2-explain-each-filemode-value-and-when-to-use-it)
+3. [Q3. What do `FileAccess` and `FileShare` control, and how do they interact between concurrent openers?](#q3-what-do-fileaccess-and-fileshare-control-and-how-do-they-interact-between-concurrent-openers)
+4. [Q4. Why does the default `FileShare.None` cause sharing violations for concurrent processes?](#q4-why-does-the-default-filesharenone-cause-sharing-violations-for-concurrent-processes)
+5. [Q5. What are `FileStream.Position`, `Seek`, and `Length`?](#q5-what-are-filestreamposition-seek-and-length)
+6. [Q6. Explain `SeekOrigin.Begin`, `Current`, and `End` with a concrete binary-file scenario.](#q6-explain-seekoriginbegin-current-and-end-with-a-concrete-binary-file-scenario)
+7. [Q7. What happens when you call `Seek` on a non-seekable stream?](#q7-what-happens-when-you-call-seek-on-a-non-seekable-stream)
+8. [Q8. Why must the return value of `Stream.Read()` always be checked?](#q8-why-must-the-return-value-of-streamread-always-be-checked)
+9. [Q9. When should you call `FileStream.Flush()` explicitly vs relying on `Dispose`?](#q9-when-should-you-call-filestreamflush-explicitly-vs-relying-on-dispose)
+10. [Q10. What do `BinaryReader` and `BinaryWriter` add over raw `FileStream` byte operations?](#q10-what-do-binaryreader-and-binarywriter-add-over-raw-filestream-byte-operations)
+11. [Q11. What is the on-disk format of `BinaryWriter.Write(string)`, and why is it .NET-specific?](#q11-what-is-the-on-disk-format-of-binarywriterwritestring-and-why-is-it-net-specific)
+12. [Q12. Why must the read order in `BinaryReader` exactly match the write order in `BinaryWriter`?](#q12-why-must-the-read-order-in-binaryreader-exactly-match-the-write-order-in-binarywriter)
+13. [Q13. What are file signatures (magic bytes), and why is the file extension an unreliable indicator of file type?](#q13-what-are-file-signatures-magic-bytes-and-why-is-the-file-extension-an-unreliable-indicator-of-file-type)
+14. [Q14. When should you use binary files instead of text files?](#q14-when-should-you-use-binary-files-instead-of-text-files)
+15. [Q15. What is the difference between `FileMode.Truncate` and `FileMode.Create`?](#q15-what-is-the-difference-between-filemodetruncate-and-filemodecreate)
+16. [Q16. When should you use `MemoryStream` instead of `FileStream`?](#q16-when-should-you-use-memorystream-instead-of-filestream)
+17. [Q17. What is buffered I/O, and how does `FileStream`'s buffer size affect performance?](#q17-what-is-buffered-io-and-how-does-filestreams-buffer-size-affect-performance)
+18. [Q18. (Gotcha) Why does `BinaryReader.ReadBytes(n)` return a short array on truncated files without throwing?](#q18-gotcha-why-does-binaryreaderreadbytesn-return-a-short-array-on-truncated-files-without-throwing)
+19. [Q19. (Gotcha) Why does checking `FileInfo.Length` immediately after a `BinaryWriter.Write` call return a stale size?](#q19-gotcha-why-does-checking-fileinfolength-immediately-after-a-binarywriterwrite-call-return-a-stale-size)
+20. [Q20. (Gotcha) What does `leaveOpen: false` (the default) on `BinaryReader`/`BinaryWriter` do unexpectedly?](#q20-gotcha-what-does-leaveopen-false-the-default-on-binaryreaderbinarywriter-do-unexpectedly)
+21. [Q21. (Scenario R) A telemetry service reads a 4-byte file signature but short files produce a garbage comparison result without throwing. What is wrong?](#q21-scenario-r-a-telemetry-service-reads-a-4-byte-file-signature-but-short-files-produce-a-garbage-comparison-result-without-throwing-what-is-wrong)
+22. [Q22. (Scenario R) A background job appends binary audit records with `FileShare.None`; a dashboard reader gets `IOException`. What locking mismatch causes the failure?](#q22-scenario-r-a-background-job-appends-binary-audit-records-with-filesharenone-a-dashboard-reader-gets-ioexception-what-locking-mismatch-causes-the-failure)
+23. [Q23. (Scenario R) A teammate ports `inventory.bin` to another language and swaps the field read order — prices and names are nonsense after the first record. What breaks?](#q23-scenario-r-a-teammate-ports-inventorybin-to-another-language-and-swaps-the-field-read-order-prices-and-names-are-nonsense-after-the-first-record-what-breaks)
+24. [Q24. (Scenario P) A service reads a 2 GB binary sensor archive with `File.ReadAllBytes` on every API request — OOM under load. What is wrong?](#q24-scenario-p-a-service-reads-a-2-gb-binary-sensor-archive-with-filereadallbytes-on-every-api-request-oom-under-load-what-is-wrong)
+25. [Q25. (Scenario D) A new field is added to an existing binary record format — how do you version a binary file format to avoid breaking old readers?](#q25-scenario-d-a-new-field-is-added-to-an-existing-binary-record-format-how-do-you-version-a-binary-file-format-to-avoid-breaking-old-readers)
+
+---
 > Back to [Module Index](../INTERVIEW_QA.md)
 
 ---

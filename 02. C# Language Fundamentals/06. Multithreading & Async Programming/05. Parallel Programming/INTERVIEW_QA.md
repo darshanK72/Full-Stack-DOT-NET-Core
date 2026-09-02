@@ -1,5 +1,35 @@
-# Parallel Programming — Interview Q&A
+﻿# Parallel Programming — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is Parallel.For and how does it differ from a regular for loop?](#q1-what-is-parallelfor-and-how-does-it-differ-from-a-regular-for-loop)
+2. [Q2. How does Parallel.ForEach work and how does it partition collections?](#q2-how-does-parallelforeach-work-and-how-does-it-partition-collections)
+3. [Q3. What is ParallelOptions and how do you use MaxDegreeOfParallelism?](#q3-what-is-paralleloptions-and-how-do-you-use-maxdegreeofparallelism)
+4. [Q4. What is the difference between ParallelLoopState.Break() and Stop()?](#q4-what-is-the-difference-between-parallelloopstatebreak-and-stop)
+5. [Q5. How does Parallel.Invoke work?](#q5-how-does-parallelinvoke-work)
+6. [Q6. How do you use thread-local state in Parallel.For to avoid synchronization?](#q6-how-do-you-use-thread-local-state-in-parallelfor-to-avoid-synchronization)
+7. [Q7. How does Parallel.For handle exceptions?](#q7-how-does-parallelfor-handle-exceptions)
+8. [Q8. What is PLINQ and how do you use AsParallel()?](#q8-what-is-plinq-and-how-do-you-use-asparallel)
+9. [Q9. How does AsOrdered() affect PLINQ performance?](#q9-how-does-asordered-affect-plinq-performance)
+10. [Q10. What is WithDegreeOfParallelism in PLINQ?](#q10-what-is-withdegreeofparallelism-in-plinq)
+11. [Q11. What is ForAll() in PLINQ and when should you use it?](#q11-what-is-forall-in-plinq-and-when-should-you-use-it)
+12. [Q12. How does PLINQ cancellation work with WithCancellation?](#q12-how-does-plinq-cancellation-work-with-withcancellation)
+13. [Q13. What are the merge options in PLINQ (WithMergeOptions)?](#q13-what-are-the-merge-options-in-plinq-withmergeoptions)
+14. [Q14. How does PLINQ handle exceptions?](#q14-how-does-plinq-handle-exceptions)
+15. [Q15. What is the race condition in Parallel.ForEach with shared mutable state?](#q15-what-is-the-race-condition-in-parallelforeach-with-shared-mutable-state)
+16. [Q16. Why doesn't Stop() immediately stop a Parallel.For loop?](#q16-why-doesnt-stop-immediately-stop-a-parallelfor-loop)
+17. [Q17. What is the danger of using async lambdas inside Parallel.ForEach?](#q17-what-is-the-danger-of-using-async-lambdas-inside-parallelforeach)
+18. [Q18. When does PLINQ perform worse than sequential LINQ?](#q18-when-does-plinq-perform-worse-than-sequential-linq)
+19. [Q19. What is the thundering herd problem in parallel batch processing?](#q19-what-is-the-thundering-herd-problem-in-parallel-batch-processing)
+20. [Q20. How would you parallelize image resizing for 10,000 images?](#q20-how-would-you-parallelize-image-resizing-for-10000-images)
+21. [Q21. How would you use PLINQ for a data transformation pipeline with filtering?](#q21-how-would-you-use-plinq-for-a-data-transformation-pipeline-with-filtering)
+22. [Q22. How do you implement a parallel aggregation that sums values without lock contention?](#q22-how-do-you-implement-a-parallel-aggregation-that-sums-values-without-lock-contention)
+23. [Q23. How do you determine whether parallelism will help for a given workload?](#q23-how-do-you-determine-whether-parallelism-will-help-for-a-given-workload)
+24. [Q24. How do you implement parallel batch processing with a bounded degree of parallelism?](#q24-how-do-you-implement-parallel-batch-processing-with-a-bounded-degree-of-parallelism)
+25. [Q25. How do you benchmark parallel vs sequential to find the performance crossover point?](#q25-how-do-you-benchmark-parallel-vs-sequential-to-find-the-performance-crossover-point)
+
+---
 ## Foundation Questions
 
 ---

@@ -1,5 +1,38 @@
-# IEnumerable & IEnumerator — Interview Q&A
+﻿# IEnumerable & IEnumerator — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is `IEnumerable<T>` and what single member does it expose?](#q1-what-is-ienumerablet-and-what-single-member-does-it-expose)
+2. [Q2. What is `IEnumerator<T>` and what are its members?](#q2-what-is-ienumeratort-and-what-are-its-members)
+3. [Q3. How does `foreach` desugar to `GetEnumerator` / `MoveNext` / `Current` / `Dispose`?](#q3-how-does-foreach-desugar-to-getenumerator-movenext-current-dispose)
+4. [Q4. What is the difference between `IEnumerable<T>`, `ICollection<T>`, and `IList<T>`?](#q4-what-is-the-difference-between-ienumerablet-icollectiont-and-ilistt)
+5. [Q5. What does `yield return` do and what does the compiler generate?](#q5-what-does-yield-return-do-and-what-does-the-compiler-generate)
+6. [Q6. What is `yield break` and when should you use it?](#q6-what-is-yield-break-and-when-should-you-use-it)
+7. [Q7. What is deferred execution and why does it matter for `IEnumerable<T>` and LINQ?](#q7-what-is-deferred-execution-and-why-does-it-matter-for-ienumerablet-and-linq)
+8. [Q8. How do you implement a custom enumerable type with a hand-written `IEnumerator<T>`?](#q8-how-do-you-implement-a-custom-enumerable-type-with-a-hand-written-ienumeratort)
+9. [Q9. What is `Reset()` on `IEnumerator<T>` and why is it rarely used in modern code?](#q9-what-is-reset-on-ienumeratort-and-why-is-it-rarely-used-in-modern-code)
+10. [Q10. Why does `IEnumerator<T>` implement `IDisposable`, and what happens if you skip `Dispose()`?](#q10-why-does-ienumeratort-implement-idisposable-and-what-happens-if-you-skip-dispose)
+11. [Q11. What is `IAsyncEnumerable<T>` and how does `await foreach` work?](#q11-what-is-iasyncenumerablet-and-how-does-await-foreach-work)
+12. [Q12. How does `IEnumerable<T>` integrate with LINQ?](#q12-how-does-ienumerablet-integrate-with-linq)
+13. [Q13. What does calling `GetEnumerator()` multiple times on the same `IEnumerable<T>` mean, and how does it differ for a list vs a lazy sequence?](#q13-what-does-calling-getenumerator-multiple-times-on-the-same-ienumerablet-mean-and-how-does-it-differ-for-a-list-vs-a-lazy-sequence)
+14. [Q14. What is the duck-typing rule for `foreach` and when does it matter?](#q14-what-is-the-duck-typing-rule-for-foreach-and-when-does-it-matter)
+15. [Q15. What is the difference between returning `IEnumerable<T>` and `IReadOnlyList<T>` from a method?](#q15-what-is-the-difference-between-returning-ienumerablet-and-ireadonlylistt-from-a-method)
+16. [Q16. How do you cancel an `IAsyncEnumerable<T>` mid-stream?](#q16-how-do-you-cancel-an-iasyncenumerablet-mid-stream)
+17. [Q17. What happens when you access `Current` before the first `MoveNext()` or after `MoveNext()` returns `false`?](#q17-what-happens-when-you-access-current-before-the-first-movenext-or-after-movenext-returns-false)
+18. [Q18. Why does modifying a `List<T>` during a `foreach` over it throw `InvalidOperationException`?](#q18-why-does-modifying-a-listt-during-a-foreach-over-it-throw-invalidoperationexception)
+19. [Q19. What is the multiple-enumeration gotcha with `IEnumerable<T>` from an I/O source?](#q19-what-is-the-multiple-enumeration-gotcha-with-ienumerablet-from-an-io-source)
+20. [Q20. What is the `yield return` inside `try/catch` restriction and what is the `try/finally` rule?](#q20-what-is-the-yield-return-inside-trycatch-restriction-and-what-is-the-tryfinally-rule)
+21. [Q21. What happens to captured variables and closures defined inside an iterator method?](#q21-what-happens-to-captured-variables-and-closures-defined-inside-an-iterator-method)
+22. [Q22. Why does `Reset()` throw `NotSupportedException` on compiler-generated iterators?](#q22-why-does-reset-throw-notsupportedexception-on-compiler-generated-iterators)
+23. [Q23. Code review: a warehouse report service enumerates a lazy `IEnumerable<PickLine>` three times. Review the following method and identify issues.](#q23-code-review-a-warehouse-report-service-enumerates-a-lazy-ienumerablepickline-three-times-review-the-following-method-and-identify-issues)
+24. [Q24. Code review: a bulk-import service opens a file enumerator but forgets to dispose it when breaking early. Review the method.](#q24-code-review-a-bulk-import-service-opens-a-file-enumerator-but-forgets-to-dispose-it-when-breaking-early-review-the-method)
+25. [Q25. Code review: a UI service tries to clean short lines while iterating the same `List<T>`. Review the method.](#q25-code-review-a-ui-service-tries-to-clean-short-lines-while-iterating-the-same-listt-review-the-method)
+26. [Q26. A real-time feed streams 100,000 pick events per minute from Kafka. Design an `IAsyncEnumerable<T>` pipeline that processes them in batches of 500 with backpressure and cancellation.](#q26-a-real-time-feed-streams-100000-pick-events-per-minute-from-kafka-design-an-iasyncenumerablet-pipeline-that-processes-them-in-batches-of-500-with-backpressure-and-cancellation)
+27. [Q27. A reporting service exposes an `IEnumerable<PickLine>` property that re-queries the database on each access. A new developer adds LINQ ordering and pagination on top. Describe the performance risk and the correct API design.](#q27-a-reporting-service-exposes-an-ienumerablepickline-property-that-re-queries-the-database-on-each-access-a-new-developer-adds-linq-ordering-and-pagination-on-top-describe-the-performance-risk-and-the-correct-api-design)
+28. [Q28. Design a custom `IEnumerable<T>` that yields pick lines in aisle-then-bay order without sorting the underlying array. Walk through the cursor design choices.](#q28-design-a-custom-ienumerablet-that-yields-pick-lines-in-aisle-then-bay-order-without-sorting-the-underlying-array-walk-through-the-cursor-design-choices)
+
+---
 > **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/08. IEnumerable & IEnumerator`
 > **Covers:** `IEnumerable<T>`, `IEnumerator<T>`, `ICollection<T>`, `IList<T>`, iterator pattern, `yield return`/`yield break`, deferred execution, `MoveNext`/`Current`/`Reset`, custom iterator implementation, `IAsyncEnumerable<T>` (.NET 10), LINQ compatibility.
 

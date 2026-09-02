@@ -1,5 +1,39 @@
-# Dictionary&lt;TKey, TValue&gt; — Interview Q&A
+﻿# Dictionary&lt;TKey, TValue&gt; — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is `Dictionary<TKey, TValue>` and how does it work internally as a hash table?](#q1-what-is-dictionarytkey-tvalue-and-how-does-it-work-internally-as-a-hash-table)
+2. [Q2. What are the time complexities of the core `Dictionary<TKey, TValue>` operations?](#q2-what-are-the-time-complexities-of-the-core-dictionarytkey-tvalue-operations)
+3. [Q3. What is the difference between the indexer getter and `TryGetValue` for reading a value?](#q3-what-is-the-difference-between-the-indexer-getter-and-trygetvalue-for-reading-a-value)
+4. [Q4. What is `KeyNotFoundException`, when is it thrown, and how do you avoid it?](#q4-what-is-keynotfoundexception-when-is-it-thrown-and-how-do-you-avoid-it)
+5. [Q5. What is the difference between `Add` and the indexer setter, and when should you use each?](#q5-what-is-the-difference-between-add-and-the-indexer-setter-and-when-should-you-use-each)
+6. [Q6. What is `TryAdd` and how does it differ from `Add` and the indexer setter?](#q6-what-is-tryadd-and-how-does-it-differ-from-add-and-the-indexer-setter)
+7. [Q7. When should you use `ContainsKey` versus `TryGetValue`?](#q7-when-should-you-use-containskey-versus-trygetvalue)
+8. [Q8. What rules must a custom reference-type key satisfy to work correctly in `Dictionary`?](#q8-what-rules-must-a-custom-reference-type-key-satisfy-to-work-correctly-in-dictionary)
+9. [Q9. How does the initial capacity hint affect `Dictionary` performance?](#q9-how-does-the-initial-capacity-hint-affect-dictionary-performance)
+10. [Q10. What equality comparer does `Dictionary` use by default, and how do you supply a custom one?](#q10-what-equality-comparer-does-dictionary-use-by-default-and-how-do-you-supply-a-custom-one)
+11. [Q11. What is `StringComparer.OrdinalIgnoreCase` and when should you prefer it over `StringComparer.CurrentCultureIgnoreCase`?](#q11-what-is-stringcomparerordinalignorecase-and-when-should-you-prefer-it-over-stringcomparercurrentcultureignorecase)
+12. [Q12. What is the iteration order of `Dictionary<TKey, TValue>`, and can you rely on it?](#q12-what-is-the-iteration-order-of-dictionarytkey-tvalue-and-can-you-rely-on-it)
+13. [Q13. What does `foreach` yield when iterating a `Dictionary<TKey, TValue>`, and what is the deconstruction syntax?](#q13-what-does-foreach-yield-when-iterating-a-dictionarytkey-tvalue-and-what-is-the-deconstruction-syntax)
+14. [Q14. What happens when you pass `null` as a key to `Dictionary<TKey, TValue>`?](#q14-what-happens-when-you-pass-null-as-a-key-to-dictionarytkey-tvalue)
+15. [Q15. What is `ConcurrentDictionary<TKey, TValue>` and what thread-safety guarantees does it provide?](#q15-what-is-concurrentdictionarytkey-tvalue-and-what-thread-safety-guarantees-does-it-provide)
+16. [Q16. What is `ImmutableDictionary<TKey, TValue>` and when should you choose it?](#q16-what-is-immutabledictionarytkey-tvalue-and-when-should-you-choose-it)
+17. [Q17. How does `Dictionary` handle hash collisions, and what is a hash-flooding attack?](#q17-how-does-dictionary-handle-hash-collisions-and-what-is-a-hash-flooding-attack)
+18. [Q18. What is `CollectionsMarshal.GetValueRefOrNullRef` and when is it relevant?](#q18-what-is-collectionsmarshalgetvaluerefornullref-and-when-is-it-relevant)
+19. [Q19. What is the `InvalidOperationException: Collection was modified` error and how do you avoid it?](#q19-what-is-the-invalidoperationexception-collection-was-modified-error-and-how-do-you-avoid-it)
+20. [Q20. Why does mutating a reference-type key object after insertion silently break lookups?](#q20-why-does-mutating-a-reference-type-key-object-after-insertion-silently-break-lookups)
+21. [Q21. Why does `ConcurrentDictionary.GetOrAdd` with a factory delegate sometimes call the factory more than once?](#q21-why-does-concurrentdictionarygetoradd-with-a-factory-delegate-sometimes-call-the-factory-more-than-once)
+22. [Q22. What is the difference between `Dictionary` iteration order and insertion order, and why does relying on apparent insertion order fail?](#q22-what-is-the-difference-between-dictionary-iteration-order-and-insertion-order-and-why-does-relying-on-apparent-insertion-order-fail)
+23. [Q23. What happens if you use `ImmutableDictionary` but forget that `Add` returns a new instance?](#q23-what-happens-if-you-use-immutabledictionary-but-forget-that-add-returns-a-new-instance)
+24. [Q24. Code Review: Caching product lookups in a singleton service using a plain `Dictionary`](#q24-code-review-caching-product-lookups-in-a-singleton-service-using-a-plain-dictionary)
+25. [Q25. Code Review: Building a frequency map while modifying the dictionary inside `foreach`](#q25-code-review-building-a-frequency-map-while-modifying-the-dictionary-inside-foreach)
+26. [Q26. Code Review: Using a case-sensitive dictionary for HTTP header lookups](#q26-code-review-using-a-case-sensitive-dictionary-for-http-header-lookups)
+27. [Q27. Code Review: Enumerating a dictionary by key collection while a background task modifies it](#q27-code-review-enumerating-a-dictionary-by-key-collection-while-a-background-task-modifies-it)
+28. [Q28. Scenario: Implementing a multi-level configuration lookup with fallback using `ImmutableDictionary`](#q28-scenario-implementing-a-multi-level-configuration-lookup-with-fallback-using-immutabledictionary)
+29. [Q29. Scenario: Building a reverse-lookup index from a product catalog dictionary](#q29-scenario-building-a-reverse-lookup-index-from-a-product-catalog-dictionary)
+
+---
 > **Folder:** `02. C# Language Fundamentals/03. Generics & Collections/04. Dictionary`
 > **Source file:** `Program.cs`
 

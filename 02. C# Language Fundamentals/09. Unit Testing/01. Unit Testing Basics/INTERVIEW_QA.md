@@ -1,7 +1,42 @@
-# Unit Testing Basics — Interview Q&A
+﻿# Unit Testing Basics — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is the Arrange-Act-Assert (AAA) pattern and why is it the standard structure for unit tests?](#q1-what-is-the-arrange-act-assert-aaa-pattern-and-why-is-it-the-standard-structure-for-unit-tests)
+2. [Q2. What are the FIRST principles of unit testing?](#q2-what-are-the-first-principles-of-unit-testing)
+3. [Q3. What is the test pyramid, and why do unit tests occupy the base?](#q3-what-is-the-test-pyramid-and-why-do-unit-tests-occupy-the-base)
+4. [Q4. What naming convention should you use for test methods, and why does it matter?](#q4-what-naming-convention-should-you-use-for-test-methods-and-why-does-it-matter)
+5. [Q5. How does xUnit's `[Fact]` attribute work, and how does it differ from `[Theory]`?](#q5-how-does-xunits-fact-attribute-work-and-how-does-it-differ-from-theory)
+6. [Q6. What does it mean for the System Under Test (SUT) to be a "good" unit test target?](#q6-what-does-it-mean-for-the-system-under-test-sut-to-be-a-good-unit-test-target)
+7. [Q7. How do you test that a method throws the correct exception using xUnit?](#q7-how-do-you-test-that-a-method-throws-the-correct-exception-using-xunit)
+8. [Q8. What is boundary value testing and which score values should you test for `GradeCalculator`?](#q8-what-is-boundary-value-testing-and-which-score-values-should-you-test-for-gradecalculator)
+9. [Q9. What is the difference between state testing and interaction testing?](#q9-what-is-the-difference-between-state-testing-and-interaction-testing)
+10. [Q10. How should you structure a .NET test project relative to the production code project?](#q10-how-should-you-structure-a-net-test-project-relative-to-the-production-code-project)
+11. [Q11. What assertion methods does xUnit provide, and when should you choose each one?](#q11-what-assertion-methods-does-xunit-provide-and-when-should-you-choose-each-one)
+12. [Q12. What is a test fixture, and how does xUnit manage shared setup and teardown?](#q12-what-is-a-test-fixture-and-how-does-xunit-manage-shared-setup-and-teardown)
+13. [Q13. What does single responsibility mean in the context of unit tests?](#q13-what-does-single-responsibility-mean-in-the-context-of-unit-tests)
+14. [Q14. What is the difference between a unit test and an integration test in the context of a grading system?](#q14-what-is-the-difference-between-a-unit-test-and-an-integration-test-in-the-context-of-a-grading-system)
+15. [Q15. How does xUnit test discovery work in .NET 10, and what are the requirements for a method to be discovered?](#q15-how-does-xunit-test-discovery-work-in-net-10-and-what-are-the-requirements-for-a-method-to-be-discovered)
+16. [Q16. Why should tests never depend on execution order, and how does xUnit enforce this?](#q16-why-should-tests-never-depend-on-execution-order-and-how-does-xunit-enforce-this)
+17. [Q17. What is the role of a test double, and when would you introduce one into tests for a class that uses `GradeCalculator`?](#q17-what-is-the-role-of-a-test-double-and-when-would-you-introduce-one-into-tests-for-a-class-that-uses-gradecalculator)
+18. [Q18. What is the minimal xUnit project setup for .NET 10 and how does `dotnet test` execute the tests?](#q18-what-is-the-minimal-xunit-project-setup-for-net-10-and-how-does-dotnet-test-execute-the-tests)
+19. [Q19. If `Assert.Equal("A", result)` and `Assert.Equal(result, "A")` look similar, does argument order matter?](#q19-if-assertequala-result-and-assertequalresult-a-look-similar-does-argument-order-matter)
+20. [Q20. Can a test with no assertions pass in xUnit, and is that a problem?](#q20-can-a-test-with-no-assertions-pass-in-xunit-and-is-that-a-problem)
+21. [Q21. Does xUnit guarantee that tests within the same class run sequentially?](#q21-does-xunit-guarantee-that-tests-within-the-same-class-run-sequentially)
+22. [Q22. If `GradeCalculator.GetLetterGrade` uses a chain of `if/else if` statements and you only test score 95, what percentage of your branches are covered?](#q22-if-gradecalculatorgetlettergrade-uses-a-chain-of-ifelse-if-statements-and-you-only-test-score-95-what-percentage-of-your-branches-are-covered)
+23. [Q23. What happens if you throw `Exception` instead of `ArgumentOutOfRangeException` in `GetLetterGrade`, and your test asserts `Assert.Throws<ArgumentOutOfRangeException>`?](#q23-what-happens-if-you-throw-exception-instead-of-argumentoutofrangeexception-in-getlettergrade-and-your-test-asserts-assertthrowsargumentoutofrangeexception)
+24. [Q24. Can two test methods in different test classes have the same name without causing a conflict in xUnit?](#q24-can-two-test-methods-in-different-test-classes-have-the-same-name-without-causing-a-conflict-in-xunit)
+25. [Q25. You inherit a `GradeCalculator` with the following test file. Identify the defects and propose fixes.](#q25-you-inherit-a-gradecalculator-with-the-following-test-file-identify-the-defects-and-propose-fixes)
+26. [Q26. A new developer on your team asks why the test project has both `GradeCalculatorTests` and `GradeCalculatorValidationTests` classes instead of one big class. How do you explain the design decision?](#q26-a-new-developer-on-your-team-asks-why-the-test-project-has-both-gradecalculatortests-and-gradecalculatorvalidationtests-classes-instead-of-one-big-class-how-do-you-explain-the-design-decision)
+27. [Q27. Your team decides to add a `GetLetterGrade` overload that accepts a `double` score for weighted grades. How would you approach writing unit tests before implementing the method (TDD style)?](#q27-your-team-decides-to-add-a-getlettergrade-overload-that-accepts-a-double-score-for-weighted-grades-how-would-you-approach-writing-unit-tests-before-implementing-the-method-tdd-style)
+28. [Q28. A CI build is showing intermittent test failures in the `GradeCalculatorTests` suite — sometimes three tests pass, sometimes two. The failures are non-deterministic. What do you investigate?](#q28-a-ci-build-is-showing-intermittent-test-failures-in-the-gradecalculatortests-suite-sometimes-three-tests-pass-sometimes-two-the-failures-are-non-deterministic-what-do-you-investigate)
+29. [Q29. Your manager asks you to add code coverage to the CI pipeline and enforce a minimum of 80% branch coverage. How do you set this up with .NET 10 and Coverlet?](#q29-your-manager-asks-you-to-add-code-coverage-to-the-ci-pipeline-and-enforce-a-minimum-of-80-branch-coverage-how-do-you-set-this-up-with-net-10-and-coverlet)
+30. [Q30. A colleague argues that writing tests for `GradeCalculator` is unnecessary because the logic is simple. How do you counter this argument?](#q30-a-colleague-argues-that-writing-tests-for-gradecalculator-is-unnecessary-because-the-logic-is-simple-how-do-you-counter-this-argument)
+
+---
 ## Q1. What is the Arrange-Act-Assert (AAA) pattern and why is it the standard structure for unit tests?
 
 **Concepts**

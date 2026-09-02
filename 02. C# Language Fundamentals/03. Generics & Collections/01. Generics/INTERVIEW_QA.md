@@ -1,5 +1,38 @@
-# C# Generics — Interview Q&A
+﻿# C# Generics — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are generics in C# and why were they introduced?](#q1-what-are-generics-in-c-and-why-were-they-introduced)
+2. [Q2. How do you declare a generic class and a generic method?](#q2-how-do-you-declare-a-generic-class-and-a-generic-method)
+3. [Q3. What are type constraints, and what kinds does C# support?](#q3-what-are-type-constraints-and-what-kinds-does-c-support)
+4. [Q4. What is the difference between an open generic type and a closed generic type?](#q4-what-is-the-difference-between-an-open-generic-type-and-a-closed-generic-type)
+5. [Q5. How does type inference work for generic methods?](#q5-how-does-type-inference-work-for-generic-methods)
+6. [Q6. What is `default(T)` and when would you use it?](#q6-what-is-defaultt-and-when-would-you-use-it)
+7. [Q7. How do generic interfaces work, and what is variance?](#q7-how-do-generic-interfaces-work-and-what-is-variance)
+8. [Q8. What is covariance and contravariance on generic delegates?](#q8-what-is-covariance-and-contravariance-on-generic-delegates)
+9. [Q9. How do generic collections differ from non-generic collections like `ArrayList` and `Hashtable`?](#q9-how-do-generic-collections-differ-from-non-generic-collections-like-arraylist-and-hashtable)
+10. [Q10. How do static fields behave in generic classes?](#q10-how-do-static-fields-behave-in-generic-classes)
+11. [Q11. How does reflection interact with generic types?](#q11-how-does-reflection-interact-with-generic-types)
+12. [Q12. What performance advantages do generics provide for value types?](#q12-what-performance-advantages-do-generics-provide-for-value-types)
+13. [Q13. What is a generic delegate and how do `Func<T>` and `Action<T>` fit in?](#q13-what-is-a-generic-delegate-and-how-do-funct-and-actiont-fit-in)
+14. [Q14. Can you use generics with interfaces that have multiple type parameters?](#q14-can-you-use-generics-with-interfaces-that-have-multiple-type-parameters)
+15. [Q15. What happens when you define a generic class that inherits from another generic class?](#q15-what-happens-when-you-define-a-generic-class-that-inherits-from-another-generic-class)
+16. [Q16. What is the `where T : unmanaged` constraint and when is it useful?](#q16-what-is-the-where-t-unmanaged-constraint-and-when-is-it-useful)
+17. [Q17. How do generic type parameters interact with nullable reference types (NRTs) in .NET 10?](#q17-how-do-generic-type-parameters-interact-with-nullable-reference-types-nrts-in-net-10)
+18. [Q18. How do generics support the repository pattern, and what does a generic base repository look like?](#q18-how-do-generics-support-the-repository-pattern-and-what-does-a-generic-base-repository-look-like)
+19. [Q19. Why is `List<Animal>` not assignable to `List<Cat>` even though `Cat` derives from `Animal`?](#q19-why-is-listanimal-not-assignable-to-listcat-even-though-cat-derives-from-animal)
+20. [Q20. Why does `static T _instance` in a generic class create a separate field per type argument?](#q20-why-does-static-t-instance-in-a-generic-class-create-a-separate-field-per-type-argument)
+21. [Q21. What goes wrong when you call a generic method via reflection but forget to call `MakeGenericMethod`?](#q21-what-goes-wrong-when-you-call-a-generic-method-via-reflection-but-forget-to-call-makegenericmethod)
+22. [Q22. Why can you not use a value type as a type argument when the constraint is `where T : class`?](#q22-why-can-you-not-use-a-value-type-as-a-type-argument-when-the-constraint-is-where-t-class)
+23. [Q23. What is the variance pitfall when assigning `IEnumerable<DerivedType>` to `IEnumerable<BaseType>` and then mutating through it?](#q23-what-is-the-variance-pitfall-when-assigning-ienumerablederivedtype-to-ienumerablebasetype-and-then-mutating-through-it)
+24. [Q24. You are reviewing a generic repository in an EF Core project. Identify the issues.](#q24-you-are-reviewing-a-generic-repository-in-an-ef-core-project-identify-the-issues)
+25. [Q25. A teammate registers a CQRS handler with open generics but requests fail silently. How do you diagnose and fix it?](#q25-a-teammate-registers-a-cqrs-handler-with-open-generics-but-requests-fail-silently-how-do-you-diagnose-and-fix-it)
+26. [Q26. You are designing a generic `Result<T>` type for operation outcomes. Discuss the design decisions.](#q26-you-are-designing-a-generic-resultt-type-for-operation-outcomes-discuss-the-design-decisions)
+27. [Q27. Your serializer must deserialize JSON into a generic type only known at runtime. How do you use reflection with generics to accomplish this?](#q27-your-serializer-must-deserialize-json-into-a-generic-type-only-known-at-runtime-how-do-you-use-reflection-with-generics-to-accomplish-this)
+28. [Q28. A high-frequency trading system processes market ticks stored in a generic ring buffer. The buffer performs poorly with value types. Diagnose and fix.](#q28-a-high-frequency-trading-system-processes-market-ticks-stored-in-a-generic-ring-buffer-the-buffer-performs-poorly-with-value-types-diagnose-and-fix)
+
+---
 > Topics: generic classes, generic methods, generic interfaces, type constraints, variance (covariance/contravariance), open vs closed generic types, type inference, generic collections vs non-generic, reflection with generics, performance benefits of generics
 
 ---

@@ -1,5 +1,34 @@
-# 04. Path & Environment Classes — Interview Q&A
+﻿# 04. Path & Environment Classes — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. Why should you use `Path.Combine` instead of string concatenation with `"\\"` or `"/"`?](#q1-why-should-you-use-pathcombine-instead-of-string-concatenation-with-or)
+2. [Q2. What happens when a segment passed to `Path.Combine` is already a rooted (absolute) path?](#q2-what-happens-when-a-segment-passed-to-pathcombine-is-already-a-rooted-absolute-path)
+3. [Q3. What do `Path.GetFileName`, `Path.GetFileNameWithoutExtension`, and `Path.GetExtension` return?](#q3-what-do-pathgetfilename-pathgetfilenamewithoutextension-and-pathgetextension-return)
+4. [Q4. What does `Path.GetDirectoryName` return, and what is its edge case with null?](#q4-what-does-pathgetdirectoryname-return-and-what-is-its-edge-case-with-null)
+5. [Q5. How does `Path.ChangeExtension` differ from manual string slicing?](#q5-how-does-pathchangeextension-differ-from-manual-string-slicing)
+6. [Q6. What does `Path.GetFullPath` do, and what are its pitfalls?](#q6-what-does-pathgetfullpath-do-and-what-are-its-pitfalls)
+7. [Q7. What is the difference between `Path.IsPathRooted` and `Path.GetPathRoot`?](#q7-what-is-the-difference-between-pathispathrooted-and-pathgetpathroot)
+8. [Q8. What are `Path.DirectorySeparatorChar` and `Path.AltDirectorySeparatorChar`?](#q8-what-are-pathdirectoryseparatorchar-and-pathaltdirectoryseparatorchar)
+9. [Q9. What is `Path.GetTempPath()` and when should you use it?](#q9-what-is-pathgettemppath-and-when-should-you-use-it)
+10. [Q10. What does `Path.GetTempFileName()` do differently from `Path.GetTempPath()`?](#q10-what-does-pathgettempfilename-do-differently-from-pathgettemppath)
+11. [Q11. What is the difference between `Environment.CurrentDirectory` and `AppContext.BaseDirectory`?](#q11-what-is-the-difference-between-environmentcurrentdirectory-and-appcontextbasedirectory)
+12. [Q12. What is `Environment.GetFolderPath(SpecialFolder)`, and why is it preferable to hardcoded paths?](#q12-what-is-environmentgetfolderpathspecialfolder-and-why-is-it-preferable-to-hardcoded-paths)
+13. [Q13. What is the difference between `SpecialFolder.ApplicationData` (roaming) and `SpecialFolder.LocalApplicationData` (local)?](#q13-what-is-the-difference-between-specialfolderapplicationdata-roaming-and-specialfolderlocalapplicationdata-local)
+14. [Q14. What is `SpecialFolder.UserProfile`, and when do you use it instead of `MyDocuments`?](#q14-what-is-specialfolderuserprofile-and-when-do-you-use-it-instead-of-mydocuments)
+15. [Q15. How do `Environment.MachineName` and `Environment.UserName` help build stable log or data paths?](#q15-how-do-environmentmachinename-and-environmentusername-help-build-stable-log-or-data-paths)
+16. [Q16. What are the cross-platform path differences between Windows and Linux/macOS?](#q16-what-are-the-cross-platform-path-differences-between-windows-and-linuxmacos)
+17. [Q17. (Gotcha) Why does `Path.GetFullPath` in a unit test resolve to a completely different path than in production?](#q17-gotcha-why-does-pathgetfullpath-in-a-unit-test-resolve-to-a-completely-different-path-than-in-production)
+18. [Q18. (Gotcha) What are the consequences of calling `Path.GetTempFileName()` in a request handler without cleanup?](#q18-gotcha-what-are-the-consequences-of-calling-pathgettempfilename-in-a-request-handler-without-cleanup)
+19. [Q19. (Gotcha) Why does `Path.Combine("ignored", "/etc/hosts")` silently discard "ignored" on Linux?](#q19-gotcha-why-does-pathcombineignored-etchosts-silently-discard-ignored-on-linux)
+20. [Q20. (Scenario R) A service builds a config path by string concatenation — fails on Linux and when `basePath` ends with a separator.](#q20-scenario-r-a-service-builds-a-config-path-by-string-concatenation-fails-on-linux-and-when-basepath-ends-with-a-separator)
+21. [Q21. (Scenario R) An integration test sets `CurrentDirectory` to a test folder; production code uses `Path.GetFullPath("data/config.json")` and resolves the wrong path in CI.](#q21-scenario-r-an-integration-test-sets-currentdirectory-to-a-test-folder-production-code-uses-pathgetfullpathdataconfigjson-and-resolves-the-wrong-path-in-ci)
+22. [Q22. (Scenario R) Application stores data under `"C:\\ProgramData\\MyApp"` hardcoded — fails in Azure, containers, and D-drive installs.](#q22-scenario-r-application-stores-data-under-cprogramdatamyapp-hardcoded-fails-in-azure-containers-and-d-drive-installs)
+23. [Q23. (Scenario M) An API handler calls `Path.GetTempFileName()` per request but never deletes the file — disk fills over time.](#q23-scenario-m-an-api-handler-calls-pathgettempfilename-per-request-but-never-deletes-the-file-disk-fills-over-time)
+24. [Q24. (Scenario D) A cross-platform CLI tool uses `Path.Combine("C:", "exports", "output.csv")` — on Linux "C:" is treated as a relative folder name. What is the correct approach?](#q24-scenario-d-a-cross-platform-cli-tool-uses-pathcombinec-exports-outputcsv-on-linux-c-is-treated-as-a-relative-folder-name-what-is-the-correct-approach)
+
+---
 > Back to [Module Index](../INTERVIEW_QA.md)
 
 ---

@@ -1,5 +1,37 @@
-# Interview Q&A — C# Exception Handling
+﻿# Interview Q&A — C# Exception Handling
 
+
+## Table of Contents
+
+1. [Q1. What is the execution order of try / catch / finally, and when does each block run?](#q1-what-is-the-execution-order-of-try-catch-finally-and-when-does-each-block-run)
+2. [Q2. How is the .NET exception hierarchy structured, and where do custom domain exceptions fit?](#q2-how-is-the-net-exception-hierarchy-structured-and-where-do-custom-domain-exceptions-fit)
+3. [Q3. Why must catch clauses be ordered from most specific to most general, and what happens if they are not?](#q3-why-must-catch-clauses-be-ordered-from-most-specific-to-most-general-and-what-happens-if-they-are-not)
+4. [Q4. What is the difference between `throw;` and `throw ex;`, and why does it matter?](#q4-what-is-the-difference-between-throw-and-throw-ex-and-why-does-it-matter)
+5. [Q5. When does `finally` NOT run?](#q5-when-does-finally-not-run)
+6. [Q6. How do you design a custom exception class in C#, and what constructors should it expose?](#q6-how-do-you-design-a-custom-exception-class-in-c-and-what-constructors-should-it-expose)
+7. [Q7. What is an inner exception, how do you create one, and how do you walk the chain?](#q7-what-is-an-inner-exception-how-do-you-create-one-and-how-do-you-walk-the-chain)
+8. [Q8. What exception properties are most valuable in production logging, and which should never be exposed to end users?](#q8-what-exception-properties-are-most-valuable-in-production-logging-and-which-should-never-be-exposed-to-end-users)
+9. [Q9. How do exception filters (`catch when`) work, and what are the rules for when they run?](#q9-how-do-exception-filters-catch-when-work-and-what-are-the-rules-for-when-they-run)
+10. [Q10. What is `AggregateException`, when does the runtime produce one, and how do you handle it correctly?](#q10-what-is-aggregateexception-when-does-the-runtime-produce-one-and-how-do-you-handle-it-correctly)
+11. [Q11. What is `ExceptionDispatchInfo` and what problem does it solve compared to plain rethrow?](#q11-what-is-exceptiondispatchinfo-and-what-problem-does-it-solve-compared-to-plain-rethrow)
+12. [Q12. When should you use `ArgumentException` and its subtypes instead of a custom domain exception?](#q12-when-should-you-use-argumentexception-and-its-subtypes-instead-of-a-custom-domain-exception)
+13. [Q13. How does the `using` statement provide exception-safe resource cleanup, and what does the compiler emit?](#q13-how-does-the-using-statement-provide-exception-safe-resource-cleanup-and-what-does-the-compiler-emit)
+14. [Q14. What are the key anti-patterns in exception handling, and why is each one harmful?](#q14-what-are-the-key-anti-patterns-in-exception-handling-and-why-is-each-one-harmful)
+15. [Q15. What is the difference between `Exception.Message` and logging the exception object itself?](#q15-what-is-the-difference-between-exceptionmessage-and-logging-the-exception-object-itself)
+16. [Q16. What does `ObjectDisposedException` indicate, and how should `IDisposable` types guard against use-after-dispose?](#q16-what-does-objectdisposedexception-indicate-and-how-should-idisposable-types-guard-against-use-after-dispose)
+17. [Q17. A `catch when` filter is evaluated but the type matches — can the exception still escape?](#q17-a-catch-when-filter-is-evaluated-but-the-type-matches-can-the-exception-still-escape)
+18. [Q18. If an exception is thrown inside a `finally` block, what happens to the original exception?](#q18-if-an-exception-is-thrown-inside-a-finally-block-what-happens-to-the-original-exception)
+19. [Q19. When you `await Task.WhenAll(...)`, which exceptions do you see in the catch block?](#q19-when-you-await-taskwhenall-which-exceptions-do-you-see-in-the-catch-block)
+20. [Q20. What happens if you rethrow an exception using `throw;` when you captured it with `ExceptionDispatchInfo.Throw()`?](#q20-what-happens-if-you-rethrow-an-exception-using-throw-when-you-captured-it-with-exceptiondispatchinfothrow)
+21. [Q21. Can a `catch (Exception)` block catch a `StackOverflowException` or `OutOfMemoryException`?](#q21-can-a-catch-exception-block-catch-a-stackoverflowexception-or-outofmemoryexception)
+22. [Q22. (R) A teammate's order service method logs exceptions before rethrowing. Review this code and identify all defects.](#q22-r-a-teammates-order-service-method-logs-exceptions-before-rethrowing-review-this-code-and-identify-all-defects)
+23. [Q23. (R) A nightly reconciliation job wraps each order in try/catch but support reports "job succeeded" while ledger rows are missing after gateway timeouts. Find all defects.](#q23-r-a-nightly-reconciliation-job-wraps-each-order-in-trycatch-but-support-reports-job-succeeded-while-ledger-rows-are-missing-after-gateway-timeouts-find-all-defects)
+24. [Q24. (R) A junior developer refactors the audit writer to avoid `using`, but audit entries are incomplete in production. Identify all defects.](#q24-r-a-junior-developer-refactors-the-audit-writer-to-avoid-using-but-audit-entries-are-incomplete-in-production-identify-all-defects)
+25. [Q25. (D) A team-wide discussion: when should a service use `AggregateException` handling for parallel order processing vs awaiting tasks individually?](#q25-d-a-team-wide-discussion-when-should-a-service-use-aggregateexception-handling-for-parallel-order-processing-vs-awaiting-tasks-individually)
+26. [Q26. (D) An ASP.NET Core .NET 10 API currently returns a raw 500 HTML page for unhandled domain exceptions. Design a centralized exception-handling strategy.](#q26-d-an-aspnet-core-net-10-api-currently-returns-a-raw-500-html-page-for-unhandled-domain-exceptions-design-a-centralized-exception-handling-strategy)
+27. [Q27. (P) A high-volume pricing service validates millions of SKU lookups per second. A code review reveals it uses `try/catch` to detect missing SKUs. Redesign it.](#q27-p-a-high-volume-pricing-service-validates-millions-of-sku-lookups-per-second-a-code-review-reveals-it-uses-trycatch-to-detect-missing-skus-redesign-it)
+
+---
 > Folder: `02. C# Language Fundamentals/01. C# Basics - Done/10. Exception Handling - Done`
 > Source: `Program.cs` — Order/payment domain; custom exceptions, filters, rethrow, using, anti-patterns.
 

@@ -1,5 +1,27 @@
-# C# 7 Features — Interview Q&A
+﻿# C# 7 Features — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are C# 7 tuples and how do named tuples improve readability?](#q1-what-are-c-7-tuples-and-how-do-named-tuples-improve-readability)
+2. [Q2. What is C# 7 pattern matching with is and when guards in switch?](#q2-what-is-c-7-pattern-matching-with-is-and-when-guards-in-switch)
+3. [Q3. What are local functions and what advantages do they have over lambdas?](#q3-what-are-local-functions-and-what-advantages-do-they-have-over-lambdas)
+4. [Q4. What are out variables in C# 7 and how did they simplify TryParse patterns?](#q4-what-are-out-variables-in-c-7-and-how-did-they-simplify-tryparse-patterns)
+5. [Q5. What are ref returns and ref locals, and what are their constraints?](#q5-what-are-ref-returns-and-ref-locals-and-what-are-their-constraints)
+6. [Q6. What are throw expressions in C# 7 and how do they enable cleaner guard clauses?](#q6-what-are-throw-expressions-in-c-7-and-how-do-they-enable-cleaner-guard-clauses)
+7. [Q7. What are binary literals and digit separators, and when are they useful?](#q7-what-are-binary-literals-and-digit-separators-and-when-are-they-useful)
+8. [Q8. What is ValueTask and how does it differ from Task for performance-sensitive methods?](#q8-what-is-valuetask-and-how-does-it-differ-from-task-for-performance-sensitive-methods)
+9. [Q9. What is tuple deconstruction and how does it work with out parameters?](#q9-what-is-tuple-deconstruction-and-how-does-it-work-with-out-parameters)
+10. [Q10. What is the async Main method and why does it matter?](#q10-what-is-the-async-main-method-and-why-does-it-matter)
+11. [Q11. Why does case ordering in C# 7 switch-when produce unreachable arms silently?](#q11-why-does-case-ordering-in-c-7-switch-when-produce-unreachable-arms-silently)
+12. [Q12. Why can a ValueTask not be awaited twice and what breaks when it is?](#q12-why-can-a-valuetask-not-be-awaited-twice-and-what-breaks-when-it-is)
+13. [Q13. Why do local functions that capture outer variables cause unexpected concurrency behavior when parallelized?](#q13-why-do-local-functions-that-capture-outer-variables-cause-unexpected-concurrency-behavior-when-parallelized)
+14. [Q14. What are the ref return constraints and why do ref locals break inside async methods?](#q14-what-are-the-ref-return-constraints-and-why-do-ref-locals-break-inside-async-methods)
+15. [Q15. (Code Review) VIP orders are routed to the standard express lane. Review the switch.](#q15-code-review-vip-orders-are-routed-to-the-standard-express-lane-review-the-switch)
+16. [Q16. A batch job uses a local function with captured state and concurrency. Review the race conditions.](#q16-a-batch-job-uses-a-local-function-with-captured-state-and-concurrency-review-the-race-conditions)
+17. [Q17. (Design) When should a method return a named tuple versus a dedicated result class?](#q17-design-when-should-a-method-return-a-named-tuple-versus-a-dedicated-result-class)
+
+---
 > **Module:** 02. C# Language Fundamentals › 08. Advanced C# Features › 05. C# 7 Features  
 > **Stack:** .NET 10 · C# 7.0–7.3
 

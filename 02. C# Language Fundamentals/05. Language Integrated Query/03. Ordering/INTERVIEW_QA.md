@@ -1,7 +1,33 @@
-# LINQ: Ordering — Interview Q&A
+﻿# LINQ: Ordering — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does `OrderBy` do and what is its return type?](#q1-what-does-orderby-do-and-what-is-its-return-type)
+2. [Q2. How does `OrderByDescending` differ from `OrderBy`?](#q2-how-does-orderbydescending-differ-from-orderby)
+3. [Q3. What is `ThenBy` and why must it follow `OrderBy`?](#q3-what-is-thenby-and-why-must-it-follow-orderby)
+4. [Q4. Is LINQ's `OrderBy` a stable sort?](#q4-is-linqs-orderby-a-stable-sort)
+5. [Q5. How do you perform a case-insensitive sort with LINQ?](#q5-how-do-you-perform-a-case-insensitive-sort-with-linq)
+6. [Q6. How do you sort by multiple fields with different directions?](#q6-how-do-you-sort-by-multiple-fields-with-different-directions)
+7. [Q7. What is the difference between `Reverse` and `OrderByDescending`?](#q7-what-is-the-difference-between-reverse-and-orderbydescending)
+8. [Q8. How does sorting interact with deferred execution?](#q8-how-does-sorting-interact-with-deferred-execution)
+9. [Q9. How do you implement a custom sort order with IComparer<T>?](#q9-how-do-you-implement-a-custom-sort-order-with-icomparert)
+10. [Q10. What happens if the key selector in OrderBy returns null?](#q10-what-happens-if-the-key-selector-in-orderby-returns-null)
+11. [Q11. Can you call `OrderBy` inside a `Select` projection?](#q11-can-you-call-orderby-inside-a-select-projection)
+12. [Q12. What is the performance implication of sorting vs. filtering order?](#q12-what-is-the-performance-implication-of-sorting-vs-filtering-order)
+13. [Q13. How do you sort a list in-place vs. using LINQ?](#q13-how-do-you-sort-a-list-in-place-vs-using-linq)
+14. [Q14. How does LINQ ordering work with `IQueryable<T>` in EF Core?](#q14-how-does-linq-ordering-work-with-iqueryablet-in-ef-core)
+15. [Q15. Why does calling `OrderBy` twice produce different results than `OrderBy` + `ThenBy`? (Gotcha)](#q15-why-does-calling-orderby-twice-produce-different-results-than-orderby-thenby-gotcha)
+16. [Q16. Does `OrderBy` preserve null elements in the sequence? (Gotcha)](#q16-does-orderby-preserve-null-elements-in-the-sequence-gotcha)
+17. [Q17. Can `OrderBy` be applied to `IEnumerable<dynamic>`? (Gotcha)](#q17-can-orderby-be-applied-to-ienumerabledynamic-gotcha)
+18. [Q18. How does LINQ ordering handle comparison of custom struct types?](#q18-how-does-linq-ordering-handle-comparison-of-custom-struct-types)
+19. [Q19. Scenario: A paginated API returns inconsistent results across pages because records appear on multiple pages or are skipped. What is the root cause? (Scenario)](#q19-scenario-a-paginated-api-returns-inconsistent-results-across-pages-because-records-appear-on-multiple-pages-or-are-skipped-what-is-the-root-cause-scenario)
+20. [Q20. Scenario: A developer sorts a list of customer names but users report the sort is wrong for names containing accented characters. What is happening? (Scenario)](#q20-scenario-a-developer-sorts-a-list-of-customer-names-but-users-report-the-sort-is-wrong-for-names-containing-accented-characters-what-is-happening-scenario)
+21. [Q21. Scenario: A code review reveals a developer using repeated `OrderBy` calls to build a dynamic multi-column sort. What would you suggest? (Scenario)](#q21-scenario-a-code-review-reveals-a-developer-using-repeated-orderby-calls-to-build-a-dynamic-multi-column-sort-what-would-you-suggest-scenario)
+
+---
 ## Q1. What does `OrderBy` do and what is its return type?
 
 **Concepts**

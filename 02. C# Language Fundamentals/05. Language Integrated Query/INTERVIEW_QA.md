@@ -22,6 +22,10 @@ Cross-cutting questions that require reasoning across multiple LINQ topics simul
 
 ---
 
+## Cross-Cutting Questions
+
+---
+
 ## CQ1. How does deferred execution interact with set operations, and what are the correctness traps when a source collection mutates between pipeline stages?
 
 **Concepts**

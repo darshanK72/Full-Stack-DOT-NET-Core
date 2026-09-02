@@ -1,7 +1,40 @@
-# SortedList&lt;TKey,TValue&gt; & SortedDictionary&lt;TKey,TValue&gt; — Interview Q&A
+﻿# SortedList&lt;TKey,TValue&gt; & SortedDictionary&lt;TKey,TValue&gt; — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is `SortedList<TKey,TValue>` and how does it maintain sorted order internally?](#q1-what-is-sortedlisttkeytvalue-and-how-does-it-maintain-sorted-order-internally)
+2. [Q2. What is `SortedDictionary<TKey,TValue>` and what data structure underpins it?](#q2-what-is-sorteddictionarytkeytvalue-and-what-data-structure-underpins-it)
+3. [Q3. What are the time-complexity guarantees for `Add`, lookup by key, and `Remove` for both sorted collection types?](#q3-what-are-the-time-complexity-guarantees-for-add-lookup-by-key-and-remove-for-both-sorted-collection-types)
+4. [Q4. How does `Keys[i]` on `SortedList` differ from what is available on `SortedDictionary`?](#q4-how-does-keysi-on-sortedlist-differ-from-what-is-available-on-sorteddictionary)
+5. [Q5. What is `IComparer<T>` and how does it differ from `IEqualityComparer<T>`?](#q5-what-is-icomparert-and-how-does-it-differ-from-iequalitycomparert)
+6. [Q6. How do you supply a custom sort order to `SortedList` or `SortedDictionary`?](#q6-how-do-you-supply-a-custom-sort-order-to-sortedlist-or-sorteddictionary)
+7. [Q7. What does `IndexOfKey` do on `SortedList` and what algorithm does it use?](#q7-what-does-indexofkey-do-on-sortedlist-and-what-algorithm-does-it-use)
+8. [Q8. What exception does `Add` throw when a duplicate key is inserted, and how does the indexer behave differently?](#q8-what-exception-does-add-throw-when-a-duplicate-key-is-inserted-and-how-does-the-indexer-behave-differently)
+9. [Q9. What is the `Capacity` property on `SortedList` and when would you call `TrimExcess`?](#q9-what-is-the-capacity-property-on-sortedlist-and-when-would-you-call-trimexcess)
+10. [Q10. What is `SortedSet<T>` and how does it compare to `SortedList` and `SortedDictionary`?](#q10-what-is-sortedsett-and-how-does-it-compare-to-sortedlist-and-sorteddictionary)
+11. [Q11. When should you prefer `SortedList` over `SortedDictionary` in practice?](#q11-when-should-you-prefer-sortedlist-over-sorteddictionary-in-practice)
+12. [Q12. How do `ContainsKey` and `ContainsValue` differ in time complexity on `SortedList`?](#q12-how-do-containskey-and-containsvalue-differ-in-time-complexity-on-sortedlist)
+13. [Q13. What is the non-generic `SortedList` and why should it be avoided in modern code?](#q13-what-is-the-non-generic-sortedlist-and-why-should-it-be-avoided-in-modern-code)
+14. [Q14. What interfaces does `SortedList<TKey,TValue>` implement that `SortedDictionary<TKey,TValue>` does not?](#q14-what-interfaces-does-sortedlisttkeytvalue-implement-that-sorteddictionarytkeytvalue-does-not)
+15. [Q15. What happens at runtime when `TKey` has no `IComparable<TKey>` implementation and no `IComparer<TKey>` is supplied?](#q15-what-happens-at-runtime-when-tkey-has-no-icomparabletkey-implementation-and-no-icomparertkey-is-supplied)
+16. [Q16. How does `Comparer<T>.Default` determine which ordering to use for a type?](#q16-how-does-comparertdefault-determine-which-ordering-to-use-for-a-type)
+17. [Q17. How do sorted collections handle thread safety, and what options exist for concurrent sorted scenarios?](#q17-how-do-sorted-collections-handle-thread-safety-and-what-options-exist-for-concurrent-sorted-scenarios)
+18. [Q18. Why does `sortedDict.Keys[0]` fail to compile even though `sortedList.Keys[0]` works fine?](#q18-why-does-sorteddictkeys0-fail-to-compile-even-though-sortedlistkeys0-works-fine)
+19. [Q19. What happens when you pass `IEqualityComparer<TKey>` instead of `IComparer<TKey>` to a sorted collection constructor?](#q19-what-happens-when-you-pass-iequalitycomparertkey-instead-of-icomparertkey-to-a-sorted-collection-constructor)
+20. [Q20. How can a locale-sensitive `StringComparer` cause duplicate logical keys in a sorted map on a different server?](#q20-how-can-a-locale-sensitive-stringcomparer-cause-duplicate-logical-keys-in-a-sorted-map-on-a-different-server)
+21. [Q21. Why does `SortedList` perform poorly when entries are inserted in random order at large scale?](#q21-why-does-sortedlist-perform-poorly-when-entries-are-inserted-in-random-order-at-large-scale)
+22. [Q22. How can comparing two keys that are equal by reference still result in a sorted collection treating them as different keys?](#q22-how-can-comparing-two-keys-that-are-equal-by-reference-still-result-in-a-sorted-collection-treating-them-as-different-keys)
+23. [Q23. A price-catalog API returns the cheapest and most expensive SKUs on every request. A developer writes the following. Review it.](#q23-a-price-catalog-api-returns-the-cheapest-and-most-expensive-skus-on-every-request-a-developer-writes-the-following-review-it)
+24. [Q24. A telemetry service ingests zone-level pallet counts every few seconds. A developer writes the following hot-path upsert. Review it.](#q24-a-telemetry-service-ingests-zone-level-pallet-counts-every-few-seconds-a-developer-writes-the-following-hot-path-upsert-review-it)
+25. [Q25. A catalog normalization service stores product tags in a sorted map with case-insensitive key matching. After deploying to a Turkish-locale server, QA reports duplicate entries for tags such as `"image"` and `"IMAGE"`. A developer writes the following. Review it.](#q25-a-catalog-normalization-service-stores-product-tags-in-a-sorted-map-with-case-insensitive-key-matching-after-deploying-to-a-turkish-locale-server-qa-reports-duplicate-entries-for-tags-such-as-image-and-image-a-developer-writes-the-following-review-it)
+26. [Q26. You are building a game leaderboard API. The board holds up to 10,000 active players and must return the top-10 entries sorted by score descending, then by player name ascending as a tiebreaker. Describe your design using sorted collections.](#q26-you-are-building-a-game-leaderboard-api-the-board-holds-up-to-10000-active-players-and-must-return-the-top-10-entries-sorted-by-score-descending-then-by-player-name-ascending-as-a-tiebreaker-describe-your-design-using-sorted-collections)
+27. [Q27. A scheduling service stores calendar events keyed by `DateOnly`. On each request it must return all events that fall within a user-supplied date window efficiently. How would you implement this with sorted collections, and what are the trade-offs?](#q27-a-scheduling-service-stores-calendar-events-keyed-by-dateonly-on-each-request-it-must-return-all-events-that-fall-within-a-user-supplied-date-window-efficiently-how-would-you-implement-this-with-sorted-collections-and-what-are-the-trade-offs)
+28. [Q28. A developer migrates a `Dictionary<string, int>` helper to a sorted collection and copies the existing custom comparer. Review the following.](#q28-a-developer-migrates-a-dictionarystring-int-helper-to-a-sorted-collection-and-copies-the-existing-custom-comparer-review-the-following)
+
+---
 ## Foundation Questions
 
 ---

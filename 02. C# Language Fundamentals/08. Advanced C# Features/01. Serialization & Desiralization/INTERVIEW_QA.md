@@ -1,5 +1,31 @@
-# Serialization & Deserialization — Interview Q&A
+﻿# Serialization & Deserialization — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is serialization and what problem does it solve?](#q1-what-is-serialization-and-what-problem-does-it-solve)
+2. [Q2. How does System.Text.Json differ from Newtonsoft.Json (Json.NET)?](#q2-how-does-systemtextjson-differ-from-newtonsoftjson-jsonnet)
+3. [Q3. What does [JsonPropertyName] do, and when would you use it?](#q3-what-does-jsonpropertyname-do-and-when-would-you-use-it)
+4. [Q4. What is JsonSerializerOptions and what are the most important settings for a production API?](#q4-what-is-jsonserializeroptions-and-what-are-the-most-important-settings-for-a-production-api)
+5. [Q5. How does [JsonIgnore] work and what is [JsonInclude] for?](#q5-how-does-jsonignore-work-and-what-is-jsoninclude-for)
+6. [Q6. Explain how System.Text.Json handles missing and extra JSON properties during deserialization.](#q6-explain-how-systemtextjson-handles-missing-and-extra-json-properties-during-deserialization)
+7. [Q7. How do you serialize enums as strings rather than integers?](#q7-how-do-you-serialize-enums-as-strings-rather-than-integers)
+8. [Q8. What is a custom JsonConverter and when would you write one?](#q8-what-is-a-custom-jsonconverter-and-when-would-you-write-one)
+9. [Q9. How does ReferenceHandler.IgnoreCycles differ from ReferenceHandler.Preserve?](#q9-how-does-referencehandlerignorecycles-differ-from-referencehandlerpreserve)
+10. [Q10. What are the requirements for XmlSerializer to work on a type?](#q10-what-are-the-requirements-for-xmlserializer-to-work-on-a-type)
+11. [Q11. Why is BinaryFormatter obsolete and dangerous?](#q11-why-is-binaryformatter-obsolete-and-dangerous)
+12. [Q12. What is JsonNode and when would you use it instead of a typed class?](#q12-what-is-jsonnode-and-when-would-you-use-it-instead-of-a-typed-class)
+13. [Q13. Why does creating a new JsonSerializerOptions per call cause performance problems?](#q13-why-does-creating-a-new-jsonserializeroptions-per-call-cause-performance-problems)
+14. [Q14. What is the ReferenceHandler.IgnoreCycles trap when serializing parent/child object graphs?](#q14-what-is-the-referencehandlerignorecycles-trap-when-serializing-parentchild-object-graphs)
+15. [Q15. What happens when you deserialize a bool property from a payload that omits the field entirely?](#q15-what-happens-when-you-deserialize-a-bool-property-from-a-payload-that-omits-the-field-entirely)
+16. [Q16. Why does WriteIndented = true hurt performance in production APIs?](#q16-why-does-writeindented-true-hurt-performance-in-production-apis)
+17. [Q17. What fails when you call new XmlSerializer(typeof(T)) inside a hot loop?](#q17-what-fails-when-you-call-new-xmlserializertypeoft-inside-a-hot-loop)
+18. [Q18. (Code Review) A Redis-backed session service deserializes cached JSON on every request. Review this code — what breaks under load or attack, and what do you fix first?](#q18-code-review-a-redis-backed-session-service-deserializes-cached-json-on-every-request-review-this-code-what-breaks-under-load-or-attack-and-what-do-you-fix-first)
+19. [Q19. (Code Review) A partner integration writes invoice lines to XML nightly; the job fails with InvalidOperationException. Review the model and serializer usage.](#q19-code-review-a-partner-integration-writes-invoice-lines-to-xml-nightly-the-job-fails-with-invalidoperationexception-review-the-model-and-serializer-usage)
+20. [Q20. A production service still reads .bin session files produced by BinaryFormatter. You must migrate to System.Text.Json without downtime. What is your rollout strategy, and why is "just flip a switch" unsafe?](#q20-a-production-service-still-reads-bin-session-files-produced-by-binaryformatter-you-must-migrate-to-systemtextjson-without-downtime-what-is-your-rollout-strategy-and-why-is-just-flip-a-switch-unsafe)
+21. [Q21. A config-sync worker reads JSON settings files from a shared folder (any authenticated internal user can drop files). What runtime and security issues appear when arbitrary JSON lands in the FeatureFlags dictionary?](#q21-a-config-sync-worker-reads-json-settings-files-from-a-shared-folder-any-authenticated-internal-user-can-drop-files-what-runtime-and-security-issues-appear-when-arbitrary-json-lands-in-the-featureflags-dictionary)
+
+---
 > **Module:** 02. C# Language Fundamentals › 08. Advanced C# Features › 01. Serialization & Deserialization  
 > **Stack:** .NET 10 · System.Text.Json · XmlSerializer · BinaryFormatter (legacy)
 

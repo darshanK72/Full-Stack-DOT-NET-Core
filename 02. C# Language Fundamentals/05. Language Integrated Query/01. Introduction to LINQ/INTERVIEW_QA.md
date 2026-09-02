@@ -1,7 +1,38 @@
-# LINQ: Introduction to LINQ — Interview Q&A
+﻿# LINQ: Introduction to LINQ — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is LINQ and why was it introduced in C#?](#q1-what-is-linq-and-why-was-it-introduced-in-c)
+2. [Q2. What is the difference between query syntax and method syntax in LINQ?](#q2-what-is-the-difference-between-query-syntax-and-method-syntax-in-linq)
+3. [Q3. What is IEnumerable<T> and what role does it play in LINQ?](#q3-what-is-ienumerablet-and-what-role-does-it-play-in-linq)
+4. [Q4. Explain deferred execution in LINQ.](#q4-explain-deferred-execution-in-linq)
+5. [Q5. How do extension methods enable LINQ?](#q5-how-do-extension-methods-enable-linq)
+6. [Q6. What are lambda expressions and how are they used in LINQ?](#q6-what-are-lambda-expressions-and-how-are-they-used-in-linq)
+7. [Q7. What is the difference between IEnumerable<T> and IQueryable<T> in LINQ?](#q7-what-is-the-difference-between-ienumerablet-and-iqueryablet-in-linq)
+8. [Q8. What are anonymous types and how do they relate to LINQ projections?](#q8-what-are-anonymous-types-and-how-do-they-relate-to-linq-projections)
+9. [Q9. How do you write a LINQ query in query syntax?](#q9-how-do-you-write-a-linq-query-in-query-syntax)
+10. [Q10. What is the role of the `select` clause in LINQ?](#q10-what-is-the-role-of-the-select-clause-in-linq)
+11. [Q11. What is the `var` keyword's role in LINQ queries?](#q11-what-is-the-var-keywords-role-in-linq-queries)
+12. [Q12. What happens when you chain multiple LINQ operators together?](#q12-what-happens-when-you-chain-multiple-linq-operators-together)
+13. [Q13. How does LINQ handle null values in a sequence?](#q13-how-does-linq-handle-null-values-in-a-sequence)
+14. [Q14. What is the Enumerable class and what does it provide?](#q14-what-is-the-enumerable-class-and-what-does-it-provide)
+15. [Q15. What is LINQ to Objects?](#q15-what-is-linq-to-objects)
+16. [Q16. What are the benefits of using LINQ over traditional `foreach` loops?](#q16-what-are-the-benefits-of-using-linq-over-traditional-foreach-loops)
+17. [Q17. How do you use `let` in a query expression?](#q17-how-do-you-use-let-in-a-query-expression)
+18. [Q18. What is the `into` continuation clause in LINQ?](#q18-what-is-the-into-continuation-clause-in-linq)
+19. [Q19. Why does LINQ query syntax not support all operators? (Gotcha)](#q19-why-does-linq-query-syntax-not-support-all-operators-gotcha)
+20. [Q20. What is the difference between `First` and `Single`, and when does each throw? (Gotcha)](#q20-what-is-the-difference-between-first-and-single-and-when-does-each-throw-gotcha)
+21. [Q21. Why is re-enumerating a LINQ query potentially dangerous? (Gotcha)](#q21-why-is-re-enumerating-a-linq-query-potentially-dangerous-gotcha)
+22. [Q22. Does a LINQ query run immediately when it is written? (Gotcha)](#q22-does-a-linq-query-run-immediately-when-it-is-written-gotcha)
+23. [Q23. Scenario: A junior developer complains that a LINQ query is slow. How would you investigate? (Scenario)](#q23-scenario-a-junior-developer-complains-that-a-linq-query-is-slow-how-would-you-investigate-scenario)
+24. [Q24. Scenario: You need to expose a filtered, sorted, paged list from a service method. How do you design the LINQ pipeline? (Scenario)](#q24-scenario-you-need-to-expose-a-filtered-sorted-paged-list-from-a-service-method-how-do-you-design-the-linq-pipeline-scenario)
+25. [Q25. Scenario: A LINQ query in a background service is raising unexpected NullReferenceExceptions in production but not in tests. How do you diagnose it? (Scenario)](#q25-scenario-a-linq-query-in-a-background-service-is-raising-unexpected-nullreferenceexceptions-in-production-but-not-in-tests-how-do-you-diagnose-it-scenario)
+26. [Q26. Scenario: You are reviewing code where a coworker uses LINQ to Objects on a DbSet. What problems do you raise? (Scenario)](#q26-scenario-you-are-reviewing-code-where-a-coworker-uses-linq-to-objects-on-a-dbset-what-problems-do-you-raise-scenario)
+
+---
 ## Q1. What is LINQ and why was it introduced in C#?
 
 **Concepts**

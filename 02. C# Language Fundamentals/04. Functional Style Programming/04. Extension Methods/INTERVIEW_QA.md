@@ -1,5 +1,29 @@
-# C# Extension Methods — Interview Q&A
+﻿# C# Extension Methods — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are extension methods and how do you declare one?](#q1-what-are-extension-methods-and-how-do-you-declare-one)
+2. [Q2. What are the declaration requirements for an extension method class?](#q2-what-are-the-declaration-requirements-for-an-extension-method-class)
+3. [Q3. How does the compiler resolve a call when both an instance method and an extension method have the same name and compatible signatures?](#q3-how-does-the-compiler-resolve-a-call-when-both-an-instance-method-and-an-extension-method-have-the-same-name-and-compatible-signatures)
+4. [Q4. Can extension methods be defined for interfaces, and why is that useful?](#q4-can-extension-methods-be-defined-for-interfaces-and-why-is-that-useful)
+5. [Q5. What happens when you call an extension method on a null reference?](#q5-what-happens-when-you-call-an-extension-method-on-a-null-reference)
+6. [Q6. How do extension methods support fluent API and method chaining?](#q6-how-do-extension-methods-support-fluent-api-and-method-chaining)
+7. [Q7. Can extension methods access private members of the extended type?](#q7-can-extension-methods-access-private-members-of-the-extended-type)
+8. [Q8. What is a generic extension method and when would you write one?](#q8-what-is-a-generic-extension-method-and-when-would-you-write-one)
+9. [Q9. How does the `using` directive scope affect extension method discovery?](#q9-how-does-the-using-directive-scope-affect-extension-method-discovery)
+10. [Q10. Why can extension methods be defined on sealed classes and value types?](#q10-why-can-extension-methods-be-defined-on-sealed-classes-and-value-types)
+11. [Q11. How does LINQ use extension methods, and what makes `IEnumerable<T>` the right extension point?](#q11-how-does-linq-use-extension-methods-and-what-makes-ienumerablet-the-right-extension-point)
+12. [Q12. What are the risks of creating extension methods on very broad types like `object`?](#q12-what-are-the-risks-of-creating-extension-methods-on-very-broad-types-like-object)
+13. [Q13. An instance method added to a library you depend on silently breaks your extension method. Why does this happen and how do you detect it?](#q13-an-instance-method-added-to-a-library-you-depend-on-silently-breaks-your-extension-method-why-does-this-happen-and-how-do-you-detect-it)
+14. [Q14. Why does calling an extension method via an interface reference not dispatch to the concrete type's implementation?](#q14-why-does-calling-an-extension-method-via-an-interface-reference-not-dispatch-to-the-concrete-types-implementation)
+15. [Q15. Can you create an extension method for a delegate type, and what would that be useful for?](#q15-can-you-create-an-extension-method-for-a-delegate-type-and-what-would-that-be-useful-for)
+16. [Q16. Why can an extension method silently be called on a null reference without throwing, and is this always desirable?](#q16-why-can-an-extension-method-silently-be-called-on-a-null-reference-without-throwing-and-is-this-always-desirable)
+17. [Q17. You need to add domain-specific methods to a third-party `Result<T>` type you cannot modify. How do you design the extension method surface?](#q17-you-need-to-add-domain-specific-methods-to-a-third-party-resultt-type-you-cannot-modify-how-do-you-design-the-extension-method-surface)
+18. [Q18. You are implementing a fluent configuration API for a library. Walk through the design decisions for using extension methods vs a builder class.](#q18-you-are-implementing-a-fluent-configuration-api-for-a-library-walk-through-the-design-decisions-for-using-extension-methods-vs-a-builder-class)
+19. [Q19. You want to implement a custom LINQ-style operator `Batch<T>` that groups a sequence into chunks of a given size. Implement and explain the design.](#q19-you-want-to-implement-a-custom-linq-style-operator-batcht-that-groups-a-sequence-into-chunks-of-a-given-size-implement-and-explain-the-design)
+
+---
 ## Foundation Questions
 
 ---

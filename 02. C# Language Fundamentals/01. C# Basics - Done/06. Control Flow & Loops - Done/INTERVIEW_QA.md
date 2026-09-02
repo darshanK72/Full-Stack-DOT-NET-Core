@@ -1,7 +1,42 @@
-# Control Flow & Loops — Interview Q&A
+﻿# Control Flow & Loops — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. How does the if / else if / else chain evaluate its conditions, and what guarantee does it provide about which branch runs?](#q1-how-does-the-if-else-if-else-chain-evaluate-its-conditions-and-what-guarantee-does-it-provide-about-which-branch-runs)
+2. [Q2. What are the rules for break in a classic switch statement, and how do shared case labels differ from C-style fall-through?](#q2-what-are-the-rules-for-break-in-a-classic-switch-statement-and-how-do-shared-case-labels-differ-from-c-style-fall-through)
+3. [Q3. How does a switch expression differ from a switch statement, and what does the discard pattern _ represent?](#q3-how-does-a-switch-expression-differ-from-a-switch-statement-and-what-does-the-discard-pattern-represent)
+4. [Q4. What is a when guard in a switch arm, and how does it interact with the two-phase pattern-matching evaluation?](#q4-what-is-a-when-guard-in-a-switch-arm-and-how-does-it-interact-with-the-two-phase-pattern-matching-evaluation)
+5. [Q5. How is the for loop structured, and what is the off-by-one pitfall when choosing between < and <=?](#q5-how-is-the-for-loop-structured-and-what-is-the-off-by-one-pitfall-when-choosing-between-and)
+6. [Q6. How does the while loop differ from the for loop, and when is while the correct choice?](#q6-how-does-the-while-loop-differ-from-the-for-loop-and-when-is-while-the-correct-choice)
+7. [Q7. What distinguishes a do-while loop from a while loop, and when is do-while the right choice?](#q7-what-distinguishes-a-do-while-loop-from-a-while-loop-and-when-is-do-while-the-right-choice)
+8. [Q8. How does foreach work under the hood, and what contract must a type satisfy to be foreach-compatible?](#q8-how-does-foreach-work-under-the-hood-and-what-contract-must-a-type-satisfy-to-be-foreach-compatible)
+9. [Q9. What does break do in a loop context, and how does its behavior differ when break appears inside a switch nested within a loop?](#q9-what-does-break-do-in-a-loop-context-and-how-does-its-behavior-differ-when-break-appears-inside-a-switch-nested-within-a-loop)
+10. [Q10. What does continue do, and how does it differ from break in the context of a filtered foreach loop?](#q10-what-does-continue-do-and-how-does-it-differ-from-break-in-the-context-of-a-filtered-foreach-loop)
+11. [Q11. What is goto in C#, when is it permissible, and why should it be avoided in production code?](#q11-what-is-goto-in-c-when-is-it-permissible-and-why-should-it-be-avoided-in-production-code)
+12. [Q12. How do nested loops behave, and what is the performance implication of each additional nesting level?](#q12-how-do-nested-loops-behave-and-what-is-the-performance-implication-of-each-additional-nesting-level)
+13. [Q13. How does pattern matching work in a switch, and why does arm ordering determine correctness?](#q13-how-does-pattern-matching-work-in-a-switch-and-why-does-arm-ordering-determine-correctness)
+14. [Q14. What is loop variable capture in closures, and what unexpected behavior does it produce in a for loop?](#q14-what-is-loop-variable-capture-in-closures-and-what-unexpected-behavior-does-it-produce-in-a-for-loop)
+15. [Q15. What is an infinite loop, and what are the safe exit patterns for bounded-retry and server-loop scenarios?](#q15-what-is-an-infinite-loop-and-what-are-the-safe-exit-patterns-for-bounded-retry-and-server-loop-scenarios)
+16. [Q16. What is the discard pattern _ in switch expressions, and how does it differ from default in a switch statement?](#q16-what-is-the-discard-pattern-in-switch-expressions-and-how-does-it-differ-from-default-in-a-switch-statement)
+17. [Q17. What does the compiler do when a switch expression is non-exhaustive, and how does this differ for enum vs open types?](#q17-what-does-the-compiler-do-when-a-switch-expression-is-non-exhaustive-and-how-does-this-differ-for-enum-vs-open-types)
+18. [Q18. When should you prefer a switch expression over a switch statement, and when does the statement remain preferable?](#q18-when-should-you-prefer-a-switch-expression-over-a-switch-statement-and-when-does-the-statement-remain-preferable)
+19. [Q19. What happens when a C# condition uses assignment = instead of equality == inside an if statement?](#q19-what-happens-when-a-c-condition-uses-assignment-instead-of-equality-inside-an-if-statement)
+20. [Q20. What exception is thrown when a collection is modified during foreach, and what are the safe alternatives?](#q20-what-exception-is-thrown-when-a-collection-is-modified-during-foreach-and-what-are-the-safe-alternatives)
+21. [Q21. Why does break inside a switch nested within a loop exit only the switch, not the loop, and how do you exit both?](#q21-why-does-break-inside-a-switch-nested-within-a-loop-exit-only-the-switch-not-the-loop-and-how-do-you-exit-both)
+22. [Q22. What bug does capturing a for-loop variable inside a lambda closure cause, and what is the idiomatic fix?](#q22-what-bug-does-capturing-a-for-loop-variable-inside-a-lambda-closure-cause-and-what-is-the-idiomatic-fix)
+23. [Q23. What does an off-by-one error look like in a for loop, and how do you verify boundary conditions reliably?](#q23-what-does-an-off-by-one-error-look-like-in-a-for-loop-and-how-do-you-verify-boundary-conditions-reliably)
+24. [Q24. How does case ordering with when guards lead to silently unreachable arms, and how do you prevent it?](#q24-how-does-case-ordering-with-when-guards-lead-to-silently-unreachable-arms-and-how-do-you-prevent-it)
+25. [Q25. A developer ports a C-style fulfillment router to C#. The build fails with CS0163. Review the switch statement, identify all defects, and describe the corrected version.](#q25-a-developer-ports-a-c-style-fulfillment-router-to-c-the-build-fails-with-cs0163-review-the-switch-statement-identify-all-defects-and-describe-the-corrected-version)
+26. [Q26. A nightly billing job under-counts warehouse slots. QA confirms the invoice is short by exactly shelvesPerAisle slots per run. Review the nested for loop, identify the defect, and describe the fix.](#q26-a-nightly-billing-job-under-counts-warehouse-slots-qa-confirms-the-invoice-is-short-by-exactly-shelvesperaisle-slots-per-run-review-the-nested-for-loop-identify-the-defect-and-describe-the-fix)
+27. [Q27. A gate-controller service hangs in staging when the gate never opens. The retry loop is missing an increment. Review the while loop, describe both the original defect and the unsafe "fix" a colleague proposed, and define the safe bounded-retry pattern.](#q27-a-gate-controller-service-hangs-in-staging-when-the-gate-never-opens-the-retry-loop-is-missing-an-increment-review-the-while-loop-describe-both-the-original-defect-and-the-unsafe-fix-a-colleague-proposed-and-define-the-safe-bounded-retry-pattern)
+28. [Q28. A barcode scan worker sums active line quantities but under-reports totals. A developer used break instead of continue to skip zero-quantity lines. Review the foreach loop, explain the difference, and describe the corrected version.](#q28-a-barcode-scan-worker-sums-active-line-quantities-but-under-reports-totals-a-developer-used-break-instead-of-continue-to-skip-zero-quantity-lines-review-the-foreach-loop-explain-the-difference-and-describe-the-corrected-version)
+29. [Q29. You need to poll an external inventory API up to N times with exponential back-off, exiting early on success and respecting a CancellationToken. How do you structure the loop and what are the key design decisions?](#q29-you-need-to-poll-an-external-inventory-api-up-to-n-times-with-exponential-back-off-exiting-early-on-success-and-respecting-a-cancellationtoken-how-do-you-structure-the-loop-and-what-are-the-key-design-decisions)
+30. [Q30. You have a five-arm classic switch statement that maps HTTP status codes to log severity levels. Refactor it into a switch expression, explain what you gain, and identify the one scenario where the statement form would still be preferable.](#q30-you-have-a-five-arm-classic-switch-statement-that-maps-http-status-codes-to-log-severity-levels-refactor-it-into-a-switch-expression-explain-what-you-gain-and-identify-the-one-scenario-where-the-statement-form-would-still-be-preferable)
+
+---
 ## Foundation Questions
 
 ---

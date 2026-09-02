@@ -1,7 +1,25 @@
-# LINQ: Conversion Operations — Interview Q&A
+﻿# LINQ: Conversion Operations — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does `ToList` do and when should you use it?](#q1-what-does-tolist-do-and-when-should-you-use-it)
+2. [Q2. What does `ToArray` do and how does it compare to `ToList`?](#q2-what-does-toarray-do-and-how-does-it-compare-to-tolist)
+3. [Q3. What does `ToDictionary` do and what happens with duplicate keys?](#q3-what-does-todictionary-do-and-what-happens-with-duplicate-keys)
+4. [Q4. What does `ToHashSet` do and when is it useful?](#q4-what-does-tohashset-do-and-when-is-it-useful)
+5. [Q5. What does `ToLookup` do and how does it differ from `ToDictionary`?](#q5-what-does-tolookup-do-and-how-does-it-differ-from-todictionary)
+6. [Q6. What does `Cast<T>` do and when does it throw?](#q6-what-does-castt-do-and-when-does-it-throw)
+7. [Q7. What does `OfType<T>` do?](#q7-what-does-oftypet-do)
+8. [Q8. What does `AsEnumerable` do and why is it important in EF Core?](#q8-what-does-asenumerable-do-and-why-is-it-important-in-ef-core)
+9. [Q9. What does `AsQueryable` do?](#q9-what-does-asqueryable-do)
+10. [Q10. What is the difference between `ToList()`, `ToArray()`, and `AsEnumerable()` in terms of execution? (Gotcha)](#q10-what-is-the-difference-between-tolist-toarray-and-asenumerable-in-terms-of-execution-gotcha)
+11. [Q11. Why does `ToDictionary` throw when there are duplicate keys? (Gotcha)](#q11-why-does-todictionary-throw-when-there-are-duplicate-keys-gotcha)
+12. [Q12. Scenario: A service method calls `ToList()` early in the pipeline before filtering. What is wrong and how do you fix it? (Scenario)](#q12-scenario-a-service-method-calls-tolist-early-in-the-pipeline-before-filtering-what-is-wrong-and-how-do-you-fix-it-scenario)
+13. [Q13. Scenario: You need to build an in-memory lookup table from a database query for use across multiple requests. What conversion operator and caching strategy do you use? (Scenario)](#q13-scenario-you-need-to-build-an-in-memory-lookup-table-from-a-database-query-for-use-across-multiple-requests-what-conversion-operator-and-caching-strategy-do-you-use-scenario)
+
+---
 ## Q1. What does `ToList` do and when should you use it?
 
 **Concepts**

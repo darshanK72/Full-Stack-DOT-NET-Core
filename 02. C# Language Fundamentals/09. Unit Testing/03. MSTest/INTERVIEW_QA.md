@@ -1,7 +1,37 @@
-# MSTest — Interview Q&A
+﻿# MSTest — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What are [TestClass] and [TestMethod], and what is the minimum structure for an MSTest test in .NET 10?](#q1-what-are-testclass-and-testmethod-and-what-is-the-minimum-structure-for-an-mstest-test-in-net-10)
+2. [Q2. What naming convention should test methods follow, and why does it matter?](#q2-what-naming-convention-should-test-methods-follow-and-why-does-it-matter)
+3. [Q3. What does [TestInitialize] do, and how does it differ from putting setup code directly in each test method?](#q3-what-does-testinitialize-do-and-how-does-it-differ-from-putting-setup-code-directly-in-each-test-method)
+4. [Q4. What does [TestCleanup] do, and when should you use it rather than relying on garbage collection?](#q4-what-does-testcleanup-do-and-when-should-you-use-it-rather-than-relying-on-garbage-collection)
+5. [Q5. What are [ClassInitialize] and [ClassCleanup], what are their exact method signature requirements, and when should you prefer them over [TestInitialize]?](#q5-what-are-classinitialize-and-classcleanup-what-are-their-exact-method-signature-requirements-and-when-should-you-prefer-them-over-testinitialize)
+6. [Q6. What are [AssemblyInitialize] and [AssemblyCleanup], and how do they fit into the overall MSTest lifecycle?](#q6-what-are-assemblyinitialize-and-assemblycleanup-and-how-do-they-fit-into-the-overall-mstest-lifecycle)
+7. [Q7. How do [DataTestMethod] and [DataRow] work, and what is the [DataRow] limitation with decimal literals?](#q7-how-do-datatestmethod-and-datarow-work-and-what-is-the-datarow-limitation-with-decimal-literals)
+8. [Q8. How does the [Ignore] attribute work in MSTest v3, and what changed from v2?](#q8-how-does-the-ignore-attribute-work-in-mstest-v3-and-what-changed-from-v2)
+9. [Q9. What is the parameter order for Assert.AreEqual, how do the core Assert methods differ, and what mistake does the wrong order cause?](#q9-what-is-the-parameter-order-for-assertareequal-how-do-the-core-assert-methods-differ-and-what-mistake-does-the-wrong-order-cause)
+10. [Q10. What is TestContext, and how can tests use it for diagnostics, accessing deployment paths, and writing to test output?](#q10-what-is-testcontext-and-how-can-tests-use-it-for-diagnostics-accessing-deployment-paths-and-writing-to-test-output)
+11. [Q11. What MSTest v3 improvements are most relevant for .NET 10 projects?](#q11-what-mstest-v3-improvements-are-most-relevant-for-net-10-projects)
+12. [Q12. How do you configure parallel test execution in MSTest, and what test design constraints does parallelism impose?](#q12-how-do-you-configure-parallel-test-execution-in-mstest-and-what-test-design-constraints-does-parallelism-impose)
+13. [Q13. How does MSTest compare with xUnit in terms of class structure, lifecycle, and assertion conventions?](#q13-how-does-mstest-compare-with-xunit-in-terms-of-class-structure-lifecycle-and-assertion-conventions)
+14. [Q14. What is Assert.ThrowsException<T>, how does it work, and what are its limitations compared to try/catch assertions?](#q14-what-is-assertthrowsexceptiont-how-does-it-work-and-what-are-its-limitations-compared-to-trycatch-assertions)
+15. [Q15. What is the difference between Assert.IsTrue and Assert.AreEqual, and when should you prefer one over the other?](#q15-what-is-the-difference-between-assertistrue-and-assertareequal-and-when-should-you-prefer-one-over-the-other)
+16. [Q16. GOTCHA — Why does [DataRow] reject decimal literals, and what exactly does the compiler error say?](#q16-gotcha-why-does-datarow-reject-decimal-literals-and-what-exactly-does-the-compiler-error-say)
+17. [Q17. GOTCHA — What happens if you omit the TestContext parameter from [ClassInitialize], or add it to [ClassCleanup]?](#q17-gotcha-what-happens-if-you-omit-the-testcontext-parameter-from-classinitialize-or-add-it-to-classcleanup)
+18. [Q18. GOTCHA — Why does Assert.AreEqual(expected, actual) with reversed parameters give a misleading failure, and how do you detect it in code review?](#q18-gotcha-why-does-assertareequalexpected-actual-with-reversed-parameters-give-a-misleading-failure-and-how-do-you-detect-it-in-code-review)
+19. [Q19. GOTCHA — [Ignore] in MSTest v3 without a message causes a compile error — why is this a breaking change from v2?](#q19-gotcha-ignore-in-mstest-v3-without-a-message-causes-a-compile-error-why-is-this-a-breaking-change-from-v2)
+20. [Q20. GOTCHA — How does [ClassInitialize] interact with inheritance, and what is the execution order when a base test class also defines one?](#q20-gotcha-how-does-classinitialize-interact-with-inheritance-and-what-is-the-execution-order-when-a-base-test-class-also-defines-one)
+21. [Q21. Real-World Scenario — A colleague writes the following MSTest class. Identify the defects, assess their impact, and list fixes in priority order.](#q21-real-world-scenario-a-colleague-writes-the-following-mstest-class-identify-the-defects-assess-their-impact-and-list-fixes-in-priority-order)
+22. [Q22. Real-World Scenario — You need to test ApplyTierDiscount across all three CustomerTier values and several order totals. Design the parameterized test, explain your data choices, and describe how to validate exact decimal results safely.](#q22-real-world-scenario-you-need-to-test-applytierdiscount-across-all-three-customertier-values-and-several-order-totals-design-the-parameterized-test-explain-your-data-choices-and-describe-how-to-validate-exact-decimal-results-safely)
+23. [Q23. Real-World Scenario — A test class initializes a shared in-memory discount rule table in [ClassInitialize] but some tests are failing intermittently. Diagnose potential causes and propose a resilient design.](#q23-real-world-scenario-a-test-class-initializes-a-shared-in-memory-discount-rule-table-in-classinitialize-but-some-tests-are-failing-intermittently-diagnose-potential-causes-and-propose-a-resilient-design)
+24. [Q24. Real-World Scenario — A team is migrating a 300-test xUnit suite for DiscountCalculator to MSTest v3. What are the translation rules, what breaks automatically, and what requires manual judgment?](#q24-real-world-scenario-a-team-is-migrating-a-300-test-xunit-suite-for-discountcalculator-to-mstest-v3-what-are-the-translation-rules-what-breaks-automatically-and-what-requires-manual-judgment)
+25. [Q25. Real-World Scenario — Describe how to use TestContext to capture diagnostic information that helps diagnose a flaky test for IsEligibleForFreeShipping without adding permanent logging to production code.](#q25-real-world-scenario-describe-how-to-use-testcontext-to-capture-diagnostic-information-that-helps-diagnose-a-flaky-test-for-iseligibleforfreeshipping-without-adding-permanent-logging-to-production-code)
+
+---
 ## Q1. What are [TestClass] and [TestMethod], and what is the minimum structure for an MSTest test in .NET 10?
 
 **Concepts**

@@ -1,5 +1,38 @@
-# C# ArrayList & Non-Generic Collections — Interview Q&A
+﻿# C# ArrayList & Non-Generic Collections — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is ArrayList and how does it differ fundamentally from List\<T\>?](#q1-what-is-arraylist-and-how-does-it-differ-fundamentally-from-listt)
+2. [Q2. What are boxing and unboxing, and why do they matter specifically for ArrayList?](#q2-what-are-boxing-and-unboxing-and-why-do-they-matter-specifically-for-arraylist)
+3. [Q3. What is the difference between Count and Capacity in ArrayList, and how does the internal array grow?](#q3-what-is-the-difference-between-count-and-capacity-in-arraylist-and-how-does-the-internal-array-grow)
+4. [Q4. What interfaces does ArrayList implement, and what does each one provide?](#q4-what-interfaces-does-arraylist-implement-and-what-does-each-one-provide)
+5. [Q5. How does the non-generic IEnumerable and IEnumerator work during a foreach loop over ArrayList?](#q5-how-does-the-non-generic-ienumerable-and-ienumerator-work-during-a-foreach-loop-over-arraylist)
+6. [Q6. What type-safety problems arise from ArrayList's indexer returning object?](#q6-what-type-safety-problems-arise-from-arraylists-indexer-returning-object)
+7. [Q7. When, if ever, is ArrayList still appropriate in modern .NET 10?](#q7-when-if-ever-is-arraylist-still-appropriate-in-modern-net-10)
+8. [Q8. How does non-generic Hashtable differ from Dictionary\<TKey,TValue\>, and what are the migration considerations?](#q8-how-does-non-generic-hashtable-differ-from-dictionarytkeytvalue-and-what-are-the-migration-considerations)
+9. [Q9. How do non-generic Stack and Queue differ from Stack\<T\> and Queue\<T\>?](#q9-how-do-non-generic-stack-and-queue-differ-from-stackt-and-queuet)
+10. [Q10. What does ICollection provide that IEnumerable does not, and how is it used with ArrayList?](#q10-what-does-icollection-provide-that-ienumerable-does-not-and-how-is-it-used-with-arraylist)
+11. [Q11. How does null handling work in ArrayList?](#q11-how-does-null-handling-work-in-arraylist)
+12. [Q12. What is the thread safety model of ArrayList, and how should concurrent access be handled?](#q12-what-is-the-thread-safety-model-of-arraylist-and-how-should-concurrent-access-be-handled)
+13. [Q13. How do you migrate legacy ArrayList code to List\<T\>?](#q13-how-do-you-migrate-legacy-arraylist-code-to-listt)
+14. [Q14. What is SortedList (non-generic) and how does it differ from SortedList\<TKey,TValue\>?](#q14-what-is-sortedlist-non-generic-and-how-does-it-differ-from-sortedlisttkeytvalue)
+15. [Q15. How does the non-generic IList interface relate to ArrayList, and why would you program against it?](#q15-how-does-the-non-generic-ilist-interface-relate-to-arraylist-and-why-would-you-program-against-it)
+16. [Q16. What happens internally when ArrayList.Add is called and the backing array is full?](#q16-what-happens-internally-when-arraylistadd-is-called-and-the-backing-array-is-full)
+17. [Q17. How does ArrayList.Sort work, and what are the limitations compared to List\<T\>.Sort?](#q17-how-does-arraylistsort-work-and-what-are-the-limitations-compared-to-listtsort)
+18. [Q18. Why does `(long)list[0]` throw InvalidCastException even when list[0] holds an int value?](#q18-why-does-longlist0-throw-invalidcastexception-even-when-list0-holds-an-int-value)
+19. [Q19. What subtle data loss can occur when iterating an ArrayList with a for loop and calling RemoveAt inside the loop?](#q19-what-subtle-data-loss-can-occur-when-iterating-an-arraylist-with-a-for-loop-and-calling-removeat-inside-the-loop)
+20. [Q20. Why does LINQ not work directly on ArrayList without an adapter, and what is the correct bridge?](#q20-why-does-linq-not-work-directly-on-arraylist-without-an-adapter-and-what-is-the-correct-bridge)
+21. [Q21. What is the wrong-null-sentinel trap in ArrayList and how does it differ from List\<T\> behaviour?](#q21-what-is-the-wrong-null-sentinel-trap-in-arraylist-and-how-does-it-differ-from-listt-behaviour)
+22. [Q22. Why is ArrayList.Synchronized not sufficient for compound operations, and what is the correct synchronisation pattern?](#q22-why-is-arraylistsynchronized-not-sufficient-for-compound-operations-and-what-is-the-correct-synchronisation-pattern)
+23. [Q23. You are reviewing a PR that introduces a new service layer. The following code uses ArrayList to maintain a list of order line items. Identify all issues and propose fixes.](#q23-you-are-reviewing-a-pr-that-introduces-a-new-service-layer-the-following-code-uses-arraylist-to-maintain-a-list-of-order-line-items-identify-all-issues-and-propose-fixes)
+24. [Q24. A legacy .NET Framework COM interop wrapper returns an ArrayList of invoice records. You need to consume this data in a new .NET 10 service that uses strongly typed models. How do you bridge the gap safely?](#q24-a-legacy-net-framework-com-interop-wrapper-returns-an-arraylist-of-invoice-records-you-need-to-consume-this-data-in-a-new-net-10-service-that-uses-strongly-typed-models-how-do-you-bridge-the-gap-safely)
+25. [Q25. A performance profiling run on a warehouse reporting service shows that 40% of GC allocations come from a method that builds a summary of integer sensor readings. The method uses ArrayList. How do you diagnose and fix this?](#q25-a-performance-profiling-run-on-a-warehouse-reporting-service-shows-that-40-of-gc-allocations-come-from-a-method-that-builds-a-summary-of-integer-sensor-readings-the-method-uses-arraylist-how-do-you-diagnose-and-fix-this)
+26. [Q26. You are migrating a .NET Framework service to .NET 10. The service stores a list of warehouse bin locations in an ArrayList field and exposes it through a public IList property. Describe the migration steps and risks.](#q26-you-are-migrating-a-net-framework-service-to-net-10-the-service-stores-a-list-of-warehouse-bin-locations-in-an-arraylist-field-and-exposes-it-through-a-public-ilist-property-describe-the-migration-steps-and-risks)
+27. [Q27. A colleague argues that using ArrayList for a truly heterogeneous log-entry collection — mixing strings, ints, DateTimes, and custom structs — is justified because List\<T\> requires a single type parameter. Evaluate this argument.](#q27-a-colleague-argues-that-using-arraylist-for-a-truly-heterogeneous-log-entry-collection-mixing-strings-ints-datetimes-and-custom-structs-is-justified-because-listt-requires-a-single-type-parameter-evaluate-this-argument)
+28. [Q28. During a code review you encounter a method that accepts IList and calls list[0] directly without checking Count. Explain the full set of exceptions this method could throw and how to make it robust.](#q28-during-a-code-review-you-encounter-a-method-that-accepts-ilist-and-calls-list0-directly-without-checking-count-explain-the-full-set-of-exceptions-this-method-could-throw-and-how-to-make-it-robust)
+
+---
 > Topics: ArrayList, Hashtable, SortedList (non-generic), Stack (non-generic), Queue (non-generic), boxing/unboxing costs, type safety issues, migration to generic equivalents, IList, ICollection, IEnumerable (non-generic)
 
 ---

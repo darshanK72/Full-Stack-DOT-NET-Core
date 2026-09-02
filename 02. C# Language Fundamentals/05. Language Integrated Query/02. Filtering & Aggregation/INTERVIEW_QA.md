@@ -1,7 +1,37 @@
-# LINQ: Filtering & Aggregation — Interview Q&A
+﻿# LINQ: Filtering & Aggregation — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does the `Where` operator do and what is its signature?](#q1-what-does-the-where-operator-do-and-what-is-its-signature)
+2. [Q2. What is the difference between `Where` and `OfType<T>`?](#q2-what-is-the-difference-between-where-and-oftypet)
+3. [Q3. How does `Count()` differ from `Count(predicate)`?](#q3-how-does-count-differ-from-countpredicate)
+4. [Q4. What does `Sum` do and what types does it support?](#q4-what-does-sum-do-and-what-types-does-it-support)
+5. [Q5. What does `Average` return for an empty sequence?](#q5-what-does-average-return-for-an-empty-sequence)
+6. [Q6. What does `Min` and `Max` return for an empty sequence?](#q6-what-does-min-and-max-return-for-an-empty-sequence)
+7. [Q7. What is the `Aggregate` operator and when would you use it?](#q7-what-is-the-aggregate-operator-and-when-would-you-use-it)
+8. [Q8. How does chaining multiple `Where` conditions compare to a single `Where` with a compound predicate?](#q8-how-does-chaining-multiple-where-conditions-compare-to-a-single-where-with-a-compound-predicate)
+9. [Q9. What is `LongCount` and when should you use it instead of `Count`?](#q9-what-is-longcount-and-when-should-you-use-it-instead-of-count)
+10. [Q10. How do you compute a conditional aggregate, like the count of active users?](#q10-how-do-you-compute-a-conditional-aggregate-like-the-count-of-active-users)
+11. [Q11. What does `Any` do compared to `Count() > 0`?](#q11-what-does-any-do-compared-to-count-0)
+12. [Q12. What does the `All` operator do and what does it return for an empty sequence?](#q12-what-does-the-all-operator-do-and-what-does-it-return-for-an-empty-sequence)
+13. [Q13. Explain `Min` and `Max` with a selector lambda.](#q13-explain-min-and-max-with-a-selector-lambda)
+14. [Q14. How does the `Aggregate` operator with a seed handle empty sequences?](#q14-how-does-the-aggregate-operator-with-a-seed-handle-empty-sequences)
+15. [Q15. What is the difference between `Sum` on `IEnumerable<int>` and `IEnumerable<int?>`?](#q15-what-is-the-difference-between-sum-on-ienumerableint-and-ienumerableint)
+16. [Q16. Can you use multiple aggregate operators in a single LINQ query?](#q16-can-you-use-multiple-aggregate-operators-in-a-single-linq-query)
+17. [Q17. What happens when `Where` is called on a null sequence?](#q17-what-happens-when-where-is-called-on-a-null-sequence)
+18. [Q18. How do `Min`/`Max` work with reference types that don't implement IComparable?](#q18-how-do-minmax-work-with-reference-types-that-dont-implement-icomparable)
+19. [Q19. Why does `Count()` on a LINQ query over a `List<T>` return 0 after modifying the source list? (Gotcha)](#q19-why-does-count-on-a-linq-query-over-a-listt-return-0-after-modifying-the-source-list-gotcha)
+20. [Q20. Why does `Count(predicate)` not short-circuit? (Gotcha)](#q20-why-does-countpredicate-not-short-circuit-gotcha)
+21. [Q21. What happens when you call `Sum` on a sequence with very large values? (Gotcha)](#q21-what-happens-when-you-call-sum-on-a-sequence-with-very-large-values-gotcha)
+22. [Q22. Scenario: A report endpoint is counting records with `Count()` but the page sometimes loads slowly. What might be wrong? (Scenario)](#q22-scenario-a-report-endpoint-is-counting-records-with-count-but-the-page-sometimes-loads-slowly-what-might-be-wrong-scenario)
+23. [Q23. Scenario: You need to compute average order value per customer in a single database round-trip. How do you write this with LINQ? (Scenario)](#q23-scenario-you-need-to-compute-average-order-value-per-customer-in-a-single-database-round-trip-how-do-you-write-this-with-linq-scenario)
+24. [Q24. Scenario: A developer writes `items.Where(x => x.Score > 0).Sum(x => x.Score)`. Is this optimal? (Scenario)](#q24-scenario-a-developer-writes-itemswherex-xscore-0sumx-xscore-is-this-optimal-scenario)
+25. [Q25. Scenario: A nightly job aggregates daily sales data using LINQ but throws `InvalidOperationException: Sequence contains no elements` in production. How do you fix it? (Scenario)](#q25-scenario-a-nightly-job-aggregates-daily-sales-data-using-linq-but-throws-invalidoperationexception-sequence-contains-no-elements-in-production-how-do-you-fix-it-scenario)
+
+---
 ## Q1. What does the `Where` operator do and what is its signature?
 
 **Concepts**

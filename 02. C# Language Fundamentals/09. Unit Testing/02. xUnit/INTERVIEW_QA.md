@@ -1,7 +1,41 @@
-# xUnit.net — Interview Q&A
+﻿# xUnit.net — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between `[Fact]` and `[Theory]` in xUnit?](#q1-what-is-the-difference-between-fact-and-theory-in-xunit)
+2. [Q2. How do `[InlineData]`, `[MemberData]`, and `[ClassData]` differ as data sources for a `[Theory]`?](#q2-how-do-inlinedata-memberdata-and-classdata-differ-as-data-sources-for-a-theory)
+3. [Q3. How does xUnit handle per-test setup and teardown without `[SetUp]` and `[TearDown]`?](#q3-how-does-xunit-handle-per-test-setup-and-teardown-without-setup-and-teardown)
+4. [Q4. What is `IClassFixture<T>` and when should you use it?](#q4-what-is-iclassfixturet-and-when-should-you-use-it)
+5. [Q5. How does `ICollectionFixture<T>` differ from `IClassFixture<T>`, and how is a collection declared?](#q5-how-does-icollectionfixturet-differ-from-iclassfixturet-and-how-is-a-collection-declared)
+6. [Q6. How do you write async test methods in xUnit?](#q6-how-do-you-write-async-test-methods-in-xunit)
+7. [Q7. What is `ITestOutputHelper` and why is it preferred over `Console.WriteLine` in tests?](#q7-what-is-itestoutputhelper-and-why-is-it-preferred-over-consolewriteline-in-tests)
+8. [Q8. How does `[Trait]` work for test categorization and filtering?](#q8-how-does-trait-work-for-test-categorization-and-filtering)
+9. [Q9. What xUnit `Assert` members are most commonly used, and how do they differ from NUnit equivalents?](#q9-what-xunit-assert-members-are-most-commonly-used-and-how-do-they-differ-from-nunit-equivalents)
+10. [Q10. How does xUnit's default parallel execution model work, and how do you control it?](#q10-how-does-xunits-default-parallel-execution-model-work-and-how-do-you-control-it)
+11. [Q11. How do you skip a test in xUnit, and what are the alternatives?](#q11-how-do-you-skip-a-test-in-xunit-and-what-are-the-alternatives)
+12. [Q12. What improvements does xUnit v3 bring over v2?](#q12-what-improvements-does-xunit-v3-bring-over-v2)
+13. [Q13. How does the constructor injection model in xUnit compare to MSTest's `[TestInitialize]`?](#q13-how-does-the-constructor-injection-model-in-xunit-compare-to-mstests-testinitialize)
+14. [Q14. How does `Assert.Throws<T>` differ from wrapping the call in a `try`/`catch` block?](#q14-how-does-assertthrowst-differ-from-wrapping-the-call-in-a-trycatch-block)
+15. [Q15. How do you test a method that returns `IAsyncEnumerable<T>` in xUnit?](#q15-how-do-you-test-a-method-that-returns-iasyncenumerablet-in-xunit)
+16. [Q16. What is `Assert.Collection` and when should you use it over `Assert.Equal` on a list?](#q16-what-is-assertcollection-and-when-should-you-use-it-over-assertequal-on-a-list)
+17. [Q17. How do you use `[ClassData]` to supply test data from a separate class?](#q17-how-do-you-use-classdata-to-supply-test-data-from-a-separate-class)
+18. [Q18. How do you verify that a mock or stub was called with specific arguments in xUnit?](#q18-how-do-you-verify-that-a-mock-or-stub-was-called-with-specific-arguments-in-xunit)
+19. [Q19. Why does a `[Theory]` with no data attributes cause a runtime error rather than a compile error?](#q19-why-does-a-theory-with-no-data-attributes-cause-a-runtime-error-rather-than-a-compile-error)
+20. [Q20. Why do tests that depend on static shared state become flaky when xUnit parallelism is enabled?](#q20-why-do-tests-that-depend-on-static-shared-state-become-flaky-when-xunit-parallelism-is-enabled)
+21. [Q21. Why does `Assert.Equal` sometimes fail for two objects that look identical?](#q21-why-does-assertequal-sometimes-fail-for-two-objects-that-look-identical)
+22. [Q22. What happens if a fixture's constructor or `InitializeAsync` throws an exception?](#q22-what-happens-if-a-fixtures-constructor-or-initializeasync-throws-an-exception)
+23. [Q23. Why should you avoid `async void` in test methods, and what goes wrong in practice?](#q23-why-should-you-avoid-async-void-in-test-methods-and-what-goes-wrong-in-practice)
+24. [Q24. Code review: what is wrong with the following test class?](#q24-code-review-what-is-wrong-with-the-following-test-class)
+25. [Q25. Code review: what is wrong with the following theory?](#q25-code-review-what-is-wrong-with-the-following-theory)
+26. [Q26. How would you structure fixtures to share a real database connection across multiple test classes for integration tests?](#q26-how-would-you-structure-fixtures-to-share-a-real-database-connection-across-multiple-test-classes-for-integration-tests)
+27. [Q27. How would you test a method that uses `CancellationToken` and verify cancellation is handled correctly?](#q27-how-would-you-test-a-method-that-uses-cancellationtoken-and-verify-cancellation-is-handled-correctly)
+28. [Q28. How do you organize a test suite for a pricing service that has both fast unit tests and slow integration tests, and run only the fast tests in pull request builds?](#q28-how-do-you-organize-a-test-suite-for-a-pricing-service-that-has-both-fast-unit-tests-and-slow-integration-tests-and-run-only-the-fast-tests-in-pull-request-builds)
+29. [Q29. Code review: what is wrong with the following use of `IClassFixture`?](#q29-code-review-what-is-wrong-with-the-following-use-of-iclassfixture)
+
+---
 ## Q1. What is the difference between `[Fact]` and `[Theory]` in xUnit?
 
 **Concepts**

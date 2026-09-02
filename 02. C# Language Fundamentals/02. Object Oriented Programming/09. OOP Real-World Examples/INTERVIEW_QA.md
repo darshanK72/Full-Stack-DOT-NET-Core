@@ -1,5 +1,27 @@
-# C# OOP Real-World Examples — Interview Q&A
+﻿# C# OOP Real-World Examples — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between an entity and a value object in domain modeling, and how does C# support each?](#q1-what-is-the-difference-between-an-entity-and-a-value-object-in-domain-modeling-and-how-does-c-support-each)
+2. [Q2. What is the Strategy pattern, and how does it use interfaces in C#?](#q2-what-is-the-strategy-pattern-and-how-does-it-use-interfaces-in-c)
+3. [Q3. What is the Repository pattern, and why is an interface critical to its value?](#q3-what-is-the-repository-pattern-and-why-is-an-interface-critical-to-its-value)
+4. [Q4. What is the Factory Method pattern, and when do you use it over direct `new` construction?](#q4-what-is-the-factory-method-pattern-and-when-do-you-use-it-over-direct-new-construction)
+5. [Q5. What is the Observer pattern, and how does C# events implement it?](#q5-what-is-the-observer-pattern-and-how-does-c-events-implement-it)
+6. [Q6. What does "composition over inheritance" mean, and when does it apply?](#q6-what-does-composition-over-inheritance-mean-and-when-does-it-apply)
+7. [Q7. What are the five SOLID principles, and which one is most commonly violated in C#?](#q7-what-are-the-five-solid-principles-and-which-one-is-most-commonly-violated-in-c)
+8. [Q8. What is the `IDisposable` pattern's role in OOP, and when should a domain class implement it?](#q8-what-is-the-idisposable-patterns-role-in-oop-and-when-should-a-domain-class-implement-it)
+9. [Q9. What is the Decorator pattern, and how does it complement interface-based design?](#q9-what-is-the-decorator-pattern-and-how-does-it-complement-interface-based-design)
+10. [Q10. What is the Template Method pattern, and how does it differ from the Strategy pattern?](#q10-what-is-the-template-method-pattern-and-how-does-it-differ-from-the-strategy-pattern)
+11. [Q11. How does the Dependency Inversion Principle change how you design class interactions?](#q11-how-does-the-dependency-inversion-principle-change-how-you-design-class-interactions)
+12. [Q12. What distinguishes a "rich domain model" from an "anemic domain model", and why does it matter in C#?](#q12-what-distinguishes-a-rich-domain-model-from-an-anemic-domain-model-and-why-does-it-matter-in-c)
+13. [Q13. `OrderPaymentService` withdraws from a wallet, then calls `CardPaymentProcessor.ProcessOrderPayment()`. If the card is declined, the wallet is refunded. What OOP and correctness problems exist?](#q13-orderpaymentservice-withdraws-from-a-wallet-then-calls-cardpaymentprocessorprocessorderpayment-if-the-card-is-declined-the-wallet-is-refunded-what-oop-and-correctness-problems-exist)
+14. [Q14. A logistics API uses an explicit type-switch to quote delivery cost by vehicle type. New vehicle types require editing the method. What OOP design replaces this?](#q14-a-logistics-api-uses-an-explicit-type-switch-to-quote-delivery-cost-by-vehicle-type-new-vehicle-types-require-editing-the-method-what-oop-design-replaces-this)
+15. [Q15. `OrderFulfillmentHub.Fulfill` does everything: payment, delivery, labeling, notification, and invoicing. Identify the SOLID violations and describe the refactor order.](#q15-orderfulfillmenthubfulfill-does-everything-payment-delivery-labeling-notification-and-invoicing-identify-the-solid-violations-and-describe-the-refactor-order)
+16. [Q16. DI lifetimes for fulfillment types are wrong: `BankAccount` registered as singleton, processors as transient, `INotificationSender` as singleton. What breaks at runtime?](#q16-di-lifetimes-for-fulfillment-types-are-wrong-bankaccount-registered-as-singleton-processors-as-transient-inotificationsender-as-singleton-what-breaks-at-runtime)
+17. [Q17. A monolithic fulfillment `Main` method creates every object, mutates wallet state, and prints the invoice. You have one sprint. What is your refactor priority order?](#q17-a-monolithic-fulfillment-main-method-creates-every-object-mutates-wallet-state-and-prints-the-invoice-you-have-one-sprint-what-is-your-refactor-priority-order)
+
+---
 ## Foundation Questions
 
 ---

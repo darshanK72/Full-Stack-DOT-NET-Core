@@ -1,5 +1,29 @@
-# C# Func, Action & Predicate — Interview Q&A
+﻿# C# Func, Action & Predicate — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are `Func<T, TResult>`, `Action<T>`, and `Predicate<T>` and how do they differ?](#q1-what-are-funct-tresult-actiont-and-predicatet-and-how-do-they-differ)
+2. [Q2. When should you define a custom delegate type instead of using `Func` or `Action`?](#q2-when-should-you-define-a-custom-delegate-type-instead-of-using-func-or-action)
+3. [Q3. How does `Predicate<T>` relate to `Func<T, bool>`, and can you use them interchangeably?](#q3-how-does-predicatet-relate-to-funct-bool-and-can-you-use-them-interchangeably)
+4. [Q4. What is a higher-order function, and how do `Func` and `Action` enable them in C#?](#q4-what-is-a-higher-order-function-and-how-do-func-and-action-enable-them-in-c)
+5. [Q5. How do you store multiple operations as a dispatch table using `Func` or `Action`?](#q5-how-do-you-store-multiple-operations-as-a-dispatch-table-using-func-or-action)
+6. [Q6. What is the difference between `Func<Task>` and `async void` when used as callbacks?](#q6-what-is-the-difference-between-functask-and-async-void-when-used-as-callbacks)
+7. [Q7. How can you compose multiple `Func` delegates into a pipeline?](#q7-how-can-you-compose-multiple-func-delegates-into-a-pipeline)
+8. [Q8. How does `Func<T>` enable lazy evaluation?](#q8-how-does-funct-enable-lazy-evaluation)
+9. [Q9. What does it mean to partially apply a function using `Func` in C#?](#q9-what-does-it-mean-to-partially-apply-a-function-using-func-in-c)
+10. [Q10. How does `Action<T>` differ from `EventHandler<TEventArgs>` in the event pattern?](#q10-how-does-actiont-differ-from-eventhandlerteventargs-in-the-event-pattern)
+11. [Q11. Can `Func` or `Action` be used with `ref` or `out` parameters?](#q11-can-func-or-action-be-used-with-ref-or-out-parameters)
+12. [Q12. How do you use `Func` to implement a retry policy?](#q12-how-do-you-use-func-to-implement-a-retry-policy)
+13. [Q13. Why does `Func<T, bool>` and `Predicate<T>` have the same signature but are not assignable to each other?](#q13-why-does-funct-bool-and-predicatet-have-the-same-signature-but-are-not-assignable-to-each-other)
+14. [Q14. What happens when you invoke a multicast `Func<T>` with multiple registered delegates?](#q14-what-happens-when-you-invoke-a-multicast-funct-with-multiple-registered-delegates)
+15. [Q15. Can a null `Func` or `Action` be invoked, and how do you guard against it?](#q15-can-a-null-func-or-action-be-invoked-and-how-do-you-guard-against-it)
+16. [Q16. Why are `async void` lambdas assigned to `Action` parameters dangerous?](#q16-why-are-async-void-lambdas-assigned-to-action-parameters-dangerous)
+17. [Q17. You are building a data processing pipeline where each step transforms a record. Design a composable pipeline using `Func<T, T>`.](#q17-you-are-building-a-data-processing-pipeline-where-each-step-transforms-a-record-design-a-composable-pipeline-using-funct-t)
+18. [Q18. Review the following code and identify problems:](#q18-review-the-following-code-and-identify-problems)
+19. [Q19. A team is replacing a large `switch` statement with a `Func`-based dispatch table. What are the design considerations and risks?](#q19-a-team-is-replacing-a-large-switch-statement-with-a-func-based-dispatch-table-what-are-the-design-considerations-and-risks)
+
+---
 ## Foundation Questions
 
 ---

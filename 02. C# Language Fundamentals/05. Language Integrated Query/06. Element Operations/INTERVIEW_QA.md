@@ -1,7 +1,40 @@
-# LINQ: Element Operations — Interview Q&A
+﻿# LINQ: Element Operations — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is a LINQ element operator, and how does it differ from a filtering or projection operator?](#q1-what-is-a-linq-element-operator-and-how-does-it-differ-from-a-filtering-or-projection-operator)
+2. [Q2. What exception does `First()` throw when the source sequence is empty, and what is the exact exception message?](#q2-what-exception-does-first-throw-when-the-source-sequence-is-empty-and-what-is-the-exact-exception-message)
+3. [Q3. How does `First(predicate)` behave when no element in the sequence satisfies the predicate?](#q3-how-does-firstpredicate-behave-when-no-element-in-the-sequence-satisfies-the-predicate)
+4. [Q4. What is the behavioral difference between `First` and `FirstOrDefault`?](#q4-what-is-the-behavioral-difference-between-first-and-firstordefault)
+5. [Q5. What does `FirstOrDefault` return for a value type versus a reference type when no element matches?](#q5-what-does-firstordefault-return-for-a-value-type-versus-a-reference-type-when-no-element-matches)
+6. [Q6. What overload of `FirstOrDefault` lets you supply a custom fallback value instead of `default(T)`?](#q6-what-overload-of-firstordefault-lets-you-supply-a-custom-fallback-value-instead-of-defaultt)
+7. [Q7. How does `Last` traverse the sequence compared with `First`, and what does that mean for performance?](#q7-how-does-last-traverse-the-sequence-compared-with-first-and-what-does-that-mean-for-performance)
+8. [Q8. What exception does `Last(predicate)` throw when no element satisfies the predicate?](#q8-what-exception-does-lastpredicate-throw-when-no-element-satisfies-the-predicate)
+9. [Q9. Under what two conditions does `Single` throw `InvalidOperationException`?](#q9-under-what-two-conditions-does-single-throw-invalidoperationexception)
+10. [Q10. How does `SingleOrDefault` handle the case of zero matches versus two or more matches?](#q10-how-does-singleordefault-handle-the-case-of-zero-matches-versus-two-or-more-matches)
+11. [Q11. When a sequence contains exactly one element, can `Single` and `First` return different results?](#q11-when-a-sequence-contains-exactly-one-element-can-single-and-first-return-different-results)
+12. [Q12. What exception type does `ElementAt` throw on an out-of-range index, and how does that differ from `First` and `Single`?](#q12-what-exception-type-does-elementat-throw-on-an-out-of-range-index-and-how-does-that-differ-from-first-and-single)
+13. [Q13. What is `System.Index`, and how can it be used with `ElementAt` in .NET 10?](#q13-what-is-systemindex-and-how-can-it-be-used-with-elementat-in-net-10)
+14. [Q14. What is the time complexity of `ElementAt(n)` on a plain `IEnumerable<T>` versus an `IList<T>`?](#q14-what-is-the-time-complexity-of-elementatn-on-a-plain-ienumerablet-versus-an-ilistt)
+15. [Q15. What does `DefaultIfEmpty()` return when the source sequence is non-empty?](#q15-what-does-defaultifempty-return-when-the-source-sequence-is-non-empty)
+16. [Q16. How does `DefaultIfEmpty` differ from `FirstOrDefault`?](#q16-how-does-defaultifempty-differ-from-firstordefault)
+17. [Q17. What is the difference between `DefaultIfEmpty()` and `DefaultIfEmpty(value)` for a sequence of reference types?](#q17-what-is-the-difference-between-defaultifempty-and-defaultifemptyvalue-for-a-sequence-of-reference-types)
+18. [Q18. Why is `DefaultIfEmpty(0m).Average()` a safer pattern than a raw `.Average()` after a `Where` filter?](#q18-why-is-defaultifempty0maverage-a-safer-pattern-than-a-raw-average-after-a-where-filter)
+19. [Q19. Does `SingleOrDefault` ever throw on a sequence with zero matches? (Gotcha)](#q19-does-singleordefault-ever-throw-on-a-sequence-with-zero-matches-gotcha)
+20. [Q20. Why can `Last(predicate)` on a large sorted dataset be a hidden performance trap? (Gotcha)](#q20-why-can-lastpredicate-on-a-large-sorted-dataset-be-a-hidden-performance-trap-gotcha)
+21. [Q21. If `ElementAtOrDefault` returns `0` for an `int[]`, how do you know whether the element exists at that index or the index was out of range? (Gotcha)](#q21-if-elementatordefault-returns-0-for-an-int-how-do-you-know-whether-the-element-exists-at-that-index-or-the-index-was-out-of-range-gotcha)
+22. [Q22. What does `DefaultIfEmpty()` without an argument insert into a sequence of value types? Is it `null` or `0`? (Gotcha)](#q22-what-does-defaultifempty-without-an-argument-insert-into-a-sequence-of-value-types-is-it-null-or-0-gotcha)
+23. [Q23. Can `First()` and `Single()` give different results on a sequence with exactly one element? (Gotcha)](#q23-can-first-and-single-give-different-results-on-a-sequence-with-exactly-one-element-gotcha)
+24. [Q24. A nightly billing job crashes after month-end write-offs. What is the root cause, and how do you fix it? (Scenario)](#q24-a-nightly-billing-job-crashes-after-month-end-write-offs-what-is-the-root-cause-and-how-do-you-fix-it-scenario)
+25. [Q25. A developer swaps `Single` for `SingleOrDefault` expecting it to tolerate duplicate rows from a bad import. Review this service method and identify what still fails. (Scenario)](#q25-a-developer-swaps-single-for-singleordefault-expecting-it-to-tolerate-duplicate-rows-from-a-bad-import-review-this-service-method-and-identify-what-still-fails-scenario)
+26. [Q26. A dashboard endpoint uses `FirstOrDefault` but the response mapper still throws `NullReferenceException`. Diagnose the issue and show a corrected implementation. (Scenario)](#q26-a-dashboard-endpoint-uses-firstordefault-but-the-response-mapper-still-throws-nullreferenceexception-diagnose-the-issue-and-show-a-corrected-implementation-scenario)
+27. [Q27. A repository returns a deferred `IQueryable`; a service calls `ElementAt` twice and the team logs two slow database round trips. Diagnose the cause and show a fix. (Scenario)](#q27-a-repository-returns-a-deferred-iqueryable-a-service-calls-elementat-twice-and-the-team-logs-two-slow-database-round-trips-diagnose-the-cause-and-show-a-fix-scenario)
+28. [Q28. Your team debates which element operator to use for a patient invoice lookup where duplicates should not exist but occasionally slip through from bad imports. Which operator do you recommend and why? (Scenario)](#q28-your-team-debates-which-element-operator-to-use-for-a-patient-invoice-lookup-where-duplicates-should-not-exist-but-occasionally-slip-through-from-bad-imports-which-operator-do-you-recommend-and-why-scenario)
+
+---
 ## Q1. What is a LINQ element operator, and how does it differ from a filtering or projection operator?
 
 **Concepts**

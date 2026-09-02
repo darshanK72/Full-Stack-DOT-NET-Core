@@ -1,5 +1,37 @@
-# Mocking & Test Doubles — Interview Q&A
+﻿# Mocking & Test Doubles — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are the five categories in the test doubles taxonomy and when do you use each?](#q1-what-are-the-five-categories-in-the-test-doubles-taxonomy-and-when-do-you-use-each)
+2. [Q2. What is the critical distinction between a Stub and a Mock?](#q2-what-is-the-critical-distinction-between-a-stub-and-a-mock)
+3. [Q3. How does a Fake differ from a Stub?](#q3-how-does-a-fake-differ-from-a-stub)
+4. [Q4. How do you create a Moq mock and obtain the substitute object the SUT consumes?](#q4-how-do-you-create-a-moq-mock-and-obtain-the-substitute-object-the-sut-consumes)
+5. [Q5. How does Setup().Returns() configure a canned response for a dependency method?](#q5-how-does-setupreturns-configure-a-canned-response-for-a-dependency-method)
+6. [Q6. How does Moq's Verify() work and what does it assert?](#q6-how-does-moqs-verify-work-and-what-does-it-assert)
+7. [Q7. What Times options does Moq provide and when do you use each?](#q7-what-times-options-does-moq-provide-and-when-do-you-use-each)
+8. [Q8. What is the difference between Loose and Strict mocks in Moq?](#q8-what-is-the-difference-between-loose-and-strict-mocks-in-moq)
+9. [Q9. What is MockBehavior.Strict and what are its practical tradeoffs?](#q9-what-is-mockbehaviorstrict-and-what-are-its-practical-tradeoffs)
+10. [Q10. Why does interface-based design enable mocking, and why can Moq not mock non-virtual methods on concrete classes?](#q10-why-does-interface-based-design-enable-mocking-and-why-can-moq-not-mock-non-virtual-methods-on-concrete-classes)
+11. [Q11. Why is constructor injection the primary DI pattern for testability?](#q11-why-is-constructor-injection-the-primary-di-pattern-for-testability)
+12. [Q12. What does It.IsAny<T>() do in Moq argument matching?](#q12-what-does-itisanyt-do-in-moq-argument-matching)
+13. [Q13. How does It.Is<T>(predicate) differ from It.IsAny<T>(), and what is It.IsIn()?](#q13-how-does-itistpredicate-differ-from-itisanyt-and-what-is-itisin)
+14. [Q14. How do you simulate exceptions thrown by a dependency using Moq?](#q14-how-do-you-simulate-exceptions-thrown-by-a-dependency-using-moq)
+15. [Q15. How does Callback() work in Moq and when should you use it?](#q15-how-does-callback-work-in-moq-and-when-should-you-use-it)
+16. [Q16. What does NSubstitute offer and how does its syntax compare to Moq?](#q16-what-does-nsubstitute-offer-and-how-does-its-syntax-compare-to-moq)
+17. [Q17. Why does Moq silently return default values for unstubbed calls, and how can this hide production bugs?](#q17-why-does-moq-silently-return-default-values-for-unstubbed-calls-and-how-can-this-hide-production-bugs)
+18. [Q18. What is over-specification in tests and why does it create fragile tests?](#q18-what-is-over-specification-in-tests-and-why-does-it-create-fragile-tests)
+19. [Q19. What happens when you call Verify() on a method that was never set up, and when is that a valid pattern?](#q19-what-happens-when-you-call-verify-on-a-method-that-was-never-set-up-and-when-is-that-a-valid-pattern)
+20. [Q20. Why can you not mix literal arguments and It.* matchers in the same Setup() or Verify() call?](#q20-why-can-you-not-mix-literal-arguments-and-it-matchers-in-the-same-setup-or-verify-call)
+21. [Q21. What happens when you use Returns() instead of ReturnsAsync() for an async dependency method?](#q21-what-happens-when-you-use-returns-instead-of-returnsasync-for-an-async-dependency-method)
+22. [Q22. How do you write a complete Moq test for OrderService.PlaceOrder() that enforces the all-or-nothing business rule?](#q22-how-do-you-write-a-complete-moq-test-for-orderserviceplaceorder-that-enforces-the-all-or-nothing-business-rule)
+23. [Q23. Review the following test. What defects does it contain?](#q23-review-the-following-test-what-defects-does-it-contain)
+24. [Q24. When should you prefer manual test doubles (StubInventoryService, FakeEmailSender) over Moq?](#q24-when-should-you-prefer-manual-test-doubles-stubinventoryservice-fakeemailsender-over-moq)
+25. [Q25. How do you verify the order in which Reserve() was called for multiple SKUs using Moq?](#q25-how-do-you-verify-the-order-in-which-reserve-was-called-for-multiple-skus-using-moq)
+26. [Q26. When should you NOT mock a collaborator, and what types of objects are poor candidates for mocking?](#q26-when-should-you-not-mock-a-collaborator-and-what-types-of-objects-are-poor-candidates-for-mocking)
+27. [Q27. How do you migrate an OrderService Moq test suite to NSubstitute while preserving behavioral coverage?](#q27-how-do-you-migrate-an-orderservice-moq-test-suite-to-nsubstitute-while-preserving-behavioral-coverage)
+
+---
 ## Foundation Questions
 
 ---

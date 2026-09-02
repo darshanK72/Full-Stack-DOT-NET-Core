@@ -1,5 +1,34 @@
-# 05. Working with CSV and Text Files — Interview Q&A
+﻿# 05. Working with CSV and Text Files — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. Why does `string.Split(',')` fail for CSV fields that contain commas?](#q1-why-does-stringsplit-fail-for-csv-fields-that-contain-commas)
+2. [Q2. What are the RFC 4180 field escaping rules for CSV?](#q2-what-are-the-rfc-4180-field-escaping-rules-for-csv)
+3. [Q3. Why use `StringBuilder` to assemble a CSV row instead of string concatenation?](#q3-why-use-stringbuilder-to-assemble-a-csv-row-instead-of-string-concatenation)
+4. [Q4. What is the line-by-line `StreamReader` import pattern, and why does it keep memory bounded?](#q4-what-is-the-line-by-line-streamreader-import-pattern-and-why-does-it-keep-memory-bounded)
+5. [Q5. Why accept `TextReader` in a CSV parser instead of `StreamReader` specifically?](#q5-why-accept-textreader-in-a-csv-parser-instead-of-streamreader-specifically)
+6. [Q6. How should a CSV importer handle the header row?](#q6-how-should-a-csv-importer-handle-the-header-row)
+7. [Q7. Why must `int.TryParse` and `decimal.TryParse` use `CultureInfo.InvariantCulture` in CSV parsing?](#q7-why-must-inttryparse-and-decimaltryparse-use-cultureinfoinvariantculture-in-csv-parsing)
+8. [Q8. How do you handle an optional `DateTime` field in a CSV row that may be blank?](#q8-how-do-you-handle-an-optional-datetime-field-in-a-csv-row-that-may-be-blank)
+9. [Q9. What is the partial import strategy with error collection?](#q9-what-is-the-partial-import-strategy-with-error-collection)
+10. [Q10. How do you write a CSV export with `StreamWriter` and proper escaping?](#q10-how-do-you-write-a-csv-export-with-streamwriter-and-proper-escaping)
+11. [Q11. What is the trailing comma problem in CSV, and how do you guard against it?](#q11-what-is-the-trailing-comma-problem-in-csv-and-how-do-you-guard-against-it)
+12. [Q12. How do you handle empty required fields in a CSV row?](#q12-how-do-you-handle-empty-required-fields-in-a-csv-row)
+13. [Q13. How does culture affect decimal parsing, and what is the "12,99 vs 12.99" problem?](#q13-how-does-culture-affect-decimal-parsing-and-what-is-the-1299-vs-1299-problem)
+14. [Q14. What is the `IsIgnorableLine` pattern, and what does it enable?](#q14-what-is-the-isignorableline-pattern-and-what-does-it-enable)
+15. [Q15. How does `StringReader` enable testing a CSV parser without touching the filesystem?](#q15-how-does-stringreader-enable-testing-a-csv-parser-without-touching-the-filesystem)
+16. [Q16. What are the limitations of a minimal quote-aware CSV scanner vs a full RFC 4180 parser?](#q16-what-are-the-limitations-of-a-minimal-quote-aware-csv-scanner-vs-a-full-rfc-4180-parser)
+17. [Q17. (Gotcha) What happens when `decimal.Parse` is used instead of `decimal.TryParse`?](#q17-gotcha-what-happens-when-decimalparse-is-used-instead-of-decimaltryparse)
+18. [Q18. (Gotcha) Why does reading a 500 MB CSV with `File.ReadAllText` for line counting cause `OutOfMemoryException`?](#q18-gotcha-why-does-reading-a-500-mb-csv-with-filereadalltext-for-line-counting-cause-outofmemoryexception)
+19. [Q19. (Scenario R) Inventory import uses `string.Split(',')` — a product name `"Bolt, M6x1.0"` splits into 3 tokens, the wrong field lands in quantity, and `decimal.Parse` throws, aborting the entire import.](#q19-scenario-r-inventory-import-uses-stringsplit-a-product-name-bolt-m6x10-splits-into-3-tokens-the-wrong-field-lands-in-quantity-and-decimalparse-throws-aborting-the-entire-import)
+20. [Q20. (Scenario R) Export service writes decimal prices with current thread culture (de-DE) — commas instead of dots break the downstream InvariantCulture parser.](#q20-scenario-r-export-service-writes-decimal-prices-with-current-thread-culture-de-de-commas-instead-of-dots-break-the-downstream-invariantculture-parser)
+21. [Q21. (Scenario R) CSV importer calls `decimal.Parse` (not `TryParse`) on price column — one bad row throws and aborts the entire 100,000-row import.](#q21-scenario-r-csv-importer-calls-decimalparse-not-tryparse-on-price-column-one-bad-row-throws-and-aborts-the-entire-100000-row-import)
+22. [Q22. (Scenario M) Scheduled report reads entire 500 MB CSV export with `File.ReadAllText` for line counting — OOM under concurrent requests.](#q22-scenario-m-scheduled-report-reads-entire-500-mb-csv-export-with-filereadalltext-for-line-counting-oom-under-concurrent-requests)
+23. [Q23. (Scenario D) Multi-tenant CSV import must accept both InvariantCulture `"12.99"` and `de-DE` `"12,99"` price formats from different partners. How do you design a culture-aware import pipeline?](#q23-scenario-d-multi-tenant-csv-import-must-accept-both-invariantculture-1299-and-de-de-1299-price-formats-from-different-partners-how-do-you-design-a-culture-aware-import-pipeline)
+24. [Q24. (Scenario R) Export produces unquoted fields — product name `Widget "Pro" Edition` corrupts the CSV because internal quotes are not doubled.](#q24-scenario-r-export-produces-unquoted-fields-product-name-widget-pro-edition-corrupts-the-csv-because-internal-quotes-are-not-doubled)
+
+---
 > Back to [Module Index](../INTERVIEW_QA.md)
 
 ---

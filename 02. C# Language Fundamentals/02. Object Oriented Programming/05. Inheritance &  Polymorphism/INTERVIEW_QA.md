@@ -1,5 +1,30 @@
-# C# Inheritance & Polymorphism — Interview Q&A
+﻿# C# Inheritance & Polymorphism — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is inheritance in C#, and what does a derived class automatically gain from its base?](#q1-what-is-inheritance-in-c-and-what-does-a-derived-class-automatically-gain-from-its-base)
+2. [Q2. What is the `base` keyword, and in what two distinct contexts is it used?](#q2-what-is-the-base-keyword-and-in-what-two-distinct-contexts-is-it-used)
+3. [Q3. What is the difference between method overriding (`override`) and method hiding (`new`)?](#q3-what-is-the-difference-between-method-overriding-override-and-method-hiding-new)
+4. [Q4. What is the `virtual` keyword, and what happens if you forget it?](#q4-what-is-the-virtual-keyword-and-what-happens-if-you-forget-it)
+5. [Q5. What is the Liskov Substitution Principle, and what C# features help enforce it?](#q5-what-is-the-liskov-substitution-principle-and-what-c-features-help-enforce-it)
+6. [Q6. What is the `sealed` keyword on a class and on a method, and when do you use each?](#q6-what-is-the-sealed-keyword-on-a-class-and-on-a-method-and-when-do-you-use-each)
+7. [Q7. What is the `is` operator and pattern matching, and how do they interact with inheritance?](#q7-what-is-the-is-operator-and-pattern-matching-and-how-do-they-interact-with-inheritance)
+8. [Q8. What is upcasting and downcasting, and what are the runtime risks of each?](#q8-what-is-upcasting-and-downcasting-and-what-are-the-runtime-risks-of-each)
+9. [Q9. What is covariance and contravariance in the context of inheritance and generics?](#q9-what-is-covariance-and-contravariance-in-the-context-of-inheritance-and-generics)
+10. [Q10. How does method dispatch work in C# — what is a vtable?](#q10-how-does-method-dispatch-work-in-c-what-is-a-vtable)
+11. [Q11. What is the fragile base class problem, and how does it manifest in C#?](#q11-what-is-the-fragile-base-class-problem-and-how-does-it-manifest-in-c)
+12. [Q12. How does constructor chaining work in a multi-level inheritance chain?](#q12-how-does-constructor-chaining-work-in-a-multi-level-inheritance-chain)
+13. [Q13. What is method hiding with the `new` modifier, and why is it a code smell?](#q13-what-is-method-hiding-with-the-new-modifier-and-why-is-it-a-code-smell)
+14. [Q14. A payroll loop produces `"EMP"` badge codes for all employees, including managers. The method returns `employee.GetBadgeCode()`. Why, and how do you fix it?](#q14-a-payroll-loop-produces-emp-badge-codes-for-all-employees-including-managers-the-method-returns-employeegetbadgecode-why-and-how-do-you-fix-it)
+15. [Q15. A new `InternEmployee : Employee` overrides `CalculateNet()` to throw `InvalidOperationException`. Why does this violate LSP, and what should be done instead?](#q15-a-new-internemployee-employee-overrides-calculatenet-to-throw-invalidoperationexception-why-does-this-violate-lsp-and-what-should-be-done-instead)
+16. [Q16. Why does a `ContractEmployee` override of `CalculateNet()` that omits `base.CalculateNet()` silently drop validation?](#q16-why-does-a-contractemployee-override-of-calculatenet-that-omits-basecalculatenet-silently-drop-validation)
+17. [Q17. Can a C# class inherit from two base classes? How is the "diamond problem" handled?](#q17-can-a-c-class-inherit-from-two-base-classes-how-is-the-diamond-problem-handled)
+18. [Q18. A payroll loop incorrectly uses explicit type checks instead of polymorphism. Diagnose the problem and show the corrected design.](#q18-a-payroll-loop-incorrectly-uses-explicit-type-checks-instead-of-polymorphism-diagnose-the-problem-and-show-the-corrected-design)
+19. [Q19. `Director` fails to compile with CS7036 because its constructor does not call `base(...)`. Describe the fix and the resulting execution order.](#q19-director-fails-to-compile-with-cs7036-because-its-constructor-does-not-call-base-describe-the-fix-and-the-resulting-execution-order)
+20. [Q20. A new employee type inherits from both a shared `AuditableEntity` base and needs to be in the `Person → Employee → PermanentEmployee → Manager` chain. C# forbids multiple inheritance. How would you solve this?](#q20-a-new-employee-type-inherits-from-both-a-shared-auditableentity-base-and-needs-to-be-in-the-person-employee-permanentemployee-manager-chain-c-forbids-multiple-inheritance-how-would-you-solve-this)
+
+---
 ## Foundation Questions
 
 ---

@@ -1,5 +1,35 @@
-# Concurrent Collections — Interview Q&A
+﻿# Concurrent Collections — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What are concurrent collections and why do they exist?](#q1-what-are-concurrent-collections-and-why-do-they-exist)
+2. [Q2. What is ConcurrentDictionary<TKey, TValue> and how does it differ from Dictionary?](#q2-what-is-concurrentdictionarytkey-tvalue-and-how-does-it-differ-from-dictionary)
+3. [Q3. What is the danger with ConcurrentDictionary.GetOrAdd and factory side effects?](#q3-what-is-the-danger-with-concurrentdictionarygetoradd-and-factory-side-effects)
+4. [Q4. What is ConcurrentQueue<T> and how does it differ from Queue<T>?](#q4-what-is-concurrentqueuet-and-how-does-it-differ-from-queuet)
+5. [Q5. What is ConcurrentStack<T> and when would you use it over ConcurrentQueue<T>?](#q5-what-is-concurrentstackt-and-when-would-you-use-it-over-concurrentqueuet)
+6. [Q6. What is ConcurrentBag<T> and when is it appropriate?](#q6-what-is-concurrentbagt-and-when-is-it-appropriate)
+7. [Q7. What is BlockingCollection<T> and how does it implement producer-consumer?](#q7-what-is-blockingcollectiont-and-how-does-it-implement-producer-consumer)
+8. [Q8. What happens if CompleteAdding() is never called on a BlockingCollection?](#q8-what-happens-if-completeadding-is-never-called-on-a-blockingcollection)
+9. [Q9. How does Channel<T> differ from BlockingCollection<T>?](#q9-how-does-channelt-differ-from-blockingcollectiont)
+10. [Q10. What is IProducerConsumerCollection<T> and how is it used?](#q10-what-is-iproducerconsumercollectiont-and-how-is-it-used)
+11. [Q11. How does enumeration work on concurrent collections?](#q11-how-does-enumeration-work-on-concurrent-collections)
+12. [Q12. When should you choose ConcurrentDictionary over a lock-protected Dictionary?](#q12-when-should-you-choose-concurrentdictionary-over-a-lock-protected-dictionary)
+13. [Q13. How do you implement a simple cache with ConcurrentDictionary with expiry?](#q13-how-do-you-implement-a-simple-cache-with-concurrentdictionary-with-expiry)
+14. [Q14. How does Channel<T> support multiple producers and multiple consumers?](#q14-how-does-channelt-support-multiple-producers-and-multiple-consumers)
+15. [Q15. What is the check-then-act race condition with ConcurrentDictionary?](#q15-what-is-the-check-then-act-race-condition-with-concurrentdictionary)
+16. [Q16. What is the ConcurrentBag contention problem when used as a cross-thread queue?](#q16-what-is-the-concurrentbag-contention-problem-when-used-as-a-cross-thread-queue)
+17. [Q17. What is the BlockingCollection dispose/cancel race?](#q17-what-is-the-blockingcollection-disposecancel-race)
+18. [Q18. Why does ConcurrentDictionary.Count perform a full scan?](#q18-why-does-concurrentdictionarycount-perform-a-full-scan)
+19. [Q19. What happens when you enumerate a ConcurrentQueue while it is being modified?](#q19-what-happens-when-you-enumerate-a-concurrentqueue-while-it-is-being-modified)
+20. [Q20. Implement a thread-safe cache with ConcurrentDictionary and Lazy<T> for expensive initialization.](#q20-implement-a-thread-safe-cache-with-concurrentdictionary-and-lazyt-for-expensive-initialization)
+21. [Q21. Build a multi-producer single-consumer pipeline with Channel<T>.](#q21-build-a-multi-producer-single-consumer-pipeline-with-channelt)
+22. [Q22. Replace a lock+Queue with BlockingCollection for bounded producer-consumer.](#q22-replace-a-lockqueue-with-blockingcollection-for-bounded-producer-consumer)
+23. [Q23. Diagnose a hang in a BlockingCollection-based pipeline.](#q23-diagnose-a-hang-in-a-blockingcollection-based-pipeline)
+24. [Q24. Implement a work-stealing job queue using ConcurrentStack.](#q24-implement-a-work-stealing-job-queue-using-concurrentstack)
+25. [Q25. How do you choose the right concurrent collection for a log aggregation service?](#q25-how-do-you-choose-the-right-concurrent-collection-for-a-log-aggregation-service)
+
+---
 ## Foundation Questions
 
 ---

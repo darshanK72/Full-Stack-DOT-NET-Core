@@ -1,5 +1,37 @@
-# Tasks & Task Parallel Library — Interview Q&A
+﻿# Tasks & Task Parallel Library — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a Task in C# and how does it differ from a Thread?](#q1-what-is-a-task-in-c-and-how-does-it-differ-from-a-thread)
+2. [Q2. What are the different ways to create and start a Task?](#q2-what-are-the-different-ways-to-create-and-start-a-task)
+3. [Q3. What are the TaskStatus values and when does each occur?](#q3-what-are-the-taskstatus-values-and-when-does-each-occur)
+4. [Q4. How does Task.ContinueWith work and what are its options?](#q4-how-does-taskcontinuewith-work-and-what-are-its-options)
+5. [Q5. What is the difference between Task.WhenAll and Task.WaitAll?](#q5-what-is-the-difference-between-taskwhenall-and-taskwaitall)
+6. [Q6. How does Task.WhenAny work and when is it useful?](#q6-how-does-taskwhenany-work-and-when-is-it-useful)
+7. [Q7. What is TaskCompletionSource<T> and when would you use it?](#q7-what-is-taskcompletionsourcet-and-when-would-you-use-it)
+8. [Q8. What is ValueTask<T> and when should you prefer it over Task<T>?](#q8-what-is-valuetaskt-and-when-should-you-prefer-it-over-taskt)
+9. [Q9. How does AggregateException work and how do you unwrap it?](#q9-how-does-aggregateexception-work-and-how-do-you-unwrap-it)
+10. [Q10. What are parent-child task relationships and when are they used?](#q10-what-are-parent-child-task-relationships-and-when-are-they-used)
+11. [Q11. What is the difference between Task.Run and Task.Factory.StartNew?](#q11-what-is-the-difference-between-taskrun-and-taskfactorystartnew)
+12. [Q12. How does task cancellation with CancellationToken work?](#q12-how-does-task-cancellation-with-cancellationtoken-work)
+13. [Q13. What is the difference between accessing Task.Result vs awaiting a Task?](#q13-what-is-the-difference-between-accessing-taskresult-vs-awaiting-a-task)
+14. [Q14. How do you implement a task timeout pattern?](#q14-how-do-you-implement-a-task-timeout-pattern)
+15. [Q15. What is the significance of TaskScheduler and when would you use a custom one?](#q15-what-is-the-significance-of-taskscheduler-and-when-would-you-use-a-custom-one)
+16. [Q16. What is the async void anti-pattern and why is it dangerous?](#q16-what-is-the-async-void-anti-pattern-and-why-is-it-dangerous)
+17. [Q17. What is the unobserved task exception problem?](#q17-what-is-the-unobserved-task-exception-problem)
+18. [Q18. What causes a deadlock when using .Result on an async method in WPF or ASP.NET?](#q18-what-causes-a-deadlock-when-using-result-on-an-async-method-in-wpf-or-aspnet)
+19. [Q19. What is the ValueTask double-await bug?](#q19-what-is-the-valuetask-double-await-bug)
+20. [Q20. What is the fire-and-forget task leak pattern?](#q20-what-is-the-fire-and-forget-task-leak-pattern)
+21. [Q21. How do you wrap an old EAP (Event-based Asynchronous Pattern) API with TaskCompletionSource?](#q21-how-do-you-wrap-an-old-eap-event-based-asynchronous-pattern-api-with-taskcompletionsource)
+22. [Q22. Implement a fan-out/fan-in pattern to fetch data from 5 microservices in parallel with a timeout.](#q22-implement-a-fan-outfan-in-pattern-to-fetch-data-from-5-microservices-in-parallel-with-a-timeout)
+23. [Q23. How do you implement an async retry policy with exponential backoff?](#q23-how-do-you-implement-an-async-retry-policy-with-exponential-backoff)
+24. [Q24. You have a service that fires 100 tasks and some fail. How do you collect all results and errors?](#q24-you-have-a-service-that-fires-100-tasks-and-some-fail-how-do-you-collect-all-results-and-errors)
+25. [Q25. How would you build a simple async circuit breaker using Task?](#q25-how-would-you-build-a-simple-async-circuit-breaker-using-task)
+26. [Q26. How do you diagnose a deadlock caused by .Result in an async chain?](#q26-how-do-you-diagnose-a-deadlock-caused-by-result-in-an-async-chain)
+27. [Q27. How do you choose between Task and ValueTask for a high-performance cache read method?](#q27-how-do-you-choose-between-task-and-valuetask-for-a-high-performance-cache-read-method)
+
+---
 ## Foundation Questions
 
 ---

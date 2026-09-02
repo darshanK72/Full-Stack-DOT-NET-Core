@@ -1,5 +1,37 @@
-# Async and Await — Interview Q&A
+﻿# Async and Await — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What does the async keyword do to a method?](#q1-what-does-the-async-keyword-do-to-a-method)
+2. [Q2. What happens at runtime when execution reaches an await expression?](#q2-what-happens-at-runtime-when-execution-reaches-an-await-expression)
+3. [Q3. What is SynchronizationContext and how does it interact with async/await?](#q3-what-is-synchronizationcontext-and-how-does-it-interact-with-asyncawait)
+4. [Q4. What does ConfigureAwait(false) do and when should you use it?](#q4-what-does-configureawaitfalse-do-and-when-should-you-use-it)
+5. [Q5. What is the difference between async void and async Task?](#q5-what-is-the-difference-between-async-void-and-async-task)
+6. [Q6. How does async Main work in C#?](#q6-how-does-async-main-work-in-c)
+7. [Q7. What is the awaitable pattern and how does it work?](#q7-what-is-the-awaitable-pattern-and-how-does-it-work)
+8. [Q8. What is IAsyncEnumerable<T> and how does it differ from IEnumerable<T>?](#q8-what-is-iasyncenumerablet-and-how-does-it-differ-from-ienumerablet)
+9. [Q9. What is AsyncLocal<T> and when is it used?](#q9-what-is-asynclocalt-and-when-is-it-used)
+10. [Q10. What is IProgress<T> and how is it used with async methods?](#q10-what-is-iprogresst-and-how-is-it-used-with-async-methods)
+11. [Q11. What does await Task.Yield() do?](#q11-what-does-await-taskyield-do)
+12. [Q12. How does exception handling work across await boundaries?](#q12-how-does-exception-handling-work-across-await-boundaries)
+13. [Q13. What is the async state machine and why does it allocate on the heap?](#q13-what-is-the-async-state-machine-and-why-does-it-allocate-on-the-heap)
+14. [Q14. What is async over sync and why is it an anti-pattern?](#q14-what-is-async-over-sync-and-why-is-it-an-anti-pattern)
+15. [Q15. How do you implement async initialization for a class?](#q15-how-do-you-implement-async-initialization-for-a-class)
+16. [Q16. Classic deadlock: how does calling .Result on an async method deadlock in WPF?](#q16-classic-deadlock-how-does-calling-result-on-an-async-method-deadlock-in-wpf)
+17. [Q17. What is the async void exception trap?](#q17-what-is-the-async-void-exception-trap)
+18. [Q18. What is the "not awaiting a task" (fire-and-forget) bug?](#q18-what-is-the-not-awaiting-a-task-fire-and-forget-bug)
+19. [Q19. What is awaiting in a loop vs Task.WhenAll — which is better?](#q19-what-is-awaiting-in-a-loop-vs-taskwhenall-which-is-better)
+20. [Q20. What happens when you use ConfigureAwait(false) incorrectly in UI code?](#q20-what-happens-when-you-use-configureawaitfalse-incorrectly-in-ui-code)
+21. [Q21. What are the pitfalls of using async with LINQ?](#q21-what-are-the-pitfalls-of-using-async-with-linq)
+22. [Q22. How would you convert a synchronous method to async without breaking existing callers?](#q22-how-would-you-convert-a-synchronous-method-to-async-without-breaking-existing-callers)
+23. [Q23. How would you build a streaming API endpoint using IAsyncEnumerable<T>?](#q23-how-would-you-build-a-streaming-api-endpoint-using-iasyncenumerablet)
+24. [Q24. A developer reports that their async WPF application freezes briefly during data loading. How do you diagnose and fix it?](#q24-a-developer-reports-that-their-async-wpf-application-freezes-briefly-during-data-loading-how-do-you-diagnose-and-fix-it)
+25. [Q25. How do you implement rate-limited async processing (e.g., 10 API calls per second)?](#q25-how-do-you-implement-rate-limited-async-processing-eg-10-api-calls-per-second)
+26. [Q26. How do you write unit tests for async methods?](#q26-how-do-you-write-unit-tests-for-async-methods)
+27. [Q27. How do you handle exceptions in async streams (IAsyncEnumerable<T>)?](#q27-how-do-you-handle-exceptions-in-async-streams-iasyncenumerablet)
+
+---
 ## Foundation Questions
 
 ---

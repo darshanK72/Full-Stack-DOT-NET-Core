@@ -1,5 +1,37 @@
-# C# Properties & Indexers — Interview Q&A
+﻿# C# Properties & Indexers — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a property in C# and how does it differ from a public field?](#q1-what-is-a-property-in-c-and-how-does-it-differ-from-a-public-field)
+2. [Q2. What is an auto-implemented property and when should you use it?](#q2-what-is-an-auto-implemented-property-and-when-should-you-use-it)
+3. [Q3. What is a full property with an explicit backing field, and when is it required?](#q3-what-is-a-full-property-with-an-explicit-backing-field-and-when-is-it-required)
+4. [Q4. What are expression-bodied properties and what constraints apply to them?](#q4-what-are-expression-bodied-properties-and-what-constraints-apply-to-them)
+5. [Q5. What is a read-only property and how does it differ from a `readonly` field?](#q5-what-is-a-read-only-property-and-how-does-it-differ-from-a-readonly-field)
+6. [Q6. What is an init-only setter (`init`) in C# 9+ and how does it differ from a read-only property?](#q6-what-is-an-init-only-setter-init-in-c-9-and-how-does-it-differ-from-a-read-only-property)
+7. [Q7. What is a private setter and when should you prefer it over `init`?](#q7-what-is-a-private-setter-and-when-should-you-prefer-it-over-init)
+8. [Q8. What access modifier constraints apply to property accessors in C#?](#q8-what-access-modifier-constraints-apply-to-property-accessors-in-c)
+9. [Q9. What are `required` properties (C# 11) and how do they differ from init-only setters?](#q9-what-are-required-properties-c-11-and-how-do-they-differ-from-init-only-setters)
+10. [Q10. What is a static property and what limitations does it have?](#q10-what-is-a-static-property-and-what-limitations-does-it-have)
+11. [Q11. What are abstract and virtual properties, and how does property inheritance work in C#?](#q11-what-are-abstract-and-virtual-properties-and-how-does-property-inheritance-work-in-c)
+12. [Q12. What is an indexer in C# and how is it declared?](#q12-what-is-an-indexer-in-c-and-how-is-it-declared)
+13. [Q13. How do you implement a multi-parameter indexer in C#?](#q13-how-do-you-implement-a-multi-parameter-indexer-in-c)
+14. [Q14. How are indexers declared in interfaces, and what does an implementing class need to provide?](#q14-how-are-indexers-declared-in-interfaces-and-what-does-an-implementing-class-need-to-provide)
+15. [Q15. How does the property pattern in C# switch expressions work, and what role do property names play?](#q15-how-does-the-property-pattern-in-c-switch-expressions-work-and-what-role-do-property-names-play)
+16. [Q16. Why is it a mistake to produce side effects inside a property getter, and what bugs does it cause in practice?](#q16-why-is-it-a-mistake-to-produce-side-effects-inside-a-property-getter-and-what-bugs-does-it-cause-in-practice)
+17. [Q17. Why does changing a property from full to auto-implementation silently break validation, and how do you catch this in code review?](#q17-why-does-changing-a-property-from-full-to-auto-implementation-silently-break-validation-and-how-do-you-catch-this-in-code-review)
+18. [Q18. What is the defensive-copy gotcha with struct properties, and when does it silently mutate the wrong copy?](#q18-what-is-the-defensive-copy-gotcha-with-struct-properties-and-when-does-it-silently-mutate-the-wrong-copy)
+19. [Q19. Can you give an indexer the same parameter type as a property name — and what naming conflict does that create in IL?](#q19-can-you-give-an-indexer-the-same-parameter-type-as-a-property-name-and-what-naming-conflict-does-that-create-in-il)
+20. [Q20. What happens when you use `init` with `required` together, and what edge case breaks consumer code?](#q20-what-happens-when-you-use-init-with-required-together-and-what-edge-case-breaks-consumer-code)
+21. [Q21. Why can an indexer not be `static`, and what is the practical implication of this restriction?](#q21-why-can-an-indexer-not-be-static-and-what-is-the-practical-implication-of-this-restriction)
+22. [Q22. A `BookShelf` indexer passes QA with small data, but production reports `NullReferenceException` on `shelf[2]` when the shelf has capacity 10 but only 2 books. Review the code, identify the defect, and fix it.](#q22-a-bookshelf-indexer-passes-qa-with-small-data-but-production-reports-nullreferenceexception-on-shelf2-when-the-shelf-has-capacity-10-but-only-2-books-review-the-code-identify-the-defect-and-fix-it)
+23. [Q23. You are designing an immutable API response DTO in .NET 10. Which property patterns do you choose, and why does that choice affect serialization, testing, and refactoring safety?](#q23-you-are-designing-an-immutable-api-response-dto-in-net-10-which-property-patterns-do-you-choose-and-why-does-that-choice-affect-serialization-testing-and-refactoring-safety)
+24. [Q24. A ViewModel needs to implement `INotifyPropertyChanged` so the UI updates when properties change. How do properties make this possible, and what are the performance tradeoffs of different implementation patterns?](#q24-a-viewmodel-needs-to-implement-inotifypropertychanged-so-the-ui-updates-when-properties-change-how-do-properties-make-this-possible-and-what-are-the-performance-tradeoffs-of-different-implementation-patterns)
+25. [Q25. A library module exposes its internal book list through a property returning `List<Book>`. A code review flags this as a design risk. Explain the risks, show the fix, and describe when `IReadOnlyList<T>` vs `IEnumerable<T>` is the better return type.](#q25-a-library-module-exposes-its-internal-book-list-through-a-property-returning-listbook-a-code-review-flags-this-as-a-design-risk-explain-the-risks-show-the-fix-and-describe-when-ireadonlylistt-vs-ienumerablet-is-the-better-return-type)
+26. [Q26. You need a `Matrix<T>` class that supports grid access via a two-parameter indexer with bounds checking and a `Fill` method. Write the core class, identify the edge cases in the indexer, and explain how the design changes if `T` must be a numeric type.](#q26-you-need-a-matrixt-class-that-supports-grid-access-via-a-two-parameter-indexer-with-bounds-checking-and-a-fill-method-write-the-core-class-identify-the-edge-cases-in-the-indexer-and-explain-how-the-design-changes-if-t-must-be-a-numeric-type)
+27. [Q27. A team debates whether to use `required` properties with object initializers or constructor parameters for a domain aggregate root. Walk through the tradeoffs and give a concrete recommendation for a `CustomerOrder` entity.](#q27-a-team-debates-whether-to-use-required-properties-with-object-initializers-or-constructor-parameters-for-a-domain-aggregate-root-walk-through-the-tradeoffs-and-give-a-concrete-recommendation-for-a-customerorder-entity)
+
+---
 ## Foundation Questions
 
 ---

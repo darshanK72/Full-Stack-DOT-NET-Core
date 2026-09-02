@@ -1,7 +1,28 @@
-# LINQ: Joins — Interview Q&A
+﻿# LINQ: Joins — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does the LINQ `Join` operator do?](#q1-what-does-the-linq-join-operator-do)
+2. [Q2. What is the query syntax for a LINQ join?](#q2-what-is-the-query-syntax-for-a-linq-join)
+3. [Q3. What is `GroupJoin` and how does it differ from `Join`?](#q3-what-is-groupjoin-and-how-does-it-differ-from-join)
+4. [Q4. How do you implement a left outer join in LINQ?](#q4-how-do-you-implement-a-left-outer-join-in-linq)
+5. [Q5. How do you perform a cross join in LINQ?](#q5-how-do-you-perform-a-cross-join-in-linq)
+6. [Q6. How do you join on multiple keys (composite join)?](#q6-how-do-you-join-on-multiple-keys-composite-join)
+7. [Q7. What is the performance characteristic of LINQ `Join` in LINQ to Objects?](#q7-what-is-the-performance-characteristic-of-linq-join-in-linq-to-objects)
+8. [Q8. How does LINQ `Join` translate in EF Core?](#q8-how-does-linq-join-translate-in-ef-core)
+9. [Q9. What is the difference between `Join` and a `SelectMany` with a filter?](#q9-what-is-the-difference-between-join-and-a-selectmany-with-a-filter)
+10. [Q10. How does `Join` handle duplicate keys in the inner sequence?](#q10-how-does-join-handle-duplicate-keys-in-the-inner-sequence)
+11. [Q11. Can LINQ perform a full outer join?](#q11-can-linq-perform-a-full-outer-join)
+12. [Q12. Why should you prefer navigation properties over explicit `Join` in EF Core? (Gotcha)](#q12-why-should-you-prefer-navigation-properties-over-explicit-join-in-ef-core-gotcha)
+13. [Q13. What happens when you use `Join` on an empty sequence? (Gotcha)](#q13-what-happens-when-you-use-join-on-an-empty-sequence-gotcha)
+14. [Q14. Does LINQ `Join` preserve the order of elements? (Gotcha)](#q14-does-linq-join-preserve-the-order-of-elements-gotcha)
+15. [Q15. Scenario: A report shows duplicate customer rows after a join. How do you debug it? (Scenario)](#q15-scenario-a-report-shows-duplicate-customer-rows-after-a-join-how-do-you-debug-it-scenario)
+16. [Q16. Scenario: A LINQ join between two in-memory lists is very slow for large data. What is the likely cause and fix? (Scenario)](#q16-scenario-a-linq-join-between-two-in-memory-lists-is-very-slow-for-large-data-what-is-the-likely-cause-and-fix-scenario)
+
+---
 ## Q1. What does the LINQ `Join` operator do?
 
 **Concepts**

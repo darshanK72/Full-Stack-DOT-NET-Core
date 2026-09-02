@@ -1,5 +1,28 @@
-# C# Abstract Classes & Interfaces — Interview Q&A
+﻿# C# Abstract Classes & Interfaces — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is an abstract class in C#, and how does it differ from a concrete class?](#q1-what-is-an-abstract-class-in-c-and-how-does-it-differ-from-a-concrete-class)
+2. [Q2. What is an interface in C#, and what could it contain before and after C# 8?](#q2-what-is-an-interface-in-c-and-what-could-it-contain-before-and-after-c-8)
+3. [Q3. When would you choose an abstract class over an interface, and vice versa?](#q3-when-would-you-choose-an-abstract-class-over-an-interface-and-vice-versa)
+4. [Q4. What is an abstract method and an abstract property, and who must implement them?](#q4-what-is-an-abstract-method-and-an-abstract-property-and-who-must-implement-them)
+5. [Q5. What are default interface methods (C# 8), and what problem do they solve?](#q5-what-are-default-interface-methods-c-8-and-what-problem-do-they-solve)
+6. [Q6. What is explicit interface implementation, and when is it necessary?](#q6-what-is-explicit-interface-implementation-and-when-is-it-necessary)
+7. [Q7. What is the Interface Segregation Principle, and how does a "kitchen sink" interface violate it?](#q7-what-is-the-interface-segregation-principle-and-how-does-a-kitchen-sink-interface-violate-it)
+8. [Q8. How do covariant (`IEnumerable<out T>`) and contravariant (`IComparer<in T>`) interfaces work in C#?](#q8-how-do-covariant-ienumerableout-t-and-contravariant-icomparerin-t-interfaces-work-in-c)
+9. [Q9. What is the `IDisposable` pattern, and how does an abstract base class help implement it?](#q9-what-is-the-idisposable-pattern-and-how-does-an-abstract-base-class-help-implement-it)
+10. [Q10. What are static abstract interface members (C# 11), and what enables generic math?](#q10-what-are-static-abstract-interface-members-c-11-and-what-enables-generic-math)
+11. [Q11. What is the difference between `abstract override` and `override` in a derived abstract class?](#q11-what-is-the-difference-between-abstract-override-and-override-in-a-derived-abstract-class)
+12. [Q12. When should you use both an abstract class and an interface together?](#q12-when-should-you-use-both-an-abstract-class-and-an-interface-together)
+13. [Q13. An `IExportable` library interface adds a default method `ExportWithMetadata()`. A service targeting `netstandard2.0` references the updated package. What breaks?](#q13-an-iexportable-library-interface-adds-a-default-method-exportwithmetadata-a-service-targeting-netstandard20-references-the-updated-package-what-breaks)
+14. [Q14. A storage service calls `invoice.GetName()` expecting a file-safe name, but gets `"Invoice: Q1-2025"` instead. Why?](#q14-a-storage-service-calls-invoicegetname-expecting-a-file-safe-name-but-gets-invoice-q1-2025-instead-why)
+15. [Q15. An abstract base class `NotifierBase` already has `Email` and `SMS` as subclasses. A new `SmsNotifier : INotificationSender` is introduced from an external library. How do you bridge the two hierarchies without breaking LSP?](#q15-an-abstract-base-class-notifierbase-already-has-email-and-sms-as-subclasses-a-new-smsnotifier-inotificationsender-is-introduced-from-an-external-library-how-do-you-bridge-the-two-hierarchies-without-breaking-lsp)
+16. [Q16. A document archive needs `SpreadsheetDocument` with shared `Title`/`CreatedOn`, optional CSV export, and a separate audit trail. How would you model this?](#q16-a-document-archive-needs-spreadsheetdocument-with-shared-titlecreatedon-optional-csv-export-and-a-separate-audit-trail-how-would-you-model-this)
+17. [Q17. `DocumentProcessor` is hard-coupled to `PdfRenderer` and `List<InvoiceDocument>`. Unit tests are slow because they hit disk. How do you introduce test seams?](#q17-documentprocessor-is-hard-coupled-to-pdfrenderer-and-listinvoicedocument-unit-tests-are-slow-because-they-hit-disk-how-do-you-introduce-test-seams)
+18. [Q18. You need to add `PushNotificationSender` to an existing notification system where `Email` and `SMS` already extend `NotifierBase`. Option A extends the abstract base; Option B uses a static helper. How do you decide?](#q18-you-need-to-add-pushnotificationsender-to-an-existing-notification-system-where-email-and-sms-already-extend-notifierbase-option-a-extends-the-abstract-base-option-b-uses-a-static-helper-how-do-you-decide)
+
+---
 ## Foundation Questions
 
 ---

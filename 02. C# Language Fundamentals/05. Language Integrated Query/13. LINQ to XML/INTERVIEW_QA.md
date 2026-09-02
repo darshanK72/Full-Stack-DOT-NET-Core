@@ -1,7 +1,25 @@
-# LINQ: LINQ to XML — Interview Q&A
+﻿# LINQ: LINQ to XML — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What is LINQ to XML and what are its core classes?](#q1-what-is-linq-to-xml-and-what-are-its-core-classes)
+2. [Q2. What is functional construction in LINQ to XML?](#q2-what-is-functional-construction-in-linq-to-xml)
+3. [Q3. How do you query elements in LINQ to XML?](#q3-how-do-you-query-elements-in-linq-to-xml)
+4. [Q4. What is `XDocument.Load` vs. `XElement.Load` vs. parsing from a string?](#q4-what-is-xdocumentload-vs-xelementload-vs-parsing-from-a-string)
+5. [Q5. How do you read attribute values in LINQ to XML?](#q5-how-do-you-read-attribute-values-in-linq-to-xml)
+6. [Q6. How do you modify an existing XML document in LINQ to XML?](#q6-how-do-you-modify-an-existing-xml-document-in-linq-to-xml)
+7. [Q7. How do you work with XML namespaces in LINQ to XML?](#q7-how-do-you-work-with-xml-namespaces-in-linq-to-xml)
+8. [Q8. How do you transform XML from one shape to another using LINQ to XML?](#q8-how-do-you-transform-xml-from-one-shape-to-another-using-linq-to-xml)
+9. [Q9. How does LINQ to XML compare to XmlDocument?](#q9-how-does-linq-to-xml-compare-to-xmldocument)
+10. [Q10. How do you use XPath with LINQ to XML?](#q10-how-do-you-use-xpath-with-linq-to-xml)
+11. [Q11. What is `XElement.Value` and how does it differ from casting? (Gotcha)](#q11-what-is-xelementvalue-and-how-does-it-differ-from-casting-gotcha)
+12. [Q12. Scenario: You need to parse a product feed XML file and map it to a list of DTOs. How do you implement this? (Scenario)](#q12-scenario-you-need-to-parse-a-product-feed-xml-file-and-map-it-to-a-list-of-dtos-how-do-you-implement-this-scenario)
+13. [Q13. Scenario: A team member writes code to query XML and gets empty results despite the XML looking correct. What is the likely cause? (Scenario)](#q13-scenario-a-team-member-writes-code-to-query-xml-and-gets-empty-results-despite-the-xml-looking-correct-what-is-the-likely-cause-scenario)
+
+---
 ## Q1. What is LINQ to XML and what are its core classes?
 
 **Concepts**

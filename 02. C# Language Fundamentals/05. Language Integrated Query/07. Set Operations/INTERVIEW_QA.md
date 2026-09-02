@@ -1,7 +1,25 @@
-# LINQ: Set Operations — Interview Q&A
+﻿# LINQ: Set Operations — Interview Q&A
 
 ---
 
+
+## Table of Contents
+
+1. [Q1. What does `Distinct` do and how does it determine equality?](#q1-what-does-distinct-do-and-how-does-it-determine-equality)
+2. [Q2. What is `DistinctBy` and when was it introduced?](#q2-what-is-distinctby-and-when-was-it-introduced)
+3. [Q3. What does `Union` do and how does it differ from `Concat`?](#q3-what-does-union-do-and-how-does-it-differ-from-concat)
+4. [Q4. What does `Intersect` do?](#q4-what-does-intersect-do)
+5. [Q5. What does `Except` do?](#q5-what-does-except-do)
+6. [Q6. What are `UnionBy`, `IntersectBy`, and `ExceptBy` (.NET 6+)?](#q6-what-are-unionby-intersectby-and-exceptby-net-6)
+7. [Q7. How does `Distinct` behave with custom reference types that don't override `Equals`?](#q7-how-does-distinct-behave-with-custom-reference-types-that-dont-override-equals)
+8. [Q8. What is the memory and time complexity of `Distinct`, `Union`, `Intersect`, and `Except`?](#q8-what-is-the-memory-and-time-complexity-of-distinct-union-intersect-and-except)
+9. [Q9. Does `Union` guarantee element order?](#q9-does-union-guarantee-element-order)
+10. [Q10. How does `SequenceEqual` differ from `Intersect`?](#q10-how-does-sequenceequal-differ-from-intersect)
+11. [Q11. Scenario: A sync service compares two lists of IDs to find items added, removed, and unchanged. How do you implement this with set operations? (Scenario)](#q11-scenario-a-sync-service-compares-two-lists-of-ids-to-find-items-added-removed-and-unchanged-how-do-you-implement-this-with-set-operations-scenario)
+12. [Q12. Scenario: A developer uses `Distinct()` on a list of DTOs and complains it doesn't work. What do you tell them? (Scenario)](#q12-scenario-a-developer-uses-distinct-on-a-list-of-dtos-and-complains-it-doesnt-work-what-do-you-tell-them-scenario)
+13. [Q13. When would you use `Except` instead of `Where` with `Contains`? (Scenario)](#q13-when-would-you-use-except-instead-of-where-with-contains-scenario)
+
+---
 ## Q1. What does `Distinct` do and how does it determine equality?
 
 **Concepts**

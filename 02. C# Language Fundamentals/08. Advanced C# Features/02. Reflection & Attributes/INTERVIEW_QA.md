@@ -1,5 +1,29 @@
-# Reflection & Attributes — Interview Q&A
+﻿# Reflection & Attributes — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is reflection in .NET and what can you do with it?](#q1-what-is-reflection-in-net-and-what-can-you-do-with-it)
+2. [Q2. How do you get the Type of an object at runtime, and what are the three ways to obtain it?](#q2-how-do-you-get-the-type-of-an-object-at-runtime-and-what-are-the-three-ways-to-obtain-it)
+3. [Q3. What is a custom attribute in C# and how do you define one?](#q3-what-is-a-custom-attribute-in-c-and-how-do-you-define-one)
+4. [Q4. What does [AttributeUsage] control and what does Inherited = false mean?](#q4-what-does-attributeusage-control-and-what-does-inherited-false-mean)
+5. [Q5. How do you invoke a method dynamically using MethodInfo.Invoke?](#q5-how-do-you-invoke-a-method-dynamically-using-methodinfoinvoke)
+6. [Q6. What BindingFlags are needed to access private or non-public members?](#q6-what-bindingflags-are-needed-to-access-private-or-non-public-members)
+7. [Q7. Why is reflection slow and how do you mitigate the cost in hot paths?](#q7-why-is-reflection-slow-and-how-do-you-mitigate-the-cost-in-hot-paths)
+8. [Q8. What is Activator.CreateInstance and what are its limitations?](#q8-what-is-activatorcreateinstance-and-what-are-its-limitations)
+9. [Q9. How do you use Type.GetType for cross-assembly plugin loading?](#q9-how-do-you-use-typegettype-for-cross-assembly-plugin-loading)
+10. [Q10. What happens to reflection-based attribute scanning when Native AOT or PublishTrimmed is enabled?](#q10-what-happens-to-reflection-based-attribute-scanning-when-native-aot-or-publishtrimmed-is-enabled)
+11. [Q11. What is the difference between GetCustomAttribute and IsDefined?](#q11-what-is-the-difference-between-getcustomattribute-and-isdefined)
+12. [Q12. How do expression trees provide faster dynamic dispatch than raw MethodInfo.Invoke?](#q12-how-do-expression-trees-provide-faster-dynamic-dispatch-than-raw-methodinfoinvoke)
+13. [Q13. Why does MethodInfo.Invoke wrap exceptions in TargetInvocationException?](#q13-why-does-methodinfoinvoke-wrap-exceptions-in-targetinvocationexception)
+14. [Q14. Why does string-based method lookup via GetMethod break silently after a rename refactor?](#q14-why-does-string-based-method-lookup-via-getmethod-break-silently-after-a-rename-refactor)
+15. [Q15. What happens when Inherited = false on an attribute and a subclass is checked?](#q15-what-happens-when-inherited-false-on-an-attribute-and-a-subclass-is-checked)
+16. [Q16. Why is scanning GetExecutingAssembly().GetTypes() fragile in large solutions?](#q16-why-is-scanning-getexecutingassemblygettypes-fragile-in-large-solutions)
+17. [Q17. (Code Review) A warehouse API loads pricing plugins from a separate assembly at runtime. It always returns null in staging. Review the loader.](#q17-code-review-a-warehouse-api-loads-pricing-plugins-from-a-separate-assembly-at-runtime-it-always-returns-null-in-staging-review-the-loader)
+18. [Q18. A margin-report job reads private cost fields from DTOs but always gets null. What is the binding mistake?](#q18-a-margin-report-job-reads-private-cost-fields-from-dtos-but-always-gets-null-what-is-the-binding-mistake)
+19. [Q19. An API discovers [EntityTable]-decorated types at startup, but they vanish after enabling PublishTrimmed. Why, and what are production-safe alternatives?](#q19-an-api-discovers-entitytable-decorated-types-at-startup-but-they-vanish-after-enabling-publishtrimmed-why-and-what-are-production-safe-alternatives)
+
+---
 > **Module:** 02. C# Language Fundamentals › 08. Advanced C# Features › 02. Reflection & Attributes  
 > **Stack:** .NET 10 · System.Reflection · Custom Attributes · Source Generators
 

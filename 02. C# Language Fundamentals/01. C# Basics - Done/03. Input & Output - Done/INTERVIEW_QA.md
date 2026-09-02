@@ -1,5 +1,36 @@
-# INTERVIEW_QA — Input & Output in C#
+﻿# INTERVIEW_QA — Input & Output in C#
 
+
+## Table of Contents
+
+1. [Q1. What is the difference between Console.Write and Console.WriteLine?](#q1-what-is-the-difference-between-consolewrite-and-consolewriteline)
+2. [Q2. What are the three standard console streams and how do they map to Console class members?](#q2-what-are-the-three-standard-console-streams-and-how-do-they-map-to-console-class-members)
+3. [Q3. What does Console.ReadLine return, and what is the significance of its nullable return type?](#q3-what-does-consolereadline-return-and-what-is-the-significance-of-its-nullable-return-type)
+4. [Q4. How do Console.Read and Console.ReadKey differ from Console.ReadLine?](#q4-how-do-consoleread-and-consolereadkey-differ-from-consolereadline)
+5. [Q5. What does the intercept parameter of Console.ReadKey control, and when should you use it?](#q5-what-does-the-intercept-parameter-of-consolereadkey-control-and-when-should-you-use-it)
+6. [Q6. How does composite formatting work in Console.WriteLine and String.Format?](#q6-how-does-composite-formatting-work-in-consolewriteline-and-stringformat)
+7. [Q7. What is string interpolation ($"...") and when should you prefer composite formatting instead?](#q7-what-is-string-interpolation-and-when-should-you-prefer-composite-formatting-instead)
+8. [Q8. What are the most commonly used standard numeric format specifiers and what does each produce?](#q8-what-are-the-most-commonly-used-standard-numeric-format-specifiers-and-what-does-each-produce)
+9. [Q9. What are standard date and time format specifiers, and how does culture affect their output?](#q9-what-are-standard-date-and-time-format-specifiers-and-how-does-culture-affect-their-output)
+10. [Q10. What is the difference between int.Parse and int.TryParse when handling user input?](#q10-what-is-the-difference-between-intparse-and-inttryparse-when-handling-user-input)
+11. [Q11. How does the Convert class differ from Parse and TryParse for type conversion?](#q11-how-does-the-convert-class-differ-from-parse-and-tryparse-for-type-conversion)
+12. [Q12. What is Console.SetOut, and how is it used to capture output for testing?](#q12-what-is-consolesetout-and-how-is-it-used-to-capture-output-for-testing)
+13. [Q13. What is Console.SetIn, and how does it enable automated testing of interactive prompts?](#q13-what-is-consolesetin-and-how-does-it-enable-automated-testing-of-interactive-prompts)
+14. [Q14. What is StreamReader/StreamWriter, and how do they relate to Console I/O?](#q14-what-is-streamreaderstreamwriter-and-how-do-they-relate-to-console-io)
+15. [Q15. How do custom numeric format strings differ from standard format specifiers?](#q15-how-do-custom-numeric-format-strings-differ-from-standard-format-specifiers)
+16. [Q16. What bug does using the null-forgiving operator (!) on Console.ReadLine introduce?](#q16-what-bug-does-using-the-null-forgiving-operator-on-consolereadline-introduce)
+17. [Q17. Why does int.Parse throw even when the string looks like a valid number?](#q17-why-does-intparse-throw-even-when-the-string-looks-like-a-valid-number)
+18. [Q18. What happens if Console.SetOut is called without saving and restoring the original TextWriter?](#q18-what-happens-if-consolesetout-is-called-without-saving-and-restoring-the-original-textwriter)
+19. [Q19. Why does string interpolation $"" produce incorrect wire-format output on machines with non-en-US culture?](#q19-why-does-string-interpolation-produce-incorrect-wire-format-output-on-machines-with-non-en-us-culture)
+20. [Q20. What goes wrong when diagnostic messages are written to Console.Out instead of Console.Error?](#q20-what-goes-wrong-when-diagnostic-messages-are-written-to-consoleout-instead-of-consoleerror)
+21. [Q21. Code review: A CI job reads quantity from stdin — identify the defects and prioritize fixes.](#q21-code-review-a-ci-job-reads-quantity-from-stdin-identify-the-defects-and-prioritize-fixes)
+22. [Q22. Code review: A stream-redirect receipt capture is missing cleanup — diagnose and fix.](#q22-code-review-a-stream-redirect-receipt-capture-is-missing-cleanup-diagnose-and-fix)
+23. [Q23. A console application reads lines from stdin in a loop and must handle both interactive users and piped files gracefully. How do you structure the read loop?](#q23-a-console-application-reads-lines-from-stdin-in-a-loop-and-must-handle-both-interactive-users-and-piped-files-gracefully-how-do-you-structure-the-read-loop)
+24. [Q24. How would you build a console password prompt that collects a masked password without echoing characters?](#q24-how-would-you-build-a-console-password-prompt-that-collects-a-masked-password-without-echoing-characters)
+25. [Q25. A pricing service must display currency in the operator's locale but emit a fixed-format decimal for a JSON API. How do you separate these two formatting concerns?](#q25-a-pricing-service-must-display-currency-in-the-operators-locale-but-emit-a-fixed-format-decimal-for-a-json-api-how-do-you-separate-these-two-formatting-concerns)
+26. [Q26. A developer wants to unit-test a method that reads from Console and writes formatted output. How do you design the test without refactoring the production code?](#q26-a-developer-wants-to-unit-test-a-method-that-reads-from-console-and-writes-formatted-output-how-do-you-design-the-test-without-refactoring-the-production-code)
+
+---
 ## Foundation Questions
 
 ---

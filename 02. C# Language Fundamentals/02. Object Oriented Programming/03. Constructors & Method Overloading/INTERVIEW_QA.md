@@ -1,5 +1,36 @@
-# C# Constructors & Method Overloading — Interview Q&A
+﻿# C# Constructors & Method Overloading — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is a constructor in C# and what is its primary purpose?](#q1-what-is-a-constructor-in-c-and-what-is-its-primary-purpose)
+2. [Q2. What is the difference between a default constructor and a parameterized constructor?](#q2-what-is-the-difference-between-a-default-constructor-and-a-parameterized-constructor)
+3. [Q3. What is constructor chaining with `this(...)`, and why is it used?](#q3-what-is-constructor-chaining-with-this-and-why-is-it-used)
+4. [Q4. What is the difference between `: this(...)` and `: base(...)`?](#q4-what-is-the-difference-between-this-and-base)
+5. [Q5. What is a static constructor, when does it run, and what are its restrictions?](#q5-what-is-a-static-constructor-when-does-it-run-and-what-are-its-restrictions)
+6. [Q6. What is a copy constructor pattern in C#, and when would you implement one?](#q6-what-is-a-copy-constructor-pattern-in-c-and-when-would-you-implement-one)
+7. [Q7. What are primary constructors in C# 12, and how do they differ from traditional constructors?](#q7-what-are-primary-constructors-in-c-12-and-how-do-they-differ-from-traditional-constructors)
+8. [Q8. What is method overloading, and what rules determine which overload is selected?](#q8-what-is-method-overloading-and-what-rules-determine-which-overload-is-selected)
+9. [Q9. How do optional parameters interact with method overloading, and what problems can arise?](#q9-how-do-optional-parameters-interact-with-method-overloading-and-what-problems-can-arise)
+10. [Q10. What is the `params` keyword and how does it affect overload resolution?](#q10-what-is-the-params-keyword-and-how-does-it-affect-overload-resolution)
+11. [Q11. What is the difference between method overloading and method overriding?](#q11-what-is-the-difference-between-method-overloading-and-method-overriding)
+12. [Q12. How does constructor execution order work in an inheritance chain?](#q12-how-does-constructor-execution-order-work-in-an-inheritance-chain)
+13. [Q13. What are named arguments, and how do they interact with overloads?](#q13-what-are-named-arguments-and-how-do-they-interact-with-overloads)
+14. [Q14. Why should you avoid calling virtual members from constructors?](#q14-why-should-you-avoid-calling-virtual-members-from-constructors)
+15. [Q15. What is the role of the `new` keyword in method hiding vs constructor invocation?](#q15-what-is-the-role-of-the-new-keyword-in-method-hiding-vs-constructor-invocation)
+16. [Q16. A convenience constructor chains via `: this(sku, 1)` to a parameterized constructor that validates SKU. Why might validation still be bypassed?](#q16-a-convenience-constructor-chains-via-thissku-1-to-a-parameterized-constructor-that-validates-sku-why-might-validation-still-be-bypassed)
+17. [Q17. Why does adding a default value to an existing method parameter break binary compatibility in a published NuGet package?](#q17-why-does-adding-a-default-value-to-an-existing-method-parameter-break-binary-compatibility-in-a-published-nuget-package)
+18. [Q18. What happens when two overloads are equally applicable — for example, `Foo(int, double)` and `Foo(double, int)` — and you call `Foo(1, 2)`?](#q18-what-happens-when-two-overloads-are-equally-applicable-for-example-fooint-double-and-foodouble-int-and-you-call-foo1-2)
+19. [Q19. In C# 12 primary constructors, does the compiler generate backing fields automatically for the parameters?](#q19-in-c-12-primary-constructors-does-the-compiler-generate-backing-fields-automatically-for-the-parameters)
+20. [Q20. Why does a static constructor have no access modifier, and what if it throws?](#q20-why-does-a-static-constructor-have-no-access-modifier-and-what-if-it-throws)
+21. [Q21. Can you overload operators in C#, and what rules apply?](#q21-can-you-overload-operators-in-c-and-what-rules-apply)
+22. [Q22. A teammate chains constructors in `OrderLine` but QA reports that empty SKUs reach production. Review this code and identify the problem.](#q22-a-teammate-chains-constructors-in-orderline-but-qa-reports-that-empty-skus-reach-production-review-this-code-and-identify-the-problem)
+23. [Q23. A .NET 10 service uses a C# 12 primary constructor for `StockReceipt`. Unit tests expecting `ArgumentException` on null SKU throw `NullReferenceException` instead. What is the initialization order problem?](#q23-a-net-10-service-uses-a-c-12-primary-constructor-for-stockreceipt-unit-tests-expecting-argumentexception-on-null-sku-throw-nullreferenceexception-instead-what-is-the-initialization-order-problem)
+24. [Q24. Overload ambiguity CS0121 is reported on `PricingHelper.LineTotal(3, 2.49m, 0.10m)`. How do you diagnose and fix it?](#q24-overload-ambiguity-cs0121-is-reported-on-pricinghelperlinetotal3-249m-010m-how-do-you-diagnose-and-fix-it)
+25. [Q25. A DI-based ASP.NET Core service still constructs dependencies manually inside its constructor. What breaks, and what is the correct pattern?](#q25-a-di-based-aspnet-core-service-still-constructs-dependencies-manually-inside-its-constructor-what-breaks-and-what-is-the-correct-pattern)
+26. [Q26. How would you design a `ProductFactory` that enforces invariants through constructors while keeping a clean separation from ASP.NET Core request deserialization?](#q26-how-would-you-design-a-productfactory-that-enforces-invariants-through-constructors-while-keeping-a-clean-separation-from-aspnet-core-request-deserialization)
+
+---
 ## Foundation Questions
 
 ---

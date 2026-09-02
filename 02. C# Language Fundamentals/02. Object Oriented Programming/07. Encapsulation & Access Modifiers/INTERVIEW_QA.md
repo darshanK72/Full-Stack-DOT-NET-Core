@@ -1,5 +1,27 @@
-# C# Encapsulation & Access Modifiers — Interview Q&A
+﻿# C# Encapsulation & Access Modifiers — Interview Q&A
 
+
+## Table of Contents
+
+1. [Q1. What is encapsulation, and why is it a core principle of OOP?](#q1-what-is-encapsulation-and-why-is-it-a-core-principle-of-oop)
+2. [Q2. What are the six access modifiers in C#, and what visibility does each grant?](#q2-what-are-the-six-access-modifiers-in-c-and-what-visibility-does-each-grant)
+3. [Q3. What is the default access modifier for class members and top-level types if none is specified?](#q3-what-is-the-default-access-modifier-for-class-members-and-top-level-types-if-none-is-specified)
+4. [Q4. How do properties enforce encapsulation better than public fields?](#q4-how-do-properties-enforce-encapsulation-better-than-public-fields)
+5. [Q5. What is the `internal` modifier, and how does it support assembly boundary encapsulation?](#q5-what-is-the-internal-modifier-and-how-does-it-support-assembly-boundary-encapsulation)
+6. [Q6. What is `InternalsVisibleTo`, and what are its risks?](#q6-what-is-internalsvisibleto-and-what-are-its-risks)
+7. [Q7. What is the `readonly` keyword on a field, and how does it differ from a property with only a `get` accessor?](#q7-what-is-the-readonly-keyword-on-a-field-and-how-does-it-differ-from-a-property-with-only-a-get-accessor)
+8. [Q8. How does `protected` access in a base class create an encapsulation risk for derived classes?](#q8-how-does-protected-access-in-a-base-class-create-an-encapsulation-risk-for-derived-classes)
+9. [Q9. What are immutable DTOs, and why are they preferred for cross-service messaging?](#q9-what-are-immutable-dtos-and-why-are-they-preferred-for-cross-service-messaging)
+10. [Q10. What is the difference between `protected internal` and `private protected`?](#q10-what-is-the-difference-between-protected-internal-and-private-protected)
+11. [Q11. How does exposing a `List<T>` property break encapsulation, and how do you fix it?](#q11-how-does-exposing-a-listt-property-break-encapsulation-and-how-do-you-fix-it)
+12. [Q12. What is the "anemic domain model" anti-pattern, and how does encapsulation fix it?](#q12-what-is-the-anemic-domain-model-anti-pattern-and-how-does-encapsulation-fix-it)
+13. [Q13. A `BankAccount` has `public decimal Balance { get; set; }`. A support script sets `account.Balance = -10000m`. Why is this an encapsulation failure, and what is the minimal fix?](#q13-a-bankaccount-has-public-decimal-balance-get-set-a-support-script-sets-accountbalance-10000m-why-is-this-an-encapsulation-failure-and-what-is-the-minimal-fix)
+14. [Q14. An `internal class InternalLedger` is returned from a `public static` method. Why does this break the assembly boundary?](#q14-an-internal-class-internalledger-is-returned-from-a-public-static-method-why-does-this-break-the-assembly-boundary)
+15. [Q15. A `CommissionEmployee` subclass directly mutates `protected decimal _baseSalary` and clears `protected List<string> _auditTrail`. What invariants are broken, and how do you prevent this?](#q15-a-commissionemployee-subclass-directly-mutates-protected-decimal-basesalary-and-clears-protected-liststring-audittrail-what-invariants-are-broken-and-how-do-you-prevent-this)
+16. [Q16. Two assemblies need test access to `internal` pricing helpers. A developer adds `InternalsVisibleTo` to the .csproj. What risks exist, and what guardrails apply?](#q16-two-assemblies-need-test-access-to-internal-pricing-helpers-a-developer-adds-internalsvisibleto-to-the-csproj-what-risks-exist-and-what-guardrails-apply)
+17. [Q17. Design an immutable `MemberProfileDto` for cross-service messaging. Compare init-only with mutable `List<T>` vs private constructor with factory method.](#q17-design-an-immutable-memberprofiledto-for-cross-service-messaging-compare-init-only-with-mutable-listt-vs-private-constructor-with-factory-method)
+
+---
 ## Foundation Questions
 
 ---
