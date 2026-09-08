@@ -574,3 +574,147 @@ livenessProbe:
 Before Kubernetes 1.24, the only native probe types were `httpGet`, `tcpSocket`, and `exec`. To health-check a gRPC-only service, teams either added an HTTP health endpoint — mixing protocols — ran `grpc_health_probe` as an `exec` probe requiring the binary in the container image, or used a TCP probe that only checks if the port is open rather than if the service is functioning. The `grpc` probe type eliminates all three workarounds. The `service` field maps to the `service` field in the `HealthCheckRequest` proto message — an empty string requests the overall health of the server, while a service name like `"grpc.orders.OrderService"` can return the health of that specific named service if the implementation registers per-service health status. The probe requires that the gRPC service implement the standard health checking protocol, which in ASP.NET Core is provided by the `Grpc.HealthCheck` package registered via `AddGrpcHealthChecks()`.
 
 ---
+
+## Gotchas — gRPC Inter-Service Communication (Interview Traps)
+
+---
+
+#### Gotcha 1. Breaking Proto Schema Change Without Version Bump
+
+**Concepts**
+- Removing or renaming a proto field breaking existing clients
+- Field number reuse causing deserialization corruption
+- Additive-only schema evolution as the safe strategy
+- Proto service versioning with package name versioning
+
+**Answer**
+
+Removing a field from a `.proto` file or reusing a field number that was previously used by a removed field breaks all clients compiled against the old schema — a client that sends field 5 now has that data silently dropped if field 5 was removed, or worse, has it deserialized as the wrong type if field 5 was reused. Proto field numbers are permanent once published: a removed field's number must be placed in a `reserved` statement (`reserved 5;`) to prevent accidental reuse. Safe evolution is additive-only: only add new optional fields with new field numbers. Breaking changes require a new service package version (`package myservice.v2; service OrderServiceV2 {}`), deployed in parallel with v1, with clients migrated before v1 is removed.
+
+---
+
+#### Gotcha 2. Deadline Not Propagated to Downstream Calls
+
+**Concepts**
+- gRPC deadline as an absolute timestamp, not a relative timeout
+- Service A calling Service B without inheriting the incoming deadline
+- Deadline exceeded on the client while Service B is still computing
+- CancellationToken.UnsafeRegister propagating deadline cancellation
+
+**Answer**
+
+A gRPC client can set a deadline of "5 seconds from now" on an RPC call — if the call chain involves Service A calling Service B, and Service A does not propagate the deadline to its call to Service B, Service B may continue working for 30 seconds while Service A's client has already received a `DEADLINE_EXCEEDED` and moved on. The downstream work in Service B is wasted and its resources are occupied unnecessarily. The correct pattern is to use the incoming call's `CancellationToken` when making outgoing calls: `await _serviceB.GetOrderAsync(request, deadline: context.Deadline, cancellationToken: context.CancellationToken)`. The deadline is an absolute timestamp, so passing it directly to the downstream call ensures the remaining time budget is shared across the entire chain.
+
+---
+
+#### Gotcha 3. HTTP/2 Load Balancing Not Working With L4 Load Balancer
+
+**Concepts**
+- HTTP/2 multiplexing many requests over a single TCP connection
+- L4 load balancer balancing connections, not requests
+- All requests going to one pod when HTTP/2 connection is established
+- L7 load balancer or service mesh required for gRPC load balancing
+
+**Answer**
+
+HTTP/2 multiplexes many RPC calls over a single long-lived TCP connection. An L4 (transport-layer) load balancer balances at connection establishment time — once a gRPC client establishes one HTTP/2 connection to a pod, all subsequent RPCs go to that pod for the lifetime of the connection, completely bypassing all other pods regardless of load. This is a frequently asked interview question because gRPC apparently "works" but silently overloads one pod. The fix is an L7 (application-layer) load balancer that routes individual HTTP/2 streams — a Kubernetes Ingress with gRPC support, Envoy, or a service mesh (Istio, Linkerd) that operates at the HTTP/2 frame level and can distribute individual RPCs across pod replicas.
+
+---
+
+#### Gotcha 4. Proto Field Numbers Reused After Field Removal
+
+**Concepts**
+- Field number as a permanent wire identifier
+- Reused field number causing old clients to misinterpret new data
+- reserved keyword preventing field number reuse
+- Silent deserialization corruption with no error thrown
+
+**Answer**
+
+When a proto field is removed from a `.proto` file, its field number must not be reused by a new field with a different type. A client compiled against the old schema that encounters the new field at the old number will attempt to deserialize the new type's wire encoding as the old type — an `int32` field reused for a `string` produces garbage output with no exception thrown because Protobuf's wire format is lenient. The `reserved` keyword prevents this: `reserved 3;` in the message definition makes the compiler reject any future field declaration with that number. Similarly, `reserved "old_field_name";` prevents the field name from being reused, which matters for JSON serialization compatibility.
+
+---
+
+#### Gotcha 5. Using Unary RPC for High-Throughput Streaming Use Cases
+
+**Concepts**
+- Unary RPC incurring one request-response round trip per item
+- Server streaming sending multiple results over one established connection
+- Client streaming batching multiple sends before one response
+- Throughput and latency improvement from streaming over unary
+
+**Answer**
+
+A service that fetches 10,000 records by making 10,000 individual unary RPCs incurs 10,000 connection establishment overheads, 10,000 serialization/deserialization cycles, and 10,000 round-trip latencies — server streaming returns all 10,000 records over one established RPC as a stream of response messages, dramatically reducing latency and overhead. Similarly, a service that logs 100 events per second with unary RPCs should use client streaming to batch and send them in one stream rather than one RPC per event. Interviewers ask "when would you use streaming versus unary?" and expect concrete examples: server streaming for large result sets and real-time notifications; client streaming for log ingestion and bulk uploads; bidirectional streaming for chat and real-time collaboration.
+
+---
+
+#### Gotcha 6. gRPC Service Not Behind TLS in Production
+
+**Concepts**
+- gRPC using HTTP/2 which does not require TLS but strongly recommends it
+- Credentials transmitted in clear text without TLS
+- Authentication headers sent over unencrypted channels
+- Kestrel SslStream configuration for server-side TLS
+
+**Answer**
+
+gRPC uses HTTP/2, which in the specification does not require TLS — but transmitting authentication tokens, sensitive request payloads, and business data over plain-text HTTP/2 in production is a security defect. Most gRPC libraries (including Grpc.Net.Client in .NET) require TLS by default and have to be explicitly configured to allow insecure HTTP/2 (`AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true)`) — a flag that should only be set in development. In production, ASP.NET Core serves gRPC over HTTPS with Kestrel's TLS certificate configured in `appsettings.json` or injected via certificate management. Internal service mesh traffic can use mTLS provided by the mesh (Istio, Linkerd) transparently at the infrastructure layer.
+
+---
+
+#### Gotcha 7. Large Message Exceeding gRPC Default Size Limits
+
+**Concepts**
+- gRPC default maximum message size of 4 MB
+- MaxReceiveMessageSize and MaxSendMessageSize configuration
+- Large message as a design smell suggesting streaming or external storage
+- Chunked streaming as an alternative to one large message
+
+**Answer**
+
+The default gRPC message size limit is 4 MB — a service that tries to transfer a 10 MB report or a large binary file in a single RPC will receive a `Status(StatusCode.ResourceExhausted, "Received message exceeds the maximum configured message size")` error. The limit is configurable on both server (`options.MaxReceiveMessageSize`) and client (`GrpcChannelOptions.MaxReceiveMessageSize`), but raising it is rarely the right answer — a large message means the entire payload is buffered in memory on both sides before processing begins. The design-appropriate solution is to use server streaming to return the data as a stream of smaller chunks, or to store the payload in blob storage and return only a reference URL in the RPC response (the Claim Check Pattern).
+
+---
+
+#### Gotcha 8. Error Status Codes Not Mapped to Domain Errors
+
+**Concepts**
+- gRPC returning StatusCode.Internal for all exceptions
+- Client unable to distinguish business error from infrastructure failure
+- Rich status details using Google.Rpc.Status and ErrorInfo
+- Mapping domain exceptions to meaningful gRPC status codes
+
+**Answer**
+
+A gRPC service that catches all exceptions and returns `Status(StatusCode.Internal, "Internal error")` for business violations, validation failures, and infrastructure failures forces the client to treat all errors identically — it cannot distinguish "order not found" (a 404 equivalent) from "database unavailable" (a 503 equivalent). The gRPC status code vocabulary maps well to domain errors: `StatusCode.NotFound` for missing resources, `StatusCode.InvalidArgument` for validation failures, `StatusCode.AlreadyExists` for duplicate creation, `StatusCode.Unavailable` for infrastructure failures, and `StatusCode.PermissionDenied` for authorization failures. For richer error details, the `RpcException` can carry a `Google.Rpc.Status` detail with `ErrorInfo` and `BadRequest` sub-messages that provide field-level validation errors.
+
+---
+
+#### Gotcha 9. Client Certificate Validation Skipped in Development and Forgotten in Production
+
+**Concepts**
+- mTLS requiring server to validate client certificate
+- Development convenience of DangerousAcceptAnyServerCertificateValidator
+- HttpClientHandler.ServerCertificateCustomValidationCallback returning true
+- Certificate pinning and CA validation in production
+
+**Answer**
+
+A common shortcut in development is `HttpClientHandler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true` which skips all TLS certificate validation — the client accepts any certificate from any server, making TLS meaningless. This bypass is sometimes committed to configuration files or left in code paths that run in production, allowing man-in-the-middle attacks to intercept gRPC traffic silently. The production configuration must use proper CA validation (`SslCertificate.Build()` or the system certificate store), and the development override must be conditional on environment: `if (builder.Environment.IsDevelopment()) { ... }`. Code review must explicitly flag any `HttpClientHandler` with a custom validation callback as a security finding requiring justification.
+
+---
+
+#### Gotcha 10. Not Implementing the gRPC Health Checking Protocol
+
+**Concepts**
+- gRPC Health Checking Protocol as the standard for service health
+- Kubernetes native gRPC probe requiring the protocol implementation
+- Custom HTTP health endpoint mixed into a pure gRPC service
+- AddGrpcHealthChecks and Grpc.HealthCheck package
+
+**Answer**
+
+A gRPC service without the Health Checking Protocol (`grpc.health.v1.Health/Check`) cannot be health-checked by Kubernetes using the native `grpc` probe type — the operator must fall back to `exec` probes with `grpc_health_probe` installed in the container image, or TCP probes that only verify port openness. The `Grpc.HealthCheck` NuGet package provides a pre-built implementation of the Health Checking Protocol for ASP.NET Core: `services.AddGrpcHealthChecks()` in `Program.cs` and the `MapGrpcHealthChecksService()` route registration adds the standard `/grpc.health.v1.Health/Check` RPC endpoint, which Kubernetes can probe natively with `livenessProbe.grpc.port: 5001` without any additional tooling in the container image.
+
+---

@@ -131,45 +131,157 @@ An undisposed `SqlConnection` keeps its pooled slot checked out until finalizati
 
 ---
 
-## Gotchas
-
-#### Gotcha 4. Leaked connections exhaust the pool
-
-**Answer:** Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load.
-
-- Always use `await using` for connections and readers so disposal runs on exceptions too.
-- Symptoms appear only under concurrent load, making this a classic production-only failure mode.
-- Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+## Gotchas — SqlConnection & Connection Strings (Interview Traps)
 
 ---
 
-#### Gotcha 6. Dapper `Query` without `using` on connection
+#### Gotcha 1. Hardcoding connection strings in source code
 
-**Answer:** Returning deferred `IEnumerable<T>` from Dapper before disposing the connection postpones execution until enumeration, failing at runtime or holding connections open until garbage collection.
+**Concepts**
+- connection string in source commits credentials to version control
+- environment-specific configuration via `appsettings.json` and secrets
+- Azure Key Vault / environment variables for production credentials
+- secret scanning in CI pipelines
+- principle of least privilege for database logins
 
-- Materialize inside the connection scope with `.ToList()` or `.ToArray()` before returning from the method.
-- Deferred execution means SQL runs when the caller iterates — often after the `using` block closed the connection.
-- Async variants (`QueryAsync`) still require materialization before leaving the connection lifetime.
+**Answer**
 
----
-
-#### Gotcha 7. `QuerySingle` when zero or many rows exist
-
-**Answer:** Dapper's `QuerySingle` throws if zero rows or more than one row match, while optional lookups typically need `QueryFirstOrDefault` which returns default when empty.
-
-- Use `QuerySingle` only when exactly one row is a domain invariant enforced by a unique key.
-- Duplicate data turns `QuerySingle` into a hard failure that `QueryFirstOrDefault` would handle differently — choose based on whether duplicates indicate bugs.
-- EF Core mirrors the same distinction between `SingleOrDefault` and `FirstOrDefault`.
+Hardcoding a connection string containing a username and password directly in source code commits credentials to version control, where they are visible to every contributor and any future audit. Use `IConfiguration` with `appsettings.json` for non-sensitive configuration, `.NET User Secrets` for local development credentials, and Azure Key Vault or environment variables for production. CI pipelines should run secret scanning tools to catch accidental credential commits before they reach the main branch.
 
 ---
 
-#### Gotcha 8. Multi-map `splitOn` wrong column
+#### Gotcha 2. Undisposed SqlConnection exhausts the connection pool
 
-**Answer:** Dapper multi-mapping uses `splitOn` to name the column where the next object type begins; an incorrect column splits at the wrong boundary, silently mapping NULL or wrong values into nested objects.
+**Concepts**
+- pool slot not returned until `Dispose` or GC finalization
+- GC finalization too slow for production concurrency
+- "timeout expired obtaining connection from pool" under load
+- `using`/`await using` for guaranteed disposal
+- undisposed reader on open connection also leaks
 
-- `splitOn` defaults to `"Id"` — duplicate column names in SELECT lists require explicit aliases and matching `splitOn` values.
-- Align SELECT column order with the generic type order in `Query<TFirst, TSecond, TReturn>`.
-- Integration tests asserting nested property values catch splitOn mistakes that unit tests on flat rows miss.
+**Answer**
+
+An undisposed `SqlConnection` keeps its pool slot checked out until garbage collection, which is far too slow under concurrent API traffic. Under a sustained leak rate the pool reaches `Max Pool Size` (default 100), and all subsequent attempts to borrow a connection block until timeout, producing "timeout expired obtaining connection from pool" errors that never appear in single-user local tests. Always wrap `SqlConnection` in `using` or `await using` so the slot is returned to the pool even when exceptions occur.
+
+---
+
+#### Gotcha 3. Minor connection string differences create separate pools
+
+**Concepts**
+- pool key is the exact connection string
+- whitespace or case differences create new pools
+- `Max Pool Size` applies per unique connection string
+- fragmented pools reduce effective pool capacity
+- connection string normalization before pooling
+
+**Answer**
+
+The connection pool uses the exact connection string as its key — even a trailing space or a different keyword casing creates a separate pool with its own `Max Pool Size` quota. Application code that builds connection strings dynamically by appending user-specific options can inadvertently fragment the pool into hundreds of tiny pools, each below the effective concurrency threshold. Normalize connection strings to a canonical form and store the single canonical string in configuration rather than constructing them at runtime.
+
+---
+
+#### Gotcha 4. `TrustServerCertificate=true` silently disables certificate validation
+
+**Concepts**
+- `TrustServerCertificate=true` bypasses TLS certificate check
+- man-in-the-middle attack risk in production
+- `Encrypt=true` required alongside certificate trust
+- certificate validation as defense layer
+- LocalDB exception for development-only trust
+
+**Answer**
+
+Setting `TrustServerCertificate=true` bypasses TLS certificate validation entirely, allowing any server to present any certificate without rejection — a man-in-the-middle vulnerability in production. This keyword is appropriate only for LocalDB development environments where a self-signed certificate is expected. In production, use a valid SQL Server certificate signed by a trusted CA and remove `TrustServerCertificate=true`; also ensure `Encrypt=true` is set since `Microsoft.Data.SqlClient` 4.0+ defaults to encrypted connections but earlier versions did not.
+
+---
+
+#### Gotcha 5. `Integrated Security=true` requires Kerberos and creates a separate pool per Windows identity
+
+**Concepts**
+- Windows authentication via Kerberos
+- separate pool per impersonated identity
+- pool fragmentation under per-user impersonation
+- service account vs application-pool identity
+- Kerberos double-hop in web applications
+
+**Answer**
+
+`Integrated Security=true` uses the current Windows identity for authentication, but in a web application each impersonated user identity gets its own connection pool, fragmenting capacity and increasing connection overhead dramatically under large user bases. Furthermore, Kerberos delegation required for double-hop scenarios (web server to SQL Server on behalf of the user) requires explicit SPN configuration and `ConstrainedDelegation` setup that is frequently missing. For most web APIs, use a dedicated SQL login or Managed Identity with a single pool rather than per-user Windows impersonation.
+
+---
+
+#### Gotcha 6. `Max Pool Size` default (100) is per connection string, not per application
+
+**Concepts**
+- `Max Pool Size` default of 100 slots per pool
+- pool applies per unique connection string per process
+- concurrent requests can exceed pool limit
+- `Min Pool Size` keeps idle connections open
+- pool tuning based on expected concurrency
+
+**Answer**
+
+The default `Max Pool Size=100` limits each pool to 100 simultaneous connections, which is enough for most applications but insufficient for high-concurrency APIs where many async requests overlap. Exceeding the pool size causes requests to queue — if the queue wait exceeds `Connection Timeout` (default 15 seconds) the connection attempt throws. Tune `Max Pool Size` to match the expected peak concurrency from profiling, and set `Min Pool Size` to a warm baseline (e.g. 5–10) so the first requests after an idle period do not bear connection establishment latency.
+
+---
+
+#### Gotcha 7. `OpenAsync` not awaited — synchronous open blocks thread pool
+
+**Concepts**
+- `SqlConnection.Open()` vs `OpenAsync()` distinction
+- blocking thread during TCP/named-pipe handshake
+- async-over-sync pattern wastes thread pool threads
+- `await` required for all async ADO.NET methods
+- ASP.NET Core thread pool starvation under load
+
+**Answer**
+
+Calling synchronous `Open()` on a `SqlConnection` from an ASP.NET Core request handler blocks a thread pool thread for the entire TCP handshake and authentication round-trip. Under concurrent load this inflates the active thread count, increases context-switching overhead, and can starve the thread pool. Always use `await connection.OpenAsync(cancellationToken)` inside async methods, and pass the request's `CancellationToken` so that a client disconnect can abort an in-progress connection attempt.
+
+---
+
+#### Gotcha 8. Password rotation invalidates all existing pooled connections silently
+
+**Concepts**
+- pooled connections authenticated with old credentials
+- connection with stale auth fails on next use after password change
+- pool clearing required after password rotation
+- `SqlConnection.ClearPool` / `ClearAllPools` for forced invalidation
+- resilient retry policy for transient authentication failures
+
+**Answer**
+
+When a SQL Server login password is rotated, existing pooled connections authenticated with the old password continue to work until the pool is drained or the server-side session is terminated. New connection attempts using the updated connection string fail if the pool still contains old-credential connections that are reused. Call `SqlConnection.ClearAllPools()` immediately after rotating credentials to discard stale pool entries, and implement a retry policy with exponential backoff to handle the brief window where old connections are being replaced.
+
+---
+
+#### Gotcha 9. Connection string `Async=true` is a legacy keyword for System.Data.SqlClient
+
+**Concepts**
+- `Async=true` keyword was required for `System.Data.SqlClient`
+- `Microsoft.Data.SqlClient` enables async by default
+- legacy keyword has no effect in modern client
+- mixing old and new client namespaces in one project
+- migration from `System.Data.SqlClient` to `Microsoft.Data.SqlClient`
+
+**Answer**
+
+The `Async=true` connection string keyword was required to enable asynchronous command execution in the older `System.Data.SqlClient` package — without it, async methods would fall back to synchronous behavior. `Microsoft.Data.SqlClient` (the modern recommended package) enables async support automatically and ignores this keyword. Projects migrating from the old package should verify they are referencing `Microsoft.Data.SqlClient` in their NuGet references and remove `Async=true` from connection strings, since its presence can mask a failure to complete the migration.
+
+---
+
+#### Gotcha 10. `Connection Timeout` vs `Command Timeout` confusion
+
+**Concepts**
+- `Connection Timeout` is in the connection string (default 15s)
+- `Command Timeout` is on `SqlCommand` (default 30s)
+- two distinct timeout stages in a single database operation
+- `Connection Timeout=0` disables connection timeout — not recommended
+- separate tuning needed for connection establishment vs query execution
+
+**Answer**
+
+ADO.NET has two independent timeouts that are commonly confused: `Connection Timeout` in the connection string controls how long `Open()` or `OpenAsync()` waits for a pool slot or network connection (default 15 seconds), while `SqlCommand.CommandTimeout` controls how long a command waits for the server to return results (default 30 seconds). Setting one does not affect the other — a long-running query that never connects will hit the connection timeout, while a slow query on an open connection hits the command timeout. Tune each separately based on observed behavior rather than setting either to 0 (unlimited), which can hide hung queries.
 
 ---
 

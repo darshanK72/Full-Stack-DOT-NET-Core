@@ -293,234 +293,147 @@ Serialization is an outbound operation — it converts a CLR object to a byte st
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — Content Negotiation & Formatters (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. XML formatter not registered but `Accept: application/xml` sent
 
 **Concepts**
-- HTTP 201 Created — correct status for resource creation
-- Location header — URI of the new resource
-- `CreatedAtAction` / `CreatedAtRoute` — helpers that set status and header
-- REST contract — status codes as semantic communication
+- `AddControllers()` registers only `System.Text.Json` by default
+- XML output formatter requires explicit `AddXmlSerializerFormatters()` or `AddXmlDataContractSerializerFormatters()`
+- No XML formatter available → falls back to JSON, not 406, by default
+- `[Produces("application/xml")]` without registered formatter — documented but undeliverable
 
 **Answer**
 
-A successful POST that creates a resource must return 201 Created with a Location header pointing at the new resource's URI, not 200 OK. Returning 200 omits the resource location from the response contract, so HTTP client libraries and OpenAPI-generated SDKs that rely on the Location header to navigate to the created resource will silently miss it. I use `CreatedAtAction(nameof(Get), new { id = newEntity.Id }, newEntity)` rather than `Ok(newEntity)` because it sets both the correct status code and the Location header in one call. Including the created representation in the body is also useful so callers do not need an immediate follow-up GET.
+ASP.NET Core does not register an XML output formatter by default — calling `AddControllers()` only adds the `System.Text.Json` formatter. When a client sends `Accept: application/xml`, the framework finds no matching formatter and falls back to JSON rather than returning `406 Not Acceptable`. The OpenAPI document may advertise XML support via `[Produces]` attributes while the API silently serves JSON to every XML-accepting client. If XML is genuinely required I add `.AddXmlSerializerFormatters()` and write an integration test confirming `Content-Type: application/xml` in the response.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. `ReturnHttpNotAcceptable` not enabled — 406 never returned
 
 **Concepts**
-- HTTP GET — safe and idempotent by specification
-- Browser prefetch and CDN cache replay of GET URLs
-- Side effects on safe methods — security and caching violations
-- Correct verbs — POST/PUT/PATCH/DELETE for mutations
+- Default behavior — fall back to first registered formatter when no Accept match
+- `options.ReturnHttpNotAcceptable = true` — enables strict 406 on unsatisfied Accept
+- Client silence vs 406 for unsatisfied format requests
+- `[Produces]` does not alone enforce 406
 
 **Answer**
 
-GET must be safe and idempotent by HTTP specification, which means calling it any number of times must have no side effects. Performing deletes or updates in a GET action violates this contract in ways that cause real production issues — browsers prefetch URLs in link previews, CDNs cache and replay GET responses, and link crawlers follow URLs without user intent, so a side-effecting GET runs its mutation uncontrollably. I use POST for creates, PUT or PATCH for updates, and DELETE for deletions, keeping GET strictly read-only so the caching and safety semantics of the HTTP layer remain reliable.
+Without `options.ReturnHttpNotAcceptable = true` in `AddControllers(options => ...)`, the content negotiation pipeline falls back to the first registered formatter when it cannot satisfy the client's `Accept` header — the client receives JSON when it requested CSV or XML with no indication that the format is unsupported. I enable `ReturnHttpNotAcceptable = true` for strict REST compliance so clients receive `406 Not Acceptable` when the requested format is unavailable, which drives them to fix their client rather than silently consuming wrong-format responses.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. `[Produces]` mismatch with actually registered formatters
 
 **Concepts**
-- HTTP status codes — semantic failure signaling
-- `ProblemDetails` / `ValidationProblemDetails` — RFC 7807 error bodies
-- 200 masking failures — APM and gateway blindness
-- Client retry logic — driven by status codes not body flags
+- `[Produces("application/json", "application/xml")]` — documents intent in OpenAPI
+- `[Produces]` does not register a formatter or guarantee the format is producible
+- OpenAPI spec advertising XML while only JSON is registered
+- False contract — generated clients attempt XML that API cannot produce
 
 **Answer**
 
-Returning HTTP 200 with `{ "success": false }` in the body forces every consumer to parse the response body to detect failure rather than using standard HTTP status code semantics. API gateways, APM tools, and retry logic in HTTP clients all key on status codes — a 200 registers as success in dashboards even when the business operation failed, which makes incidents invisible until a human reads logs. I return `ValidationProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for domain rule violations, so the HTTP layer carries the failure signal and clients can handle errors without special-casing the body format.
+`[Produces]` is a documentation and formatter-selection attribute — it narrows which registered formatters may be used and documents the content types in OpenAPI. It does not register a formatter or guarantee the format can be produced. Declaring `[Produces("application/json", "application/xml")]` when only the JSON formatter is registered causes Swagger to advertise XML as a valid response type, breaking code-generated clients that request XML and receive JSON or 406. I keep `[Produces]` in sync with the registered formatters and add an integration test for every advertised content type.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. Custom formatter's `CanWriteType` returning `true` for all types
 
 **Concepts**
-- EF Core navigation properties — lazy-load triggers during serialization
-- Circular references — serializer loop risk
-- Schema leakage — internal fields exposed to clients
-- DTOs — explicit public contract shape
-- N+1 query risk — navigation traversal under serialization
+- `CanWriteType(Type type)` — formatter eligibility gate called before selection
+- Returning `true` for all types — formatter intercepts requests it cannot serialize
+- Unsafe cast in `WriteResponseBodyAsync` fails for non-target types
+- `IsAssignableFrom` — correct type check for collection subtypes
 
 **Answer**
 
-EF Core entities are not API contracts — they mirror the database schema including internal columns, shadow properties, and navigation properties that are not meant for clients. Serializing them directly causes lazy-loaded navigation properties to trigger additional SQL queries during the JSON write, potentially executing one query per row in a list response. Circular references between entities cause `System.Text.Json` to throw unless reference handling is configured, which is a fragile fix for a problem that should not exist. I always map entities to response DTOs before returning from an action, which decouples the public API shape from database schema changes, exposes only approved fields, and eliminates the lazy-load and circular reference risks.
+A custom `TextOutputFormatter` that returns `true` from `CanWriteType` for every CLR type becomes eligible for every response including `ProblemDetails`, strings, and other types it cannot handle. When selected for an incompatible type, the `WriteResponseBodyAsync` method throws `InvalidCastException` or produces a corrupt body. The correct implementation is `return typeof(IEnumerable<MyDto>).IsAssignableFrom(type)` so the formatter activates only for the types it knows how to serialize, and `List<MyDto>`, `MyDto[]`, and other collection subtypes are accepted via `IsAssignableFrom` without a direct equality check.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. Missing `Vary: Accept` header when multiple representations exist
 
 **Concepts**
-- `System.Text.Json` camelCase default
-- Silent binding failure — PascalCase keys map to null
-- `PropertyNameCaseInsensitive` — migration compatibility setting
-- `[JsonPropertyName]` — per-property key override
+- `Vary: Accept` — tells caches that the response varies by the Accept header
+- Without it — shared cache serves cached JSON to an XML-requesting client
+- CDN and proxy cache keying only on URL by default
+- RFC 7234 — `Vary` required when content negotiation affects response
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON serialization via `System.Text.Json`, which means a legacy client sending `{ "CustomerName": "Acme", "CreditLimit": 5000 }` with PascalCase keys will have those properties bind as empty string and zero rather than the intended values. This produces a 201 or 204 success response with partially saved data and no validation error, which makes the defect invisible in logs. The fix depends on who owns the contract: ideally the client adopts camelCase, but during migration I enable `PropertyNameCaseInsensitive = true` in `AddJsonOptions` so the server accepts either casing. I treat the naming policy as a published contract decision — changing it after clients have integrated is a breaking change.
+When an API supports multiple output formats, a shared cache (CDN or reverse proxy) that does not see `Vary: Accept` keys only on the URL and may serve the cached JSON response to a subsequent XML-requesting client. The XML client receives the wrong format silently. I add `Vary: Accept` to any endpoint that performs content negotiation with multiple registered formatters, either in the action response or at the middleware/proxy layer. Endpoints that produce only JSON do not need `Vary: Accept`, but documenting the single format with `[Produces("application/json")]` prevents this confusion.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Confusing `Content-Type` (inbound) with `Accept` (outbound) direction
 
 **Concepts**
-- GET body — stripped by clients, proxies, and CDNs
-- `[FromBody]` on GET — unreliable across the HTTP ecosystem
-- `[FromQuery]` — correct source for GET filters
-- `POST /search` pattern — for complex filter objects
+- `Content-Type` header — describes the format of the request body (inbound, for input formatters)
+- `Accept` header — client's preferred response format (outbound, for output formatters)
+- `[Consumes]` — constrains which `Content-Type` values are accepted as input
+- `[Produces]` — declares what `Accept` values can be satisfied as output
 
 **Answer**
 
-The HTTP specification does not forbid a body on GET, but nearly every practical component in the stack — browsers, fetch API, many HTTP client libraries, CDNs, and API gateways — either ignores or strips GET request bodies. ASP.NET Core 8 does not reliably bind `[FromBody]` on GET actions, so filter objects sent as JSON in a GET body fail silently with null models. I use `[FromQuery]` for simple filter parameters on GET endpoints, and when the filter object is genuinely too complex for a query string I introduce a `POST /search` endpoint with `[FromBody]`, which is a well-understood pattern that all HTTP clients handle correctly.
+`Content-Type` is a property of the request body and drives input formatter selection — the server reads it to know how to deserialize the inbound payload. `Accept` is the client's preferred response format and drives output formatter selection — the server reads it to know how to serialize the response. Mixing them up causes real bugs: adding `[Consumes("application/json")]` to restrict which clients can POST is correct; using `[Produces("application/json")]` to control deserialization is wrong. `[Consumes]` on an action also acts as a route constraint — a POST with the wrong `Content-Type` receives `415 Unsupported Media Type` before reaching the action body.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. `ProblemDetails` not served as `application/problem+json`
 
 **Concepts**
-- CORS — browser-only enforcement mechanism
-- Non-browser clients — unaffected by CORS
-- Authentication and authorization — real API security
-- Same-Origin Policy — the browser rule CORS relaxes
+- RFC 7807 media type — `application/problem+json` for error responses
+- Default `application/json` returned even for ProblemDetails bodies
+- `AddProblemDetails()` in ASP.NET Core 7+ configures the correct media type
+- Clients checking `Content-Type` to distinguish errors from success payloads
 
 **Answer**
 
-CORS is a browser-enforced policy that controls whether JavaScript on one origin can read responses from another origin — it is not a server security mechanism. Curl, Postman, server-to-server HTTP clients, and any malicious script running outside a browser context are completely unaffected by CORS headers. I configure `AddCors` and `UseCors` to give browser SPA clients cross-origin access, but that is entirely separate from protecting the API itself — JWT authentication, cookie auth, or API key validation are what actually prevent unauthorized access regardless of the client type.
+RFC 7807 mandates `Content-Type: application/problem+json` for `ProblemDetails` responses so clients can distinguish error shapes from success shapes by media type alone. Without calling `builder.Services.AddProblemDetails()`, error responses may be served with the default `application/json` content type, breaking clients that key on the media type to choose their error-handling path. `AddProblemDetails()` and `IExceptionHandler` together ensure that validation errors, unhandled exceptions, and explicit `ProblemDetails` results all carry the correct `application/problem+json` media type.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. `System.Text.Json` vs Newtonsoft.Json default behavior differences
 
 **Concepts**
-- `AllowAnyOrigin()` — sets `Access-Control-Allow-Origin: *`
-- `AllowCredentials()` — requires specific origin, not wildcard
-- CORS specification — forbids wildcard + credentials combination
-- `WithOrigins` — explicit origin allowlist for credentialed requests
+- `System.Text.Json` default — camelCase output, case-sensitive input, no reference loop handling
+- Newtonsoft.Json default — PascalCase output, case-insensitive input, reference loop ignore
+- Migration from Newtonsoft — existing clients sending PascalCase keys break silently
+- `AddNewtonsoftJson()` opt-in to restore Newtonsoft behavior in Swashbuckle
 
 **Answer**
 
-The CORS specification forbids combining `Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials: true` because that combination would allow any website to make credentialed requests and read authenticated responses on behalf of the user. Browsers reject this combination and ASP.NET Core will throw or emit an invalid CORS response when both are configured. When the SPA sends cookies or an Authorization header with `credentials: 'include'`, I must use `WithOrigins("https://app.example.com")` to list each allowed origin explicitly, then chain `AllowCredentials()`. I load the allowed origins from environment-specific configuration so the local development URL and production domain are separate entries rather than hardcoded.
+ASP.NET Core 8 defaults to `System.Text.Json`, which differs from Newtonsoft.Json in three ways that break existing clients: it outputs camelCase instead of PascalCase, performs case-sensitive deserialization by default, and throws on circular object references instead of ignoring them. A migration from `AddNewtonsoftJson()` to the default serializer causes existing partners sending PascalCase payloads to receive silent null bindings on every field. I evaluate the client impact before removing `AddNewtonsoftJson()`, enable `PropertyNameCaseInsensitive = true` during migration, and validate with contract tests against each known consumer.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. Text encoding not specified in custom `TextOutputFormatter`
 
 **Concepts**
-- Swagger UI in production — API surface reconnaissance risk
-- Environment check — `IsDevelopment()` gate
-- OpenAPI document — reveals endpoints, schemas, and enum values
-- Authorization middleware — alternative protection for internal portals
+- `TextOutputFormatter` requires `SupportedEncodings` populated in constructor
+- Empty `SupportedEncodings` — formatter never selected by the pipeline
+- `Encoding.UTF8` vs `new UTF8Encoding(false)` — BOM presence difference
+- `WriteResponseBodyAsync(context, encoding)` — uses the negotiated encoding
 
 **Answer**
 
-Swagger UI in production exposes every endpoint, parameter, schema, and authentication scheme to anyone who can reach the URL, which is useful for reconnaissance before a targeted attack. I wrap `UseSwagger()` and `UseSwaggerUI()` in an `if (app.Environment.IsDevelopment())` block so they never activate in staging or production deployments. When internal developers need access to the OpenAPI document in production I serve it through an IP-restricted reverse proxy path or behind an authenticated portal rather than leaving it publicly accessible. The OpenAPI JSON document should also be protected since it reveals internal field names and enum values even without the interactive UI.
+A custom `TextOutputFormatter` subclass that does not add any encoding to `SupportedEncodings` in its constructor will never be selected by the content negotiation pipeline, silently falling through to the next formatter. I add at least `Encoding.UTF8` in the constructor: `SupportedEncodings.Add(Encoding.UTF8)`. The `WriteResponseBodyAsync(context, encoding)` override receives the negotiated encoding and must use it to write the response, rather than hard-coding a new `StreamWriter(context.HttpContext.Response.Body)` which bypasses the negotiated charset.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. Output formatter intercepts responses it should not handle
 
 **Concepts**
-- `[ApiController]` — enables automatic model validation, binding inference, attribute routing
-- `ValidationProblemDetails` — automatic 400 response body
-- Binding source inference — `[FromBody]` for complex types
-- Inconsistent error contracts — mixed controller setup
+- Formatter added to end of `OutputFormatters` list — lower priority than built-ins
+- `CanWriteType` and `CanWriteResult` both gates for formatter selection
+- `OutputFormatters.Insert(0, ...)` — highest priority, may intercept all responses
+- `[Produces]` on controller/action constraining formatter choice to declared types
 
 **Answer**
 
-`[ApiController]` enables three behaviors that Web API controllers rely on: automatic 400 `ValidationProblemDetails` responses when `ModelState` is invalid, binding source inference that applies `[FromBody]` to complex types without explicit attributes, and strict attribute routing requirements. A controller missing the attribute returns 200 with an invalid model unless the action manually checks `ModelState.IsValid`, which means a typo or missing `[Required]` field produces a success response with wrong data. Mixed controllers in the same Web API produce inconsistent error contracts that are difficult for clients and test suites to handle uniformly. I apply `[ApiController]` at the assembly level in `Program.cs` to ensure every controller in the project picks it up.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- `.Result` / `.Wait()` — sync-over-async blocking
-- Thread-pool starvation — reduced throughput under load
-- Deadlock risk — synchronization context blocking
-- `async Task<IActionResult>` — correct action signature
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` on a `Task` inside an async controller action ties up a thread-pool thread while the I/O operation completes, reducing the number of concurrent requests Kestrel can handle since each blocked thread is unavailable for new requests. Under load this creates a thread starvation spiral where the pool is exhausted waiting for completions that are themselves queued. There is also a deadlock risk when the blocked thread holds a synchronization context that the continuation needs to resume on. I mark controller actions `async Task<IActionResult>` and propagate `await` all the way through the service layer to EF Core queries and `HttpClient` calls, so threads are released to the pool during every I/O wait.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness probe — signals Kubernetes to restart the pod
-- Readiness probe — removes pod from load balancer until dependencies recover
-- SQL down — dependency failure, not pod failure
-- `/health/live` vs `/health/ready` — separate endpoints with different checks
-
-**Answer**
-
-A liveness probe answers whether the process itself should be killed and restarted — a failed liveness probe causes Kubernetes to terminate and recreate the pod. If the SQL check is part of liveness and the database goes down, every pod restarts in a loop even though the application code is healthy and a restart cannot fix a database outage. The database check belongs on the readiness probe, which removes the pod from the load balancer until the dependency recovers without triggering unnecessary restarts. I map `/health/live` to a lightweight in-process check — memory, startup completion — and `/health/ready` to `AddDbContextCheck` and any other external dependency tags that indicate whether the pod can safely receive traffic.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- N+1 query problem — one query per row for related data
-- Lazy loading — navigation property trigger during serialization
-- `Include` / `ThenInclude` — eager load within a query
-- DTO projection — single query with only needed columns
-- Serialization traversal — triggers lazy loads at response time
-
-**Answer**
-
-The N+1 problem happens when a list endpoint returns entities with navigation properties and the serializer traverses those navigations during JSON writing, triggering one SQL query per row. A list of 100 orders serialized with their Customer navigation causes 101 queries — one for the orders and one per customer — which is invisible in unit tests but catastrophic in production with real data volumes. I fix this by projecting directly to DTOs in LINQ so EF Core generates a single query with a JOIN, fetching only the columns the response needs. When the object graph genuinely needs to be included I use `Include`/`ThenInclude` or split queries explicitly rather than relying on lazy load during serialization.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination — `Skip`/`Take` shifts on concurrent mutations
-- Keyset pagination — stable cursor using indexed key
-- Duplicate and skipped rows — consequence of offset instability
-- `WHERE id > @lastId ORDER BY id` — keyset pattern
-- Cursor tokens in response metadata
-
-**Answer**
-
-`Skip((page - 1) * pageSize).Take(pageSize)` calculates an offset from the beginning of the result set, which means concurrent inserts and deletes between requests shift the window — rows added before the current page push later rows into the next page, causing items to appear twice, and deletions cause items to be skipped entirely. Keyset pagination avoids this by anchoring on the last seen stable key: `WHERE id > @lastId ORDER BY id LIMIT @pageSize`, so the window moves forward relative to a value rather than a position. I expose the last key as a cursor token in the response metadata and accept it as a parameter on the next request. Offset pagination is still acceptable for small, mostly static reference data where the instability risk is low and the simplicity matters.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- GraphQL field resolvers — per-parent-row execution by default
-- DataLoader — batching and deduplication of sub-queries
-- N+1 in GraphQL — 1 root query + N child queries
-- HotChocolate DataLoader registration in DI
-
-**Answer**
-
-In HotChocolate and most GraphQL servers, field resolvers execute independently for each parent object by default — a list query returning 100 authors where each author's `books` field is resolved separately executes 101 queries. DataLoader solves this by collecting all the keys requested during a single execution phase and dispatching one batched query for all of them, deduplicating repeated keys automatically. I register DataLoader classes in DI so they are scoped to the request and group concurrent resolver calls into single round-trips to the database. When the client always requests nested fields together, projecting at the root query with a join is even more efficient than DataLoader since it avoids the batching overhead entirely.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC — HTTP/2 binary framing inaccessible to browser JavaScript
-- gRPC-Web — translation protocol for browser clients
-- `AddGrpcWeb()` / `EnableGrpcWeb()` — ASP.NET Core middleware
-- CORS — required alongside gRPC-Web for cross-origin browser calls
-
-**Answer**
-
-Browsers do not expose the HTTP/2 trailer and binary framing that native gRPC requires, so a Blazor WASM or SPA client cannot use the standard gRPC protocol directly. gRPC-Web is a subset protocol that wraps gRPC messages in a format browsers can use via the Fetch API, and ASP.NET Core supports it by adding `AddGrpcWeb()` to services and calling `EnableGrpcWeb()` on each mapped gRPC service. The browser client also needs the `grpc-web` package rather than the native gRPC client. Since browser calls are still subject to the Same-Origin Policy, I must configure CORS alongside gRPC-Web — the preflight on the first cross-origin call needs `Access-Control-Allow-Headers` to include the gRPC-Web headers.
+Inserting a custom formatter at index 0 with `options.OutputFormatters.Insert(0, new MyFormatter())` gives it the highest priority and causes it to be evaluated first for every response, including `ProblemDetails`, `string`, and `Stream` results. If `CanWriteType` is not sufficiently narrow, the formatter intercepts responses it cannot handle, producing garbled output or exceptions. I add custom formatters with `options.OutputFormatters.Add(...)` (lowest priority) and gate selection tightly in `CanWriteType`, then use `[Produces("text/csv")]` on specific actions to force selection for those endpoints rather than competing with the built-in formatters globally.
 
 ---
 

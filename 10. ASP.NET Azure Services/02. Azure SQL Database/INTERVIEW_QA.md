@@ -438,3 +438,147 @@ Azure Monitor collects platform metrics from Azure SQL — CPU percentage, DTU o
 `GetConnectionString("AzureDb")` reads the configuration key `ConnectionStrings:AzureDb` — or the environment variable `ConnectionStrings__AzureDb` — not arbitrary JSON sections with similar names. If the file nests the value under `"ConnectionString"` (singular) or another custom node, the built-in helper does not find it and returns null even though a human sees a value in the file. This is exactly the mismatch that occurs when `appsettings.json` uses `"ConnectionString": { "AzureDb": "..." }` while `Program.cs` calls `GetConnectionString("AzureDb")`, which expects `"ConnectionStrings": { "AzureDb": "..." }` — the missing `s` causes the helper to return null and DI falls back to the hardcoded `OnConfiguring` string if it is still present. The fix is to rename the section to `ConnectionStrings`, or read `Configuration["ConnectionString:AzureDb"]` explicitly if keeping a custom layout. The same naming rule applies in Azure App Service: the Connection Strings blade maps to `ConnectionStrings__*` environment variables automatically, while plain custom keys do not, so always verify at startup with a configuration validation or health check that fails fast when the connection string is missing.
 
 ---
+
+## Gotchas — Azure SQL Database (Interview Traps)
+
+---
+
+#### Gotcha 1. Connection string missing Encrypt=True causes rejected connections on Azure SQL
+
+**Concepts**
+- Azure SQL enforces TLS encryption on all connections
+- ADO.NET defaults to `Encrypt=False` in older driver versions
+- Connection strings from on-premises SQL Server templates omit `Encrypt=True`
+- Modern `Microsoft.Data.SqlClient` 4+ defaults to `Encrypt=True` but older packages do not
+
+**Answer**
+
+Azure SQL Database rejects unencrypted connections, so a connection string copied from an on-premises SQL Server template that omits `Encrypt=True;TrustServerCertificate=False;` will fail with a cryptic SSL/TLS error. Developers who migrate from on-premises configurations are caught by this because local SQL Server accepts plain connections. The newer `Microsoft.Data.SqlClient` version 4 and above changed the default to `Encrypt=True`, so mixing package versions across projects can cause one project to succeed while another fails with the same connection string.
+
+---
+
+#### Gotcha 2. Azure SQL firewall rules do not allow Azure services by default — App Service connections fail
+
+**Concepts**
+- Server-level firewall rules control which IP addresses can connect
+- "Allow Azure services and resources to access this server" is a separate toggle
+- Outbound IPs for App Service are not static across scale events
+- VNet Service Endpoints or Private Endpoint are the production-safe approach
+
+**Answer**
+
+Azure SQL has a server-level firewall that blocks all inbound connections by default. Enabling "Allow Azure services and resources to access this server" opens it to any Azure IP including other customers' services, which is a security risk in production. The better approach is to add the App Service's outbound IPs to the firewall allowlist, but those IPs change when the App Service Plan scales or is migrated. The production-correct solution is VNet integration on App Service with a VNet Service Endpoint or Private Endpoint on Azure SQL, which eliminates public IP dependencies entirely.
+
+---
+
+#### Gotcha 3. Transient errors are not retried automatically — SqlException on a connection drop causes visible failures
+
+**Concepts**
+- Azure SQL can return transient error codes (1205, 40613, 40197) during failover or throttling
+- `SqlConnection.Open()` does not retry on transient errors by default
+- EF Core's `EnableRetryOnFailure()` adds a resilience strategy for these errors
+- Without retry logic, a 5-second maintenance event causes user-visible errors
+
+**Answer**
+
+Azure SQL sends transient error codes during planned maintenance, geo-failover, or connection throttling. Without retry logic, any such event causes `SqlException` to propagate to the user as a 500 error. EF Core's `EnableRetryOnFailure()` (or an explicit Polly retry policy for raw ADO.NET) is required in production. A common mistake is testing with a locally hosted SQL Server where transient errors never occur, discovering the gap only after deploying to Azure and encountering the first planned maintenance window.
+
+---
+
+#### Gotcha 4. DTU model cannot be changed to vCore without re-creation — in-place migration does not exist
+
+**Concepts**
+- DTU model bundles CPU, memory, and IO into one unit; vCore exposes them separately
+- Switching between the two models requires an Azure SQL migration operation
+- DTU Basic tier's maximum DTU (5) is too small for queries that work in development
+- DTU and vCore cannot be mixed within an Elastic Pool
+
+**Answer**
+
+Choosing the DTU pricing model at database creation time locks you in because there is no in-place conversion to the vCore model; you must recreate the database using an export/import or database copy operation. A common mistake is selecting the Basic tier (5 DTUs) for initial development, discovering that 5 DTUs are insufficient for even moderate query workloads at production data volumes, and then needing a migration operation rather than a simple tier upgrade. Additionally, DTU and vCore databases cannot coexist in the same Elastic Pool, complicating multi-database consolidation strategies.
+
+---
+
+#### Gotcha 5. Managed identity database access requires an explicit `CREATE USER` SQL command — RBAC alone is not enough
+
+**Concepts**
+- Entra ID authentication requires a contained database user for the managed identity
+- RBAC on the Azure SQL server resource does not grant database-level permissions
+- `CREATE USER [<identity-name>] FROM EXTERNAL PROVIDER` must be executed as an Entra admin
+- Missing the SQL-side setup causes `Login failed for user` even with correct RBAC
+
+**Answer**
+
+Assigning the managed identity to an Azure RBAC role on the SQL server resource (for example Contributor) does not grant it database access. You must also connect to the database as an Entra admin and run `CREATE USER [<managed-identity-name>] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [<name>];`. Developers who see RBAC roles correctly assigned but still get `Login failed for user 'NT AUTHORITY\ANONYMOUS LOGON'` have completed only the Azure-side step and forgotten the SQL-side contained user creation.
+
+---
+
+#### Gotcha 6. Read-Committed Snapshot Isolation (RCSI) is disabled by default on new databases — readers block writers
+
+**Concepts**
+- Default SQL Server READ COMMITTED isolation blocks readers when writers hold locks
+- RCSI allows readers to see the last committed version without blocking writers
+- Azure SQL supports `ALTER DATABASE SET READ_COMMITTED_SNAPSHOT ON`
+- Enabling RCSI after deployment requires an exclusive database connection briefly
+
+**Answer**
+
+Azure SQL databases created without RCSI use the standard SQL Server READ COMMITTED isolation where readers take shared locks that conflict with exclusive write locks, causing blocking chains under concurrent load. This is invisible during single-user testing and becomes visible as timeouts and deadlocks in production. Enabling RCSI (`ALTER DATABASE MyDb SET READ_COMMITTED_SNAPSHOT ON`) allows readers to see the last committed row version without blocking, which dramatically reduces contention. The `ON` operation briefly acquires an exclusive lock on the database, so it should be performed during a maintenance window.
+
+---
+
+#### Gotcha 7. Geo-replication secondaries are read-only — sending writes to the secondary URL throws errors
+
+**Concepts**
+- Active geo-replication creates a readable secondary in another region
+- The secondary's connection string endpoint rejects write operations
+- Failover promotes the secondary to primary but does not auto-update connection strings
+- Application code must detect replica role or use auto-failover groups
+
+**Answer**
+
+Active geo-replication creates a readable secondary replica that is permanently read-only until a failover promotes it. Sending INSERT, UPDATE, or DELETE to the secondary endpoint throws an error immediately. Developers who route read queries to the secondary endpoint for performance and then mistakenly send writes to the same endpoint hit this issue. Auto-failover groups provide a read-write listener that always points to the primary and a read-only listener that always points to the secondary, abstracting the manual endpoint management and automatically updating the target after failover.
+
+---
+
+#### Gotcha 8. Elastic Pool DTU/eDTU is shared — one active database can exhaust the pool and throttle all others
+
+**Concepts**
+- Elastic Pool has a fixed total eDTU shared across all databases
+- Individual database max eDTU cap prevents one database from using the entire pool
+- A missing per-database cap means one hot database starves all others
+- Pool-level monitoring is needed in addition to per-database monitoring
+
+**Answer**
+
+An Elastic Pool shares its total eDTU budget across all member databases. If you do not set a per-database eDTU cap, a single database running a heavy report can consume the entire pool's eDTUs and starve all other databases in the pool. Azure does not enforce a per-database cap by default; you must explicitly set the max eDTU per database in the pool configuration. This trap is particularly common in SaaS multi-tenant designs where one large customer's database affects all smaller tenants sharing the pool.
+
+---
+
+#### Gotcha 9. Long-Running EF Core migrations can lock production tables — running migrations on startup causes connection timeouts
+
+**Concepts**
+- EF Core `Database.Migrate()` on startup blocks startup until migrations complete
+- ALTER TABLE operations on large tables take minutes and lock rows
+- Multiple replicas calling `Database.Migrate()` concurrently cause deadlocks
+- A dedicated migration job or deployment step is the production pattern
+
+**Answer**
+
+Calling `Database.Migrate()` inside `Program.cs` on startup is convenient for development but dangerous in production. Schema change migrations on large tables (ALTER TABLE, CREATE INDEX) can take many minutes, blocking the startup completion and causing health checks to fail and the load balancer to cycle the instance. When multiple App Service instances start simultaneously after a deployment, they all call `Migrate()` concurrently, causing EF Core migration history table deadlocks. The production pattern is to run migrations as a separate deployment step (a migration job, Azure DevOps pipeline step, or Docker init container) before scaling up the new application version.
+
+---
+
+#### Gotcha 10. Always Encrypted requires special client-side configuration — standard connection strings produce unreadable ciphertext
+
+**Concepts**
+- Always Encrypted encrypts columns client-side before data leaves the application
+- `Column Encryption Setting=Enabled` must be in the connection string
+- EF Core requires `UseAzureKeyVaultColumnEncryptionProvider()` or equivalent
+- Viewing encrypted data in SSMS without the key provider returns binary ciphertext
+
+**Answer**
+
+Always Encrypted columns are decrypted by the client driver using column master keys stored in a key provider such as Azure Key Vault. A connection string that omits `Column Encryption Setting=Enabled` causes the driver to return raw encrypted bytes for those columns instead of plaintext values, which appears as binary garbage in application output. This is not an error — the server delivers the ciphertext and the client silently skips decryption. Developers who enable Always Encrypted on a column and then query via SSMS without the appropriate Key Vault certificate also see ciphertext, which is often mistaken for data corruption.
+
+---

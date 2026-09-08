@@ -208,67 +208,147 @@ When multiple threads invoke delegates that close over the same variable, they a
 
 ---
 
-## Gotchas
+## Gotchas — Closures (Interview Traps)
 
 ---
 
-## Q13. Why do all lambdas in a `for` loop print the same final value?
+#### Gotcha 1. Closure Captures the Variable, Not Its Value at Capture Time
 
 **Concepts**
-- loop counter in outer scope
-- single display class field
-- all delegates share same `i`
-- iteration completion before invocation
-- local copy fix
+- shared display class field, not a value snapshot
+- mutations after capture are visible inside the lambda
+- classic print-99-not-5 example
+- snapshot pattern: copy to a new local before capturing
 
 **Answer**
 
-The `for` loop counter `i` is declared once before the loop body. The compiler creates a single display class instance with one `i` field for the entire loop, and every lambda created in the loop body captures that same field. When the loop finishes, `i` holds its final value (e.g., `5` for `i < 5`). When any lambda is subsequently invoked, it reads the current value of the shared field — which is `5` — regardless of which iteration created it. The fix is to declare a new variable inside the loop body and assign the current `i` to it: `int copy = i;`, then capture `copy` instead. Because `copy` is declared inside the loop body, the compiler gives it a fresh field per iteration (or per display class scope), making each lambda independent. After C# 5, `foreach` loops automatically create a per-iteration copy of the iteration variable, so this bug is specific to `for` and `while` loops where the variable is declared outside the body.
+When a lambda captures an outer variable, it captures the storage location — the display class field — not a copy of the value at the moment of capture. If you write `int x = 5; Action a = () => Console.WriteLine(x); x = 99; a();`, the output is `99`, not `5`, because the lambda and the outer code share the same field. This surprises developers who expect closures to work like photographs. The snapshot pattern is to copy the value to a new local before the lambda: `int snapshot = x; Action a = () => Console.WriteLine(snapshot);`.
 
 ---
 
-## Q14. What is the "async lambda captures large object" memory leak pattern?
+#### Gotcha 2. Mutating a Closed-Over Variable From Inside the Lambda Affects the Outer Scope
 
 **Concepts**
-- async continuation capturing context
-- `HttpContext` / `IServiceScope` retention
-- request lifetime vs Task lifetime
-- captured reference prevents collection
-- scope disposal mismatch
+- bidirectional sharing of the display class field
+- lambda writes are visible to the enclosing method
+- counter incremented inside a lambda updates the outer counter
+- unintended side effects across call sites
 
 **Answer**
 
-In ASP.NET Core, the `HttpContext` (and objects derived from it such as the `IServiceScope` or database connections) is scoped to the request lifetime and disposed when the request completes. If you create an async lambda inside a controller or middleware that captures the `HttpContext` by closing over it, and that lambda is scheduled to run after the request ends (e.g., via `Task.Run`, a background queue, or a timer), the captured reference keeps `HttpContext` alive past its intended disposal. Using the disposed `HttpContext` causes runtime errors, and even just holding the reference prevents the GC from collecting the request's allocated objects. The fix is to extract the data you need before the async operation starts and capture only value types or simple strings: `var userId = context.User.Identity.Name; _ = Task.Run(() => LogAsync(userId));`. The captured `userId` string has no lifetime coupling to the request.
+The sharing of a captured variable is bidirectional: not only does the lambda see changes made in the outer scope, but the outer scope also sees changes made inside the lambda. An `int count = 0; Action inc = () => count++;` means calling `inc()` changes the `count` variable visible to the surrounding method. This is intentional for some patterns (accumulators, lazy initialization) but is an unintended side effect when developers write a lambda expecting it to operate on a private copy. Always verify whether a captured variable mutation should affect the outer scope before relying on it.
 
 ---
 
-## Q15. Why can sharing a display class between two closures cause subtle bugs that are hard to reproduce?
+#### Gotcha 3. Closure Prevents Garbage Collection of the Captured Object Graph
 
 **Concepts**
-- shared mutable field aliasing
-- non-obvious coupling between functions
-- ordering-dependent behavior
-- concurrency amplification
-- debugging difficulty
+- display class holds a strong reference to captured objects
+- delegate holds a strong reference to the display class
+- long-lived delegate keeps the entire captured object graph alive
+- capturing `this` inside a long-lived delegate retains the whole object
 
 **Answer**
 
-When two lambdas in the same scope capture the same variable, the compiler places them both in the same display class. The bug manifests when a developer writes the closures as if they are independent but fails to realize they share state. Because the sharing is invisible at the lambda call sites and requires knowledge of the compiler's display class generation rules to diagnose, it rarely appears during code review. The bug is further obscured by the fact that it reproduces only when the closures execute in certain orderings — in a sequential single-threaded scenario, the ordering may be consistent enough that the bug only appears under load or with different call patterns. Under concurrent execution, the shared field becomes a race condition, making the bug non-deterministic. The most reliable diagnostic is to decompile the code with a tool like ILSpy or SharpLab and inspect the display class structure, which makes the shared fields immediately visible.
+A closure keeps every captured object alive for as long as the delegate is reachable. If a lambda captures `this` (by referencing any instance member), the entire object — and everything it references — cannot be garbage-collected while the delegate lives. For lambdas stored in static fields, long-lived collections, or event subscriptions on singletons, this is the root cause of the most common .NET memory leaks. Profile heap snapshots to trace GC roots through delegate chains and identify closures that hold objects alive longer than expected.
 
 ---
 
-## Q16. Does `foreach` have the same loop-capture bug as `for`?
+#### Gotcha 4. `foreach` Creates a Fresh Variable Per Iteration in C# 5+; `for` Does Not
 
 **Concepts**
-- C# 5 breaking change for `foreach`
-- per-iteration variable scope
-- pre-C# 5 behavior
-- `for` loop still affected
-- explicit enumeration with index
+- C# 5 breaking change: `foreach` iteration variable scoped per iteration
+- `for` loop counter declared once, shared across all iterations
+- `foreach` closures are capture-safe in modern C#
+- `for` loop still requires the local-copy workaround
 
 **Answer**
 
-Not since C# 5. Before C# 5, `foreach`'s iteration variable was treated as declared once outside the loop body, so all closures created inside a `foreach` captured the same variable and saw the final value after iteration — the same bug as `for`. C# 5 changed the specification so that the `foreach` iteration variable is conceptually re-declared fresh for each iteration, meaning each closure captures an independent copy. This was a deliberate breaking change because the old behavior was almost never intentional and was a common source of bugs. After C# 5, you still have the bug in `for` loops because the counter is explicitly declared once before the loop, and the language cannot change that semantics without breaking valid code that relies on the counter's mutation across iterations. The `foreach` fix does not extend to `for`, so the local-copy workaround is still required for `for` loops.
+C# 5 changed the specification so that the `foreach` iteration variable is conceptually re-declared fresh for each iteration, meaning closures created inside a `foreach` loop each capture an independent copy and see the per-iteration value. The `for` loop was not changed: the counter variable is declared once before the loop and shared across all iterations, so closures in a `for` loop all capture the same field and see the final loop value. The fix for `for` loops is to declare `int copy = i;` inside the loop body and capture `copy`. For `foreach`, the fix is already applied by the compiler in modern C#.
+
+---
+
+#### Gotcha 5. Captured `IDisposable` May Be Disposed Before the Lambda Runs
+
+**Concepts**
+- `using` block disposes the resource when the block exits
+- lambda scheduled to run after the `using` block sees a disposed object
+- async lambdas are especially prone: execution resumes after `await` on continuations
+- extract needed data before the resource is disposed; do not capture the resource itself
+
+**Answer**
+
+Capturing a disposable resource like a `DbContext`, `HttpClient`, or `FileStream` inside a lambda and scheduling that lambda to run after the enclosing `using` block exits is a use-after-dispose bug. The object is disposed when the `using` block's scope ends, but the lambda retains a reference and will try to use it when it runs. This is especially common with async code where execution may resume on a continuation scheduled after the resource's lifetime. The fix is to extract the data you need from the resource synchronously before capturing, and capture only the extracted values rather than the resource object.
+
+---
+
+#### Gotcha 6. Closures Over `this` in Async Methods Keep the Entire Object Alive
+
+**Concepts**
+- async method state machine captures `this` when any instance member is used
+- `Task` is a GC root until it completes
+- long-running or forgotten `Task`s prevent object collection
+- fire-and-forget tasks with closures are a memory leak pattern
+
+**Answer**
+
+An async method that references any instance member (field, property, or other method) captures `this` into the state machine the compiler generates. The state machine is kept alive until the `Task` completes. If a fire-and-forget `Task` is never awaited and takes a long time — or never completes due to a bug — the entire object graph rooted at `this` remains in memory. In ASP.NET Core controllers or request handlers, capturing `this` into a background `Task` that outlives the request is both a memory leak and a use-after-dispose risk if the scoped DI services the object holds are cleaned up at request end.
+
+---
+
+#### Gotcha 7. Multiple Lambdas in the Same Scope Share One Closure Class
+
+**Concepts**
+- compiler groups captured variables from the same scope into one display class
+- two lambdas in the same block see the same field for each shared variable
+- writes from one lambda are instantly visible to the other
+- independent copies require separate local variable declarations
+
+**Answer**
+
+When two lambdas declared in the same scope capture the same variable, the compiler puts them in the same display class. Both lambdas operate on the same field, so a write through one lambda is immediately visible to the other. This coupling is invisible in source code and is often discovered only through surprising test failures or runtime misbehavior. To give each lambda its own independent state, declare separate local variables — `int a = initial; int b = initial;` — then capture `a` in one lambda and `b` in the other, ensuring the compiler allocates separate fields.
+
+---
+
+#### Gotcha 8. Debugging Closures — Variable Names May Be Compiler-Generated
+
+**Concepts**
+- display class fields have mangled names like `<i>5__2`
+- debugger watch window may show the display class instead of the local
+- stepping into a lambda may show the display class method
+- SharpLab.io and ILSpy make the display class structure explicit
+
+**Answer**
+
+When debugging code that uses closures, the local variable shown in the IDE's watch window is actually a field on the compiler-generated display class. The field name is a mangled version of the original local name, such as `<i>5__2` for a variable named `i` in a particular scope. This can make it harder to understand variable state while stepping through closure-heavy code. Tools like SharpLab.io allow you to see the exact display class generated by the compiler, making the mapping between source names and generated fields explicit and aiding diagnosis of unexpected shared-state bugs.
+
+---
+
+#### Gotcha 9. Closure Allocation — Each Unique Combination of Captured Variables Produces a Separate Class
+
+**Concepts**
+- one display class per scope that contains captured variables
+- each call to the enclosing method creates a new display class instance
+- nested scopes may chain display classes
+- static lambdas eliminate the display class entirely
+
+**Answer**
+
+The compiler generates one display class per scope that contains captured variables. All lambdas in the same scope that capture at least one variable from that scope share one display class instance. However, nested scopes with their own captures produce additional chained display classes. Each call to the enclosing method creates a new display class instance. On a hot path called thousands of times per second, this allocation accumulates. Static lambdas, pre-cached delegates, and passing values as parameters instead of capturing are the primary mitigations.
+
+---
+
+#### Gotcha 10. Static Analysis Tools Can Warn About Unintended Captures
+
+**Concepts**
+- Roslyn analyzers and ReSharper inspect capture sets
+- rules flag suspicious captures: large objects, event subscriptions without unsubscription, loop variables
+- `static` lambda modifier is enforced by the compiler itself
+- code review should explicitly check captured variables in performance-sensitive closures
+
+**Answer**
+
+Roslyn-based analyzers and tools like ReSharper include rules that inspect the capture sets of lambda expressions and flag patterns known to cause bugs or performance issues: large object captures, captured loop variables, closures in event subscriptions that lack unsubscription, and captures that prevent disposal. Adding `static` to lambdas that should not capture is the strongest in-code enforcement because it turns an unintended capture into a compile error. In code reviews for performance-critical components, explicitly reviewing what each lambda captures — and whether each capture is intentional and bounded in lifetime — is as important as reviewing the logic of the lambda body.
 
 ---
 

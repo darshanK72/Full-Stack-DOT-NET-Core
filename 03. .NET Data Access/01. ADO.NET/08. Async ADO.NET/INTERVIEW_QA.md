@@ -101,35 +101,157 @@ Sync ADO.NET is fine for console tools, one-off migrations, local scripts, and i
 
 ---
 
-## Gotchas
-
-#### Gotcha 4. Leaked connections exhaust the pool
-
-**Answer:** Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load.
-
-- Always use `await using` for connections and readers so disposal runs on exceptions too.
-- Symptoms appear only under concurrent load, making this a classic production-only failure mode.
-- Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+## Gotchas — Async ADO.NET (Interview Traps)
 
 ---
 
-#### Gotcha 2. Open DataReader blocks second command
+#### Gotcha 1. Blocking `.Result` or `.Wait()` on async ADO.NET methods — sync-over-async deadlock
 
-**Answer:** Running another `SqlCommand` on the same connection while a `SqlDataReader` is still open fails on SQL Server unless Multiple Active Result Sets (MARS) is enabled in the connection string.
+**Concepts**
+- `.Result` blocks the current thread waiting for the task
+- `SynchronizationContext` captured in ASP.NET causes deadlock
+- thread-pool starvation under concurrent requests
+- `async/await` end-to-end as the only correct pattern
+- `ConfigureAwait(false)` in library code reduces deadlock risk
 
-- Always dispose or finish reading the `DataReader` before issuing the next command on that connection.
-- A common bug loads a header row then tries to load detail rows on the same connection without closing the reader.
-- EF Core manages readers internally, but raw ADO.NET code in the same request must respect this rule.
+**Answer**
+
+Calling `.Result` or `.Wait()` on an async ADO.NET method (e.g., `cmd.ExecuteReaderAsync().Result`) blocks the calling thread while the async operation runs. In ASP.NET Core this ties up a thread pool thread for the full database round-trip, and under high concurrency it starves the thread pool. When the calling context has a `SynchronizationContext`, the sync-over-async pattern can deadlock entirely. Always `await` async ADO.NET methods inside `async` methods end-to-end — never block on them synchronously.
 
 ---
 
-#### Gotcha 15. `SaveChanges` without a transaction for multi-step updates
+#### Gotcha 2. Using synchronous `Open()` and `Read()` inside an `async` method
 
-**Answer:** Multiple `SaveChanges` calls or separate database operations that must succeed together commit independently by default, allowing partial updates that leave data in an inconsistent state when a later step fails.
+**Concepts**
+- `Open()` vs `OpenAsync()` in async context
+- `reader.Read()` vs `reader.ReadAsync()` distinction
+- sync I/O inside async method blocks thread pool thread
+- async benefit realized only when I/O is truly non-blocking
+- partial-async: `OpenAsync` but sync `Read()` still blocks
 
-- Wrap related saves and raw SQL in `BeginTransactionAsync`/`CommitAsync` on one `DbContext`.
-- Prefer one `SaveChanges` per unit of work when all changes are tracked together on the same context.
-- Retry logic after failure cannot assume earlier steps rolled back unless they shared a transaction boundary.
+**Answer**
+
+An `async` method that calls synchronous `connection.Open()` or `reader.Read()` blocks the thread pool thread during those I/O operations, defeating the purpose of async. The async chain is only effective when every I/O call in the stack uses its async counterpart: `await connection.OpenAsync(ct)`, `await cmd.ExecuteReaderAsync(ct)`, and `while (await reader.ReadAsync(ct))`. Mixing one synchronous call in an otherwise async chain still blocks a thread for that operation.
+
+---
+
+#### Gotcha 3. `CancellationToken` not passed to async ADO.NET methods
+
+**Concepts**
+- `OpenAsync(ct)`, `ExecuteReaderAsync(ct)`, `ReadAsync(ct)` accept `CancellationToken`
+- client disconnect or timeout cannot abort in-progress query without token
+- SQL Server receives TDS Attention packet on cancellation
+- `HttpContext.RequestAborted` as the natural cancellation source
+- `OperationCanceledException` on cancellation — should not be swallowed
+
+**Answer**
+
+All async ADO.NET methods accept an optional `CancellationToken` that, when fired, sends a TDS Attention packet to SQL Server to abort the in-progress operation. Without it, a client disconnect or request timeout cannot stop the database query, wasting server resources for a result no one will read. Pass `HttpContext.RequestAborted` as the `CancellationToken` through every `OpenAsync`, `ExecuteReaderAsync`, and `ReadAsync` call, and let `OperationCanceledException` propagate rather than swallowing it.
+
+---
+
+#### Gotcha 4. `IAsyncEnumerable<T>` with `yield return` over undisposed reader
+
+**Concepts**
+- `yield return` inside `async` iterator holds reader open during iteration
+- caller abandoning enumeration leaves reader and connection undisposed
+- `await using` inside the iterator for guaranteed disposal
+- `try/finally` wrapping reader for disposal on any exit path
+- `IAsyncEnumerable` streaming vs buffered `ToListAsync` trade-off
+
+**Answer**
+
+Using `yield return` inside an `async` iterator to stream rows from a `SqlDataReader` keeps the reader and connection open for the entire enumeration. If the caller abandons the enumeration early (via `break` or not consuming all items), the reader and connection are leaked until garbage collection. The correct pattern is to wrap the reader in `await using` inside the iterator with a `try/finally` that always disposes on any exit path, ensuring cleanup occurs even when the caller disposes the enumerator early.
+
+---
+
+#### Gotcha 5. `ExecuteReaderAsync` without `CommandBehavior.CloseConnection` — connection leak on transfer
+
+**Concepts**
+- `ExecuteReaderAsync(CommandBehavior.CloseConnection, ct)`
+- ownership transfer: caller disposes reader, connection auto-closes
+- without flag: connection stays open after reader disposal
+- streaming endpoints returning `SqlDataReader` to serializer
+- `CommandBehavior.SequentialAccess` for large binary column streaming
+
+**Answer**
+
+When a method returns a `SqlDataReader` to the caller who controls its disposal (such as a streaming endpoint passing the reader to a serializer), `CommandBehavior.CloseConnection` must be passed to `ExecuteReaderAsync`. With this flag, disposing the reader also closes the connection, preventing a connection leak. Without it, the method that called `ExecuteReaderAsync` and then returned the reader has no way to close the connection it opened, leaving it borrowed from the pool indefinitely.
+
+---
+
+#### Gotcha 6. `ConfigureAwait(false)` omitted in reusable library code
+
+**Concepts**
+- `ConfigureAwait(false)` releases `SynchronizationContext` after await
+- library code should always use `ConfigureAwait(false)`
+- application layer code (controllers) may omit it
+- deadlock in sync-blocking callers without `ConfigureAwait(false)`
+- ASP.NET Core has no `SynchronizationContext` by default — but libraries should not assume this
+
+**Answer**
+
+In reusable data-access library code, every `await` should be followed by `ConfigureAwait(false)` to release the captured `SynchronizationContext` and allow continuations to run on any thread pool thread. Without it, a caller that blocks on the async method (using `.Result`) in a context that has a `SynchronizationContext` will deadlock because the continuation tries to marshal back to the original context that is blocked waiting. ASP.NET Core itself has no `SynchronizationContext`, but library code should not assume its caller's threading model.
+
+---
+
+#### Gotcha 7. `ExecuteScalarAsync` returning `null` — miscast to value type throws
+
+**Concepts**
+- `ExecuteScalarAsync` returns `Task<object?>`
+- `null` returned when result set is empty (no rows)
+- `DBNull.Value` for NULL column value in a returned row
+- direct `(int)(await cmd.ExecuteScalarAsync())` throws `NullReferenceException`
+- null-coalescing and DBNull check required before cast
+
+**Answer**
+
+`ExecuteScalarAsync` returns `Task<object?>` — when the query returns no rows at all, the result is `null` (not `DBNull.Value`), and casting directly to `int` throws `NullReferenceException`. When a row exists but the first column is SQL NULL, the result is `DBNull.Value`, and casting to `int` throws `InvalidCastException`. The safe pattern is `var raw = await cmd.ExecuteScalarAsync(ct); return raw is null || raw is DBNull ? 0 : (int)raw;` — handling both the no-row and null-value cases explicitly.
+
+---
+
+#### Gotcha 8. Using `Task.Run` to wrap synchronous ADO.NET — still blocks a thread
+
+**Concepts**
+- `Task.Run` offloads to thread pool but still consumes a thread
+- async I/O releases the thread entirely during wait
+- `Task.Run` vs true async I/O throughput difference
+- thread pool exhaustion vs connection pool exhaustion
+- `Task.Run` as last resort for genuinely synchronous-only APIs
+
+**Answer**
+
+Wrapping synchronous ADO.NET calls in `Task.Run` to make them "async" still consumes a thread pool thread for the full database round-trip — it just moves the blocking from the request thread to a background thread. Under load, this exhausts the thread pool just as quickly as blocking the request thread directly. True async ADO.NET methods (`ExecuteReaderAsync`, `OpenAsync`) release the thread to the pool during I/O, enabling far higher throughput per thread. Use `Task.Run` only as a last resort for genuinely synchronous-only third-party APIs where no async alternative exists.
+
+---
+
+#### Gotcha 9. Async method not awaited at the call site — fire-and-forget swallows exceptions
+
+**Concepts**
+- unawaited `Task` runs but exceptions are lost
+- `InvalidOperationException` from database silently swallowed
+- `Task.Run(async () => ...)` pattern without await loses exceptions
+- `IHostedService`/`BackgroundService` pattern for true fire-and-forget
+- `_ = MethodAsync()` is intentional discard — still loses exceptions
+
+**Answer**
+
+Calling an async ADO.NET method without `await` (e.g., `SaveDataAsync(data)` with no `await`) returns a `Task` that runs in the background but whose exceptions are silently lost when the task is not observed. Database errors (`SqlException`, `DbUpdateException`) will be swallowed, leaving the caller with no indication that the operation failed. If fire-and-forget is genuinely required, use `IHostedService` or `BackgroundService` with proper exception handling, logging, and retry logic — never discard a database task silently.
+
+---
+
+#### Gotcha 10. `ReadAsync` inside `async` iterator not properly awaited — synchronous reads in async stream
+
+**Concepts**
+- `reader.ReadAsync(ct)` returns `Task<bool>` — must be awaited
+- `reader.Read()` inside `async` iterator compiles but blocks
+- `while (await reader.ReadAsync(ct))` as the correct pattern
+- compiler warning for `ReadAsync` result not awaited
+- async stream benefit requires all reads to be truly async
+
+**Answer**
+
+Inside an `async` iterator method returning `IAsyncEnumerable<T>`, calling synchronous `reader.Read()` compiles without error but blocks the thread for each row fetch, eliminating the benefit of the async stream. The correct pattern is `while (await reader.ReadAsync(cancellationToken))` so each row's read releases the thread to the pool between fetches. Relying on IDE warnings to catch un-awaited `ReadAsync()` calls is unreliable — establish a code review rule that all ADO.NET read loops inside async methods use `ReadAsync`.
 
 ---
 

@@ -290,215 +290,147 @@ OpenAPI schemas are generated from the .NET types used in action parameters and 
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — Swagger & OpenAPI (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. Duplicate operation IDs with versioned API controllers
 
 **Concepts**
-- HTTP 201 Created — correct status for resource creation
-- Location header — URI of the new resource
-- `CreatedAtAction` — sets both status and Location
+- Swashbuckle generates `operationId` from controller name + action name by default
+- Two versioned controllers with the same action names produce duplicate IDs
+- Duplicate `operationId` — spec validation failure; code generators emit compile errors
+- `IOperationFilter` or `UseOperationId` to make IDs unique per version
 
 **Answer**
 
-A POST that creates a resource must return 201 Created with a Location header pointing at the new resource's URI, not 200 OK. I use `CreatedAtAction(nameof(Get), new { id = newEntity.Id }, newEntity)` since it sets both the correct status code and the Location header in one call. Returning 200 hides the resource location from HTTP client libraries and OpenAPI-generated SDKs.
+When two versioned controllers — `OrdersV1Controller` and `OrdersV2Controller` — both have a `Get(int id)` action, Swashbuckle generates the same `operationId` for both if no deduplication is in place. The merged OpenAPI document fails spec validation, and code-generated client SDKs produce duplicate method names that do not compile. I add an `IOperationFilter` that appends the API version to the operation ID, or configure Swashbuckle with `c.CustomOperationIds(e => ...)` that includes the version segment, ensuring every operation ID is globally unique across all version documents.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. XML doc comments not included in Swagger
 
 **Concepts**
-- HTTP GET — safe and idempotent
-- Browser prefetch and CDN cache replay
-- POST/PUT/PATCH/DELETE — correct verbs for mutations
+- `<GenerateDocumentationFile>true</GenerateDocumentationFile>` in `.csproj` required
+- `c.IncludeXmlComments(xmlPath)` in `AddSwaggerGen` wiring the file in
+- Missing XML output path — comments exist but are not read by Swashbuckle
+- Suppress `CS1591` warning for undocumented members or document all public symbols
 
 **Answer**
 
-GET must be safe and idempotent — calling it any number of times must have no side effects. Browsers prefetch URLs, CDNs cache and replay GET responses, and crawlers follow links without user intent, so a side-effecting GET runs its mutation uncontrollably. I keep GET strictly read-only and use the appropriate mutation verb for all state changes.
+XML documentation comments (`/// <summary>`) are not included in the OpenAPI document unless the project file generates a documentation XML file (`<GenerateDocumentationFile>true</GenerateDocumentationFile>`) and Swashbuckle is pointed at it with `c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "MyApi.xml"))`. A common mistake is enabling `GenerateDocumentationFile` but not wiring `IncludeXmlComments`, or using the wrong file name in the path. I also enable this for any referenced model projects so DTO summaries appear in the schema descriptions.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. Polymorphic response type not documented
 
 **Concepts**
-- HTTP status codes — semantic failure signaling
-- `ProblemDetails` / `ValidationProblemDetails` — RFC 7807 error bodies
-- 200 masking failures — invisible in APM and gateways
+- `ActionResult<AnimalDto>` — Swashbuckle documents `AnimalDto` schema only
+- Discriminated union response not representable without `[SwaggerSubType]` or `OneOf`
+- `oneOf` schema requires Swashbuckle.AspNetCore 6+ and explicit configuration
+- Missing sub-type schemas in OpenAPI — generated clients use base type, lose derived fields
 
 **Answer**
 
-Returning 200 with a failure flag forces every consumer to parse the body to detect failure rather than using standard HTTP status code semantics. I return `ValidationProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for domain violations so status codes carry the failure signal.
+An action that may return `DogDto` or `CatDto` (both extending `AnimalDto`) cannot be expressed simply as `ActionResult<AnimalDto>` — Swashbuckle only documents the base schema. Clients receiving a `DogDto` response see only `AnimalDto` fields in the generated type. Swashbuckle 6+ supports `oneOf` via `[SwaggerSubType(typeof(DogDto))]` and `UseOneOfForPolymorphism()` configuration, but requires discriminator setup to match the JSON discriminator field. I design polymorphic responses carefully and document each sub-type explicitly, or flatten to tagged union DTOs to avoid schema complexity.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. Authentication scheme not shown in Swagger UI
 
 **Concepts**
-- EF navigation properties — lazy-load triggers during serialization
-- Circular references — serializer loop risk
-- DTOs — explicit public contract, no schema leakage
+- `c.AddSecurityDefinition("Bearer", ...)` — declares the scheme in the OpenAPI document
+- `c.AddSecurityRequirement(...)` — marks which operations require the scheme
+- Missing security definition — Swagger UI shows no "Authorize" button
+- `IOperationFilter` for per-operation security requirements vs global security
 
 **Answer**
 
-EF Core entities expose internal columns, navigation properties, and circular references not meant for clients. Lazy-loaded navigations trigger additional SQL queries during JSON serialization, and circular references cause serializer loops. I map entities to response DTOs before returning from actions to decouple the public contract from the database schema.
+Adding `[Authorize]` to controllers does not automatically tell Swashbuckle about the authentication scheme — the OpenAPI security scheme must be declared separately in `AddSwaggerGen` with `c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme {...})` and applied globally or per-operation with `c.AddSecurityRequirement(...)`. Without this, Swagger UI shows no "Authorize" button and generated client SDKs have no knowledge of the authentication mechanism. I add a `SecurityRequirementsOperationFilter` that reads `[Authorize]` attributes and applies the security requirement to the appropriate operations in the document.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. Enum serialized as integer in schema vs string in JSON
 
 **Concepts**
-- `System.Text.Json` camelCase default
-- Silent binding failure — PascalCase keys arrive as null
-- `PropertyNameCaseInsensitive` — migration compatibility
+- `System.Text.Json` default — enums serialize as integers
+- `JsonStringEnumConverter` configured in `AddJsonOptions` — enums serialize as strings
+- OpenAPI schema generated by Swashbuckle — must match actual serialization format
+- `c.UseInlineDefinitionsForEnums()` vs `EnumSchemaFilter` for string schema
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON with case-sensitive matching, so a legacy client sending PascalCase keys gets null bindings and a success response with silently wrong data. The migration fix is `PropertyNameCaseInsensitive = true` in `AddJsonOptions`; the permanent fix is for the client to adopt camelCase.
+If `JsonStringEnumConverter` is added to `AddJsonOptions` but Swashbuckle is not configured to match, the API sends string enum values while the OpenAPI schema documents integer enum values. Generated TypeScript clients read integer enum mappings but receive strings at runtime, causing deserialization failures. I add `c.UseInlineDefinitionsForEnums()` or an `EnumSchemaFilter` to Swashbuckle configuration that outputs string values in the schema, keeping the documentation in sync with the actual serialization. The same applies in reverse — if enums serialize as integers, the schema should document integer values, not string member names.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Versioned API documents — one merged document vs separate per version
 
 **Concepts**
-- GET body — stripped by clients and proxies
-- `[FromQuery]` — correct source for GET filters
-- `POST /search` — for complex filter payloads
+- `SwaggerEndpoint` with a single JSON URL — one document for all versions
+- `AddVersionedApiExplorer()` — one document per version
+- Mixing v1 and v2 endpoints in one Swagger document causes operation ID conflicts
+- Client SDK generation targeting the specific version document
 
 **Answer**
 
-Most HTTP clients, proxies, and CDNs ignore GET request bodies, so `[FromBody]` on GET actions fails silently with null models. I use `[FromQuery]` for filter parameters on GET endpoints, and for complex objects a `POST /search` endpoint.
+A versioned API that feeds all versions into a single Swashbuckle document produces operation ID conflicts and a confusing UI where deprecated v1 and current v2 operations are interleaved. The correct setup with `Asp.Versioning.Mvc` is to call `AddVersionedApiExplorer()` which generates a separate `ApiDescription` group per version, then configure one `SwaggerEndpoint` per version in `UseSwaggerUI`. Each version's document contains only its own operations, and code generators can target `v1` or `v2` in isolation.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. `[ProducesResponseType]` on base controller not seen by Swashbuckle
 
 **Concepts**
-- CORS — browser-only enforcement
-- Non-browser clients — unaffected
-- Authentication and authorization — real API security boundary
+- Swashbuckle reads attributes on the action method and its immediate controller class
+- `[ProducesResponseType]` on a base controller class — not inherited into the document
+- Each controller or action must redeclare, or use an `IOperationFilter` to apply globally
+- `ProducesDefaultResponseType` for fallback error shape documentation
 
 **Answer**
 
-CORS is a browser policy that controls whether JavaScript can read cross-origin responses — curl, Postman, and server-to-server clients are unaffected. Authentication and authorization middleware protect the API from all unauthorized callers regardless of CORS configuration.
+`[ProducesResponseType(typeof(ProblemDetails), 400)]` placed on a `BaseApiController` is not picked up by Swashbuckle for derived controllers — the attribute is inherited by the CLR but Swashbuckle's API explorer integration reads only the concrete controller's attributes. Derived actions therefore have undocumented 400 responses in the OpenAPI spec. I use an `IOperationFilter` to inject common response types (400, 401, 403, 404, 500) globally for all operations, which is more maintainable than repeating the attributes on every action or every base class.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. Non-nullable reference types generating nullable schema
 
 **Concepts**
-- `AllowAnyOrigin()` — wildcard origin, incompatible with credentials
-- CORS specification — forbids wildcard + credentials combination
-- `WithOrigins` — explicit allowlist for credentialed requests
+- `System.Text.Json` nullable annotations vs OpenAPI schema nullable flag
+- `c.SupportNonNullableReferenceTypes()` — Swashbuckle option to honor C# nullability
+- Missing `nullable: false` in schema — clients may generate optional fields for required properties
+- `[Required]` on non-nullable properties vs NRT annotations
 
 **Answer**
 
-The CORS specification forbids combining `Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials: true`. Browsers reject this combination. When the SPA sends cookies or an Authorization header I use `WithOrigins("https://app.example.com").AllowCredentials()` instead of `AllowAnyOrigin()`.
+By default, Swashbuckle marks reference-type properties as nullable in the schema regardless of C# nullable reference type annotations, generating `string?` in TypeScript client types for what should be `string`. Calling `c.SupportNonNullableReferenceTypes()` in `AddSwaggerGen` tells Swashbuckle to honor the `?` annotations and emit `nullable: false` for non-nullable properties. This is a breaking change for clients that depended on all reference types being optional, so I enable it intentionally and validate generated client types in a contract test.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. Swashbuckle not loading on staging — missing middleware check
 
 **Concepts**
-- Swagger UI in production — full API surface exposed publicly
-- `IsDevelopment()` environment check — standard gate
-- OpenAPI JSON for CI vs interactive UI for developers
+- `UseSwagger()` and `UseSwaggerUI()` gated behind `IsDevelopment()` check
+- Staging or production environments — Swagger UI unavailable to internal teams
+- Alternative: gate behind authorization middleware rather than environment only
+- `MapSwagger()` minimal API equivalent
 
 **Answer**
 
-Swagger UI in production exposes every endpoint and schema for reconnaissance. I gate `UseSwagger()` and `UseSwaggerUI()` behind `if (app.Environment.IsDevelopment())`. In production I serve the OpenAPI JSON through an IP-restricted reverse proxy path for CI tooling but never the interactive UI publicly.
+Gating Swagger behind `if (app.Environment.IsDevelopment())` blocks internal developers in staging who need the UI to test the latest deployment. I use a more granular guard: `if (app.Environment.IsDevelopment() || app.Environment.IsStaging())` or place the Swagger endpoints behind an authorization policy that allows authenticated internal users while blocking public access. For production internal portals, I serve the OpenAPI JSON document (without the interactive UI) through a path that is IP-restricted at the reverse proxy, giving internal tooling access without the full try-it-out surface.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. Action returning `object` causes `{}` schema in Swagger
 
 **Concepts**
-- `[ApiController]` — automatic validation, binding inference
-- Inconsistent error contracts — mixed controller setup
-- `ValidationProblemDetails` — automatic 400 response
+- `IActionResult` or `object` return type — Swashbuckle emits empty schema `{}`
+- `ActionResult<T>` or `[ProducesResponseType(typeof(T), 200)]` needed for schema inference
+- `TypedResults` in minimal APIs providing compile-time type information
+- Code-generated clients from `{}` schema produce `dynamic` or `object` types
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses and binding source inference do not apply, causing inconsistent error contracts across the Web API. I apply `[ApiController]` at the assembly level so every controller shares the same API conventions.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- `.Result` / `.Wait()` — sync-over-async blocking
-- Thread-pool starvation — blocked threads reduce throughput
-- `async Task<IActionResult>` — correct signature
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` ties up thread-pool threads, reducing concurrent request capacity and creating deadlock risk under load. I mark actions `async Task<IActionResult>` and propagate `await` through the entire service layer.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness probe — pod restart signal
-- Readiness probe — load balancer exclusion
-- SQL down — dependency failure, not pod failure
-
-**Answer**
-
-A failed liveness probe causes Kubernetes to restart the pod — SQL being down cannot be healed by restarting the app. The SQL check belongs on the readiness probe, which removes the pod from the load balancer until the dependency recovers without unnecessary restarts.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- N+1 query problem — one SQL per row for related data
-- DTO projection with `Select` — single query
-- `Include` / `ThenInclude` — eager load
-
-**Answer**
-
-Serializing entities with lazy-loaded navigation properties triggers one SQL query per row during JSON writing. I fix this by projecting directly to DTOs in LINQ for a single JOIN query, or using `Include`/`ThenInclude` for object graphs that must be included.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination — shifts on concurrent mutations
-- Keyset pagination — stable cursor on indexed key
-- Cursor tokens in response metadata
-
-**Answer**
-
-`Skip`/`Take` calculates an offset that shifts when rows are inserted or deleted concurrently, causing duplicates and skips. Keyset pagination anchors on the last seen key — `WHERE id > @lastId ORDER BY id LIMIT @pageSize` — which is stable under concurrent mutations.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers — per-parent-row execution by default
-- DataLoader — batches and deduplicates sub-queries
-- HotChocolate DataLoader in DI
-
-**Answer**
-
-Field resolvers in HotChocolate execute independently per parent row — 100 authors with a `books` resolver executes 101 queries. DataLoader collects all keys within a request execution phase and batches them into one query, deduplicating repeated keys. I register DataLoader classes in DI scoped to the request.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC — HTTP/2 binary framing inaccessible to browsers
-- gRPC-Web — browser-compatible translation protocol
-- `AddGrpcWeb()` / `EnableGrpcWeb()` and CORS
-
-**Answer**
-
-Browsers cannot access the HTTP/2 trailer and binary framing native gRPC requires. gRPC-Web wraps messages in a format browsers can use via Fetch, enabled by `AddGrpcWeb()` and `EnableGrpcWeb()` in the ASP.NET Core pipeline. Cross-origin browser calls also require CORS configuration.
+An action returning `object` or `IActionResult` without any type annotation causes Swashbuckle to document the 200 response as an empty schema `{}`, which tells code generators to produce `dynamic`, `object`, or `any` in TypeScript. Clients lose all type safety on the response. `ActionResult<T>` lets Swashbuckle infer `T` as the success schema automatically. When using `IActionResult` for flexibility, I add `[ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]` to provide the type hint. For minimal APIs, `TypedResults.Ok(dto)` achieves the same at compile time without any annotation.
 
 ---
 

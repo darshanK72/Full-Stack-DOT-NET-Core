@@ -466,3 +466,147 @@ app.MapGet("/sensors/{deviceId}/archive", async (string deviceId, IArchiveStore 
 **Answer**
 
 The standard approach is to embed a version number in the file header immediately after the magic bytes — typically a `uint16` or `uint32` that identifies the format version. Old readers that encounter a version number higher than they understand throw a descriptive `InvalidDataException("Unsupported format version")` rather than attempting to parse fields they do not know about. For forward compatibility — allowing old readers to skip new fields — each record's variable section is preceded by a length field so old readers can `Seek` past the section without needing to know its structure. New readers check the version and branch to the appropriate deserializer: a `switch (version)` that delegates to `ReadV1`, `ReadV2`, etc., keeping each version's logic isolated. For files that must support incremental field additions without a full version bump, a tag-length-value (TLV) encoding within each record allows unknown tags to be skipped by length without a version increment.
+
+## Gotchas — FileStream & Binary Files (Interview Traps)
+
+---
+
+#### Gotcha 1. `FileStream.Position` Advances After Every Read or Write — Seek to Re-Read
+
+**Concepts**
+- Every `Read` and `Write` call advances `Position` by the number of bytes transferred
+- To re-read from the beginning after writing, call `stream.Seek(0, SeekOrigin.Begin)` or set `stream.Position = 0`
+- Forgetting to seek is the most common binary file bug when both reading and writing in the same session
+- Not all streams are seekable; check `stream.CanSeek` before calling `Seek`
+
+**Answer**
+
+After `fileStream.Write(buffer, 0, buffer.Length)`, `fileStream.Position` equals the number of bytes written. A subsequent `fileStream.Read(readBuffer, 0, readBuffer.Length)` reads from that advanced position, not from the start of the file. For patterns that write then read back (verification, test helpers, in-memory round-trips), call `fileStream.Seek(0, SeekOrigin.Begin)` or assign `fileStream.Position = 0` between the write and the read.
+
+---
+
+#### Gotcha 2. `BinaryWriter` Writes Little-Endian — Not Portable Across Platforms Without Conversion
+
+**Concepts**
+- `BinaryWriter.Write(int)` writes a 4-byte integer in little-endian byte order on all .NET platforms
+- Big-endian systems and network protocols (TCP/IP) use big-endian byte order
+- Use `IPAddress.HostToNetworkOrder(value)` to convert to big-endian before writing to a network buffer
+- For cross-language binary files, document the byte order explicitly in the format specification
+
+**Answer**
+
+`binaryWriter.Write(0x01020304)` writes bytes `04 03 02 01` in the file — little-endian. On a big-endian consumer (a Java application or a network protocol parser expecting `01 02 03 04`), the value is read as `0x04030201`. For network protocols, use `IPAddress.HostToNetworkOrder` before writing. For file formats shared with other languages, use `BinaryPrimitives.WriteInt32BigEndian(span, value)` from `System.Buffers.Binary` for explicit, documented byte-order control.
+
+---
+
+#### Gotcha 3. `FileStream` with `FileShare.None` — Exclusive Lock Blocks Other Processes
+
+**Concepts**
+- `FileShare.None` prevents any other process (or thread in another `FileStream`) from opening the file
+- While the stream is open, other processes receive `IOException: The process cannot access the file`
+- `FileShare.Read` allows concurrent readers but blocks writers
+- `FileShare.ReadWrite` allows all access; callers must handle concurrent modification themselves
+
+**Answer**
+
+`new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)` places an exclusive lock on the file. Any other process (backup tool, antivirus, deployment script) that tries to open the file receives an access-denied exception for the duration. This is appropriate for write-critical operations like database file access, but for most application files `FileShare.Read` is a better default — it allows concurrent readers without risking corruption.
+
+---
+
+#### Gotcha 4. `FileStream.Read` May Return Fewer Bytes Than Requested — Always Loop
+
+**Concepts**
+- `Read(buffer, offset, count)` returns the number of bytes actually read, which may be less than `count`
+- A single call to `Read` is not guaranteed to fill the buffer, especially on network streams or at end of file
+- Must loop until the desired byte count is accumulated or EOF is detected
+- `ReadExactly(buffer, offset, count)` (.NET 7+) handles the loop internally and throws if EOF is reached
+
+**Answer**
+
+`stream.Read(buffer, 0, 100)` may return any value from 0 to 100 — a partial read is valid and common, especially on network streams. Code that assumes the return value equals `count` will silently process incomplete data. The correct pattern is a loop: `int totalRead = 0; while (totalRead < count) { int n = stream.Read(buffer, totalRead, count - totalRead); if (n == 0) break; totalRead += n; }`. In .NET 7+, `stream.ReadExactly(buffer, 0, count)` implements this loop and throws `EndOfStreamException` if the stream ends before `count` bytes are read.
+
+---
+
+#### Gotcha 5. `BinaryReader.ReadString()` Uses a .NET-Specific Length-Prefix Format
+
+**Concepts**
+- `ReadString()` reads a 7-bit encoded integer length prefix, then reads that many UTF-8 bytes
+- This format is specific to .NET's `BinaryWriter`/`BinaryReader` pair and is not interoperable with other languages
+- A file written with `BinaryWriter.Write(string)` cannot be read correctly by Java, Python, or C without understanding the .NET length encoding
+- For cross-platform binary formats, encode string length as a fixed-size integer and document the encoding
+
+**Answer**
+
+`binaryWriter.Write("hello")` writes a 7-bit variable-length integer for the byte count (1 byte for `hello` = 5) followed by the UTF-8 bytes. This length-prefix scheme is not documented in any cross-platform standard. A Python script trying to read the file with a fixed 4-byte length prefix will misparse the data. When writing binary files that must be read by other languages, use a fixed-width length field (`BinaryPrimitives.WriteInt32LittleEndian`) and document the encoding and endianness explicitly.
+
+---
+
+#### Gotcha 6. `FileMode.Append` Appends on Open but Is Not Suitable for Random-Access Writes
+
+**Concepts**
+- `FileMode.Append` opens or creates the file and sets the initial position to the end of the file
+- On Windows, `FileAccess.Write` is required with `FileMode.Append`; `FileAccess.ReadWrite` throws
+- Seeking to a position before the start of the appended content is not allowed — `SeekOrigin.Begin` throws
+- For true random-access write-and-read, use `FileMode.Open` or `FileMode.OpenOrCreate` with `FileAccess.ReadWrite`
+
+**Answer**
+
+`new FileStream(path, FileMode.Append)` is designed for sequential tail-writes only. Attempting to `Seek` to a position earlier than the append offset throws `IOException: Seek to a negative position is not allowed`, because the OS restricts append-mode file descriptors. For a pattern where you open a file, write new data, and then re-read some of it, use `FileMode.OpenOrCreate` with `FileAccess.ReadWrite` and manage the position manually.
+
+---
+
+#### Gotcha 7. `FileStream` Async — `useAsync: true` Required for True Async I/O on Windows
+
+**Concepts**
+- On Windows, file I/O is synchronous by default even when using `await ReadAsync()`
+- Without `FileOptions.Asynchronous` (or `useAsync: true`), async methods run synchronously on a thread-pool thread
+- `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true)` enables overlapped I/O
+- Alternatively, `FileOptions.Asynchronous` is the named flag version of `useAsync: true`
+
+**Answer**
+
+`await fileStream.ReadAsync(buffer, 0, buffer.Length)` on a `FileStream` opened without `FileOptions.Asynchronous` completes synchronously on Windows — the thread-pool thread blocks during the I/O operation, negating the async benefit. To get true non-blocking I/O on Windows, open the stream with `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous)`. On Linux and macOS, file I/O behaves differently at the OS level, but specifying `Asynchronous` is still the correct portable practice.
+
+---
+
+#### Gotcha 8. Disposing `BinaryWriter` Disposes the Underlying Stream — Use `leaveOpen: true` to Prevent This
+
+**Concepts**
+- `BinaryWriter.Dispose()` calls `Dispose()` on the underlying `Stream` by default
+- After disposing the `BinaryWriter`, any reference to the original stream is also closed
+- Pass `leaveOpen: true` to the constructor to keep the stream open after the writer is disposed
+- Same pattern applies to `BinaryReader`, `StreamReader`, `StreamWriter`, and `GZipStream`
+
+**Answer**
+
+`using var writer = new BinaryWriter(memoryStream);` disposes `memoryStream` when the `using` block exits. Any code that tries to read from `memoryStream` after the block will get `ObjectDisposedException`. The fix is `new BinaryWriter(memoryStream, Encoding.UTF8, leaveOpen: true)` — the stream remains open after the writer is disposed, and you can seek to position 0 and read it back. This is the standard pattern for pipelines that pass one stream through multiple wrappers.
+
+---
+
+#### Gotcha 9. `FileStream.Length` Can Be Expensive on Some File Systems — Cache If Called Frequently
+
+**Concepts**
+- `FileStream.Length` queries the file system for the current file size on each call
+- On network file systems (NFS, SMB) or virtual file systems, repeated calls can incur round-trip latency
+- Cache the length in a local variable when it is used repeatedly in a loop
+- For files being actively written by another process, the cached length may be stale — weigh freshness vs performance
+
+**Answer**
+
+`for (int i = 0; i < stream.Length; i++)` calls `stream.Length` on every iteration — potentially a file system stat call each time on network or virtual file systems. Cache it: `long length = stream.Length; for (long i = 0; i < length; i++)`. For local SSD-backed streams the difference is negligible, but for network-mounted storage it can be significant. When the file size changes during processing (e.g., another writer is appending), decide whether a stale cached value is acceptable or a fresh read is needed.
+
+---
+
+#### Gotcha 10. `File.OpenRead()` Is Equivalent to `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)`
+
+**Concepts**
+- `File.OpenRead(path)` is a convenience factory for a read-only, file-share-read `FileStream`
+- The default `FileShare.Read` allows other processes to read the file simultaneously
+- It does not allow writing; `FileAccess.Read` means any attempt to call `Write()` throws `NotSupportedException`
+- For write access or a different sharing mode, construct `FileStream` directly with the desired flags
+
+**Answer**
+
+`File.OpenRead(path)` is exactly `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)` — a read-only stream with shared read access. It is the clearest way to express "I am opening this file only to read it, and other readers are welcome." When you need to write, append, or use exclusive access, construct a `FileStream` directly with the explicit `FileAccess` and `FileShare` flags that match your intent, rather than calling a convenience factory and then being surprised by `NotSupportedException`.
+
+---

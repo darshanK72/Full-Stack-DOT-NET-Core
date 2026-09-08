@@ -116,35 +116,157 @@ An undisposed reader keeps the connection in a busy state, blocking additional c
 
 ---
 
-## Gotchas
-
-#### Gotcha 2. Open DataReader blocks second command
-
-**Answer:** Running another `SqlCommand` on the same connection while a `SqlDataReader` is still open fails on SQL Server unless Multiple Active Result Sets (MARS) is enabled in the connection string.
-
-- Always dispose or finish reading the `DataReader` before issuing the next command on that connection.
-- A common bug loads a header row then tries to load detail rows on the same connection without closing the reader.
-- EF Core manages readers internally, but raw ADO.NET code in the same request must respect this rule.
+## Gotchas — SqlDataReader (Interview Traps)
 
 ---
 
-#### Gotcha 4. Leaked connections exhaust the pool
+#### Gotcha 1. Open SqlDataReader blocks a second command on the same connection
 
-**Answer:** Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load.
+**Concepts**
+- MARS disabled by default in SQL Server
+- second `ExecuteReader()` throws `InvalidOperationException`
+- dispose first reader before issuing next command
+- `CommandBehavior.CloseConnection` for ownership transfer
+- MARS as workaround vs proper disposal as fix
 
-- Always use `await using` for connections and readers so disposal runs on exceptions too.
-- Symptoms appear only under concurrent load, making this a classic production-only failure mode.
-- Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+**Answer**
+
+Issuing a second `ExecuteReader()` on the same open `SqlConnection` while the first reader is still open throws `InvalidOperationException` unless Multiple Active Result Sets (MARS) is enabled in the connection string. MARS adds server-side overhead and is rarely the right solution — the correct fix is to dispose the first reader before issuing the next command. The typical scenario is loading a parent row and then querying child rows on the same connection without closing the first reader.
 
 ---
 
-#### Gotcha 7. `QuerySingle` when zero or many rows exist
+#### Gotcha 2. Accessing columns before calling Read() — no data available yet
 
-**Answer:** Dapper's `QuerySingle` throws if zero rows or more than one row match, while optional lookups typically need `QueryFirstOrDefault` which returns default when empty.
+**Concepts**
+- `Read()` must be called to position on first row
+- reader starts before the first row after `ExecuteReader`
+- accessing columns before `Read()` throws `InvalidOperationException`
+- `while (reader.Read())` pattern for multiple rows
+- `if (reader.Read())` pattern for single optional row
 
-- Use `QuerySingle` only when exactly one row is a domain invariant enforced by a unique key.
-- Duplicate data turns `QuerySingle` into a hard failure that `QueryFirstOrDefault` would handle differently — choose based on whether duplicates indicate bugs.
-- EF Core mirrors the same distinction between `SingleOrDefault` and `FirstOrDefault`.
+**Answer**
+
+`SqlDataReader` is positioned before the first row immediately after `ExecuteReader()` — accessing any column before calling `Read()` throws `InvalidOperationException`. The correct pattern is `while (reader.Read())` for multi-row results and `if (reader.Read())` for a single optional row. A common mistake is calling `reader["Id"]` immediately after `ExecuteReader` expecting the first row, but without `Read()` there is no current row.
+
+---
+
+#### Gotcha 3. GetString()/GetInt32() on a NULL column throws InvalidCastException
+
+**Concepts**
+- `GetString()`, `GetInt32()` do not handle `DBNull`
+- `IsDBNull(ordinal)` check required before typed getter
+- `reader.GetValue(ordinal)` returns `DBNull.Value` for null
+- nullable reference types and `int?` with null check pattern
+- `GetFieldValue<T>` with nullable T as modern alternative
+
+**Answer**
+
+Calling `reader.GetString(ordinal)` or `reader.GetInt32(ordinal)` on a column containing a database NULL throws `InvalidCastException` because the typed getters cannot convert `DBNull`. Always check `reader.IsDBNull(ordinal)` before calling a typed getter, or use `reader.GetValue(ordinal)` and compare with `DBNull.Value`. For nullable value types, the pattern `reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2)` correctly handles both present and absent values.
+
+---
+
+#### Gotcha 4. Column name indexer is slower than ordinal access in tight loops
+
+**Concepts**
+- `reader["ColumnName"]` performs string lookup per row
+- ordinal (integer) indexer avoids per-row name lookup
+- `reader.GetOrdinal("Name")` called once before loop
+- performance difference visible at hundreds of thousands of rows
+- `GetString(ordinal)` vs `GetString("Name")` throughput
+
+**Answer**
+
+Accessing columns by name (`reader["ProductName"]`) performs a string lookup in the column collection on every row, which adds up in tight loops over large result sets. The efficient pattern is to call `reader.GetOrdinal("ProductName")` once before the loop to resolve the integer ordinal, then use `reader.GetString(nameOrdinal)` inside the loop. For a few thousand rows the difference is negligible, but for bulk exports of hundreds of thousands of rows the ordinal pattern measurably reduces mapping overhead.
+
+---
+
+#### Gotcha 5. SqlDataReader is forward-only — you cannot seek backward
+
+**Concepts**
+- forward-only cursor architecture
+- no `Seek()`, `Reset()`, or random access
+- multiple passes require multiple queries or in-memory collection
+- `DataTable.Load(reader)` for random-access after read
+- streaming vs random-access trade-off
+
+**Answer**
+
+`SqlDataReader` is a forward-only cursor — once a row has been read, you cannot return to it without re-executing the query. Code that calls `reader.Read()` in a first pass and then tries to iterate from the beginning again will find the reader exhausted. If multiple passes over the data are required, either buffer the rows into a `List<T>` during the first pass, use `DataTable.Load(reader)` to fill an in-memory table, or redesign the query to produce the required data in a single forward pass.
+
+---
+
+#### Gotcha 6. Undisposed SqlDataReader holds the connection busy
+
+**Concepts**
+- open reader keeps connection in active state
+- connection cannot be returned to pool until reader disposed
+- `yield return` with reader leaks connection on caller abandonment
+- `await using` for async reader disposal
+- `CommandBehavior.CloseConnection` for ownership transfer
+
+**Answer**
+
+An undisposed `SqlDataReader` holds the connection in an active state, preventing it from being returned to the pool. When a reader is used inside a `yield return` iterator and the caller abandons enumeration early (via `break` or disposal), the reader and connection remain open until garbage collection. Always wrap readers in `using` or `await using`, and avoid `yield return` over an open reader without wrapping the whole iterator in a `try/finally` that disposes the reader and connection.
+
+---
+
+#### Gotcha 7. `HasRows` is true even if all rows are filtered out by business logic
+
+**Concepts**
+- `HasRows` reflects whether the result set has any rows
+- `HasRows` does not change after `Read()` calls
+- `HasRows` vs `Read()` return value distinction
+- checking `HasRows` to avoid `Read()` call is misleading
+- `Read()` return value is the reliable "more rows" indicator
+
+**Answer**
+
+`HasRows` returns `true` if the query returned at least one row to the reader, but it does not change as you consume rows with `Read()`. Code that checks `HasRows` expecting it to become `false` partway through a loop will loop infinitely or incorrectly. The reliable way to check if there are more rows is the return value of `Read()` itself — `while (reader.Read())` terminates naturally when the result set is exhausted. Use `HasRows` only for a quick initial check of whether the result set is empty before the loop starts.
+
+---
+
+#### Gotcha 8. Accessing the reader after `Close()` or `Dispose()` throws
+
+**Concepts**
+- reader is unusable after `Close()` or `Dispose()`
+- `Close()` allows reopening; `Dispose()` does not
+- late column access outside `using` block throws
+- reader reference kept alive after `using` scope ends
+- explicit null-out of reader reference after disposal
+
+**Answer**
+
+Calling `reader.Close()` or `Dispose()` closes the cursor and makes all column-access methods throw `InvalidOperationException` on subsequent calls. A common mistake is storing the reader in a broader-scoped variable, disposing it inside a helper method, and then attempting to read columns outside the scope. `Close()` allows the reader to be reopened with another `ExecuteReader` call on the same command, while `Dispose()` does not — but in practice, always let the `using` block manage disposal and do not retain reader references beyond the scope.
+
+---
+
+#### Gotcha 9. `CommandBehavior.CloseConnection` needed when transferring reader ownership
+
+**Concepts**
+- `CommandBehavior.CloseConnection` closes connection with reader
+- required when reader outlives the method that opened the connection
+- streaming APIs that return `IAsyncEnumerable<T>` over a reader
+- connection leak when ownership transfer is done without the flag
+- `ExecuteReaderAsync(CommandBehavior.CloseConnection, ct)`
+
+**Answer**
+
+When a method returns a `SqlDataReader` to a caller who will own disposal — such as a streaming endpoint that returns the reader to the serializer — `CommandBehavior.CloseConnection` must be passed to `ExecuteReaderAsync`. With this flag, disposing the reader also closes and returns the connection to the pool, preventing a connection leak when the caller disposes only the reader. Without it, the connection remains open until separately disposed, and a method that returned the reader without retaining the connection reference has no way to close it.
+
+---
+
+#### Gotcha 10. Async enumeration with `ReadAsync()` not called — synchronous read defeats async chain
+
+**Concepts**
+- `reader.Read()` vs `reader.ReadAsync()` for async contexts
+- blocking thread pool during row-by-row reads
+- `await reader.ReadAsync(ct)` inside `async` methods
+- `while (await reader.ReadAsync(ct))` pattern
+- cancellation token propagation through async read loop
+
+**Answer**
+
+Inside an `async` method, calling synchronous `reader.Read()` blocks the thread pool thread during each row fetch, defeating the benefit of `ExecuteReaderAsync`. The correct pattern is `while (await reader.ReadAsync(cancellationToken))` so that each row's network round-trip releases the thread to the pool. Also pass the `CancellationToken` through `ReadAsync` so that a client disconnect or request timeout can abort mid-stream rather than processing rows for a client that has already disconnected.
 
 ---
 

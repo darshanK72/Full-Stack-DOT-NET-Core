@@ -200,52 +200,147 @@ The C# 8 property pattern matches an object by testing the values of its propert
 
 ---
 
-## Gotchas
+## Gotchas — C# 8 Features (Interview Traps)
 
 ---
 
-## Q12. Why does using ! to silence NRT warnings on nullable properties cause NullReferenceException at runtime?
+#### Gotcha 1. Nullable reference types (NRT) — warnings only, not runtime enforcement; legacy code needs `#nullable enable`
 
 **Concepts**
-- ! operator is compile-time only
-- suppressing warning does not add null check
-- Notes.ToUpperInvariant() throws when Notes is null
-- correct fix: null check or null-conditional operator
-- NRT migration discipline
+- NRT is a compile-time static analysis feature, not a runtime guard
+- `string?` vs `string` — nullability annotation only; both compile to the same IL `string`
+- `#nullable enable` opt-in directive for files or the whole project
+- existing code full of `NullReferenceException` risks remains unchanged without annotation
 
 **Answer**
 
-`metadata.Notes!.ToUpperInvariant()` tells the compiler "I guarantee Notes is not null here" — the `!` operator emits no IL instruction and performs no runtime check. If `Notes` is actually null (a document with no footnotes, for example), the call throws `NullReferenceException` at the `.ToUpperInvariant()` call site. The developer who added `!` silenced the compiler warning without addressing the underlying nullability. The correct fix depends on intent: if `Notes` is optional and a missing note should produce an empty string, use `metadata.Notes?.ToUpperInvariant() ?? string.Empty`; if a null note is an invariant violation that should never happen, add an actual null guard that throws a descriptive exception rather than masking with `!`. The `!` operator should be reserved for cases where you can prove non-nullability through logic the compiler cannot analyze — not as a way to merge PRs faster.
+Nullable reference types in C# 8 add compile-time warnings when you dereference a potentially null reference without a null check — they do NOT add any runtime null checks or throw at runtime. A `string?` parameter annotated as nullable compiles to the same IL as `string`; the difference is that the compiler warns if you use it without checking. Enabling `<Nullable>enable</Nullable>` in the project file turns on NRT project-wide, but legacy code written before the feature existed will suddenly show hundreds of warnings without any bugs being fixed. The pragmatic migration strategy is to enable NRT in new files with `#nullable enable` and address existing files gradually, adding `?` annotations and null checks as each file is touched.
 
 ---
 
-## Q13. What is the C# 8 async stream anti-pattern of calling ToListAsync followed by synchronous foreach?
+#### Gotcha 2. `??=` null-coalescing assignment — `x ??= defaultValue` assigns only if x is null
 
 **Concepts**
-- ToListAsync materializes entire stream into memory
-- eliminates streaming benefit
-- blocking GetAwaiter().GetResult() prevents cancellation
-- correct pattern: await foreach with cancellation token
-- OOM risk for large streams
+- `x ??= expr` is shorthand for `x = x ?? expr`
+- the right-hand side is only evaluated if `x` is null
+- works with nullable value types (`int?`) and reference types
+- does not cover default value checks (`x == 0` or empty string) — only null
 
 **Answer**
 
-Calling `await source.ToListAsync(ct)` (or `.GetAwaiter().GetResult()`) and then iterating the resulting list synchronously defeats the memory and cancellation benefits of `IAsyncEnumerable<T>`. The entire result set is held in memory before any processing begins — for a millions-of-rows document archive this causes an OutOfMemoryException. The `.GetAwaiter().GetResult()` form is synchronous blocking and ignores the cancellation token's cooperative cancellation semantics, meaning a deploy cancellation event does not stop the stream from being fully materialized. The correct pattern is `await foreach (var page in producer.ReadPagesAsync().WithCancellation(stoppingToken))` followed by processing of each page individually inside the loop. This way, only one page is in memory at a time and cancellation interrupts the enumeration at the next yield boundary. The producer must also accept and use the cancellation token internally.
+`x ??= GetDefault()` assigns the result of `GetDefault()` to `x` only when `x` is currently `null`. If `x` already has a non-null value, `GetDefault()` is never called — the right-hand side is lazily evaluated. This is equivalent to `if (x is null) x = GetDefault();` in one expression. A common mistake is expecting `??=` to handle all "falsy" values: `count ??= 0` does nothing when `count` is `0` (already non-null), whereas `count ??= 0` on a nullable `int?` correctly assigns `0` when `count` is `null`. The operator is strictly a null check; use `||=` patterns (via ternary or explicit `if`) for zero, empty string, or other sentinel-value replacements.
 
 ---
 
-## Q14. What are the C# 8 rules that prevent ref struct and Span<T> from crossing async await boundaries?
+#### Gotcha 3. `switch` expression — exhaustiveness checked at compile time; non-exhaustive throws `SwitchExpressionException` at runtime
 
 **Concepts**
-- ref struct cannot be stored in heap field
-- async state machine lifts locals to heap fields
-- Span<T> is a ref struct
-- ReadOnlySpan<char> cannot be used across await
-- fix: complete span work before await or use string/Memory<T>
+- compiler warns on non-exhaustive switch expressions (not all inputs covered)
+- `_` discard arm to handle the remaining cases
+- missing arm causes `SwitchExpressionException: The switch expression does not have a matching arm` at runtime
+- different from switch statement where fall-through to default is optional
 
 **Answer**
 
-`ref struct` types (including `Span<T>` and `ReadOnlySpan<char>`) are constrained to live only on the stack. The C# compiler transforms an `async` method into a state machine class (heap-allocated) that stores all locals in its fields so they survive suspension at `await` points. Because a `ref struct` cannot be stored in a heap field, it cannot be a local variable in an `async` method that is live across an `await` expression — the compiler rejects this with an error. In practice, this means you cannot declare a `ReadOnlySpan<char>` before an `await` and use it after. The resolution is to complete all span-based computation before the first `await` in the method, extract the needed result into a `string`, `Memory<T>`, or other heap-safe type, and then pass that type across the `await`. Alternatively, decompose the method into a synchronous span-processing helper and an async I/O method that calls it, keeping the ref struct entirely inside the synchronous scope.
+A `switch` expression must be exhaustive — every possible input value must match one arm. If the compiler can determine that not all values are covered (e.g., an enum switch that is missing a member), it emits a warning. If coverage analysis is incomplete (e.g., switching on `string` without a `_` discard), the compiler may not warn but a non-matching input at runtime throws `SwitchExpressionException`. Adding a discard arm `_ => throw new ArgumentOutOfRangeException(...)` is both safer and more descriptive than letting the runtime throw the generic `SwitchExpressionException`. For enums, the discard arm also guards against values added to the enum in the future without updating every switch expression.
+
+---
+
+#### Gotcha 4. `IAsyncEnumerable<T>` and `await foreach` — requires `System.Linq.Async` for LINQ operators
+
+**Concepts**
+- `IAsyncEnumerable<T>` supports `await foreach` natively
+- standard LINQ operators (`Where`, `Select`, etc.) are not defined on `IAsyncEnumerable<T>`
+- `System.Linq.Async` NuGet package adds async LINQ
+- `WithCancellation(ct)` to propagate `CancellationToken` through `await foreach`
+
+**Answer**
+
+`await foreach (var item in GetItemsAsync())` works out of the box for any type implementing `IAsyncEnumerable<T>`. However, the standard `System.Linq` extension methods like `.Where()`, `.Select()`, and `.FirstOrDefault()` are defined only on `IEnumerable<T>` — they are not available on `IAsyncEnumerable<T>`. Calling `GetItemsAsync().Where(x => x.Active)` is a compile error unless you add the `System.Linq.Async` NuGet package (from the Reactive Extensions team), which provides `AsyncEnumerable.Where`, `Select`, `ToListAsync`, and related operators. Alternatively, calling `.ToListAsync()` materializes the async sequence into a `List<T>` on which regular LINQ then works, at the cost of buffering all results in memory.
+
+---
+
+#### Gotcha 5. Default interface methods — implementing class does not inherit the default; call through the interface reference
+
+**Concepts**
+- default interface method (DIM) provides a fallback implementation
+- a class that implements the interface but not the method does NOT have the method as a class member
+- must cast to the interface to invoke the default implementation
+- breaks the "interfaces have no state" contract if misused
+
+**Answer**
+
+When `interface ILogger` defines `void Log(string msg) => Console.WriteLine(msg);`, a class `MyLogger : ILogger` that does not override `Log` does NOT get `Log` as a public method — `new MyLogger().Log(...)` is a compile error. The default implementation is only accessible through the interface reference: `((ILogger)new MyLogger()).Log(...)`. This differs from abstract class inheritance where the base method is directly callable on the derived instance. Default interface methods were introduced primarily to allow interfaces to evolve (add new methods with defaults) without breaking existing implementors, not to serve as a general inheritance mechanism. Using them as a substitute for abstract classes leads to confusing code where methods are invisible on the concrete type.
+
+---
+
+#### Gotcha 6. `using` declaration — `using var stream = ...` — disposed at end of enclosing scope, not the block
+
+**Concepts**
+- `using` declaration disposes at the end of the enclosing code block (method, `if` body, etc.)
+- `using` statement `using (var x = ...) { }` disposes at the closing brace
+- extended disposal lifetime: resource held longer than intended
+- nested using declarations: disposed in reverse order at the end of scope
+
+**Answer**
+
+`using var stream = File.OpenRead(path);` disposes `stream` at the end of the enclosing block (typically the method), not at the next closing brace. If the enclosing method is long and the resource (a database connection, file handle, or network socket) should be released as soon as it is no longer needed, the `using` declaration holds it open for the entire remaining method body. The traditional `using (var conn = GetConnection()) { /* just this block */ }` releases the resource as soon as the block closes. The `using` declaration is appropriate for short methods where the resource is needed throughout; the `using` statement is better when you want precise control over the disposal point.
+
+---
+
+#### Gotcha 7. Indices and ranges — `^1` is last element; `[1..^1]` excludes first and last; ranges are not available on `IEnumerable<T>` without ToArray
+
+**Concepts**
+- `^n` is "from the end" index: `^1` is last, `^0` is one past end (invalid as element index)
+- `[start..end]` is exclusive on the end: `[0..3]` includes indices 0, 1, 2
+- `Range` and `Index` types require `Length` property; not supported on `IEnumerable<T>`
+- `string` and `Span<T>` support slicing natively
+
+**Answer**
+
+`array[^1]` returns the last element (`array[array.Length - 1]`). `array[1..^1]` slices from index 1 up to but not including the last element. `^0` is the length itself — using it as an element index throws `IndexOutOfRangeException`. The range syntax requires the collection to expose an `int Length` (or `Count`) property and a `Slice` method or direct indexer; it is not available on `IEnumerable<T>` without first calling `.ToArray()` or `.ToList()`. A common mistake is writing `collection[1..^1]` on a LINQ sequence and getting a compile error; the fix is to materialize the sequence first. `string` and `Span<T>` support ranges natively without materialization.
+
+---
+
+#### Gotcha 8. `static` local functions — must capture nothing; use `static` to prevent accidental captures
+
+**Concepts**
+- `static` local function cannot reference variables from the enclosing method (no closure)
+- compiler error if a `static` local function captures an outer variable
+- use `static` to document intent and prevent accidental performance-degrading captures
+- captures allocate a closure object on the heap on first invocation
+
+**Answer**
+
+A non-static local function creates a closure that captures variables from the enclosing scope, which typically allocates a heap object on first invocation. In performance-sensitive code, this can be an unintended allocation. Marking the local function `static` prevents it from capturing anything — the compiler enforces this with an error if you accidentally reference an outer variable. This is useful both as documentation ("this helper has no side effects on the enclosing scope") and as a correctness guard. If the `static` local function needs data from the caller, it must receive that data as explicit parameters. The `static` modifier also enables the JIT to inline the function more aggressively since there is no closure to dereference.
+
+---
+
+#### Gotcha 9. `ReadOnlySpan<char>` from string — `str.AsSpan(start, length)` is zero-copy; cannot be stored in a class field
+
+**Concepts**
+- `ReadOnlySpan<char>` is a `ref struct` — stack-only
+- `AsSpan()` returns a span over the string's internal buffer — zero allocation
+- cannot store `Span<T>` or `ReadOnlySpan<T>` as a class field or in an async method across `await`
+- `Memory<T>` or `ReadOnlyMemory<T>` for heap-storable slice references
+
+**Answer**
+
+`str.AsSpan(5, 10)` returns a `ReadOnlySpan<char>` that directly references the string's internal character buffer with no allocation. This is 2-5x faster than `str.Substring(5, 10)` for parsing scenarios because `Substring` allocates a new string. However, `ReadOnlySpan<char>` is a `ref struct` and cannot be stored in a class field, a lambda capture, or across an `await` boundary. Attempting any of these produces a compile error. When you need to store a slice for later use (e.g., in a class that caches parsed segments), use `ReadOnlyMemory<char>` instead — it is a regular struct that holds a heap reference and can be stored anywhere `Memory<T>` is a storable, non-stack-constrained type.
+
+---
+
+#### Gotcha 10. Pattern matching enhancements — positional patterns and property patterns; `{ Length: > 0 }` on string
+
+**Concepts**
+- property pattern `{ Prop: value }` matches if the property equals the value
+- relational pattern `{ Count: > 0 }` uses comparison operators in a pattern
+- positional pattern `(x, y)` deconstructs via `Deconstruct` method
+- `and`, `or`, `not` combinators for compound patterns
+
+**Answer**
+
+C# 8 property patterns allow inline inspection of object properties in `switch` expressions and `is` checks: `order is { Status: OrderStatus.Paid, Items.Count: > 0 }` checks both the `Status` property and the count of `Items` in a single expression. Relational patterns (`{ Price: > 100 }`) combine type checking with value comparison without a separate `when` guard. Positional patterns (`(_, var y)`) deconstruct a tuple or any type with `Deconstruct` directly in the pattern. A common mistake is writing `obj is { Length: 0 }` on a `string` and being surprised that it matches an empty string — the pattern checks the `Length` property, not reference equality, which is the correct and intended behavior. Combining patterns with `and`/`or`/`not` enables concise null and range guards: `x is not null and { Count: >= 1 }`.
 
 ---
 

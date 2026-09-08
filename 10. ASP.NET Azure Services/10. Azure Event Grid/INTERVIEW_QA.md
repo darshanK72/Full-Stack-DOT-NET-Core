@@ -449,3 +449,147 @@ Event Grid system topics turn Azure resource lifecycle and data-plane operations
 Production Event Grid troubleshooting combines subscription metrics, delivery failure logs, dead-letter blob inspection, and correlated application logging in the subscriber so I can see whether failure happened at routing, transport, or handler logic. In the Azure Portal I open the topic or domain Metrics for publish success, delivery success/failure counts, and dead-lettered events, and I set alerts when failure rate or dead-letter count exceeds baseline. I enable diagnostic settings to send Event Grid operational logs to Log Analytics for querying failed deliveries, latency, and subscription provisioning errors. I inspect the dead-letter container for undelivered event JSON and HTTP response details recorded by Event Grid when dead-lettering is enabled. In the subscriber I log event `id`, `eventType`, and `subject` with correlation IDs and compare with Event Grid logs to distinguish timeout, 401/403 auth misconfiguration, validation mishandling, and unhandled exceptions. I reproduce with Cloud Shell or REST API to republish a test event after fixes, and I verify subscription filter rules if handlers never receive expected types since misconfigured filters look like delivery failures but are silent drops at routing time.
 
 ---
+
+## Gotchas — Azure Event Grid (Interview Traps)
+
+---
+
+#### Gotcha 1. Dead-lettering is not enabled by default — failed event deliveries are silently dropped after retry exhaustion
+
+**Concepts**
+- Event Grid retries delivery for up to 24 hours using exponential backoff
+- After retry exhaustion, events are permanently lost unless a dead-letter destination is configured
+- Dead-letter destination requires a storage account with a container and a SAS URI
+- Monitoring retry metrics is the only way to detect lost events without dead-lettering
+
+**Answer**
+
+Azure Event Grid does not dead-letter failed events automatically. Without a dead-letter destination configured on the event subscription, events that exhaust the retry policy (24 hours of retries by default) are permanently discarded with no notification. Configuring dead-lettering requires adding a storage account container as the destination and providing a SAS URI with write permission to the container. Systems that rely on guaranteed event processing must configure dead-lettering and monitor the dead-letter container; otherwise a subscriber outage during the 24-hour retry window causes silent data loss with no recovery path.
+
+---
+
+#### Gotcha 2. Event Grid uses push delivery — a subscriber that is down misses events if the retry window expires
+
+**Concepts**
+- Event Grid pushes events to HTTP webhook endpoints; it does not queue for pull
+- A subscriber down for more than 24 hours loses all events delivered during that outage
+- Service Bus provides guaranteed pull-based delivery without time-based expiry
+- Event Grid → Service Bus integration routes events to a queue for durable pull consumption
+
+**Answer**
+
+Unlike Service Bus, which stores messages indefinitely until a consumer retrieves them, Event Grid pushes events to registered webhook endpoints and retries for a maximum of 24 hours. A subscriber (HTTP endpoint) that is unavailable for more than 24 hours will lose all events delivered during that outage, even after it comes back online. For workloads requiring guaranteed delivery independent of subscriber availability windows, the correct pattern is to route Event Grid events to a Service Bus queue (using an Event Grid → Service Bus topic subscription), turning push-based Event Grid delivery into pull-based durable consumption.
+
+---
+
+#### Gotcha 3. Event Grid schema and CloudEvents schema are not interchangeable — the schema choice per topic is permanent
+
+**Concepts**
+- Event Grid supports two schemas: Event Grid schema (proprietary) and CloudEvents 1.0
+- The schema is chosen per topic at creation and cannot be changed after creation
+- Publishers and subscribers must use the same schema type
+- CloudEvents is the recommended standard for new topics due to its portability
+
+**Answer**
+
+When you create an Event Grid topic, you choose either the proprietary Event Grid schema or the CloudEvents 1.0 standard schema. This choice is permanent; you cannot migrate an existing topic between schemas without recreating it and migrating all subscriptions. Publishers that produce Event Grid schema events cannot send to a CloudEvents topic without reformatting the event payload. For organizations with multiple teams publishing to shared topics, using different schemas across topics creates friction when consumers need to handle events from multiple sources.
+
+---
+
+#### Gotcha 4. Dead-letter SAS token expiry silently stops dead-lettering without error
+
+**Concepts**
+- The dead-letter destination is configured with a SAS URI that includes an expiry
+- When the SAS URI expires, Event Grid cannot write to the dead-letter container
+- Expired SAS on the dead-letter destination causes silently lost events (they are dropped instead of dead-lettered)
+- Rotating or using a managed identity-based connection for dead-lettering prevents this
+
+**Answer**
+
+The dead-letter destination for an Event Grid subscription is a storage container referenced via a SAS URI. When that SAS token expires, Event Grid loses write access to the container and falls back to dropping failed events instead of dead-lettering them. There is no alert or error message when this happens; the dead-letter container simply stops receiving new files. Teams often set the SAS expiry once during provisioning and forget about it, discovering months later that all events during a subscriber outage were silently dropped. Using a system-assigned managed identity for the Event Grid subscription instead of a SAS URI removes the expiry concern.
+
+---
+
+#### Gotcha 5. Event Grid has no message lock — a 200 response after a crash causes silent event loss
+
+**Concepts**
+- Event Grid acks an event delivery the moment the subscriber endpoint returns 200
+- If the application crashes or rolls back after returning 200, the event is not redelivered
+- Service Bus message locking provides at-least-once semantics with redelivery on crash
+- Idempotent consumers and transactional outbox patterns address this gap
+
+**Answer**
+
+Event Grid considers an event successfully delivered as soon as the subscriber endpoint returns HTTP 200–204. If the application processes the event, flushes the HTTP response buffer returning 200, and then crashes before committing the side effect (for example a database write), Event Grid treats the delivery as successful and does not redeliver. This is fundamentally different from Service Bus, where the message lock must be explicitly completed after processing and a crash before completion causes automatic redelivery. Event Grid provides at-least-once delivery in the sense that retries occur on non-2xx responses, but it cannot protect against successes that precede crashes.
+
+---
+
+#### Gotcha 6. Webhook subscriber endpoints must handle the validation handshake — endpoints that ignore it are rejected
+
+**Concepts**
+- Event Grid sends a `SubscriptionValidationEvent` to new webhook endpoints before delivering events
+- The endpoint must respond with the `validationCode` from the payload within 30 seconds
+- An HTTPS endpoint that returns 404 or ignores the validation event cannot be registered
+- Azure Functions and Logic Apps handle validation automatically; custom APIs must implement it
+
+**Answer**
+
+When you create an Event Grid webhook subscription, Event Grid immediately sends a `SubscriptionValidationEvent` to the subscriber endpoint. The endpoint must respond with HTTP 200 and a JSON body containing `{"validationResponse": "<validationCode>"}` from the event payload within 30 seconds, or the subscription creation fails. A custom ASP.NET Core API that does not have this validation handling implemented returns 404 or an unrecognized response, causing the subscription to be rejected. Azure Functions HTTP triggers and Azure Logic Apps handle this validation automatically, but any manually written webhook endpoint requires explicit handling of the `Microsoft.EventGrid.SubscriptionValidationEvent` event type.
+
+---
+
+#### Gotcha 7. Event filters support only prefix/suffix and exact string matching — complex routing requires downstream logic
+
+**Concepts**
+- Event Grid subscription filters can match on event type, subject prefix, and subject suffix
+- Advanced filters support comparison operators on event data properties but not regex
+- Complex routing rules (contains, regex, multi-field logic) cannot be expressed in filters
+- Azure Functions or Logic Apps are used as filter proxies for complex routing
+
+**Answer**
+
+Azure Event Grid subscription filters support exact match on event type, subject prefix, subject suffix, and advanced filters using comparison operators (equals, ends with, begins with, contains, etc.) on specific event data fields. However, regex matching, conditional multi-field logic, and nested property filtering are not supported. When routing logic requires more expressiveness — for example routing based on whether an event body contains a specific string pattern or on the combination of multiple property values — a subscriber Azure Function acts as a routing proxy: it receives all events, applies the complex logic, and forward-publishes to downstream systems or discards the event.
+
+---
+
+#### Gotcha 8. System topics for Blob Storage can only be created once per storage account per region — duplicate creation fails
+
+**Concepts**
+- A system topic links one Azure resource (e.g., storage account) to Event Grid
+- Only one system topic per storage account per subscription is allowed
+- Creating a second system topic for the same storage account returns a conflict error
+- Multiple subscriptions can be added to the same system topic to route to multiple consumers
+
+**Answer**
+
+Azure Event Grid system topics for a given source resource (such as a storage account) can only be created once per Azure subscription and region. If a system topic already exists for a storage account and a pipeline or ARM template tries to create a second one, the operation fails with a conflict error. This often happens when Bicep or Terraform templates are not idempotent — they try to recreate the system topic on every deployment. The solution is to deploy the system topic with a `if not exists` guard in the template, or to reference the existing system topic name and add new subscriptions to it rather than recreating the topic.
+
+---
+
+#### Gotcha 9. Maximum event size is 1 MB — an oversized event in a batch causes the entire batch to be rejected
+
+**Concepts**
+- Individual events must not exceed 1 MB including headers and metadata
+- A batch that contains even one event exceeding 1 MB is rejected entirely
+- The rejection is HTTP 413 (Payload Too Large) and no events in the batch are delivered
+- Large payloads should use the claim-check pattern (store payload in Blob, send reference)
+
+**Answer**
+
+Azure Event Grid enforces a 1 MB maximum size per event. When publishing a batch of events, if any single event in the batch exceeds 1 MB, the entire batch is rejected with HTTP 413 and none of the events — including the valid smaller ones — are delivered. This is a silent all-or-nothing failure for callers who do not inspect the response code. The claim-check pattern addresses this: the large payload is written to Azure Blob Storage and the Event Grid event contains only the blob URL and metadata, keeping the event size well under the limit.
+
+---
+
+#### Gotcha 10. Webhook subscribers must respond within 30 seconds — synchronous long processing causes 408 and retry flood
+
+**Concepts**
+- Event Grid expects HTTP 200–204 within 30 seconds of delivering an event
+- A slow synchronous handler that processes inline causes a 408 timeout
+- Event Grid retries the delivery on timeout, causing duplicate processing
+- The correct pattern is to acknowledge immediately and process asynchronously via a queue
+
+**Answer**
+
+Event Grid expects the subscriber endpoint to return a 2xx HTTP response within 30 seconds of receiving the event. An ASP.NET Core action handler that performs synchronous long-running work — database writes, external API calls, file processing — inline before returning will time out after 30 seconds, causing Event Grid to treat the delivery as failed and schedule a retry. This produces a flood of duplicate deliveries as Event Grid continuously retries the slow endpoint. The correct pattern is to respond immediately with HTTP 202 Accepted, enqueue the work item to Azure Service Bus or an in-process background queue, and process asynchronously outside the request handler.
+
+---

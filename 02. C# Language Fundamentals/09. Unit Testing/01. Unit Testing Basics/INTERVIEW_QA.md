@@ -964,3 +964,148 @@ Second, they document intended behavior precisely. The test `GetLetterGrade_Scor
 Third, they enable confident refactoring. If the team decides to replace the `if/else if` chain with a dictionary lookup or a range-based data structure, the existing tests provide immediate verification that the refactored implementation is equivalent.
 
 Fourth, they set a culture standard. A codebase where "simple" classes skip tests is one where the definition of "simple enough to skip" gradually expands until no class has tests. The discipline of writing tests for every class — including simple ones — maintains the habit and ensures the test suite grows with the codebase.
+
+
+## Gotchas — Unit Testing Basics (Interview Traps)
+
+---
+
+#### Gotcha 1. Test names should describe behavior, not implementation — `CalculateTotal_WithDiscount_ReturnsReducedPrice` not `TestMethod1`
+
+**Concepts**
+- test name is the first diagnostic when a build breaks
+- `MethodName_Scenario_ExpectedResult` naming convention
+- generic names (`TestMethod1`, `Test_OK`) provide no failure context
+- test name serves as living documentation of intended behavior
+
+**Answer**
+
+When a CI build reports `TestMethod1 failed`, the developer has no idea what broke without opening the test file. A name like `CalculateTotal_WithDiscount_ReturnsReducedPrice` immediately communicates the method under test, the condition being tested, and the expected outcome — three facts visible in the test report without reading code. Well-named tests serve as living documentation: a product manager can read the test list and verify that the system behaves as specified. The naming convention (`MethodName_Scenario_ExpectedOutcome`) is a team standard; the underlying principle — names describe observable behavior, not internal implementation — is universal.
+
+---
+
+#### Gotcha 2. One assertion per test — multiple assertions make it hard to identify the failure reason
+
+**Concepts**
+- multiple `Assert` calls in one test: first failure stops execution (short-circuit)
+- later assertions are never reached when an earlier one fails
+- one test = one reason to fail = one thing to fix
+- `Assert.Multiple` (NUnit/xUnit 2.x) as a multi-assertion alternative
+
+**Answer**
+
+A test with five `Assert` calls will report only the first failure and skip the remaining four, leaving you blind to whether the other assertions would also have failed. Splitting into five focused tests means a failure report identifies exactly which behavior broke. The principle "one logical assertion per test" does not strictly mean one `Assert` call — `Assert.Equal(expected.Name, actual.Name); Assert.Equal(expected.Price, actual.Price)` can be two lines validating a single concept. The real goal is one reason to fail. When several related properties must all be verified together, frameworks like NUnit's `Assert.Multiple` or xUnit's `Assert.Collection` collect all failures before reporting.
+
+---
+
+#### Gotcha 3. Arrange-Act-Assert (AAA) pattern — structure every test in these three phases
+
+**Concepts**
+- Arrange: set up input data and dependencies
+- Act: invoke the system under test (SUT)
+- Assert: verify the outcome
+- blank lines between phases for readability
+
+**Answer**
+
+The AAA pattern divides each test into three clearly separated phases: Arrange sets up the test data and configures dependencies; Act invokes the single method or behavior under test; Assert verifies that the outcome matches expectations. This structure makes tests immediately readable — a reviewer can identify what is being set up, what is being invoked, and what is being verified without tracing logic. Mixing phases (asserting in the middle of setup, or arranging after acting) obscures intent. A blank line between each phase is a common convention that visually enforces the separation and makes deviations stand out during code review.
+
+---
+
+#### Gotcha 4. Tests should be independent — test order must not matter; no shared mutable state between tests
+
+**Concepts**
+- test frameworks may run tests in any order
+- shared static fields mutated by one test affect subsequent tests
+- per-test setup (constructor in xUnit, `[TestInitialize]` in MSTest) resets state
+- flaky ordering dependency surfaces only under parallel execution
+
+**Answer**
+
+A test suite where test B relies on test A running first is fragile: the framework may reorder tests, parallelize them, or a developer may run a single failing test in isolation. Shared mutable state — a static collection, a singleton, a file on disk — that one test modifies without cleanup corrupts the state for subsequent tests. The rule is that each test must be able to run alone, in any order, and produce the same result. Use per-test setup methods to initialize fresh instances, use `[TestCleanup]` / `IDisposable` to restore state, and avoid static mutable fields as test fixtures.
+
+---
+
+#### Gotcha 5. `Assert.AreEqual` vs `Assert.AreSame` — value equality vs reference identity
+
+**Concepts**
+- `Assert.AreEqual(expected, actual)` uses `Equals` — value equality
+- `Assert.AreSame(expected, actual)` uses `ReferenceEquals` — same object in memory
+- two separately constructed objects with same data: `AreEqual` passes, `AreSame` fails
+- string interning can cause `AreSame` to pass unexpectedly for literal strings
+
+**Answer**
+
+`Assert.AreEqual(new Point(1, 2), new Point(1, 2))` passes if `Point` overrides `Equals` to compare field values. `Assert.AreSame(new Point(1, 2), new Point(1, 2))` always fails because the two `new` expressions allocate separate objects — they are equal in value but not the same reference. The distinction matters when testing factory methods or caches: a cache should return the same instance (`AreSame`), while a value object factory returning equal but separate instances is correctly tested with `AreEqual`. Using `AreEqual` when `AreSame` is intended causes a test to pass even when a caching mechanism is broken; using `AreSame` on value objects causes tests to fail correctly but for misleading reasons.
+
+---
+
+#### Gotcha 6. Testing private methods — test through public API; testing privates is a design smell
+
+**Concepts**
+- private methods are implementation details; tests should be indifferent to them
+- testing privates couples tests to internal structure — refactoring breaks tests
+- if a private method is complex enough to test directly, extract it into a separate class
+- `InternalsVisibleTo` as a limited escape hatch for internal methods
+
+**Answer**
+
+Private methods exist to serve the class's public contract. A well-designed unit test exercises the public API and trusts that internal methods are exercised indirectly. When a private method is so complex that it demands direct testing, that is a signal that the logic belongs in a separate, publicly accessible class where it can be tested independently. Accessing private methods via reflection or `InternalsVisibleTo` creates tests that break every time the internal structure changes, even when the public behavior is unchanged. The refactoring guideline is: extract the complex private logic into a collaborator with its own interface, then test it through that interface.
+
+---
+
+#### Gotcha 7. Hard-coded time in tests — inject `IDateTimeProvider` to make time-dependent tests deterministic
+
+**Concepts**
+- `DateTime.Now` and `DateTimeOffset.UtcNow` return real wall-clock time
+- tests that check expiry, timestamps, or age are non-deterministic with real time
+- inject `IDateTimeProvider` or use .NET 8's `TimeProvider` abstraction
+- `FakeTimeProvider` from `Microsoft.Extensions.Time.Testing` for test control
+
+**Answer**
+
+A method that checks `if (DateTime.Now > order.ExpiresAt)` is untestable without controlling time. A test that sets `ExpiresAt = DateTime.Now.AddSeconds(-1)` will pass when run immediately but fail if the test runner pauses for two seconds between the setup and the assertion. The solution is to inject a `TimeProvider` (abstract class in .NET 8) or a custom `IDateTimeProvider` interface into the class. In tests, configure the fake provider to return a fixed date: `fakeTimeProvider.SetUtcNow(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero))`. This makes expiry and date-range tests fully deterministic regardless of when or where they run.
+
+---
+
+#### Gotcha 8. Flaky tests — tests that fail intermittently due to timing, randomness, or external dependencies
+
+**Concepts**
+- flaky tests fail non-deterministically: pass sometimes, fail sometimes
+- root causes: `Thread.Sleep`, real time, random values, shared database state, network
+- flaky tests erode team trust in the test suite — developers begin ignoring failures
+- quarantine and fix policy: move flaky tests to a separate suite, fix root cause
+
+**Answer**
+
+A flaky test is more harmful than no test — it generates false positives that train the team to ignore CI failures. Common root causes include: using `Thread.Sleep` to wait for an async operation instead of proper `await`; tests that rely on `DateTime.Now` or `Guid.NewGuid()` for comparison; shared database state not cleaned up between runs; and tests that depend on network resources. The remedy depends on the cause: inject fake time and random providers, use transaction rollback patterns for database tests, and mock external HTTP calls with `HttpMessageHandler` fakes. Flaky tests that cannot be immediately fixed should be quarantined in a separate test category so the main suite remains reliable.
+
+---
+
+#### Gotcha 9. Code coverage is not the goal — 100% coverage with meaningless assertions is worthless
+
+**Concepts**
+- coverage measures lines/branches executed, not quality of assertions
+- a test with no assertions achieves coverage without proving anything
+- mutation testing (Stryker.NET) as the higher-quality metric
+- target critical paths with meaningful assertions rather than chasing percentage
+
+**Answer**
+
+It is trivially easy to achieve 100% code coverage with tests that never assert anything — the code runs, coverage tools mark every line green, and every bug remains undetected. Coverage is a proxy metric for test completeness, not a guarantee of correctness. A project with 60% meaningful coverage (each test asserting correct behavior on a critical path) is safer than 100% coverage padded with empty tests. Mutation testing tools like Stryker.NET inject deliberate code mutations (changing `>` to `>=`, removing a `return` statement) and verify that at least one test fails for each mutation — tests that do not kill mutations are effectively untested assertions. Use coverage as a floor to find gaps, not as a ceiling to optimize for.
+
+---
+
+#### Gotcha 10. Integration test vs unit test — unit tests mock dependencies; integration tests test real interactions
+
+**Concepts**
+- unit test: isolates one class, mocks all external dependencies
+- integration test: exercises real interactions between two or more components
+- integration tests are slower, need infrastructure (DB, network), and are harder to diagnose
+- test pyramid: many unit tests, fewer integration tests, even fewer end-to-end tests
+
+**Answer**
+
+A unit test for an `OrderService` mocks the `IOrderRepository` and `IEmailService` dependencies — the test validates the service's logic in isolation from the database and email provider. An integration test for the same service uses a real database (possibly an in-memory or containerized instance) and verifies that the service correctly persists an order and triggers an email. Integration tests are valuable because they catch bugs that unit tests miss (SQL query errors, EF mapping mismatches, serialization issues at boundaries), but they are slower, require infrastructure setup, and produce harder-to-diagnose failures. The test pyramid recommends the majority of tests be fast unit tests, with integration and end-to-end tests covering the critical paths.
+
+---

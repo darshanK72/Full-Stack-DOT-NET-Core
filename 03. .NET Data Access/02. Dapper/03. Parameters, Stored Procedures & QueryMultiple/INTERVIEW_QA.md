@@ -109,51 +109,157 @@ I prefer `QueryMultiple` when two or more result sets are always needed together
 
 ---
 
-## Gotchas
+## Gotchas — Dapper Parameters, Stored Procedures & QueryMultiple (Interview Traps)
 
 ---
 
-## Gotcha 1. String concatenation instead of parameters
+#### Gotcha 1. String interpolation in SQL bypasses Dapper parameterization
 
 **Concepts**
-- SQL injection via string interpolation
-- parameterization bypass
-- FromSqlInterpolated vs FromSqlRaw distinction
-- ADO.NET and Dapper explicit parameter requirement
+- Dapper accepts raw SQL strings — no interpolation safety
+- `$"LIKE '%{term}%'"` passed to `QueryAsync` is injection vulnerability
+- `@Pattern` with C#-side wildcard composition as safe alternative
+- `DynamicParameters` for programmatic parameter construction
+- code review must flag all interpolated SQL strings as blocking defects
 
 **Answer**
 
-Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM. ADO.NET and Dapper require explicit parameters — `@Id` with a bound value — and never automatically sanitize concatenated strings. EF Core's `FromSqlInterpolated` is safe because it internally converts the interpolation holes to parameters; passing an ordinary interpolated string to `FromSqlRaw` is not safe. Code review should treat any dynamic SQL without parameter placeholders as a blocking defect.
+Dapper passes the SQL string directly to the database without inspecting or rewriting it — interpolating a user-supplied value into the string creates a SQL injection vulnerability identical to raw ADO.NET concatenation. The safe pattern for a LIKE predicate is to compose the wildcard in C# and pass it as a parameter: `new { Pattern = $"%{term}%" }` with `WHERE ProductName LIKE @Pattern`. Always build SQL with static `@placeholder` strings and supply values through Dapper's parameter object, never through string interpolation.
 
 ---
 
-## Gotcha 8. Multi-map `splitOn` wrong column
+#### Gotcha 2. Stored procedure called without `CommandType.StoredProcedure` — treated as text
 
 **Concepts**
-- forward-only splitOn matching
-- default "Id" ambiguity in JOINs
-- silent NULL or wrong value mapping
-- SELECT column order requirement
-- integration test assertion necessity
+- Dapper default command type is `CommandType.Text`
+- SP name as text is sent as `EXEC dbo.ProcName` ad-hoc batch
+- `CommandType.StoredProcedure` required for named SP binding
+- `commandType: CommandType.StoredProcedure` Dapper parameter
+- plan reuse: RPC vs ad-hoc batch plan cache difference
 
 **Answer**
 
-Dapper multi-mapping uses `splitOn` to name the column where the next object type begins. An incorrect column causes the split to land at the wrong boundary, silently mapping NULL or wrong values into nested objects without throwing an exception. The `splitOn` default of `"Id"` requires that the second type's first mapped column is literally named `Id` — duplicate column names in SELECT lists require explicit aliases and matching `splitOn` values. Column order in the SELECT must align with the generic type order in `Query<TFirst, TSecond, TReturn>`. Integration tests that assert nested property values are the reliable way to catch split errors.
+Dapper's default command type is `CommandType.Text`. Passing a stored procedure name to `QueryAsync` without specifying `commandType: CommandType.StoredProcedure` causes Dapper to send the name as a literal SQL string, which SQL Server interprets as an invalid statement rather than an RPC call. Always pass `commandType: CommandType.StoredProcedure` when calling stored procedures: `conn.QueryAsync<Product>("dbo.usp_GetProducts", param, commandType: CommandType.StoredProcedure)`. Omitting it causes a `SqlException: syntax error near 'dbo'`.
 
 ---
 
-## Gotcha 5. Transaction started after first command
+#### Gotcha 3. Output parameter value not available until after `Execute` completes
 
 **Concepts**
-- autocommit implicit semantics
-- BeginTransaction timing requirement
-- unit-of-work atomicity boundary
-- EF Core SaveChanges per-call commit
-- integration test masking
+- `DynamicParameters.Get<T>` must be called after execution
+- value is `default(T)` or `DBNull` before execution completes
+- async methods must be `await`ed before reading output values
+- `ParameterDirection.Output` vs `ParameterDirection.ReturnValue`
+- output parameter size must be set for string types
 
 **Answer**
 
-Beginning a `SqlTransaction` only after the first statement has already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first. `BeginTransaction` must be called immediately after opening the connection, before any DML. EF Core's `SaveChanges` without an explicit transaction auto-commits each call — wrapping multi-step work in an explicit transaction is necessary when all-or-nothing semantics are required. Integration tests with single-user data often miss this race because implicit commits appear to work correctly in isolation.
+When using `DynamicParameters` for stored procedure output parameters, the output value is populated only after the Dapper execution call completes. Reading `dp.Get<int>("@OutParam")` before `await conn.ExecuteAsync(...)` returns the initial default, not the SP-assigned value. Always `await` the execution call fully before reading any output values via `dp.Get<T>()`. Also remember that RETURN code values require `ParameterDirection.ReturnValue`, not `Output`, and string outputs require an explicit `size` argument to prevent truncation at zero length.
+
+---
+
+#### Gotcha 4. `QueryMultiple` grid consumed in wrong order — wrong type mapped to wrong rows
+
+**Concepts**
+- `GridReader.Read<T>()` advances forward through result sets in SP order
+- calling `Read<Orders>()` when next set is customers maps wrong rows
+- grid is forward-only — cannot rewind to re-read a consumed set
+- result set order in SP must match `Read<T>()` call order in C#
+- no error thrown for type mismatch — silent wrong mapping
+
+**Answer**
+
+`GridReader` from `QueryMultiple` is strictly forward-only — each `Read<T>()` call consumes the next result set in the order the stored procedure emitted them. If the procedure emits customers first and orders second, but the C# code calls `grid.Read<Order>()` then `grid.Read<Customer>()`, customer rows are silently mapped to `Order` and order rows to `Customer` with no exception. Always document the SP result set sequence and write the `Read<T>()` calls in the exact matching order.
+
+---
+
+#### Gotcha 5. `QueryMultiple` connection must stay open until all grids consumed
+
+**Concepts**
+- `GridReader` reads lazily from the underlying connection
+- disposing connection before consuming all grids throws
+- `using` connection scope must wrap entire `QueryMultiple` call and grid consumption
+- `GridReader` itself must be disposed after all grids consumed
+- nested `using` pattern: outer connection, inner grid reader
+
+**Answer**
+
+`GridReader` reads rows from the live database connection lazily — the connection must remain open until all grids are fully consumed. Disposing the connection before calling `Read<T>()` on all result sets throws `ObjectDisposedException` or "connection is closed." The correct pattern is a nested `using`: the outer `using` wraps the connection, and an inner `using` wraps the `GridReader`. The grid reader must be disposed explicitly (or via `using`) to close the result set and release any server-side resources.
+
+---
+
+#### Gotcha 6. `DynamicParameters.Add` with wrong `DbType` — implicit conversion and plan pollution
+
+**Concepts**
+- `DbType` inferred from value when not specified
+- `DateTime` inferred as `DbType.DateTime` — may truncate time on `date` columns
+- `decimal` inferred without precision/scale — rounding on money columns
+- explicit `dbType` argument for type-sensitive parameters
+- plan cache pollution from mismatched parameter types
+
+**Answer**
+
+When using `DynamicParameters.Add("@StartDate", dateValue)` without specifying `dbType`, Dapper infers the SQL type from the CLR value, which may not match the column type exactly. A `DateTime` column may be a SQL `date` (date-only) or `datetime2` — wrong inference causes implicit conversion that prevents an index seek and truncates or rounds the value. Always pass the explicit `dbType: DbType.Date` or `dbType: DbType.Decimal` with appropriate precision to match the column definition and avoid type mismatch plan pollution.
+
+---
+
+#### Gotcha 7. `DynamicParameters` size not set for string output parameters — truncation at 0
+
+**Concepts**
+- output string parameter defaults to size 0 without explicit `size`
+- truncation: output value populated but trimmed to empty string
+- `size` argument in `DynamicParameters.Add` for string outputs
+- no error thrown for size mismatch — silent empty value
+- always specify `size` matching SP's declared parameter length
+
+**Answer**
+
+`DynamicParameters.Add("@ResultName", direction: ParameterDirection.Output)` without a `size` argument defaults the parameter size to 0 for string types, causing the output value to arrive truncated to an empty string. SQL Server writes the full value to the parameter, but the client-side buffer is too small to receive it. Always specify `size: 200` (or the actual SP parameter length) for any output or input/output string parameter: `dp.Add("@ResultName", dbType: DbType.String, direction: ParameterDirection.Output, size: 200)`.
+
+---
+
+#### Gotcha 8. Calling stored procedure with `NOCOUNT ON` — `Execute` returns -1 for rows affected
+
+**Concepts**
+- `SET NOCOUNT ON` suppresses row-count TDS messages
+- Dapper `Execute`/`ExecuteAsync` returns -1 when NOCOUNT active
+- rows-affected check for missing-row detection breaks
+- output parameter as reliable row count alternative
+- common DBA practice breaking application row-count logic
+
+**Answer**
+
+Many stored procedures begin with `SET NOCOUNT ON` to reduce TDS traffic. With `NOCOUNT ON`, Dapper's `ExecuteAsync` returns `-1` regardless of how many rows were affected. Application code that checks `if (affected == 0) throw new NotFoundException()` will never fire for such procedures, silently treating a successful insert or update as a success even when the WHERE clause matched zero rows. Use an output parameter explicitly set to `@@ROWCOUNT` inside the procedure to get a reliable row count when `NOCOUNT ON` is active.
+
+---
+
+#### Gotcha 9. Passing `IEnumerable<T>` list parameter — parameter count limit for large lists
+
+**Concepts**
+- Dapper expands `IEnumerable<T>` to individual `@p0, @p1, ...` parameters
+- SQL Server 2100-parameter limit per batch
+- large `IN` clause exceeds parameter limit — `SqlException`
+- table-valued parameter (TVP) or temp-table for large lists
+- Dapper does not warn at compile time about list size
+
+**Answer**
+
+When an anonymous parameter object has an `IEnumerable<T>` property (e.g., `new { Ids = idList }`), Dapper expands it to individual numbered parameters in an `IN (@p0, @p1, ...)` clause. SQL Server has a hard limit of 2,100 parameters per batch — exceeding it throws `SqlException: The query has too many parameters`. For lists larger than a few hundred items, use a table-valued parameter (TVP) with a user-defined table type, a temporary table, or break the list into batches of safe size before calling Dapper.
+
+---
+
+#### Gotcha 10. Reusing `DynamicParameters` object across multiple calls — stale parameters accumulate
+
+**Concepts**
+- `DynamicParameters` instance is mutable and accumulates added parameters
+- reusing across calls adds duplicate parameter names — throws or uses wrong value
+- create new `DynamicParameters` per execution
+- parameter name collision silent on re-add with same name
+- DynamicParameters as a per-call object, not a session-level object
+
+**Answer**
+
+`DynamicParameters` is a mutable object that accumulates all parameters added to it across multiple `Add` calls. If the same instance is reused across two stored procedure calls, the second call inherits all parameters from the first, causing duplicate parameter names or stale values being passed to the wrong procedure. Always create a new `DynamicParameters` instance per execution: `var dp = new DynamicParameters(); dp.Add(...)` just before the Dapper call, and never reuse a `DynamicParameters` instance from a previous call.
 
 ---
 

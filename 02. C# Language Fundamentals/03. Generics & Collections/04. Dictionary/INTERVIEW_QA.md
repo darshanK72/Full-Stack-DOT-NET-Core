@@ -1,4 +1,4 @@
-﻿# Dictionary&lt;TKey, TValue&gt; — Interview Q&A
+# Dictionary&lt;TKey, TValue&gt; — Interview Q&A
 
 
 ## Table of Contents
@@ -358,106 +358,147 @@ else
 
 ---
 
-## Gotchas
+## Gotchas — Dictionary`<TKey,TValue>` (Interview Traps)
 
 ---
 
-## Q19. What is the `InvalidOperationException: Collection was modified` error and how do you avoid it?
+#### Gotcha 1. `GetHashCode` and `Equals` contract — silent key collision
 
 **Concepts**
-- Enumerator version counter invalidated on any structural change
-- Applies to `foreach` over the dictionary, `.Keys`, or `.Values`
-- Adding, removing, or updating-with-new-key triggers the error
-- Safe mutation patterns: collect keys first, then mutate
-- `ConcurrentDictionary` enumerator does not throw on concurrent modification
+- Dictionary uses GetHashCode to bucket, Equals to confirm match
+- Overriding Equals without overriding GetHashCode breaks lookups
+- Two "equal" objects in different buckets — ContainsKey returns false
+- Records auto-generate consistent Equals + GetHashCode
 
 **Answer**
 
-`Dictionary<TKey, TValue>` maintains an internal version counter that increments on every structural change — any `Add`, `Remove`, `Clear`, or indexer SET that inserts a new key. When you call `MoveNext` on an enumerator and the dictionary's current version differs from the version captured when the enumerator was created, the runtime throws `InvalidOperationException` with message "Collection was modified; enumeration operation may not execute." This applies whether you iterate the dictionary directly or iterate its `.Keys` or `.Values` views — all three share the same version counter.
-
-The fix is to avoid mutating the dictionary from inside its own `foreach`. When you must delete entries while iterating, collect the keys to remove in a separate `List<TKey>` during the iteration pass, then iterate the list and call `Remove` afterward. When you must add entries, buffer them in a separate dictionary and merge after the loop. Updating an existing value through the indexer setter does not increment the version counter because it does not change the key set, so `dict[existingKey] = newValue` inside `foreach` is safe. In .NET 10, `ConcurrentDictionary`'s enumerator captures an array snapshot internally and never throws, but that is a property of `ConcurrentDictionary`, not regular `Dictionary`.
-
-```csharp
-// Safe removal pattern
-var toRemove = new List<string>();
-foreach (var (key, val) in catalog)
-    if (val.UnitPrice == 0m) toRemove.Add(key);
-foreach (var key in toRemove)
-    catalog.Remove(key);
-```
+`Dictionary<TKey,TValue>` calls `GetHashCode` to find the bucket and `Equals` to confirm the match within that bucket. If a custom key type overrides `Equals` for value equality but leaves `GetHashCode` as the default object identity hash, two logically equal keys land in different buckets and `ContainsKey` returns `false` — the entry is silently unreachable. The rule: whenever you override `Equals`, you must override `GetHashCode` to return the same value for equal objects. `record` types in C# auto-generate consistent implementations based on their declared properties.
 
 ---
 
-## Q20. Why does mutating a reference-type key object after insertion silently break lookups?
+#### Gotcha 2. Mutating a key after insertion corrupts the dictionary
 
 **Concepts**
-- Hash code computed at insert time determines bucket placement
-- Mutated key rehashes to a different bucket
-- Entry is orphaned: present in the dictionary but unreachable
-- Custom key types must be immutable after insertion
-- `record` and `readonly record struct` enforce immutability structurally
+- Keys must be immutable for the lifetime of dictionary membership
+- Hash changes after mutation make entry unreachable
+- No runtime error thrown — silent data loss
+- Use immutable types (string, record, struct) as keys
 
 **Answer**
 
-When you insert a key, `Dictionary` stores the bucket index computed from `key.GetHashCode()` at that moment. If the key object's state changes after insertion — a mutable property is reassigned — calling `GetHashCode()` again on the same object produces a different value, which maps to a different bucket. A subsequent `TryGetValue` or `ContainsKey` call probes the new bucket, finds nothing there, and returns `false` — the entry appears to be gone even though it is still stored in the table under the stale hash. The entry becomes an orphan: occupying memory, inflating `Count`, but unreachable through the normal API. This bug is hard to detect because unit tests usually do not mutate keys between insert and lookup, and the corruption surfaces only at runtime under specific usage patterns. The root fix is to use immutable key types: `record` (sealed by default) generates `GetHashCode` from all positional properties and the object is conventionally immutable; `readonly record struct` makes immutability structural. For custom classes, mark all fields that participate in `GetHashCode` as `readonly`. If you genuinely need to change a logical key, `Remove` the old entry, change the key field, and `Add` the entry again.
+`Dictionary` computes and stores the hash of a key at insertion time and uses it to place the entry in a bucket. If the key object is mutable and its hash changes after insertion (because a field that participates in `GetHashCode` is modified), the entry now lives in the wrong bucket — lookups compute the new hash, find an empty bucket, and return `false`. No exception is thrown; the entry is silently lost. The fix is to use immutable types as keys — `string`, value types, or C# `record`s with read-only properties.
 
 ---
 
-## Q21. Why does `ConcurrentDictionary.GetOrAdd` with a factory delegate sometimes call the factory more than once?
+#### Gotcha 3. `TryGetValue` vs. double-lookup with `ContainsKey`
 
 **Concepts**
-- `GetOrAdd` atomicity guarantees only the stored value, not factory invocation count
-- Multiple threads can race and each invoke the factory
-- One result is stored; others are discarded — but side effects have already occurred
-- `Lazy<TValue>` per key as the standard workaround
-- `AddOrUpdate` has the same limitation for the update factory
+- `ContainsKey` + indexer = two hash+bucket traversals
+- `TryGetValue` does one traversal and returns found + value atomically
+- Double-lookup is a TOCTOU race in multi-threaded code
+- Always prefer TryGetValue for conditional access
 
 **Answer**
 
-`ConcurrentDictionary<TKey, TValue>.GetOrAdd(key, factory)` guarantees that all callers asking for the same key will receive the same value — the one that was first stored — but it does not guarantee the factory runs exactly once. Under high contention, multiple threads can simultaneously call `GetOrAdd` for the same absent key, each pass the initial `TryGetValue` check, and each invoke the factory delegate before any of them completes the compare-exchange that stores the result. The dictionary picks one value (the first to win the CAS operation) and discards the rest, but by then the factory has executed multiple times with observable side effects: database rows inserted, HTTP requests sent, files created. The standard workaround is to store `Lazy<TValue>` rather than `TValue`:
-
-```csharp
-var cache = new ConcurrentDictionary<string, Lazy<Product>>();
-
-Product GetOrLoad(string sku) =>
-    cache.GetOrAdd(sku, s => new Lazy<Product>(() => _repo.Load(s))).Value;
-```
-
-Multiple threads may race to store different `Lazy<Product>` instances, but only one `Lazy` wins the CAS. All threads then call `.Value` on the winning `Lazy`, which guarantees the underlying factory runs exactly once regardless of how many threads reach `.Value` concurrently. The discarded `Lazy` objects are never initialised and are collected by the GC.
+Using `if (dict.ContainsKey(k)) { var v = dict[k]; }` performs two separate hash lookups — one to check existence, one to retrieve the value. `TryGetValue(k, out var v)` does a single lookup and returns both the success flag and the value atomically (within the method call). In single-threaded code the double-lookup is just wasteful; in multithreaded code (without external locking) another thread can remove the key between the two calls, causing `KeyNotFoundException` on the indexer call even though `ContainsKey` returned `true`. Always use `TryGetValue`.
 
 ---
 
-## Q22. What is the difference between `Dictionary` iteration order and insertion order, and why does relying on apparent insertion order fail?
+#### Gotcha 4. `KeyNotFoundException` from indexer access
 
 **Concepts**
-- No documented iteration order in `Dictionary`
-- Apparent insertion order is an implementation detail, not a contract
-- Resize causes bucket redistribution, changing iteration sequence
-- `OrderedDictionary<TKey, TValue>` in .NET 8+ preserves insertion order
-- Using `SortedDictionary` for sorted keys; `List` + lookup for ordered retrieval
+- `dict[key]` throws KeyNotFoundException if key is absent
+- `dict.GetValueOrDefault(key)` returns default(TValue) safely
+- `TryGetValue` for conditional access patterns
+- `dict.TryAdd(key, value)` to avoid duplicate-key ArgumentException
 
 **Answer**
 
-In current .NET 10 implementations, a small `Dictionary` that has never been resized tends to yield entries in insertion order, because entries are appended to the `_entries` array in order and enumeration walks that array. This looks like a guaranteed property in simple tests. It is not. The moment the dictionary resizes — which happens automatically when the load factor threshold is reached — entries are rehashed into new bucket slots, and the enumeration order changes unpredictably. Code that serialises a dictionary to JSON and depends on field order for human readability, or that compares two dictionary snapshots element-by-element assuming same-order iteration, will fail when the dictionary grows past an internal threshold or is populated in a different order between runs.
-
-For guaranteed insertion-order iteration, .NET 8 introduced `OrderedDictionary<TKey, TValue>` in `System.Collections.Generic`, which maintains a parallel ordered list of keys alongside the hash table, preserving insertion order at a modest extra cost. For sorted-key iteration, use `SortedDictionary<TKey, TValue>`. For read-only ordered data, materialise a `List<KeyValuePair<TKey, TValue>>` sorted to your preference and iterate that.
+The `Dictionary` indexer `dict[key]` throws `KeyNotFoundException` (not null or default) when the key does not exist — unlike `Array` which returns `null` for reference types. `GetValueOrDefault(key)` returns `default(TValue)` (null for reference types, 0 for int) without throwing. The symmetric trap is `dict[key] = value` for insertion: it silently overwrites an existing entry, which is fine for update-or-insert semantics but wrong when you want to detect duplicate keys — use `dict.TryAdd(key, value)` (returns false on duplicate) or `dict.Add(key, value)` (throws `ArgumentException` on duplicate).
 
 ---
 
-## Q23. What happens if you use `ImmutableDictionary` but forget that `Add` returns a new instance?
+#### Gotcha 5. Iteration order is not guaranteed
 
 **Concepts**
-- `ImmutableDictionary` is immutable: no in-place mutation
-- `Add`, `Remove`, `SetItem` return a new `ImmutableDictionary` — original is unchanged
-- Discarding the return value is a silent bug
-- Roslyn analyser warning CA2009 flags discarded returns on immutable collections
-- Contrast with mutable `Dictionary.Add` which mutates in place
+- Dictionary iteration order is implementation-defined, not insertion order
+- Order may appear consistent in practice but is not contractual
+- `SortedDictionary` for sorted key iteration
+- `OrderedDictionary` or `List<KeyValuePair>` for insertion-order iteration
 
 **Answer**
 
-The single most common mistake with `ImmutableDictionary` is treating it like a mutable `Dictionary`. When you write `config.Add("key", "value")` on a mutable `Dictionary`, the dictionary is modified in place. On an `ImmutableDictionary`, the same call returns a new `ImmutableDictionary` with the additional entry; the original instance is completely unchanged. If you discard the return value the `Add` appears to succeed — no exception is thrown — but the new entry is simply lost and the original variable still points to the pre-Add snapshot. The bug is silent and shows up only at runtime when subsequent lookups miss the key you thought you added.
+`Dictionary<K,V>` does not guarantee any particular enumeration order — the order of `foreach (var kvp in dict)` depends on hash values, bucket layout, and insertion/deletion history. In practice, .NET's implementation often appears to iterate in insertion order for small dictionaries, but this is an implementation artifact, not a contract, and can change across versions or with different key types. Use `SortedDictionary<K,V>` to iterate in key order, or maintain a separate `List<TKey>` to track insertion order explicitly.
 
-The fix is always to reassign: `config = config.Add("key", "value")`. When building an `ImmutableDictionary` from many additions, use `ImmutableDictionary.CreateBuilder<TKey, TValue>()` to accumulate entries mutably and call `ToImmutable()` once. The Roslyn analyser rule CA2009 ("Do not call ToImmutableCollection on an ImmutableCollection value") catches some of these patterns, but the "discard return value" mistake is caught by the broader CS0414 / IDE0058 unused-value warnings — enable `<TreatWarningsAsErrors>` in release builds to surface them.
+---
+
+#### Gotcha 6. Thread safety — `ConcurrentDictionary` vs. locking
+
+**Concepts**
+- Dictionary is not thread-safe for concurrent writes
+- Concurrent reads are safe only if no write is in progress
+- ConcurrentDictionary is thread-safe with fine-grained locks
+- GetOrAdd on ConcurrentDictionary is not atomic for factory invocation
+
+**Answer**
+
+`Dictionary<K,V>` is not thread-safe — concurrent writes or a write interleaved with a read can corrupt the internal state and throw `InvalidOperationException` or produce incorrect results. `ConcurrentDictionary<K,V>` provides thread-safe operations, but note that `GetOrAdd(key, factory)` is not fully atomic: the factory delegate may be called multiple times if two threads race on the same key, and only one result is stored. If the factory is expensive or has side effects, protect it with an outer `Lazy<T>` or `GetOrAdd` followed by a `TryUpdate` pattern.
+
+---
+
+#### Gotcha 7. `Values` and `Keys` collections are live views
+
+**Concepts**
+- `dict.Keys` and `dict.Values` return live views, not snapshots
+- Modifying the dictionary while iterating Keys/Values throws InvalidOperationException
+- ToList() or ToArray() to take a snapshot
+- Count on the view reflects current dictionary size
+
+**Answer**
+
+`dict.Keys` and `dict.Values` return live view collections that reflect the current state of the dictionary. Iterating them while modifying the dictionary throws `InvalidOperationException` — the same version check as `foreach` on the dictionary itself. To safely iterate while modifying, take a snapshot: `foreach (var key in dict.Keys.ToList())`. Also, `dict.Keys.Count` is always equal to `dict.Count` — there is no separate key count.
+
+---
+
+#### Gotcha 8. `EqualityComparer` must be provided at construction time
+
+**Concepts**
+- Default comparer for string keys is ordinal case-sensitive
+- Case-insensitive lookup requires StringComparer at construction
+- Cannot change the comparer after construction
+- Wrong comparer causes lookup misses without exceptions
+
+**Answer**
+
+`Dictionary<string, V>` uses `StringComparer.Ordinal` by default — a case-sensitive, culture-independent byte comparison. If your key population mixes cases ("User" and "user") and you need them to match, you must pass `StringComparer.OrdinalIgnoreCase` at construction: `new Dictionary<string, V>(StringComparer.OrdinalIgnoreCase)`. There is no way to change the comparer after the dictionary is built; the only fix is to rebuild it with the correct comparer. The trap is that both dictionary instances compile and run silently, but one produces lookup misses.
+
+---
+
+#### Gotcha 9. Nested dictionary initialization vs. `AddOrUpdate` pattern
+
+**Concepts**
+- Indexer assignment creates or updates the outer key
+- Inner `Add` throws on duplicate if inner dictionary already exists
+- Common pattern: GetOrAdd the inner dict, then modify it
+- CollectionsMarshal.GetValueRefOrAddDefault for zero-copy nested update
+
+**Answer**
+
+When building a `Dictionary<K, Dictionary<K2, V>>`, a common mistake is `outer["a"]["x"] = 1` when the outer key "a" doesn't exist yet — this throws `KeyNotFoundException` on `outer["a"]`. The safe pattern is `outer.TryGetValue("a", out var inner) ? inner : (outer["a"] = new Dictionary<K2, V>())` then mutate `inner`. In C# 8+ with `CollectionsMarshal.GetValueRefOrAddDefault`, you can get a reference to the inner slot and set it in one lookup, avoiding a second hash traversal.
+
+---
+
+#### Gotcha 10. Capacity pre-sizing and default load factor behavior
+
+**Concepts**
+- Default initial capacity is small (prime near 0), grows by ~2x factor
+- Each resize rehashes all entries — O(n) per resize
+- `new Dictionary<K,V>(capacity)` pre-sizes to reduce resizes
+- Load factor is fixed at ~72% in current .NET implementation
+
+**Answer**
+
+`Dictionary<K,V>` starts with a small prime-number capacity and rehashes all entries (redistributes across a new, larger bucket array) each time the load factor threshold (approximately 72% full) is reached. For a dictionary expected to hold a million entries, this means roughly 20 resize operations without pre-sizing. Passing `new Dictionary<K, V>(expectedCapacity)` at construction allocates a bucket array large enough to hold that many entries without rehashing, significantly improving insertion throughput for bulk-load scenarios. Over-allocating is rarely harmful since each entry slot is a fixed-size struct.
 
 ---
 

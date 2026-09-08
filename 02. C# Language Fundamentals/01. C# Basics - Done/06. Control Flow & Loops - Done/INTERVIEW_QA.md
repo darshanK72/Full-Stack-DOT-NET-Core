@@ -311,97 +311,147 @@ A switch expression is the right choice whenever the goal is a pure mapping from
 
 ---
 
-## Gotchas
+## Gotchas — Control Flow & Loops (Interview Traps)
 
 ---
 
-## Q19. What happens when a C# condition uses assignment = instead of equality == inside an if statement?
+#### Gotcha 1. Captured loop variable in a for loop — all closures share the same variable
 
 **Concepts**
-- CS0029 compile error for non-bool result
-- Assignment expression returns the assigned value
-- Strict bool requirement prevents silent bugs
-- bool assignment compiles but is always true
-- Nullable and operator-overload edge cases
+- for loop creates one variable for all iterations
+- lambda captures by reference not value
+- all lambdas see the final value
+- fix by copying to a local inside the loop
 
 **Answer**
 
-In C and C++, `if (x = 5)` is legal because the assignment expression returns 5, which is non-zero and implicitly truthy. In C#, if requires a strict bool expression, so for most types this is a compile error. If x is int, assigning 5 returns an int, and int does not implicitly convert to bool — the compiler raises CS0029 ("Cannot implicitly convert type 'int' to 'bool'"). The assignment still executes as a side effect, mutating x, but the code does not compile. The dangerous edge case is bool: `if (x = true)` is legal C# because the assignment returns a bool. It compiles without warning, always enters the branch, and leaves x modified — a silent logic error that can persist undetected because the wrong output may coincide with the expected output in most test inputs. A class with an implicit operator to bool can also introduce this trap for custom types. Modern IDE analysers and .NET style rules flag assignments inside conditions as warnings. The idiomatic solution is to always separate assignment from condition testing: assign first, then if-test in the next statement, or use a pattern declaration such as `if (dict.TryGetValue(key, out var value))` which both tests and binds without an accidental assignment.
+When you create a lambda inside a for(int i = 0; i < N; i++) loop and add it to a list, all lambdas share a reference to the single i variable, which by the time any lambda executes will equal N (the final value). The fix is to copy i to a separate local variable (int copy = i) inside the loop body before the lambda, so each lambda captures its own independent slot.
 
 ---
 
-## Q20. What exception is thrown when a collection is modified during foreach, and what are the safe alternatives?
+#### Gotcha 2. Modifying a collection inside foreach throws InvalidOperationException
 
 **Concepts**
-- InvalidOperationException with version token
-- Enumerator version-mismatch detection
-- Iterate-copy-then-remove pattern
-- List<T>.RemoveAll for in-place filtering
-- LINQ Where for non-destructive filtering
+- foreach tracks version number
+- Add/Remove/Clear increments version
+- MoveNext detects version mismatch
+- collect items to change, apply after loop
 
 **Answer**
 
-Modifying a `List<T>` — by adding, removing, or inserting elements — while a foreach loop is iterating it throws `InvalidOperationException`: "Collection was modified; enumeration operation may not execute." The standard `List<T>` enumerator records the list's internal version counter at the time `GetEnumerator` is called, then validates after each `MoveNext` call that the counter has not changed. Any structural mutation increments the counter, causing the next MoveNext to throw immediately rather than returning stale, skipped, or duplicated elements. The three clean alternatives are: iterate a snapshot copy (`foreach (var item in list.ToList())`), which creates a separate array and iterates that; collect items to remove in a separate list and call `list.RemoveAll(item => ...)` after the loop, which is an O(n) single-pass operation; or use LINQ `Where` to produce a new filtered sequence without modifying the source. Iterating backwards with a `for` loop and calling `list.RemoveAt(i)` then decrementing i also avoids the enumerator entirely for List<T>. Note that arrays do not throw on element-value assignment during foreach — only size-changing mutations on dynamic collections trigger the version check. Replacing element values in an array inside a foreach loop is legal, but the element variable itself is read-only and cannot be directly reassigned; you need an indexed for loop or a reference to the array to write back.
+The foreach statement holds an enumerator that tracks a version counter on the collection. Any structural modification (Add, Remove, Insert, Clear) increments the version, and the enumerator's MoveNext detects this mismatch and throws InvalidOperationException. The safe pattern is to collect the items you want to remove in a separate list during the foreach, then loop through the removal list afterward.
 
 ---
 
-## Q21. Why does break inside a switch nested within a loop exit only the switch, not the loop, and how do you exit both?
+#### Gotcha 3. switch fall-through does not exist in C# — omitting break is a compile error
 
 **Concepts**
-- break exits innermost enclosing construct
-- Switch nested in loop creates a break-scope trap
-- No labeled break in C# (unlike Java)
-- Bool flag pattern for outer-loop exit
-- return as idiomatic single-step exit
+- CS8070 compile error for implicit fall-through
+- explicit goto case allowed
+- empty cases fall through
+- default can appear anywhere
 
 **Answer**
 
-Break always exits the innermost enclosing construct in C#. When a switch statement is written inside a for or foreach loop, a break inside any case exits the switch block — control returns to the loop body immediately after the switch closing brace, and the loop's next iteration begins. The developer who intended the loop to stop when a case matched finds the loop continues silently. C# has no labeled break statement that could name the outer loop and skip it; this is a deliberate simplicity choice unlike Java's labeled continue and break. The three practical solutions are ordered by clarity. First, a bool flag: set a variable such as `bool done = true;` inside the matched case, and immediately after the switch write `if (done) break;` to exit the loop. This works but adds a variable whose sole purpose is control flow. Second, method extraction: move the loop and switch into a helper method that returns the found value and uses return instead of break, which exits the method entirely in one step. This is idiomatic C# and removes the flag variable. Third, goto: `goto afterLoop;` followed by a label after the loop is legal and sometimes used in generated code but is not recommended in hand-written code. Method extraction is the preferred refactor.
+Unlike C and Java where fall-through in switch cases is implicit when break is omitted, C# requires every non-empty case to have an explicit exit (break, return, goto case, or throw). This prevents an entire class of accidental fall-through bugs; the compiler enforces it with CS8070. Empty cases (with no statements before the next case label) are the only exception that allows fall-through.
 
 ---
 
-## Q22. What bug does capturing a for-loop variable inside a lambda closure cause, and what is the idiomatic fix?
+#### Gotcha 4. switch on string uses ordinal comparison — OrdinalIgnoreCase requires when or nested if
 
 **Concepts**
-- Closure by reference, not value
-- Single shared counter variable
-- Deferred invocation reads post-loop value
-- Local copy creates per-iteration variable
-- C# 5 foreach per-iteration scoping fix
+- String switch is case-sensitive by default
+- no StringComparison option on switch
+- use when clause for case-insensitive
+- or normalize input before switch
 
 **Answer**
 
-A closure captures a variable by reference to its storage location, not a snapshot of its value. A for loop uses a single counter variable for the entire loop. When a lambda created inside the loop body closes over that counter, all lambdas across all iterations reference the same storage location. If the lambdas are invoked after the loop finishes — stored in a list and called later — every closure reads the counter's final value, which is the loop's exit value, not the value at the iteration that created each closure. A loop running from 0 to 9 that builds a list of ten `Action` delegates each printing the counter, then invokes all ten after the loop, prints "10" ten times instead of 0 through 9. The fix is to introduce a local variable inside the loop body, assign the counter to it, and close over the local: `int copy = i; list.Add(() => Console.WriteLine(copy));`. Because copy is declared inside the block, each iteration allocates a distinct variable on the heap (hoisted by the compiler into a separate closure instance), and each lambda captures its own copy. In C# 5, the foreach iteration variable was redefined to be logically scoped per iteration, so foreach closures are safe without the manual copy. The for loop variable is still shared and requires explicit local copying.
+A switch statement on a string uses an exact ordinal comparison, so case "Apple": does not match "apple" or "APPLE". For case-insensitive matching, either normalize the input with .ToUpperInvariant() before the switch, or use when clauses: case var s when s.Equals("apple", StringComparison.OrdinalIgnoreCase):.
 
 ---
 
-## Q23. What does an off-by-one error look like in a for loop, and how do you verify boundary conditions reliably?
+#### Gotcha 5. do-while executes at least once even when the condition is initially false
 
 **Concepts**
-- Fencepost error: too-few vs too-many iterations
-- Zero-based index vs 1-based range
-- < vs <= boundary operator choice
-- Substitution verification technique
-- Array length as canonical upper bound
+- Body executes before condition check
+- while checks condition first
+- do-while is correct for input validation loops
+- easy to confuse when migrating logic
 
 **Answer**
 
-An off-by-one error is a loop that runs exactly one iteration too many or too few because the boundary uses the wrong comparison operator or wrong value. The two variants are: using `<` when `<=` was needed, which skips the last valid element, and using `<=` when `<` was needed, which accesses one element past the last valid position. For a zero-based array of length n, valid indices are 0 through n-1. The correct header is `for (int i = 0; i < n; i++)` — the last iteration evaluates i == n-1, passes the condition, runs the body, then increments i to n, at which point `i < n` is false and the loop exits without accessing index n. Writing `i <= n` adds an iteration where i equals n, and `array[n]` throws IndexOutOfRangeException. For a 1-based inclusive range such as bin numbers 1 through 10, `i <= 10` is correct because 10 is the intended last value. The reliable verification technique is substitution: write down the first value and last value i should take, substitute each into the condition, and confirm both are true; then substitute one-past-the-last value and confirm it is false. For nested billing loops where the outer condition is accidentally `aisle < aisles` instead of `aisle <= aisles`, the last aisle is silently skipped, producing systematic under-billing that matches no obvious crash and may not surface until reconciliation.
+A do-while loop guarantees exactly one execution of the body before evaluating the condition, regardless of the condition's initial value. Developers who replace a do-while with while (or vice versa) when refactoring produce off-by-one execution errors — the body either executes one extra time or skips execution entirely on the first iteration.
 
 ---
 
-## Q24. How does case ordering with when guards lead to silently unreachable arms, and how do you prevent it?
+#### Gotcha 6. break inside nested loops exits only the innermost loop, not the outer one
 
 **Concepts**
-- First-match-wins semantics for all arms
-- Broad type pattern subsuming narrow guard
-- CS8510 unreachable-arm warning limits
-- Specific-before-general ordering rule
-- Pattern subsumption analysis scope
+- break exits one loop level
+- no labeled break in C# (unlike Java)
+- flag variable or method return to exit outer loop
+- goto label as labeled break alternative
 
 **Answer**
 
-Switch arms are evaluated top to bottom, and the first matching arm wins. A type pattern such as `case int n` matches every int value with no restriction. If this broad arm appears before a guarded arm such as `case int n when n > 0`, the guarded arm is never reached for any int, because the broad arm claims all integers first. The guarded arm is dead code even though the compiler does not always catch it. The compiler's pattern-subsumption analysis emits CS8510 for statically detectable unreachable arms, but when guards contain arbitrary boolean expressions the compiler cannot determine whether the guard will ever be false relative to the prior arm's coverage, and no warning is emitted. This means silent logic errors can survive both compilation and superficial testing. A zero-quantity line intended to match `case int n when n <= 0` is misclassified as positive if a bare `case int n` precedes it. The ordering rule that prevents this is: always place the most specific arm first. Concretely — guarded arms before unguarded arms of the same type, narrow constant patterns before broad type patterns, and the discard arm `_` last. A code-review checklist for any switch on open types or objects should verify that every arm sequence flows from most specific to least specific and that no pair of adjacent arms has the earlier one fully covering the later one's input space.
+C# does not support labeled break statements like Java does. Writing break inside an inner loop exits only that inner loop, leaving the outer loop continuing. To break out of multiple nesting levels, use a bool flag variable checked by the outer loop, or extract the nested logic into a method and use return to exit both.
+
+---
+
+#### Gotcha 7. continue in a for loop still executes the increment expression
+
+**Concepts**
+- continue jumps to the increment step in for
+- increment runs before condition re-check
+- does not skip the increment
+- differs from while where continue jumps to condition
+
+**Answer**
+
+In a for(int i = 0; i < N; i++) loop, hitting continue does not skip to the next iteration from the current position — it jumps to the increment expression (i++) first, then re-evaluates the condition. This is the intended behavior for for loops, but developers migrating from languages with different continue semantics may be surprised that the counter still advances normally.
+
+---
+
+#### Gotcha 8. Pattern matching in switch with when guards — evaluation order matters
+
+**Concepts**
+- Case labels evaluated top-to-bottom
+- when guard evaluated only if type pattern matches
+- first matching case wins
+- ordering determines which case handles ambiguous inputs
+
+**Answer**
+
+When multiple case patterns could match the same value, the runtime evaluates them in source order and stops at the first matching case whose when guard (if any) is also true. If a more general pattern appears before a more specific one, the specific case is dead code. The compiler warns about unreachable case sections, but complex when guards can hide the issue.
+
+---
+
+#### Gotcha 9. goto case in switch must name a constant label — variables are not allowed
+
+**Concepts**
+- goto case requires a compile-time constant
+- goto case variableName is CS0159
+- goto default is valid
+- goto to a label outside switch is valid for special scenarios
+
+**Answer**
+
+The goto case statement requires a constant expression that matches one of the case labels. Writing goto case x where x is a local variable is a compile error CS0159 because the target must be determinable at compile time. Only goto default and goto case with a literal or const value are valid inside a switch.
+
+---
+
+#### Gotcha 10. Index from end (^1) is not the same as -1 — it's from-end Index type arithmetic
+
+**Concepts**
+- ^1 is new Index(1, fromEnd: true)
+- index[^1] accesses last element
+- ^0 is one-past-the-end (invalid)
+- combining arithmetic needs care
+
+**Answer**
+
+The ^ operator creates an Index value that represents a position relative to the end of a sequence. ^1 refers to the last element (equivalent to array.Length - 1), and ^0 refers to length itself (one past the end, which would throw for indexing). Mixing ^ with regular integer arithmetic in the same expression requires understanding that they are Index and int types, not the same numeric type.
 
 ---
 

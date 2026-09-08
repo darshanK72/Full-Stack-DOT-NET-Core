@@ -358,6 +358,150 @@ No — when the sequence contains exactly one element, `First()` and `Single()` 
 
 ---
 
+## Gotchas — Element Operations (Interview Traps)
+
+---
+
+#### Gotcha 1. `First()` Throws on an Empty Sequence; `FirstOrDefault()` Returns `default(T)`
+
+**Concepts**
+- `First()` throws `InvalidOperationException` when the source is empty
+- `FirstOrDefault()` returns `default(T)` — `null` for reference types, `0` for `int`, `false` for `bool`
+- Neither `First` nor `FirstOrDefault` throws when there are multiple elements — both return the first
+- Always null-check the result of `FirstOrDefault()` before dereferencing a reference type
+
+**Answer**
+
+`First()` is an assertion that the sequence contains at least one element; it enforces this by throwing `InvalidOperationException` on an empty sequence. `FirstOrDefault()` is the safe alternative that returns `default(T)` without throwing. The catch is that on a reference type, `default(T)` is `null`, so blindly calling methods on the return value of `FirstOrDefault()` without a null check will throw `NullReferenceException`. The pattern `var item = source.FirstOrDefault(); if (item is null) { ... }` is the correct idiom.
+
+---
+
+#### Gotcha 2. `Single()` Throws If More Than One Element Matches
+
+**Concepts**
+- `Single()` throws `InvalidOperationException` on an empty sequence AND on a sequence with more than one element
+- `SingleOrDefault()` returns `default(T)` for an empty sequence but still throws for multiple matches
+- `First()` silently returns the first element when duplicates exist — `Single()` is an explicit uniqueness assertion
+- Use `Single` when exactly one result is a business invariant that should fail loudly if violated
+
+**Answer**
+
+`Single()` enforces the invariant that exactly one element exists; it throws on both empty and multi-element sequences. `SingleOrDefault()` relaxes only the empty-sequence case — it still throws if two or more elements are found. Developers who switch from `First()` to `SingleOrDefault()` expecting it to tolerate duplicates are surprised when it throws. Use `Single`/`SingleOrDefault` as an assertion: if uniqueness is guaranteed by the data model and you want a loud failure if that guarantee is violated, `Single` is the right choice.
+
+---
+
+#### Gotcha 3. `ElementAt(i)` Is O(n) on Non-Indexed Sources
+
+**Concepts**
+- `ElementAt(i)` checks whether the source implements `IList<T>` and, if so, uses direct indexing in O(1)
+- On a non-indexed source (e.g., a chained `Where` query), it iterates up to `i` elements — O(n)
+- `ElementAtOrDefault(i)` has the same performance characteristic
+- Prefer `list[i]` or `array[i]` when you already hold a random-access collection
+
+**Answer**
+
+`ElementAt(i)` is optimized for `IList<T>` sources, where it delegates to the indexer in O(1). On any other `IEnumerable<T>` — such as the result of a `Where` or `Select` chain — it must iterate element by element from the beginning, making it O(n) in the worst case. If random access by index is a frequent operation, materialize the query to a `List<T>` first and use the indexer directly.
+
+---
+
+#### Gotcha 4. `ElementAtOrDefault(i)` Returns `default(T)` for Out-of-Range Index
+
+**Concepts**
+- Out-of-range index returns `default(T)` — no `ArgumentOutOfRangeException`
+- For reference types, `default(T)` is `null`; always null-check the result
+- Negative indices always return `default(T)` for `ElementAtOrDefault`
+- `ElementAt(i)` on an out-of-range index throws `ArgumentOutOfRangeException`
+
+**Answer**
+
+`ElementAtOrDefault(i)` is the safe counterpart to `ElementAt(i)`: instead of throwing when the index is outside the sequence bounds, it returns `default(T)`. For `int` sequences the default is `0`, which is indistinguishable from a legitimate zero element at that position. When you need to distinguish "element exists and equals zero" from "index out of range", consider materializing to a list and checking `.Count > i` before accessing the element.
+
+---
+
+#### Gotcha 5. `Last()` on a Non-Indexed `IEnumerable` Iterates the Entire Sequence
+
+**Concepts**
+- `Last()` checks for `IList<T>` and accesses the last element in O(1) if available
+- On a non-indexed `IEnumerable<T>`, `Last()` must iterate every element to find the last — O(n)
+- `LastOrDefault()` has the same O(n) cost on non-indexed sources
+- For large non-indexed sequences, consider restructuring the query to avoid `Last()`
+
+**Answer**
+
+Like `ElementAt`, `Last()` is optimized for `IList<T>`, where it can directly access the final element via the count and indexer. On any other `IEnumerable<T>`, it reads every element sequentially, discarding each one until it finds the final element — an O(n) traversal for a potentially large sequence. If you frequently need the last element of a large, non-indexed result, either reverse the sort order and use `First()`, or materialize to a list and use `list[list.Count - 1]`.
+
+---
+
+#### Gotcha 6. `DefaultIfEmpty(value)` Inserts a Custom Default When the Source Is Empty
+
+**Concepts**
+- `DefaultIfEmpty()` with no argument yields a single `default(T)` — `null` for reference types, `0` for `int`
+- `DefaultIfEmpty(value)` yields a single `value` element when the source is empty
+- If the source is non-empty, `DefaultIfEmpty` returns the source unchanged
+- Commonly used before `Max`/`Min` to avoid `InvalidOperationException` on empty sequences
+
+**Answer**
+
+`DefaultIfEmpty()` transforms an empty sequence into a single-element sequence containing `default(T)`, and leaves a non-empty sequence unchanged. The overload `DefaultIfEmpty(value)` inserts a caller-supplied sentinel instead. This is most useful when chained before `Max`, `Min`, or `First` to provide a safe fallback: `source.Where(pred).DefaultIfEmpty(0).Max()` returns `0` rather than throwing when no elements satisfy the predicate.
+
+---
+
+#### Gotcha 7. `First(predicate)` Short-Circuits at the First Match
+
+**Concepts**
+- `First(predicate)` stops iterating as soon as the first matching element is found
+- `Where(predicate).First()` also short-circuits — the `First()` stops the `Where` iterator
+- Both are equivalent in result but `First(predicate)` is more concise
+- `Count(predicate)` does NOT short-circuit — it must inspect every element
+
+**Answer**
+
+`First(predicate)` is more than a convenience shorthand for `Where(predicate).First()` — both are correct and both short-circuit at the first match because LINQ iterators are lazy. The difference is stylistic: `First(predicate)` is a single method call and reads as "find the first element that satisfies this condition." Contrast with `Count(predicate)`, which must examine every element even if you only care about existence — prefer `Any(predicate)` for that case.
+
+---
+
+#### Gotcha 8. `Single(predicate)` Inspects the Entire Sequence Even After Finding a Match
+
+**Concepts**
+- `Single(predicate)` must verify that exactly one element matches — it cannot stop at the first match
+- After finding a match, it continues iterating to confirm no second match exists
+- This means `Single(predicate)` is always O(n) in the worst case, unlike `First(predicate)` which is O(1) best case
+- Use `First` when uniqueness is not a hard invariant to avoid the full-scan cost
+
+**Answer**
+
+`Single(predicate)` is semantically more expensive than `First(predicate)`: having found one matching element, it cannot stop — it must continue iterating to confirm no second match exists, making its worst-case cost O(n) regardless. `First(predicate)` stops at the first match. This matters on large sequences where the unique element is near the beginning. Use `Single` only when enforcing uniqueness is worth the full-scan cost; use `First` when you just want the first qualifying element.
+
+---
+
+#### Gotcha 9. `Min(selector)` and `Max(selector)` Return the Projected Scalar, Not the Source Element
+
+**Concepts**
+- `Min(x => x.Age)` returns the minimum `Age` value — a scalar, not the person object
+- To retrieve the element with the minimum age, use `MinBy(x => x.Age)` (.NET 6+)
+- `MinBy`/`MaxBy` return the source element whose projected key is the min/max
+- Pre-.NET 6: use `OrderBy(x => x.Age).First()` as the `MinBy` equivalent
+
+**Answer**
+
+`Min(x => x.Age)` returns the minimum integer age value, not the `Person` object that has that age. Developers who expect to get back the source element are surprised to receive a scalar. To retrieve the entire element with the minimum key, use `MinBy(x => x.Age)` (available since .NET 6), which returns the source element rather than the projected value. For older targets, the equivalent is `source.OrderBy(x => x.Age).First()`.
+
+---
+
+#### Gotcha 10. `Aggregate` Is a Generalized Fold That Requires Understanding of Seed, Accumulator, and Result Selector
+
+**Concepts**
+- `Aggregate(seed, (acc, x) => ...)` folds elements left-to-right starting from `seed`
+- The accumulator type can differ from the element type — e.g., building a `string` from `int` elements
+- The optional third argument `resultSelector` transforms the final accumulator into the output type
+- Without a seed, `Aggregate(func)` throws on empty sequences — always provide a seed
+
+**Answer**
+
+`Aggregate` is LINQ's general-purpose fold operator. The two-argument form `Aggregate(seed, (acc, element) => newAcc)` initializes the accumulator with `seed` and applies the function left-to-right over all elements, returning the final accumulator value. The three-argument form adds a `resultSelector` that transforms the final accumulator into the desired output type. This flexibility makes `Aggregate` powerful but also the most misunderstood LINQ operator; always provide a seed to make the empty-sequence case safe.
+
+---
+
 ## Q24. A nightly billing job crashes after month-end write-offs. What is the root cause, and how do you fix it? (Scenario)
 
 **Concepts**

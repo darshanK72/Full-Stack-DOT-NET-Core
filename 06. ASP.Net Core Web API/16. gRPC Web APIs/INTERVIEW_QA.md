@@ -276,215 +276,147 @@ I choose gRPC for internal microservice communication where both ends share gene
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — gRPC Web APIs (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. Browser cannot call gRPC without gRPC-Web transcoding
 
 **Concepts**
-- HTTP 201 Created with Location header for resource creation
-- CreatedAtAction and CreatedAtRoute response helpers
-- REST client reliance on status codes and Location header
+- HTTP/2 binary framing — browsers restrict access to raw HTTP/2 frames via XHR/fetch
+- gRPC-Web — modified wire format usable from browsers via a proxy or server-side translation
+- `AddGrpcWeb()` + `UseGrpcWeb()` — enables gRPC-Web support in ASP.NET Core
+- Envoy proxy vs in-process `UseGrpcWeb()` for browser-facing gRPC services
 
 **Answer**
 
-A successful resource creation must return HTTP 201 Created because that status communicates where the new resource lives via the `Location` header — returning 200 omits that contract and breaks REST clients that rely on status codes. I use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with a `Location` header pointing at the new resource URL. OpenAPI-generated SDKs and standard HTTP client libraries inspect the status code, so returning 200 hides the resource URL from them silently.
+Standard gRPC uses HTTP/2 with binary framing that browsers cannot directly consume via `fetch()` or `XMLHttpRequest` because browsers restrict access to HTTP/2 trailers, which carry gRPC status codes. gRPC-Web is a modified protocol that works within browser HTTP constraints, requiring server-side translation. I add `builder.Services.AddGrpcWeb()` and `app.UseGrpcWeb()`, then call `endpoints.MapGrpcService<OrdersService>().EnableGrpcWeb()` on services intended for browser clients. Alternatively, an Envoy or nginx proxy can translate gRPC-Web to gRPC at the network layer without application code changes.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. Changing protobuf field numbers — breaking wire compatibility
 
 **Concepts**
-- HTTP safe and idempotent method semantics
-- Browser prefetch and CDN cache replay risk
-- GET read-only contract enforcement
+- Field number identifies a field on the wire — changing it makes the message unreadable by old clients
+- Field name changes — safe in proto3 (wire uses numbers, not names)
+- `reserved` keyword — marks field numbers and names that cannot be reused
+- Protobuf evolution — add new fields with new numbers; never reuse or renumber existing fields
 
 **Answer**
 
-GET must be safe and idempotent — performing deletes or updates inside a GET handler violates HTTP semantics. Browsers, CDNs, and link-preview crawlers may invoke GET URLs without user intent, so side effects run unintentionally. Cached GET responses can replay destructive operations. State changes belong on POST, PUT, PATCH, or DELETE.
+Protobuf serialization uses field numbers on the wire, not field names. Renaming a field in the `.proto` file is safe because the wire format still uses the number; renumbering a field is a breaking wire change — old clients decode the new message by field number and see the wrong data or zero values. Removing a field without reserving its number allows a future developer to reuse the number, causing corrupt deserialization of messages from old clients that still set that field. I use `reserved 5; reserved "oldFieldName";` on removed fields to prevent accidental reuse, and treat any change to an existing field number as a breaking change requiring a new service version.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. gRPC status codes vs HTTP status codes — mapping errors incorrectly
 
 **Concepts**
-- HTTP status codes driving retry logic and APM alerting
-- ProblemDetails and ValidationProblemDetails for failures
-- Envelope error pattern anti-pattern
+- gRPC status codes — `NOT_FOUND`, `INVALID_ARGUMENT`, `UNAUTHENTICATED`, `PERMISSION_DENIED`, `INTERNAL`
+- HTTP status codes — 404, 400, 401, 403, 500
+- gRPC-Web/REST transcoding — gRPC status mapped to HTTP by google.rpc.HttpBody rules
+- `RpcException` with `StatusCode.NotFound` — correct gRPC error, not `null` return
 
 **Answer**
 
-Business failures must map to appropriate 4xx or 5xx status codes because that is what drives client retry logic, API gateway routing, and APM alerting. A 200 with `{ success: false }` forces every client to parse the body before knowing whether the call worked. I return `ProblemDetails` with 400 for validation failures and 404, 409, or 422 for domain errors.
+gRPC has its own status code system — `StatusCode.NotFound` is not HTTP 404, and the two systems do not map one-to-one. When a gRPC service is also exposed via HTTP transcoding (`google.api.http` annotations), the gRPC status is converted to HTTP: `NOT_FOUND` → 404, `INVALID_ARGUMENT` → 400, `UNAUTHENTICATED` → 401, `PERMISSION_DENIED` → 403. Returning `null` instead of throwing `new RpcException(new Status(StatusCode.NotFound, "Order not found"))` means the caller receives a success response with an empty message, which is incorrect protocol behavior. I always signal errors via `RpcException` with the appropriate `StatusCode`.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. Channel credentials vs call credentials — authentication placement
 
 **Concepts**
-- Navigation property N+1 during serialization
-- Circular reference serializer loop risk
-- DTO decoupling from database schema
+- `ChannelCredentials` — TLS/SSL applied to the channel; authenticates the channel, not the call
+- `CallCredentials` — per-call metadata (bearer token) attached to each RPC call
+- Combining credentials — `ChannelCredentials.Create(sslCredentials, callCredentials)`
+- gRPC channel reuse — single channel with per-call token refresh via `CallCredentials`
 
 **Answer**
 
-EF Core entities expose navigation properties and circular references that are not designed for public contracts. Lazy-loaded navigations trigger database queries per row during serialization, and circular references cause serializer loops. I always serialize DTOs with explicit shapes so the API contract is decoupled from the database schema.
+gRPC authentication has two layers: `ChannelCredentials` secures the transport (TLS/mTLS) and `CallCredentials` carries per-call authentication metadata (JWT bearer token). Using only channel credentials without call credentials means the channel is TLS-encrypted but no identity token is sent per call. Using `CallCredentials` without TLS sends tokens over an unencrypted channel. I combine them with `ChannelCredentials.Create(new SslCredentials(rootCert), CallCredentials.FromInterceptor(addBearerToken))`, and implement the `addBearerToken` interceptor to attach the current access token on each call, allowing token refresh without recreating the channel.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. Not propagating `CancellationToken` in server streaming
 
 **Concepts**
-- System.Text.Json camelCase default in ASP.NET Core 8
-- Silent binding failure on case mismatch
-- JsonPropertyName attribute and PropertyNamingPolicy override
+- Server streaming — server sends a stream of responses to one client request
+- Client disconnects or times out — cancellation propagated via `ServerCallContext.CancellationToken`
+- Not checking cancellation — server continues processing and writing to a closed stream
+- `responseStream.WriteAsync()` throwing after client disconnect
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json`, so PascalCase property names from some clients bind as missing, causing silent data loss on POST and PUT. I align expectations using `[JsonPropertyName("PropertyName")]` or a custom `PropertyNamingPolicy`. The failure is insidious because the server returns 201 or 204 with no error while the data is silently incomplete.
+In a server-streaming RPC, the server writes response messages until it completes or the client cancels. When the client disconnects or the deadline is exceeded, `ServerCallContext.CancellationToken` is cancelled. If the server does not check cancellation between writes, it continues generating responses and calling `WriteAsync()` on a closed stream, which throws an exception — or wastes CPU/DB on results no client will ever receive. I check `context.CancellationToken.IsCancellationRequested` between expensive operations and pass the token to `DbContext.ToListAsync(context.CancellationToken)`, allowing the work to terminate cleanly when the client is gone.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Server-streaming back-pressure not handled — producer faster than consumer
 
 **Concepts**
-- GET body stripping by proxies and HTTP clients
-- [FromQuery] for simple filters
-- OpenAPI and browser fetch GET body restrictions
+- gRPC HTTP/2 flow control — window limits how much unacknowledged data the sender can queue
+- `WriteAsync()` blocks when the window is full — natural back-pressure mechanism
+- Ignoring `WriteAsync()` return — missing flow control signals
+- Unbounded producer writing faster than the consumer reads — memory growth
 
 **Answer**
 
-Many HTTP clients, proxies, and caches ignore or strip GET request bodies, so filters sent as JSON in a GET request fail silently. I use query strings with `[FromQuery]` for simple filters, or POST to a dedicated search endpoint for complex filter objects. OpenAPI tools and browser `fetch` also discourage GET bodies, making the pattern fragile in production.
+gRPC server streaming uses HTTP/2 flow control — `WriteAsync()` blocks when the receiver's flow-control window is full, applying back-pressure automatically. If the server generates messages faster than the client consumes them, `WriteAsync()` will wait. If the server spawns a background task that writes without awaiting, the buffer grows unbounded. I always `await responseStream.WriteAsync(message, context.CancellationToken)` inside the loop — the `await` is the back-pressure mechanism. Never fire-and-forget `WriteAsync` calls in a streaming handler.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. gRPC load balancing requires client-side configuration
 
 **Concepts**
-- CORS as browser-only enforcement mechanism
-- curl and server-to-server bypass of CORS
-- Authentication and authorization as real API security
+- HTTP/2 single connection — load balancer may route all traffic to one backend pod
+- Round-robin at TCP layer — L4 load balancer (ALB) sends one connection to one backend
+- Client-side load balancing with service discovery — DNS round-robin or gRPC client load balancer
+- `GrpcChannel` with `LoadBalancingConfig` and `DnsResolverFactory` for round-robin across pods
 
 **Answer**
 
-CORS is enforced only by browsers — it does not stop curl, Postman, or server-to-server calls. CORS headers tell a browser whether JavaScript on one origin may read a cross-origin response; they authenticate nothing. I register `AddCors` and `UseCors` for browser SPA access, and enforce JWT, cookies, or API keys separately as the actual security mechanism.
+Standard L4 load balancers (AWS ALB, nginx in L4 mode) work at the TCP connection level — a single long-lived gRPC HTTP/2 connection is routed to one backend pod and stays there. All gRPC calls on that connection go to the same pod, making load balancing effectively useless. True gRPC load balancing requires either L7 load balancing (Envoy, nginx in gRPC mode) or client-side load balancing with DNS-based service discovery. I configure `GrpcChannel` with `new GrpcChannelOptions { Credentials = ..., ServiceConfig = new ServiceConfig { LoadBalancingConfigs = { new RoundRobinConfig() } } }` and use a DNS name that resolves to multiple pod IPs.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. gRPC deadline not set — calls hang indefinitely
 
 **Concepts**
-- Access-Control-Allow-Origin wildcard and credentials incompatibility
-- WithOrigins explicit list requirement for credentialed requests
-- AllowCredentials requirement for cookies and Authorization headers
+- gRPC deadline — absolute timestamp after which the call is cancelled by both client and server
+- No default deadline — gRPC calls wait indefinitely if the server does not respond
+- `deadline: DateTime.UtcNow.AddSeconds(5)` on `CallOptions` — sets per-call deadline
+- `grpc.max_receive_message_length` — separate from deadline, limits message size
 
 **Answer**
 
-Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers, so `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined. I specify every trusted frontend origin explicitly with `WithOrigins` and pair that with `AllowCredentials()`. Credentialed cross-origin calls require both a matching explicit origin and `Access-Control-Allow-Credentials: true`.
+gRPC calls do not have a default deadline — a server that hangs or a network partition causes the client call to wait forever, exhausting thread pool capacity. HTTP REST calls at least rely on `HttpClient.Timeout` (default 100 seconds), but gRPC has no implicit timeout. I always specify a deadline on gRPC calls: `client.GetOrderAsync(request, new CallOptions(deadline: DateTime.UtcNow.AddSeconds(10)))`. For service-to-service calls I set a global default via an interceptor that injects a deadline on every outgoing call if none is specified, preventing indefinite hangs.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. REST transcoding missing `google.api.http` annotations in `.proto`
 
 **Concepts**
-- OpenAPI schema reconnaissance risk
-- Environment-gated Swagger UI registration
-- Production API surface disclosure
+- `grpc-gateway` / ASP.NET Core HTTP transcoding — maps HTTP routes to gRPC methods
+- `google.api.http` annotation required in `.proto` for each method to be transcoded
+- Missing annotation — method accessible via gRPC but not via the HTTP/REST endpoint
+- `grpc.gateway.protoc_gen_openapiv2` — Swagger/OpenAPI generation from annotations
 
 **Answer**
 
-Public Swagger UI discloses the full API surface to anyone who finds the endpoint. I wrap `MapSwagger` and `UseSwaggerUI` with an environment check so they only serve in Development or Staging, and gate production access behind authentication middleware when internal tooling requires it.
+ASP.NET Core gRPC HTTP transcoding (via `Microsoft.AspNetCore.Grpc.HttpApi`) maps HTTP requests to gRPC method calls, but only for methods that have `google.api.http` annotations in the `.proto` file. A gRPC method without the annotation is accessible via gRPC clients but is invisible to REST clients — it has no HTTP route. I add annotations to every method intended for HTTP access: `option (google.api.http) = { get: "/v1/orders/{id}" };` for reads and `post: "/v1/orders"` with `body: "*"` for creates. Methods intentionally gRPC-only are left unannotated, and the absence is documented.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. gRPC reflection enabled in production — schema discovery attack surface
 
 **Concepts**
-- [ApiController] enabling automatic model-state 400 responses
-- [FromBody] inference for complex types
-- Inconsistent error contracts from mixed controller conventions
+- gRPC server reflection — allows clients to query the server for available services and their proto schemas
+- `grpcurl` / `grpcui` — tools that use reflection to discover and call gRPC services
+- Production exposure — enumerates service names, method names, and message shapes
+- `MapGrpcReflectionService()` — must be gated to non-production environments
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses and binding source inference differ from controllers that do have it. A mix of attributed and non-attributed controllers produces inconsistent error contracts. I apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- Sync-over-async thread-pool starvation
-- SynchronizationContext deadlock under ASP.NET Core
-- async Task<IActionResult> propagation through service layer
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` ties up Kestrel request threads while I/O completes, reducing throughput under concurrent load. Deadlocks occur when the blocked thread holds a synchronization context the async continuation needs. I mark controller actions `async Task<IActionResult>` and propagate `await` through the entire service layer to EF Core and `HttpClient` calls.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness vs readiness probe semantics in Kubernetes
-- Unnecessary pod restart from database-down liveness failure
-- /health/live lightweight self-check vs /health/ready dependency check
-
-**Answer**
-
-If the liveness probe fails when SQL is down, Kubernetes restarts the pod unnecessarily — restarting cannot fix a database outage. Liveness answers whether the process is healthy; readiness answers whether the pod should receive traffic. I put SQL and external service checks on the readiness probe only, mapping `/health/live` to a lightweight self-check and `/health/ready` to `AddDbContextCheck`.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- Lazy-loaded navigation property per-row SQL query
-- LINQ projection to DTO in a single query
-- Include/ThenInclude for explicit eager loading
-
-**Answer**
-
-Returning entities with lazy-loaded navigation properties triggers one SQL query per row. I fix this by projecting directly to DTOs in LINQ so EF Core generates a single query, or by using `Include`/`ThenInclude` for graphs that must be loaded together. Serialization must never drive database queries.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination instability under concurrent writes
-- Keyset pagination with stable indexed key
-- Cursor token exposure in response metadata
-
-**Answer**
-
-`Skip((page - 1) * pageSize).Take(pageSize)` shifts the window when rows are inserted or deleted between page requests, causing duplicates or gaps. Keyset pagination uses `WHERE id > @lastId ORDER BY id LIMIT @pageSize` with the last seen key, which is stable under concurrent writes. I expose cursor tokens in response metadata for high-churn data.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolver per-parent database query explosion
-- DataLoader batching into single IN clause
-- Eager loading at root query as alternative
-
-**Answer**
-
-Field resolvers in HotChocolate that query the database per parent row explode into N+1 SQL calls — 100 authors resolving `books` individually fires 101 queries. The fix is DataLoader: a batch loader collects author IDs and issues a single `WHERE AuthorId IN (...)` query. When the client always requests nested fields together, eager loading at the root is also valid.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC HTTP/2 trailing headers inaccessible to browsers
-- gRPC-Web middleware translation requirement
-- CORS configuration alongside gRPC-Web
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing and trailing headers that browser `fetch` and `XMLHttpRequest` APIs do not expose. Blazor WASM and SPA browsers require the gRPC-Web protocol — I add `AddGrpcWeb()` and call `EnableGrpcWeb()` on mapped services. I also configure CORS for the browser origin, since cross-origin browser calls still enforce CORS on preflight and response headers.
+gRPC server reflection (`MapGrpcReflectionService()`) allows any client with network access to enumerate all registered gRPC services, their method signatures, and message schemas — the equivalent of GraphQL introspection or Swagger UI without authentication. In production, this provides reconnaissance data to attackers. I conditionally register reflection only in development: `if (app.Environment.IsDevelopment()) { app.MapGrpcReflectionService(); }`. For internal developer tools in staging environments, I add an authorization policy to the reflection endpoint so only authenticated internal users can enumerate the schema.
 
 ---
 

@@ -283,3 +283,147 @@ public class ProductCatalogService
 ```
 
 The `ToListAsync()` materializes all active products once. `ToLookup` then builds the indexed structure in memory. `IMemoryCache` stores the `ILookup` for 15 minutes, so subsequent requests reuse the in-memory structure without hitting the database. `ILookup<TKey, TElement>` is read-only and thread-safe for concurrent reads after construction. Cache invalidation should be triggered when product data changes — either by expiry time, by a cache invalidation event, or by using a versioned cache key.
+
+## Gotchas — Conversion Operations (Interview Traps)
+
+---
+
+#### Gotcha 1. `ToList()` vs `ToArray()` — Both Materialize, but `ToList` Stays Mutable
+
+**Concepts**
+- Both `ToList()` and `ToArray()` immediately enumerate the source and allocate a new collection
+- `ToList()` returns a `List<T>` that supports `Add`, `Remove`, and `Insert` after creation
+- `ToArray()` returns a fixed-size array; no elements can be added or removed (though existing elements can be replaced)
+- `ToArray()` may be slightly more memory-efficient for a known-size result; `ToList()` over-allocates when the count is unknown
+
+**Answer**
+
+`ToList()` and `ToArray()` both force immediate evaluation of a deferred LINQ query, but they produce different collection types. The result of `ToList()` can be mutated after creation — elements can be added, removed, or reordered — making it the right choice when further collection manipulation is planned. `ToArray()` is the right choice when the result is read-only after creation and you want the fixed-size guarantee, or when an array is required by an API. Performance differences are negligible for most use cases.
+
+---
+
+#### Gotcha 2. `ToDictionary()` Throws on Duplicate Keys
+
+**Concepts**
+- `ToDictionary(keySelector)` throws `ArgumentException` if the key selector produces duplicate keys
+- The exception message mentions "An item with the same key has already been added"
+- Use `GroupBy(keySelector).ToDictionary(g => g.Key, g => g.ToList())` to aggregate duplicates
+- Alternatively, use `ToLookup()` which handles duplicate keys natively
+
+**Answer**
+
+`source.ToDictionary(x => x.Category)` throws `ArgumentException` the moment two elements produce the same key, because a `Dictionary<K,V>` requires unique keys. The fix depends on intent: if only one value per key is expected, investigate the data for unexpected duplicates; if multiple values per key are valid, use `GroupBy(x => x.Category).ToDictionary(g => g.Key, g => g.ToList())` or switch to `ToLookup(x => x.Category)`, which tolerates duplicate keys by design.
+
+---
+
+#### Gotcha 3. `ToHashSet()` Deduplicates While Materializing — Requires Correct Equality
+
+**Concepts**
+- `ToHashSet()` creates a `HashSet<T>` and silently drops duplicate elements
+- Deduplication uses `GetHashCode` and `Equals`; custom types without overrides deduplicate by reference
+- `ToHashSet(IEqualityComparer<T>)` overload allows custom comparison
+- The resulting `HashSet<T>` is unordered; original sequence order is not preserved
+
+**Answer**
+
+`source.ToHashSet()` is a concise way to deduplicate a sequence while materializing it, but it silently discards duplicates — if you expect a unique sequence and it is not, you will not get an exception, only a smaller result. For custom reference types, `GetHashCode` and `Equals` must be correctly overridden (or a `record` type used) so that structurally equal objects are treated as duplicates. Because `HashSet<T>` is unordered, the output element order is nondeterministic.
+
+---
+
+#### Gotcha 4. `AsEnumerable()` Does NOT Materialize — It Only Changes the Static Type
+
+**Concepts**
+- `AsEnumerable()` returns the same underlying object cast to `IEnumerable<T>`; no data is buffered
+- It is used to force client-side LINQ evaluation by hiding `IQueryable<T>` from subsequent operators
+- Confused with `ToList()` / `ToArray()` which actually enumerate and buffer the source
+- Calling `AsEnumerable()` on a `DbSet` query causes all subsequent operators to run in memory after loading rows
+
+**Answer**
+
+`dbSet.Where(serverFilter).AsEnumerable().Where(clientFilter)` applies `serverFilter` in SQL and then loads all matching rows into memory before applying `clientFilter` in C#. The `AsEnumerable()` call itself does no work — it just prevents EF Core from translating the second `Where` to SQL. Developers who confuse `AsEnumerable()` with `ToList()` may expect data to be buffered at that point, but enumeration is still deferred until the final consumer iterates the result.
+
+---
+
+#### Gotcha 5. `AsQueryable()` on an In-Memory Collection Does NOT Push Queries to a Database
+
+**Concepts**
+- `AsQueryable()` wraps an in-memory `IEnumerable<T>` as `IQueryable<T>` using `EnumerableQuery<T>`
+- It does not connect the collection to any database or ORM provider
+- Subsequent LINQ operators run in-memory using the LINQ-to-Objects provider
+- `AsQueryable()` is useful for writing provider-agnostic query code in tests but provides no database access
+
+**Answer**
+
+`list.AsQueryable().Where(x => x.Active)` runs a standard in-memory LINQ-to-Objects query — no SQL is generated because `list` is an `IEnumerable<T>`, not a real `IQueryable<T>` backed by a database provider. The common misconception is that calling `AsQueryable()` on a collection somehow enables ORM features; it does not. Its real value is enabling expression-tree-based query composition in test doubles or generic repository abstractions where the calling code accepts `IQueryable<T>`.
+
+---
+
+#### Gotcha 6. `Cast<T>()` Throws on Incompatible Types — Use `OfType<T>()` to Filter Safely
+
+**Concepts**
+- `Cast<T>()` attempts to cast every element; throws `InvalidCastException` on the first incompatible element
+- `OfType<T>()` silently skips elements that cannot be cast to `T`, returning only compatible elements
+- `Cast<T>()` is appropriate when all elements are guaranteed to be of type `T`
+- `OfType<T>()` is the safe alternative when the source may contain mixed types
+
+**Answer**
+
+`objects.Cast<string>()` throws `InvalidCastException` at the element that is not a `string`; iteration succeeds up to that point and then fails. `objects.OfType<string>()` returns only the elements that are already `string` (or a subtype), silently skipping everything else. Use `Cast` when you have a contract that all elements are of the target type and want an immediate error if violated; use `OfType` when heterogeneous input is expected and filtering is correct.
+
+---
+
+#### Gotcha 7. `ToLookup()` Materializes Immediately — Missing Keys Return Empty Sequences
+
+**Concepts**
+- `ToLookup()` enumerates the source immediately and builds the in-memory `ILookup<K,V>` structure
+- Accessing a key that does not exist returns an empty `IEnumerable<V>`, not `null` and not an exception
+- Unlike `Dictionary`, `ILookup` natively handles multiple values per key
+- `ILookup` is read-only; elements cannot be added or removed after creation
+
+**Answer**
+
+`lookup["missing-key"]` returns an empty sequence rather than throwing `KeyNotFoundException` — this is intentional and makes `ToLookup` convenient for grouping without defensive null checks. Because `ToLookup` materializes immediately, it is suitable for in-memory caches that are built once and queried many times. For scenarios requiring deferred or incremental grouping, `GroupBy` is the alternative, but `GroupBy` does not give the non-throwing key-access behaviour of `ILookup`.
+
+---
+
+#### Gotcha 8. `ToList().AsReadOnly()` Returns a Live View, Not a Copy
+
+**Concepts**
+- `list.AsReadOnly()` returns a `ReadOnlyCollection<T>` wrapping the same underlying `List<T>`
+- Mutations to the original `List<T>` are immediately visible through the `ReadOnlyCollection<T>`
+- `ImmutableList<T>` (from `System.Collections.Immutable`) creates a true independent copy
+- Use `AsReadOnly()` for lightweight read-only exposure; use `ImmutableList` when true immutability is required
+
+**Answer**
+
+`list.AsReadOnly()` is a thin wrapper — it blocks direct mutations through the `ReadOnlyCollection<T>` reference but the underlying `List<T>` can still be mutated by whoever holds a reference to it, and those mutations are immediately visible through the wrapper. This is a common source of bugs in code that passes `AsReadOnly()` with the intent to prevent all future changes. `ImmutableList<T>` creates a structurally independent copy that cannot be changed by any reference; it is the correct choice when true immutability is required.
+
+---
+
+#### Gotcha 9. `Enumerable.Empty<T>()` Returns a Cached Singleton — Prefer Over `new T[0]`
+
+**Concepts**
+- `Enumerable.Empty<T>()` returns the same cached empty `IEnumerable<T>` instance on every call
+- Avoids heap allocation of a new empty array or list each time a "no results" value is needed
+- Callers receive a zero-element sequence that can be enumerated safely with `foreach`
+- `new T[0]` and `Array.Empty<T>()` also avoid allocation (both are cached), but `Enumerable.Empty<T>()` signals intent
+
+**Answer**
+
+`return Enumerable.Empty<Order>();` is the idiomatic way to return a zero-element sequence from a method with an `IEnumerable<T>` return type. It allocates nothing (the runtime caches one instance per type parameter) and communicates intent clearly: the method found no results. Returning `null` instead forces every caller to null-check before iterating and is an anti-pattern; returning `new List<Order>()` allocates a list object unnecessarily.
+
+---
+
+#### Gotcha 10. `ToDictionary` Triggers One Full Enumeration — Double-Enumeration Trap
+
+**Concepts**
+- `ToDictionary()` enumerates the source once during construction — if the source is a deferred query, it executes once
+- The constructed `Dictionary` is fully in-memory; subsequent reads are O(1) lookups with no re-enumeration
+- If the source is a deferred `IEnumerable` wrapped in a variable, calling `ToDictionary` on it elsewhere re-runs the query
+- Always materialize deferred queries before passing them to `ToDictionary` when reuse is needed
+
+**Answer**
+
+`var dict = source.ToDictionary(x => x.Id)` executes the underlying query exactly once to populate the dictionary; after that, all lookups are O(1) in memory with no further enumeration. The trap arises when the same deferred `source` variable is used elsewhere after the `ToDictionary` call — each independent enumeration re-executes the query from the start, potentially reading different data if the underlying source is non-deterministic or side-effectful. Materialize with `ToList()` first if the source needs to be enumerated more than once.
+
+---

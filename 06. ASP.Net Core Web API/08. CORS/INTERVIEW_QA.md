@@ -292,214 +292,147 @@ A CORS policy in ASP.NET Core is a named set of rules registered in `AddCors()` 
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — CORS (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. `AllowAnyOrigin()` with `AllowCredentials()` browser rejection
 
 **Concepts**
-- HTTP 201 Created — correct status for resource creation
-- Location header — URI of the new resource
-- `CreatedAtAction` — sets both status and Location
+- CORS spec forbids `Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials: true`
+- Browsers reject the credentialed response — SPA call fails with CORS error
+- `WithOrigins(...)` + `AllowCredentials()` — correct combination for credentialed requests
+- ASP.NET Core throws or emits invalid CORS headers when both are combined
 
 **Answer**
 
-A POST that creates a resource must return 201 Created with a Location header, not 200 OK. I use `CreatedAtAction(nameof(Get), new { id = newEntity.Id }, newEntity)` since it sets both the correct status code and the Location header. Returning 200 hides the resource location from HTTP client libraries and OpenAPI-generated SDKs.
+The CORS specification explicitly forbids combining a wildcard origin (`*`) with credential allowance — browsers reject any response that includes both `Access-Control-Allow-Origin: *` and `Access-Control-Allow-Credentials: true`. ASP.NET Core honors this by throwing an `InvalidOperationException` or silently omitting the credential header when both are configured. For SPA clients that send cookies or `Authorization` headers, I must list each allowed origin explicitly with `WithOrigins("https://app.example.com")` and chain `AllowCredentials()`, loading allowed origins from environment configuration to separate local development URLs from production domains.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. Preflight OPTIONS request not reaching the API
 
 **Concepts**
-- HTTP GET — safe and idempotent
-- Browser prefetch and CDN cache replay
-- POST/PUT/PATCH/DELETE — correct verbs for mutations
+- Browser sends OPTIONS preflight before cross-origin requests with custom headers or non-simple methods
+- `UseCors()` must handle OPTIONS before `UseAuthentication()` / `UseAuthorization()`
+- OPTIONS request with no CORS middleware — returns 404, browser reports CORS error
+- `app.UseCors()` placement — before endpoint routing to intercept OPTIONS
 
 **Answer**
 
-GET must be safe and idempotent — browsers prefetch URLs, CDNs cache and replay responses, and crawlers follow links without user intent. A side-effecting GET runs its mutation uncontrollably. I keep GET read-only and use the appropriate mutation verb.
+A browser's preflight OPTIONS request carries no authentication credentials. If authentication middleware runs before CORS middleware, the OPTIONS request receives a `401 Unauthorized` before CORS headers are ever added — the browser interprets the missing `Access-Control-Allow-Origin` as a CORS failure and blocks the actual request. `UseCors()` must be placed before `UseAuthentication()` and `UseAuthorization()` in the middleware pipeline so the CORS headers are added to the OPTIONS response before any auth check runs, allowing the preflight to succeed.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. CORS headers stripped by reverse proxy between client and Kestrel
 
 **Concepts**
-- HTTP status codes — semantic failure signaling
-- `ProblemDetails` / `ValidationProblemDetails` — RFC 7807 error bodies
-- 200 masking failures — invisible in APM and gateways
+- Reverse proxy (nginx, YARP, Azure APIM) may remove or overwrite CORS response headers
+- Proxy adding its own `Access-Control-Allow-Origin: *` after Kestrel emits specific origin
+- Browser receiving contradicting CORS headers from proxy
+- CORS handled at proxy layer vs app layer — pick one, not both
 
 **Answer**
 
-Returning 200 with a failure flag forces consumers to parse the body to detect failure. I return `ValidationProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for domain violations so the HTTP layer carries the failure signal.
+A reverse proxy sitting between the browser and Kestrel may strip, overwrite, or add its own CORS headers, causing the browser to see a different `Access-Control-Allow-Origin` value than what ASP.NET Core emitted. Configuring CORS both in the app and in the proxy produces contradicting headers. I decide at architecture level which layer owns CORS and configure it in only one place — typically the API gateway or the reverse proxy for unified policy management across services, or the application for fine-grained per-endpoint policy control. I validate the actual CORS headers the browser receives using devtools, not just the Kestrel response headers.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. Named CORS policy declared but not applied
 
 **Concepts**
-- EF navigation properties — lazy-load triggers during serialization
-- Circular references — serializer loop risk
-- DTOs — explicit public contract
+- `builder.Services.AddCors(options => options.AddPolicy("MyPolicy", ...)` — declares the policy
+- `app.UseCors("MyPolicy")` — applies it globally in the middleware pipeline
+- `[EnableCors("MyPolicy")]` — applies it per controller or action
+- `UseCors()` without a policy name — applies the default policy, not the named one
 
 **Answer**
 
-EF Core entities expose internal columns, navigation properties, and circular references. Lazy-loaded navigations trigger SQL during JSON writing. I map entities to response DTOs before returning from actions.
+Calling `AddCors` and defining a named policy does nothing until the policy is applied either globally via `app.UseCors("MyPolicy")` or per-endpoint via `[EnableCors("MyPolicy")]`. Calling `app.UseCors()` without a policy name applies the default policy (registered with `AddDefaultPolicy`), not the named policy, silently giving all endpoints the wrong CORS configuration. I always explicitly name both the policy registration and the `UseCors` call, and verify with integration tests that the `Access-Control-Allow-Origin` header matches the expected allowed origin.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. Missing `Access-Control-Expose-Headers` for custom response headers
 
 **Concepts**
-- `System.Text.Json` camelCase default
-- Silent binding failure — PascalCase keys arrive as null
-- `PropertyNameCaseInsensitive` — migration compatibility
+- Browser restricts access to response headers from cross-origin requests by default
+- `Access-Control-Expose-Headers` — allowlist of additional headers the browser may read
+- Custom headers (`X-Total-Count`, `X-Request-Id`, `ETag`) not accessible without explicit exposure
+- `WithExposedHeaders("X-Total-Count", "ETag")` in CORS policy
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON, so legacy clients sending PascalCase keys get null bindings and a silent success response with wrong data. The migration fix is `PropertyNameCaseInsensitive = true`; the permanent fix is camelCase adoption by the client.
+Browsers only allow JavaScript to read a small set of "safe" response headers from cross-origin requests — all other headers are filtered out even when CORS is correctly configured. Custom headers like `X-Total-Count` for pagination, `X-Request-Id` for tracing, or `ETag` for caching are invisible to the SPA client unless explicitly listed in `Access-Control-Expose-Headers`. I add `.WithExposedHeaders("X-Total-Count", "X-Request-Id", "ETag")` to the CORS policy for endpoints that return custom headers, verified by a JavaScript `response.headers.get("X-Total-Count")` call returning a non-null value in integration tests.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. CORS as a security mechanism — not stopping non-browser clients
 
 **Concepts**
-- GET body — stripped by clients and proxies
-- `[FromQuery]` — correct source for GET filters
-- `POST /search` — for complex filter payloads
+- CORS — browser-only Same-Origin Policy enforcement mechanism
+- curl, Postman, server-to-server HTTP clients — completely unaffected by CORS
+- Malicious script in attacker-controlled browser — prevented by CORS if origin not listed
+- Authentication and authorization — real security for all client types
 
 **Answer**
 
-Most HTTP clients and proxies strip GET request bodies, so `[FromBody]` on GET fails silently. I use `[FromQuery]` for filter parameters and `POST /search` for complex objects.
+CORS does not protect the API from unauthorized access — it controls whether JavaScript in a browser tab from another origin may read the response. curl, Postman, mobile apps, and server-to-server calls bypass CORS entirely because they are not subject to the Same-Origin Policy. A widely-open CORS policy on a public API is a UX concern for browser clients but not a security backdoor — the real security is authentication and authorization, which I enforce regardless of CORS configuration. Treating CORS as security leads to a false sense of protection where the real attack surface remains fully exposed.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. Allowing any header with `AllowAnyHeader()` alongside credentials
 
 **Concepts**
-- CORS — browser-only enforcement
-- Non-browser clients — unaffected
-- Authentication and authorization — real API security boundary
+- `AllowAnyHeader()` — emits `Access-Control-Allow-Headers: *` on preflight
+- `Access-Control-Allow-Headers: *` with credentials — browser may reject the combination
+- Browser behavior varies: some reject wildcard + credentials for headers as well as origins
+- Explicit header listing: `.WithHeaders("Content-Type", "Authorization")` for credentialed requests
 
 **Answer**
 
-CORS is a browser policy — curl, Postman, and server-to-server clients are unaffected. Authentication and authorization middleware protect the API from all unauthorized callers regardless of CORS configuration.
+The same spec restriction that forbids `AllowAnyOrigin` + `AllowCredentials` also applies to `AllowAnyHeader` + `AllowCredentials` in some browser implementations — a preflight with `Access-Control-Allow-Headers: *` and `Access-Control-Allow-Credentials: true` may be rejected. When a CORS policy uses `AllowCredentials()`, I replace `AllowAnyHeader()` with an explicit `WithHeaders("Content-Type", "Authorization", "X-Requested-With")` listing the headers the SPA actually needs, which keeps the preflight safe across all browsers and avoids accidentally permitting unexpected headers.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. Environment-specific origin lists hardcoded
 
 **Concepts**
-- `AllowAnyOrigin()` — wildcard origin, incompatible with credentials
-- CORS specification — forbids wildcard + credentials
-- `WithOrigins().AllowCredentials()` — correct pattern
+- Dev origin `http://localhost:4200` hardcoded in production policy
+- Production origin `https://app.example.com` missing from dev policy
+- Configuration-driven allowed origins — `appsettings.{Environment}.json`
+- Localhost wildcard — not a valid CORS origin value
 
 **Answer**
 
-The CORS specification forbids combining `Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials: true`. Browsers reject this combination. When the SPA sends cookies or an Authorization header I use `WithOrigins("https://app.example.com").AllowCredentials()`.
+Hardcoding `http://localhost:4200` as an allowed origin in the production CORS policy gives any developer's local machine cross-origin access to the production API from any browser tab. Conversely, missing the production SPA domain in the production policy causes a CORS failure that only manifests in production. I load allowed origins from `appsettings.{Environment}.json` under a `Cors:AllowedOrigins` array, which is empty by default and populated with the correct domain per environment. Localhost is excluded from production configuration by policy, verified in code review.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. CORS middleware order — placed after authentication
 
 **Concepts**
-- Swagger UI in production — full API surface exposed
-- `IsDevelopment()` environment check
-- OpenAPI JSON for CI vs interactive UI for developers
+- `UseCors()` must run before the request reaches authentication middleware
+- Middleware order: `UseRouting` then `UseCors` then `UseAuthentication` then `UseAuthorization`
+- In ASP.NET Core 7+ minimal hosting model — `app.UseCors()` before `app.UseAuthentication()`
+- Placing `UseCors` after `UseAuthorization` — OPTIONS preflight blocked by auth
 
 **Answer**
 
-Swagger UI in production exposes every endpoint and schema. I gate `UseSwagger()` and `UseSwaggerUI()` behind `if (app.Environment.IsDevelopment())` and serve the JSON separately for CI through an IP-restricted path.
+`UseCors()` must be placed before `UseAuthentication()` and `UseAuthorization()` in the middleware pipeline. A common mistake in the minimal hosting model is adding `UseCors()` after `UseAuthorization()` because it "works for normal requests" — authenticated requests with matching origins do work, but OPTIONS preflights (which carry no credentials) fail at the auth middleware before CORS runs. The browser then reports a CORS error even though the actual policy is correct. The canonical order is: `UseRouting()` then `UseCors()` then `UseAuthentication()` then `UseAuthorization()` then `MapControllers()`.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. gRPC-Web requiring separate CORS configuration alongside gRPC
 
 **Concepts**
-- `[ApiController]` — automatic validation, binding inference
-- Inconsistent error contracts — mixed controller setup
+- gRPC uses HTTP/2 binary framing — browsers need gRPC-Web middleware
+- gRPC-Web preflight headers differ from standard REST CORS headers
+- `AddGrpcWeb()` + `EnableGrpcWeb()` required on each mapped gRPC service
+- CORS policy must allow gRPC-Web-specific headers: `grpc-status`, `grpc-message`, `content-type`
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses and binding inference do not apply. I apply `[ApiController]` at the assembly level.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- `.Result` / `.Wait()` — sync-over-async blocking
-- Thread-pool starvation — blocked threads reduce throughput
-- `async Task<IActionResult>` — correct signature
-
-**Answer**
-
-Blocking on `.Result` ties up thread-pool threads, reducing concurrent capacity. I mark actions `async Task<IActionResult>` and propagate `await` through the service layer.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness probe — pod restart signal
-- Readiness probe — load balancer exclusion
-- SQL down — dependency failure, not pod failure
-
-**Answer**
-
-A failed liveness probe causes Kubernetes to restart the pod. SQL being down cannot be healed by restarting the app. The SQL check belongs on the readiness probe.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- N+1 query problem — one SQL per row for related data
-- DTO projection — single JOIN query
-- `Include` / `ThenInclude` — eager load
-
-**Answer**
-
-Serializing entities with lazy-loaded navigations triggers one SQL query per row. I project directly to DTOs in LINQ for a single query, or use `Include`/`ThenInclude` for explicit eager loads.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination — shifts on concurrent mutations
-- Keyset pagination — stable cursor on indexed key
-- Cursor tokens in response metadata
-
-**Answer**
-
-`Skip`/`Take` shifts when rows are inserted or deleted concurrently. Keyset pagination anchors on the last seen key — `WHERE id > @lastId ORDER BY id LIMIT @pageSize` — which is stable under concurrent mutations.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers — per-parent-row execution by default
-- DataLoader — batches sub-queries within a request
-- HotChocolate DataLoader registration in DI
-
-**Answer**
-
-Field resolvers in HotChocolate execute per parent row. DataLoader collects all keys within a request phase and dispatches one batched query. I register DataLoader classes scoped to the request.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC — HTTP/2 binary framing inaccessible to browsers
-- gRPC-Web — browser-compatible translation
-- `AddGrpcWeb()` / `EnableGrpcWeb()` and CORS
-
-**Answer**
-
-Browsers cannot access native gRPC's HTTP/2 framing. gRPC-Web wraps messages in a format browsers can use via Fetch, enabled by `AddGrpcWeb()` and `EnableGrpcWeb()`. Cross-origin calls also need CORS configured.
+Browser-based gRPC clients using gRPC-Web generate preflight requests with gRPC-specific headers (`grpc-status`, `grpc-message`, `grpc-encoding`) that the CORS policy must explicitly allow. A REST-oriented CORS policy allowing only `Content-Type` and `Authorization` blocks gRPC-Web preflights even when the origin is allowed. I add the gRPC headers to `WithHeaders(...)` in the CORS policy, call `app.UseGrpcWeb()` after `UseCors()` but before `MapGrpcService()`, and call `.EnableGrpcWeb()` on each mapped service. The gRPC-Web CORS requirements are distinct from REST and must be configured alongside, not instead of, any existing REST CORS policy.
 
 ---
 

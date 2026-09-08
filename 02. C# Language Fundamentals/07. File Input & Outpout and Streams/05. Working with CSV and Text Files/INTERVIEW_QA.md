@@ -529,3 +529,147 @@ public string BuildCsvRow(InventoryItem item)
         item.UnitPrice.ToString("F2", CultureInfo.InvariantCulture));
 }
 ```
+
+## Gotchas — Working with CSV & Text Files (Interview Traps)
+
+---
+
+#### Gotcha 1. Manual CSV Parsing Breaks on Quoted Fields Containing Commas
+
+**Concepts**
+- RFC 4180 allows a field to contain commas if the field is wrapped in double quotes: `"Smith, Jr."`
+- `line.Split(',')` treats every comma as a delimiter, splitting the quoted field incorrectly
+- A compliant CSV parser must track whether it is inside a quoted field before treating a comma as a delimiter
+- Libraries like CsvHelper, Sylvan.Data.Csv, or `Microsoft.VisualBasic.FileIO.TextFieldParser` handle quoting correctly
+
+**Answer**
+
+`"John","Smith, Jr.","New York"` has three fields, but `line.Split(',')` produces four tokens: `"John"`, `"Smith"`, ` Jr."`, `"New York"`. The field `"Smith, Jr."` is silently split on its internal comma. Hand-rolling a parser that correctly handles quoting, escaped quotes (`""`), and newlines within quoted fields is non-trivial. For any CSV that may contain complex content, use a library that implements RFC 4180 compliance rather than a naive `Split`.
+
+---
+
+#### Gotcha 2. `string.Split(',')` Does Not Handle Escaped Quotes, Embedded Newlines, or RFC 4180
+
+**Concepts**
+- RFC 4180 allows `""` inside a quoted field to represent a literal double-quote character
+- A field may span multiple lines if it is wrapped in double quotes — `Split` on lines would break this
+- `string.Split(',')` has no concept of quoting context or escape sequences
+- Even well-formed CSV from Excel or database exports will break under `Split` if any cell has special characters
+
+**Answer**
+
+`string.Split(',')` is a text-splitting function with no knowledge of CSV quoting semantics. Fields containing `""` for escaped quotes, multiline content within double quotes, or Unicode right-to-left marks will all parse incorrectly. The rule is simple: for any CSV data sourced from humans, databases, or spreadsheet tools, use a dedicated CSV library. `string.Split` is only safe for truly simple, tightly controlled pipe-delimited or comma-delimited data with no quoting requirement.
+
+---
+
+#### Gotcha 3. Line Endings Differ by OS — `ReadAllLines` Handles All, Manual Splitting May Not
+
+**Concepts**
+- Windows uses `\r\n` (CRLF), Unix uses `\n` (LF), and old macOS used `\r` (CR)
+- `File.ReadAllLines` and `StreamReader.ReadLine()` handle all three line endings automatically
+- `text.Split('\n')` leaves a trailing `\r` at the end of each line on Windows-generated files
+- `text.Split(new[]{"\r\n","\n","\r"}, StringSplitOptions.None)` is the manual multi-OS split
+
+**Answer**
+
+`fileContent.Split('\n')` on a Windows-produced file (CRLF line endings) leaves a `\r` at the end of every line, causing `"Name\r"` to not equal `"Name"` in comparisons. `File.ReadAllLines` strips all three line-ending styles correctly. When processing raw file content as a string, use `text.Split(new[]{ "\r\n", "\n", "\r" }, StringSplitOptions.None)` in that priority order to handle all OS line endings without spurious trailing characters.
+
+---
+
+#### Gotcha 4. BOM in UTF-8 Files — Hidden Character at the Start of the First Field
+
+**Concepts**
+- UTF-8 with BOM starts with bytes `EF BB BF`, which decode to the Unicode character `﻿`
+- When read by `StreamReader` without BOM detection, this character appears as the first character of the file
+- The first field of a BOM CSV file becomes `"﻿FieldName"` which does not equal `"FieldName"`
+- `new StreamReader(path, detectEncodingFromByteOrderMarks: true)` silently strips the BOM
+
+**Answer**
+
+A CSV exported from Excel as UTF-8 typically includes a BOM. If the file is opened with `new StreamReader(path, Encoding.UTF8)` (no BOM detection), the first field header becomes `"﻿Id"` — a string that looks correct when printed (the BOM is invisible) but fails equality checks (`header == "Id"` is `false`). Open with `new StreamReader(path, detectEncodingFromByteOrderMarks: true)` or use `Encoding.UTF8` (which includes BOM detection) rather than `new UTF8Encoding(false)` (which does not).
+
+---
+
+#### Gotcha 5. Empty Fields vs Missing Fields — `"a,,b"` Has an Empty Second Field
+
+**Concepts**
+- `"a,,b"`.Split(',')` returns `{ "a", "", "b" }` — three fields where the second is an empty string
+- An empty field and an absent field have different semantics: empty string vs null
+- Trimming the split results converts `""` to `""` (no change) but `"  "` (whitespace) to `""` — losing the distinction
+- Validate that the row has the expected column count before accessing by index
+
+**Answer**
+
+`"a,,b"` contains three fields: `"a"`, `""` (empty), and `"b"`. After splitting, code that only checks `if (fields[1].Length > 0)` treats empty and absent as the same thing, which may be semantically wrong — a blank name field and a missing name field can mean different things in a data import. Preserve the empty string and distinguish it from a missing column (wrong field count) through explicit validation of `fields.Length` before accessing individual columns.
+
+---
+
+#### Gotcha 6. Column Count Validation — CSV Rows May Have Fewer or More Columns Than the Header
+
+**Concepts**
+- A malformed CSV row may have trailing commas (extra empty columns) or be truncated (missing columns)
+- Accessing `fields[5]` without checking `fields.Length >= 6` throws `IndexOutOfRangeException`
+- Always validate row column count against the expected schema and log or skip non-conforming rows
+- Some valid CSV dialects allow the last column to be empty, producing a trailing delimiter
+
+**Answer**
+
+`var name = fields[2]` throws `IndexOutOfRangeException` if the row has only two fields. Robust CSV import code validates each row: `if (fields.Length != expectedColumnCount) { LogSkipped(lineNumber, line); continue; }`. For production importers, collect all malformed rows and report them together rather than aborting on the first bad row. Libraries like CsvHelper provide built-in error handling and skipping for malformed rows.
+
+---
+
+#### Gotcha 7. Numeric Fields With Locale-Specific Separators — Use `CultureInfo.InvariantCulture`
+
+**Concepts**
+- European locales use `,` as the decimal separator and `.` as the thousands separator: `1.234,56`
+- US/UK locales use `.` as the decimal separator and `,` as the thousands separator: `1,234.56`
+- `double.Parse("1,234.56")` on a European system parses as `1234.56` (the comma is the thousands sep) or throws
+- Always use `double.Parse(s, CultureInfo.InvariantCulture)` for CSV data to get consistent `.` decimal parsing
+
+**Answer**
+
+`decimal.Parse("1234.56")` succeeds on a US system but `decimal.Parse("1234,56")` from a European CSV fails unless the current thread culture is European. The safe practice is always `decimal.Parse(field, CultureInfo.InvariantCulture)` which uses `.` as the decimal separator regardless of the machine's locale. When writing numeric values to CSV, always use `value.ToString(CultureInfo.InvariantCulture)` to produce `.`-separated decimals that any reader can parse reliably.
+
+---
+
+#### Gotcha 8. Large CSV Files — `ReadAllLines` Loads Everything Into Memory; Use `StreamReader.ReadLine()` Instead
+
+**Concepts**
+- `File.ReadAllLines` returns a `string[]` containing every line — a 2 GB CSV allocates a 2 GB array
+- `File.ReadLines` returns a lazy `IEnumerable<string>` that reads one line at a time
+- `StreamReader.ReadLine()` in a loop is the explicit equivalent for row-by-row streaming processing
+- Process and discard each row before reading the next to keep memory constant regardless of file size
+
+**Answer**
+
+`File.ReadAllLines("export.csv")` on a 500 MB file allocates both the byte buffer and the `string[]` array on the large object heap, typically triggering full GC pauses. `File.ReadLines("export.csv")` or an explicit `StreamReader.ReadLine()` loop reads and processes one line at a time, keeping memory proportional to one row rather than the entire file. For streaming CSV import, process and insert each batch of rows into the database before reading the next batch.
+
+---
+
+#### Gotcha 9. Writing CSV With `string.Join(",", fields)` — Must Escape Fields Containing Commas or Quotes
+
+**Concepts**
+- `string.Join(",", fields)` produces incorrect output when any field contains a comma or double-quote
+- A field with a comma must be wrapped in double quotes: `"Smith, Jr."` becomes `"\"Smith, Jr.\""`
+- A field containing a double-quote must escape it as `""`: `He said "hello"` becomes `"He said ""hello"""`
+- Always apply RFC 4180 escaping to every field before joining, or use a library
+
+**Answer**
+
+`string.Join(",", new[]{"John","Smith, Jr.","New York"})` produces `John,Smith, Jr.,New York` — the second field is unquoted despite containing a comma, making the output unparseable by standard readers. Correct CSV writing requires an escape function: any field containing a comma, double quote, or newline must be wrapped in double quotes, with internal double quotes doubled. Use a library for production code; hand-rolling the escape function is error-prone and underspecified by most requirements documents.
+
+---
+
+#### Gotcha 10. Encoding Mismatch When Reading and Writing — Always Specify Encoding Explicitly
+
+**Concepts**
+- The default encoding for `File.WriteAllText` and `StreamWriter` is UTF-8 without BOM (since .NET Core)
+- The default encoding for `File.ReadAllText` is UTF-8 with BOM detection
+- If a file is written with one encoding (e.g., UTF-16) and read with another (UTF-8), the content is garbled or throws
+- Cross-platform files shared with Linux tools or older Windows applications should be UTF-8 without BOM
+
+**Answer**
+
+UTF-8 without BOM is the safest encoding for CSV files shared between platforms: it is the default for most Linux tools (`awk`, `sed`, Python), compatible with modern Excel when opened as UTF-8, and avoids the hidden BOM character that confuses field parsing. Explicitly specify the encoding on both the writer and reader: `new StreamWriter(path, append: false, Encoding.UTF8)` and `new StreamReader(path, Encoding.UTF8)`. Never rely on implicit defaults — they differ between .NET Framework (UTF-8 with BOM) and .NET Core (UTF-8 without BOM).
+
+---

@@ -207,52 +207,156 @@ An anemic domain model is one where domain entities are plain data containers wi
 
 ---
 
-## Gotcha Questions
+## Gotchas — Encapsulation & Access Modifiers (Interview Traps)
 
 ---
 
-## Q13. A `BankAccount` has `public decimal Balance { get; set; }`. A support script sets `account.Balance = -10000m`. Why is this an encapsulation failure, and what is the minimal fix?
+#### Gotcha 1. public set allows any caller to violate business invariants — always gate mutations through methods
 
 **Concepts**
-- Public `set` exposes raw state mutation
-- Bypasses business rule (non-negative balance)
-- Fix: `private set` or init-only, expose controlled methods
-- Invariant enforcement at boundary
-- Thread safety secondary issue
+- Public setter = unguarded state mutation entry point
+- Any code can assign invalid values
+- Invariant enforcement disappears
+- `private set` + domain methods is the fix
+- `init` for immutable post-construction
 
 **Answer**
 
-`public decimal Balance { get; set; }` allows any code in the application to write any value to `Balance`, including negative amounts that violate the domain rule that a bank balance must always be non-negative. This is an encapsulation failure: the invariant is asserted nowhere because there is no gatekeeper. The minimal fix is `public decimal Balance { get; private set; }` combined with explicit mutation methods `Deposit(decimal)` and `TryWithdraw(decimal)` that validate their arguments before updating `_balance`. For full immutability from external code, `{ get; init; }` prevents post-construction writes except through object initializers. The support script that previously did `account.Balance = -10000m` must now use the proper method or be replaced with an audited `OverrideBalance(decimal)` method that requires elevated authorization and logs the change. Every path through which `Balance` can change is now explicit, validated, and auditable.
+A property with `public set` lets any code assign any value without constraint. Business rules (non-negative balance, valid email format) that belong to the class cannot be enforced because the setter has no validation logic and any caller bypasses whatever methods you wrote. Change to `private set` and expose controlled mutation methods that validate before writing the backing field.
 
 ---
 
-## Q14. An `internal class InternalLedger` is returned from a `public static` method. Why does this break the assembly boundary?
+#### Gotcha 2. protected fields in a base class can be directly mutated by derived classes, bypassing base invariants
 
 **Concepts**
-- Returning an `internal` type from a `public` method exposes it via reflection
-- Consumers cannot declare the type in their code but can use it at runtime
-- API design flaw — public surface should use only public types
-- CS0051 compiler error in stricter scenarios
-- Fix: expose through a public interface or redesign the return type
+- `protected` is accessible from any derived class
+- Derived class can read/write without calling base methods
+- Validation logic in base methods is bypassed silently
+- Make fields `private`, expose `protected virtual` methods
+- Template Method Pattern enforces invariants structurally
 
 **Answer**
 
-A `public static CreateLedger()` returning `InternalLedger` creates a contradiction: the method is publicly visible, so any consuming assembly can call it and receive the object at runtime, but they cannot name the type in their own source code. Depending on whether the compiler catches this (CS0051 is raised when a public method's return type is less accessible), the consuming assembly receives an anonymous-typed reference. They can pass it to other methods in your library that accept it, but they cannot declare a variable of that type, use it with `is`, or reflect on it predictably. This destroys the value of `internal` as an access barrier and makes the public API opaque and unusable. The fix is to return a public interface (`ILedger`) or abstract class that `InternalLedger` implements, keeping the concrete type internal while the abstraction is public. The public surface then communicates the intended contract cleanly.
+`protected` fields are accessible in every derived class. A derived class can assign a protected field directly, bypassing the base class's validation or audit-logging methods entirely. Make the fields `private` in the base class and provide `protected virtual` mutation methods that enforce invariants — derived classes call the method, not the field.
 
 ---
 
-## Q15. A `CommissionEmployee` subclass directly mutates `protected decimal _baseSalary` and clears `protected List<string> _auditTrail`. What invariants are broken, and how do you prevent this?
+#### Gotcha 3. internal type returned from a public method leaks the type across the assembly boundary
 
 **Concepts**
-- Protected field accessible from derived class bypasses base methods
-- `ApplyRaise` validation and audit logging not called
-- History erased — silent data loss
-- Fix: make fields `private`, expose `protected virtual` methods
-- Template Method Pattern for structured extension
+- Public API should expose only public types
+- CS0051 when return type is less accessible
+- Runtime use possible even when source-level naming is blocked
+- Fix: return a public interface or public abstract type
+- `InternalsVisibleTo` as a test-access mechanism (not a fix)
 
 **Answer**
 
-`CommissionEmployee.SetGuaranteedMinimum(decimal minimum)` assigns `_baseSalary = minimum` directly, bypassing `ApplyRaise`'s validation (which requires positive percent) and its audit trail entry. More critically, it calls `_auditTrail.Clear()`, erasing all historical records of the employee's salary changes. From an HR compliance perspective, this is catastrophic — the history that must be retained for regulatory reporting is gone. Since `_baseSalary` and `_auditTrail` are `protected`, the compiler does not prevent this access. The fix is to make both fields `private` in `Employee` and add a `protected virtual void SetBaseSalaryDirect(decimal newSalary, string reason)` method that validates the value, appends an audit entry with the reason, and updates the private field. `CommissionEmployee` calls this protected method, which enforces the invariants consistently, and the audit trail is always updated. The private field cannot be bypassed, and the protected method is the only structured access point for derived types.
+Returning an `internal` type from a `public` method means external assemblies can receive the object at runtime but cannot name or declare the type in their source code. The C# compiler raises CS0051 in some configurations; in others it emits a warning. The API becomes opaque and unusable to external consumers. Always return public interfaces or public abstract types from public methods.
+
+---
+
+#### Gotcha 4. private protected combines private and protected — accessible only in the same assembly AND derived classes
+
+**Concepts**
+- `private protected` = intersection of `private` and `protected`
+- Not accessible in derived classes in other assemblies
+- More restrictive than `protected internal`
+- Useful for sealed-down extensibility within a library
+- C# 7.2 addition
+
+**Answer**
+
+`private protected` means the member is accessible only to derived classes in the same assembly. A derived class in an external assembly cannot see it, unlike `protected` which crosses assembly boundaries. This allows a library to define extensibility hooks available only to internal implementation types, without exposing them to consumers.
+
+---
+
+#### Gotcha 5. internal access modifier does not protect against reflection — all members are reachable at runtime
+
+**Concepts**
+- `internal` hides from source-level usage in other assemblies
+- Reflection ignores access modifiers with `BindingFlags.NonPublic`
+- Security cannot rely on `internal`
+- Real protection: sealing, obfuscation, or runtime checks
+- `InternalsVisibleTo` exposes to named assemblies
+
+**Answer**
+
+`internal` access control is a compile-time source-level restriction. Any code with sufficient trust can use reflection with `BindingFlags.NonPublic | BindingFlags.Instance` to read or write internal members at runtime. Access modifiers are encapsulation for maintainability and API clarity — they are not a security mechanism. Never depend on `internal` to protect secrets or sensitive state at runtime.
+
+---
+
+#### Gotcha 6. private field with public getter and no setter is not the same as readonly — it can be changed by internal methods
+
+**Concepts**
+- `readonly` field cannot be written after construction
+- `private set` property allows class methods to change value
+- `{ get; }` auto-property with init-only is truly immutable post-ctor
+- Thread safety differences
+- Choosing the right immutability level
+
+**Answer**
+
+`public string Name { get; private set; }` allows internal methods to call the setter at any time after construction. `public string Name { get; }` with a backing `readonly` field set in the constructor prevents all post-construction mutation, even from within the class. Choose based on whether post-construction mutation from within the class is needed or should be prevented.
+
+---
+
+#### Gotcha 7. file access modifier (C# 11) restricts a type to the declaring source file — not just the assembly
+
+**Concepts**
+- `file` scoped to the source file
+- More restrictive than `private` for top-level types
+- Useful for source-generator helper types
+- Cannot be used on members — only on top-level types
+- Not the same as `internal`
+
+**Answer**
+
+The `file` access modifier introduced in C# 11 restricts a top-level type to the source file that declares it. No other file in the same assembly can reference it. This is more restrictive than `internal` and was designed primarily for source generators that need to emit helper types without name-collision risk. It cannot be applied to members inside a class.
+
+---
+
+#### Gotcha 8. Exposing IReadOnlyList<T> instead of List<T> still allows callers to cast and mutate if the backing collection is the same instance
+
+**Concepts**
+- Interface cast strips the restriction at compile time
+- Caller can cast `IReadOnlyList<T>` to `List<T>` if the actual object is a `List<T>`
+- Use `AsReadOnly()` or return an immutable copy
+- `ImmutableList<T>` or `ReadOnlyCollection<T>` for genuine immutability
+
+**Answer**
+
+Returning `IReadOnlyList<T>` prevents direct call to `Add` or `Remove` through that reference, but if the underlying object is still a `List<T>`, any caller can cast it and mutate it: `((List<T>)readOnly).Clear()`. To prevent this, return `list.AsReadOnly()` (which wraps in `ReadOnlyCollection<T>`) or `list.ToImmutableList()` so the actual runtime object does not support mutation.
+
+---
+
+#### Gotcha 9. InternalsVisibleTo grants ALL internal members to the friend assembly — not just specific ones
+
+**Concepts**
+- No fine-grained control over which internals are visible
+- Friend assembly sees every `internal` member
+- Strong-name signing required for signed assemblies
+- Over-exposes implementation details to test project
+- Prefer seams via interfaces + DI for testability
+
+**Answer**
+
+`[assembly: InternalsVisibleTo("MyApp.Tests")]` opens all `internal` members of the assembly to the test project — there is no way to share only a subset. Over time this creates tight coupling between tests and implementation details, making refactoring harder. Prefer designing public interfaces and DI injection points so tests use the public API, and reserve `InternalsVisibleTo` for types that genuinely cannot be tested any other way.
+
+---
+
+#### Gotcha 10. protected internal means OR — accessible from derived classes OR from the same assembly, not both required
+
+**Concepts**
+- `protected internal` = union of `protected` and `internal`
+- Same assembly OR derived class (in any assembly) can access
+- Wider than either modifier alone
+- `private protected` is the AND (intersection) variant
+- Confusing naming in the language spec
+
+**Answer**
+
+`protected internal` is the union of the two modifiers: the member is accessible to code in the same assembly (internal) and also to derived classes in other assemblies (protected). This is wider than either modifier individually. If you want the intersection — same assembly AND derived class — use `private protected` instead.
 
 ---
 

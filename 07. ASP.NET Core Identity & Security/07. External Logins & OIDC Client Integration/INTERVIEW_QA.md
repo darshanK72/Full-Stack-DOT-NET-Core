@@ -535,3 +535,68 @@ If the `CallbackPath` in `AddOpenIdConnect` options does not exactly match the r
 `SaveTokens = true` serializes access tokens, refresh tokens, and ID tokens into the authentication cookie, which is sent with every request; because cookies have a 4 KB browser-imposed size limit and access tokens from providers like Azure AD can be several kilobytes, this can cause cookie overflow errors or silently truncated cookies that fail to deserialize. A truncated authentication cookie causes `AuthenticateResult.Failure` on every subsequent request, effectively locking the user out of the application with no obvious error message — the user appears to be authenticated (they have a cookie) but every protected page fails. The correct production model for applications that need tokens is to store them server-side, in a distributed cache or database keyed by a session identifier, and pass only the session key in the cookie. If `SaveTokens` must be used, enabling cookie chunking via `ChunkingCookieManager` splits large cookies across multiple cookie headers, though this is a workaround rather than a proper solution and still has a practical upper limit based on the number of headers the browser will accept.
 
 ---
+
+#### Gotcha 6. Correlation Cookie Expires Quickly — Long Auth Flows Fail With a Correlation Error
+
+**Concepts**
+- Correlation cookie storing the state/nonce pair, expiring in ~15 minutes by default
+- User leaving the browser idle before completing provider consent — correlation error on return
+- `CorrelationExpiry` and `RemoteAuthenticationOptions.CorrelationCookie` tuning
+
+**Answer**
+
+When `AddOpenIdConnect` redirects the user to the external provider, it stores a short-lived correlation cookie that holds the state and nonce for the pending request. If the user takes too long to complete consent at the provider — for instance, they are prompted to create an account, verify their email, or simply leave the browser idle — the correlation cookie expires before the provider redirects back, and the middleware returns "Correlation failed" with no token. This is not a provider error; it is a client-side timeout. The expiry is controlled by `RemoteAuthenticationOptions.CorrelationCookie.Expiration` (default ~15 minutes). For flows involving multi-step provider onboarding, extending this window reduces the failure rate; but the window should not be made too long, as a valid state/nonce pair could be replayed within the window.
+
+---
+
+#### Gotcha 7. `GetExternalLoginInfoAsync` Returns `null` When Called Outside the Callback Path
+
+**Concepts**
+- `GetExternalLoginInfoAsync` reading the temporary `Identity.External` cookie
+- External cookie only present immediately after the provider redirects back to `CallbackPath`
+- Calling after a redirect away from the callback URL loses the cookie
+
+**Answer**
+
+`SignInManager.GetExternalLoginInfoAsync()` reads the temporary `Identity.External` cookie that is written immediately after the provider's redirect and deleted once read. This method must be called within the same HTTP request (or an immediate post-redirect-get) that handles the external provider callback at `CallbackPath`. If the application redirects to another page before calling `GetExternalLoginInfoAsync` — for example, to display a registration form — the cookie is lost and the method returns `null`. The pattern for new-user registration flows is to store the `ExternalLoginInfo` in `TempData` or to pass the provider, key, and any required claims as form fields into the registration page, because the external cookie will not survive an additional redirect.
+
+---
+
+#### Gotcha 8. Multiple OIDC Providers Sharing the Same `SignedOutCallbackPath` Causes Sign-Out Conflicts
+
+**Concepts**
+- `SignedOutCallbackPath` must be unique per OIDC scheme
+- Last registered handler claiming the callback and silently dropping other providers' post-logout redirects
+- `options.SignedOutCallbackPath = "/signout-callback-<provider>"` as the correct pattern
+
+**Answer**
+
+When multiple `AddOpenIdConnect` registrations are present in the same application, each handler's `SignedOutCallbackPath` defaults to `/signout-callback-oidc`. The first handler that matches the path claims the callback; other providers' post-logout redirects are processed by the wrong handler and silently fail — the user is redirected to an unexpected page, or the sign-out sequence loops. The fix is to set a unique `SignedOutCallbackPath` for each OIDC provider: for example, `/signout-callback-aad` for Azure AD and `/signout-callback-github` for GitHub. The same uniqueness rule applies to `CallbackPath` and `RemoteSignOutPath` when multiple providers are registered.
+
+---
+
+#### Gotcha 9. `ClaimActions.MapUniqueJsonKey` Silently Drops Duplicate Claim Types
+
+**Concepts**
+- `MapUniqueJsonKey` mapping a JSON property to a claim type only if the claim type is not already present
+- First claim wins — subsequent providers or mappers for the same type have no effect
+- `MapJsonKey` (non-unique) adding duplicate claims — both overloads exist for different use cases
+
+**Answer**
+
+`ClaimActions.MapUniqueJsonKey` is the default mapping method in most OIDC provider configurations — it adds the claim only if the claim type is not already present in the identity. This means that if the identity already carries a `name` claim from a prior mapping step (for example, from the standard OIDC claims), a custom `MapUniqueJsonKey("name", "display_name")` will silently have no effect, leaving the original value intact. Developers who expect their custom mapping to override an existing claim value must use `MapJsonKey` (which always adds, potentially duplicating the claim) combined with a prior `DeleteClaim` call to remove the old value, or they must restructure the mapping order so the desired source is mapped first.
+
+---
+
+#### Gotcha 10. Nonce Validation Fails in Browsers That Block Third-Party Cookies (ITP / Safari)
+
+**Concepts**
+- Nonce stored in a same-site cookie — blocked by ITP in cross-site redirect scenarios
+- OIDC library throwing "nonce could not be validated" with no obvious browser link
+- `OpenIdConnectOptions.ProtocolValidator.RequireNonce = false` as a workaround with trade-offs
+
+**Answer**
+
+The ASP.NET Core OIDC middleware stores the nonce value in a short-lived correlation cookie before redirecting to the authorization server. When the provider redirects back, the middleware reads the cookie to validate the nonce embedded in the ID Token. In browsers with Intelligent Tracking Prevention (Safari ITP, Firefox Enhanced Tracking Protection) or when the callback URL is considered cross-site, the correlation cookie may be blocked, causing nonce validation to fail with a cryptic error. This is most common in iFrame-embedded flows, pop-up flows, and scenarios where the provider redirect crosses a subdomain boundary. Mitigations include using the same registered domain for the application and the callback, switching to a server-side PKCE state store instead of cookies, or (accepting reduced replay protection) setting `ProtocolValidator.RequireNonce = false` when the browser environment cannot reliably persist first-party cookies through a redirect.
+
+---

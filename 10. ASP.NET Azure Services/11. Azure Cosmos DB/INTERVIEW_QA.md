@@ -488,3 +488,147 @@ Production ASP.NET Core apps on Azure should prefer Microsoft Entra ID authentic
 Teams often assume Cosmos DB behaves like SQL Server with horizontal scale, but it is a partition-key-addressed document store with Request Unit billing and limited cross-partition transactional guarantees. Porting normalized schemas, ad hoc join queries, and identity-column patterns without redesign leads to high RU bills, throttling, and data modeling friction. Relational normalization across many tables with foreign keys must become embedding, denormalization, or application-level composition — there is no cheap equivalent to multi-table joins inside Cosmos DB. Every query that omits the partition key may fan out to all partitions; a SQL Server table scan on a moderate table is not comparable in cost or latency at Cosmos scale. Multi-document ACID transactions exist within a single partition key value but not globally across arbitrary documents the way a SQL Server transaction spans rows in many tables. Success requires upfront partition key design, indexing policy tuning, and consistency level choice — treat migration as a data model project, not a connection string swap.
 
 ---
+
+## Gotchas — Azure Cosmos DB (Interview Traps)
+
+---
+
+#### Gotcha 1. Partition key choice is irreversible — a bad partition key requires a full data migration to fix
+
+**Concepts**
+- Partition key is defined at container creation and cannot be changed
+- Low-cardinality partition keys create hot partitions and throttle specific physical partitions
+- High-cardinality keys with uniform write distribution are the goal
+- Hierarchical partition keys (up to 3 levels) are available for fine-grained partitioning
+
+**Answer**
+
+The partition key defined when a Cosmos DB container is created is permanent; changing it requires exporting all data, deleting the container, recreating it with a new partition key, and reimporting data. A partition key with low cardinality (for example `status` with values "active" or "inactive") concentrates writes and reads on a small number of physical partitions, causing those partitions to hit their RU and storage limits while others are idle — a hot partition that results in throttling (429 errors) that cannot be fixed without migration. Choosing a partition key with high cardinality and uniform distribution is the single most consequential design decision in a Cosmos DB schema and must be correct before the first document is written.
+
+---
+
+#### Gotcha 2. RU underestimation causes 429 throttling — document size and query complexity determine actual RU cost
+
+**Concepts**
+- Every operation (read, write, query) consumes RUs based on document size, index usage, and query fan-out
+- Provisioned RUs are the maximum; exceeding them causes HTTP 429 with a retry-after header
+- A read of a 1 KB document costs ~1 RU; a complex cross-partition query can cost hundreds
+- Autoscale provisions up to the maximum but charges for the max even if briefly used
+
+**Answer**
+
+Cosmos DB charges RUs for every database operation. A document read costs 1 RU per kilobyte; a write costs 5× more; a cross-partition query that touches all partitions can cost hundreds or thousands of RUs. Developers who provision RUs based on simple point-read estimates discover that complex analytical queries or large document writes rapidly exhaust the budget and cause 429 errors. The Cosmos DB SDK's `RequestCharge` property on the response returns the actual RU cost of each operation, which must be profiled against production-realistic data and query patterns before Go-Live. Autoscale helps absorb spikes but bills for the peak RU reached during a billing interval.
+
+---
+
+#### Gotcha 3. Cross-partition queries fan out to all partitions — they are expensive and slow even without results
+
+**Concepts**
+- A query without a partition key filter executes on every physical partition in parallel
+- The fan-out cost in RUs scales with the number of partitions regardless of result count
+- An empty result cross-partition query still consumes significant RUs
+- Index policies must be designed to support the most frequent query patterns
+
+**Answer**
+
+When a Cosmos DB query does not include the partition key in the filter clause, the Cosmos DB engine fans the query out to all physical partitions and aggregates the results. A container with 50 physical partitions executes the query 50 times in parallel, consuming at minimum 50× the RU cost of a single-partition query. This is true even if the query returns zero results: the fan-out cost is paid regardless. An `ORDER BY` or `DISTINCT` on a cross-partition query adds additional coordination overhead. All high-frequency query patterns must include the partition key in the `WHERE` clause; analytical cross-partition queries should run against Cosmos DB Analytical Store or be exported to a dedicated analytics service.
+
+---
+
+#### Gotcha 4. Cosmos DB SQL API is not ANSI SQL — joins are intra-document only and GROUP BY has restrictions
+
+**Concepts**
+- Cosmos DB SQL API uses a SQL-like syntax but with fundamentally different semantics
+- `JOIN` flattens nested arrays within a single document; it does not join across documents
+- `GROUP BY` is supported but cannot be used with all aggregate functions in all scenarios
+- Queries that work in a relational database require schema redesign for Cosmos DB
+
+**Answer**
+
+Cosmos DB's SQL API surface looks like SQL but behaves differently from a relational database. `JOIN` in Cosmos DB is an intra-document operation: it flattens a nested array inside a document so each array item can be addressed as a row — it does not join two separate containers or documents. Developers who expect `JOIN` to combine data from multiple Cosmos DB containers receive a query error, because cross-document relational joins do not exist in Cosmos DB. Data that requires cross-entity aggregation must be denormalized into a single document or processed in application code after separate reads, which requires schema rethinking before the first container is created.
+
+---
+
+#### Gotcha 5. Optimistic concurrency using ETag requires explicit IfMatchEtag — read-modify-write without ETag silently overwrites concurrent changes
+
+**Concepts**
+- Each document has an `_etag` property updated on every write
+- `ItemRequestOptions.IfMatchEtag` submits the conditional write; a mismatch returns 412
+- Omitting `IfMatchEtag` performs an unconditional overwrite that loses concurrent changes
+- ETag-based concurrency must be implemented at the application layer explicitly
+
+**Answer**
+
+Cosmos DB supports optimistic concurrency control via the `_etag` property: each document update modifies the ETag, and a conditional write (`IfMatchEtag`) instructs Cosmos DB to reject the write with HTTP 412 Precondition Failed if the document was modified since the ETag was read. Without setting `IfMatchEtag` in `ItemRequestOptions`, `ReplaceItemAsync` and `UpsertItemAsync` perform unconditional overwrites, silently discarding any changes made by concurrent writers between the read and the write. This is a lost-update race condition that is invisible during single-client testing and surfaces only under concurrent production load.
+
+---
+
+#### Gotcha 6. Change feed delivers events at-least-once — processors must be idempotent for reliable behavior
+
+**Concepts**
+- Change feed guarantees at-least-once delivery; the same change can appear twice on failover
+- Change feed processors use a lease container to track progress; lease loss causes reprocessing
+- An idempotent handler uses the document ID and `_etag` to detect and skip already-processed changes
+- Exactly-once delivery requires an external deduplication mechanism
+
+**Answer**
+
+The Cosmos DB change feed processor guarantees at-least-once delivery: on lease rebalancing, failover, or processor restart, events that were dispatched but not committed to the lease may be redelivered. A handler that performs non-idempotent operations (inserting a row into SQL on each event) will create duplicate rows on redelivery. Change feed processors must either check whether an operation has already been applied (by storing a processed document version in a side table) or use Cosmos DB's transactional batch to atomically write the side effect and update the lease, ensuring each change is applied exactly once.
+
+---
+
+#### Gotcha 7. TTL set on a container applies to all documents — documents with ttl: -1 override to never-expire but unexpected documents expire too
+
+**Concepts**
+- Container-level TTL sets a default expiry for all documents that do not have their own `"ttl"` property
+- Documents with `"ttl": -1` explicitly never expire regardless of the container default
+- Documents with no `"ttl"` property inherit the container default and expire silently
+- A container TTL of 3600 (1 hour) accidentally expires long-lived reference data
+
+**Answer**
+
+Cosmos DB TTL (Time to Live) works at two levels: a container-level default and a per-document override. When a container-level TTL is set (for example 3600 seconds), every document that does not have its own `"ttl"` property will expire after 3600 seconds from last modification. This causes silent data loss if reference data, configuration documents, or seed data are stored in the same container without an explicit `"ttl": -1` override to prevent expiry. A partial deployment that adds a container TTL without adding `"ttl": -1` to all existing permanent documents will delete them silently after the TTL elapses.
+
+---
+
+#### Gotcha 8. Cosmos DB Serverless tier has a 50 GB container limit — workloads that grow beyond this require recreation
+
+**Concepts**
+- Serverless containers cap at 50 GB total storage
+- Serverless does not support autoscale or dedicated provisioned RUs
+- Migrating from serverless to provisioned throughput requires exporting and reimporting data
+- Serverless is intended for development, testing, and low-traffic workloads
+
+**Answer**
+
+Azure Cosmos DB Serverless tier is billed per RU consumed with no minimum, which makes it attractive for low-traffic or development workloads. However, serverless containers are capped at 50 GB of storage. A production workload that was started on serverless and grows past 50 GB hits a hard wall that requires migrating to a provisioned throughput container, which involves exporting all documents, recreating the container with provisioned RUs, and reimporting the data. Choosing serverless for any workload with uncertain or growing data volume without a migration plan creates a future emergency.
+
+---
+
+#### Gotcha 9. CosmosClient is a singleton — instantiating it per request causes connection exhaustion and severe latency
+
+**Concepts**
+- `CosmosClient` maintains a connection pool of persistent TCP (direct mode) or HTTPS connections
+- Creating a new instance per request initializes a new connection pool each time
+- Connection pool initialization takes hundreds of milliseconds per new client
+- Register `CosmosClient` as a singleton with `AddCosmosClient()` or manual singleton registration
+
+**Answer**
+
+`CosmosClient` is designed to be a long-lived singleton. It maintains a pool of persistent connections to Cosmos DB backends; in direct mode these are TCP connections that take 300–500 ms to establish. Creating a new `CosmosClient` per HTTP request incurs this initialization cost on every request, adds memory pressure from multiple live connection pools, and eventually exhausts available ports. `Microsoft.Azure.Cosmos` SDK documentation explicitly states it should be created once per application lifetime. Register it as a singleton using `services.AddSingleton<CosmosClient>()` or the `AddCosmosClient()` extension, and inject the client into service classes.
+
+---
+
+#### Gotcha 10. Session consistency reads-your-own-writes only within the same CosmosClient session token — multi-instance apps break the guarantee
+
+**Concepts**
+- Session consistency uses a per-session token to guarantee monotonic read and read-your-writes
+- The session token is tied to the `CosmosClient` instance that performed the write
+- Multiple App Service instances each have their own `CosmosClient` and session tokens
+- Instance A writes; instance B reads — instance B's client has no session token and may read a stale version
+
+**Answer**
+
+Cosmos DB's default Session consistency level guarantees that within a single session (a single `CosmosClient` instance), you read your own writes and reads are monotonically increasing. Across different `CosmosClient` instances — which occurs naturally when an application scales to multiple App Service instances — there is no such guarantee. A write on instance A is not immediately visible to a read on instance B because instance B's client holds a different session token. Applications that require cross-instance read-your-own-writes must either upgrade to Strong consistency (at higher cost and latency) or propagate the session token from the write response to the read request explicitly across instances.
+
+---

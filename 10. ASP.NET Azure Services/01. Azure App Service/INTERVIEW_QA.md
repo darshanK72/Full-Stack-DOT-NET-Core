@@ -423,3 +423,147 @@ Hardening App Service combines platform configuration with ASP.NET Core security
 I choose App Service when I want the simplest managed hosting for a long-running ASP.NET Core web app or API with minimal container or orchestration overhead, and need built-in deployment slots, custom domains, and autoscale without managing infrastructure. Azure Functions fits short event-driven handlers and webhooks but is a poor primary host for full MVC or Razor Pages applications that expect continuous Kestrel availability and deployment slot workflows. Azure Container Apps suits containerized microservices where you want Kubernetes-style scale-to-zero and Dapr integration without managing a cluster, or when sidecar patterns or custom Linux images with native dependencies are needed. AKS belongs to multi-team platforms that need custom ingress, GPU, service mesh, or complex service topologies — the full orchestration control comes with significant platform engineering overhead. App Service remains the default for teams publishing framework-dependent `dotnet publish` output from Visual Studio or GitHub Actions who do not need Dockerfiles unless container portability is a specific requirement.
 
 ---
+
+## Gotchas — Azure App Service (Interview Traps)
+
+---
+
+#### Gotcha 1. Always On is disabled by default on Basic and below — hosted services silently stop
+
+**Concepts**
+- Always On keeps the worker process alive between requests
+- Free and Shared tiers do not support Always On
+- IHostedService and BackgroundService workers require a persistent process
+- Without Always On the app pool is recycled after ~20 minutes of inactivity
+
+**Answer**
+
+If Always On is disabled, IIS on Windows App Service recycles the worker process after a period of inactivity, which terminates IHostedService and BackgroundService workers and causes timer-driven jobs to stop firing. This trap is invisible in the portal until you notice that scheduled tasks stop running overnight. Always On requires at least the Basic pricing tier; developers who test on Free tier never see the issue because Free tier traffic usually keeps the process alive during testing, but overnight idle in production causes silent failures.
+
+---
+
+#### Gotcha 2. Deployment slot swap sends non-sticky settings to production but not sticky ones — apps mix old and new config
+
+**Concepts**
+- Sticky (slot-specific) settings stay with the slot, not the content
+- Non-sticky settings are swapped together with the deployment
+- Feature flags or third-party API keys stored as non-sticky follow the swap
+- Incorrect stickiness causes production to use a staging-tier secret
+
+**Answer**
+
+When you swap staging to production, all non-sticky application settings travel with the code to production, while sticky settings remain with their respective slot. A common mistake is forgetting to mark a staging-only secret (for example a Stripe test key or a lower-tier database connection) as slot-specific, so after the swap production starts calling the staging payment endpoint. Conversely, marking a setting sticky when it should follow the code means the new app version boots in production with the old production setting, missing a configuration change that the staging validation depended on.
+
+---
+
+#### Gotcha 3. The SCM (Kudu) site shares the same custom domain firewall rules but has no separate IP restriction by default
+
+**Concepts**
+- SCM endpoint is at `<appname>.scm.azurewebsites.net`
+- IP restrictions on the main site do not apply to the SCM site automatically
+- Kudu exposes the file system, debug console, and log stream
+- Unintended public SCM access is a security risk in production
+
+**Answer**
+
+App Service IP access restrictions configured on the main site endpoint do not automatically carry over to the SCM (Advanced Tools / Kudu) endpoint. This means an API with restricted public access still has its Kudu console, environment variable dump, and file system browser open to the internet. You must configure a separate IP restriction rule under the SCM site tab in Access restrictions. Production hardening checklists routinely miss this because testing the main site works correctly, but Kudu remains unguarded until an explicit rule is added.
+
+---
+
+#### Gotcha 4. ARR Affinity cookie breaks stateless horizontal scaling
+
+**Concepts**
+- ARR Affinity routes a client to the same instance via a cookie
+- Stateless APIs should have ARR Affinity disabled
+- Enabled ARR Affinity causes uneven load distribution during autoscale
+- Disabling it requires an explicit portal toggle or ARM property
+
+**Answer**
+
+Application Request Routing Affinity is enabled by default on App Service and pins each client to a single backend instance via a session cookie. For stateless ASP.NET Core APIs this is unnecessary and counterproductive: when autoscale adds instances, existing clients are still routed to their original instance, causing uneven load distribution where some instances are saturated while new ones are idle. It also adds a small cookie overhead to every response. You should disable ARR Affinity for stateless Web APIs and ensure any distributed state (session, cache) lives in Redis or Azure SQL, not in-process.
+
+---
+
+#### Gotcha 5. Connection strings in App Service portal use a different environment variable prefix than app settings
+
+**Concepts**
+- App settings map to `MY__KEY` (double underscore for section separator)
+- Connection strings map to `ConnectionStrings__Name` automatically
+- `GetConnectionString()` reads the `ConnectionStrings:` section, not root config
+- Placing a connection string in the app settings blade instead of connection strings blade changes the key path
+
+**Answer**
+
+App Service exposes two configuration blades: Application Settings and Connection Strings. Values from the Connection Strings blade are injected as `ConnectionStrings__Name` environment variables, which ASP.NET Core `IConfiguration` maps to `ConnectionStrings:Name`, the exact path `GetConnectionString("Name")` reads. If a developer places the connection string in the Application Settings blade instead, the key is `Name` at the root of configuration, and `GetConnectionString("Name")` returns null while `Configuration["Name"]` returns the value — a mismatch that is invisible until you check the blade type at runtime.
+
+---
+
+#### Gotcha 6. Run From Package locks the wwwroot folder — simultaneous deploys and file edits fail silently
+
+**Concepts**
+- `WEBSITE_RUN_FROM_PACKAGE=1` mounts the ZIP as a read-only virtual file system
+- File edits via Kudu console are silently discarded
+- A new deploy replaces the mounted package after a restart
+- Deployment collisions on the same slot fail without a clear error
+
+**Answer**
+
+When `WEBSITE_RUN_FROM_PACKAGE` is enabled, the application files are served from a mounted ZIP package and the `wwwroot` directory is read-only. Any file changes made through the Kudu console or FTP appear to succeed but are lost on the next request because the mounted package overrides them. Additionally, if two deployments race to the same slot the second deploy can fail silently because the package swap requires a restart, which the first deploy's warm-up may not have completed. The fix is to deploy one version at a time and rely on deployment slot swap for zero-downtime releases.
+
+---
+
+#### Gotcha 7. Log Stream only shows stdout/stderr — Application Insights traces are invisible there
+
+**Concepts**
+- Log Stream reads the platform-level stdout and stderr redirected from the process
+- ILogger traces routed to Application Insights do not appear in Log Stream
+- `ASPNETCORE_LOGGING__CONSOLE__FORMATTERNAME` controls console format for Log Stream
+- Developers confuse no Log Stream output with no logging at all
+
+**Answer**
+
+Log Stream in the Azure portal shows only the output your process writes to stdout and stderr, which is the console sink for ILogger. If you configure ILogger to use only Application Insights as a sink (removing the console provider), Log Stream will appear empty even though traces are flowing to Application Insights. Conversely, if console logging is too verbose it floods Log Stream with noise. Developers troubleshooting a production issue who see an empty Log Stream often conclude the app is not logging, when actually logs are in Application Insights under a different query path.
+
+---
+
+#### Gotcha 8. Autoscale rules trigger on metrics with a delay — scale-in cooldown can leave excess instances running for minutes
+
+**Concepts**
+- Autoscale triggers fire after the metric aggregation window elapses
+- Scale-out adds instances faster than scale-in removes them (asymmetric cooldown)
+- Default cooldown is 5 minutes, causing cost overrun during traffic bursts
+- Scale-in rules require a separate rule; without one, instances never scale in
+
+**Answer**
+
+Autoscale scale-out rules typically have a 5-minute metric window plus up to a 5-minute cooldown, meaning new instances may not appear for 10 minutes after traffic spikes. More importantly, if you configure only scale-out rules and forget the corresponding scale-in rule, App Service will add instances during traffic bursts and never remove them, continuously accumulating compute cost. The asymmetric default behavior — scale out quickly to prevent overload, scale in slowly to prevent flapping — means autoscale during a brief traffic spike leaves excess instances running for the full cooldown period after the spike ends.
+
+---
+
+#### Gotcha 9. Managed identity role assignments take several minutes to propagate — immediate post-assignment tests fail
+
+**Concepts**
+- RBAC role assignments propagate through Azure AD with eventual consistency
+- A 403 immediately after assignment does not mean the assignment is wrong
+- `DefaultAzureCredential` uses cached tokens; a new assignment isn't reflected until token expiry
+- Retry after 2–5 minutes is required before concluding there is a misconfiguration
+
+**Answer**
+
+After assigning a managed identity to a Key Vault or Storage Account role, the assignment does not take effect instantly. Azure RBAC propagates through Azure Active Directory with eventual consistency that can take 2–5 minutes, during which requests from the managed identity continue to receive 403. Developers who immediately test after assignment and see 403 often add more roles or check the wrong resource, when the problem is simply propagation delay. Additionally, `DefaultAzureCredential` caches the access token for its lifetime (up to one hour), so even after propagation the old cached token may be used until it expires.
+
+---
+
+#### Gotcha 10. Free and Shared tier apps share compute infrastructure — CPU quotas reset daily and the app is suspended when exceeded
+
+**Concepts**
+- Free tier has a 60-minute/day CPU quota shared across all apps in the plan
+- Exceeding the quota suspends all apps in the Free/Shared plan until midnight UTC
+- Shared tier has a higher quota but still shares underlying infrastructure
+- Basic tier provides dedicated compute and removes the CPU quota suspension
+
+**Answer**
+
+On Free and Shared App Service tiers, all apps within the plan share underlying CPU cores and are subject to a daily CPU minute quota. When the quota is exceeded, Azure suspends all apps in the plan and they return HTTP 403 until the quota resets at midnight UTC. This suspension happens without warning in the Azure portal during the day and is commonly mistaken for a deployment failure or application bug. Moving to the Basic tier or higher provides dedicated compute without CPU quotas, which is required for any production workload or application with consistent background processing.
+
+---

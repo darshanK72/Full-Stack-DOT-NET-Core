@@ -132,33 +132,157 @@ Migrations should run in controlled deployment steps — pipeline job, init cont
 
 ---
 
-## Gotchas
+## Gotchas — Code-First Models & Migrations (Interview Traps)
 
 ---
 
-## Gotcha 5. Transaction started after first command
+#### Gotcha 1. Column rename detected as drop + add — data loss without explicit rename
 
 **Concepts**
-- transaction started after first DML autocommit
-- BeginTransaction before first command
-- unit-of-work atomicity requirement
+- EF Core detects property rename as column drop + new column add
+- `migrationBuilder.RenameColumn` not generated automatically
+- data loss: old column dropped, new column starts empty
+- explicit `RenameColumn` call must replace drop + add in the migration
+- PR review of generated migration file before applying to production
 
 **Answer**
 
-Beginning a `SqlTransaction` only after the first statement already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first. Call `BeginTransaction` immediately after opening the connection, before any DML; EF Core `SaveChanges` without an explicit transaction auto-commits each call — wrap multi-step work explicitly. Integration tests with single-user data often miss this race because implicit commits appear to "work.".
+When you rename a C# property (e.g., `Price` to `UnitPrice`), EF Core generates a migration that drops the old column and adds a new one — all existing data in the old column is lost. EF Core cannot infer that a rename occurred from the model snapshot diff. You must manually edit the generated migration to replace the drop/add pair with `migrationBuilder.RenameColumn("Price", "Products", "UnitPrice")`. Always review generated migration files before applying them to any environment that contains real data.
 
 ---
 
-## Gotcha 15. `SaveChanges` without a transaction for multi-step updates
+#### Gotcha 2. Pending migration blocks startup when `MigrateAsync` is in `Program.cs`
 
 **Concepts**
-- independent SaveChanges commits without explicit transaction
-- partial update on multi-step failure
-- BeginTransactionAsync and CommitAsync wrapping
+- `context.Database.MigrateAsync()` in startup blocks on schema changes
+- multiple pod deployments race to apply the same migration
+- deadlock on `__EFMigrationsHistory` table under parallel startup
+- `dotnet ef database update` as a controlled pre-deployment step
+- migration bundle or init-container as Kubernetes-safe alternatives
 
 **Answer**
 
-Multiple `SaveChanges` calls or separate database operations that must succeed together commit independently by default, allowing partial updates that leave data in an inconsistent state when a later step fails. Wrap related saves and raw SQL in `BeginTransactionAsync`/`CommitAsync` on one `DbContext`; Prefer one `SaveChanges` per unit of work when all changes are tracked together on the same context. Retry logic after failure cannot assume earlier steps rolled back unless they shared a transaction boundary.
+Calling `context.Database.MigrateAsync()` inside `Program.cs` causes every application instance to attempt migration on startup. In a multi-pod Kubernetes deployment, all pods race to apply the same migration simultaneously, leading to deadlocks on the `__EFMigrationsHistory` table and partial-apply states. Run migrations as a controlled pre-deployment step using `dotnet ef database update`, a migration bundle, or a dedicated init container, not on every pod startup.
+
+---
+
+#### Gotcha 3. EF Core snapshot drift — manual schema changes not reflected in migrations
+
+**Concepts**
+- `Migrations/*Snapshot.cs` is the EF Core model of the database schema
+- manual DBA schema changes are invisible to the snapshot
+- next migration generates incorrect diff against wrong baseline
+- snapshot must match actual database for migrations to be reliable
+- `dotnet ef migrations script` for auditing applied vs pending schema
+
+**Answer**
+
+The EF Core model snapshot (`Migrations/*DbContextModelSnapshot.cs`) represents what EF Core believes the current database schema to be. Manual DBA schema changes (ALTER TABLE, CREATE INDEX outside EF) are invisible to the snapshot — the next `migrations add` generates a diff against the incorrect baseline, potentially dropping columns EF thinks it owns or missing columns the DBA added. All schema changes should go through EF migrations, or use a separate migration tool (DbUp, Flyway) for the parts of the schema EF does not manage.
+
+---
+
+#### Gotcha 4. Applying migrations in wrong order causes FK constraint violations
+
+**Concepts**
+- migrations must be applied in sequential order
+- inserting a child-table migration before its parent-table migration
+- FK constraint violation on apply: referenced table does not exist
+- EF Core enforces sequential application via `__EFMigrationsHistory`
+- `dotnet ef database update --target` applies up to a named migration
+
+**Answer**
+
+EF Core requires migrations to be applied in the exact order they were created — the `__EFMigrationsHistory` table enforces this. If a parent table migration is missing and a child table migration that references it by FK is applied first, the constraint violation causes the migration to fail. Cherry-picking or applying migrations out of order by manually inserting rows into `__EFMigrationsHistory` bypasses this protection and leaves the database in an inconsistent state. Always apply migrations sequentially using `dotnet ef database update` or the migration bundle.
+
+---
+
+#### Gotcha 5. `HasDefaultValue` vs `HasDefaultValueSql` — C# default vs SQL DEFAULT expression
+
+**Concepts**
+- `HasDefaultValue(value)` sets a C#-side default, not a SQL DEFAULT constraint
+- `HasDefaultValueSql("expression")` generates a SQL DEFAULT constraint in the schema
+- `HasDefaultValue` does not create a SQL DEFAULT — migration has no DEFAULT clause
+- C# default only applies when EF Core omits the column from INSERT
+- `GETUTCDATE()` or `NEWID()` require `HasDefaultValueSql`
+
+**Answer**
+
+`HasDefaultValue(value)` tells EF Core to omit the column from the INSERT statement when the property has that value, letting the database use its DEFAULT — but it does not generate a SQL DEFAULT constraint in the migration. If the column has no SQL DEFAULT, omitting it from INSERT causes a NOT NULL constraint violation. `HasDefaultValueSql("GETUTCDATE()")` generates the actual `DEFAULT GETUTCDATE()` in the `CREATE TABLE` or `ALTER COLUMN` migration statement. Use `HasDefaultValueSql` whenever a SQL-level default expression is needed.
+
+---
+
+#### Gotcha 6. Migration shortens column length — silent data truncation or constraint error
+
+**Concepts**
+- EF Core generates `ALTER COLUMN` for property length change
+- shortening `nvarchar(200)` to `nvarchar(100)` truncates existing values
+- no warning from EF Core that truncation will occur
+- data loss: values longer than new length are silently truncated or error
+- data migration step required to validate or shorten existing values first
+
+**Answer**
+
+When a property's `[MaxLength]` is reduced, EF Core generates an `ALTER COLUMN` statement that shortens the column. SQL Server truncates or errors on existing values longer than the new limit depending on the ANSI padding settings and whether the data fits. EF Core provides no warning about this data loss risk. Before applying a column-shortening migration to production, run a query to find existing values that exceed the new length, shorten or remove them in a preparatory data migration, then apply the schema change.
+
+---
+
+#### Gotcha 7. `dotnet ef migrations add` with wrong startup project uses wrong connection string
+
+**Concepts**
+- `--startup-project` flag controls which `appsettings.json` is used
+- wrong startup project picks up a different environment's connection string
+- migration generated against a different database schema than intended
+- `--project` (migration project) vs `--startup-project` (host project)
+- always run from the correct startup project for consistent migrations
+
+**Answer**
+
+`dotnet ef migrations add` needs `appsettings.json` from the startup project to resolve the connection string for design-time context creation. If `--startup-project` points to a different project, the tool uses a different database, and the generated migration reflects a diff against the wrong schema. Always specify both `--project <migrations-project>` and `--startup-project <web-project>` explicitly, and run with the `Development` environment connection string that matches the local database where you have been making schema changes.
+
+---
+
+#### Gotcha 8. EF Core migrations do not manage stored procedures, views, or triggers by default
+
+**Concepts**
+- EF Core snapshot only tracks entities, properties, and relationships
+- stored procedures, views, and triggers are invisible to migrations
+- manual `migrationBuilder.Sql("CREATE PROCEDURE ...")` required
+- EF Core migration for SP must also include the DROP in `Down()`
+- hybrid migration tool (EF + DbUp/Flyway) for stored procedures
+
+**Answer**
+
+EF Core migrations only manage schema elements that map to the entity model — tables, columns, indexes, and FK constraints. Stored procedures, views, triggers, and computed columns created with custom SQL are invisible to the migration tool and will not appear in generated migrations. To manage stored procedures through EF migrations, add explicit `migrationBuilder.Sql("CREATE OR ALTER PROCEDURE ...")` in `Up()` and a corresponding DROP in `Down()`. Alternatively, use a hybrid approach: EF migrations for tables and Flyway/DbUp for stored objects.
+
+---
+
+#### Gotcha 9. Rolling back a migration that dropped a column — data already gone
+
+**Concepts**
+- migration `Down()` re-adds the dropped column, but data is gone
+- `DROP COLUMN` in SQL Server is permanent — no undo after commit
+- `Down()` method restores schema structure, not data
+- expand/contract pattern to avoid destructive drops in deployments
+- production backup before any column-dropping migration
+
+**Answer**
+
+A migration's `Down()` method re-adds a column that was dropped in `Up()`, restoring the schema structure — but the column data is gone permanently after `DROP COLUMN` commits. Rolling back the migration restores the empty column, not the original values. To safely remove a column in production, use the expand/contract pattern: mark it nullable and stop writing to it in one deployment, backfill or archive data in a second deployment, and drop it in a third deployment only after verifying no values remain. Always back up the production database before applying a column-dropping migration.
+
+---
+
+#### Gotcha 10. Two developers generate migrations from the same parent snapshot — sibling conflict
+
+**Concepts**
+- two migrations from identical parent snapshot → branched migration history
+- `__EFMigrationsHistory` requires a linear chain
+- merge conflict in `*ModelSnapshot.cs`
+- resolution: delete one migration, merge model changes, regenerate single migration
+- short-lived feature branches and single schema owner prevent recurrence
+
+**Answer**
+
+When two developers generate migrations from the same parent snapshot on separate branches, EF Core has two sibling migrations that each list the same parent. Merging these branches produces a conflict in `*ModelSnapshot.cs` and a non-linear migration chain that cannot be applied. The resolution is to delete both sibling migrations, merge the C# model changes from both branches into one working tree, then generate a single new migration that captures the combined schema changes. Prevent recurrence with short-lived feature branches, pulling the latest before generating migrations, or designating one schema owner per sprint.
 
 ---
 

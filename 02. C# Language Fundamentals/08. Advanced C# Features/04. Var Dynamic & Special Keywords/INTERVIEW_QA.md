@@ -199,52 +199,147 @@ By default, integer arithmetic in C# uses unchecked evaluation — overflow wrap
 
 ---
 
-## Gotchas
+## Gotchas — var, dynamic & Special Keywords (Interview Traps)
 
 ---
 
-## Q12. Why does dynamic typed code miss typos and broken contracts until runtime?
+#### Gotcha 1. `var` is statically typed — the type is inferred at compile time, not at runtime
 
 **Concepts**
-- no IntelliSense on dynamic
-- RuntimeBinderException at runtime not compile time
-- test coverage required for dynamic paths
-- refactor blindness
-- production incident rate higher than typed code
+- `var` resolves to a concrete type at compile time via type inference
+- no runtime type resolution; IL is identical to using the explicit type
+- `var` cannot change the declared type after initialization
+- `object` or `dynamic` required for true runtime type flexibility
 
 **Answer**
 
-`dynamic` suppresses all compile-time member resolution. A typo like `row.Qantity` (misspelled "Quantity") compiles successfully — the compiler emits a DLR call-site that will attempt to resolve `Qantity` at runtime. If the backing object (an `ExpandoObject`, a `JsonElement`, a COM object) does not have a property named `Qantity`, the call throws `RuntimeBinderException`. In a batch job this means the first malformed row crashes the process rather than producing a compile error during development. Automated tests that only run the happy path with valid data provide no protection because the typo is syntactically correct. The production risk of `dynamic` code scales with the number of members accessed and the number of callers — each access point is a potential runtime failure. The mitigation is to use `dynamic` only at the boundary where truly dynamic data enters the system, map it immediately to a strongly typed DTO using a schema-validating step, and never pass `dynamic` values deeper into business logic.
+`var x = 42;` is syntactic sugar: the compiler infers that `x` is `int` and emits identical IL to `int x = 42;`. There is no runtime overhead and no dynamic lookup. The declared type is fixed at the point of assignment — `x` cannot later hold a `string`. This makes `var` purely a readability tool, not a runtime feature. A common misconception is that `var` makes code more dynamic or flexible at runtime; it does not. If you need a variable whose type changes at runtime, you need `object` (with manual casting) or `dynamic` (with DLR dispatch). Overusing `var` where the inferred type is non-obvious (e.g., `var result = GetSomething();`) reduces readability without any performance benefit.
 
 ---
 
-## Q13. Why does var capture a deferred LINQ query, and what is the deferred-execution trap?
+#### Gotcha 2. `dynamic` bypasses compile-time type checking — errors appear at runtime
 
 **Concepts**
-- IEnumerable<T> vs materialized collection
-- LINQ deferred execution
-- var type is IEnumerable<T> not List<T>
-- collection mutated between query and enumeration
-- ToList() / ToArray() to force materialization
+- compiler emits DLR call sites instead of typed IL for `dynamic` accesses
+- no IntelliSense, no compile-time member resolution
+- `RuntimeBinderException` on missing members at runtime
+- testing `dynamic` code requires runtime execution to find member-access bugs
 
 **Answer**
 
-`var lowStock = stock.Where(i => i.Quantity < 15)` assigns an `IEnumerable<InventoryItem>` — a deferred query, not a snapshot. The LINQ chain is not executed at the point of assignment; it executes when the `foreach` or `Count()` is called. If the source collection is mutated between the query definition and its enumeration — for example, a restock operation bumps quantities — the query evaluates against the mutated data, not the data as it was when the query was defined. Callers expecting a snapshot of the low-stock state at query time receive results reflecting the post-mutation state, which silently misses some alerts or generates false ones. The fix is `var lowStock = stock.Where(…).OrderBy(…).ToList()` to force immediate materialization into a `List<InventoryItem>`. The lesson is that `var` accurately reflects the inferred type — in this case, a lazy enumerable — and the programmer must be aware of deferred execution semantics when the source may be modified.
+Declaring a variable as `dynamic` tells the compiler to skip all type checking for member accesses on that variable. `dynamic d = GetSomething(); d.Proccess();` (with a typo) compiles without error and throws `RuntimeBinderException` at runtime when the misspelled method is not found. This shifts an entire class of bugs — wrong method names, wrong argument types, wrong return type assumptions — from the compile step to the runtime step, making them harder to find. Unit tests must exercise every `dynamic` code path explicitly; a refactor that renames a method does not cause a compile error in calling `dynamic` code, only a runtime exception in production if the test coverage is incomplete.
 
 ---
 
-## Q14. Why is volatile insufficient for a counter incremented by multiple threads?
+#### Gotcha 3. `dynamic` and `ExpandoObject` — adding properties dynamically, no IntelliSense
 
 **Concepts**
-- volatile provides visibility not atomicity
-- read-modify-write is not atomic
-- Interlocked.Increment for atomic counter
-- race condition window
-- lock vs Interlocked trade-off
+- `ExpandoObject` implements `IDynamicMetaObjectProvider` and `IDictionary<string, object>`
+- properties added at runtime via `dynamic` syntax or dictionary
+- no compile-time member checks; no IntelliSense on dynamic variable
+- serialization: `ExpandoObject` serializes as a JSON object when accessed via `IDictionary`
 
 **Answer**
 
-`volatile` ensures that a read or write to a field observes the most recent value written by any thread — it prevents stale register caching. However, the increment operation `x++` is not a single machine instruction; it compiles to a read, an add, and a write. With multiple threads, two threads can both read the same value before either writes back, then both write `original + 1` — producing a count of one instead of two. `volatile` on `x` only guarantees that each individual read and write is not cached; it does not prevent the race between the three sub-steps. The correct solution for an integer counter shared across threads is `Interlocked.Increment(ref _counter)`, which is a single atomic compare-and-swap operation guaranteed to increment exactly once per call regardless of concurrency. `volatile bool` is sufficient for a simple stop flag (one writer, many readers, no compound operation) but not for counters, flags with multiple states, or any operation involving more than one field.
+`dynamic person = new ExpandoObject(); person.Name = "Alice"; person.Age = 30;` adds properties to the expandable bag at runtime. This is useful for building ad hoc DTOs in scripting or interop scenarios, but the dynamic variable loses all IDE support — no autocomplete, no rename refactoring, no static analysis. Code that reads `person.Name` will compile even after the property was renamed or removed because the compiler emits a DLR lookup. `ExpandoObject` also implements `IDictionary<string, object>`, so it can be iterated as key-value pairs and is serialized by `System.Text.Json` as a standard JSON object. For production code, prefer explicitly typed records or DTOs; use `ExpandoObject` only when the property set is genuinely unknown at compile time.
+
+---
+
+#### Gotcha 4. `checked`/`unchecked` blocks — overflow behavior for arithmetic
+
+**Concepts**
+- default integer arithmetic is unchecked — overflow wraps silently
+- `checked` block throws `OverflowException` on integer overflow
+- `unchecked` keyword suppresses overflow checking inside a `checked` context
+- only applies to integer arithmetic; floating-point overflow produces `±Infinity`
+
+**Answer**
+
+By default, integer arithmetic in C# is unchecked: `int.MaxValue + 1` silently wraps to `int.MinValue` without any exception or warning. Wrapping overflow is a well-known source of security vulnerabilities in buffer size calculations. Wrapping the computation in a `checked` block — `checked { int result = a + b; }` — causes an `OverflowException` to be thrown if the result exceeds the type's range. The `checked` and `unchecked` keywords can also be applied as expressions: `checked(a * b)`. The compiler flag `/checked` enables overflow checking globally for a project. `unchecked` is used inside a globally checked context to explicitly opt out for a known-safe or intentional wrap (e.g., computing a hash code). Floating-point overflow is always unchecked and produces `double.PositiveInfinity` or `double.NaN`, not an exception.
+
+---
+
+#### Gotcha 5. `unsafe` and `fixed` — pointer arithmetic in C#; requires `/unsafe` compiler flag
+
+**Concepts**
+- `unsafe` block or method enables unmanaged pointer arithmetic
+- `fixed` statement pins a managed object to prevent GC movement during pointer access
+- `/unsafe` compiler flag required; not allowed in AOT-restricted environments
+- `Span<T>` and `Memory<T>` as the modern safe alternative to raw pointers
+
+**Answer**
+
+`unsafe` code in C# allows direct pointer manipulation — `int* p = &value; *p = 42;` — bypassing the type system and GC safety guarantees. To use `unsafe`, the project must set `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` in the project file. Accessing a managed array through a pointer requires a `fixed` statement to pin the array in memory so the garbage collector does not move it during the pointer operation: `fixed (int* p = array) { p[0] = 1; }`. Forgetting `fixed` causes a compiler error. In modern .NET, `Span<T>` and `Memory<T>` provide pointer-speed access to contiguous memory safely without `unsafe` — they are the preferred tool for high-performance I/O, parsing, and buffer manipulation.
+
+---
+
+#### Gotcha 6. `ref` return and `ref` local — returning a reference to a variable, not a copy
+
+**Concepts**
+- `ref return` returns a managed reference to the variable, not its value
+- `ref` local aliases a variable; mutations via the alias affect the original
+- cannot return `ref` to a local variable that goes out of scope
+- enables in-place mutation of array elements without index re-lookup
+
+**Answer**
+
+`ref` returns allow a method to return a direct reference to a field, array element, or parameter rather than a copy. `public ref int GetElement(int[] arr, int index) => ref arr[index];` lets the caller write `ref int elem = ref GetElement(arr, 2); elem = 99;` to mutate `arr[2]` in place without a second indexer call. The key restriction is that you cannot return a `ref` to a local variable — the variable goes out of scope when the method returns, leaving a dangling reference — the compiler enforces this. `ref` returns are most valuable for large struct scenarios (avoiding copies) and for high-performance collection types. Confusion arises when developers expect `ref` return to behave like a pointer without understanding the lifetime constraints.
+
+---
+
+#### Gotcha 7. `in` parameter modifier — pass by reference, read-only inside the method
+
+**Concepts**
+- `in` passes a value type by reference (no copy) to avoid copying large structs
+- `in` parameter is read-only inside the callee — compiler enforces immutability
+- implicit defensive copy when calling a method on a non-readonly struct via `in`
+- most useful for large value types (`readonly struct` recommended with `in`)
+
+**Answer**
+
+The `in` modifier passes a value type to a method by reference so the runtime does not copy the struct, improving performance for large structs (e.g., `Matrix4x4`). Inside the method the parameter is read-only — any attempt to assign to it is a compile error. The subtle gotcha is defensive copying: if the struct is not `readonly` (it has mutable methods), calling an instance method on an `in` parameter may cause the compiler to emit a hidden copy to prevent the method from modifying the original. This negates the performance benefit of `in` and makes `in` + mutable struct an anti-pattern. To benefit from `in` without defensive copies, mark the struct `readonly struct` — this guarantees all instance members are non-mutating and the compiler can safely pass the reference without copying.
+
+---
+
+#### Gotcha 8. `nameof()` — compile-time string of a member name; survives renaming refactors
+
+**Concepts**
+- `nameof(MyClass.Property)` returns the member name as a string at compile time
+- refactoring tools rename the member and update `nameof` references automatically
+- evaluates to the simple name, not the fully qualified name
+- valid in attributes and other compile-time contexts where string literals work
+
+**Answer**
+
+`nameof(Customer.FirstName)` produces the string `"FirstName"` at compile time — identical to the string literal but refactor-safe. When you rename `FirstName` to `GivenName`, the IDE's rename refactoring updates the `nameof` expression automatically, whereas a hardcoded `"FirstName"` string would silently become stale. This is particularly important in `ArgumentNullException(nameof(firstName))`, `PropertyChanged(nameof(FirstName))`, and `[Required(ErrorMessage = "...")]` scenarios where the string must match the actual member name. `nameof` evaluates to the simple unqualified identifier: `nameof(System.Text.Json.JsonSerializer)` returns `"JsonSerializer"`, not the full namespace path.
+
+---
+
+#### Gotcha 9. `default` literal in C# 7.1 — `default` without explicit type
+
+**Concepts**
+- `default(T)` requires explicit type before C# 7.1
+- `default` literal infers the type from context (assignment, return, method argument)
+- `default` on a reference type is `null`; on a value type is the zero-initialized struct
+- `default` in switch expressions and pattern matching
+
+**Answer**
+
+Before C# 7.1, producing the default value of a type required `default(MyStruct)`. C# 7.1 introduced the contextually typed `default` literal: `MyStruct s = default;` infers the type from the left-hand side. This works in method arguments (`Process(default)`), return statements (`return default;`), and conditional expressions (`condition ? value : default`). The literal produces `null` for reference types and the zero-initialized value for value types — a struct where every field is zero or null. A potential confusion is using `default` in a switch expression as the discard arm (`_ =>` or `default =>`), where it is a pattern, not the default-value literal. The context determines which `default` is meant.
+
+---
+
+#### Gotcha 10. `is` pattern matching — `is int n` assigns and type-checks in one expression; `n` is in scope after
+
+**Concepts**
+- `obj is int n` tests type and assigns to `n` in a single expression
+- `n` is in scope for the remainder of the enclosing block, not just the `if` body
+- `is null` never invokes `==` operator; always performs reference/null check
+- combined patterns: `obj is int n and > 0` for type + value check
+
+**Answer**
+
+`if (obj is int n)` performs a type check and, if successful, assigns the cast value to `n` — equivalent to `if (obj is int) { int n = (int)obj; ... }` but more concise. The scope of `n` extends to the end of the enclosing block, not just the `if` body. This means `n` is technically in scope in the `else` branch (though the type check failed, `n` has an undefined value there). `obj is null` is distinct from `obj == null`: `is null` always performs a reference equality check and never calls a user-defined `==` operator, making it the reliable null check for code that must not invoke overloaded equality. Combined patterns `obj is int n and > 0` allow type checking and value constraint in a single expression.
 
 ---
 

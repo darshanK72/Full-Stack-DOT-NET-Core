@@ -614,3 +614,147 @@ DDD is widely misapplied because its tactical patterns look simple in isolation 
 Skipping strategic design and jumping straight to tactical patterns produces tactically correct but strategically incoherent models — writing Entities, Value Objects, and Repositories without first defining bounded contexts and ubiquitous language means the model grows messy over time. Building anemic domain models by creating Entity classes with nothing but public getters and setters and putting all logic in service classes defeats the purpose of DDD, since business rules are scattered rather than encapsulated. Over-engineering simple domains by applying full tactical DDD to a straightforward CRUD application adds complexity without business benefit — DDD is justified by domain complexity, not by architectural preference. Making Aggregates too large by including every related concept in one Aggregate to avoid eventual consistency creates contention, performance problems, and a God Object that is hard to change. Using database-generated IDs and leaking ORM concerns into the domain prevents Domain Events from referencing the Entity's ID before it is saved, and ORM attributes on domain classes couple the model to the persistence framework. Ignoring the Ubiquitous Language after the initial design is also common — if code names drift from the business vocabulary over time, the domain model stops reflecting the real domain and the communication benefits of DDD are lost.
 
 ---
+
+## Gotchas — Domain-Driven Design (Interview Traps)
+
+---
+
+#### Gotcha 1. Aggregate Boundary Drawn Too Large
+
+**Concepts**
+- Aggregate as a consistency boundary, not a grouping of related entities
+- Over-inclusion causing database contention and large transaction scope
+- One Aggregate per request as the design heuristic
+- Small aggregates communicating via domain events
+
+**Answer**
+
+A common DDD mistake is drawing aggregate boundaries around everything that belongs together semantically — for example, making `Order` contain `Customer`, `Product`, `Inventory`, and `Payment` in one aggregate — which creates a giant object that must be locked and loaded in its entirety for every operation. The aggregate boundary should be defined by the consistency requirement: what must be transactionally consistent together? An `Order` needs to be consistent within its own line items, but `Customer` and `Inventory` have their own independent invariants and belong in separate aggregates communicating via domain events. Large aggregates cause performance problems, concurrency conflicts, and God-Object complexity.
+
+---
+
+#### Gotcha 2. Value Object Compared by Identity Instead of Structural Equality
+
+**Concepts**
+- Value Object equality based on all property values
+- Entity equality based on identity (ID)
+- Missing Equals and GetHashCode override on Value Object
+- Two Money(10, "USD") instances must be equal
+
+**Answer**
+
+A Value Object class that does not override `Equals` and `GetHashCode` uses reference equality by default, so two `Money(10, "USD")` instances are not equal even though they represent the same value — which breaks collection membership checks, deduplication, and domain invariant comparisons that depend on value equality. In C# the canonical solution is to make Value Objects `record` types (which auto-generate structural equality) or to implement `IEquatable<T>` with a complete `Equals` override that compares all constituent properties. Interviewers test this by asking "how would you implement a `Money` or `Address` value object?" and expect to see equality by value, immutability, and no identity field.
+
+---
+
+#### Gotcha 3. Repository Defined Per Entity Instead of Per Aggregate Root
+
+**Concepts**
+- Aggregate Root as the only gateway to the aggregate
+- Bypassing the root by loading child entities directly
+- Repository interface for every entity breaking encapsulation
+- Invariants enforced at the root becoming unreachable
+
+**Answer**
+
+Creating `IOrderLineRepository`, `IOrderHeaderRepository`, and `IOrderRepository` as separate repositories for parts of the same aggregate allows callers to load and modify `OrderLine` records directly without going through the `Order` aggregate root — any invariant the root enforces (minimum one line, total quantity limit) is bypassed. The rule is one repository per aggregate root: `IOrderRepository` loads and saves the entire `Order` aggregate, including its `OrderLines` collection, and nothing reaches inside the aggregate except through the root's public methods. DDD repositories encapsulate persistence of the entire consistency boundary, not individual tables.
+
+---
+
+#### Gotcha 4. Domain Events Published After the Database Transaction Commits
+
+**Concepts**
+- In-process domain event dispatch before transaction commit
+- Integration event published after commit via outbox
+- Lost event when process crashes between commit and publish
+- Transactional outbox pattern as the reliable solution
+
+**Answer**
+
+Publishing domain events directly to an in-memory dispatcher after `SaveChangesAsync()` commits means a process crash between the commit and the publish loses the event permanently — the aggregate state changed but no downstream subscriber was notified. The reliable approach is the Transactional Outbox Pattern: the domain events are written to an `OutboxMessages` table within the same database transaction as the aggregate changes, and a separate background worker reads uncommitted outbox records and publishes them to the message broker, marking them processed. This guarantees at-least-once delivery because the outbox record survives a crash and the worker retries on restart.
+
+---
+
+#### Gotcha 5. Using Database-Generated IDs in Domain Events Before Save
+
+**Concepts**
+- Database auto-increment ID unknown until after INSERT
+- Domain Event referencing the entity ID at creation time
+- Client-generated GUID allowing ID to exist before persistence
+- Domain Event raised inside the constructor carrying a valid ID
+
+**Answer**
+
+If an `Order` aggregate uses a database-generated integer identity and raises an `OrderCreatedEvent` in its constructor, the event carries `Id = 0` because the database has not yet assigned an ID — any subscriber that tries to load the order by that ID gets nothing. The DDD solution is to use client-generated GUIDs (`Guid.NewGuid()`) as entity identifiers, assigned in the constructor before any domain events are raised, so the ID is a stable value from the moment the aggregate is created regardless of when it is persisted. This is one of the reasons DDD practitioners favour GUIDs over database sequences.
+
+---
+
+#### Gotcha 6. Sharing a Domain Entity Across Multiple Bounded Contexts
+
+**Concepts**
+- Bounded context as a semantic isolation boundary
+- Shared entity accumulating contradictory properties from both contexts
+- Change in one context breaking the other
+- Anti-Corruption Layer translating across context boundaries
+
+**Answer**
+
+Placing the same `Customer` class in a shared library and using it in both the `Ordering` bounded context and the `Billing` bounded context creates tight coupling — when Billing needs to add `TaxId` to `Customer`, it modifies the shared class and must retest Ordering; when Ordering adds `PreferredDeliveryWindow`, it touches the shared class that Billing also owns. Each bounded context must have its own model of `Customer` with only the properties relevant to that context; when contexts need to communicate, they translate via domain events or an Anti-Corruption Layer, never by sharing a single class. This is the "Shared Kernel" boundary in DDD — only things explicitly agreed upon by both teams may be shared.
+
+---
+
+#### Gotcha 7. Ubiquitous Language Drifting From the Code Over Time
+
+**Concepts**
+- Ubiquitous Language as the shared vocabulary between domain experts and code
+- Code divergence from business terms causing misalignment
+- Method names using technical jargon instead of business language
+- Living Glossary as a mitigation practice
+
+**Answer**
+
+DDD's ubiquitous language is not a one-time design artefact — it must stay alive in the code throughout the project lifecycle. When class names like `OrderProcessor`, method names like `DoOrderThing()`, and variable names like `obj` replace the business terms `OrderFulfillment`, `Confirm()`, and `shipment`, domain experts and developers can no longer read the code together and the model stops being useful for communication. The discipline is to rename code immediately whenever business language evolves, hold periodic code reviews with domain experts, and maintain a living glossary in the repository. Interviewers ask "how do you keep the ubiquitous language consistent?" and expect practices beyond just the initial modelling session.
+
+---
+
+#### Gotcha 8. ORM Attributes Placed on Domain Entities
+
+**Concepts**
+- Domain entity polluted with persistence concerns
+- [Column], [Table], [Key] attributes coupling Domain to EF Core
+- EF Core Fluent API as the clean alternative
+- Infrastructure layer owning mapping configuration
+
+**Answer**
+
+Adding `[Table("orders")]`, `[Column("customer_id")]`, or `[DatabaseGenerated(DatabaseGeneratedOption.Identity)]` attributes directly on a Domain Entity couples the domain model to EF Core — the Domain project must reference `Microsoft.EntityFrameworkCore` to compile, which violates the Dependency Rule. The clean alternative is to use EF Core's Fluent API in an `EntityTypeConfiguration<T>` class inside the Infrastructure project, which maps domain properties to database columns with no attributes on the domain class itself. This keeps the Domain project free of any ORM dependency and allows the domain model to evolve independently of the persistence schema.
+
+---
+
+#### Gotcha 9. Domain Service Used as a Catch-All for Business Logic
+
+**Concepts**
+- Domain Service for operations involving multiple aggregates
+- Business logic that belongs inside an aggregate method placed in Domain Service
+- Anemic aggregate as the result of over-using Domain Services
+- Domain Service as the last resort, not the first choice
+
+**Answer**
+
+Domain Services are intended for business operations that genuinely span multiple aggregates or require input from external services to enforce a domain rule — for example, a uniqueness check that queries the repository to ensure no duplicate order exists. When developers place logic that belongs inside an aggregate (price calculation, status transitions) into a Domain Service, the aggregate becomes anemic and the Domain Service becomes a procedural script. The rule of thumb is: if the logic only requires the state of one aggregate, it belongs as a method on that aggregate; if it requires coordinating two aggregates or calling a repository for a cross-entity constraint, a Domain Service is appropriate.
+
+---
+
+#### Gotcha 10. Bounded Context Without an Anti-Corruption Layer
+
+**Concepts**
+- Legacy system imposing its own model on the new context
+- ACL translating external concepts into local ubiquitous language
+- Conformist pattern as an alternative with known trade-offs
+- Bubble context protection via adapters and translators
+
+**Answer**
+
+When integrating with a legacy CRM or an external payment provider, blindly mapping their data structures and terminology into your bounded context lets the external model pollute your domain — field names like `Cust_Ref_No`, statuses like `STAT_3`, and date formats from the legacy system appear in domain entities and ubiquitous language. An Anti-Corruption Layer (ACL) sits between your context and the external system and translates their concepts into your ubiquitous language: their `Cust_Ref_No` becomes your `CustomerId`, their `STAT_3` becomes your `OrderStatus.Cancelled`. Without an ACL, changes in the external system cascade directly into your domain model, and your codebase becomes infected with external terminology that domain experts cannot understand.
+
+---

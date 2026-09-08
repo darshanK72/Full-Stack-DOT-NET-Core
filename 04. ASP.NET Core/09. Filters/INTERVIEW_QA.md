@@ -283,211 +283,147 @@ Yes — MVC authorization, resource, and action filters short-circuit by assigni
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
-
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- UseRouting must precede UseAuthentication and UseAuthorization
-- Endpoint metadata not selected before routing runs
-- Recommended pipeline order for ASP.NET Core 8
-
-**Answer**
-
-In ASP.NET Core endpoint routing, `UseAuthentication` and `UseAuthorization` must run after `UseRouting` so the auth middleware can read endpoint metadata — if auth runs before routing, the endpoint has not been selected yet and policy resolution for `[Authorize]` and `RequireAuthorization()` cannot inspect the correct attributes. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms of wrong order include anonymous access to protected endpoints and 401 challenges that fire without correctly applying per-endpoint allow-anonymous overrides.
+## Gotchas — Filters (Interview Traps)
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. Exception filters do not catch exceptions from result filters or from result execution
 
 **Concepts**
-- Captive dependency lifetime violation
-- EF DbContext stale change tracker accumulation
-- ValidateScopes detecting the problem at startup
-- IServiceScopeFactory as the correct fix
+- Exception filter scope: action, resource, and authorization filter exceptions
+- Exceptions from result execution not caught by exception filters
+- Middleware-level exception handling required for result-phase exceptions
+- `OnException` vs `OnExceptionAsync` — only one should be overridden
 
 **Answer**
 
-A scoped service injected into a singleton is held for the entire application lifetime, long after the scope that created it was disposed. The most common case is `DbContext`: the change tracker accumulates entities from unrelated requests, and after the scope is torn down any access throws `ObjectDisposedException`. Enable `ValidateScopes = true` in Development and staging to catch these combinations at startup rather than under production load. The fix is to inject `IServiceScopeFactory` and create a scope per unit of work, or use `IDbContextFactory<T>` to get a short-lived context per operation.
+Exception filters catch exceptions thrown during action execution and during the action pipeline — authorization filters, resource filters, and action filters. However, exceptions thrown during result execution (inside `IActionResult.ExecuteResultAsync`) are outside the filter pipeline and will not be caught by exception filters. These result-phase exceptions bubble up to middleware, making `UseExceptionHandler` or custom exception middleware the correct place to handle them. Teams that rely solely on exception filters for error handling may find that serialization failures, view render errors, or custom `IActionResult` execution errors bypass their exception filter entirely.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. Filter execution order — authorization filters run before model binding
 
 **Concepts**
-- HttpMessageHandler lifetime and socket exhaustion
-- IHttpClientFactory managed handler recycling
-- Named and typed client registration pattern
+- Filter pipeline order: authorization → resource → model binding → action → result/exception
+- Authorization filter short-circuiting before model binding starts
+- Action filters accessing model-bound parameters only in `OnActionExecuting`
+- Resource filter wrapping model binding and action execution
 
 **Answer**
 
-Instantiating `HttpClient` with `new` in a long-lived singleton prevents socket reuse because each instance holds its own `HttpMessageHandler` and the underlying TCP connections are not returned to a pool until garbage collection. Under load this causes socket exhaustion — `SocketException` and timeout errors that do not appear in local testing with low concurrency. `IHttpClientFactory` manages handler lifetimes and recycles connections correctly, so the fix is to register named or typed clients via `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject them rather than constructing `HttpClient` directly.
+The MVC filter pipeline runs in a strict order: authorization filters run first (before model binding), then resource filters, then model binding, then action filters (`OnActionExecuting`), then the action method, then action filters (`OnActionExecuted`), then result filters, and finally result execution. Placing logic that reads bound action parameters in an authorization filter is wrong — the parameters haven't been bound yet. Exception filters are invoked when an exception escapes any of these phases. Understanding this order is critical when deciding which filter type to use for a given cross-cutting concern.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. Injecting services into filter attributes requires `ServiceFilter` or `TypeFilter` — not constructor injection
 
 **Concepts**
-- IOptions<T> frozen snapshot at first resolution
-- IOptionsSnapshot<T> recalculates per request scope
-- IOptionsMonitor<T> live change notifications for singletons
-- Silent staleness until process restart
+- Attribute constructor arguments evaluated at compile time — no DI
+- `[ServiceFilter(typeof(MyFilter))]` for DI-resolved filter
+- `[TypeFilter(typeof(MyFilter), Arguments = new[] {...})]` for mixed DI and args
+- `IFilterFactory` for fully custom filter factory behavior
 
 **Answer**
 
-`IOptions<T>` resolves once and caches the configuration snapshot for the service's lifetime, so a singleton that reads `.Value` in its constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope but is only usable in scoped services. `IOptionsMonitor<T>` supports change notifications via `OnChange` and works correctly in singletons. The failure mode is silent — misconfiguration persists until process restart because `.Value` was captured at construction.
+Filter classes that implement `IActionFilter` can receive services through their constructor if they are instantiated by DI. However, attribute syntax like `[MyActionFilter(someValue)]` passes constructor arguments at compile time using constants, not DI. To inject runtime services, mark the attribute with `[ServiceFilter(typeof(MyFilter))]` — this resolves `MyFilter` from the DI container per request. `[TypeFilter(typeof(MyFilter), Arguments = new object[] { "value" })]` allows mixing compile-time arguments with DI-resolved services. Using `new MyFilter(service)` directly in an attribute attribute is impossible for runtime services.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 4. `IAsyncActionFilter` and `IActionFilter` — implementing both causes the async version to be ignored in some scenarios
 
 **Concepts**
-- HTTP GET semantics and safe/idempotent URL parameters
-- Proxies and caches stripping GET request bodies
-- [FromQuery] with [AsParameters] for complex filter criteria
-- Silent failures in CDN and proxy layers
+- MVC executing `IAsyncActionFilter` preferentially when both are implemented
+- `IActionFilter` methods never called when async interface is also present
+- Implementing only one interface per filter class
+- `ActionFilterAttribute` base class implementing both interfaces
 
 **Answer**
 
-`[FromBody]` on a GET endpoint is an anti-pattern because HTTP GET is defined as safe and idempotent with parameters in the URL — many clients, CDNs, and caching proxies strip or ignore request bodies on GET requests, so binding fails silently in production while "Try it out" in Swagger may appear to work. Use `[FromQuery]` with separate parameter names or `[AsParameters]` on a record type to aggregate complex filter criteria into a single clean parameter object.
+When a filter class implements both `IAsyncActionFilter` and `IActionFilter`, ASP.NET Core MVC preferentially uses the async implementation and the sync methods (`OnActionExecuting` / `OnActionExecuted`) are never called. This is intentional to avoid double-execution but creates confusion when developers override both expecting both to run. `ActionFilterAttribute` implements both interfaces with no-op defaults — override only `OnActionExecutingAsync` and `OnActionExecutedAsync` for async behavior, or only `OnActionExecuting` and `OnActionExecuted` for sync. Mixing partial overrides of both can lead to subtle bugs where only the async path executes.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 5. Short-circuiting in resource filters skips model binding AND all subsequent action/result filters
 
 **Concepts**
-- JsonNamingPolicy.CamelCase as ASP.NET Core default
-- Silent binding producing default values instead of errors
-- PropertyNameCaseInsensitive as a mitigation
-- Validation attributes turning silent failure into 400 responses
+- Resource filter short-circuit returning `context.Result` before model binding
+- All action filters and the action method skipped when resource filter short-circuits
+- Cache-aside pattern using resource filter to bypass action execution
+- Result filters still execute for responses from resource filter short-circuits
 
 **Answer**
 
-ASP.NET Core Web API serializes JSON with `JsonNamingPolicy.CamelCase` by default, which means incoming JSON with PascalCase keys like `"CustomerName"` does not match the property — the model binds successfully but properties silently hold default values (null, zero, false). The preferred fix is standardizing all clients on camelCase and enforcing it through OpenAPI contracts. As a mitigation, `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` relaxes matching. Add required validation attributes so silent binding failures produce 400 responses rather than corrupt data silently stored to the database.
+When a resource filter assigns `context.Result` in `OnResourceExecuting`, model binding is skipped, all action filters are skipped, and the action method is never invoked. Only result filters (in the result execution phase) run after a resource filter short-circuit, because result filters wrap the result phase rather than the action phase. This makes resource filters appropriate for cache-hit returns — the cached result is set as `context.Result` and all expensive model binding and action work is bypassed. Exception filters are not invoked for resource filter short-circuits because no exception occurred, only an early result assignment.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 6. Global filters apply to all controllers and actions — order and scope must be managed explicitly
 
 **Concepts**
-- throw; preserving original stack trace
-- throw ex; resetting stack trace to the catch site
-- InnerException preservation when intentionally wrapping
-- APM and structured logging dependency on accurate stack traces
+- `MvcOptions.Filters.Add()` registering global filters
+- Global filters running for every action including health check and static content controllers
+- `Order` property controlling relative execution among filters of the same type
+- `[AllowAnonymous]` overriding authorization filter globally but not custom filters
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, which means Application Insights, Serilog, and `IExceptionHandler` all point at the handler rather than the code that actually failed. Bare `throw;` preserves the full original stack trace. Use `throw;` when logging and delegating upward; wrap with a new exception type only when adding context — `throw new OrderProcessingException("...", ex)` — so the original failure is preserved in `InnerException`. This rule applies identically in async code after `await`.
+Global filters registered in `MvcOptions.Filters.Add()` run for every controller and action method in the application. An audit logging filter registered globally produces a log entry for every request, including internal health check endpoints and scaffolding controllers. The `Order` property on filters controls execution sequence when multiple filters of the same type apply — lower numbers run first for before-logic and last for after-logic (innermost in the pipeline sense). Custom global filters must explicitly check for exclusion attributes or conditions when they should not apply to specific controllers, since there is no built-in "exclude from global filter" attribute mechanism equivalent to `[AllowAnonymous]` for auth.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 7. Async result filters must `await` both before-logic and `await next()` — missing either half breaks the pipeline
 
 **Concepts**
-- Kestrel as application server vs edge gateway
-- TLS termination and certificate management at the reverse proxy
-- WAF, rate limiting, and static file caching at the edge
-- UseForwardedHeaders required for client IP logging
+- `IAsyncResultFilter.OnResultExecutionAsync` wrapping result execution
+- `await next()` invoking result execution (the actual IActionResult execution)
+- Before-`next` code running before response is written; after-`next` code running post-response
+- Response already started after `next()` — cannot modify status code or headers
 
 **Answer**
 
-Kestrel is a production-grade application server optimized for running .NET efficiently, but directly exposing it to the internet skips TLS certificate centralization, WAF filtering, centralized rate limiting, and efficient static-file caching that reverse proxies handle. nginx, IIS, Azure Front Door, or AWS ALB typically sit in front so certificates are managed at the proxy layer with automatic renewal. If Kestrel is exposed directly, client IP logging requires `UseForwardedHeaders` configuration, and containers typically bind Kestrel to an internal port while the ingress controller handles external HTTPS.
+In `IAsyncResultFilter.OnResultExecutionAsync(context, next)`, the `await next()` call is what actually executes the `IActionResult` and writes the response. Before-`next` code runs before the response is written; after-`next` code runs after response writing has started. Forgetting to `await next()` prevents the action result from executing and returns an empty response. After `next()` returns, `context.Response.HasStarted` is typically `true`, so any attempt to modify response headers or status codes after the call throws. Response manipulation must happen before `await next()`.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 8. Exception filter vs middleware — exception filter catches only MVC pipeline exceptions
 
 **Concepts**
-- launchSettings.json applies only to dotnet run and IDE launch
-- ASPNETCORE_URLS and ASPNETCORE_ENVIRONMENT as production env vars
-- appsettings.Production.json for non-secret production tuning
+- Exception filter scope limited to MVC action and filter pipeline
+- Exceptions from middleware outside MVC not reaching exception filters
+- `UseExceptionHandler` middleware catching all unhandled exceptions from the entire pipeline
+- Complementary roles: exception filter for action-specific mapping, middleware for global handling
 
 **Answer**
 
-`Properties/launchSettings.json` contains URLs, environment variables, and launch profiles that are read only by `dotnet run`, Visual Studio, and VS Code — the file is not deployed to production hosts and has no effect on them. Relying on it for environment name or URL configuration leads to wrong `ASPNETCORE_ENVIRONMENT` or binding address in deployed environments. Production URLs and environment come from host-level environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
+Exception filters catch exceptions that escape MVC action execution and MVC filters — they are scoped to the controller action pipeline. Exceptions thrown in middleware before or after the MVC middleware, in startup code, or during static file serving are outside the exception filter's scope and are not caught. `UseExceptionHandler` or `UseDeveloperExceptionPage` middleware is positioned outside the entire MVC stack and catches all unhandled exceptions from any middleware. In practice, both are needed: exception filters for per-controller or per-action mapping of domain exceptions to specific HTTP responses, and exception handling middleware as the global safety net for everything else.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 9. `Order` property — lower order runs first for before-logic but last for after-logic
 
 **Concepts**
-- default(false) for missing JSON field
-- Nullable bool? for tri-state intent
-- PATCH semantics requiring omitted-vs-false distinction
-- Update DTO design for partial updates
+- Filter pipeline as nested delegates — order property controls nesting depth
+- `Order = -1` running before `Order = 0` in the entry phase
+- `Order = -1` running after `Order = 0` in the exit/exception phase
+- Outermost filter seeing both request entry and response exit
 
 **Answer**
 
-A non-nullable `bool` property in a PATCH DTO cannot distinguish "field omitted from JSON" from "explicitly set to false" because `System.Text.Json` deserializes missing properties to `default(false)`, which corrupts partial-update semantics — a client updating only an email address accidentally resets a consent flag to false. PATCH endpoints need `bool?`, separate update DTOs that only include fields being modified, or tri-state enums like `Unspecified | OptIn | OptOut` to represent intent explicitly. Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
+The `Order` property on filters follows the same nesting semantics as middleware: a filter with `Order = -1` wraps a filter with `Order = 0`, meaning it runs first during the request phase (in `OnActionExecuting`) and last during the response phase (in `OnActionExecuted`). This counterintuitive behavior surprises developers who expect lower order to always mean "runs first." For logging filters, `Order = -1` is typically correct because it wraps the entire action execution, giving the filter both the entry timing and the complete execution context including any set `Result`. Filters with the same `Order` run in registration order.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 10. Endpoint filters (Minimal API) vs MVC action filters — different pipeline shape, no exception filter equivalent
 
 **Concepts**
-- X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host headers
-- ForwardedHeadersOptions.KnownProxies for trusted network restriction
-- Pipeline position — must run before HTTPS redirection and auth
-- Header spoofing risk when trusting all proxies
+- `IEndpointFilter` wrapping Minimal API endpoint invocation
+- No separate authorization/resource/exception filter types in Minimal API
+- Short-circuit by returning an `IResult` from `InvokeAsync`
+- `RouteGroupBuilder.AddEndpointFilter()` applying filters to a group
 
 **Answer**
 
-Without `UseForwardedHeaders()` configured with known proxy IPs, `HttpContext.Request.Scheme` stays `http` even when clients used HTTPS, `Request.Host` reflects the internal address, and the client IP is the proxy — breaking HTTPS redirects, secure cookie flags, and audit logs. Call `UseForwardedHeaders()` as early as possible, before HTTPS redirection, authentication, link generation, and rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your specific reverse proxy network rather than all proxies, since trusting all enables header spoofing by any client.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- UseStaticFiles() serving without authentication
-- wwwroot as a public CDN root
-- Secrets management via environment variables and Key Vault
-- Build pipeline verification of publish output
-
-**Answer**
-
-Every file in `wwwroot` is served to unauthenticated anonymous clients by `UseStaticFiles()` — there is no authentication gate by default. Placing `.env` files, `appsettings.Production.json`, private keys, or backup configs there makes them directly downloadable via their URL path. Only public assets such as CSS, JavaScript, images, and public PDFs belong in `wwwroot`. Sensitive configuration must live in environment variables, Azure Key Vault, or similar secret managers, and build pipelines should verify that publish output does not include secrets in the web root.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback order relative to API endpoint mapping
-- /api/* returning index.html with HTTP 200 as a silent failure
-- Endpoint-first ordering in Program.cs
-
-**Answer**
-
-Registering `MapFallbackToFile("index.html")` before API endpoint mapping causes any unmatched API route — including valid 404s — to return `index.html` with HTTP 200, which breaks JSON parsers on clients and masks the real failure. The correct order is to map API routes with `MapControllers()` or `MapGroup("/api")` first, then static files, then the SPA fallback last. Symptoms include CORS errors appearing as HTML responses and Swagger fetch failures in production SPA hosting.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- BackgroundService singleton lifetime
-- Scoped service constructor injection causing disposal errors
-- IServiceScopeFactory.CreateAsyncScope() per background job
-- ValidateScopes detecting this at startup
-
-**Answer**
-
-A singleton `BackgroundService` cannot constructor-inject scoped services like `DbContext` because hosted services live for the application lifetime while scoped instances are disposed after their first scope ends, causing `ObjectDisposedException` or scope validation errors at startup. The fix is to inject `IServiceScopeFactory`, then inside each background job call `await using var scope = factory.CreateAsyncScope()`, resolve the scoped service from `scope.ServiceProvider`, and dispose the scope when the job finishes. Enable `ValidateScopes` in Development to catch this before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR broadcast scope — single server instance only
-- Redis or Azure Service Bus backplane for multi-instance routing
-- Sticky sessions vs backplane trade-offs
-- Azure SignalR Service as a managed alternative
-
-**Answer**
-
-SignalR tracks connected clients per server instance, so a broadcast from one instance reaches only the clients connected to that instance. With multiple instances behind a load balancer, users on different nodes never receive events raised on other nodes — a critical failure for real-time chat or notifications. Sticky sessions keep one client on one node but do not route server-side events across nodes, so they are not a substitute for a backplane. The solution is a Redis or Azure Service Bus backplane registered with `AddSignalR().AddStackExchangeRedis(...)`, or the managed Azure SignalR Service. Test scale-out with at least two instances before launch.
+Minimal API uses `IEndpointFilter` rather than the MVC filter interfaces. An endpoint filter's `InvokeAsync` wraps the entire endpoint handler and can run before-logic, call `await next(context)` to invoke the handler, and run after-logic — similar to middleware but scoped to a single endpoint or group. There is no separate exception filter concept for Minimal API endpoints; exceptions flow to the middleware pipeline and are caught by `UseExceptionHandler`. Short-circuit by returning an `IResult` directly without calling `next`. Apply filters per-endpoint with `.AddEndpointFilter<T>()` or per-group with `RouteGroupBuilder.AddEndpointFilter<T>()`.
 
 ---
 

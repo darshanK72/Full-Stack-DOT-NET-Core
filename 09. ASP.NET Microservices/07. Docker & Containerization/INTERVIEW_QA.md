@@ -439,3 +439,147 @@ builder.Logging.SetMinimumLevel(LogLevel.Debug);
 ```
 
 ---
+
+## Gotchas — Docker & Containerization (Interview Traps)
+
+---
+
+#### Gotcha 1. Using ADD Instead of COPY in Dockerfile
+
+**Concepts**
+- ADD auto-extracting tarballs and fetching remote URLs
+- COPY as the explicit, predictable alternative
+- ADD's hidden behavior causing unexpected image content
+- COPY preferred for all local file operations
+
+**Answer**
+
+`ADD` and `COPY` both copy files into the image, but `ADD` has two hidden behaviours: it automatically extracts `.tar`, `.tar.gz`, and similar archives, and it accepts remote URLs as sources. These side effects make `ADD` unpredictable — adding a `.tar.gz` accidentally extracts it, and a URL source creates an implicit network dependency during the build. `COPY` does exactly one thing: copies local files into the image layer with no extraction or fetching. The Docker best-practice guide recommends using `COPY` for all local file operations and reserving `ADD` only for the rare case where automatic tar extraction is genuinely desired, which is almost never the case in a .NET application Dockerfile.
+
+---
+
+#### Gotcha 2. Multi-Stage Build Cache Busted by Copying All Files First
+
+**Concepts**
+- COPY . . before dotnet restore invalidating restore cache on every code change
+- Layer cache invalidated when any copied file changes
+- Copying only the .csproj files first to cache the restore step
+- Cache-friendly Dockerfile layer ordering
+
+**Answer**
+
+A `Dockerfile` that copies all source files with `COPY . .` before running `dotnet restore` busts the restore cache on every single source code change — the entire `dotnet restore` step re-runs from scratch even when no `.csproj` or package dependency changed, adding significant build time in CI. The cache-friendly pattern is to copy only the `.csproj` and `.sln` files first, run `dotnet restore`, and then copy the remaining source files: the restore layer is invalidated only when package dependencies change, not when application code changes. This can reduce CI build times from minutes to seconds for frequent commits.
+
+---
+
+#### Gotcha 3. Container Running as Root
+
+**Concepts**
+- Default Docker container running as root inside the container
+- Root-in-container with elevated host privileges via volume mounts
+- USER instruction adding a non-root user in Dockerfile
+- Container breakout risk when running as root
+
+**Answer**
+
+By default, processes inside a Docker container run as root (UID 0), which means a container vulnerability that allows code execution has root privileges inside the container — and depending on Docker configuration, root-in-container can interact dangerously with bind-mounted host paths. The fix is a `USER` instruction in the Dockerfile: create a non-root user with `RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app`, then `USER appuser` before the `ENTRYPOINT`. The .NET base images include a non-root `app` user (`USER app`) that you should switch to in the final stage, which is now the recommended practice in Microsoft's official .NET Dockerfiles.
+
+---
+
+#### Gotcha 4. Container Time Zone Mismatched With the Host
+
+**Concepts**
+- UTC in container versus local time zone on the host
+- Logs showing timestamps in UTC while dashboards expect local time
+- TZ environment variable and timezone data package in the container
+- UTC as the recommended container standard
+
+**Answer**
+
+Containers run in UTC by default regardless of the host's time zone — if your application formats timestamps using `DateTime.Now` or `TimeZoneInfo.Local`, the output will be UTC in the container while developers expect local time, which causes confusion in logs and scheduled jobs. The recommended practice is to run all containers in UTC and convert time zones only in the presentation layer, treating UTC as the universal storage format. If a specific time zone is genuinely required inside the container (for a scheduled job, for example), install the `tzdata` package in the Dockerfile and set the `TZ` environment variable, or use `TimeZoneInfo.FindSystemTimeZoneById` with an explicit IANA zone name.
+
+---
+
+#### Gotcha 5. No .dockerignore File Causing Large Slow Builds
+
+**Concepts**
+- Build context sent to Docker daemon including unnecessary files
+- node_modules, bin, obj, .git sent on every build
+- .dockerignore filtering the build context before transfer
+- Large build context slowing CI builds significantly
+
+**Answer**
+
+Without a `.dockerignore` file, the Docker CLI sends the entire working directory as the build context to the Docker daemon — including `bin/`, `obj/`, `.git/`, `node_modules/`, test results, and local tool caches that can be hundreds of megabytes. This transfer happens on every `docker build` command, dominating build time and consuming CI bandwidth. A `.dockerignore` file at the project root should exclude at minimum: `**/bin`, `**/obj`, `.git`, `.vs`, `node_modules`, `**/*.user`, and `**/TestResults` — mirroring the `.gitignore` pattern for build artifacts.
+
+---
+
+#### Gotcha 6. Image Tag Fixed at `latest` in Production
+
+**Concepts**
+- latest tag mutable and not idempotent
+- Rollback to "latest" deploying the wrong image version
+- Semantic version or commit SHA as immutable image tags
+- Pinned image tags enabling reproducible deployments
+
+**Answer**
+
+Tagging production images with `latest` means the tag resolves to a different image every time a new build is pushed — a rollback operation that re-deploys the `latest` tag will deploy the newest image, not the previous version, making rollback semantically meaningless. In production, every image must be tagged with an immutable identifier: a semantic version (`1.4.2`), a git commit SHA, or a pipeline build number. The deployment manifest pins the exact tag, ensuring that running the same manifest twice deploys exactly the same binary. Most container registries support tag immutability policies that prevent overwriting an existing tag to enforce this.
+
+---
+
+#### Gotcha 7. Debug Configuration Build in the Final Image Stage
+
+**Concepts**
+- Debug build including debug symbols, slower JIT, and verbose logging
+- Release build smaller, faster, and with optimisations enabled
+- ARG CONFIGURATION=Release in Dockerfile for default
+- docker build --build-arg overriding configuration for CI
+
+**Answer**
+
+A Dockerfile that runs `RUN dotnet build -c Debug` or omits the `-c Release` flag produces a debug-configuration binary in the final image — debug builds are significantly larger (include PDB symbol files), slower to start (skip certain JIT optimisations), and may log sensitive information at Debug level. Production images must always be built with `-c Release`. The common Dockerfile pattern is `RUN dotnet publish -c Release -o /app/publish`, with no `-c` flag defaulting to Debug and being a frequent mistake in hand-written Dockerfiles that omit the flag because it works locally.
+
+---
+
+#### Gotcha 8. Storing Connection Strings and Secrets in ENV Instructions
+
+**Concepts**
+- ENV instruction baking secrets into the image layer
+- docker inspect revealing environment variable values
+- Runtime secret injection via orchestrator, not Dockerfile
+- BuildKit secrets mount for build-time secrets
+
+**Answer**
+
+Using `ENV DB_PASSWORD=SuperSecret123` in a Dockerfile bakes the secret into every image layer permanently — `docker history` and `docker inspect` can reveal environment variable values from any image, including shared registry copies. Secrets must be injected at container runtime by the orchestrator: Kubernetes Secrets mounted as environment variables or volume files, Docker Swarm secrets, or Azure Container Apps secrets. If a secret is needed at build time (a private NuGet feed token), use Docker BuildKit's `--mount=type=secret` which mounts the secret into the build step without writing it to any image layer.
+
+---
+
+#### Gotcha 9. ENTRYPOINT and CMD Confusion Breaking Container Overrides
+
+**Concepts**
+- ENTRYPOINT as the fixed executable that cannot be overridden by docker run arguments
+- CMD as the default arguments that can be overridden by docker run
+- Shell form versus exec form behaviour difference
+- docker run <image> <args> replacing CMD, not ENTRYPOINT
+
+**Answer**
+
+A Dockerfile using `ENTRYPOINT ["dotnet", "MyApp.dll"]` means `docker run myimage --help` passes `--help` as an argument to `dotnet MyApp.dll`, which is correct. But using `CMD dotnet MyApp.dll` (shell form) means `docker run myimage --help` replaces the entire CMD with `--help`, which is not an executable, causing an immediate error. The exec form of ENTRYPOINT is the recommended pattern for defining the executable, with CMD providing overridable default arguments: `ENTRYPOINT ["dotnet", "MyApp.dll"]` and optionally `CMD []`. Using the shell form (`ENTRYPOINT dotnet MyApp.dll`) also wraps the command in `/bin/sh -c`, which intercepts SIGTERM and prevents graceful shutdown.
+
+---
+
+#### Gotcha 10. Not Specifying a HEALTHCHECK Instruction
+
+**Concepts**
+- Docker container healthy check versus Kubernetes readiness probe
+- Standalone container in Docker Compose showing "Up" but actually unhealthy
+- HEALTHCHECK instruction providing container-level health status
+- docker inspect showing health status from HEALTHCHECK
+
+**Answer**
+
+A Docker container without a `HEALTHCHECK` instruction shows as "Up" in `docker ps` and Docker Compose as long as the process is running, even if the application inside has deadlocked, lost its database connection, or is returning 500 errors on every request. Adding `HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:8080/health || exit 1` provides a container-level health status visible in `docker inspect` and used by Docker Compose's `depends_on: condition: service_healthy` to delay dependent containers from starting. In Kubernetes, liveness and readiness probes serve the same purpose at the orchestration level, but `HEALTHCHECK` is the correct layer for standalone Docker deployments.
+
+---

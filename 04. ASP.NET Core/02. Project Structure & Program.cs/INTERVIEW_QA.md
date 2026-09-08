@@ -276,217 +276,147 @@ A new Web API project from `dotnet new webapi` includes `Program.cs`, `appsettin
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
+## Gotchas — Project Structure & Program.cs (Interview Traps)
 
 ---
 
-## Gotcha 1. Middleware order — routing before auth
+#### Gotcha 1. Services registered after `builder.Build()` are lost or throw
 
 **Concepts**
-- Endpoint routing requiring routing selection before authorization evaluation
-- `[Authorize]` metadata availability — only after routing selects endpoint
-- Recommended pipeline order: exception → forwarded headers → routing → auth → authorization → endpoints
-- Silent anonymous access or incorrect challenges when order is wrong
+- DI container sealed at `builder.Build()` — registrations must precede it
+- `app.Services` for resolution only, not registration
+- `InvalidOperationException` or silent no-op when adding services post-build
+- Extension methods on `IServiceCollection` for organized pre-build registration
 
 **Answer**
 
-In ASP.NET Core endpoint routing, authorization middleware evaluates `[Authorize]` attributes and minimal API `.RequireAuthorization()` policies by reading metadata from the already-selected endpoint. When authorization runs before routing, the endpoint hasn't been selected yet and that metadata doesn't exist — the result is either no policy enforcement or an incorrect 401 challenge for routes that should allow anonymous access. The correct order is exception handling first (outermost wrapper), then forwarded headers, then routing, then authentication, then authorization, and finally endpoint mapping calls like `MapControllers`. I make this a checklist item on every PR that touches `Program.cs` because the symptom — anonymous access to protected routes — doesn't surface in unit tests that mock the auth layer.
+`builder.Build()` compiles the DI container into an immutable `IServiceProvider`. Any call to `builder.Services.Add*()` after `Build()` either throws `InvalidOperationException` or registers into a collection that is never used. The `app` variable exposes `app.Services` only for resolving services. Teams organizing large applications should use `IServiceCollection` extension methods — `builder.Services.AddOrderModule()` — that all run before `Build()`. Middleware factories or conditional registrations that add services too late are a common source of confusing `InvalidOperationException: Unable to resolve service` errors that appear only under specific request paths.
 
 ---
 
-## Gotcha 2. Scoped service in a Singleton
+#### Gotcha 2. Middleware registration order in `Program.cs` directly controls execution order
 
 **Concepts**
-- Captive dependency anti-pattern — scoped lifetime held by singleton
-- `DbContext` accumulating stale cross-request tracked entities
-- `ValidateScopes` detecting lifetime violations at startup in Development
-- `IServiceScopeFactory` for per-operation controlled resolution
+- `app.Use*()` calls forming an ordered delegate chain
+- Exception handler must be outermost (registered first)
+- `UseRouting` before `UseAuthentication` and `UseAuthorization`
+- `UseStaticFiles` before routing to prevent static paths being matched as API routes
 
 **Answer**
 
-Injecting a scoped service like `DbContext` into a singleton's constructor creates a captive dependency because the singleton lives for the application lifetime while the scoped service was designed for per-request use. The scoped instance gets frozen inside the singleton, never refreshes between requests, and eventually the scoped service is disposed while the singleton still references it. I enable `ValidateScopes` in development (`builder.Host.UseDefaultServiceProvider(o => o.ValidateScopes = true)`) to catch this at startup rather than discovering it in production. The fix is to inject `IServiceScopeFactory` into the singleton and create a new scope per operation, disposing it when the operation completes.
+In the minimal hosting model, the order of `app.Use*()` calls in `Program.cs` determines execution order for every HTTP request. Exception handling middleware must be registered first so it wraps the entire pipeline and catches exceptions from any subsequent step. Authentication must follow routing so the matched endpoint's metadata is available for policy evaluation. Registering `UseAuthorization()` before `UseRouting()` silently breaks endpoint-based authorization — the endpoint hasn't been selected yet when the authorization check runs. Review middleware order in `Program.cs` during every code review; it is the single most impactful architectural decision in the file.
 
 ---
 
-## Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 3. Top-level statements create an implicit `Program` class that must be made public for tests
 
 **Concepts**
-- Socket exhaustion from per-use `HttpClient` instantiation
-- `HttpMessageHandler` pooling and rotation via `IHttpClientFactory`
-- Named and typed HTTP clients registered in DI container
-- DNS change handling through periodic handler rotation
+- Top-level statement compilation producing implicit `internal Program` class
+- `WebApplicationFactory<Program>` failing to reference `internal` type
+- `public partial class Program { }` at bottom of `Program.cs` as the fix
+- Partial class merging with the compiler-generated implicit class
 
 **Answer**
 
-Constructing a new `HttpClient` inside a singleton on every call exhausts system sockets because each instance maintains its own connection pool and the underlying `HttpMessageHandler` sockets aren't released until GC finalizes the handler — which can take minutes under load. `IHttpClientFactory` was introduced specifically for this: it pools and recycles `HttpMessageHandler` instances, shares connections efficiently, and rotates handlers at a configured interval to respect DNS changes. I register clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` so the DI container manages handler lifetime, and the typed client class receives a properly managed `HttpClient` through injection.
+When `Program.cs` uses top-level statements, the C# compiler generates an implicit `Program` class that is `internal` by default. Integration tests using `WebApplicationFactory<Program>` fail with a compile error because the test project cannot reference an `internal` type in another assembly. The fix is to add `public partial class Program { }` at the bottom of `Program.cs`, which makes the class public and partial, allowing the compiler to merge it with the generated class and giving test projects visibility. Forgetting this single line is the most common setup issue when creating integration tests for minimal hosting model projects.
 
 ---
 
-## Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 4. `AddControllers()` registers services but `MapControllers()` is required to activate routes
 
 **Concepts**
-- `IOptions<T>` — singleton snapshot frozen at first resolution
-- `IOptionsSnapshot<T>` — per-scope recalculation on config reload
-- `IOptionsMonitor<T>` — change notification and live current-value for singletons
-- `reloadOnChange: true` only benefiting monitor and snapshot, not plain options
+- `AddControllers()` — registers MVC infrastructure in DI
+- `MapControllers()` — scans controllers and registers endpoint routing
+- 404 response with no error when `MapControllers()` is omitted
+- Split between registration and activation intentional in minimal model
 
 **Answer**
 
-The common mistake with `IOptions<T>` is using it in a singleton and expecting configuration file changes to take effect after a reload — they never will, because `IOptions<T>` computes its value once and freezes it for the application lifetime. When a singleton needs live configuration, I inject `IOptionsMonitor<T>`, which provides a `CurrentValue` property that reflects the latest configuration on every access and an `OnChange` callback for reacting to updates. For scoped services, `IOptionsSnapshot<T>` recalculates once per scope so each request sees the latest values. The `reloadOnChange: true` JSON provider setting is only meaningful when code reads via monitor or snapshot — `IOptions<T>` silently ignores it.
+`builder.Services.AddControllers()` registers the MVC infrastructure — formatters, model binding, validation, filters — in the DI container, but it does not create any routes. Routes are activated by calling `app.MapControllers()` in the middleware pipeline, which scans controller classes for `[Route]`, `[HttpGet]`, and `[ApiController]` attributes and registers endpoint metadata. Omitting `MapControllers()` causes every request to return 404 with no log entry explaining why. This explicit separation between registration and activation is intentional in the minimal hosting model, but regularly trips up developers migrating from the conventional `Startup.Configure` model where both steps were more tightly coupled.
 
 ---
 
-## Gotcha 5. GET with `[FromBody]`
+#### Gotcha 5. `AddControllers()` vs `AddControllersWithViews()` vs `AddMvc()` — pick the smallest footprint
 
 **Concepts**
-- HTTP GET semantics — no standardized request body
-- Proxy and CDN behavior stripping GET bodies
-- `[FromQuery]` and `[FromRoute]` as correct binding sources for GET
-- `[AsParameters]` for complex filter DTOs on GET endpoints
+- `AddControllers()` — API only, no Razor view engine
+- `AddControllersWithViews()` — controllers plus Razor view rendering
+- `AddMvc()` — controllers, views, and Razor Pages
+- Unnecessary Razor view engine overhead in API-only projects
 
 **Answer**
 
-Using `[FromBody]` on a GET endpoint works in Swagger's Try-it-out during development because Swagger sends the body regardless of HTTP verb, but many production intermediaries — CDNs, load balancers, and browser preflight logic — are permitted by the HTTP spec to strip or ignore GET request bodies. The failure is silent: the parameter binds to its default value with no error or exception. The correct binding sources for GET parameters are route values with `[FromRoute]` and query string keys with `[FromQuery]`. When I need to accept a complex filter object on a GET endpoint, I use `[AsParameters]` to bind a DTO from query string properties rather than a JSON body.
+`AddControllers()` registers only the services needed for Web API controllers — `IActionResult` responses, model binding, validation, and formatters — without the Razor view engine. `AddControllersWithViews()` adds Razor view rendering. `AddMvc()` includes everything, including Razor Pages, which is unnecessary overhead when the project only serves JSON. Using `AddMvc()` in an API-only project increases startup time and the surface area of infrastructure that activates. Pick `AddControllers()` for API projects, `AddControllersWithViews()` for MVC applications that also expose APIs, and `AddMvc()` only when Razor Pages are genuinely used.
 
 ---
 
-## Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 6. `app.Services.CreateScope()` at startup must be disposed — root-scope resolution causes captive dependency
 
 **Concepts**
-- `JsonNamingPolicy.CamelCase` — default serialization policy in ASP.NET Core Web API
-- Silent property binding failure — no validation error, no exception
-- `PropertyNameCaseInsensitive` as migration mitigation option
-- OpenAPI contract as canonical naming source for client teams
+- Root `IServiceProvider` as singleton lifetime container
+- Scoped services resolved from root becoming lifetime singletons
+- `await using var scope = app.Services.CreateAsyncScope()` pattern
+- EF Core `DbContext` migration and seeding at startup
 
 **Answer**
 
-ASP.NET Core 8 Web API serializes and deserializes JSON with camelCase property names by default, so a client sending `"CustomerName"` has that property silently ignored during model binding — the target property stays at its default value with no 400 response. This trips up teams migrating from ASP.NET Framework where PascalCase was the convention. The cleanest resolution is updating clients to send camelCase and publishing that contract via OpenAPI. If I must temporarily support both casings I enable case-insensitive deserialization with `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)`, and I add `[Required]` on non-optional properties so silent binding failures surface as 400 responses rather than incorrect silent defaults.
+Running database migrations or seeding at startup requires a scoped `DbContext`, but the root `IServiceProvider` (`app.Services`) is effectively a singleton container — resolving a scoped service directly from it creates a captive dependency held for the application lifetime. The correct pattern is `await using var scope = app.Services.CreateAsyncScope()`, then `scope.ServiceProvider.GetRequiredService<AppDbContext>()`. Failing to dispose the scope means the `DbContext` and all tracked entities remain alive until process exit, which is a resource leak when repeated or used in tests. Always use the `await using` block so disposal is guaranteed even when the seeding logic throws.
 
 ---
 
-## Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 7. `appsettings.{Environment}.json` overrides — arrays are replaced, not merged
 
 **Concepts**
-- `throw ex` resetting stack trace to catch block location
-- `throw` preserving original exception stack trace through rethrow
-- `InnerException` wrapping for added domain context without losing origin
-- APM and structured logging dependency on accurate stack traces for root-cause analysis
+- JSON configuration layering — key-level override, not file replacement
+- Array sections replaced entirely by environment-specific file
+- Logging providers, CORS origins, and AllowedHosts stored in arrays
+- `IConfiguration.GetSection` returning merged scalar values
 
 **Answer**
 
-Rethrowing with `throw ex` discards the original stack trace and replaces it with the catch block location, which means Application Insights, Serilog, and error tracking tools show the catch site as the error origin rather than the line that actually failed. This makes production root-cause analysis significantly harder. Bare `throw` without a variable preserves the original trace through the rethrow. The only time I create a new exception is when I want to add domain context: `throw new OrderProcessingException("Failed during payment", ex)` wraps the original as `InnerException` so both the domain message and the original stack trace are available in logs.
+`appsettings.Production.json` is layered on top of `appsettings.json` at the key level — it does not replace the entire base file. Scalar keys in the environment file override matching base keys; all other base keys remain active. For arrays, the behavior is different: a JSON array in `appsettings.Production.json` replaces the entire array from `appsettings.json` for that section, not merges element-by-element. Teams that store logging providers, CORS origins, or `AllowedHosts` as arrays are surprised to find the production file wipes the base array rather than extending it. Understanding the full precedence order — base → environment → environment variables → command-line — prevents unexpected configuration behavior.
 
 ---
 
-## Gotcha 8. Kestrel as the only production layer
+#### Gotcha 8. `Properties/launchSettings.json` is never deployed and has no effect in production
 
 **Concepts**
-- Kestrel as application server, not edge gateway
-- TLS termination and certificate renewal at reverse proxy layer
-- `UseForwardedHeaders` requirement when behind a proxy
-- WAF protection, DDoS mitigation, and static file caching at edge
+- `launchSettings.json` consumed by `dotnet run`, Visual Studio, VS Code only
+- Excluded from `dotnet publish` output — not present on deployed host
+- Production URLs via `ASPNETCORE_URLS` environment variable
+- `ASPNETCORE_ENVIRONMENT` set at the host or container level
 
 **Answer**
 
-Kestrel is production-ready for serving application requests, but running it directly exposed to the internet means I'm managing TLS certificate provisioning in application code, missing centralized WAF protection and DDoS mitigation, and serving static files without edge caching. In practice I run Kestrel on an internal port — `http://+:8080` in a container — and let nginx, IIS ARR, Azure Front Door, or an AWS ALB handle HTTPS termination and edge concerns. When doing this I must call `UseForwardedHeaders()` early in the pipeline so `Request.Scheme` reflects `https` and rate limiting partitions by real client IP rather than the proxy's internal address.
+`Properties/launchSettings.json` stores launch profiles for local development — `applicationUrl`, environment variable overrides, and Swagger launch settings — and is explicitly excluded by `dotnet publish`. Deployed applications never read it. Production URLs must be configured via `ASPNETCORE_URLS` or Kestrel options in `appsettings.json`; the environment name must be set through the host's environment variable system (container manifest, App Service configuration, or systemd unit file). Discovering this at first deployment — when the app starts on a different port or in the wrong environment — is common and avoidable by validating host configuration separately from launch profiles.
 
 ---
 
-## Gotcha 9. `launchSettings.json` in production
+#### Gotcha 9. Reading `IConfiguration` directly bypasses validation — prefer `IOptions<T>` with `ValidateOnStart`
 
 **Concepts**
-- `launchSettings.json` excluded from `dotnet publish` output — never deployed
-- `ASPNETCORE_URLS` as production Kestrel binding replacement
-- `ASPNETCORE_ENVIRONMENT` from container manifest or platform config
-- Development HTTPS certificate and user secrets unavailable in deployed environments
+- `IConfiguration["Key"]` returning `null` silently when key is absent
+- `IOptions<T>` binding with type conversion and data annotation validation
+- `ValidateDataAnnotations()` and `ValidateOnStart()` for eager startup validation
+- Missing configuration surfaced at startup, not at the first runtime use
 
 **Answer**
 
-Developers often discover this the hard way when an app that runs correctly with `dotnet run` behaves differently after deployment — `launchSettings.json` is not included in `dotnet publish` output and never reaches the production host. The `applicationUrl`, environment variable overrides, and browser launch settings in that file apply only to IDE and `dotnet run` sessions. In production I set `ASPNETCORE_ENVIRONMENT=Production` through the container manifest or App Service configuration, bind Kestrel via `ASPNETCORE_URLS`, and supply secrets through Key Vault or managed identity — none of which come from `launchSettings.json`.
+Reading configuration via `IConfiguration["ConnectionStrings:Default"]` returns `null` with no error when the key is absent, so a missing connection string only surfaces as `NullReferenceException` when the first database operation runs. Binding configuration to `IOptions<T>` classes and calling `ValidateDataAnnotations().ValidateOnStart()` causes the host to throw at startup if required configuration is absent or malformed, surfacing the error before any request is served. `ValidateOnStart()` is the key addition — without it, `IOptions<T>` validates lazily on first access rather than at startup. This is the preferred pattern for all application configuration in production services.
 
 ---
 
-## Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 10. `builder.Configuration` vs `app.Configuration` — both work but serve different phases
 
 **Concepts**
-- `bool` default value — `false`, indistinguishable from omitted field
-- `bool?` for tri-state PATCH: null = omitted, true = explicit opt-in, false = explicit opt-out
-- System.Text.Json missing-property behavior — defaults to `false` for non-nullable bool
-- Explicit enum for consent or state fields that need unambiguous intent
+- `builder.Configuration` — mutable `IConfigurationBuilder` for adding sources
+- `app.Configuration` — resolved `IConfiguration` for reading values
+- Adding sources after `Build()` has no effect on the built configuration
+- `AddEnvironmentVariables` and `AddCommandLine` added automatically by default builder
 
 **Answer**
 
-A non-nullable `bool` on a PATCH DTO cannot represent "this field was not included in the request" because `System.Text.Json` sets it to `false` when the JSON key is absent — the same value as explicitly passing `false`. This means I can't distinguish an omission from a user who deliberately opted out, which matters for consent flags, feature toggles, and any tri-state concept. I use `bool?` on PATCH DTOs so `null` means "omitted — leave unchanged", `true` means "explicitly enabled", and `false` means "explicitly disabled". For cases where even more clarity is needed, an explicit enum like `ConsentState { Unspecified, OptIn, OptOut }` makes intent unambiguous in the API contract.
-
----
-
-## Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
-
-**Concepts**
-- `X-Forwarded-For`, `X-Forwarded-Proto` header processing by `UseForwardedHeaders`
-- `Request.Scheme` stuck at `http` causing HTTPS redirect loops
-- Trusted proxy network configuration in `ForwardedHeadersOptions`
-- Rate limiting by IP targeting proxy address instead of real client
-
-**Answer**
-
-When ASP.NET Core runs behind a reverse proxy that terminates TLS, Kestrel sees plain HTTP requests, so `Request.Scheme` is `http` and `Connection.RemoteIpAddress` is the proxy's internal IP. Without `UseForwardedHeaders()`, HTTPS redirect middleware loops because the scheme never becomes `https`, cookie `Secure` validation fails, and rate limiting targets the proxy rather than the user. I call `UseForwardedHeaders()` as one of the first middleware registrations, before anything that reads scheme or host, and I configure `ForwardedHeadersOptions.KnownNetworks` or `KnownProxies` to list only my actual proxy infrastructure — trusting all proxies would allow an attacker to spoof their IP via a forged `X-Forwarded-For` header.
-
----
-
-## Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles()` — unauthenticated public access to all `wwwroot` files
-- `wwwroot` restricted to public client-side assets only
-- Secrets and configuration via `IConfiguration`, never as files under web root
-- Accidental sensitive file exposure via public path
-
-**Answer**
-
-Anything placed in `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients with no access control — there is no built-in way to make individual files in `wwwroot` private. The folder is correct for CSS, JavaScript, images, and other public client assets. Placing configuration files, `.env` files, private keys, or backup `appsettings.Production.json` copies there would expose them over HTTP to anyone who guesses the path. Configuration secrets belong outside the web root and reach the application through `IConfiguration` backed by environment variables or a secrets manager — never as static files the web server can serve directly.
-
----
-
-## Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback returning `index.html` for all unmatched paths
-- Registration order — API endpoint mapping before fallback
-- `index.html` masking API 404 and 500 as HTTP 200 with HTML body
-- Conditional fallback excluding `/api` prefix
-
-**Answer**
-
-`MapFallbackToFile("index.html")` exists so deep-linked SPA routes return the app's entry point, but if it's registered before `MapControllers()`, requests to API paths that don't match any controller return `index.html` with status 200 rather than a proper 404. HTTP clients parsing that HTML as JSON throw cryptic parse errors instead of meaningful 404 responses. I always register `MapControllers()` and all API endpoint mapping before `MapFallbackToFile`, and optionally add a guard that excludes `/api/*` paths from the fallback so API 404s are never masked.
-
----
-
-## Gotcha 14. Background service without scope factory
-
-**Concepts**
-- `BackgroundService` singleton lifetime vs scoped `DbContext` design
-- `IServiceScopeFactory` for per-operation scoped resolution
-- Captive dependency — disposed context while singleton still holds reference
-- `ValidateScopes` catching constructor injection violations at startup
-
-**Answer**
-
-A `BackgroundService` is a singleton because hosted services live for the application lifetime, which means it cannot safely hold a constructor-injected `DbContext` — that context is scoped, designed for one request's lifetime, and after its scope ends the context is disposed while the background service still references it. I inject `IServiceScopeFactory` into the background service's constructor instead, then at the start of each background iteration I call `await using var scope = factory.CreateAsyncScope()`, resolve `DbContext` from `scope.ServiceProvider`, do the work, and let the scope dispose when the block exits. Enabling `ValidateScopes` in development catches the illegal constructor injection at startup before it fails in production.
-
----
-
-## Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR in-process connection store — instance-local broadcasts only
-- Redis or Azure Service Bus backplane for cross-instance fan-out
-- Sticky sessions necessary but insufficient without backplane
-- Azure SignalR Service as managed backplane alternative
-
-**Answer**
-
-SignalR maintains connection state in memory per server instance, so a hub broadcast on instance A only reaches clients connected to instance A — clients on instance B never see it. Sticky sessions (routing each WebSocket client consistently to the same pod) are necessary for connection maintenance but don't solve cross-instance fan-out: a user on instance A triggering an event that should notify a user on instance B still fails. The fix is a backplane: `AddSignalR().AddStackExchangeRedis(redisConnectionString)` installs a Redis pub/sub channel that every instance subscribes to, so a message published on any instance reaches all connected clients regardless of pod. Azure SignalR Service is the managed alternative that removes the need to run and maintain Redis.
+`WebApplicationBuilder` exposes `builder.Configuration` as a mutable `IConfigurationBuilder` where additional sources — custom JSON files, Azure Key Vault, AWS Parameter Store — can be added before `Build()`. After `Build()` is called, `app.Configuration` is the built, immutable `IConfiguration` for reading values. Calling `app.Configuration.AddJsonFile(...)` after build does nothing because the `IConfiguration` object is already finalized. The `WebApplication.CreateBuilder` defaults already include `appsettings.json`, `appsettings.{env}.json`, environment variables, and command-line arguments — custom sources should be additive, and `builder.Configuration.Sources.Clear()` is available to reset them if needed.
 
 ---
 

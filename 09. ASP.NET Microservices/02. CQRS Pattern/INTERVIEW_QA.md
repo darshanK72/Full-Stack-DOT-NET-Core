@@ -471,3 +471,147 @@ CQRS should not be used when the application's domain is simple, the read and wr
 Handler explosion occurs when developers apply CQRS mechanically by creating a new command/query pair for every operation without considering whether operations belong together, resulting in dozens of nearly identical handlers that are harder to understand than the service layer they replaced. The remedy is to design commands and queries around meaningful business operations rather than technical operations, and to let handlers be as rich as the use case demands. Commands should represent a complete business operation, not a field update: `UpdateCustomerAddressCommand` is one command that updates all address fields atomically, not five separate commands for street, city, state, zip, and country. If two operations always happen together as part of one business transaction, they likely belong in a single command handler — splitting them into two separate commands that must be called in sequence by the controller leaks orchestration logic into the HTTP layer. Shared logic between handlers belongs in domain objects such as aggregates, value objects, and domain services rather than being duplicated across handlers — a handler is an orchestrator, not a place for reusable logic. A practical guideline: the number of handlers should grow roughly in proportion to the number of meaningful user-facing actions in the system, not in proportion to the number of database columns or entity properties.
 
 ---
+
+## Gotchas — CQRS Pattern (Interview Traps)
+
+---
+
+#### Gotcha 1. Expecting Immediate Consistency on the Read Model
+
+**Concepts**
+- Eventual consistency between write and read sides
+- Projection lag between command commit and read-model update
+- "Read your own writes" problem on the query endpoint
+- Returning the created resource from the command response as the simplest fix
+
+**Answer**
+
+When a client issues a command and immediately queries the read model, it may see stale data or a 404 because the projection that populates the read model processes events asynchronously and has not yet caught up. Interviewers expect you to know that eventual consistency is inherent in an async read-side projection and that the solution is either to include the resource in the command response body (so the client has fresh data without hitting the query endpoint) or to implement a "wait for position" mechanism that blocks the query handler until the projection advances past a known event position. Treating the CQRS read side as synchronously consistent is the most common production bug in event-driven CQRS systems.
+
+---
+
+#### Gotcha 2. Placing Validation Logic Inside the Command Handler
+
+**Concepts**
+- Validation as a cross-cutting concern belonging in a pipeline behavior
+- Duplicate validation across multiple handlers
+- FluentValidation with MediatR pipeline behavior
+- Handler receiving a guaranteed-valid command
+
+**Answer**
+
+Putting `if (command.Quantity <= 0) throw new ArgumentException(...)` directly inside each handler couples input validation to business logic, forces every handler to repeat the same guard checks, and makes validation rules invisible to the caller until a handler throws. The correct CQRS approach is to register a `ValidationBehavior<TRequest, TResponse>` in the MediatR pipeline so that FluentValidation validators run automatically before any handler executes — the handler is guaranteed to receive a valid, pre-validated command. This separation means validation rules are centralised, easily unit-tested, and applied consistently without each handler needing to duplicate them.
+
+---
+
+#### Gotcha 3. Creating One Command Per Field Update
+
+**Concepts**
+- Commands representing business operations, not property setters
+- Handler explosion from field-level commands
+- Orchestration logic leaking into controllers
+- Atomic business operation as the command granularity
+
+**Answer**
+
+Creating `UpdateCustomerFirstNameCommand`, `UpdateCustomerLastNameCommand`, and `UpdateCustomerEmailCommand` as three separate commands that the controller calls in sequence is not CQRS — it is a procedure decomposed into artificially fine-grained steps. Commands should model complete business operations: `UpdateCustomerProfileCommand` carries all changed fields and applies them atomically in one handler, with the domain enforcing any invariants that span those fields. Field-level commands force controllers to know the correct call sequence, leak orchestration logic out of the Application layer, and create concurrency issues when two callers update different fields at the same time.
+
+---
+
+#### Gotcha 4. Returning Domain Entities from Query Handlers
+
+**Concepts**
+- Domain Entity exposure coupling the query contract to the internal model
+- Navigation property causing serialization recursion
+- Read-optimised flat DTO as the correct query return type
+- Independent query model shape from the write model
+
+**Answer**
+
+Returning a domain `Order` entity directly from a `GetOrderByIdQueryHandler` exposes navigation properties, internal fields, and invariant-enforcing constructors to the HTTP layer, and changes to the domain model immediately change the API response shape. Query handlers should return purpose-built flat DTOs or read models optimised for the consumer — a `OrderSummaryDto` with denormalised fields that the frontend needs, not a fully loaded aggregate. The read side of CQRS is freed from domain model constraints by design: a query can read directly from a denormalised view, a projection table, or even a separate read database, without ever loading a domain entity.
+
+---
+
+#### Gotcha 5. Mixing Commands and Queries in One Handler
+
+**Concepts**
+- Command Query Separation as the foundational principle
+- State mutation inside a query handler
+- Audit trail corrupted by side effects in reads
+- Separate request and handler classes for write and read operations
+
+**Answer**
+
+A handler that both reads and modifies state — for example, a `GetAndMarkAsReadQueryHandler` that fetches a notification and sets its `IsRead` flag in the same operation — violates the Command Query Separation principle that CQRS is built on. Queries must be side-effect free so they can be retried, cached, or executed from a read replica; commands mutate state and should not return domain data beyond an identifier or status. Mixing them produces race conditions, unpredictable cache invalidation, and audit logs that show mutations triggered by read operations. The fix is to separate the read into a query and the mutation into a subsequent command, even if the client must issue two requests.
+
+---
+
+#### Gotcha 6. Forgetting to Publish Domain Events From Command Handlers
+
+**Concepts**
+- Domain events signalling a completed business fact
+- Read-side projections and external integrations depending on events
+- Events collected on the aggregate and published after Save
+- Missing event leaving the read model and downstream services stale
+
+**Answer**
+
+A command handler that saves an aggregate without publishing its collected domain events leaves all read-side projections and downstream integrations out of sync — the write side updated, but nothing that subscribes to `OrderPlacedEvent` received the notification. The pattern is for the aggregate to collect domain events internally (e.g., `_domainEvents.Add(new OrderPlacedEvent(...))`) and for the Infrastructure layer's `SaveChangesAsync` (via an EF Core interceptor or an outbox pattern) to dispatch those events after the transaction commits. Forgetting this step is a common omission when developers focus on the handler logic and forget the event propagation path.
+
+---
+
+#### Gotcha 7. Read Model Not Rebuilt After Schema Change
+
+**Concepts**
+- Projection as a derived view of events, always rebuildable
+- Schema migration for the read model versus the event store
+- Replay required when projection logic changes
+- Stale read model serving incorrect data after deployment
+
+**Answer**
+
+When the projection logic changes — for example, a new computed field is added to the read model — the existing read-side records built by the old logic remain stale until a replay rebuilds them. Developers sometimes update only the projection handler code and deploy without replaying historical events, so old records serve the old shape and only new events produce the new shape — the read model becomes inconsistent. The fix is to version projections: when logic changes, drop and rebuild the read model from the event stream (or event store), which is safe because projections are always derivable from the canonical event history.
+
+---
+
+#### Gotcha 8. Using CQRS Without a Real Reason
+
+**Concepts**
+- Complexity cost versus domain complexity justification
+- No separate read/write scaling need indicating CQRS is unnecessary
+- Simple layered architecture sufficient for most services
+- Pattern adoption for resume value over solving a real problem
+
+**Answer**
+
+Applying CQRS to a service with no complex domain logic, no read/write throughput asymmetry, and no separate read model requirement adds MediatR, command classes, query classes, handler classes, and mapping layers over what could be a five-line EF Core query in a controller — the overhead is real and the benefit is nonexistent. Interviewers frequently probe for this: "When would you NOT use CQRS?" and the correct answer includes simple CRUD services, small teams, short-lived services, and domains where the read and write shapes are identical. Pattern overuse for career-portfolio reasons rather than solving an actual technical problem is a common mistake that senior engineers recognise immediately.
+
+---
+
+#### Gotcha 9. Command Handler Making Multiple Round-Trip Reads Before the Write
+
+**Concepts**
+- N+1 round trips inside a single command handler
+- Aggregate loading all required state in one query
+- Excessive database calls degrading command throughput
+- Domain service coordinating across aggregates versus loading them separately
+
+**Answer**
+
+A command handler that loads the `Order`, then separately loads `Customer`, then separately loads `Product` in three sequential awaited calls has an N+1 performance problem inside a single command — each write operation costs three synchronous database round trips. The aggregate should be designed to encapsulate the state it needs to execute its business logic, loaded in a single query with the necessary associations included. When the handler needs data from multiple aggregates, consider loading them in parallel with `Task.WhenAll` or restructuring so the aggregate receives the needed data as constructor arguments from the command itself.
+
+---
+
+#### Gotcha 10. Over-Using CQRS for Simple Internal Services
+
+**Concepts**
+- Internal admin tools and simple batch jobs as poor CQRS candidates
+- Infrastructure cost of message buses and projections
+- Feature velocity decrease for teams unfamiliar with the pattern
+- CQRS payoff requiring high read/write throughput or complex domain
+
+**Answer**
+
+Applying the full CQRS stack — event bus, async projections, separate read database — to an internal admin dashboard or a nightly batch job that runs once a day is a poor trade: the infrastructure cost, operational complexity, and debugging difficulty are high, and the workload has no meaningful read/write throughput asymmetry to exploit. CQRS with async projections pays off when read throughput significantly exceeds write throughput and caching or denormalisation are required for query performance, or when the event stream itself has business value (audit trail, event sourcing). For services without these characteristics, a simple layered architecture with separate read and write service methods delivers the same logical separation with a fraction of the complexity.
+
+---

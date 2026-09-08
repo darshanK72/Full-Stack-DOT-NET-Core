@@ -185,67 +185,147 @@ C# 7.1 introduced `async Task Main(string[] args)` as a valid program entry poin
 
 ---
 
-## Gotchas
+## Gotchas — C# 7 Features (Interview Traps)
 
 ---
 
-## Q11. Why does case ordering in C# 7 switch-when produce unreachable arms silently?
+#### Gotcha 1. `out` variable declarations — `int.TryParse(s, out int n)` — `n` scoped to enclosing block, not just the if-body
 
 **Concepts**
-- first-matching case wins
-- general case before specific when guard
-- compiler warning not always emitted
-- unit tests on isolated values not covering ordering
-- fix: most specific case first
+- `out int n` declared inline at the call site
+- scope of `n` extends to the enclosing block, not just the `if` body
+- `n` is definite-assigned inside the `if` body only (successful path)
+- using `n` in the `else` branch — undefined value, compiler may warn
 
 **Answer**
 
-In a C# 7 switch statement, cases are evaluated sequentially from top to bottom. When `case OrderPriority.Express:` appears before `case OrderPriority.Express when order.IsHighValue:`, every Express order matches the first arm and control never reaches the second — the VIP arm is dead code. The C# compiler emits `CS8120` ("The switch case is unreachable") for some unreachable patterns, but the warning is not always generated for `when` guards on the same constant value depending on the compiler version. Unit tests that test `IsHighValue` orders in isolation pass because the test directly invokes the routing method with that one order — but in production, routing processes batches where the first matching arm handles all Express orders before the guarded arm is considered. The fix is to order cases from most constrained to least constrained: `when` guarded cases must precede the bare case for the same value.
+In `if (int.TryParse(s, out int n)) { Use(n); }`, the variable `n` is declared at the call site and its scope extends to the end of the enclosing block — not just the `if` body. This means code after the `if`/`else` can technically reference `n`, but the compiler only guarantees `n` is definitely assigned on the path where `TryParse` returned `true`. Accessing `n` in the `else` branch or after the block when the outer scope includes both paths produces a "use of unassigned variable" compiler error. A common gotcha is reusing `n` outside the `if` without checking whether `TryParse` succeeded, leading to silent use of `0` (the default) when the parse failed.
 
 ---
 
-## Q12. Why can a ValueTask not be awaited twice and what breaks when it is?
+#### Gotcha 2. Tuple deconstruction naming — `var (x, y) = point` — names are not part of the tuple type
 
 **Concepts**
-- ValueTask state machine internal reference counting
-- second await on completed ValueTask: undefined behavior
-- InvalidOperationException in debug builds
-- .AsTask() for multi-await scenarios
-- cache retry pattern pitfall
+- tuple element names are compiler metadata (alias), not part of the runtime type
+- `ValueTuple<int, int>` is the underlying type; names are erased at runtime
+- deconstruction works on any type with a `Deconstruct` method, not only tuples
+- swapping names in a method signature does not break binary compatibility
 
 **Answer**
 
-`ValueTask<T>` is designed for the single-await, single-continuation use pattern. When a `ValueTask` wraps an `IValueTaskSource` (used in pooled async state machine scenarios), the source tracks whether it has been consumed. A second `await` on the same `ValueTask` may observe a stale completed state, throw `InvalidOperationException`, or silently return incorrect data — the behavior is undefined by specification. In a retry pattern like `var nameTask = GetProductNameAsync(id); order.Name = await nameTask; if (string.IsNullOrEmpty(order.Name)) order.Name = await nameTask;`, the second `await nameTask` hits this undefined behavior. The correct fix is `var nameTask = GetProductNameAsync(id).AsTask();` which materializes a proper `Task<T>` heap object that can be safely awaited multiple times. Alternatively, restructure the code to call the method again for the retry rather than re-awaiting the same task handle.
+When you write `var (x, y) = point`, the names `x` and `y` are local variable names chosen at the deconstruction site — they are not the element names of the tuple. The underlying type is `ValueTuple<int, int>` with fields `Item1` and `Item2`; any element names like `.Latitude` or `.Longitude` are compiler-sugar aliases visible only in source code via Roslyn attributes. At runtime, `point.GetType()` is `ValueTuple<int, int>` regardless of what names were used. This means reflection-based code, serializers, and debugger watch windows see `Item1`/`Item2` unless the serializer has specific `ValueTuple` support. Changing tuple element names is not a breaking binary change since the names are attributes, not type signatures.
 
 ---
 
-## Q13. Why do local functions that capture outer variables cause unexpected concurrency behavior when parallelized?
+#### Gotcha 3. `ValueTuple` vs `Tuple<T1,T2>` — ValueTuple is a struct (stack); Tuple is a class (heap)
 
 **Concepts**
-- closure captures variable by reference not value
-- shared captured variable across Parallel.ForEach threads
-- ref local to array element not thread-safe
-- race condition on captured counter
-- lock or Interlocked required for shared mutable state
+- `ValueTuple<T1,T2>` is a value type — allocated on the stack or inline in containing struct
+- `Tuple<T1,T2>` is a reference type — heap-allocated, GC-tracked
+- `ValueTuple` fields are mutable (`Item1 = 5` is valid); `Tuple` properties are read-only
+- `ValueTuple` cannot be used as a dictionary key via default equality without overrides
 
 **Answer**
 
-A local function that captures an outer variable shares that variable by reference with every execution of the function, including parallel executions. In a `Parallel.ForEach` that calls a local function `TryReserve`, all parallel invocations share the same captured `reservationFailures` field and the same `ref int slot` aliases into the inventory array. Concurrent increments to `reservationFailures` are a data race producing an incorrect count. Concurrent `slot -= order.Quantity` operations on the same array element are also a race — two threads can both read `slot = 5`, both check `5 >= order.Quantity`, and both subtract, reducing the slot to a negative value. The fixes are: use `Interlocked.Increment(ref reservationFailures)` for the counter; use `Interlocked.Add` or a lock around the slot read-modify-write for inventory updates; or, better, replace `Parallel.ForEach` with sequential processing for operations that require consistent multi-step reads and writes to shared mutable state.
+C# 7 tuples (`(int x, int y)`) use `ValueTuple`, a mutable struct, while the older `Tuple.Create(1, 2)` returns a heap-allocated `Tuple<int, int>` with read-only `Item1`/`Item2` properties. In hot paths, `ValueTuple` avoids heap allocation and GC pressure — it is the correct choice for temporary multiple return values. However, because `ValueTuple` is a struct, assigning it copies all fields; modifying the copy does not affect the original. Mutable fields (`var t = (1, 2); t.Item1 = 5;`) compile and run but can surprise developers expecting immutability. `Tuple<T1,T2>` should be used when reference semantics (identity, sharing a mutable container) are explicitly needed.
 
 ---
 
-## Q14. What are the ref return constraints and why do ref locals break inside async methods?
+#### Gotcha 4. Tuple element names are erased at runtime — `nameof` on tuple element not supported in all contexts
 
 **Concepts**
-- async state machine heap lifts locals into fields
-- ref fields to managed memory not allowed in async state machine struct
-- ref local lifetime limited to declaring scope
-- ref return cannot return ref to local variable
-- span-based patterns as alternative
+- element names stored in `TupleElementNamesAttribute` on method signatures
+- `nameof((0, 0).x)` is a compile error — element name is not a real member
+- reflection sees `Item1`/`Item2`, not the user-defined names
+- JSON serialization of ValueTuple writes `Item1`/`Item2` unless a custom converter is used
 
 **Answer**
 
-The C# compiler transforms `async` methods into state machine structs that lift all local variables into heap-allocated fields so they survive across `await` suspension points. A `ref local` is fundamentally incompatible with this transformation because a `ref` is a managed pointer to a specific memory location — it cannot be stored in a field (heap) since the referenced location may not outlive the heap object. Therefore, storing a `ref local` in a state machine field would create a dangling reference. The compiler rejects `ref` locals in async methods that cross an `await` with a compile error. The workaround for async inventory reservation is to read the index, perform the reservation using the index (not a ref alias), and re-read the value after the async operation, or to use a non-async helper method for the synchronous mutation step and only await the persistence call afterward. For high-performance patterns, `Span<T>` slices from `MemoryMarshal` can be used in synchronous helper methods.
+Tuple element names like `.Latitude` and `.Longitude` in `(double Latitude, double Longitude) GetCoords()` are emitted as `TupleElementNamesAttribute` metadata on the method's return type, not as actual struct fields or properties. Calling `nameof(result.Latitude)` on a tuple result is a compiler error because `Latitude` is not a true member. At runtime, `typeof((int, int)).GetFields()` returns `Item1` and `Item2`. A `System.Text.Json` serializer given a `ValueTuple<double, double>` will serialize it as `{"Item1": 0.0, "Item2": 0.0}`. If serialized names matter, use a named record or struct instead of a `ValueTuple`.
+
+---
+
+#### Gotcha 5. Pattern matching `switch` — fall-through is not allowed; each case is a full pattern
+
+**Concepts**
+- C# `switch` statement with `when` guards: no implicit fall-through
+- each `case` label must have a `break`, `return`, `goto case`, or `throw`
+- pattern `case int n when n > 0:` combines type and value guard
+- ordering matters: more specific patterns must come before less specific ones
+
+**Answer**
+
+Unlike C and early Java, C# never allowed implicit fall-through in `switch` statements — each case block must end with `break`, `return`, `throw`, or `goto case`. C# 7 extended `switch` with type patterns (`case int n:`) and guard clauses (`case int n when n > 0:`). The ordering constraint is critical: a `case Animal a:` after `case Dog d:` is reachable (any `Animal` that is not a `Dog`), but `case Animal a:` before `case Dog d:` would make the `Dog` case unreachable because `Animal` matches all derived types first. The compiler emits a warning for unreachable pattern cases, but it is not an error, so unreachable patterns can silently make code logic wrong.
+
+---
+
+#### Gotcha 6. `ref` returns — returning a ref to a local variable is illegal; must be ref to a field or parameter
+
+**Concepts**
+- `ref` return must reference a storage location that outlives the method
+- local variables go out of scope at method return — compiler error
+- valid targets: fields, array elements, ref parameters, other ref returns
+- `ref readonly` to prevent the caller from mutating the referenced location
+
+**Answer**
+
+`ref int GetValue() { int local = 42; return ref local; }` is a compile-time error: the compiler rejects returning a reference to a local variable because the variable ceases to exist when the method returns, which would create a dangling managed pointer. Valid `ref` return targets are class fields (`return ref _field`), array elements (`return ref arr[i]`), and `ref` parameters that were passed in (`return ref param`). When you want to expose a field by reference but prevent the caller from modifying it, use `ref readonly`: `public ref readonly int Value => ref _value;`. The caller can read the value at native speed without copying but cannot assign to it.
+
+---
+
+#### Gotcha 7. Local functions — cannot be called before their declaration within the method
+
+**Concepts**
+- local functions are declared inside a method body
+- local functions can capture outer variables (closures)
+- `static` local function cannot capture variables — prevents accidental capture
+- recursive local functions are supported
+
+**Answer**
+
+Local functions declared inside a method can reference variables from the enclosing scope (closures), unlike regular private methods. However, unlike lambda expressions, a local function is called by name, and the C# language specification requires that a local function be declared before it is called in the source code — calling a local function before its declaration is a compiler error in some versions and a warning in others. In practice, always declare local functions at the bottom of the method body to make the intent clear. Marking a local function `static` prevents it from capturing any outer variables, which documents intent and avoids unintentional captures that hold references longer than expected.
+
+---
+
+#### Gotcha 8. `throw` expression in ternary — `condition ? value : throw new Ex()` — valid in C# 7
+
+**Concepts**
+- `throw` as an expression (not just a statement) introduced in C# 7
+- valid in ternary, null-coalescing, and expression-bodied members
+- `=> throw new NotImplementedException()` in expression-bodied methods
+- does not change exception type or semantics; only adds syntactic flexibility
+
+**Answer**
+
+Before C# 7, `throw` was a statement and could not appear in expression contexts. C# 7 made `throw` an expression, enabling `var name = input ?? throw new ArgumentNullException(nameof(input));` and `int value = condition ? Compute() : throw new InvalidOperationException("bad state")`. This is particularly clean in expression-bodied members and null-coalescing chains where the intent is a guard clause. The `throw` expression has the special type "nothing" (a bottom type) so it is compatible with any type context — the ternary operator's other arm's type determines the overall expression type. There is no semantic difference from a `throw` statement; the benefit is purely syntactic conciseness.
+
+---
+
+#### Gotcha 9. Digit separators `_` — purely cosmetic; ignored by compiler
+
+**Concepts**
+- `1_000_000` and `1000000` are identical at the IL level
+- can appear anywhere in a numeric literal except at the start or end
+- works with binary, hexadecimal, and decimal literals
+- `0b1010_1100` for binary readability
+
+**Answer**
+
+The underscore digit separator (`_`) introduced in C# 7 is stripped out by the compiler and has no effect on the numeric value or the emitted IL. `1_000_000 == 1000000` is always `true`. Separators can appear between any digits in a numeric literal — `0xFF_FF`, `0b0000_1111`, `3.14_159_265` — but not at the start (`_100`) or end (`100_`), which are compile errors. The feature is purely a readability aid for large constants like byte masks, version numbers, or mathematical constants, and imposes zero performance cost. Some teams add lint rules to require separators on numeric constants above a certain magnitude for consistency.
+
+---
+
+#### Gotcha 10. `is` expression with patterns — `is null` vs `== null` — `is null` never calls `==`; always reference/null check
+
+**Concepts**
+- `is null` performs a reference-equality null check, never invokes `==`
+- `== null` may call a user-defined `operator ==`
+- matters when `==` is overloaded to return `true` for non-null values
+- `is not null` as the idiomatic non-null pattern check
+
+**Answer**
+
+`obj is null` is always a direct CLR reference comparison — it can never be overridden by a user-defined `operator ==`. In contrast, `obj == null` calls the class's `==` operator if one is defined, which could theoretically return `true` even for a non-null instance (a buggy or intentional overload). For production null checks, `is null` and `is not null` are more robust because they ignore operator overloading. This distinction matters most in value types with custom equality (e.g., `Nullable<T>` has special compiler support) and in generic code where `T` might be a type with an overloaded `==`. Using `is null` consistently is also recognized as more readable by modern C# style guides.
 
 ---
 

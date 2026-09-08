@@ -526,7 +526,7 @@ Data protection tokens embed a timestamp and the user's security stamp in an enc
 
 ---
 
-## Gotcha 1. Enabling 2FA without verifying the first code locks users out
+#### Gotcha 1. Enabling 2FA without verifying the first code locks users out
 
 **Concepts**
 - SetTwoFactorEnabledAsync must follow VerifyTwoFactorTokenAsync
@@ -539,7 +539,7 @@ Many developers call `SetTwoFactorEnabledAsync(user, true)` as soon as the authe
 
 ---
 
-## Gotcha 2. The security stamp invalidates remember-machine cookies after a password change
+#### Gotcha 2. The security stamp invalidates remember-machine cookies after a password change
 
 **Concepts**
 - Remember-machine cookie embeds the security stamp
@@ -552,7 +552,7 @@ Developers often expect that changing a password only ends the user's current se
 
 ---
 
-## Gotcha 3. Recovery codes must be displayed immediately — they cannot be retrieved from the database later
+#### Gotcha 3. Recovery codes must be displayed immediately — they cannot be retrieved from the database later
 
 **Concepts**
 - GenerateNewTwoFactorRecoveryCodesAsync returning plain-text only once
@@ -565,7 +565,7 @@ Developers often expect that changing a password only ends the user's current se
 
 ---
 
-## Gotcha 4. Custom `IUserStore` implementations must handle normalized names explicitly
+#### Gotcha 4. Custom `IUserStore` implementations must handle normalized names explicitly
 
 **Concepts**
 - SetNormalizedUserNameAsync and SetNormalizedEmailAsync called explicitly by Identity
@@ -578,7 +578,7 @@ A common mistake when writing a custom user store is to store usernames and emai
 
 ---
 
-## Gotcha 5. The `TwoFactorRequired` result does not mean the user is authenticated
+#### Gotcha 5. The `TwoFactorRequired` result does not mean the user is authenticated
 
 **Concepts**
 - TwoFactorRequired — password verified but no session cookie issued
@@ -588,3 +588,68 @@ A common mistake when writing a custom user store is to store usernames and emai
 **Answer**
 
 When `PasswordSignInAsync` returns `SignInResult.TwoFactorRequired`, the user has proven their password but has not been granted a session cookie — the application must not treat this as a partially authenticated state that confers any privileges. The only thing set at this point is a temporary `Identity.TwoFactorUserId` cookie that identifies which sign-in attempt is in progress. Middleware or filters that check `User.Identity.IsAuthenticated` will correctly see the user as unauthenticated because no application cookie has been issued; the risk is in custom code that reads the temporary cookie and infers identity from it. The full session cookie is only written by `TwoFactorAuthenticatorSignInAsync` or `TwoFactorRecoveryCodeSignInAsync` after the second factor is successfully validated.
+
+---
+
+#### Gotcha 6. TOTP Codes Are Valid Across a Configurable Time Window — Not an Instant 30-Second Cutoff
+
+**Concepts**
+- RFC 6238 allowing a ±1 step tolerance (90-second effective window by default)
+- `CompatibilityMode` in the ASP.NET Core TOTP provider controlling window width
+- Clock skew between authenticator app and server causing valid codes to appear rejected
+
+**Answer**
+
+TOTP generates a new 6-digit code every 30 seconds, but ASP.NET Core Identity's implementation accepts codes from the current time step and the immediately preceding step by default — a 90-second effective validity window. This tolerance compensates for clock skew between the user's authenticator app and the server. Developers who expect a strict 30-second window will be surprised that a code displayed just before a step boundary is still accepted 40 seconds later. More importantly, for systems that require strict replay prevention, a used code can be accepted again within the same window if no `jti`-style single-use tracking is added — Identity itself does not record used codes and does not prevent replay within the window. Adding a per-code used cache keyed by `(userId, code, timeStep)` prevents in-window replay without breaking normal use.
+
+---
+
+#### Gotcha 7. SMS 2FA Has No Built-In Rate Limiting — Brute-Force of the Token Must Be Added Manually
+
+**Concepts**
+- SMS token typically 6 digits — 1-in-1,000,000 guessing probability
+- No built-in failed-attempt counter for 2FA token submission
+- `AccessFailedCountAsync` tracking only `PasswordSignInAsync` failures by default
+
+**Answer**
+
+The 6-digit numeric SMS token has a 1-in-1,000,000 probability of being guessed in a single attempt, but without rate limiting an attacker can make many automated guesses against `TwoFactorSignInAsync`. Identity's built-in lockout counter is incremented by `PasswordSignInAsync` failure — it is not automatically incremented by failed `TwoFactorSignInAsync` calls. A dedicated brute-force protection mechanism must be added to the 2FA submission endpoint: either call `UserManager.AccessFailedAsync` explicitly on failed token submission, implement IP-level rate limiting middleware, or add a time-delay after each failed attempt. SMS tokens are also vulnerable to SIM swapping and interception, so they should be treated as the weakest supported 2FA method.
+
+---
+
+#### Gotcha 8. `GetTwoFactorEnabledAsync` Returns `true` Even If No Authenticator App Is Configured
+
+**Concepts**
+- `TwoFactorEnabled` flag stored separately from authenticator key existence
+- `GetAuthenticatorKeyAsync` returning null when no key has been generated
+- Admin-reset flows that disable 2FA without clearing the authenticator key
+
+**Answer**
+
+`UserManager.GetTwoFactorEnabledAsync(user)` checks only the `TwoFactorEnabled` flag stored on the user record — it does not verify that an authenticator app key has been generated and confirmed. A user record can have `TwoFactorEnabled = true` but no authenticator key, no phone number, and no registered providers, if the flag was set directly (e.g., by a data migration or admin edit) without completing the setup flow. Attempting to trigger 2FA for such a user results in `PasswordSignInAsync` returning `TwoFactorRequired` but `TwoFactorSignInAsync` always failing because there is no valid token to verify against. The diagnosis check is `GetAuthenticatorKeyAsync(user)` — a non-null, non-empty result confirms an authenticator is registered; null means the key must be generated first.
+
+---
+
+#### Gotcha 9. `IUserTwoFactorTokenProvider` Is Registered by Name — Wrong Provider Name Means No Token Is Validated
+
+**Concepts**
+- `options.Tokens.AuthenticatorTokenProvider` specifying the provider name for TOTP
+- Custom provider registered with a different name silently falling back to no provider
+- `TokenOptions.DefaultAuthenticatorProvider` constant as the correct name key
+
+**Answer**
+
+ASP.NET Core Identity resolves token providers by name. Custom providers must be registered with `options.Tokens.AuthenticatorTokenProvider = "MyCustomTOTP"` and added via `services.AddSingleton<IUserTwoFactorTokenProvider<ApplicationUser>, MyCustomTOTP>()` using the same name as the key in the DI registration. If the name in `TokenOptions` does not match the registered name, the default TOTP provider is used instead — which means all custom validation logic is silently bypassed, and tokens generated by the custom provider are validated against the standard RFC 6238 algorithm instead. The built-in constant `TokenOptions.DefaultAuthenticatorProvider` should be used as the registration key unless a genuinely different name is required.
+
+---
+
+#### Gotcha 10. Re-Registering an Authenticator App Does Not Automatically Regenerate Recovery Codes
+
+**Concepts**
+- `ResetAuthenticatorKeyAsync` invalidating the old TOTP key — old codes fail
+- Recovery codes remaining valid after authenticator reset unless explicitly regenerated
+- Security policy requiring recovery code regeneration on authenticator re-enroll
+
+**Answer**
+
+When a user re-registers their authenticator app — typically because they got a new phone or their app was corrupted — `UserManager.ResetAuthenticatorKeyAsync` generates a new TOTP secret. This invalidates all codes from the old authenticator, which is correct. However, the existing recovery codes are stored independently and are **not** automatically regenerated; they remain valid for use with the newly registered authenticator. From a security standpoint, old recovery codes that may have been viewed or printed when the previous authenticator was set up should be invalidated when a new authenticator is enrolled. The application must explicitly call `GenerateNewTwoFactorRecoveryCodesAsync` during re-enrollment and prompt the user to save the new codes, rather than relying on the old ones silently remaining valid.

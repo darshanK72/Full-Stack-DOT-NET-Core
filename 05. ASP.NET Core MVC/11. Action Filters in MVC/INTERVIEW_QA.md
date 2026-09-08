@@ -288,219 +288,149 @@ Use filters when the concern requires MVC context — action name, route values,
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — Action Filters in MVC (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. Global, controller, and action filter execution order
 
 **Concepts**
-- Business logic in Razor — untestable and duplicated from the service layer
-- Separation of concerns — view as presentation only
-- Authorization checks in templates bypassing security layers
-- Divergent behavior when view and API/batch logic run the same rule separately
+- Filter pipeline order — global â†’ controller-level â†’ action-level (for OnActionExecuting)
+- Reverse order for OnActionExecuted — action-level â†’ controller-level â†’ global
+- Filter ordering — `IOrderedFilter.Order` controls relative execution within the same scope
+- Unexpected behavior — filter at wrong level changes execution order unexpectedly
 
 **Answer**
 
-Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render only what the controller or ViewModel already prepared, since Razor calculations cannot be tested independently and often diverge from API or batch logic. Authorization belongs in filters, policies, or controller checks executed before the view — not in view conditionals that a developer can accidentally omit.
+The MVC filter pipeline runs `OnActionExecuting` in the order global â†’ controller â†’ action and `OnActionExecuted` in the reverse order — action â†’ controller â†’ global. This means a global logging filter's `OnActionExecuting` runs before a controller-level authorization filter if both are at the default order. `IOrderedFilter.Order` (lower number runs first for `OnActionExecuting`) controls relative execution within the pipeline. When a filter at a higher scope must run after one at a lower scope, override `Order` explicitly. Misunderstanding this order causes bugs where a "pre-execution" check runs after the action already executed or where a response-setting filter is overwritten by a later filter.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. Synchronous filter used for async operations, blocking thread pool
 
 **Concepts**
-- Over-posting via direct entity binding on POST
-- Lazy-loaded navigation properties triggering unexpected queries during rendering
-- ViewModel as the narrow data contract between controller and view
-- Entity-to-ViewModel mapping responsibility
+- `IActionFilter` — synchronous; cannot use `await` inside `OnActionExecuting`
+- `IAsyncActionFilter` — async; wraps both pre- and post-execution in `OnActionExecutionAsync`
+- `await next()` — must be called to proceed to the action; omitting it short-circuits
+- Thread pool blocking — sync filter with `Task.Result` or `.Wait()` causes deadlock risk
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties, enables over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during Razor rendering — each navigation access issues a database round-trip. Mass assignment on POST can update properties the user should never control, such as `IsAdmin`. The correct pattern is a dedicated ViewModel with only the fields the view needs, mapped from the entity in the controller or a mapping service.
+`IActionFilter.OnActionExecuting` is synchronous — calling an async service with `.Result` or `.GetAwaiter().GetResult()` risks deadlocking the request under ASP.NET Core's synchronization context and blocks thread pool threads. `IAsyncActionFilter.OnActionExecutionAsync(context, next)` is the correct interface for async operations inside a filter. The pattern is: perform pre-action work, `var result = await next()` to invoke the action, then perform post-action work using `result.Exception` and `result.Result`. Forgetting `await next()` short-circuits the entire request — the action never runs and the client receives the filter's response (or an empty response if none is set).
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. Action filter short-circuiting the action without setting a result
 
 **Concepts**
-- Browser form encoding — `application/x-www-form-urlencoded` vs JSON
-- `[FromBody]` routing to the JSON input formatter only
-- Silent binding failure — model parameter receives default values
-- `FormData` following the form value provider rules
+- Short-circuit — setting `context.Result` in `OnActionExecuting` skips the action method
+- No result set — action is skipped but no response is sent; client receives empty 200
+- Result filters still run — short-circuit does not skip result filters
+- Exception filters — do not run when short-circuit is used without an exception
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` tells MVC to use the JSON input formatter — when a form POST arrives, the formatter finds no matching content and the model receives default values while the action runs silently. Remove `[FromBody]` for conventional form POSTs and let the form value provider bind fields. Use `[FromBody]` only when the client explicitly sends JSON with the correct Content-Type header.
+Setting `context.Result` in `OnActionExecuting` causes the MVC pipeline to skip the action method and proceed directly to result execution. If no `Result` is set but `context.Result` is assigned `null`, the client receives an empty response with no body. A common mistake is short-circuiting for authentication by setting no result — the action is skipped but the view or redirect response is never sent. The correct pattern for blocking access is `context.Result = new ForbidResult()` or `new RedirectToActionResult("Login", "Account", null)` which produces a proper HTTP response. Result filters still run after a short-circuit; exception filters do not because no exception was thrown.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. Scoped service registered as singleton inside a filter attribute
 
 **Concepts**
-- Client validation as a UX convenience, not a security boundary
-- Server-side validation mandatory before any persist, redirect, or side effect
-- Direct POST attacks bypassing browser scripts entirely
+- Filter attributes — instantiated once by the framework; effectively singleton lifetime
+- `[TypeFilter(typeof(MyFilter))]` — creates a new filter instance per request via DI
+- `[ServiceFilter(typeof(MyFilter))]` — resolves from DI container; respects registered lifetime
+- Captive dependency — singleton filter holding a scoped service outlives the request scope
 
 **Answer**
 
-Client-side validation is bypassable — attackers can POST directly without running browser scripts. Server-side `ModelState.IsValid` is mandatory before any persist, redirect, or side effect. Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent. Treating missing server validation as a security defect regardless of client script presence is the right standard.
+Attribute-based filters (`[MyFilter]`) are instantiated once at application start and shared across all requests, making them effectively singletons regardless of any intended lifetime. Injecting a scoped service like `AppDbContext` into a filter attribute's constructor captures the scoped service in a singleton context — the same `DbContext` instance is used across all requests, causing stale data, thread-safety issues, and change tracking corruption. `[TypeFilter(typeof(MyFilter))]` creates a new filter instance per invocation using DI, respecting the registered lifetime. `[ServiceFilter(typeof(MyFilter))]` resolves the filter from the DI container per request when registered as scoped. Always use `TypeFilter` or `ServiceFilter` when the filter has scoped dependencies.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. Resource filter vs action filter — model binding execution timing
 
 **Concepts**
-- Duplicate form submission triggered by browser refresh after POST
-- Post-Redirect-Get (PRG) pattern — mutation then safe redirect
-- `RedirectToAction` separating command (POST) from display (GET)
-- TempData carrying flash messages across the redirect
+- `IResourceFilter.OnResourceExecuting` — runs before model binding
+- `IActionFilter.OnActionExecuting` — runs after model binding
+- Resource filter use case — caching entire request/response before model binding overhead
+- Action filter use case — validation, logging, modification after model binding
 
 **Answer**
 
-Returning the same view after a successful POST means the browser's last request was the POST. When the user refreshes, the browser re-submits the POST body, which can duplicate an order or registration. The fix is Post-Redirect-Get: return `RedirectToAction(nameof(Index))` after a successful mutation so the browser's last request is a safe GET. TempData carries flash success messages across the redirect.
+`IResourceFilter.OnResourceExecuting` runs before model binding, before the action filter pipeline, and before result caching. `IActionFilter.OnActionExecuting` runs after model binding — `ActionContext.ActionArguments` is already populated with bound parameters. If a resource filter tries to access `context.ActionArguments` in `OnResourceExecuting`, the dictionary is empty because binding has not occurred. Resource filters are the correct place for whole-response caching (short-circuit before binding overhead), while action filters are the correct place for per-action validation, audit logging of action arguments, or authorization that requires access to bound model values.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. Exception filter not running when middleware catches the exception first
 
 **Concepts**
-- `ModelState` as request-scoped data lost on redirect
-- Return `View(model)` on validation failure to preserve errors inline
-- TempData serialization as a fallback for post-redirect error persistence
-- AJAX partial forms avoiding the redirect problem entirely
+- MVC exception filter — runs for exceptions thrown inside the MVC action pipeline
+- `UseExceptionHandler` middleware — higher in the pipeline, catches unhandled exceptions first
+- Exception filter scope — MVC filter pipeline only; middleware catches everything outside MVC
+- `UseStatusCodePages` vs `UseExceptionHandler` — different scopes and response formats
 
 **Answer**
 
-`ModelState` lives in the controller's `ViewDataDictionary` for the current request only — a redirect ends that request with an empty `ModelState`. The standard pattern is redirect only on success and return `View(model)` on validation failure. If a redirect on failure is truly required, serialize errors to TempData or run a second validation pass on the GET action.
+`IExceptionFilter` and `IAsyncExceptionFilter` handle exceptions thrown within the MVC action/filter pipeline. If `app.UseExceptionHandler("/Error")` middleware is in the pipeline, it also catches unhandled exceptions — and middleware runs outside and around the MVC pipeline. Depending on ordering and configuration, the middleware may catch the exception before the MVC exception filter even gets a chance to handle it. For API error responses, `UseExceptionHandler` is often the right layer since it catches all unhandled exceptions. For MVC-specific error responses that need access to action context (such as redirect-to-login for a specific action), the exception filter is appropriate. Both can coexist but developers must understand which layer catches which exceptions.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. `IPageFilter` on Razor Pages vs `IActionFilter` on MVC controllers
 
 **Concepts**
-- TempData consume-on-read default semantics
-- Layout consuming flash key before the child view reads it
-- `Peek()` — read without marking for deletion in the same request
-- `Keep()` — preserve a consumed key for the next request
+- `IActionFilter` — applies to MVC controller actions
+- `IPageFilter` — applies to Razor Pages `PageModel` handlers
+- Global filter — `IAsyncPageFilter` required for Razor Pages when registered globally
+- Cross-type filter — filters must implement the correct interface for their target
 
 **Answer**
 
-TempData marks entries for deletion the moment they are read via the indexer. If the layout reads a flash message first, the child view returns null. The fix is to use `TempData.Peek("Message")` in the layout, which reads without consuming. Centralizing flash display in a single partial avoids the double-read problem entirely.
+An `IActionFilter` registered globally with `builder.Services.AddControllersWithViews(o => o.Filters.Add<MyFilter>())` applies to MVC controllers but not to Razor Pages page handlers. Razor Pages uses a separate filter pipeline that runs `IPageFilter` implementations. A global `IActionFilter` that logs action execution will miss all Razor Pages requests. To apply a filter to both MVC controllers and Razor Pages, implement both `IActionFilter` (or `IAsyncActionFilter`) and `IPageFilter` (or `IAsyncPageFilter`) in the same class and register it globally. When a project has both MVC controllers and Razor Pages, audit global filters to confirm they cover both pipelines.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. Using `OnActionExecuted` to set the response when `context.Exception` is not handled
 
 **Concepts**
-- `[Area("AreaName")]` as required routing metadata on area controllers
-- Controller in `Areas/` folder without attribute treated as a root controller
-- `{area:exists}` constraint not matching unannotated controllers
-- Compile-time success masking a runtime 404
+- `OnActionExecuted` — runs after the action; `context.Exception` may be non-null
+- Unhandled exception — propagates if `context.ExceptionHandled` is not set to `true`
+- Setting result in `OnActionExecuted` — does not suppress an unhandled exception
+- Correct pattern — set `context.ExceptionHandled = true` alongside setting `context.Result`
 
 **Answer**
 
-A controller physically in `Areas/Admin/Controllers/` is not automatically registered with the area route — it needs `[Area("Admin")]` on the class. Without it, MVC treats it as a root controller and requests return 404. The project compiles without the attribute, giving false confidence until the first HTTP request hits the area URL.
+If the action method throws and is not caught by an exception filter, `OnActionExecuted` still runs with `context.Exception` set. Setting `context.Result` in `OnActionExecuted` does not suppress the exception — the exception propagates to the next exception handler after the filter completes unless `context.ExceptionHandled = true` is also set. A common mistake is writing a filter that sets a custom error result in `OnActionExecuted` and assuming the exception is handled, then seeing a 500 response because the exception continued propagating. The fix: `context.ExceptionHandled = true;` followed by `context.Result = new ObjectResult(errorResponse) { StatusCode = 500 };` in the `OnActionExecuted` handler to absorb the exception and produce the custom response.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Filter registered with `[ServiceFilter]` but type not registered in DI container
 
 **Concepts**
-- Ambient area route values from the current request
-- Absent area context in root views producing wrong URLs
-- Explicit `asp-area` required for cross-area and root-to-area links
-- `Url.Action` requiring area route values in the anonymous object
+- `[ServiceFilter(typeof(MyFilter))]` — resolves filter from the DI container
+- Not registered in DI — `InvalidOperationException` at route invocation time, not startup
+- `[TypeFilter(typeof(MyFilter))]` — creates instance directly via DI activation, no explicit registration needed
+- Registration — `services.AddScoped<MyFilter>()` required for `[ServiceFilter]`
 
 **Answer**
 
-Tag Helpers inherit ambient route values from the current request. From a root view, `asp-controller="Users"` generates `/Users` with no area prefix. Cross-area links require explicit `asp-area="Admin"` on every anchor targeting an area controller. The same rule applies to `Url.Action` — pass `new { area = "Admin" }` in the route values object.
+`[ServiceFilter(typeof(MyFilter))]` resolves the filter from the DI container. If `MyFilter` is not registered with `services.AddScoped<MyFilter>()` (or `AddTransient` or `AddSingleton`), the framework throws `InvalidOperationException: No service for type 'MyFilter' has been registered` at the first request to a route that uses the attribute — not at startup. `[TypeFilter(typeof(MyFilter))]` does not require explicit DI registration because it uses the DI container's `ActivatorUtilities.CreateInstance` to instantiate the type by resolving its constructor dependencies. For filters with constructor parameters that are DI-registered types, `[TypeFilter]` is simpler. For filters that have multiple consumers and need lifetime management via DI, `[ServiceFilter]` with explicit registration is cleaner.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. Result filter modifying the response after it has already started streaming
 
 **Concepts**
-- Unchecked checkbox posting no value — binding sets non-nullable `bool` to `false`
-- `[Required]` passing validation because `false` is a valid non-null value
-- `bool?` with `[Required]` requiring explicit `true` for consent scenarios
-- Hidden-field pattern for deliberate `false` submission
+- `IResultFilter.OnResultExecuted` — called after result execution starts; headers may already be sent
+- HTTP response — headers sent before body; cannot change status code after first byte
+- `OnResultExecuting` — correct place to modify response before execution starts
+- `context.Cancelled` — true if the result was short-circuited; check before modifying
 
 **Answer**
 
-An unchecked checkbox posts nothing, so model binding sets a non-nullable `bool` to `false`. `[Required]` passes because `false` is non-null. For explicit consent, use `bool?` with `[Required]` — null (no field posted) fails `[Required]`. The hidden-field pattern ensures the form always posts a value.
+`IResultFilter.OnResultExecuted` runs after the result has started executing — for streaming responses or large view renders, HTTP response headers may already be sent by the time this method is called. Attempting to change the status code or add response headers in `OnResultExecuted` throws `InvalidOperationException: Headers are read-only, response has already started`. Modifying the response (adding headers, changing status code, wrapping the response body) must be done in `OnResultExecuting` before the result is executed. `OnResultExecuted` is appropriate for cleanup, logging response details, or reading `context.Exception` after execution — not for modifying the HTTP response that has already begun.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-index requirement for MVC form collection binding
-- Gap indices causing silent truncation or misalignment
-- Client-side reindexing after row deletion
-- Custom `IModelBinder` for non-contiguous index tolerance
-
-**Answer**
-
-MVC's collection binder expects contiguous indices starting at zero. Gap indices cause the binder to stop so subsequent items are silently dropped. The fix is to reindex client-side after every row deletion. A custom `IModelBinder` can tolerate non-contiguous indices for complex scenarios.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor default `@` encoding preventing XSS
-- `Html.Raw` bypassing encoding for attacker-supplied strings
-- AJAX partial HTML injection via `innerHTML` as an XSS surface
-- Content-Security-Policy as defense in depth, not a substitute
-
-**Answer**
-
-Razor's default `@` encoding prevents XSS. `@Html.Raw(Model.UserComment)` bypasses that protection, rendering `<script>` tags and event handlers. AJAX-loaded partials injected via `innerHTML` carry the same risk. Use `@Model.UserComment` for auto-encoded output, or sanitize with a trusted HTML sanitizer library.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Antiforgery cookie-and-field/header pair preventing CSRF
-- Form Tag Helpers emitting the hidden token field automatically
-- Manual `RequestVerificationToken` header required for `fetch` and jQuery AJAX
-- `[AutoValidateAntiforgeryToken]` covering all unsafe methods on a controller
-
-**Answer**
-
-Form Tag Helpers emit the token automatically, but `fetch` and jQuery AJAX must include it manually as the `RequestVerificationToken` header or form field. Without it, antiforgery validation returns 400 before the action executes. Disabling antiforgery on MVC cookie-auth endpoints to work around the 400 is not acceptable.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub — per-connection transient lifecycle, not registered in DI for direct injection
-- `IHubContext<THub>` — singleton proxy for server-side broadcasting
-- Hub instance lacking connection context when activated outside SignalR
-- Redis backplane or Azure SignalR for cross-instance message fan-out
-
-**Answer**
-
-Hubs are not registered in DI for direct injection — injecting a concrete `Hub` either fails activation or produces an instance without a connection context. The correct mechanism is `IHubContext<THub>`, a singleton proxy registered by `AddSignalR()`. For multi-instance deployments, pair it with a Redis backplane or Azure SignalR Service.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- In-memory connection registry local to each pod
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane and Azure SignalR Service for full fan-out
-- Group membership and connection IDs scoped per process instance
-
-**Answer**
-
-Each process maintains its own in-memory connection registry. Sticky sessions route a client to the same pod but do not fan-out cross-instance messages — a controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users on instance B. The fix is a Redis backplane or Azure SignalR Service.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

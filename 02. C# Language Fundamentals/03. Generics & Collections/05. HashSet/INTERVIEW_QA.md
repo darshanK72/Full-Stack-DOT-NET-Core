@@ -1,4 +1,4 @@
-﻿# HashSet&lt;T&gt; — Interview Q&A
+# HashSet&lt;T&gt; — Interview Q&A
 
 
 ## Table of Contents
@@ -309,82 +309,147 @@ The fundamental contract is: if two objects compare equal under `Equals`, they m
 
 ---
 
-## Gotchas
+## Gotchas — HashSet`<T>` (Interview Traps)
 
 ---
 
-## Q19. What happens if you mutate a field used by `GetHashCode` on an element that is already in a `HashSet<T>`?
+#### Gotcha 1. `Add` returns bool — silently ignores duplicates
 
 **Concepts**
-- Element hashed and placed in bucket on Add; bucket index depends on hash at insertion time
-- Mutating the hash-contributing field changes the "expected bucket" without moving the element
-- Subsequent Contains, Remove return false — element is "lost" in the wrong bucket
-- No runtime error or warning; corruption is silent
-- Fix: use immutable fields for hash input, or `sealed` + constructor-only init
+- `HashSet<T>.Add(item)` returns false if the item already exists
+- Does not throw on duplicate — silent no-op
+- `List<T>.Add` always adds, even duplicates
+- Check return value when deduplication tracking matters
 
 **Answer**
 
-When an element is added to a `HashSet<T>`, the runtime calls `GetHashCode`, maps the result to a bucket, and stores the element there. If you later mutate a field that `GetHashCode` reads, the element physically stays in its original bucket but any future lookup computes the new hash code, lands in a different bucket, and finds nothing. `Contains` returns `false` and `Remove` silently does nothing, even though the element is still consuming a slot in the set. There is no exception; the corruption is invisible. The practical consequence is a memory leak (the element cannot be removed) and incorrect membership results. The fix is to design element types so that the fields contributing to `GetHashCode` are set only in the constructor and are never mutated — either by marking them `readonly`, exposing them only through read-only properties, or sealing the class to prevent inheritance from adding mutable state. If the type must be mutable, provide `IEqualityComparer<T>` based on a stable immutable identity field (such as a database primary key) rather than relying on the type's own `GetHashCode`.
+Unlike `List<T>.Add` which always appends, `HashSet<T>.Add(item)` is a no-op if the element is already present and returns `false` — it does not throw. Code that adds to a HashSet expecting to detect duplicates must check the return value: `if (!set.Add(item)) { // duplicate }`. This silent behavior is a feature for deduplication pipelines but a trap when you need to know whether insertion actually happened.
 
 ---
 
-## Q20. Why is relying on `HashSet<T>` iteration order a bug waiting to happen?
+#### Gotcha 2. Set operations mutate the receiver — use copies when needed
 
 **Concepts**
-- Order is undefined; it reflects internal bucket slot layout, not insertion sequence
-- Iteration order changes after a resize — adding one more element can reorder everything
-- Unit tests that pass because order happens to be stable can fail on a different .NET version
-- Snapshot-based comparison with `SetEquals` or sorted enumeration is the correct approach
-- Contrast with `Dictionary<K,V>` in .NET 5+ which preserves insertion order as an implementation detail (not a contract)
+- `IntersectWith`, `UnionWith`, `ExceptWith` modify the calling set in place
+- No "returns-new-set" variant in the BCL
+- Copy before calling to preserve the original
+- `ImmutableHashSet<T>` returns new sets on set operations
 
 **Answer**
 
-The iteration order of `HashSet<T>` is an unstated implementation detail that has changed across .NET versions and can change within a single run after a resize. Code that accumulates elements into a `HashSet<string>`, then joins them into a string and compares to a hardcoded expected value, works accidentally in one environment and fails in another. This class of bug is particularly difficult to reproduce because the order is often stable during development — the set never grows large enough to trigger a resize — and only breaks in production with a different data volume. The correct idiom for order-independent comparison is `set.SetEquals(expected)` or `set.OrderBy(x => x).SequenceEqual(expected.OrderBy(x => x))`. When a reproducible iteration order is genuinely required, the right type is `SortedSet<T>` for sorted order or a `List<T>` built from the `HashSet<T>` after sorting. The `Dictionary<TKey, TValue>` note from the .NET 5 blog post about insertion-order preservation is not a contract and does not apply to `HashSet<T>`.
+`hashSetA.IntersectWith(hashSetB)` modifies `hashSetA` in place to contain only elements present in both sets — it does not return a new set, and `hashSetA` is permanently changed. To compute the intersection without altering the original, copy first: `var result = new HashSet<T>(hashSetA); result.IntersectWith(hashSetB);`. `ImmutableHashSet<T>` has set-operation methods that return new instances without modifying the original.
 
 ---
 
-## Q21. What goes wrong when you wrap a LINQ set result in a new `HashSet<T>` without passing the original comparer?
+#### Gotcha 3. Custom `Equals`/`GetHashCode` contract same as Dictionary
 
 **Concepts**
-- `HashSet.Union/Intersect/Except` via LINQ uses element's default equality
-- New `HashSet<T>()` constructor (no comparer) uses `EqualityComparer<T>.Default`
-- Original comparer (e.g., `OrdinalIgnoreCase`) is lost; case-sensitive duplicates re-enter
-- Correct pattern: `new HashSet<T>(result, originalComparer)`
-- Source of subtle bugs that appear only with data containing mixed-case or culture-variant strings
+- HashSet uses GetHashCode + Equals for membership tests
+- Mutable objects violate the contract if hashed fields change
+- Use immutable types or override both methods consistently
+- Records provide correct implementations automatically
 
 **Answer**
 
-Suppose you have two case-insensitive `HashSet<string>` sets and you want the union as a new `HashSet<string>`. Writing `new HashSet<string>(setA.Union(setB))` loses the `StringComparer.OrdinalIgnoreCase` comparer. The LINQ `Union` method uses the element type's default equality (case-sensitive for `string`), and the `HashSet<string>` constructor with no comparer argument also uses default case-sensitive equality. The result is a set that may contain both "LINQ" and "linq" as separate elements, negating the deduplication intent. The correct form is `new HashSet<string>(setA.Union(setB), StringComparer.OrdinalIgnoreCase)`, which applies the comparer to both the LINQ enumeration and the new set's insertion. This issue generalises to any custom `IEqualityComparer<T>`: whenever you project a set result through LINQ and then materialise it into a new `HashSet<T>`, the comparer must be passed explicitly. A code review check is to grep for `new HashSet<` followed by a LINQ expression and verify a comparer argument is present when one was in scope for the source set.
+`HashSet<T>` uses `GetHashCode` to select a bucket and `Equals` to confirm a match — the same contract as `Dictionary` keys. If a reference-type element implements `Equals` by field values but leaves `GetHashCode` as the default identity hash, two logically equal objects land in different buckets and the set allows "duplicates". Mutating an element that is already in the set (changing a field that participates in `GetHashCode`) makes it unreachable via `Contains` but still present in its original bucket — a memory leak and correctness bug.
 
 ---
 
-## Q22. Why does adding two distinct objects with identical field values to a default `HashSet<T>` keep both?
+#### Gotcha 4. `Contains` is O(1) average — not O(n) like List
 
 **Concepts**
-- Reference types use reference identity by default (`Object.ReferenceEquals`)
-- Default `GetHashCode` returns an identity-based code (e.g., object header sync block)
-- Two `new Subscriber(...)` calls produce two distinct references; equality check fails
-- Result: duplicate "logical" entries that `IEqualityComparer<T>` or overridden Equals would reject
-- Common trap when migrating from value-type keys to reference-type wrappers
+- HashSet Contains is O(1) average, O(n) worst case with hash collisions
+- List.Contains is always O(n) linear scan
+- HashSet is the correct type for high-frequency membership checks
+- Proper GetHashCode distribution prevents worst-case
 
 **Answer**
 
-For reference types that do not override `Equals` and `GetHashCode`, `HashSet<T>` uses reference identity as its equality definition. Two calls to `new Subscriber("Alex", "alex@example.com")` produce two separate heap objects with different addresses; `Object.ReferenceEquals` returns `false` for them even though their fields are identical. The default `GetHashCode` (which returns a value derived from the object's identity, not its content) also returns different values for the two instances. `HashSet<T>` therefore treats them as distinct elements and keeps both. The fix is either to provide an `IEqualityComparer<Subscriber>` that compares by the business key (email in this case), or to override `Equals(object)` and `GetHashCode()` on `Subscriber` itself. The gotcha is most visible during unit testing when a developer constructs fresh object instances in each test and is surprised that `set.Contains(new Subscriber("Alex", "alex@example.com"))` returns `false` even after adding an identical object earlier.
+`HashSet<T>.Contains(item)` is O(1) average because it computes the hash, jumps to the bucket, and checks a handful of items in that bucket. `List<T>.Contains(item)` is O(n) — it must scan every element. For code that performs many membership tests (e.g., checking whether an ID appears in a previously computed set), storing IDs in a `HashSet<long>` instead of a `List<long>` changes a hot path from O(n) to O(1). Degenerate hash codes that all return the same value degrade HashSet to O(n), so a good `GetHashCode` distribution matters.
 
 ---
 
-## Q23. What goes wrong when `Equals` is not symmetric or not transitive inside `IEqualityComparer<T>`?
+#### Gotcha 5. `HashSet<T>` does not preserve insertion order
 
 **Concepts**
-- Symmetric: `Equals(a, b)` must equal `Equals(b, a)`
-- Transitive: if `Equals(a, b)` and `Equals(b, c)` then `Equals(a, c)` must hold
-- Violation causes inconsistent Contains/Remove results depending on insertion order
-- Relational operations (`IsSubsetOf`, `SetEquals`) produce wrong answers
-- No runtime enforcement; broken comparer silently corrupts set semantics
+- Enumeration order is bucket order, not insertion order
+- Order appears stable in practice but is not contractual
+- `LinkedHashSet` pattern not in BCL — use `List<T>` + `HashSet<T>` combination
+- `SortedSet<T>` iterates in sorted order
 
 **Answer**
 
-The `IEqualityComparer<T>.Equals` method must be symmetric (`Equals(a, b) == Equals(b, a)`) and transitive (if a equals b and b equals c then a equals c). Violating symmetry means the result of `Contains(item)` can differ depending on which end of the comparison the set uses, and on whether the stored element is `x` or `y` in the comparer call. Violating transitivity means three elements that should all be "the same" can produce two distinct buckets, leaving both in the set. Neither violation raises an exception; the set silently produces wrong answers. A classic mistake is a comparer for a `Version` type that treats "1.0" equal to "1.0.0" but "1.0.0" not equal to "1.0.0.0", breaking transitivity. Another is a string comparer that trims whitespace in one direction but not the other. The safest approach is to reduce equality to a canonical normalised representation — compute `Normalize(x)` and `Normalize(y)` inside both `Equals` and `GetHashCode`, ensuring the comparer is defined entirely by the canonical form.
+`HashSet<T>` does not guarantee any enumeration order — elements are iterated in bucket traversal order, which depends on hash values and deletion history. While the order often appears to match insertion order for small sets, this is an implementation artifact. If you need deduplication with preserved insertion order, maintain both a `HashSet<T>` (for O(1) contains checks) and a `List<T>` (for ordered enumeration) and add to both. `SortedSet<T>` iterates in `IComparer<T>` order if sorted enumeration is needed.
+
+---
+
+#### Gotcha 6. `ExceptWith` removes elements present in the argument set
+
+**Concepts**
+- A.ExceptWith(B) removes from A every element that is also in B
+- The receiver (A) is mutated, not the argument (B)
+- `IsSubsetOf`, `IsSupersetOf`, `SetEquals` do not mutate
+- Confusing ExceptWith with filtering the argument is a common error
+
+**Answer**
+
+`setA.ExceptWith(setB)` removes from `setA` all elements that are also in `setB` — it computes `setA = setA \ setB` and modifies `setA` in place. A common mistake is expecting it to filter `setB` (remove from B what's in A) — that would be `setB.ExceptWith(setA)`. The query methods (`IsSubsetOf`, `IsSupersetOf`, `Overlaps`, `SetEquals`) are non-mutating read-only checks and return bool, making them safe to call without worrying about side effects.
+
+---
+
+#### Gotcha 7. Null handling depends on the element type
+
+**Concepts**
+- Reference types: `null` is a valid HashSet element (one null allowed)
+- Value types: null is not a valid element (struct cannot be null)
+- `Nullable<T>` where T is value type: null is allowed as a distinct element
+- null does not cause exceptions but occupies a bucket
+
+**Answer**
+
+`HashSet<string>` can contain `null` as a valid element — `set.Add(null)` succeeds on first call and returns `false` on subsequent calls (just like any other element). Calling `set.Contains(null)` returns `true` if null was added. `HashSet<int>` cannot contain null because `int` is a non-nullable value type — the compiler rejects `null` as an argument. `HashSet<int?>` (nullable int) can contain null as a distinct element. Unexpected null membership can cause subtle bugs in set operations if nulls were not intended.
+
+---
+
+#### Gotcha 8. EqualityComparer controls both hashing and comparison
+
+**Concepts**
+- Pass custom IEqualityComparer<T> to constructor for custom equality
+- Default comparer for strings is ordinal case-sensitive
+- Case-insensitive string sets need StringComparer.OrdinalIgnoreCase
+- Comparer cannot be changed after construction
+
+**Answer**
+
+`HashSet<string>` uses `StringComparer.Ordinal` by default, so "Hello" and "hello" are treated as different elements. For case-insensitive deduplication, construct with `new HashSet<string>(StringComparer.OrdinalIgnoreCase)`. The comparer is baked in at construction and cannot be replaced — to switch comparers you must rebuild the set from scratch. The same rule applies to set operations: `setA.IntersectWith(setB)` uses `setA`'s comparer for all equality checks, so if the two sets were built with different comparers the result may not match intuition.
+
+---
+
+#### Gotcha 9. `TryGetValue` is not on HashSet — use Contains + iteration
+
+**Concepts**
+- HashSet has no TryGetValue — it only tracks membership, not key-value pairs
+- To retrieve an equal element from the set, enumerate and filter
+- .NET 4.7.2+ added TryGetValue(T equalValue, out T actualValue)
+- This pattern is used to canonicalize equal objects to a shared reference
+
+**Answer**
+
+`HashSet<T>` does not have a value retrieval method (unlike `Dictionary`) because it stores elements, not key-value pairs. A common need is "I have an object that compares equal to one in the set — give me the one already in the set (the canonical instance)." Starting with .NET 4.7.2, `TryGetValue(T equalValue, out T actualValue)` was added for exactly this use case — it returns the stored element that equals the argument. Before .NET 4.7.2, the workaround was a Dictionary where keys and values were the same object.
+
+---
+
+#### Gotcha 10. `HashSet` vs. `SortedSet` performance trade-off
+
+**Concepts**
+- HashSet: O(1) average add/remove/contains, unordered iteration
+- SortedSet: O(log n) all operations, always iterates in sorted order
+- SortedSet is red-black tree backed — more memory per element
+- Choose SortedSet only when sorted enumeration or range queries are needed
+
+**Answer**
+
+`HashSet<T>` is backed by a hash table with O(1) average add, remove, and contains, while `SortedSet<T>` is backed by a red-black tree with O(log n) for all mutation and lookup operations. The performance gap is significant at scale — a `SortedSet` of 1 million elements has lookup about 20 comparisons deep, while `HashSet` is typically 1-2 comparisons. `SortedSet` should only be chosen when you actually need sorted enumeration (`Min`, `Max`, `GetViewBetween`) — for pure deduplication and membership testing, `HashSet` is always faster.
 
 ---
 

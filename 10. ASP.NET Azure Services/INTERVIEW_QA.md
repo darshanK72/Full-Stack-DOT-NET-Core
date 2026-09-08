@@ -386,3 +386,147 @@ The decision should be driven by three questions asked in sequence. First: does 
 Second: is the data document-shaped, does the schema evolve frequently, and must the application accept writes or serve reads from multiple Azure regions simultaneously? A global SaaS product catalog, a user-profile store for a worldwide application, or an IoT event log partitioned by device ID are canonical Cosmos DB workloads. The multi-region write gotcha here is that enabling multi-master writes requires explicit conflict resolution design. The `LastWriterWins` policy based on the system `_ts` property can silently discard an update that arrived milliseconds earlier at a different region. Conflict-sensitive domains should implement a custom conflict resolution stored procedure or redesign writes to be additive (append-only) rather than in-place replacements.
 
 Third: is the value read thousands of times per second, reconstructable from Azure SQL or Cosmos DB on a cache cold start, and must be returned in under a millisecond? Session tokens, rate-limit counters, leaderboard scores, and feature-flag snapshots are canonical Redis use cases. Redis is never the system of record; if the cache is flushed or the instance is restarted the authoritative store must be able to repopulate it. Avoid Redis for data that cannot be rebuilt from another source, and disable persistence on pure caching tiers to eliminate the write-path latency penalty.
+
+## Gotchas — ASP.NET Azure Services Cross-Topic (Interview Traps)
+
+---
+
+#### Gotcha 1. RBAC role assignment propagation has eventual consistency — testing immediately after assignment returns 403
+
+**Concepts**
+- Azure RBAC assignments replicate through Azure Active Directory with eventual consistency
+- Propagation typically takes 2–5 minutes but can take up to 15 minutes in some regions
+- A 403 immediately after assigning a managed identity role does not mean the assignment is wrong
+- Retrying after several minutes is required before concluding there is a misconfiguration
+
+**Answer**
+
+When you assign a role to a managed identity — for example granting an App Service's identity Key Vault Secrets User or Storage Blob Data Reader — the assignment does not take effect instantly. Azure RBAC propagates through Azure Active Directory with eventual consistency that can take 2–5 minutes. Developers who assign a role and immediately test the connection see 403 and conclude the assignment is incorrect, often adding additional roles or checking the wrong resource. The standard diagnostic step is to wait 5 minutes and retry before investigating further. This delay is especially deceptive in ARM/Bicep deployments where the role assignment and the application deployment run sequentially but the first deployment job sometimes starts before propagation completes.
+
+---
+
+#### Gotcha 2. DefaultAzureCredential picks up developer machine credentials in CI — pipeline runs with local dev identity instead of service principal
+
+**Concepts**
+- `DefaultAzureCredential` tries environment variables, workload identity, managed identity, Visual Studio, Azure CLI, Azure PowerShell, and AzureDeveloperCLI in order
+- A CI agent with Azure CLI logged in uses the CLI credential, not the managed identity or service principal
+- The application may work on the CI agent but fail in production where the CI credential is absent
+- Explicitly ordering credential sources with `DefaultAzureCredentialOptions.ExcludeXxx` removes unintended sources
+
+**Answer**
+
+`DefaultAzureCredential` is a credential chain that resolves to the first successful source. On a CI agent where an engineer ran `az login` for a debugging session and never logged out, the Azure CLI credential may resolve before the intended service principal environment variables (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`). The pipeline then runs with the human engineer's identity and permissions instead of the service principal, causing permission inconsistencies between CI runs by different team members. In production where Azure CLI is not installed, `DefaultAzureCredential` falls through to managed identity correctly. Explicitly disabling unwanted credential sources with `DefaultAzureCredentialOptions` ensures consistent behavior across environments.
+
+---
+
+#### Gotcha 3. Cross-service latency compounds — routing every call through multiple Azure services multiplies response time
+
+**Concepts**
+- Each Azure service hop adds 5–100 ms of network and processing latency
+- App Service → APIM → Azure Function → Service Bus → Cosmos DB can add 300–500 ms per request
+- Same-region calls minimize latency; cross-region calls add 50–200 ms per hop
+- Profiling with Application Insights Dependency view identifies the slowest hop in the chain
+
+**Answer**
+
+Azure services in the same region communicate over the Azure backbone with low latency (typically 2–10 ms per hop), but a deep service chain adds these hops cumulatively. An HTTP request that passes through App Service, APIM (policy evaluation 20–50 ms), Azure Function (cold start or warm 10–20 ms), Service Bus publish/receive (20–40 ms), and Cosmos DB write (5–15 ms) can total 300–500 ms before business logic executes. Developers who profile each service independently find each is fast in isolation; only end-to-end tracing in Application Insights reveals the compound latency. Cross-region calls add 50–200 ms per additional region and should be avoided in synchronous request chains.
+
+---
+
+#### Gotcha 4. Subscription-level resource quotas limit how many of each Azure resource can be created — provisioning scripts fail silently at scale
+
+**Concepts**
+- Each Azure subscription has per-resource-type quotas (App Service Plans, Azure Functions, storage accounts)
+- Creating resources beyond the quota returns a `QuotaExceeded` error in ARM
+- Quota increase requests must be submitted to Azure support before deployment
+- CI/CD pipelines that provision resources per test run hit quotas faster than manual deployments
+
+**Answer**
+
+Azure subscriptions have hard quota limits on the number of each resource type that can exist simultaneously — for example, the default limit for App Service Plans per subscription is relatively low, and large DevOps pipelines that provision ephemeral environments for every pull request can exhaust this quota quickly. When the quota is hit, ARM template deployments fail with `QuotaExceeded` or `OperationNotAllowed`. Cleanup scripts that should delete ephemeral environments may not run (due to failed pipelines), causing resources to accumulate. Production deployments should request quota increases proactively through Azure support before they are needed, not after the first failure.
+
+---
+
+#### Gotcha 5. Azure resource naming constraints differ by service — a naming convention that works for one service fails for another
+
+**Concepts**
+- Storage account names: 3–24 characters, globally unique, lowercase letters and numbers only
+- Key Vault names: 3–24 characters, globally unique, alphanumeric and hyphens
+- App Service names: globally unique subdomain under `.azurewebsites.net`
+- ARM/Bicep naming functions must account for each service's length and character restrictions
+
+**Answer**
+
+Azure resource names have inconsistent constraints across service types. Storage account names must be globally unique, lowercase alphanumeric only, and 3–24 characters — no hyphens, no uppercase. Key Vault names allow hyphens but must also be globally unique. App Service names form the subdomain of `azurewebsites.net` and must be globally unique. Naming conventions designed for one service that include uppercase letters or hyphens will silently fail (validation error) when applied to storage accounts. Bicep modules that generate names using `toLower(replace(resourceName, '-', ''))` for storage accounts but use the raw name for other resources implement the correct per-service transformation; a single naming function for all resources always mismatches at least one service's constraints.
+
+---
+
+#### Gotcha 6. ARM/Bicep multi-resource deployments have no implicit dependency — partial deployments occur without explicit dependsOn
+
+**Concepts**
+- ARM evaluates resources in parallel unless `dependsOn` is specified
+- A Function app that depends on a storage account starting before it may fail if the account is not ready
+- Bicep infers implicit dependencies from property references between resources
+- Explicit `dependsOn` in ARM JSON or Bicep is still required when dependencies are not through property references
+
+**Answer**
+
+ARM template deployments execute resources in parallel by default to minimize deployment time. When a resource depends on another (a Function app needs the storage account to exist before it provisions, or an App Service needs Key Vault to exist before setting Key Vault references), the deployment may fail if the dependency completes later than the dependent resource's provisioning requires. Bicep infers implicit `dependsOn` when a resource property references another resource's output, which covers most common cases. Pure ARM JSON requires explicit `dependsOn` arrays. Circular dependencies and missing dependencies cause partial deployments that leave the environment in a mixed state difficult to clean up without full re-deployment.
+
+---
+
+#### Gotcha 7. Broad RBAC assignments at the resource group level grant unintended access to sibling resources
+
+**Concepts**
+- Assigning Contributor at the resource group level grants access to all current and future resources in the group
+- A managed identity that only needs Storage Blob access should have that role on the specific storage account
+- Least-privilege RBAC assignments are at the narrowest scope (resource, not resource group)
+- Resource group-level assignments are a common shortcut that creates security surface area
+
+**Answer**
+
+Azure RBAC role assignments can be scoped at the management group, subscription, resource group, or individual resource level. An assignment at the resource group level grants the role to all resources currently in the group and all resources added in the future. A managed identity granted "Contributor" at the resource group level to allow App Service to write to Blob Storage inadvertently also has Contributor access to Azure SQL, Key Vault, Service Bus, and any other resource in the group. Least-privilege principle requires assigning the minimal role (for example "Storage Blob Data Contributor") at the specific resource scope (the storage account), not at the resource group level.
+
+---
+
+#### Gotcha 8. Azure Monitor cost alerts trigger on spending but do not stop services — runaway resources exhaust budgets silently
+
+**Concepts**
+- Cost alerts notify when spending reaches a threshold but do not stop or scale down resources
+- Azure Budgets with Action Groups can trigger automation but require explicit setup
+- A misconfigured autoscale rule or an infinite-loop Azure Function can exhaust a monthly budget in hours
+- Cost anomaly detection is separate from budget alerts and fires on unusual spending patterns
+
+**Answer**
+
+Azure Cost Management budget alerts send an email when spending reaches a configured threshold. They do not stop services, reduce scale, or take any remediation action automatically. A runaway scenario — an autoscale rule that adds instances without a scale-in rule, a recursive Azure Function that triggers itself, or an accidentally public Storage container receiving unexpected traffic — can exhaust the monthly budget before the cost alert email is read. Azure Budgets can be linked to Action Groups that trigger Azure Automation or Logic Apps to take remediation action, but this requires explicit configuration. Without it, cost alerts are informational notifications, not circuit breakers.
+
+---
+
+#### Gotcha 9. Regional service feature availability differs — a Premium feature of one service may not exist in the region where another service is deployed
+
+**Concepts**
+- Not all Azure service tiers and features are available in all regions
+- A Premium Redis feature required for geo-replication may be unavailable in a small region
+- Service Bus Premium is required for VNET integration, not available in some government cloud regions
+- Architecture must verify regional availability before committing to a feature combination
+
+**Answer**
+
+Azure service features roll out to regions progressively; not all Premium features or new capabilities are available in every region simultaneously. An architecture designed in West US 2 that uses Service Bus Premium with VNet integration, Cosmos DB multi-region write, and Redis Enterprise geo-replication may find that some combination of those features is unavailable in the target deployment region (for example, an Australian or Southeast Asian region). This is particularly problematic for regulated workloads that must deploy in specific data-sovereignty regions. The Azure Products by Region page (`https://azure.microsoft.com/en-us/explore/global-infrastructure/products-by-region/`) must be consulted early in architecture design.
+
+---
+
+#### Gotcha 10. SDK package version mismatches between Azure.Identity and older management SDKs cause credential incompatibilities
+
+**Concepts**
+- Modern Azure SDKs use `Azure.Identity.DefaultAzureCredential` from `Azure.Identity`
+- Older `Microsoft.Azure.Management.*` packages use separate `Microsoft.Rest.Azure` credential types
+- The two credential ecosystems are not interchangeable — a `DefaultAzureCredential` cannot be passed to an older SDK method
+- Migrating to `Azure.ResourceManager.*` (new ARM SDK) unifies the credential model
+
+**Answer**
+
+Azure SDK packages exist in two generations: the older `Microsoft.Azure.Management.*` packages (using `ServiceClientCredentials` from `Microsoft.Rest`) and the newer `Azure.ResourceManager.*` and `Azure.*` packages (using `TokenCredential` from `Azure.Identity`). These credential types are incompatible: passing `DefaultAzureCredential` (a `TokenCredential`) to a management SDK method that expects `ServiceClientCredentials` fails with a type error. A project that mixes old and new SDK packages must maintain two separate authentication flows. The migration path is to replace all `Microsoft.Azure.Management.*` packages with their `Azure.ResourceManager.*` equivalents, which accept `TokenCredential` and unify the authentication model across the entire SDK ecosystem.
+
+---

@@ -294,221 +294,149 @@ A custom `IModelBinder` implements `BindModelAsync` to convert non-standard requ
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — Model Binding in MVC (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. Missing `[Bind]` attribute leaving models open to overposting
 
 **Concepts**
-- Business logic bypassing unit tests in views
-- Authorization placement in filters vs Razor
-- Service-layer calculations vs view-layer duplication
-- Presentation formatting as the boundary of view responsibility
+- Overposting — attacker adds extra fields to POST body that bind to properties the form never shows
+- `[Bind("Name,Email")]` — whitelist of bindable properties; extras are silently ignored
+- `[BindNever]` — per-property exclusion from binding
+- Input-only ViewModel — cleanest defense; only exposes properties the form needs
 
 **Answer**
 
-The problem with placing pricing, discount calculations, or authorization checks in `.cshtml` files is that Razor views cannot be meaningfully unit-tested in isolation, which means that business rule changes require verifying behavior through full integration tests or manual browser checks. Business logic in views also tends to diverge from the same logic in API endpoints or batch jobs, since the duplication is invisible and there is no shared test suite enforcing consistency. Authorization in particular belongs in filters, policies, or controller/service checks that run before the view even executes — a view that shows or hides UI based on role checks is not a substitute for server-enforced authorization. I treat Razor as a presentation layer responsible only for formatting data the controller or ViewModel already prepared, nothing more.
+When an EF entity or a ViewModel with many properties is bound directly from the POST body, an attacker can include additional form fields — `IsAdmin=true`, `Role=Admin`, `Balance=10000` — that bind to entity properties never shown in the form. Without `[Bind]` or a purpose-built input ViewModel, these fields silently update sensitive properties. The `[Bind("Name,Email")]` attribute on the action parameter whitelists allowed properties; any field not listed is ignored during binding. The cleaner long-term solution is a dedicated input ViewModel that exposes only the fields the form submits, making the whitelist implicit through the type itself rather than an attribute string.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. Complex object prefix mismatch when using `[FromForm(Name="prefix")]`
 
 **Concepts**
-- Lazy-loaded navigation triggering N+1 queries in views
-- Mass assignment surface from entity properties
-- Schema coupling between UI and database
-- ViewModel whitelisting as the correct defense
+- Default prefix — matches the parameter name for nested objects
+- `[FromForm(Name="")]` — removes prefix, binds top-level form fields
+- Prefix mismatch — child object properties not found, all at default values
+- `[Bind(Prefix="")]` — alternative prefix override on model binding
 
 **Answer**
 
-Passing EF Core entities directly to Razor views creates several compounding problems. Lazy-loaded navigation properties can trigger unintended database queries during rendering — a loop over `Order.LineItems` in a partial can fire one query per order if the navigations were not eagerly loaded, causing N+1 performance issues that are invisible until load testing. On POST, binding an entity directly exposes every property to mass assignment: even if the form only renders `Name` and `Email`, an attacker can add `IsAdmin=true` to the request body and it will bind. Entities also carry schema-specific fields like `RowVersion`, `InternalMarginPercent`, and FK ids that should never appear in HTML. The fix is to define ViewModels that expose only the fields the view needs and map between entities and ViewModels in the controller or a mapping service.
+When a form posts `Address.City` and `Address.PostalCode` but the action parameter is `[FromForm] AddressViewModel address` without a prefix override, the model binder looks for `address.City` — the parameter name as prefix. The posted keys `Address.City` do not match and the object binds with all default values. Conversely, using `[FromForm(Name="")]` strips the prefix and expects top-level `City` and `PostalCode` keys. The fix is to ensure the form input names match the expected binder prefix: either match the parameter name in HTML (`name="address.City"`) or specify the prefix explicitly in the attribute to align with what the HTML form actually posts.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. `[FromBody]` used on a standard browser form POST
 
 **Concepts**
-- HTML form submitting `application/x-www-form-urlencoded`
-- `[FromBody]` expecting JSON via input formatter
-- Silent binding failure leaving model at defaults
-- `FormData` following form binding rules, not JSON path
+- HTML form submission — `application/x-www-form-urlencoded`, not JSON
+- `[FromBody]` — activates the JSON input formatter; ignores form fields
+- Silent binding failure — model parameter receives all default values
+- Content-Type — `[FromBody]` requires `Content-Type: application/json` from the client
 
 **Answer**
 
-Standard browser forms submit `application/x-www-form-urlencoded` or `multipart/form-data` — they do not send JSON bodies. When an action parameter is decorated with `[FromBody]`, the model binder uses the JSON input formatter, finds no JSON in the request body, and leaves every property at its default value. The action runs with an apparently valid but empty model, so inserts save empty strings and zeroes with no error. The trap is that `ModelState` may appear clean since no conversion failure occurred — properties just stayed at defaults. The fix is to remove `[FromBody]` for conventional MVC form POSTs and allow the default form value provider to bind from the encoded body. `[FromBody]` belongs only on AJAX or API endpoints where the client explicitly sets `Content-Type: application/json` and sends a JSON payload.
+Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`. `[FromBody]` instructs the model binder to use the JSON input formatter, which reads the body as JSON. When a form POST arrives, the formatter finds no JSON content and the parameter defaults — every string is null, every int is zero — while the action runs silently. The fix for MVC form POSTs is to remove `[FromBody]` and let the default form value provider handle binding. `[FromBody]` belongs only on AJAX or API endpoints where the client explicitly sets `Content-Type: application/json` and sends a JSON payload.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. `DateTime` binding failing due to server culture vs client locale mismatch
 
 **Concepts**
-- Client validation as bypassable UX convenience
-- Server-side `ModelState.IsValid` as the mandatory security gate
-- Direct POST bypassing browser JavaScript
-- Remote validation not enforced on the server during POST
+- Model binder culture — uses server's current culture for date string parsing by default
+- Client date format — browser submits `MM/DD/YYYY` but server culture expects `DD/MM/YYYY`
+- Silent binding failure — `ModelState` records conversion error, property stays at default
+- `[BindProperty(SupportsGet = false)]` + `IModelBinder` — correct place for custom format handling
 
 **Answer**
 
-Client-side validation runs only in the browser and can be stripped out entirely by disabling JavaScript, using curl, Postman, or any HTTP client that never loads the page. An attacker submitting an invalid email, a negative price, or a missing required field directly to the action endpoint will succeed if the server does not check `ModelState.IsValid` before persisting. MVC controllers do not automatically return 400 on invalid models the way `[ApiController]` does, so the guard must be explicit. I always gate POST actions with `if (!ModelState.IsValid) return View(model);` before any service call or database write. Remote validation attributes (`[Remote]`) are particularly deceptive — they fire an AJAX check on the client but are never invoked during server-side POST processing, so uniqueness constraints and availability checks must be re-enforced on the server.
+A date input submitting `07/04/2025` parses as April 7 on a UK-culture server (`DD/MM/YYYY`) and as July 4 on a US-culture server (`MM/DD/YYYY`). When the server culture does not match the browser's date format, the model binder fails to parse the string, adds a conversion error to `ModelState`, and leaves the `DateTime` property at `DateTime.MinValue`. The form appears to submit successfully but stores wrong or empty dates. The correct approach is to use ISO 8601 format (`yyyy-MM-dd`) via `<input type="date">` which browsers submit in ISO format regardless of locale, or implement a custom `IModelBinder` that normalizes date strings before parsing.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. File upload `IFormFile` failing because `enctype="multipart/form-data"` is missing
 
 **Concepts**
-- Duplicate submission on browser refresh after POST response
-- Post-Redirect-Get pattern separating mutation from display
-- `TempData` for flash messages surviving the redirect
-- AJAX idempotency as the equivalent concern
+- `<form enctype="multipart/form-data">` — required for file upload forms
+- Default `enctype` — `application/x-www-form-urlencoded`, strips binary file content
+- `IFormFile` parameter — always null or empty without multipart encoding
+- Tag Helper — `<form asp-enctype="multipart/form-data">` or `method="post"` alone is insufficient
 
 **Answer**
 
-Returning the same view directly after a successful POST leaves the browser on a POST URL, so pressing refresh resubmits the same form data — creating duplicate orders, double charges, or repeated inserts. The browser's built-in "Confirm Form Resubmission" dialog warns users but does not prevent the problem on automated retries or programmatic submissions. The correct pattern is Post-Redirect-Get: after a successful mutation, `return RedirectToAction(nameof(Index))` sends a 302 response and the browser follows with a GET request, making the final URL safe to refresh. Success messages should travel via `TempData` to the redirect target since they cannot survive the redirect in `ViewData`. For AJAX partial POSTs the same concern applies — I disable the submit button during the request or implement idempotency server-side so duplicate submissions produce the same safe result.
+File input elements require `<form method="post" enctype="multipart/form-data">`. Without `enctype="multipart/form-data"`, the browser submits the file input as a plain filename string in the URL-encoded body, not as binary multipart data. The model binder receives no binary content and `IFormFile` is null. The `<form method="post">` default enctype is `application/x-www-form-urlencoded`, which cannot carry binary data. This is a silent failure — the action receives a null `IFormFile` with no model binding error in `ModelState`, making the problem invisible without debugging. Every form that includes a file input must specify `enctype="multipart/form-data"`.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. Custom `IModelBinder` not registered causing fallback to default binder
 
 **Concepts**
-- `ModelState` as request-scoped state
-- Validation errors lost on `RedirectToAction`
-- `return View(model)` on failure vs redirect on success
-- `TempData` serialization for errors that must survive redirect
+- Custom `IModelBinder` — must be registered via `[ModelBinder(typeof(MyBinder))]` or `IModelBinderProvider`
+- Without registration — default binder runs; custom logic is ignored
+- `IModelBinderProvider` — registered globally in `AddControllersWithViews().AddMvcOptions(...)`
+- `[ModelBinder]` attribute on parameter — per-parameter registration without global change
 
 **Answer**
 
-`ModelState` is scoped to the current HTTP request and is discarded when the response is sent, which means validation errors do not survive a `RedirectToAction`. A common bug is redirecting on both success and failure: the redirect GET action sees an empty `ModelState`, renders a clean form, and the user has no idea what went wrong. The standard pattern is to redirect only on success and return `View(model)` on validation failure — this keeps errors visible inline without any special plumbing. When a redirect on failure is genuinely required (such as PRG with a pre-populated form), errors can be serialized to `TempData` as a dictionary and re-added to `ModelState` on the GET action, but this is complex enough that I treat it as a last resort and prefer the simpler return-on-failure approach.
+Implementing `IModelBinder` and `IModelBinderProvider` is not sufficient — the provider must be inserted into `MvcOptions.ModelBinderProviders` or the `[ModelBinder(typeof(MyBinder))]` attribute must be applied to the parameter. Without registration, the framework falls back to the default complex type binder, which ignores the custom logic entirely and silently produces wrong bindings. The registration order matters: `ModelBinderProviders` is checked in order and the first provider that returns a non-null binder wins — custom providers that should override built-in behavior must be inserted at the front of the list using `Insert(0, ...)`, not added at the end with `Add(...)`.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. Route constraint not matching causing 404 instead of model binding error
 
 **Concepts**
-- `TempData` consumed on first read by default
-- `Peek()` for non-consuming reads
-- `Keep()` to retain after consuming
-- Single consumption point pattern
+- Route constraint `{id:int}` — fails the route match, returns 404 for non-integer
+- No route constraint — route matches, model binder fails, `ModelState` has error
+- 404 vs 400 — route mismatch is 404 (no route found); binding failure is 400 or model error
+- Route constraint purpose — prevent wrong route from matching, not to validate business input
 
 **Answer**
 
-TempData is designed to survive exactly one request after being set, but within a single request it is consumed on the first read — so if the layout reads a flash message to display a banner and the view also reads the same key to conditionally show an icon, the view sees `null`. The fix is to use `TempData.Peek("Message")` in whichever component reads first, since `Peek` returns the value without marking it consumed. Alternatively, call `TempData.Keep("Message")` after the first read to keep it available for the remainder of the request. The cleanest approach is to have a single consumption point — typically a dedicated layout partial that reads and renders the flash message — and keep views from trying to access the same key independently. Cookie-based `TempData` also has a size limit around 4 KB, so avoid stuffing large object graphs or lists into it.
+`[HttpGet("{id:int}")]` requires the `id` segment to parse as an integer at the routing layer. A request for `GET /Products/abc` does not match the route and returns 404 — the client never reaches model binding. Without the constraint (`{id}`), the route matches, the model binder tries to convert "abc" to `int`, fails, adds an error to `ModelState`, and the action receives `id = 0` (default) with an invalid `ModelState`. The behavioral difference matters for API clients: 404 signals a wrong URL while 400 signals a bad request to a valid route. Choose route constraints deliberately: `{id:int}` when only integers should match, omit when any value should reach binding for custom error messages.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. `[FromQuery]` and `[FromRoute]` conflicts when both match the same name
 
 **Concepts**
-- `[Area("AreaName")]` required for area route discovery
-- `{area:exists}` constraint in area route registration
-- Area-less controller treated as a root controller
-- Route registration order mattering for specificity
+- `[FromRoute]` — binds from URL segment; higher precedence than query string
+- `[FromQuery]` — binds from query string parameter
+- Unattributed parameter — searched in route, then form, then query string in order
+- Ambiguous binding — same name in both route and query string produces route value
 
 **Answer**
 
-Controllers placed under `Areas/Admin/Controllers/` are not automatically associated with the Admin area — they require an explicit `[Area("Admin")]` attribute to be matched by the area route. Without the attribute, MVC treats the controller as an ordinary root controller, so requests to `/admin/dashboard` either 404 or accidentally match a catch-all route. Area routing is registered separately in `Program.cs` using `MapControllerRoute` with a `{area:exists}` constraint, and this route must be registered before the default catch-all route so area paths take priority. Forgetting the attribute while the route is registered produces confusing behavior where the area URL patterns exist in the route table but the controllers are never matched by them.
+When a route template is `[HttpGet("{id:int}")]` and the client sends `GET /Products/5?id=10`, the `id` parameter in the action receives `5` from the route — not `10` from the query string — because the route binding takes precedence. If the action has an explicit `[FromQuery] int id` attribute, it binds `10` from the query string and ignores the route segment `5`. Mixing route and query string values with the same name without explicit `[FromRoute]` or `[FromQuery]` attributes causes subtle, environment-specific binding behavior. Use explicit source attributes on every parameter whose source might be ambiguous and name them distinctly to avoid conflicts.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Binding a nested collection where the parent object also needs binding
 
 **Concepts**
-- Tag Helper ambient area context for URL generation
-- `asp-area` required for cross-area link generation
-- Area links 404 or hitting wrong controller without it
-- `Url.Action` area route values requirement
+- Parent prefix — `[FromForm] OrderViewModel order` expects `order.Items[0].Qty`
+- Nested collection — items posted as `Items[0].Qty` without the parent prefix bind to nothing
+- HTML form naming — must match the full prefix path including parent parameter name
+- `[FromBody]` for JSON — JSON array/object nesting is handled differently than form field naming
 
 **Answer**
 
-Tag Helpers use the current request's route data as ambient values when generating URLs, which means they inherit the current area context automatically. From within the Admin area, omitting `asp-area` on a link to `AccountController` generates a URL in the Admin area segment, likely 404-ing because there is no `AccountController` in Admin. Crossing area boundaries requires explicitly setting `asp-area="Admin"` on the tag helper — omitting it generates a URL without the area segment when the current request is not in an area, or uses the wrong area when it is. The same rule applies to `Url.Action` calls: always pass `new { area = "Admin" }` in the route values dictionary when targeting an area controller from outside that area. Links from root views to area controllers and from one area to another both require `asp-area` to be explicit.
+When an action takes `[FromForm] OrderViewModel order`, the model binder expects form fields prefixed with `order.` — so `order.Items[0].Qty`, `order.Items[0].ProductId`, and so on. A Razor form that renders `name="Items[0].Qty"` without the `order.` prefix posts fields with no matching prefix and the `Items` collection binds empty. The mismatch is invisible in `ModelState` — binding succeeds but produces an empty list. Using `[FromForm(Name="")]` on the parameter changes the expected prefix to empty, matching top-level `Items[0].Qty` keys. Every form that binds complex nested objects must align HTML `name` attributes with the model binder's expected prefix path.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. `TryUpdateModelAsync` not being called when manually constructing model instances
 
 **Concepts**
-- Unchecked checkbox posting nothing vs posting `false`
-- Non-nullable `bool` binding empty field to `false`
-- `[Required]` not distinguishing `false` from absent
-- `bool?` with `[Required]` for true-or-null consent
-- `[Range(typeof(bool), "true", "true")]` for must-be-true validation
+- `TryUpdateModelAsync<T>` — applies model binding and validation to an existing object instance
+- Manual property assignment — bypasses model binding, no `ModelState` validation
+- `IFormCollection` direct access — skips binding infrastructure, type conversion not applied
+- `TryUpdateModelAsync` use case — selective update of allowed properties on a fetched entity
 
 **Answer**
 
-HTML checkboxes only submit their value when checked — an unchecked checkbox does not appear in the POST body at all. When the model property is non-nullable `bool`, the model binder sets missing fields to `false`, which is a perfectly valid non-null value, so `[Required]` passes without complaint. This means a required consent checkbox with `bool AcceptedTerms` can be submitted unchecked and validation will not catch it. The fix is to use `bool?` with `[Required]`, so an unchecked (absent) field binds to `null` and fails the required check, while an explicitly checked field binds to `true` and passes. For legal consent that must be positively affirmed, I also add `[Range(typeof(bool), "true", "true")]` or a custom attribute to reject `false` explicitly, since `bool?` with `[Required]` only distinguishes null from non-null.
+Fetching an entity from the database and then manually assigning `entity.Name = Request.Form["Name"]` bypasses model binding entirely — no type conversion, no validation attribute enforcement, and no `ModelState` population. The `TryUpdateModelAsync<TModel>(entity, prefix, includeExpressions)` method applies full model binding to an existing object instance, populates `ModelState` with validation errors, and returns false if binding fails. This is the correct pattern for "edit only allowed fields" scenarios where you load the entity first to preserve fields the user must not change, then apply binding selectively to the allowed properties using include expressions as the whitelist.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-zero-based index requirement for collection binding
-- Phantom null entries inserted at missing indices
-- Client-side re-indexing after row deletion
-- Server-side empty-row filtering as defense
-
-**Answer**
-
-Collection binding relies on contiguous indices starting at zero: `Lines[0]`, `Lines[1]`, `Lines[2]`. When a user deletes a middle row in the UI and the remaining rows keep their original indices — say `Lines[0]` and `Lines[2]` — the binder inserts a default/null entry at index 1 and places the actual data at index 2. Server logic that iterates `model.Lines` without filtering then processes a phantom empty line, potentially saving a blank order line or misaligning SKUs with quantities. The fix is to re-index rows in JavaScript immediately after any deletion so the submitted names are always gap-free. As a server-side safety net, filtering `model.Lines.Where(l => !string.IsNullOrEmpty(l.Sku))` before processing discards empty phantom rows even if the client-side re-indexing is buggy.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor auto HTML-encoding as the default XSS defense
-- `@Html.Raw` bypassing encoding entirely
-- Trusted HTML sanitizer library for rich content
-- Content-Security-Policy as defense-in-depth, not a replacement
-
-**Answer**
-
-Razor's default `@model.Property` output HTML-encodes the value, turning `<script>alert(1)</script>` into harmless entity-encoded text. `@Html.Raw(model.UserComment)` bypasses that encoding entirely and injects the string verbatim into the page, so attacker-supplied JavaScript executes in every viewer's browser. This is one of the most common XSS vectors in MVC applications. If rich HTML content from users must be rendered, the only safe approach is to sanitize it server-side with a trusted library (HtmlSanitizer) that allows a controlled whitelist of tags and attributes before it ever touches `@Html.Raw`. Content-Security-Policy headers limit the blast radius when XSS does occur but are not a substitute for encoding — a policy without `'unsafe-inline'` still leaves DOM-based XSS paths open.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form Tag Helper automatic antiforgery token injection
-- Manual `RequestVerificationToken` header or field for AJAX
-- `[AutoValidateAntiforgeryToken]` validating all unsafe methods
-- Same-origin cookie sent automatically vs header requiring manual setup
-
-**Answer**
-
-The Form Tag Helper automatically injects a hidden `__RequestVerificationToken` input when rendering a POST form, so full-page form submissions include the token without any developer action. AJAX requests made with `fetch` or jQuery do not go through the Form Tag Helper, so they must manually read the token value from the hidden field on the page and include it either as a form field or in a custom request header. Forgetting this produces a 400 `Bad Request` with an antiforgery validation failure message that can look like a generic server error. `[AutoValidateAntiforgeryToken]` on the controller class validates all unsafe HTTP methods automatically, so every AJAX POST, PUT, and DELETE to that controller requires the token. The fix is never to disable antiforgery validation to "fix" AJAX — add the token to the request instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub not registered in DI for direct injection
-- `IHubContext<THub>` as the singleton proxy for external broadcasting
-- Connection context required for hub method execution
-- Thin hub pattern with business logic in services
-
-**Answer**
-
-SignalR `Hub` subclasses are not registered in the DI container as injectable services — they are instantiated per connection by the SignalR infrastructure, which means injecting a concrete `Hub` into a controller constructor either fails at activation or produces an instance with no valid connection context. The correct approach is to inject `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()` that allows sending messages to connected clients from anywhere outside the hub — controllers, background services, or domain event handlers. The hub class itself should be kept thin, delegating business logic to scoped or transient services that can be injected normally. For multi-instance deployments, the `IHubContext` must be paired with a Redis backplane or Azure SignalR Service so the broadcast reaches clients connected to other instances.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane for multi-node fan-out
-- Instance-local connection IDs and group membership
-- `AddStackExchangeRedis` or `AddAzureSignalR` for scale-out
-
-**Answer**
-
-Sticky sessions ensure a client always reconnects to the same server instance, but they do not solve the fan-out problem. When a controller on instance A calls `IHubContext.Clients.User(id).SendAsync(...)`, that message is dispatched only to clients connected to instance A — users on instance B, C, and D never see it. This creates inconsistent real-time behavior under load that is nearly impossible to reproduce in single-server development. Connection IDs and group memberships are also stored locally per instance, so `Groups.AddToGroupAsync` on one node does not make the client a member on others. The fix is to register a shared backplane — `AddStackExchangeRedis(connectionString)` or `AddAzureSignalR(connectionString)` — so every instance publishes and subscribes to the same message bus and all clients receive every broadcast.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

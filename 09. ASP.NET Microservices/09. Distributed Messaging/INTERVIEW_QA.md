@@ -218,3 +218,147 @@ await db.SaveChangesAsync(); // atomic — either both succeed or both roll back
 ```
 
 ---
+
+## Gotchas — Distributed Messaging (Interview Traps)
+
+---
+
+#### Gotcha 1. Assuming Messages Are Delivered in FIFO Order
+
+**Concepts**
+- At-least-once delivery independent of ordering guarantee
+- Kafka partition ordering versus global topic ordering
+- RabbitMQ queue ordering broken by concurrent consumers
+- Per-entity ordering via partition key assignment
+
+**Answer**
+
+Message brokers that guarantee at-least-once delivery do not automatically guarantee global FIFO ordering — Kafka preserves ordering within a single partition, but messages with different partition keys (or no key) arrive at consumers in interleaved order. RabbitMQ queues are FIFO by default, but multiple concurrent consumers process messages in parallel, so an earlier message may be processed after a later one if the earlier consumer is slower. Code that assumes strict ordering — applying events to an entity in sequence — will corrupt state when events arrive out of order. The solution is to route all messages for a given entity (e.g., by `OrderId`) to the same partition so they are ordered within that entity's processing stream.
+
+---
+
+#### Gotcha 2. Consumer Group Rebalance Interrupting Processing
+
+**Concepts**
+- Kafka consumer group rebalance triggered by new consumer joining or leaving
+- Partition reassignment pausing all consumers briefly
+- Long processing time triggering session timeout and forced rebalance
+- max.poll.interval.ms and heartbeat.interval.ms tuning
+
+**Answer**
+
+A Kafka consumer group rebalances — reassigning partitions among consumers — whenever a consumer joins, leaves, or fails to poll within `max.poll.interval.ms`. During a rebalance, all consumers in the group pause processing, which means message processing stops for the entire group until the rebalance completes. A slow consumer that takes longer than `max.poll.interval.ms` to process a batch is considered dead and triggers a rebalance that disrupts all healthy consumers. The fix is to keep processing fast, set `max.poll.interval.ms` generously for slow-processing consumers, or decouple message consumption from processing by handing messages to an in-process queue and returning the poll thread immediately.
+
+---
+
+#### Gotcha 3. Dead-Letter Queue Not Monitored or Alerting
+
+**Concepts**
+- DLQ accumulating silently without operational visibility
+- Consumer bug routing all messages to DLQ undetected
+- DLQ depth as a critical alert metric
+- Replay workflow required to recover DLQ messages after fix
+
+**Answer**
+
+A dead-letter queue that grows silently is an invisible data loss event — if a consumer has a bug that throws on every message, all messages route to the DLQ and processing stops while the operational dashboard shows the consumer as "running." Every DLQ must have a CloudWatch Alarm, Azure Monitor alert, or Prometheus alert that fires on any non-zero queue depth, with an on-call runbook that describes how to diagnose the failure, fix the consumer, and replay the DLQ messages. Interviewers expect candidates to describe the full DLQ lifecycle: retry policy, DLQ routing, alerting, consumer fix, and replay — not just the happy path where DLQs exist but are never checked.
+
+---
+
+#### Gotcha 4. Non-Idempotent Consumer Under At-Least-Once Delivery
+
+**Concepts**
+- At-least-once delivery guaranteeing duplicate messages on retry or redelivery
+- Duplicate charge, duplicate email, duplicate inventory decrement
+- Processed-messages table with message ID as deduplication mechanism
+- Conditional update as an alternative idempotency strategy
+
+**Answer**
+
+Any broker configured for at-least-once delivery will redeliver messages when a consumer crashes before acknowledging, when a network error prevents the acknowledgement from reaching the broker, or when the broker restarts. A consumer that charges a card, sends an email, or decrements inventory without a deduplication check will perform those operations multiple times for the same logical message. The standard deduplication pattern is an `OutboxProcessed` or `ProcessedMessages` table with the message ID as a unique key — before processing, check if the ID exists; if yes, acknowledge without processing; if no, process and insert the ID within the same database transaction as the business effect.
+
+---
+
+#### Gotcha 5. Infinite Retry Loop on a Poison Message
+
+**Concepts**
+- Poison message causing consumer to throw on every retry attempt
+- Retry policy without a maximum attempt limit blocking the queue
+- Dead-letter queue routing after exhausting retry count
+- Circuit breaker on the consumer as an additional protection
+
+**Answer**
+
+A "poison message" is one that causes the consumer to throw an exception every time it is processed — a malformed payload, an unexpected null, or a downstream dependency that is permanently unavailable for that message. A retry policy without a maximum retry count (or with an extremely high count) will loop forever, blocking the consumer from processing any subsequent messages and consuming CPU in an exponential-backoff loop. Every retry policy must have a maximum attempt count (`RetryCount = 5`) after which the message is routed to the dead-letter queue and the consumer moves on. Without this, a single poison message can bring a consumer to a halt indefinitely.
+
+---
+
+#### Gotcha 6. Publishing Without Confirming Broker Acknowledgement
+
+**Concepts**
+- Fire-and-forget publish losing messages on broker crash
+- Publisher confirms (RabbitMQ) and acks (Kafka producer acks=all)
+- Outbox pattern as the application-level durability guarantee
+- Message loss versus latency trade-off in acknowledgement modes
+
+**Answer**
+
+A producer that publishes a message and does not wait for the broker's acknowledgement (RabbitMQ `BasicPublish` without publisher confirms, Kafka producer with `acks=0`) operates in fire-and-forget mode — if the broker crashes or the network drops immediately after publish, the message is lost with no error visible to the producer. For durable messaging, RabbitMQ publisher confirms or Kafka `acks=all` (all ISR replicas acknowledge) must be enabled, at the cost of increased publish latency. The Transactional Outbox Pattern provides durability at the application level by writing to the database first and relaying to the broker separately, which is the correct approach when the publishing service also writes to a database.
+
+---
+
+#### Gotcha 7. Message Ordering Broken by Competing Consumers on RabbitMQ
+
+**Concepts**
+- Single queue with multiple concurrent consumers processing out of order
+- Consumer A slower than Consumer B receiving an earlier message
+- Exclusive consumer pattern for strict ordering
+- Single-partition Kafka topic for strict-order use cases
+
+**Answer**
+
+A RabbitMQ queue with three concurrent consumers delivers messages to whichever consumer is free — if Consumer 1 receives message 1 but is slow, and Consumer 2 receives message 2 and finishes first, message 2 is processed before message 1 despite being enqueued later. For scenarios that require strict per-entity ordering — state machine transitions, sequential event sourcing — either use a single exclusive consumer (no parallelism, low throughput), route messages for the same entity to a dedicated queue, or use Kafka with a partition key so all messages for one entity land on the same partition processed by a single consumer.
+
+---
+
+#### Gotcha 8. Committing Kafka Offset Before Processing Completes
+
+**Concepts**
+- Early offset commit marking a message as processed before the business effect
+- Process crash after commit losing the message permanently
+- at-least-once semantics requiring commit after successful processing
+- Manual commit versus auto-commit in Kafka consumer configuration
+
+**Answer**
+
+Kafka's `enable.auto.commit=true` (the default) commits the offset automatically on a background timer, independent of whether the business logic for that message has completed successfully. If the consumer crashes after the auto-commit but before the database write completes, the message is considered processed and will not be redelivered — the business effect is lost. For reliable processing, auto-commit must be disabled and the offset committed manually only after the business operation and its database transaction have succeeded. The ordering is: receive message → process business logic → commit to database → commit Kafka offset.
+
+---
+
+#### Gotcha 9. Schema-less Message Payloads Breaking Consumers on Field Rename
+
+**Concepts**
+- Loose JSON payload with no contract enforcement
+- Field renamed or removed by producer breaking consumer silently
+- Schema Registry enforcing backward compatibility at publish time
+- Consumer-Driven Contract Testing as an alternative
+
+**Answer**
+
+Publishing JSON messages without a schema registry or contract test means a producer team can rename `customerId` to `customer_id` in a refactor, the change passes all producer unit tests, ships to production, and silently breaks every consumer that reads `customerId` — which now deserializes to null or throws, depending on the consumer's null handling. A schema registry (Confluent Schema Registry, Azure Schema Registry) enforces compatibility rules at publish time and rejects a new schema that removes or renames a field without a version bump. Without a registry, Consumer-Driven Contract Testing with Pact achieves the same protection by running the producer's CI against schemas the consumers have registered.
+
+---
+
+#### Gotcha 10. No Backpressure Handling on the Consumer Side
+
+**Concepts**
+- Consumer processing slower than producer publishing rate
+- Queue depth growing unboundedly until broker runs out of memory
+- Consumer-side throttling using prefetch count and processing concurrency
+- Producer-side rate limiting when queue depth exceeds a threshold
+
+**Answer**
+
+A consumer that processes one message in 100 ms while the producer publishes 100 messages per second will fall indefinitely behind, growing the queue depth without bound until the broker runs out of disk space or memory and starts dropping messages or blocking producers. RabbitMQ's `basicQos` prefetch count limits how many unacknowledged messages the broker delivers to a consumer at once, acting as a natural backpressure mechanism — once the prefetch window is full, the broker stops delivering to that consumer. Kafka's `max.poll.records` limits how many records are fetched per poll cycle. Consumers must also horizontally scale by adding consumer instances to the consumer group when sustained throughput exceeds single-consumer capacity.
+
+---

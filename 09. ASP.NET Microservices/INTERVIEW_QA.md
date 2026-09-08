@@ -757,3 +757,147 @@ case while providing a deterministic answer for time-sensitive reads without cou
 read and write pipelines through a shared database lock.
 
 ---
+
+## Gotchas — ASP.NET Microservices (Interview Traps)
+
+---
+
+#### Gotcha 1. Service Boundaries Drawn Too Fine-Grained
+
+**Concepts**
+- Nano-service with only one or two endpoints per service
+- Network call overhead dominating business logic execution time
+- Chatty inter-service communication from over-decomposition
+- Sam Newman's rule: start coarser, split when pain is felt
+
+**Answer**
+
+Decomposing a system into dozens of nano-services — one service per database table or one service per entity type — creates overwhelming operational complexity with no corresponding business benefit. Every inter-service call adds network latency, serialisation overhead, a new failure point, and a deployment coordination burden. A service that makes 10 synchronous calls to other services to handle one user request has 10 times the failure surface and cumulative latency of a well-designed monolith. The practical guidance is to start with coarser boundaries aligned to business capabilities (OrderManagement, CustomerProfile, ProductCatalogue) and split only when a specific scaling bottleneck, team ownership conflict, or technology isolation requirement justifies the operational cost.
+
+---
+
+#### Gotcha 2. Distributed Monolith — Separate Deployment, Tight Coupling
+
+**Concepts**
+- Services sharing a database and deployed independently
+- Change in one service requiring simultaneous deployment of others
+- Tight runtime coupling despite separate executables
+- True independence requiring autonomous data ownership
+
+**Answer**
+
+A distributed monolith deploys services as separate processes but maintains tight coupling through a shared database, shared library versions that must stay in sync, or synchronous HTTP dependencies that require all services to be available simultaneously for any one to function. The hallmarks are: you can't deploy Service A without also deploying Service B, Service A fails if Service B is down, and both services write to the same database tables. Microservices are not defined by deployment topology — they are defined by autonomous data ownership, independent deployability, and bounded-context alignment. A system of 20 separately deployed services sharing one database is still a monolith with distributed failure modes.
+
+---
+
+#### Gotcha 3. Synchronous Call Chain Across Many Services
+
+**Concepts**
+- Request traversing 6 services synchronously before responding
+- Cumulative latency and failure probability compounding per hop
+- Availability product: 0.999^6 = 99.4% system availability
+- Async messaging or Saga pattern for multi-service workflows
+
+**Answer**
+
+A user-facing request that synchronously calls Service A → B → C → D → E → F before returning a response has compounded latency (sum of all service round trips) and compounded failure probability (if each service has 99.9% uptime, the chain has 99.4% uptime — one additional 9 of downtime). Under this model, adding one more service to the chain reduces overall availability and increases median response time. Long synchronous chains indicate that the business capability should be consolidated into fewer services, or that the workflow should be redesigned as an asynchronous event-driven flow where services react to events rather than being called in sequence.
+
+---
+
+#### Gotcha 4. No Contract Testing Between Microservices
+
+**Concepts**
+- Provider changing an API field without knowledge of consumer expectations
+- Integration test environment required to catch breaking changes
+- Consumer-Driven Contract Testing with Pact
+- Contract test running in CI before deployment
+
+**Answer**
+
+When Service A consumes Service B's REST or gRPC API, a breaking change in Service B — renamed field, removed endpoint, changed response shape — breaks Service A silently in production unless caught by integration tests that require both services to be running simultaneously in a shared environment. Consumer-Driven Contract Testing (Pact) solves this: Service A publishes a "contract" describing what it expects from Service B, and Service B's CI runs the contract test against its own codebase independently, without needing Service A to be running. A contract violation fails Service B's CI build before the breaking change is deployed, catching the incompatibility at the cheapest possible moment.
+
+---
+
+#### Gotcha 5. Not Planning for Partial Failure in Inter-Service Calls
+
+**Concepts**
+- Happy-path code assuming all downstream calls succeed
+- Missing timeout, retry, and fallback for every outgoing call
+- Polly resilience pipeline on every HttpClient and gRPC channel
+- Degraded response preferred over total failure for non-critical data
+
+**Answer**
+
+Microservice code that calls downstream services without timeout, retry, or fallback handling assumes the network is reliable and every dependency is always available — an assumption that fails in production within hours of the first deployment. Every HTTP client and gRPC channel must have a timeout (preventing indefinite blocking), a retry with jitter (for transient failures), and a circuit breaker (for sustained failures). For non-critical downstream data — product recommendations, personalisation — a fallback that returns a cached or default response is preferable to propagating the failure to the user. Code without these patterns is incomplete by design, not by oversight.
+
+---
+
+#### Gotcha 6. Shared Library Coupling Services to Each Other
+
+**Concepts**
+- Common.Contracts NuGet package shared across all services
+- Change to the shared package requiring all services to recompile and redeploy
+- Shared kernel for truly stable concepts only
+- API versioning and code generation as alternatives
+
+**Answer**
+
+Creating a `Common.Contracts` or `SharedModels` NuGet package containing DTOs, event classes, and interface definitions that all services reference re-introduces the coupling that microservices are designed to eliminate — a change to one DTO in the shared package requires all services that reference it to be rebuilt, retested, and redeployed simultaneously. Each service should own its own contracts; for cross-service event or API contracts, generate client code from OpenAPI or proto schemas (contract-first) or use Consumer-Driven Contract Testing so that compatibility is verified without a shared binary dependency. Shared packages are appropriate only for genuinely stable cross-cutting utilities (logging wrappers, telemetry configuration) that change independently of business contracts.
+
+---
+
+#### Gotcha 7. No Service Ownership — Every Team Deploys Every Service
+
+**Concepts**
+- Multiple teams making changes to the same service
+- No clear accountability for service health or on-call responsibility
+- Conway's Law: system structure mirrors communication structure
+- One team per service as the ownership model
+
+**Answer**
+
+Without clear ownership, every team modifies any service it needs to change, no team is accountable for a service's availability during on-call incidents, and architectural decisions are made inconsistently across the service. Conway's Law predicts this outcome: a system built by multiple teams without clear service ownership will reflect the communication patterns of those teams — tangled dependencies and overlapping responsibilities. Microservices require that each service has exactly one owning team that is responsible for its design, deployments, SLA, and on-call rotation. Other teams consume the service via its public API and raise requests for changes to the owning team — they do not merge code directly into another team's service repository.
+
+---
+
+#### Gotcha 8. API Versioning Ignored Until a Breaking Change Forces a Crisis
+
+**Concepts**
+- Breaking change deployed to v1 breaking all existing clients
+- Semantic versioning and URL path versioning for REST
+- Proto package versioning for gRPC
+- Deprecation period before removing old version
+
+**Answer**
+
+Without an API versioning strategy, the first breaking change — a renamed field, a removed endpoint, a changed status code meaning — requires either accepting broken clients or deploying new and old versions simultaneously with no planned migration path. The versioning strategy must be decided before the first public API is deployed: URL path versioning (`/v1/orders`, `/v2/orders`) is visible and cache-friendly for REST; header-based versioning is cleaner but less cache-friendly; proto package versioning (`myservice.v1`, `myservice.v2`) is the standard for gRPC. Every breaking change requires a new version, the old version must be maintained for a deprecation period with advance notice to clients, and the retirement date must be communicated and enforced.
+
+---
+
+#### Gotcha 9. Polyglot Persistence Without Data Sovereignty Planning
+
+**Concepts**
+- Each service choosing its own database technology independently
+- Reporting spanning multiple database technologies with no aggregation layer
+- Operational skills required for each database technology in production
+- Technology choice driven by access pattern fit, not novelty
+
+**Answer**
+
+"Polyglot persistence" — each service choosing the database most suited to its data model — is a genuine benefit of Database per Service, but adopted without discipline it produces a fleet where one team operates SQL Server, another MongoDB, another Redis, another Elasticsearch, and another Cassandra — all in production simultaneously, requiring expertise and operational tooling for all five. The practical guidance is to select a small approved set of database technologies (e.g., PostgreSQL as the default, Redis for caching, Elasticsearch for full-text search) and justify deviation from the set with concrete access pattern requirements, not novelty. Reporting and compliance that spans all services also requires a data aggregation strategy from the start.
+
+---
+
+#### Gotcha 10. Skipping Load Testing and Assuming Microservices Auto-Scale
+
+**Concepts**
+- Horizontal pod autoscaler requiring load testing to set correct thresholds
+- Downstream services becoming bottlenecks when only one service is scaled
+- Network and database connection limits revealed only under realistic load
+- Load testing identifying the weakest link in the call chain
+
+**Answer**
+
+Assuming that a microservices architecture with Kubernetes auto-scaling will handle any load automatically without load testing is a common and expensive mistake. The HPA scales pods based on CPU or custom metrics, but if the auto-scaling thresholds are wrong (too high or too low), the pods either scale too late (users experience latency spikes) or scale too aggressively (costs balloon). Load testing reveals the actual bottleneck: often it is not the scaled service but a downstream dependency — the database connection limit, a third-party API rate limit, or a service three hops downstream that is not configured with sufficient replicas. Load testing under realistic traffic patterns is a prerequisite for setting correct resource requests, limits, HPA thresholds, and circuit breaker configurations.
+
+---

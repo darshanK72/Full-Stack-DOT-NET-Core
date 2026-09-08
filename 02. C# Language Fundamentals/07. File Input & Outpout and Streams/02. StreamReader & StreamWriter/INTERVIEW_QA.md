@@ -478,3 +478,147 @@ The path-based `StreamReader` constructor creates its own internal `FileStream` 
 **Answer**
 
 `StreamReader.ReadLine()` is synchronous — the calling thread blocks for the entire disk read duration, doing no useful work while waiting for the OS to return data. In an ASP.NET Core hosted service that processes many files concurrently, each concurrent execution holds a thread-pool thread captive for the I/O wait, which is the same class of starvation as calling `.Result` on a `Task`. As the pool fills with blocked threads, new work items queue up and latency spikes even though CPU utilization is low — a classic sign of I/O-bound thread-pool starvation. The fix is `await reader.ReadLineAsync(stoppingToken)` throughout the loop, releasing the thread to serve other work during each disk read. The `CancellationToken` overload available since .NET 7 also enables clean shutdown when the host signals `stoppingToken`. Ensure the `FileStream` is opened with `FileOptions.Asynchronous` for true OS-level async I/O on Windows.
+
+## Gotchas — StreamReader & StreamWriter (Interview Traps)
+
+---
+
+#### Gotcha 1. `StreamWriter` Buffers by Default — Data May Not Reach the File Until Flush
+
+**Concepts**
+- `StreamWriter` maintains an internal character buffer that is flushed to the underlying stream periodically
+- Forgetting to flush or close a `StreamWriter` can result in partially written or empty files
+- The `using` statement disposes the writer, which calls `Flush()` and then `Close()` automatically
+- `AutoFlush = true` disables buffering and flushes after every write, at the cost of throughput
+
+**Answer**
+
+`var writer = new StreamWriter("log.txt"); writer.WriteLine("Hello");` does not guarantee the line reaches disk until `writer.Flush()` or `writer.Dispose()` is called. If the program exits or crashes before disposal, the buffered content is lost. Always use a `using` statement or `await using` for async writers to ensure the buffer is flushed on every exit path including exceptions. Use `AutoFlush = true` only when immediate visibility is more important than write throughput, such as for interactive console output or real-time log tailing.
+
+---
+
+#### Gotcha 2. `StreamReader.EndOfStream` Reads Ahead — Can Block on Network Streams
+
+**Concepts**
+- `EndOfStream` reads ahead into the buffer to determine whether more data is available
+- On a `NetworkStream` or a pipe where data arrives incrementally, checking `EndOfStream` can block waiting for the next chunk
+- On a `FileStream`, `EndOfStream` is reliable because file size is known
+- For network or pipe streams, check whether bytes were returned from the read operation instead
+
+**Answer**
+
+`while (!reader.EndOfStream) { var line = reader.ReadLine(); … }` works correctly for files where the stream length is known in advance. On a `NetworkStream`, `EndOfStream` blocks until data arrives or the connection closes, because there is no known end position — the property peeks ahead into the buffer. For network or pipe scenarios, check the read result directly: `string? line; while ((line = reader.ReadLine()) != null) { … }` which handles EOF without the blocking peek.
+
+---
+
+#### Gotcha 3. `StreamWriter(path)` Creates or Overwrites — Pass `append: true` to Append
+
+**Concepts**
+- `new StreamWriter(path)` truncates an existing file or creates a new one
+- `new StreamWriter(path, append: true)` opens an existing file and positions at the end, or creates a new file
+- Silently overwriting is a common source of data loss in logging and audit trail code
+- Equivalent to `File.OpenWrite` (overwrites) vs `File.AppendText` (appends) in terms of intent
+
+**Answer**
+
+`new StreamWriter("audit.log")` destroys all existing content in `audit.log` without warning. To add entries to an existing log file, pass `append: true`: `new StreamWriter("audit.log", append: true)`. For production logging, prefer a logging framework that manages file rotation and appending, but when using `StreamWriter` directly, always be explicit about whether the intent is to create-or-overwrite or to append.
+
+---
+
+#### Gotcha 4. `StreamReader.ReadToEnd()` Loads the Entire Stream Into a String — Not Suitable for Large Files
+
+**Concepts**
+- `ReadToEnd()` reads from the current position to the end of the stream and returns the result as a single string
+- For a 1 GB file, this allocates a 1 GB string on the heap
+- Should be replaced with line-by-line reading (`ReadLine`) or chunk reading (`ReadBlock`) for large inputs
+- Fine for small configuration files, API responses, or in-memory streams with known small content
+
+**Answer**
+
+`reader.ReadToEnd()` is convenient but scales poorly — it allocates a string of the same size as the remaining stream content. For large log files, CSV exports, or binary-as-text data, use `ReadLine()` in a loop to process content incrementally without materialising the whole file. Reserve `ReadToEnd()` for cases where the full content must be manipulated as a string and the size is bounded and small, such as reading a configuration file or a small API payload.
+
+---
+
+#### Gotcha 5. `StreamReader` Default Encoding Is UTF-8 — Specify Encoding for Other Formats
+
+**Concepts**
+- `new StreamReader(stream)` defaults to UTF-8 with BOM detection
+- ANSI, Latin-1, or custom-encoded streams are silently misread or throw `DecoderFallbackException`
+- Always specify the encoding explicitly when the source format is known
+- `Encoding.ASCII` is a strict 7-bit encoding; characters above 127 are replaced with `?` by default
+
+**Answer**
+
+`new StreamReader(fileStream)` reads UTF-8 by default. Reading a Windows-1252 ANSI file containing `é` or `ü` produces garbled characters because the byte values for those characters differ between encodings. Use `new StreamReader(fileStream, Encoding.GetEncoding(1252))` for ANSI, or `Encoding.Latin1` as a transparent single-byte encoding that preserves all byte values. When the encoding is unknown, use the BOM-detecting constructor and provide a fallback: `new StreamReader(stream, detectEncodingFromByteOrderMarks: true, leaveOpen: false)`.
+
+---
+
+#### Gotcha 6. Mixing `StreamReader.ReadLine()` and `Stream.Read()` on the Same Stream
+
+**Concepts**
+- `StreamReader` maintains its own internal buffer, independent of the underlying `Stream`'s position
+- Calling `stream.Read(buffer, 0, n)` after a `StreamReader` has buffered ahead will skip already-buffered bytes
+- The stream position and the reader's logical position diverge once the reader has read-ahead data
+- Never mix `StreamReader` reads and direct `Stream` reads on the same stream instance
+
+**Answer**
+
+When `StreamReader` reads a chunk of data into its internal buffer, the underlying `Stream.Position` advances by the buffer size, not by the number of characters you have consumed via `ReadLine()`. Calling `stream.Read(...)` after `reader.ReadLine()` skips over the bytes already in the reader's buffer. If you need to read both text (via `StreamReader`) and binary data (via `Stream.Read`) from the same source, read all text first and then switch, or use a single abstraction that handles both.
+
+---
+
+#### Gotcha 7. `AutoFlush = true` on `StreamWriter` — Useful for Logging but Reduces Throughput
+
+**Concepts**
+- `AutoFlush = true` causes a flush to the underlying stream after every `Write` or `WriteLine` call
+- Eliminates buffering benefits; each call maps to a direct OS write
+- Appropriate when real-time visibility matters more than throughput (log tailing, interactive consoles)
+- Inappropriate for high-frequency writes such as processing millions of CSV rows — batch with manual `Flush()`
+
+**Answer**
+
+Setting `writer.AutoFlush = true` makes every `writer.WriteLine(...)` call immediately flush to the underlying stream. This is useful when the file is being tailed by a monitoring tool or when the process may be killed and partial log entries must be preserved up to the last line. However, for batch write-heavy code (writing thousands of CSV rows), `AutoFlush = true` can reduce throughput by 10–100x compared to buffered writing with periodic manual flushes. Choose based on the observability vs performance trade-off.
+
+---
+
+#### Gotcha 8. `StreamWriter` Over a `MemoryStream` — Seek to 0 Before Reading Back
+
+**Concepts**
+- After writing to a `StreamWriter` backed by a `MemoryStream`, the stream position is at the end
+- `memStream.ToArray()` always returns all bytes from position 0 regardless of current position
+- `memStream.GetBuffer()` returns the internal buffer including over-allocated unused bytes — not what you want
+- Reading the stream back with a `StreamReader` requires `memStream.Seek(0, SeekOrigin.Begin)` first
+
+**Answer**
+
+After `writer.Write("content"); writer.Flush();` the `MemoryStream.Position` is at the end of the written data. Attempting to read back via `new StreamReader(memStream).ReadToEnd()` returns an empty string because there is nothing after the current position. Either call `memStream.Seek(0, SeekOrigin.Begin)` before reading, or use `memStream.ToArray()` which copies from position 0 regardless of the current position. Call `Flush()` on the `StreamWriter` before seeking to ensure all buffered content has been pushed to the `MemoryStream`.
+
+---
+
+#### Gotcha 9. `using` Statement Disposal Order — Inner Reader Closes the Stream
+
+**Concepts**
+- `StreamReader` by default disposes (closes) the underlying stream when it is disposed
+- Wrapping both `FileStream` and `StreamReader` in `using` blocks results in the stream being closed twice
+- The second close is harmless but redundant; passing `leaveOpen: true` to `StreamReader` prevents it from closing the stream
+- Use `leaveOpen: true` when you want to read the same stream with multiple readers or continue using it after the reader is done
+
+**Answer**
+
+`using var fs = new FileStream(path, FileMode.Open); using var reader = new StreamReader(fs);` disposes both the `StreamReader` and the `FileStream`. When `reader` is disposed first (inner `using`), it closes `fs`; then when `fs` is disposed by the outer `using`, it is closed again — which is safe because `FileStream.Dispose` checks if already closed. To prevent the reader from closing the stream, use `new StreamReader(fs, Encoding.UTF8, detectBOM: true, bufferSize: 4096, leaveOpen: true)`.
+
+---
+
+#### Gotcha 10. `StreamReader.Peek()` Returns -1 at EOF and Does Not Advance Position
+
+**Concepts**
+- `Peek()` returns the next character's integer code without consuming it, or -1 at end of stream
+- The position is not advanced; the next `Read()` or `ReadLine()` still returns that same character
+- Useful for lookahead parsing to decide which code path to take without consuming the character
+- Calling `Peek()` may trigger a buffer fill, which advances the underlying stream position without advancing the reader's logical position
+
+**Answer**
+
+`reader.Peek()` looks at the next character without consuming it, returning -1 if the stream is at end. The character is still available for the next `Read()` or `ReadLine()` call — `Peek()` is truly non-destructive from the caller's perspective. This is useful for peeking at the first character of an XML document to detect the encoding or for disambiguating parser branches. Checking `Peek() == -1` is a reliable EOF check that does not trigger the read-ahead block that `EndOfStream` can cause on network streams.
+
+---

@@ -276,211 +276,147 @@ In `IExceptionHandler`, pattern-match on exception type using a switch expressio
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
-
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- UseRouting must precede UseAuthentication and UseAuthorization
-- Endpoint metadata not selected before routing runs
-- Recommended pipeline order for ASP.NET Core 8
-
-**Answer**
-
-In ASP.NET Core endpoint routing, `UseAuthentication` and `UseAuthorization` must run after `UseRouting` so the auth middleware can read endpoint metadata — if auth runs before routing, the endpoint has not been selected yet and policy resolution for `[Authorize]` and `RequireAuthorization()` cannot inspect the correct attributes. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms of wrong order include anonymous access to protected endpoints and 401 challenges that fire without correctly applying per-endpoint allow-anonymous overrides.
+## Gotchas — Exception Handling (Interview Traps)
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. Exception handling middleware must be the first registration — exceptions before it propagate unhandled
 
 **Concepts**
-- Captive dependency lifetime violation
-- EF DbContext stale change tracker accumulation
-- ValidateScopes detecting the problem at startup
-- IServiceScopeFactory as the correct fix
+- Middleware pipeline as nested delegates — first registered is outermost wrapper
+- Exceptions from routing, auth, and action pipeline only caught if handler wraps them
+- `UseExceptionHandler` or `UseDeveloperExceptionPage` placed before all other middleware
+- Host-level unhandled exception logging as last resort
 
 **Answer**
 
-A scoped service injected into a singleton is held for the entire application lifetime, long after the scope that created it was disposed. The most common case is `DbContext`: the change tracker accumulates entities from unrelated requests, and after the scope is torn down any access throws `ObjectDisposedException`. Enable `ValidateScopes = true` in Development and staging to catch these combinations at startup rather than under production load. The fix is to inject `IServiceScopeFactory` and create a scope per unit of work, or use `IDbContextFactory<T>` to get a short-lived context per operation.
+The middleware pipeline runs as a nested chain of delegates — the first registered middleware is the outermost layer. Exception handling middleware catches exceptions thrown by all delegates that run inside it. Any middleware registered before `UseExceptionHandler` is outside the exception handler's catch scope — exceptions from those early middlewares propagate directly to the host. The canonical `Program.cs` ordering places `UseExceptionHandler` (or `UseDeveloperExceptionPage` in development) as the very first `app.Use*()` call so that errors from routing, authentication, authorization, and action execution are all intercepted by a single centralized handler.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. `UseDeveloperExceptionPage` must be gated to Development — leaks stack traces in production
 
 **Concepts**
-- HttpMessageHandler lifetime and socket exhaustion
-- IHttpClientFactory managed handler recycling
-- Named and typed client registration pattern
+- `UseDeveloperExceptionPage` rendering full exception details as HTML
+- Environment check `app.Environment.IsDevelopment()` required
+- Stack trace and inner exception details visible to any user in production
+- Security impact of exposing framework internals and connection strings in error pages
 
 **Answer**
 
-Instantiating `HttpClient` with `new` in a long-lived singleton prevents socket reuse because each instance holds its own `HttpMessageHandler` and the underlying TCP connections are not returned to a pool until garbage collection. Under load this causes socket exhaustion — `SocketException` and timeout errors that do not appear in local testing with low concurrency. `IHttpClientFactory` manages handler lifetimes and recycles connections correctly, so the fix is to register named or typed clients via `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject them rather than constructing `HttpClient` directly.
+`UseDeveloperExceptionPage` renders a detailed HTML page with the full stack trace, exception message, query string, headers, and cookies for any unhandled exception. Without an environment check, this page is served to every user in production — exposing stack traces, connection string fragments, internal paths, and framework version information that attackers use to craft targeted exploits. The page must be conditionally registered: `if (app.Environment.IsDevelopment()) app.UseDeveloperExceptionPage(); else app.UseExceptionHandler("/error")`. Never invert this condition or remove the environment check to "make debugging easier" in staging or production.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. `UseExceptionHandler` vs `IExceptionHandler` — .NET 8 prefers the interface-based approach
 
 **Concepts**
-- IOptions<T> frozen snapshot at first resolution
-- IOptionsSnapshot<T> recalculates per request scope
-- IOptionsMonitor<T> live change notifications for singletons
-- Silent staleness until process restart
+- `UseExceptionHandler("/error")` routing to a controller action for error responses
+- `IExceptionHandler` interface registered in DI for structured exception mapping
+- Multiple `IExceptionHandler` implementations tried in registration order
+- `AddProblemDetails()` combined with `IExceptionHandler` for consistent response shape
 
 **Answer**
 
-`IOptions<T>` resolves once and caches the configuration snapshot for the service's lifetime, so a singleton that reads `.Value` in its constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope but is only usable in scoped services. `IOptionsMonitor<T>` supports change notifications via `OnChange` and works correctly in singletons. The failure mode is silent — misconfiguration persists until process restart because `.Value` was captured at construction.
+The traditional `UseExceptionHandler("/error")` re-executes the request to a controller action, which can be confusing — the action runs with the original request's authorization context and must detect that it is an error response via `IExceptionHandlerFeature`. In .NET 8, the preferred approach is implementing `IExceptionHandler`, registering it with `services.AddExceptionHandler<MyHandler>()`, and calling `app.UseExceptionHandler()` without a path. Multiple handlers are tried in registration order; the first that handles the exception by returning `true` wins. This approach is cleaner, testable, and integrates naturally with `AddProblemDetails()` for RFC 7807-compliant error responses.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 4. Exception handlers must check `context.Response.HasStarted` before writing a response
 
 **Concepts**
-- HTTP GET semantics and safe/idempotent URL parameters
-- Proxies and caches stripping GET request bodies
-- [FromQuery] with [AsParameters] for complex filter criteria
-- Silent failures in CDN and proxy layers
+- Response body bytes committed after first write — headers already sent
+- `HttpResponse.HasStarted` flag for detecting committed responses
+- Exception during streaming response — cannot replace response
+- Logging as the only action available when response has started
 
 **Answer**
 
-`[FromBody]` on a GET endpoint is an anti-pattern because HTTP GET is defined as safe and idempotent with parameters in the URL — many clients, CDNs, and caching proxies strip or ignore request bodies on GET requests, so binding fails silently in production while "Try it out" in Swagger may appear to work. Use `[FromQuery]` with separate parameter names or `[AsParameters]` on a record type to aggregate complex filter criteria into a single clean parameter object.
+If an exception occurs after the response body has started being written — during streaming, server-sent events, or a chunked response — the response headers have already been sent and cannot be changed. An exception handler that tries to write a 500 `ProblemDetails` response throws `InvalidOperationException: Headers are read-only, response has already started`. Every exception handler must check `context.Response.HasStarted` and, if true, log the error and either abort the connection or do nothing rather than attempting to write a new response. The `IExceptionHandler` interface pattern handles this correctly when combined with the built-in middleware.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 5. Swallowing exceptions in catch blocks — logging without re-throwing silently hides failures
 
 **Concepts**
-- JsonNamingPolicy.CamelCase as ASP.NET Core default
-- Silent binding producing default values instead of errors
-- PropertyNameCaseInsensitive as a mitigation
-- Validation attributes turning silent failure into 400 responses
+- `catch` block logging and returning success masking actual failure
+- Silent data corruption when partial operations succeed before the exception
+- Callers receiving success responses for failed operations
+- Deliberate swallowing requiring explicit documentation and design justification
 
 **Answer**
 
-ASP.NET Core Web API serializes JSON with `JsonNamingPolicy.CamelCase` by default, which means incoming JSON with PascalCase keys like `"CustomerName"` does not match the property — the model binds successfully but properties silently hold default values (null, zero, false). The preferred fix is standardizing all clients on camelCase and enforcing it through OpenAPI contracts. As a mitigation, `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` relaxes matching. Add required validation attributes so silent binding failures produce 400 responses rather than corrupt data silently stored to the database.
+A common antipattern is catching an exception, logging it, and then returning a success response or continuing execution — the exception is silently swallowed. For database operations, this means a partial write might have occurred, and the caller receives a 200 OK for an operation that failed midway. If an exception should not propagate to the caller, the handler must return an explicit error response using the exception's context, not a generic success. The only valid case for swallowing is when the exception represents a truly optional operation where failure is acceptable — and that decision must be documented. Always re-throw after logging unless there is a deliberate architectural reason not to.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 6. `throw ex` resets the stack trace — always use bare `throw` to preserve it
 
 **Concepts**
-- throw; preserving original stack trace
-- throw ex; resetting stack trace to the catch site
-- InnerException preservation when intentionally wrapping
-- APM and structured logging dependency on accurate stack traces
+- `throw ex` resetting stack trace to the catch block line
+- `throw` (bare) preserving original exception origin in stack trace
+- `InnerException` for wrapping with additional context
+- APM tools relying on accurate stack traces for root-cause analysis
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, which means Application Insights, Serilog, and `IExceptionHandler` all point at the handler rather than the code that actually failed. Bare `throw;` preserves the full original stack trace. Use `throw;` when logging and delegating upward; wrap with a new exception type only when adding context — `throw new OrderProcessingException("...", ex)` — so the original failure is preserved in `InnerException`. This rule applies identically in async code after `await`.
+`throw ex` inside a catch block replaces the exception's stack trace with the current catch block location, hiding the line where the original failure occurred. Exception filters, middleware, Application Insights, and Serilog then show the re-throw site as the error origin rather than the actual problem location — making production root-cause analysis significantly harder. Always use bare `throw;` to rethrow without modifying the stack trace. The only valid reason to create a new exception is to add domain context: `throw new PaymentProcessingException("Card declined", ex)` preserves the original as `InnerException` while exposing a meaningful domain type to callers and observers.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 7. Business rule violations should return 4xx, not 5xx — `HttpStatusCode` mapping matters
 
 **Concepts**
-- Kestrel as application server vs edge gateway
-- TLS termination and certificate management at the reverse proxy
-- WAF, rate limiting, and static file caching at the edge
-- UseForwardedHeaders required for client IP logging
+- 500 status code indicating unexpected server error vs predictable business failure
+- 422 Unprocessable Entity for semantically valid but business-rule-failing requests
+- 400 Bad Request for input validation failures
+- Domain exception hierarchy mapping to HTTP status codes
 
 **Answer**
 
-Kestrel is a production-grade application server optimized for running .NET efficiently, but directly exposing it to the internet skips TLS certificate centralization, WAF filtering, centralized rate limiting, and efficient static-file caching that reverse proxies handle. nginx, IIS, Azure Front Door, or AWS ALB typically sit in front so certificates are managed at the proxy layer with automatic renewal. If Kestrel is exposed directly, client IP logging requires `UseForwardedHeaders` configuration, and containers typically bind Kestrel to an internal port while the ingress controller handles external HTTPS.
+An exception like `InsufficientInventoryException` or `OrderAlreadyShippedException` represents a predictable business rule violation that the client should handle — it is not an unexpected server error. Returning 500 for these exceptions misleads clients (and monitoring systems) that 500 means an unexpected infrastructure failure. The convention is: 400 for input that fails validation, 404 for resources not found, 409 for state conflicts, 422 for semantically valid requests that violate business rules. Map domain exception types to appropriate 4xx status codes in `IExceptionHandler`, and reserve 500 for genuinely unexpected exceptions. A well-designed exception hierarchy makes this mapping clean and maintainable.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 8. Exception filters do not catch exceptions from middleware — middleware exceptions require middleware-level handling
 
 **Concepts**
-- launchSettings.json applies only to dotnet run and IDE launch
-- ASPNETCORE_URLS and ASPNETCORE_ENVIRONMENT as production env vars
-- appsettings.Production.json for non-secret production tuning
+- Exception filter scope limited to MVC action pipeline
+- Exceptions from `UseRouting`, `UseAuthentication`, or custom middleware not caught by exception filters
+- `UseExceptionHandler` as the global safety net for all pipeline exceptions
+- Complementary roles of exception filters and exception handling middleware
 
 **Answer**
 
-`Properties/launchSettings.json` contains URLs, environment variables, and launch profiles that are read only by `dotnet run`, Visual Studio, and VS Code — the file is not deployed to production hosts and has no effect on them. Relying on it for environment name or URL configuration leads to wrong `ASPNETCORE_ENVIRONMENT` or binding address in deployed environments. Production URLs and environment come from host-level environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
+Exception filters only catch exceptions that escape the MVC action execution pipeline — they have no visibility into exceptions thrown in upstream middleware or in the routing process. An exception thrown in `UseAuthentication`, `UseRateLimiter`, or a custom middleware runs outside the MVC filter pipeline entirely and propagates past any registered exception filters without them being invoked. `UseExceptionHandler` middleware wraps the entire pipeline and is the correct place for global exception handling. Exception filters are for per-controller or per-action exception-to-response mapping (e.g., catching `DbUpdateConcurrencyException` on specific actions) as a complement to global exception handling, not a replacement.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 9. `ProblemDetails` `type` field should be a URI — random strings break RFC 7807 compliance
 
 **Concepts**
-- default(false) for missing JSON field
-- Nullable bool? for tri-state intent
-- PATCH semantics requiring omitted-vs-false distinction
-- Update DTO design for partial updates
+- RFC 7807 `type` as a URI referencing documentation or error catalog
+- `about:blank` as the default `type` when no specific URI applies
+- `status` field required — other fields optional but recommended
+- Client error `type` URIs enabling machine-readable error handling
 
 **Answer**
 
-A non-nullable `bool` property in a PATCH DTO cannot distinguish "field omitted from JSON" from "explicitly set to false" because `System.Text.Json` deserializes missing properties to `default(false)`, which corrupts partial-update semantics — a client updating only an email address accidentally resets a consent flag to false. PATCH endpoints need `bool?`, separate update DTOs that only include fields being modified, or tri-state enums like `Unspecified | OptIn | OptOut` to represent intent explicitly. Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
+RFC 7807 specifies that the `type` field in `ProblemDetails` should be a URI — ideally a URL linking to documentation for that error type, or `about:blank` when no documentation URI is available. Developers sometimes set `type` to a random string like `"VALIDATION_ERROR"` or leave it null, which breaks clients that use `type` as a machine-readable discriminator for error handling logic. A consistent URL scheme like `https://api.example.com/errors/validation` or `https://tools.ietf.org/html/rfc7231#section-6.5.1` (for standard HTTP errors) makes the contract explicit and allows API consumers to build type-safe error handling. Ensure `status` is always populated — it is required by the RFC and many clients rely on it.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 10. Async exception handlers — not awaiting async work inside `catch` blocks causes silent swallowing
 
 **Concepts**
-- X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host headers
-- ForwardedHeadersOptions.KnownProxies for trusted network restriction
-- Pipeline position — must run before HTTPS redirection and auth
-- Header spoofing risk when trusting all proxies
+- `async void` exception handlers not propagating exceptions to callers
+- `await` required inside async catch blocks for correct exception propagation
+- Fire-and-forget logging in exception handlers losing exceptions
+- `Task.Run` in exception handlers detaching from the request context
 
 **Answer**
 
-Without `UseForwardedHeaders()` configured with known proxy IPs, `HttpContext.Request.Scheme` stays `http` even when clients used HTTPS, `Request.Host` reflects the internal address, and the client IP is the proxy — breaking HTTPS redirects, secure cookie flags, and audit logs. Call `UseForwardedHeaders()` as early as possible, before HTTPS redirection, authentication, link generation, and rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your specific reverse proxy network rather than all proxies, since trusting all enables header spoofing by any client.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- UseStaticFiles() serving without authentication
-- wwwroot as a public CDN root
-- Secrets management via environment variables and Key Vault
-- Build pipeline verification of publish output
-
-**Answer**
-
-Every file in `wwwroot` is served to unauthenticated anonymous clients by `UseStaticFiles()` — there is no authentication gate by default. Placing `.env` files, `appsettings.Production.json`, private keys, or backup configs there makes them directly downloadable via their URL path. Only public assets such as CSS, JavaScript, images, and public PDFs belong in `wwwroot`. Sensitive configuration must live in environment variables, Azure Key Vault, or similar secret managers, and build pipelines should verify that publish output does not include secrets in the web root.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback order relative to API endpoint mapping
-- /api/* returning index.html with HTTP 200 as a silent failure
-- Endpoint-first ordering in Program.cs
-
-**Answer**
-
-Registering `MapFallbackToFile("index.html")` before API endpoint mapping causes any unmatched API route — including valid 404s — to return `index.html` with HTTP 200, which breaks JSON parsers on clients and masks the real failure. The correct order is to map API routes with `MapControllers()` or `MapGroup("/api")` first, then static files, then the SPA fallback last. Symptoms include CORS errors appearing as HTML responses and Swagger fetch failures in production SPA hosting.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- BackgroundService singleton lifetime
-- Scoped service constructor injection causing disposal errors
-- IServiceScopeFactory.CreateAsyncScope() per background job
-- ValidateScopes detecting this at startup
-
-**Answer**
-
-A singleton `BackgroundService` cannot constructor-inject scoped services like `DbContext` because hosted services live for the application lifetime while scoped instances are disposed after their first scope ends, causing `ObjectDisposedException` or scope validation errors at startup. The fix is to inject `IServiceScopeFactory`, then inside each background job call `await using var scope = factory.CreateAsyncScope()`, resolve the scoped service from `scope.ServiceProvider`, and dispose the scope when the job finishes. Enable `ValidateScopes` in Development to catch this before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR broadcast scope — single server instance only
-- Redis or Azure Service Bus backplane for multi-instance routing
-- Sticky sessions vs backplane trade-offs
-- Azure SignalR Service as a managed alternative
-
-**Answer**
-
-SignalR tracks connected clients per server instance, so a broadcast from one instance reaches only the clients connected to that instance. With multiple instances behind a load balancer, users on different nodes never receive events raised on other nodes — a critical failure for real-time chat or notifications. Sticky sessions keep one client on one node but do not route server-side events across nodes. The solution is a Redis or Azure Service Bus backplane registered with `AddSignalR().AddStackExchangeRedis(...)`, or the managed Azure SignalR Service. Test scale-out with at least two instances before launch.
+Writing `catch (Exception ex) { _ = LogExceptionAsync(ex); return BadRequest(); }` inside a controller or middleware silently detaches the logging operation — if `LogExceptionAsync` throws, that exception is unobserved and silently lost. Additionally, `async void` exception handler methods that throw inside an `await` cause unhandled exceptions to crash the process on .NET because there is no task to propagate the exception to. Inside `catch` blocks, always `await` async operations, including logging calls. If the exception handler itself must be fire-and-forget (e.g., sending to an external system), wrap it in a try-catch internally and ensure the error-handling path itself cannot throw unobserved exceptions.
 
 ---
 

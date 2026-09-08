@@ -117,46 +117,157 @@ In EF Core 5 and later, many-to-many can be modeled with skip navigation propert
 
 ---
 
-## Gotchas
+## Gotchas — Relationships & Navigation Properties (Interview Traps)
 
 ---
 
-## Gotcha 11. N+1 from lazy load or missing Include
+#### Gotcha 1. Cascade delete misconfiguration — parent delete removes all children unexpectedly
 
 **Concepts**
-- N+1 from missing Include in loop
-- one query per parent row multiplication
-- eager loading and projection as fixes
+- `OnDelete(DeleteBehavior.Cascade)` is EF Core's default for required relationships
+- deleting parent entity also deletes all child rows in database
+- unintended data loss when cascade is not the intended behavior
+- `OnDelete(DeleteBehavior.Restrict)` to prevent orphan deletion
+- `OnDelete(DeleteBehavior.SetNull)` for optional FK nullable to null
 
 **Answer**
 
-Listing parent entities then accessing navigation properties in a loop without eager loading or projection fires one SQL query per parent row — classic N+1 performance collapse in EF Core APIs. One query for N orders plus N queries for each order's lines equals N+1 round-trips per request; Fix with `Include`/`ThenInclude`, split queries, or `Select` projections that join needed data in one statement. EF Core command logging revealing identical query templates with different IDs signals N+1 immediately.
+EF Core configures `ON DELETE CASCADE` by default for required relationships (non-nullable FK). Calling `context.Orders.Remove(order)` then `SaveChanges` deletes the order and cascades to all related `OrderLines`, `Payments`, and any other cascade-configured children without any further code. This is often the right behavior, but in scenarios like "soft archival" or "audit trail preservation," cascade delete silently destroys history. Always explicitly configure `OnDelete` for each relationship to document the intended cascade behavior rather than relying on the default.
 
 ---
 
-## Gotcha 12. Cartesian explosion with multiple Includes
+#### Gotcha 2. Navigation property accessed on unloaded entity — null reference or empty collection
 
 **Concepts**
-- cartesian explosion from multiple collection Includes
-- row multiplication by collection cardinality product
-- AsSplitQuery and DTO projection as mitigations
+- navigation property is null when entity loaded without `Include`
+- collection navigation is initialized as empty `List<T>`, not null, by EF Core
+- lazy loading disabled by default (EF Core 3+)
+- `NullReferenceException` accessing `order.Customer.Name` without Include
+- always Include required navigations or check for null before access
 
 **Answer**
 
-Eager-loading two or more collection navigations in one SQL query multiplies result rows by the product of collection sizes, spiking memory and network use even though parent entity count is modest. EF Core deduplicates parents during fix-up, but SQL Server already sent the inflated rowset across the wire; Use `AsSplitQuery()` to fetch collections with separate SELECT statements instead of one giant join. Projection to DTOs avoids loading full collection graphs when only counts or summaries are needed.
+When an entity is loaded without the corresponding `Include`, its reference navigation properties (e.g., `order.Customer`) are `null` and its collection navigation properties (e.g., `order.Lines`) are empty (not null). Accessing `order.Customer.Name` without an `Include(o => o.Customer)` throws `NullReferenceException`. Unless lazy loading is explicitly enabled, navigations are never auto-loaded. Always include required navigations in the query or check for null before accessing them in the returned entity.
 
 ---
 
-## Gotcha 10. Lazy loading after the context is disposed
+#### Gotcha 3. Circular reference in navigation properties causes JSON serializer to throw
 
 **Concepts**
-- lazy loading after context disposal
-- serializer-triggered navigation access
-- explicit Include or projection before scope ends
+- `Order` → `Customer` → `Orders` → `Order` circular reference in graph
+- `System.Text.Json` throws `JsonException: cycle detected`
+- Newtonsoft.Json with `ReferenceLoopHandling.Ignore` handles it silently
+- DTO projection breaks the cycle by projecting only required data
+- `[JsonIgnore]` on back-navigation to break cycle without full DTO
 
 **Answer**
 
-Lazy loading triggers SQL when navigation properties are accessed — if that happens after the request-scoped `DbContext` is disposed, EF Core throws or the serializer triggers hidden queries that fail mid-response. ASP.NET Core disposes scoped contexts at the end of the request pipeline — serialization often runs near that boundary; Prefer explicit includes or projections inside the request scope instead of returning entity graphs with unresolved lazy navigations. Proxy types plus disposed contexts produce intermittent failures depending on property access order.
+When EF Core entities have bidirectional navigation properties (e.g., `Order.Customer` and `Customer.Orders`), the object graph forms a circular reference. `System.Text.Json` throws `JsonException: A possible object cycle was detected` when serializing such a graph. The correct fix is to project to a DTO that contains only the data the response needs, eliminating the circular reference at the data layer. Alternatively, annotate one side of the navigation with `[JsonIgnore]` to break the cycle, or configure Newtonsoft.Json with `ReferenceLoopHandling.Ignore` as a stopgap.
+
+---
+
+#### Gotcha 4. N+1 from accessing navigation property in a loop without `Include`
+
+**Concepts**
+- accessing navigation in foreach loop fires one query per parent entity
+- lazy loading proxies make N+1 invisible in source code
+- EF Core command logging reveals N identical queries with different IDs
+- `Include`/`ThenInclude` for eager loading
+- `AsSplitQuery` for multiple collection navigations
+
+**Answer**
+
+Iterating a list of parent entities and accessing a navigation property on each fires one SQL query per parent — the classic N+1 performance collapse. With lazy loading enabled, this is invisible in the source code: `foreach (var order in orders) { var name = order.Customer.Name; }` emits N hidden queries. EF Core command logging revealing many identical query templates with different ID parameter values is the diagnostic signal. Fix with `.Include(o => o.Customer)` to load all customers in one JOIN, or use a DTO projection.
+
+---
+
+#### Gotcha 5. Cartesian explosion from multiple `Include` on collection navigations
+
+**Concepts**
+- two `Include` on separate collections → cross-product row explosion
+- 10 OrderLines × 5 Payments = 50 rows for one Order
+- EF Core deduplicates in memory but server already sent inflated rowset
+- `AsSplitQuery()` uses separate SELECT per collection
+- DTO projection as alternative to avoid loading full graph
+
+**Answer**
+
+Eager-loading two or more collection navigations in a single query via `Include` causes a Cartesian product in SQL — the result set size multiplies by each collection size. An order with 10 lines and 5 payments returns 50 rows for a single order; at scale this inflates memory and network usage dramatically. EF Core deduplicates during fix-up but SQL Server already transmitted the bloated rowset. Use `AsSplitQuery()` to fetch each collection in a separate query, or project to DTOs containing only needed summaries.
+
+---
+
+#### Gotcha 6. Owned entity vs regular entity — owned entity has no independent identity
+
+**Concepts**
+- `OwnsOne` / `OwnsMany` — owned entity shares owner's table by default
+- owned entity has no primary key in the database
+- `DbSet<OwnedEntity>` not registered — cannot query independently
+- deleting owner also deletes owned entity automatically
+- mistakenly using `HasOne`/`HasMany` instead of `OwnsOne`/`OwnsMany`
+
+**Answer**
+
+`OwnsOne` and `OwnsMany` model value-object aggregates that have no independent identity — they are stored in the owner's table (or a dependent table) and cannot be queried independently via a `DbSet`. There is no primary key column for an owned entity. Attempting `context.Set<Address>()` on an owned type throws because no `DbSet<Address>` is registered. Deleting the owner also deletes all owned entities. Use `HasOne`/`HasMany` for entities that have their own primary key and can be queried independently; use `OwnsOne`/`OwnsMany` only for true value-objects.
+
+---
+
+#### Gotcha 7. Many-to-many join entity with extra payload requires explicit entity class
+
+**Concepts**
+- EF Core 5+ implicit many-to-many generates hidden join table
+- payload columns (e.g., `AssignedDate`) require explicit join entity
+- skip navigation on both sides vs join entity class trade-off
+- `HasMany(...).WithMany(...)` for implicit vs `HasOne/HasMany` through join entity
+- querying join entity requires explicit `DbSet<JoinEntity>` registration
+
+**Answer**
+
+EF Core 5+ supports implicit many-to-many relationships with no join entity class — two `ICollection<T>` navigation properties and `HasMany().WithMany()` generates a hidden join table. However, if the join table needs additional columns (e.g., `Enrollment.AssignedDate`), an explicit join entity class with its own `DbSet` is required. The implicit approach does not support extra payload columns. If you start with implicit many-to-many and later need payload columns, refactor to an explicit join entity and update the configuration and migration.
+
+---
+
+#### Gotcha 8. Shadow foreign key property — FK column exists in DB but not on CLR entity
+
+**Concepts**
+- EF Core generates shadow FK property when no explicit FK property defined
+- column exists in database but no C# property to inspect
+- `EF.Property<int>(entity, "CategoryId")` to access shadow properties
+- concurrency token on shadow property not accessible without EF API
+- explicit FK property preferred for clarity and debugging
+
+**Answer**
+
+When a navigation property exists but no corresponding FK property is defined on the entity class, EF Core creates a shadow property to represent the FK column in the database. The column exists and is queryable, but there is no C# property to inspect or set directly — you must use `EF.Property<int>(entity, "CategoryId")`. Shadow properties are valid, but they make debugging harder, prevent the FK from being visible in model reviews, and cannot be directly set in object initializers. Define explicit FK properties for all relationships to keep the entity model self-documenting.
+
+---
+
+#### Gotcha 9. `HasForeignKey` pointing to wrong property — migration creates wrong FK column
+
+**Concepts**
+- `HasForeignKey(o => o.CustomerId)` must match a property on the dependent entity
+- wrong property name causes EF Core to create an unexpected column
+- compound FK requires both properties specified
+- FK name mismatch between EF configuration and actual property name
+- migration review required after every relationship configuration change
+
+**Answer**
+
+`HasForeignKey(o => o.CustomerId)` must reference a property that actually exists on the dependent entity type `Order`. If the property is named differently (e.g., `ClientId`) but `HasForeignKey` still points to `CustomerId`, EF Core creates a new shadow property `CustomerId` as a FK column, resulting in two potential FK columns. The migration will add the unexpected column. Always verify that the property expression in `HasForeignKey` refers to the exact property name on the dependent entity, and review generated migrations carefully after changing relationship configurations.
+
+---
+
+#### Gotcha 10. `ThenInclude` chain accessing past a null reference — silent empty result
+
+**Concepts**
+- `ThenInclude` chained on optional navigation that is null for some rows
+- EF Core generates LEFT JOIN for optional navigations
+- null rows in optional navigation cause child `ThenInclude` to return nothing
+- no exception thrown — navigation properties on null parent are null/empty
+- `DefaultIfEmpty()` in projection for explicit null handling
+
+**Answer**
+
+When `ThenInclude` chains through an optional navigation property (nullable FK), EF Core generates a LEFT JOIN. For parent rows where the optional navigation is null (no related row), the `ThenInclude` chain returns null or empty for all subsequent navigation levels without an exception. Code that assumes the deeply nested collection is always populated will silently receive empty results for those rows. Always check for null at each level of a deep navigation chain, or use DTO projection with explicit null handling rather than deeply nested `Include`/`ThenInclude`.
 
 ---
 

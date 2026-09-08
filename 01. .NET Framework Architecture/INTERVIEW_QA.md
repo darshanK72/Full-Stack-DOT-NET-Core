@@ -1,5 +1,5 @@
 ﻿# .NET Framework Architecture — Interview Q&A
-> 35 questions · Back to [README](../README.md)
+> 35 questions · 10 gotchas · 6 scenarios · Back to [README](../README.md)
 
 ## Table of Contents
 1. [Q1. What is .NET? What is .NET Framework? What is .NET Core?](#q1-what-is-net-what-is-net-framework-what-is-net-core)
@@ -704,3 +704,282 @@ The four main motivations are performance, cross-platform deployment, access to 
 The strangler fig pattern makes migration low-risk by avoiding big-bang rewrites. A reverse proxy (YARP is the modern .NET choice) sits in front of the application and routes incoming requests: old routes go to the legacy Framework app still running, migrated routes go to the new modern .NET service. You strangle the old app route by route until nothing remains to route to it — always deployable, always partially complete.
 
 The most common breaking changes to plan for: `System.Web` and Web Forms have no migration path and require a full rewrite to Razor Pages, MVC, or Blazor. `BinaryFormatter` is removed — use `System.Text.Json`, protobuf, or MessagePack. The WCF server stack was not ported — use CoreWCF for basic HTTP/SOAP or gRPC for RPC. `AppDomain` is removed — replace with `AssemblyLoadContext` or separate processes. `Thread.Abort()` is removed — use `CancellationToken`. `web.config` becomes `appsettings.json` plus the options pattern. `System.Data.SqlClient` becomes `Microsoft.Data.SqlClient`. The `try-convert` tool migrates legacy `.csproj` to SDK-style format, and the CA1416 platform analyzer flags Windows-only API calls.
+
+---
+
+## Gotchas — .NET Framework Architecture (Interview Traps)
+
+---
+
+#### Gotcha 1. CLR vs CoreCLR — 'cross-platform' doesn't mean 'identical behavior'
+
+**Concepts**
+- AppDomain removal in CoreCLR
+- Thread.Abort removed
+- COM interop reduced
+- BCL surface differences
+
+**Answer**
+
+Moving from .NET Framework to modern .NET exposes subtle CLR differences even for identical C# code. AppDomain isolation no longer exists, Thread.Abort throws PlatformNotSupportedException, and COM-interop marshalling differences surface only at runtime on Windows, making full testing on the target platform mandatory.
+
+---
+
+#### Gotcha 2. JIT tiers don't mean every method gets fully optimized
+
+**Concepts**
+- Tier 0 uses minimal optimizations for fast startup
+- Tier 1 is OSR-promoted hot methods
+- ReadyToRun pre-compiles to Tier 0 equivalent
+- PGO (Profile-Guided Optimization) is Tier 2
+
+**Answer**
+
+The tiered JIT compiles every method at Tier 0 first to minimize startup latency, promoting frequently-called methods to Tier 1 only after they prove hot. Code that runs only once or a few times during startup may never reach full optimization, which means benchmarking a method in isolation gives different performance numbers than production warm-up behavior.
+
+---
+
+#### Gotcha 3. Native AOT breaks reflection-heavy code at publish time, not at runtime in dev
+
+**Concepts**
+- Static tree-shaking removes unreachable types
+- Activator.CreateInstance of trimmed types fails
+- Serializers relying on reflection need source generators
+- IlLink.Substitutions.xml for manual preservation
+
+**Answer**
+
+An application that works perfectly in JIT mode may fail after dotnet publish --aot because the trim analyzer removes types accessed only through reflection. The failures manifest as TypeLoadException or MissingMethodException in the published binary, not during development, making a proper AOT smoke-test suite essential before shipping.
+
+---
+
+#### Gotcha 4. 'Value types live on the stack' is a misleading simplification
+
+**Concepts**
+- Value types in class fields live on the heap (with the object)
+- Captured variables in closures live on the heap
+- Boxed value types live on the heap
+- Only local value-type variables with no capture live on the stack
+
+**Answer**
+
+The 'stack vs heap' rule applies only to local value-type variables in methods where the value is not captured by a closure or returned as a reference. Any value type stored as a class field, boxed to object, or captured in a lambda is heap-allocated, which is why the simplification misleads performance discussions.
+
+---
+
+#### Gotcha 5. Strong naming is identity, not security — and mostly irrelevant in .NET Core
+
+**Concepts**
+- Strong name = name + version + culture + public key token
+- GAC is gone in .NET Core
+- NuGet provides binding resolution
+- Strong naming prevents accidental version mix-up, not tampering
+
+**Answer**
+
+Strong names in modern .NET are a compatibility artifact rather than a security mechanism. The Global Assembly Cache does not exist in .NET Core deployments, so strong naming primarily serves version disambiguation in multi-version scenarios — its historical role as a deployment gate is replaced by NuGet package versioning and SHA-pinning.
+
+---
+
+#### Gotcha 6. GC.Collect() in production is almost always counterproductive
+
+**Concepts**
+- Forces Gen 2 collection suspending all managed threads
+- Releases memory the OS may immediately reclaim back
+- Does not reduce peak memory if allocations resume immediately
+- Correct lever is GC configuration (Server GC, concurrent GC)
+
+**Answer**
+
+Calling GC.Collect() forces a blocking Gen 2 collection that pauses all application threads, which can spike latency significantly on high-throughput services. The correct way to manage GC behavior is through RuntimeConfigurationOptions (Server GC, concurrent GC, LOH compaction) or by profiling allocation patterns and reducing allocations at the source.
+
+---
+
+#### Gotcha 7. Objects with finalizers survive one extra GC cycle and delay collection
+
+**Concepts**
+- Finalizable objects move to the freachable queue after Gen 0/1 collection
+- Finalizer thread runs them asynchronously
+- GC.SuppressFinalize removes them from the queue
+- Large finalizer backlog delays overall collection
+
+**Answer**
+
+When an object's finalizer has not yet run, the GC cannot collect it — the object is promoted to Gen 1 or 2 and placed in a special finalization queue. A backlog of objects awaiting finalization directly delays the collection of everything that transitively references them, which is why the dispose pattern calls GC.SuppressFinalize after deterministic cleanup.
+
+---
+
+#### Gotcha 8. Assembly binding redirects don't exist in .NET Core — NuGet resolves at build time
+
+**Concepts**
+- No app.config bindingRedirect in .NET Core
+- runtimeconfig.json handles runtime version
+- NuGet lock files pin exact versions
+- Side-by-side loading via AssemblyLoadContext replaces redirects
+
+**Answer**
+
+.NET Framework app.config binding redirects allowed different DLLs in the same process to each use a different version of a shared library by redirecting at runtime. Modern .NET resolves version conflicts at build time through NuGet package graph unification, and side-by-side scenarios use AssemblyLoadContext, eliminating the runtime redirect mechanism entirely.
+
+---
+
+#### Gotcha 9. Nullable T? boxing behavior differs from T — null boxed nullable unboxes to throw, not null
+
+**Concepts**
+- Nullable<T> with HasValue=false boxes to a null reference
+- Unboxing a null reference via (T?) still requires HasValue check
+- (T)null throws NullReferenceException
+- Use Nullable.GetValueOrDefault for safe unbox
+
+**Answer**
+
+Boxing a Nullable<T> that has HasValue=false produces a null object reference on the heap — the box contains nothing. Unboxing that null reference back to int throws NullReferenceException, not an InvalidCastException, which surprises developers who expected null to unbox safely to a nullable struct.
+
+---
+
+#### Gotcha 10. IntPtr.Size and Environment.Is64BitProcess are about address space, not performance width
+
+**Concepts**
+- IntPtr.Size == 4 on 32-bit process, == 8 on 64-bit
+- SIMD width (SSE2=128, AVX2=256, AVX-512) is independent
+- JIT uses CPU feature flags for SIMD regardless of process bitness
+- 64-bit process gets larger address space, not wider SIMD
+
+**Answer**
+
+Running a process as 64-bit gives it a larger virtual address space (important for large in-memory caches), not automatically wider SIMD instructions. SIMD capabilities are determined by CPU feature flags that the JIT checks at startup — both 32-bit and 64-bit processes on a CPU with AVX2 can use 256-bit SIMD via System.Runtime.Intrinsics.
+
+---
+
+## Scenario-Based Questions (Karat Format)
+
+---
+
+#### Q1. (P) Long-running service leaks memory via unremoved event subscriptions
+
+**Concepts**
+- Event subscription holds a strong reference from publisher to subscriber
+- GC cannot collect an object that is still reachable through a GC root
+- Singleton publisher keeps every subscribed handler alive indefinitely
+- WeakReference and explicit unsubscribe in Dispose as the two remedies
+
+**Answer**
+
+A Worker Service creates a new request processor per job and subscribes it to an event on a shared `IMetricsCollector` singleton: `metricsCollector.RequestCompleted += processor.OnCompleted`. The processor looks short-lived, but the singleton's multicast delegate chain holds a strong reference to every handler ever added. Because the processor is never removed from the event and the singleton lives for the process lifetime, processors accumulate in Gen 2 despite appearing abandoned. Memory grows steadily until an `OutOfMemoryException` occurs under load.
+
+The diagnostic path: a memory dump (`dotnet-dump analyze`) shows processors piling up in Gen 2 with reference chains rooted in the singleton's delegate field. The immediate fix is unsubscribing in `Dispose`: `metricsCollector.RequestCompleted -= processor.OnCompleted`, which requires the processor to implement `IDisposable` and be disposed after use. The robust design uses `IObservable<T>` subscription tokens — `IDisposable sub = observable.Subscribe(handler)` — so `sub.Dispose()` unsubscribes automatically when placed in a `using` block. The invariant: any object that subscribes to an event on a longer-lived object must unsubscribe before abandonment.
+
+---
+
+#### Q2. (R) Incorrect IDisposable implementation — missing finalizer and SuppressFinalize
+
+**Concepts**
+- Finalizer required as safety net for unmanaged resources
+- Dispose(bool disposing) separates managed vs. unmanaged cleanup paths
+- GC.SuppressFinalize removes object from finalization queue after deterministic cleanup
+- Accessing managed objects inside finalizer path is unsafe — they may already be collected
+
+**Problem Code**
+
+```csharp
+public class DatabaseConnection : IDisposable {
+    private SqlConnection _connection;
+    private IntPtr _nativeHandle;
+    private bool _disposed;
+
+    public DatabaseConnection(string connectionString) {
+        _connection = new SqlConnection(connectionString);
+        _nativeHandle = NativeLib.OpenHandle();
+        _connection.Open();
+    }
+
+    public void Dispose() {
+        if (_disposed) return;
+        _connection.Dispose();
+        NativeLib.CloseHandle(_nativeHandle);
+        _disposed = true;
+    }
+}
+```
+
+**Issues**
+
+| Category | Problem | Impact |
+|---|---|---|
+| Correctness | No finalizer — if `Dispose` is never called, `_nativeHandle` leaks permanently | Native OS handle leak; resource exhaustion |
+| Correctness | No `GC.SuppressFinalize` (even after adding a finalizer, object stays in finalization queue after `Dispose`) | Unnecessary extra GC cycle on every instance |
+| Correctness | `_connection.Dispose()` would be called from finalizer path with no `disposing` guard | `_connection` may already be collected; unsafe dereference |
+
+**Fix (priority order)**
+
+1. Extract `Dispose(bool disposing)` — call `_connection.Dispose()` only when `disposing == true`
+2. Add `~DatabaseConnection()` that calls `Dispose(false)` to ensure the native handle is released if `Dispose` is never called
+3. Add `GC.SuppressFinalize(this)` at the end of the public `Dispose()` to remove the object from the finalization queue
+
+**Answer**
+
+The public `Dispose` handles managed cleanup but leaves no safety net for the native handle — if a caller forgets `using`, the handle leaks forever. A finalizer is required for unmanaged resources precisely because you cannot enforce call-site discipline. The `Dispose(bool disposing)` pattern separates the two paths: when `disposing` is true, other managed objects like `SqlConnection` are safe to dispose because Dispose was called intentionally; when `disposing` is false, the finalizer is running and other managed objects may already be collected — only native handles are safe to release. `GC.SuppressFinalize` in the public `Dispose` removes the object from the finalization queue so the GC reclaims it in the next collection cycle without an extra finalization pass.
+
+---
+
+#### Q3. (D) Choosing a publishing mode for a serverless gRPC microservice with strict cold-start SLA
+
+**Concepts**
+- Native AOT eliminates CLR startup, JIT warmup, and tiered compilation entirely
+- AOT trimmer removes unreachable types — reflection over unregistered types fails at runtime
+- ReadyToRun pre-compiles IL to native stubs but keeps CLR and full reflection
+- Protobuf source generation is AOT-compatible; reflection-based serializers are not
+
+**Answer**
+
+For a serverless gRPC microservice where cold start directly affects billing and SLA, Native AOT is the optimal target — it eliminates CLR initialization, JIT compilation, and tiered promotion, producing a self-contained native binary that starts in tens of milliseconds rather than hundreds. gRPC with Protobuf is well-suited to AOT because the official Google.Protobuf library and grpc-dotnet support source-generated message serialization that bypasses runtime reflection.
+
+The critical due-diligence step is auditing the full dependency tree for AOT compatibility before committing. DI containers and serializers that call `Assembly.GetTypes()` or `Activator.CreateInstance` over unregistered types will break after publish, not during development — failures manifest as `TypeLoadException` in the published binary. Add `dotnet publish -r linux-x64 --aot` to CI early and treat `IL3050`/`IL2026` analyzer warnings as blocking. If the dependency tree contains AOT-incompatible libraries, `<PublishReadyToRun>true</PublishReadyToRun>` is the fallback: it cuts startup by pre-compiling IL to native stubs while preserving full CLR capabilities. For always-warm containerized services where cold start is irrelevant, standard framework-dependent deployment avoids all AOT constraints and makes debugging easier.
+
+---
+
+#### Q4. (P) Large Object Heap fragmentation causes OOM under sustained load
+
+**Concepts**
+- LOH threshold at 85,000 bytes — large arrays bypass the generational small-object heap
+- LOH collected only during Gen 2 full GC; not compacted by default
+- Fragmentation accumulates when freed gaps cannot satisfy subsequent differently-sized allocations
+- ArrayPool<byte>.Shared rent-and-return pattern eliminates repeated LOH allocations
+
+**Answer**
+
+An ASP.NET Core service that allocates `new byte[bufferSize]` per request for file upload buffering pushes every buffer ≥ 85,000 bytes onto the LOH. The LOH is collected only during Gen 2 full GCs, so buffers linger far longer than the request lifetime. More critically, the LOH is never compacted — freed address ranges remain as gaps rather than being consolidated. Under sustained load with varying buffer sizes (128 KB for small uploads, 4 MB for large ones), the gaps created by released 128 KB buffers cannot satisfy a 4 MB allocation. Over time, `dotnet-trace` shows a climbing Gen 2 collection rate, `dotnet-dump` shows a LOH with hundreds of megabytes of total free space but no single contiguous gap large enough for the next large allocation, and the service throws `OutOfMemoryException` despite abundant total RAM.
+
+The fix is to stop allocating large arrays per-request entirely: `ArrayPool<byte>.Shared.Rent(bufferSize)` returns a buffer from a pre-allocated pool, and `ArrayPool<byte>.Shared.Return(buffer)` returns it — no LOH allocation, no pressure. The pool buckets by power-of-two size internally, so fragmentation cannot accumulate. `RecyclableMemoryStream` (from the Microsoft.IO.RecyclableMemoryStream package) applies the same principle to streaming scenarios. As a one-time emergency measure, `GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce` forces compaction on the next GC cycle, but the stop-the-world pause makes it unsuitable as a permanent solution.
+
+---
+
+#### Q5. (P) P/Invoke struct layout mismatch causes silent data corruption
+
+**Concepts**
+- StructLayout(LayoutKind.Sequential) with explicit Pack must match native compiler padding
+- C compilers align struct fields to their natural size boundary by default
+- CharSet mismatch produces wrong string encoding at the managed/native boundary
+- Arrays passed by pointer must be pinned to prevent GC relocation mid-call
+
+**Answer**
+
+A managed struct is declared and passed by reference to a native Win32 function. It works on a developer machine but produces garbled data or access violations in production on a different build target. The cause is that C compilers pad structs based on alignment rules: on x64 Windows, MSVC pads a `{byte status; int code;}` struct with 3 bytes between the fields to align `code` on a 4-byte boundary, producing an 8-byte native struct. Without `[StructLayout(LayoutKind.Sequential, Pack = 4)]` matching the native compiler's pack setting, the CLR may lay out the managed struct differently, so the bytes the native function reads come from wrong offsets.
+
+The verification step is to compare `sizeof` from a short C snippet (or the native header's documented size) with `Marshal.SizeOf<T>()` in .NET — any mismatch exposes a layout bug. For arrays passed by pointer, the GC can relocate managed objects during the native call unless pinned: use `fixed (byte* p = array)` for the duration of the call, or `GCHandle.Alloc(array, GCHandleType.Pinned)` for longer-lived scenarios, always releasing the handle in a `try/finally`. A related trap is `CharSet` mismatch: `[DllImport("...", CharSet = CharSet.Ansi)]` on a function expecting `LPWSTR` (UTF-16) produces double-byte nulls interpreted as an empty string on the native side — always check the native function's string convention against the declared `CharSet`.
+
+---
+
+#### Q6. (D) Migrating a .NET Framework WPF application with COM Office automation to modern .NET
+
+**Concepts**
+- WPF ported to net10.0-windows — viable migration path without rewriting the UI layer
+- COM interop (PIA, RCW, late binding via dynamic) works on modern .NET on Windows
+- BinaryFormatter removed — persisted data format must be migrated before runtime change
+- Strangler fig via parallel process or feature flags for incremental rollout
+
+**Answer**
+
+WPF is fully ported and works on `net10.0-windows`, which eliminates the runtime and toolchain debt of staying on Framework 4.8. COM interop — Primary Interop Assemblies, Runtime Callable Wrappers, and late binding via `dynamic` — also works on modern .NET on Windows because COM interop operates at the OS layer, not the CLR layer. An app that automates `Microsoft.Office.Interop.Excel` can migrate without touching the automation code.
+
+The blocking items to resolve before changing `TargetFramework` are: `BinaryFormatter` is removed in modern .NET — any persisted binary-serialized data must be migrated to `System.Text.Json`, protobuf, or MessagePack before switching the runtime, which requires a data migration strategy for existing saved files. `AppDomain.CreateDomain` calls must be replaced with `AssemblyLoadContext`. `Thread.Abort()` must be replaced with `CancellationToken`. The migration procedure: run `try-convert` to upgrade the project to SDK-style `.csproj`, change `TargetFramework` to `net10.0-windows`, fix all compilation errors, run the full test suite including COM automation paths on a real Office installation. For apps too large to migrate in one step, a feature-flag-gated parallel deployment runs the new modern .NET binary alongside the old one — users opt into the new version while the old one remains in production — and the old version is retired once the new one is stable.

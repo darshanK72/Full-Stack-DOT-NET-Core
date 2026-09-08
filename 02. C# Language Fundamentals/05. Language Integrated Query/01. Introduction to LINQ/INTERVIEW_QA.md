@@ -398,6 +398,150 @@ No — this is one of the most common LINQ misconceptions. Writing a LINQ query 
 
 ---
 
+## Gotchas — Introduction to LINQ (Interview Traps)
+
+---
+
+#### Gotcha 1. Deferred Execution Does Not Run at Definition
+
+**Concepts**
+- `Where` and `Select` build an iterator object, not a computed result
+- Query execution is triggered by `foreach`, `ToList()`, `Count()`, or any materializing call
+- Breakpoints inside predicates fire at enumeration time, not at the `var q = ...` assignment
+- Exceptions inside predicates surface at enumeration, not at query construction
+
+**Answer**
+
+Writing a LINQ query and assigning it to a variable does absolutely no work on the data; it only constructs an iterator that remembers the source and the operations to perform. Execution is deferred until the first request for an element — a `foreach` loop, `ToList()`, or any other materializing operator. This surprises developers who set breakpoints inside predicates expecting them to hit during the assignment, only to find they fire during the downstream `foreach` or `.ToList()` call.
+
+---
+
+#### Gotcha 2. Multiple Enumeration Executes the Query Twice
+
+**Concepts**
+- `IEnumerable<T>` queries re-execute on every enumeration
+- Database queries, file reads, and HTTP calls can repeat silently
+- Materializing with `ToList()` or `ToArray()` creates a safe, reusable snapshot
+- Static analysis tools such as ReSharper flag multiple-enumeration warnings
+
+**Answer**
+
+If you enumerate an `IEnumerable<T>` query variable twice — for example, calling `Count()` and then iterating with `foreach` — the underlying data source is traversed twice. For a database-backed query that means two SQL round-trips; for a file reader it may mean re-reading or throwing an exception on the second pass. The fix is to call `.ToList()` once and reuse the list throughout the method.
+
+---
+
+#### Gotcha 3. `Count()` Extension Method Is O(n) on Non-`ICollection` Sources
+
+**Concepts**
+- LINQ `Count()` checks for `ICollection<T>` at runtime and reads `.Count` in O(1) if available
+- On a deferred `Where` or `Select` chain, `Count()` iterates every element
+- `List<T>.Count`, `Array.Length` are O(1) property reads — prefer them when you hold the collection
+- Using `Any()` is better than `Count() > 0` when you only need a non-empty check
+
+**Answer**
+
+The LINQ `Count()` extension method is smart enough to short-circuit to `.Count` on `ICollection<T>` implementations such as `List<T>` and arrays, giving O(1) performance. However, when called on a chained query like `source.Where(pred)`, the source is no longer an `ICollection<T>`, so LINQ must iterate every element to count them — O(n). When you already hold a `List<T>` or array, always use `.Count` or `.Length` directly.
+
+---
+
+#### Gotcha 4. `First()` Throws; `FirstOrDefault()` Returns `default(T)`; `SingleOrDefault()` Throws on Multiple Matches
+
+**Concepts**
+- `First()` and `Single()` throw `InvalidOperationException` on an empty sequence
+- `FirstOrDefault()` and `SingleOrDefault()` return `default(T)` — `null` for reference types, `0` for `int`
+- `SingleOrDefault()` still throws if the sequence contains more than one matching element
+- Always null-check the result of `FirstOrDefault()` before dereferencing on reference types
+
+**Answer**
+
+`First()` throws on an empty sequence; `FirstOrDefault()` returns `default(T)` instead. The common interview trap is `SingleOrDefault()`: it returns the default if the sequence is empty, but it still throws `InvalidOperationException` if two or more elements match — because `Single` semantics require exactly one result. Always null-check the returned value from `*OrDefault()` methods before using it on reference types.
+
+---
+
+#### Gotcha 5. Query Syntax and Method Syntax Compile to Identical IL
+
+**Concepts**
+- Query syntax is syntactic sugar transformed by the C# compiler into method calls
+- `from x in source where ... select ...` becomes `source.Where(...).Select(...)`
+- No runtime performance difference exists between the two forms
+- Some operators — `Zip`, `Aggregate`, `Distinct`, `Take` — have no query-syntax keyword
+
+**Answer**
+
+C# query syntax is transformed by the compiler into equivalent method-syntax calls before IL is emitted; there is no runtime difference. Both `from x in list where x.Age > 18 select x.Name` and `list.Where(x => x.Age > 18).Select(x => x.Name)` produce identical IL. The only practical difference is that not all LINQ operators have query-syntax keywords, so method syntax is required for operators like `Aggregate`, `Distinct`, or `Zip`.
+
+---
+
+#### Gotcha 6. Null Keys in Joins and Filters Produce Unexpected Results
+
+**Concepts**
+- `null == null` evaluates to `false` in LINQ join conditions (matching SQL semantics for `IQueryable`)
+- Null navigation properties inside deferred predicates throw `NullReferenceException` at enumeration
+- Filtering on a nullable foreign key can silently exclude rows with a null key
+- Materialize or add explicit null guards before filtering on nullable references
+
+**Answer**
+
+When two sequences are joined on a key that can be `null`, null keys never match — LINQ adopts SQL semantics where `null = null` is false in join conditions. A developer who joins orders to customers by a nullable `CustomerId` expecting all null-keyed orders to group together will find them silently dropped. For filtering, a predicate that dereferences a potentially null navigation property throws `NullReferenceException` at enumeration time; add explicit null checks: `Where(x => x.Address != null && x.Address.City == city)`.
+
+---
+
+#### Gotcha 7. A Second `OrderBy` Replaces the First Sort Entirely
+
+**Concepts**
+- `OrderBy().OrderBy()` applies a completely fresh sort; the first key is discarded
+- `OrderBy().ThenBy()` composes a multi-key sort as intended
+- LINQ to Objects `OrderBy` is a stable sort — equal-keyed elements preserve their relative order
+- The return type of `OrderBy` is `IOrderedEnumerable<T>`, which exposes `ThenBy`/`ThenByDescending`
+
+**Answer**
+
+Calling `query.OrderBy(x => x.LastName).OrderBy(x => x.FirstName)` applies two independent sorts and the final sequence is sorted only by `FirstName` — the `LastName` order is discarded because the second `OrderBy` starts a fresh sort over the entire sequence. To sort by `LastName` first and then `FirstName`, write `query.OrderBy(x => x.LastName).ThenBy(x => x.FirstName)`. This is one of the most common LINQ gotchas in coding interviews.
+
+---
+
+#### Gotcha 8. `IQueryable<T>` Translates to SQL; `IEnumerable<T>` Runs in Memory
+
+**Concepts**
+- `IQueryable<T>` accumulates an expression tree translated by the provider to SQL at enumeration
+- Calling `AsEnumerable()` or `ToList()` mid-chain switches execution to in-memory LINQ to Objects
+- Operators placed after `AsEnumerable()` run in C#, not in the database, on all returned rows
+- Premature `AsEnumerable()` before a `Where` can cause full-table scans
+
+**Answer**
+
+`IQueryable<T>` works by building an expression tree that the database provider translates into SQL when the query is enumerated. Once you call `AsEnumerable()` or `ToList()`, all subsequent operators execute in C# on the already-loaded data. A `Where` predicate placed after `AsEnumerable()` over a million-row table loads all million rows into memory before filtering — a silent full-table scan. Always compose filters and projections on `IQueryable<T>` before materializing.
+
+---
+
+#### Gotcha 9. `let` in Query Syntax Creates an Additional Anonymous Type Projection
+
+**Concepts**
+- `let computed = expr` is transformed into a `Select` projecting to `new { x, computed }`
+- Each `let` adds a wrapping anonymous type in the generated IL
+- The `let` variable is in scope for all subsequent clauses in the same query
+- `let` is useful for caching a sub-expression used multiple times to avoid recomputation
+
+**Answer**
+
+In query syntax, the `let` clause introduces a named range variable by projecting the current range variable and the new value into an anonymous type: `Select(x => new { x, computed = expr })`. Every additional `let` wraps another anonymous type around the previous projection. While there is no meaningful performance cost in typical usage, understanding this transformation is important when inspecting expression trees or when a query must be portable to EF Core, since some `let` expressions cannot be translated to SQL.
+
+---
+
+#### Gotcha 10. LINQ Is Not Always the Right Tool for Side-Effect-Heavy Operations
+
+**Concepts**
+- LINQ operators are designed for pure, functional data transformations, not commands
+- Side effects inside `Where` or `Select` predicates run deferred, not at the point of writing
+- Mutation inside a `Select` executes only when the query is enumerated
+- Prefer explicit `foreach` loops when the primary intent is a side effect such as logging or updating
+
+**Answer**
+
+LINQ operators are intended to describe what to compute, not to perform actions. Embedding side effects — logging, mutating objects, sending messages — inside `Where` or `Select` predicates hides them inside deferred query machinery, making the execution timing and number of invocations non-obvious. If code is re-enumerated, the side effect runs again. For operations whose primary purpose is a side effect, use a plain `foreach` loop to make intent, timing, and re-entrancy behavior explicit and reviewable.
+
+---
+
 ## Q23. Scenario: A junior developer complains that a LINQ query is slow. How would you investigate? (Scenario)
 
 **Concepts**

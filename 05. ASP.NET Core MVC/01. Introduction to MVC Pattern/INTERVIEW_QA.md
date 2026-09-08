@@ -274,202 +274,149 @@ Post-Redirect-Get completes a successful POST by returning an HTTP redirect to a
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-#### Gotcha 1. Business logic in Razor views
-
-**Concepts**
-- Pricing and discount calculations in `.cshtml` — no unit test coverage
-- Authorization checks in Razor — bypassable by alternate routes
-- Rules diverge from API and batch logic over time
-
-**Answer**
-
-Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render data the controller or ViewModel already prepared — not compute it. Authorization belongs in filters, policies, or controller and service checks before the view executes. Calculations in Razor cannot be tested independently and often diverge from API or batch logic. Razor should be limited to presentation formatting, not business decisions.
+## Gotchas — Introduction to MVC Pattern (Interview Traps)
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 1. Choosing MVC when Razor Pages is a better fit
 
 **Concepts**
-- Lazy-loaded navigations — unexpected queries during rendering
-- Over-posting — mass assignment via unlocked navigation properties
-- ViewModels — expose only the fields the view needs
+- MVC — conventional `{Controller}/{Action}` routing, areas, shared filters
+- Razor Pages — page-centric, colocated PageModel, form-focused CRUD
+- Feature shape — MVC fits multiple related actions; Razor Pages fits one-page-one-form
+- Consistency — pick one pattern for a feature and commit across the project
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during rendering and mass assignment can update properties the user should not control such as `IsAdmin`. The fix is to use dedicated ViewModels with only the fields the view needs and to map between entities and ViewModels in the controller or a mapping service.
+ASP.NET Core supports both MVC and Razor Pages in the same project, so the choice is not always obvious. MVC fits better when multiple related actions share filters, use areas, or form a cohesive resource-oriented controller with several views. Razor Pages fits better for CRUD admin workflows where each page maps directly to one form or list — the colocated `PageModel` keeps the handler, validation, and view together with less ceremony. Picking MVC for a simple two-page CRUD adds routing, controller, and view-model indirection without benefit. Pick the pattern that aligns with the team's feature shape and commit consistently across the project.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 2. Fat controllers owning data access and business logic
 
 **Concepts**
-- Browser forms — `application/x-www-form-urlencoded`, not JSON
-- `[FromBody]` uses JSON input formatter — leaves model empty
-- Silent binding failure — action runs with default values
+- Fat controller — SQL, validation rules, SMTP, mapping all in one action method
+- Thin controller — authorizes, binds input, calls service, maps result to view
+- Testability — fat controllers require `TestServer`; thin ones allow unit tests with mocks
+- Single responsibility — controller's job is HTTP protocol mapping, not business orchestration
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values. The fix is to remove `[FromBody]` for conventional form POSTs and let model binding read form fields — use `[FromBody]` only when the client sends JSON with the correct Content-Type. Silent binding failure is a common source of "my POST action receives null model" bugs.
+Controllers become fat when developers place SQL queries, business-rule `if` chains, external HTTP calls, and mapping all inside a single action method. A 300-line action cannot be unit-tested because it depends on `DbContext`, `HttpClient`, or SMTP with no seam for mocking. The correct controller responsibility is to receive the HTTP request, validate model binding, call a service that owns business logic, and map the result to a view or redirect. Business rules placed in an action will be duplicated in the next API endpoint and the next background job, leading to divergent behavior over time. Extracting logic to a service layer is the step that makes unit tests possible without spinning up the full stack.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 3. Confusing convention over configuration with zero configuration
 
 **Concepts**
-- Client-side validation — bypassable by direct POST
-- Server-side validation — mandatory before persist or side effect
-- Missing server check — treat as security defect
+- Convention — folder and file names determine defaults automatically
+- Broken convention — renamed controller without matching view folder causes runtime 500
+- Explicit override — `[Route]`, `return View("CustomName")` needed when convention does not fit
+- Convention knowledge required — invisible defaults must be understood to work with them
 
 **Answer**
 
-Client-side validation is bypassable — attackers POST directly without browser scripts. Server-side validation is mandatory before any persist, redirect, or side effect. I always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent. Client validation improves UX for legitimate users only and must never be treated as a security boundary.
+"Convention over configuration" means the framework infers behavior from names and folder structure — not that no configuration exists or needs to be understood. Renaming `HomeController` to `DashboardController` without moving its views from `Views/Home/` to `Views/Dashboard/` silently breaks view resolution at runtime, not at build time. Adding a new action whose name does not match any `.cshtml` file produces a 500 only when that route is hit in production. Developers must know the conventions: controllers in `Controllers/`, views in `Views/{ControllerName}/{ActionName}.cshtml`, shared partials in `Views/Shared/`. When the convention does not fit, override explicitly with `[Route]` or `return View("SpecificName")` rather than expecting the framework to adapt.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 4. Confusing the MVC "Model" with the EF entity
 
 **Concepts**
-- `return View()` after POST — browser refresh resubmits the POST body
-- PRG — `return RedirectToAction(nameof(Index))` after successful mutation
-- `TempData` — flash success messages across the redirect
+- Model in MVC — the data contract passed to `View(model)`, tailored per view
+- EF entity — database mapping with navigations, `RowVersion`, and internal fields
+- Over-posting — entity as view model exposes every property to POST binding
+- ViewModel — purpose-built snapshot with only the fields the view needs
 
 **Answer**
 
-Returning the same view after a successful POST causes duplicate submission when the user refreshes the page because the browser resubmits the POST body. The fix is Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create or update separates the mutation from the display. Flash success messages go via TempData on the redirect target.
+In MVC, "Model" refers to the object passed to `View(model)` — it is not necessarily an EF entity. When teams use EF entities as the view model, they expose navigation properties, internal fields like `RowVersion` and `IsAdmin`, and the full table schema to the Razor template and to POST binding. On POST, model binding populates every property the form includes, enabling over-posting attacks where an attacker adds `IsAdmin=true` to the body. View models are purpose-built snapshots: an `OrderSummaryViewModel` contains exactly the fields the order summary view renders, mapped from the entity in the controller or a mapping service, with no database schema bleeding through.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 5. Applying WebForms `IsPostBack` patterns in MVC actions
 
 **Concepts**
-- `ModelState` — request-scoped, does not survive redirect
-- On failure — `return View(model)` with errors inline
-- Cross-redirect errors — serialize to TempData or re-validate on GET
+- `IsPostBack` — WebForms page lifecycle concept with no MVC equivalent
+- Separate actions — `[HttpGet]` for display and `[HttpPost]` for submission replace lifecycle branching
+- `Request.Method` branching inside one action — fights MVC's action-selection pipeline
+- RESTful action design — each HTTP verb maps to a distinct, independently testable method
 
 **Answer**
 
-`ModelState` is request-scoped and does not survive `RedirectToAction`. The common pattern is to redirect only on success and on validation failure return `View(model)` with errors inline so `ModelState` remains accessible. To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache. AJAX partial forms avoid redirect and can return the form partial with `ModelState` errors directly.
+Developers migrating from WebForms often write `if (Request.Method == "GET")` inside a single MVC action, branching between form display and form handling. MVC replaces that pattern with distinct action methods: `[HttpGet]` renders the form and `[HttpPost]` handles submission. Consolidating GET and POST in one method with `Request.Method` branching bypasses MVC's action-selection pipeline, complicates `[Authorize]` granularity, and makes unit testing harder because a GET test must also supply form values. Separate actions are idiomatic MVC — each is short, independently testable, and clearly communicates its HTTP contract.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 6. Registering MVC services or middleware in the wrong order
 
 **Concepts**
-- TempData consumed on first read by default
-- `TempData.Peek` — read without consuming
-- `TempData.Keep` — mark for second read
+- `AddControllersWithViews()` — registers MVC with Razor view support
+- `AddControllers()` — registers controllers only; `return View()` throws at runtime
+- Middleware pipeline order — `UseRouting` then `UseAuthentication` then `UseAuthorization` then `MapControllerRoute`
+- Wrong order — authorization middleware after routing bypasses `[Authorize]` attributes silently
 
 **Answer**
 
-TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless `Peek()` or `Keep()` is used. I use `TempData.Peek("Message")` in the layout to read without consuming, or call `TempData.Keep("Message")` after the layout read so the view can also read it. I prefer a single consumption point — typically the layout or a dedicated partial, not both. Cookie-based TempData has size limits so large payloads should not be stored there.
+`services.AddControllers()` registers controllers and JSON serialization but omits Razor view support, so `return View()` throws at runtime in an MVC app configured this way — `AddControllersWithViews()` is required. In the middleware pipeline, `app.UseAuthentication()` and `app.UseAuthorization()` must come before `app.MapControllerRoute()`. Placing `UseAuthorization()` after `MapControllerRoute` means `[Authorize]` attributes on controllers are never evaluated, silently allowing anonymous access to protected actions. The scaffolded `Program.cs` template order is correct; moving any middleware to "fix" an unrelated issue without understanding the pipeline order can silently disable security.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 7. Forgetting Razor view compilation errors only surface at runtime in development
 
 **Concepts**
-- `[Area("AreaName")]` — required for area route discovery
-- Area routing registered with `{area:exists}` constraint
-- Without attribute — MVC treats controller as root controller
+- Development — views compiled on first request by Roslyn on demand
+- Release publish — Razor SDK precompiles all views into `Views.dll` at build time
+- Syntax error in `.cshtml` — discovered only when that route is hit in development
+- CI prevention — `dotnet publish -c Release` catches all Razor errors before deploy
 
 **Answer**
 
-Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong conventional route. Every area controller must declare `[Area("AreaName")]` matching its folder. Area routing is registered separately in `Program.cs` with the `{area:exists}` constraint, and specific area routes must come before catch-all default routes.
+In development with `dotnet run`, Razor views are compiled on demand the first time the route is hit. A syntax error in a rarely-accessed view can ship to production undetected because tests cover the happy path and no one navigated to that page. In a Release build, `dotnet publish` runs the Razor SDK which precompiles all `.cshtml` files into a `Views.dll` and catches syntax errors at build time. Running `dotnet publish -c Release` as part of CI ensures Razor compilation errors fail the build before the artifact is promoted. Adding integration tests that exercise every route also surfaces view errors early without relying on manual testing.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 8. Missing or duplicate `MapControllerRoute` registrations
 
 **Concepts**
-- Tag Helpers — default to current area context
-- Cross-area links — require explicit `asp-area` and `asp-controller`
-- `Url.Action` — pass `new { area = "Admin" }` in route values
+- `MapControllerRoute` — registers conventional routes with `{controller}/{action}/{id?}` pattern
+- Multiple identical calls — creates ambiguous routes and `AmbiguousMatchException`
+- Area routes — must be registered before the default catch-all route
+- Named routes — `name` parameter feeds `RedirectToRoute` and link generation helpers
 
 **Answer**
 
-Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment. From within an area, omitting `asp-area` keeps links inside the current area which can be incorrect. Cross-area links require both `asp-area` and `asp-controller` plus `asp-action`. The same rule applies to `Url.Action` — pass `new { area = "Admin" }` in route values.
+Calling `app.MapControllerRoute("default", ...)` twice with the same pattern registers two identical routes and causes `AmbiguousMatchException` for any URL that could match both. Area routes must be registered before the default catch-all conventional route; registering the default first means the area segment is consumed as a controller name and all area URLs return 404. Named route parameters feed `RedirectToRoute(routeName)` and `Url.RouteUrl(routeName)` — using a wrong name generates an incorrect URL at runtime with no compile-time error. Every conventional route in `Program.cs` should be explicitly named and ordered from most specific (areas, special paths) to least specific (the default catch-all).
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 9. Not separating MVC view controllers from API controllers
 
 **Concepts**
-- Unchecked checkbox posts nothing — model binding sets `bool` to `false`
-- `[Required]` on `bool` never fails — `false` is a valid non-null value
-- `bool?` with `[Required]` — forces explicit consent selection
+- `Controller : Controller` — includes Razor view infrastructure overhead
+- `ControllerBase` — lean base for API-only endpoints, required for `[ApiController]`
+- `[ApiController]` — enables auto-400, `ProblemDetails`, binding source inference
+- Mixed controller — same class returns both HTML views and JSON, wrong base for both
 
 **Answer**
 
-A missing unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value — not null or empty. I use `bool?` with `[Required]` to require an explicit true selection for consent checkboxes, or the hidden-field pattern: a hidden input posting `false` plus a checkbox posting `true` so unchecked still posts `false` deliberately with known intent.
+Inheriting from `Controller` for a route that only returns JSON pulls in Razor view infrastructure unnecessarily and disables the benefits of `[ApiController]`, which requires `ControllerBase`. `[ApiController]` enables automatic 400 responses on model binding failure, problem-details formatting, and removes the need for manual `ModelState.IsValid` checks in every action — none of which apply to view-returning MVC controllers that should show the form with errors instead of returning 400. The correct split is: Razor views go in `Controller` subclasses without `[ApiController]`, and JSON responses go in `ControllerBase` subclasses with `[ApiController]`.
 
 ---
 
-#### Gotcha 11. Collection binding with gap indices
+#### Gotcha 10. Treating `[Authorize]` on a controller as a complete security boundary
 
 **Concepts**
-- Model binder expects contiguous zero-based indices
-- Gap indices — index 1 missing causes truncation or misalignment
-- Reindex client-side after row deletion
+- `[Authorize]` — confirms authentication; does not enforce data ownership
+- IDOR — authenticated user accessing another user's resource by guessing an id
+- Role-based policy — checks role membership but not resource ownership
+- Resource-based authorization — `IAuthorizationService.AuthorizeAsync(user, resource, policy)`
 
 **Answer**
 
-Deleting a row from a dynamic form leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment — index 1 is missing and subsequent items may bind incorrectly or truncate. I reindex client-side after row deletion so indices are contiguous starting at zero, or implement a custom `IModelBinder` that tolerates non-contiguous indices. Partial views rendering collection editors must maintain consistent index naming.
+`[Authorize]` on a controller confirms the request is from an authenticated user but does not prevent that user from accessing another user's data by guessing an id. An authenticated user calling `GET /Orders/42` receives order 42 even if it belongs to a different user when the action only checks `[Authorize]` and not `order.UserId == currentUserId`. This is an Insecure Direct Object Reference (IDOR) vulnerability. Resource-based authorization using `IAuthorizationService.AuthorizeAsync(User, order, "OwnerPolicy")` checks both identity and ownership. Role-based policies enforce role membership but still do not check that the resource belongs to the caller. Every action fetching a user-specific resource must verify ownership explicitly after the authentication gate.
 
 ---
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Default Razor `@` — HTML-encodes output, prevents XSS
-- `@Html.Raw` — bypasses encoding, executes injected script
-- Allowlist sanitizer before Raw for trusted rich text
-
-**Answer**
-
-Default Razor encoding prevents XSS by HTML-encoding output. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side. I prefer `@Model.UserComment` (auto-encoded) for plain text or sanitize with a trusted HTML sanitizer library before using Raw on the sanitized output. Content-Security-Policy limits blast radius but does not replace encoding.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form tag helpers emit antiforgery token automatically
-- `fetch` / jQuery AJAX — must send token manually in header or form field
-- `[AutoValidateAntiforgeryToken]` — validates all unsafe verb methods
-
-**Answer**
-
-Form tag helpers emit antiforgery tokens automatically, but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` as a header or `__RequestVerificationToken` form field or POSTs fail with 400 antiforgery errors. I read the hidden field value from the page and include it on every mutating AJAX request. `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe methods and missing tokens fail before the action runs. I do not disable antiforgery on MVC cookie-auth endpoints to "fix" AJAX — I add the token instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hubs are not registered in DI for direct injection
-- `IHubContext<THub>` — singleton proxy for broadcasting from controllers
-- Redis backplane or Azure SignalR for multi-instance fan-out
-
-**Answer**
-
-Hubs are not registered in DI for direct injection into controllers. Injecting a concrete `Hub` fails activation or produces an instance without connection context. The correct pattern is to inject `IHubContext<THub>` which is a singleton proxy registered by `AddSignalR()` and use it to broadcast messages from controllers, services, or background jobs.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions — per-client affinity, not cross-instance event routing
-- Redis backplane or Azure SignalR — required for multi-instance fan-out
-
-**Answer**
-
-Sticky sessions alone do not fan-out events across server instances. A controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users connected to instance B without a backplane. Multi-node deployments need `AddStackExchangeRedis` or `AddAzureSignalR` so messages sent from any instance reach clients on all instances.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 #### Q1. (R) A team migrating from WebForms ports this "controller." It compiles and renders in dev. What architectural problems appear at scale, and how should responsibilities move in ASP.NET Core MVC?

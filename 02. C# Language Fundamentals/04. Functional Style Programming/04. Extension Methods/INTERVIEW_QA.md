@@ -208,67 +208,147 @@ Extending `object` means the method appears on every single type in the system �
 
 ---
 
-## Gotchas
+## Gotchas — Extension Methods (Interview Traps)
 
 ---
 
-## Q13. An instance method added to a library you depend on silently breaks your extension method. Why does this happen and how do you detect it?
+#### Gotcha 1. Extension Method on a Null Receiver Does Not Throw at the Call Site
 
 **Concepts**
-- instance method priority in overload resolution
-- silent behavioral change
-- no compile error or warning
-- version upgrade risk
-- static call syntax as safeguard
+- compiler translates dot-notation to a static method call
+- null receiver is passed as the first argument with no null check
+- `NullReferenceException` occurs inside the body, not at the call site
+- explicitly throw `ArgumentNullException` for non-null-safe extensions
 
 **Answer**
 
-C# resolves instance methods before extension methods during overload resolution. If a third-party library ships a new instance method with the same name and a compatible (possibly more general) signature, your code that was calling your extension method will silently start calling the library's instance method after upgrading the dependency — without any warning. The behavior change depends on whether the two implementations are equivalent. Detection requires careful reading of library changelogs and running the test suite after dependency upgrades; static analysis tools do not generally flag this scenario. The safeguard for critical code paths is to call your extension method using explicit static syntax — `MyExtensions.DoSomething(obj)` — which is immune to the instance-method priority rule. For less critical utilities, well-named extension methods in a deliberately imported namespace reduce collision probability.
+Because the compiler rewrites `obj.Ext()` as `Extensions.Ext(obj)`, a null `obj` is simply passed as the first argument — no `NullReferenceException` fires at the call site as it would for an instance method call. Whether the method blows up depends entirely on whether the body dereferences the `this` parameter. For extensions explicitly designed to handle null (such as a null-safe `OrEmpty` on string), this behavior is a feature. For all other extensions, explicitly check and throw `ArgumentNullException` at the top of the method to produce a clear failure message pointing to the right location.
 
 ---
 
-## Q14. Why does calling an extension method via an interface reference not dispatch to the concrete type's implementation?
+#### Gotcha 2. Instance Method Always Wins Over an Extension Method with the Same Name
 
 **Concepts**
-- static dispatch vs virtual dispatch
-- `this` parameter as interface reference
-- no polymorphism through extension methods
-- compile-time binding
-- contrast with interface default methods
+- C# overload resolution prefers instance methods unconditionally
+- extension method is a fallback when no instance method matches
+- a library update adding an instance method silently shadows your extension
+- static call syntax `MyExtensions.Method(obj)` bypasses the priority rule
 
 **Answer**
 
-Extension methods use static dispatch: the compiler resolves which method to call at compile time based on the declared type of the variable, not its runtime type. If you hold a reference typed as `IAnimal` and call an extension method defined on `IAnimal`, the extension method receives an `IAnimal` reference regardless of whether the concrete runtime type is `Dog` or `Cat`. There is no polymorphic dispatch — extension methods are not virtual. This means you cannot achieve runtime polymorphism through extension methods the way you can with virtual instance methods. C# 8 introduced default interface methods as the proper mechanism for adding polymorphic behavior to interfaces without modifying all implementors. Extension methods remain appropriate for utility operations that do not need to vary by concrete type, but for behavior that should differ per implementation, default interface methods or the decorator pattern are the right tools.
+C# resolves instance methods before extension methods during overload resolution. If the receiver type or any of its base types has an accessible instance method whose signature is compatible with the call, the extension method is never even considered. This means a third-party library that ships a new instance method with the same name as your extension will silently start winning after an upgrade, potentially changing behavior without a compile error or warning. The only reliable defense is to call the extension via its static form: `MyExtensions.DoSomething(obj)`.
 
 ---
 
-## Q15. Can you create an extension method for a delegate type, and what would that be useful for?
+#### Gotcha 3. Extension Methods Are Invisible Without the Correct `using` Namespace
 
 **Concepts**
-- delegate as type
-- extension on `Func<T>` or `Action`
-- composition helpers
-- memoization extension
-- retry wrapper pattern
+- extension method discovery requires importing the declaring namespace
+- missing `using` causes "does not contain a definition" compile error
+- `global using` in .NET 6+ can make critical extension namespaces project-wide
+- namespace choice affects how broadly extensions are available
 
 **Answer**
 
-Yes — delegates are types and can be extended. This is a niche but occasionally powerful technique. You can add a `Memoize` extension to `Func<TArg, TResult>` that wraps the delegate in a dictionary-cached version, a `Retry` extension to `Func<Task>` that reruns the delegate on failure, or a `Compose` extension for function composition. The main gotcha is that `Func<T, TResult>` and `Predicate<T>` are technically different delegate types even though they have the same signature, so an extension on `Func<T, bool>` does not appear on `Predicate<T>` references and vice versa. This can be surprising and requires explicit type conversions when combining code that uses both delegate families. In practice, extension methods on delegate types appear most often in functional utility libraries and testing infrastructure rather than everyday application code.
+The compiler only sees extension methods whose containing static class is in a namespace that the current compilation unit has imported with a `using` directive. Without the right namespace imported, the method simply does not exist from the compiler's perspective and you get a "does not contain a definition" error even though the method is present in the referenced assembly. This is intentional — it prevents extension methods from polluting every file automatically — but it is a common source of confusion, especially when moving code between projects or when a new developer is unfamiliar with which namespace houses the extensions.
 
 ---
 
-## Q16. Why can an extension method silently be called on a null reference without throwing, and is this always desirable?
+#### Gotcha 4. Extension Methods Cannot Override Interface Default Implementations
 
 **Concepts**
-- static method invocation semantics
-- null passed as first argument
-- unexpected null tolerance
-- debugging difficulty
-- explicit ArgumentNullException guideline
+- default interface methods (C# 8+) provide polymorphic runtime behavior
+- extension methods use static dispatch resolved at compile time
+- extension method on an interface does not override the default implementation
+- choose default interface method when behavior must vary by concrete implementation
 
 **Answer**
 
-Because the compiler transforms `obj.Ext()` into `Extensions.Ext(obj)`, a null `obj` simply becomes a null first argument — no NullReferenceException is thrown at the call site. Whether this is desirable depends on the extension's contract. For utility methods designed to be null-safe (`string.IsNullOrEmpty`, `obj?.ToString() ?? fallback`), accepting null is intentional and useful. However, for extensions that have no defined behavior for null receivers, silently accepting null and then failing later with a confusing exception inside the method body is worse than failing fast at the call site. The guideline is to explicitly document whether null is a valid receiver and, when it is not, to throw `ArgumentNullException` with the argument name at the top of the method. This makes the failure surface and message as clear as it would be for any other API parameter validation.
+Default interface methods introduced in C# 8 allow an interface to provide a method body that concrete implementors inherit polymorphically. Extension methods on an interface look similar but are fundamentally different: they are resolved statically at compile time based on the declared type of the variable, not the runtime type. An extension method defined on `IAnimal` does not override or shadow a default implementation of the same method on `IAnimal` — instead, the compiler applies normal instance-method priority and calls the default implementation if it exists. Use default interface methods when you need the behavior to vary by concrete implementation; use extension methods for utility operations that work identically for all implementors.
+
+---
+
+#### Gotcha 5. Extension Methods on `object` Apply to Everything — Use Sparingly
+
+**Concepts**
+- `object` extension pollutes IntelliSense for every type in scope
+- name collision risk with instance methods on every future type
+- appropriate only for universal cross-cutting concerns
+- place in an opt-in namespace, never imported by default
+
+**Answer**
+
+Extending `object` means the method appears on every single type in the system as soon as the namespace is imported. This pollutes IntelliSense with methods that are irrelevant to most types, increases the risk that a future instance method addition to any type in the codebase silently shadows your extension, and makes the API surface confusing to new developers. Restrict `object` extensions to genuinely universal utilities — null-safe serialization helpers, deep-clone methods, debugging inspectors — and always place them in a dedicated namespace that developers opt into explicitly rather than one that is imported globally.
+
+---
+
+#### Gotcha 6. Extension Method Namespace Proximity Affects Resolution Priority
+
+**Concepts**
+- closer namespace takes priority when multiple extension methods match
+- extension in the same namespace as the call site wins over one in a different namespace
+- ambiguity error when two equally close extensions match
+- explicit static call syntax resolves ambiguity definitively
+
+**Answer**
+
+When multiple extension methods with the same name and compatible signature are in scope, the compiler uses namespace proximity to break the tie: an extension declared in the same namespace as the call site takes priority over one in an outer or unrelated namespace. If two equally close extensions match, the compiler reports an ambiguity error rather than guessing. This proximity rule is rarely documented and surprises developers who assume all imported extensions are equal. When naming extension methods, use distinctive names that are unlikely to conflict with extensions from other libraries imported at the same time.
+
+---
+
+#### Gotcha 7. Removing `using System.Linq` Breaks All LINQ
+
+**Concepts**
+- all standard LINQ operators are extension methods in `System.Linq`
+- removing or forgetting the `using` directive removes the entire LINQ vocabulary
+- "does not contain a definition" errors appear on `Where`, `Select`, `OrderBy`, etc.
+- `global using System.Linq` is added by default in modern SDK project templates
+
+**Answer**
+
+Every standard LINQ operator — `Where`, `Select`, `OrderBy`, `GroupBy`, and all others — is defined as an extension method on `IEnumerable<T>` and `IQueryable<T>` in the `System.Linq` namespace. Removing the `using System.Linq` directive from a file causes every one of those calls to produce "does not contain a definition" compile errors, which can look alarming until the cause is identified. Modern SDK-style projects add `global using System.Linq` automatically, but older projects or files migrated from legacy code sometimes lose this directive and appear to break LINQ entirely.
+
+---
+
+#### Gotcha 8. Extension Methods Cannot Access Private Members of the Extended Type
+
+**Concepts**
+- extension methods obey standard C# visibility rules
+- only public and protected members of the extended type are accessible
+- no special access grant — the `this` parameter is just a reference
+- partial classes required for true private member access on types you own
+
+**Answer**
+
+Extension methods are, at the CLR level, ordinary static methods in a different class. They receive a reference to the extended object as their first parameter but are granted no special access beyond the object's public (and for base-type references, protected) surface area. There is no mechanism to elevate an extension method's access to private members, unlike partial class methods which live inside the same type declaration. If you need to add behavior that requires private member access to a type you own, use a partial class; if you cannot modify the type, expose the necessary state through a new public or internal member.
+
+---
+
+#### Gotcha 9. Extension Methods Do Not Change the Type Hierarchy
+
+**Concepts**
+- extension methods add callable syntax, not an inheritance relationship
+- the extended type's runtime type is unchanged
+- `is`/`as` operators and `typeof` checks are unaffected
+- useful for sealed types because no subclassing is required
+
+**Answer**
+
+Extension methods add methods that are callable on a type without modifying the type, its base classes, or its interfaces. An extension method on a sealed class does not create a subtype, does not appear in reflection's method tables on the extended type, and does not affect any `is`/`as` type checks. This is intentional — extension methods are a syntactic convenience, not a type-system feature. Code that uses reflection to enumerate methods on a type will not see extension methods, and extension methods cannot be used to satisfy an interface contract even if their signature matches.
+
+---
+
+#### Gotcha 10. Extension Method on `IEnumerable<T>` Uses Static Dispatch — No Polymorphism
+
+**Concepts**
+- extension method called on the declared (compile-time) type, not the runtime type
+- no virtual dispatch through the extension mechanism
+- `List<T>` variable vs `IEnumerable<T>` variable: declared type determines which extension fires
+- interface default methods provide polymorphism; extension methods do not
+
+**Answer**
+
+When you call an extension method, the compiler resolves it based on the declared type of the variable, not its runtime type. If a variable is declared as `IEnumerable<T>`, the extension method defined on `IEnumerable<T>` is called even if the runtime object is a `List<T>` or a custom collection with its own overriding behavior. There is no dynamic dispatch through extension methods the way there is through virtual instance methods. If you need behavior that varies by concrete collection type, define an interface method (or a default interface method in C# 8+) rather than relying on extension method overloading.
 
 ---
 

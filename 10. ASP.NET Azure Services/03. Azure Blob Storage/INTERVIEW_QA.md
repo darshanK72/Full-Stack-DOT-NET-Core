@@ -458,3 +458,147 @@ Blob lifecycle management applies rule-based policies that automatically transit
 Blob soft delete retains deleted blobs and snapshots for a configurable retention period — 1 to 365 days — so accidental removals can be recovered through the portal or SDK, and permanent deletion only happens after retention expires. Blob versioning automatically keeps prior versions when a blob is overwritten, assigning a new version ID on each write, so earlier file states can be restored without restoring the entire container from backup. Together they protect against application bugs, operator mistakes, and ransomware-style mass deletion where an attacker or misconfigured script deletes or overwrites large numbers of blobs. I enable both on production accounts holding user uploads or compliance data; soft delete provides a safety net for individual deletions while versioning provides a point-in-time history for overwrites. For regulations requiring write-once-read-many (WORM) retention that even administrators cannot shorten, I combine these with immutability policies at the container level.
 
 ---
+
+## Gotchas — Azure Blob Storage (Interview Traps)
+
+---
+
+#### Gotcha 1. SAS token expiry causes 403 — client-side cached SAS URLs silently stop working
+
+**Concepts**
+- SAS tokens encode an expiry time and signature; expired tokens return HTTP 403
+- Application code that caches SAS URIs does not check expiry before use
+- User Delegation SAS requires an Entra token that itself expires independently
+- Short-lived tokens require regeneration logic or a server-side proxy endpoint
+
+**Answer**
+
+A Shared Access Signature URI encodes an expiry timestamp in the query string. If application code generates a SAS URI and stores it in a client-side cache or database for later use, the URI becomes invalid after expiry and all subsequent reads return 403 Forbidden. This is common in download-link scenarios where the link is generated once at upload time with a 24-hour expiry and then the same link is reused days later. The fix is either to generate SAS tokens on demand with a short TTL, store only the blob name and regenerate on request, or use a server-side proxy that validates authorization and streams the blob without exposing a SAS URI.
+
+---
+
+#### Gotcha 2. Public access at the container level is blocked if the storage account disables public blob access
+
+**Concepts**
+- Storage account has an "Allow Blob public access" toggle that overrides container-level settings
+- Setting a container to Public (Blob or Container) has no effect when account-level public access is disabled
+- Azure policy can enforce the account-level setting across a subscription
+- Attempting to read a public container when account setting is off returns 409 or 403
+
+**Answer**
+
+Azure Blob Storage has a two-layer public access model: a storage account level switch ("Allow Blob public access") and a per-container public access level (Private, Blob, Container). Setting a container to Public access is silently ineffective when the account-level switch is off — requests still receive 403. New storage accounts created after 2023 have this switch disabled by default via Azure Policy in many organizations. Developers who configure container-level public access and then see 403 in production often overlook the account-level setting as the actual blocker.
+
+---
+
+#### Gotcha 3. Archive tier blobs cannot be read until rehydration — hot reads against Archive return 409
+
+**Concepts**
+- Archive tier blobs are stored offline; reads fail with `BlobArchived` error (409)
+- Rehydration to Hot or Cool takes up to 15 hours at standard priority
+- High-priority rehydration (under 1 hour) costs significantly more
+- Lifecycle management can accidentally tier active blobs to Archive
+
+**Answer**
+
+A blob in the Archive access tier is stored offline and cannot be read or copied directly — any read attempt returns HTTP 409 with error code `BlobArchived`. Before reading, you must rehydrate the blob to Hot or Cool by setting its tier, a process that takes up to 15 hours at standard priority. This is a critical trap when a lifecycle management policy is incorrectly configured to archive blobs after a short period, causing application reads to suddenly fail with 409 instead of returning data. High-priority rehydration can complete in under one hour but costs substantially more per GB.
+
+---
+
+#### Gotcha 4. BlobServiceClient and BlobContainerClient are thread-safe singletons — creating instances per request causes connection exhaustion
+
+**Concepts**
+- `BlobServiceClient` uses `HttpClient` internally with connection pooling
+- Instantiating a new client per request bypasses the connection pool
+- DI registration as `Singleton` or `AddAzureClients()` is the correct pattern
+- Socket exhaustion shows as intermittent `SocketException` under load
+
+**Answer**
+
+`BlobServiceClient` and `BlobContainerClient` are designed to be long-lived singletons because they internally reuse `HttpClient` connections through a shared connection pool. Creating a new client instance per controller action or service call allocates a new `HttpClient` effectively, bypassing connection pooling and eventually exhausting available sockets, which manifests as `SocketException: No connection could be made` under load. The correct pattern is to register the client with `AddAzureClients()` in the DI container or store it as a singleton and inject it into services.
+
+---
+
+#### Gotcha 5. UploadAsync with default options overwrites existing blobs silently — no conflict error without conditions
+
+**Concepts**
+- Default `BlobUploadOptions` does not set `Conditions` to reject existing blobs
+- `IfNoneMatch = ETag.All` on the upload condition prevents silent overwrite
+- Overwrite-on-upload is intentional for some workflows but dangerous for others
+- Soft delete can recover an overwritten blob only if versioning is enabled
+
+**Answer**
+
+Calling `UploadAsync` with default options on a `BlobClient` that points to an existing blob silently overwrites it without any error or conflict signal. For workflows where each upload should create a new file (for example user-submitted documents or audit logs), this causes data loss without a visible error. To prevent accidental overwrites, set `BlobUploadOptions.Conditions.IfNoneMatch = ETag.All` which causes the operation to return HTTP 412 if the blob already exists. Without blob versioning enabled, the overwritten content is unrecoverable even if soft delete is on.
+
+---
+
+#### Gotcha 6. Block Blobs cannot be appended — use Append Blobs for log streaming or incremental writes
+
+**Concepts**
+- Block Blob requires uploading the full content or staging blocks
+- Append Blob supports atomic AppendBlockAsync that adds to the end
+- Writing new content to a Block Blob by reading and re-uploading wastes bandwidth and is not atomic
+- Append Blob has a maximum block count limit (50,000 blocks)
+
+**Answer**
+
+Block Blobs, the default blob type, do not support in-place append operations; every write replaces the entire blob content. Application developers who want to stream log lines or append event records to a blob over time must use the Append Blob type, which supports `AppendBlockAsync` to atomically add data to the end. Using a Block Blob for append-style writes requires reading the existing content, concatenating the new data, and re-uploading the entire blob — a race-prone, bandwidth-expensive pattern that loses data under concurrent writes. Append Blobs are capped at 50,000 blocks (approximately 195GB with the 4MB block limit).
+
+---
+
+#### Gotcha 7. Blob soft delete and container soft delete are separate settings — enabling one does not protect the other
+
+**Concepts**
+- Blob-level soft delete retains deleted or overwritten blobs for the configured retention period
+- Container soft delete retains deleted containers
+- Both must be enabled independently; they do not imply each other
+- Blob versioning must be enabled to recover overwritten (not deleted) content when soft delete is active
+
+**Answer**
+
+Azure Blob Storage has two independent soft delete features: blob soft delete (protects individual blob deletions and overwrites when versioning is on) and container soft delete (protects container-level deletions). Enabling blob soft delete only means that if someone deletes the entire container, all blobs in it are permanently lost because container soft delete is still off. Both features must be explicitly enabled under the storage account's Data Protection settings. Additionally, soft delete alone does not help recover an overwritten blob unless blob versioning is also enabled, because without versioning the overwritten content is not preserved.
+
+---
+
+#### Gotcha 8. Server-side copy (CopyFromUriAsync) has no progress feedback — large copy operations fail silently on timeout
+
+**Concepts**
+- `CopyFromUriAsync` initiates an async server-side copy and returns immediately
+- Completion must be polled with `GetPropertiesAsync` until `CopyStatus == Success`
+- A copy across regions or of a large blob can take minutes; not polling causes silent failures
+- Blob copy across storage accounts requires the source to be publicly accessible or a SAS URI
+
+**Answer**
+
+`BlobClient.CopyFromUriAsync` initiates a server-side blob copy asynchronously and returns before the copy completes. Without polling `GetPropertiesAsync` to check `CopyStatus`, code that assumes the copy is done immediately reads an incomplete blob. For large blobs or cross-region copies the operation can take several minutes. The source blob must also be either publicly accessible or provided as a SAS URI that remains valid for the duration of the copy; using a SAS with a short expiry that expires during a large copy causes the copy to fail midway with no notification to the calling code.
+
+---
+
+#### Gotcha 9. Lifecycle management policies run once per day — recently uploaded blobs are not tiered immediately
+
+**Concepts**
+- Policy evaluation runs once per day on a schedule Microsoft controls
+- Newly uploaded blobs that match a policy rule are not affected until the next evaluation
+- Tests that check tiering immediately after upload see no change and appear to conclude policies don't work
+- Lastly modified time is the basis for age-based rules, not creation time
+
+**Answer**
+
+Azure Blob Storage lifecycle management policies are evaluated approximately once per day; they are not event-driven and do not react to individual blob uploads. Developers who create a lifecycle rule and then immediately upload a test blob expecting it to be moved to Cool tier will see no change, leading to a false conclusion that the policy is misconfigured. The correct verification approach is to set an age threshold of zero days in a test environment and wait 24 hours, or to manually change the blob tier via API to simulate the policy effect. Also note that rules evaluate based on last modified time, not upload time, so any write to the blob resets the age counter.
+
+---
+
+#### Gotcha 10. Azurite (local emulator) does not implement all Blob Storage features — integration tests can give false confidence
+
+**Concepts**
+- Azurite emulates the core Blob Storage API but omits lifecycle management, geo-redundancy, and some SAS types
+- Encryption scopes and customer-managed keys are not enforced in Azurite
+- Tests that pass against Azurite may fail against real Azure Storage due to unsupported features
+- Using a real storage account with a dedicated test container is safer for integration tests
+
+**Answer**
+
+Azurite provides a local Blob Storage emulator suitable for unit and basic integration testing, but it does not implement lifecycle management policies, geo-redundancy behavior, Archive-tier rehydration, encryption scopes, or some User Delegation SAS validations. Tests written to verify tier transitions or archive rehydration against Azurite will always succeed (because Azurite ignores those concepts) and give false confidence that the production code works correctly. For integration tests that exercise access tiers, lifecycle policies, or replication behavior, using a real Azure Storage account with a dedicated test container provides accurate validation.
+
+---

@@ -275,211 +275,147 @@ They become anonymously downloadable at their URL path — `GET /appsettings.Pro
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
-
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- UseRouting must precede UseAuthentication and UseAuthorization
-- Endpoint metadata not selected before routing runs
-- Recommended pipeline order for ASP.NET Core 8
-
-**Answer**
-
-In ASP.NET Core endpoint routing, `UseAuthentication` and `UseAuthorization` must run after `UseRouting` so the auth middleware can read endpoint metadata — if auth runs before routing, the endpoint has not been selected yet and policy resolution for `[Authorize]` and `RequireAuthorization()` cannot inspect the correct attributes. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms of wrong order include anonymous access to protected endpoints and 401 challenges that fire without correctly applying per-endpoint allow-anonymous overrides.
+## Gotchas — Static Files & Request Pipeline (Interview Traps)
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. `UseStaticFiles` must come before `UseRouting` to prevent route templates shadowing static paths
 
 **Concepts**
-- Captive dependency lifetime violation
-- EF DbContext stale change tracker accumulation
-- ValidateScopes detecting the problem at startup
-- IServiceScopeFactory as the correct fix
+- `UseStaticFiles` serving files before the routing system processes the request
+- Route template potentially matching static file paths as API endpoints
+- Static files served without authentication — bypasses auth middleware
+- Recommended order: `UseStaticFiles` → `UseRouting` → `UseAuthentication`
 
 **Answer**
 
-A scoped service injected into a singleton is held for the entire application lifetime, long after the scope that created it was disposed. The most common case is `DbContext`: the change tracker accumulates entities from unrelated requests, and after the scope is torn down any access throws `ObjectDisposedException`. Enable `ValidateScopes = true` in Development and staging to catch these combinations at startup rather than under production load. The fix is to inject `IServiceScopeFactory` and create a scope per unit of work, or use `IDbContextFactory<T>` to get a short-lived context per operation.
+Registering `UseStaticFiles` before `UseRouting` ensures static file requests short-circuit the pipeline and are served directly without going through the routing and action selection process. If `UseRouting` runs first, a route template like `{**path}` or a controller route might match the static file URL and try to dispatch it as an API request, resulting in 404 or unexpected behavior. The tradeoff is that static files served this way have no authentication check — `UseStaticFiles` has no auth gate. Files that need access control must not be placed in `wwwroot` and must be served through a controller action that applies `[Authorize]`.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. Every file in `wwwroot` is publicly accessible — no authentication gate on static file serving
 
 **Concepts**
-- HttpMessageHandler lifetime and socket exhaustion
-- IHttpClientFactory managed handler recycling
-- Named and typed client registration pattern
+- `UseStaticFiles()` serving all `wwwroot` content to unauthenticated clients
+- No access control on static file requests by default
+- Sensitive files accidentally placed in `wwwroot` exposed to everyone
+- `appsettings.Production.json` in `wwwroot` a critical security incident
 
 **Answer**
 
-Instantiating `HttpClient` with `new` in a long-lived singleton prevents socket reuse because each instance holds its own `HttpMessageHandler` and the underlying TCP connections are not returned to a pool until garbage collection. Under load this causes socket exhaustion — `SocketException` and timeout errors that do not appear in local testing with low concurrency. `IHttpClientFactory` manages handler lifetimes and recycles connections correctly, so the fix is to register named or typed clients via `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject them rather than constructing `HttpClient` directly.
+`UseStaticFiles()` serves every file under `wwwroot` to any HTTP client with a direct path request, with no authentication or authorization check. Placing configuration files, `.env` files, private keys, or `appsettings.Production.json` copies in `wwwroot` exposes them over HTTP to anyone who guesses or scans the path. Only truly public assets — CSS, JavaScript, images, fonts, and public PDFs — belong there. Sensitive configuration belongs outside the web root and is loaded via `IConfiguration` backed by environment variables or a secrets manager. CI/CD pipelines should validate publish output to verify that no config or credential files are copied into the web root before deploy.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. `UseDefaultFiles` must be registered before `UseStaticFiles` — order matters for index file serving
 
 **Concepts**
-- IOptions<T> frozen snapshot at first resolution
-- IOptionsSnapshot<T> recalculates per request scope
-- IOptionsMonitor<T> live change notifications for singletons
-- Silent staleness until process restart
+- `UseDefaultFiles()` rewriting the request URL before static file serving
+- Registration before `UseStaticFiles` required — URL rewriting must precede file lookup
+- Default files: `default.htm`, `default.html`, `index.htm`, `index.html`
+- `UseFileServer()` as a convenience combining both
 
 **Answer**
 
-`IOptions<T>` resolves once and caches the configuration snapshot for the service's lifetime, so a singleton that reads `.Value` in its constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope but is only usable in scoped services. `IOptionsMonitor<T>` supports change notifications via `OnChange` and works correctly in singletons. The failure mode is silent — misconfiguration persists until process restart because `.Value` was captured at construction.
+`UseDefaultFiles()` rewrites the request URL — it turns a request for `/` into a request for `/index.html` — but it does not serve the file itself. `UseStaticFiles()` performs the actual serving. `UseDefaultFiles` must be registered before `UseStaticFiles` so the URL rewriting occurs before the static file middleware looks up the file. If the order is reversed, `UseStaticFiles` receives the original URL for `/`, finds no file matching `/`, and returns 404. `UseFileServer()` is a convenience method that registers both in the correct order as well as directory browsing (disabled by default).
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 4. Directory browsing is disabled by default — enabling it accidentally exposes directory listings
 
 **Concepts**
-- HTTP GET semantics and safe/idempotent URL parameters
-- Proxies and caches stripping GET request bodies
-- [FromQuery] with [AsParameters] for complex filter criteria
-- Silent failures in CDN and proxy layers
+- `UseDirectoryBrowser()` enabling listing of directory contents
+- Security risk of exposing file structure to clients
+- `StaticFileOptions.ServeUnknownFileTypes` and directory browsing as separate features
+- Enabling directory browsing in development vs production difference
 
 **Answer**
 
-`[FromBody]` on a GET endpoint is an anti-pattern because HTTP GET is defined as safe and idempotent with parameters in the URL — many clients, CDNs, and caching proxies strip or ignore request bodies on GET requests, so binding fails silently in production while "Try it out" in Swagger may appear to work. Use `[FromQuery]` with separate parameter names or `[AsParameters]` on a record type to aggregate complex filter criteria into a single clean parameter object.
+ASP.NET Core disables directory browsing by default — requesting a directory URL returns 403 Forbidden without listing contents. `UseDirectoryBrowser()` enables it and can be applied to specific paths with `DirectoryBrowserOptions.RequestPath`. Enabling it globally exposes the complete structure of `wwwroot` to anyone, which is a security risk in production because it reveals all file names, subdirectory structures, and occasionally hints at application architecture. If directory browsing is genuinely needed for an internal tool, apply it to a specific path and protect it with authentication. Never call `UseDirectoryBrowser()` in production without careful thought about information disclosure.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 5. `Cache-Control` headers are not set by default — browsers may cache or not cache unpredictably
 
 **Concepts**
-- JsonNamingPolicy.CamelCase as ASP.NET Core default
-- Silent binding producing default values instead of errors
-- PropertyNameCaseInsensitive as a mitigation
-- Validation attributes turning silent failure into 400 responses
+- Default static file serving with no `Cache-Control` response header
+- Browser applying heuristic caching when no explicit `Cache-Control` is sent
+- `StaticFileOptions.OnPrepareResponse` for setting cache headers per file
+- Content-based cache-busting with versioned file names or query strings
 
 **Answer**
 
-ASP.NET Core Web API serializes JSON with `JsonNamingPolicy.CamelCase` by default, which means incoming JSON with PascalCase keys like `"CustomerName"` does not match the property — the model binds successfully but properties silently hold default values (null, zero, false). The preferred fix is standardizing all clients on camelCase and enforcing it through OpenAPI contracts. As a mitigation, `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` relaxes matching. Add required validation attributes so silent binding failures produce 400 responses rather than corrupt data silently stored to the database.
+`UseStaticFiles()` does not set `Cache-Control` headers by default, leaving browsers to apply heuristic caching rules — typically caching based on the file's last-modified date with an unpredictable TTL. Without explicit `Cache-Control: max-age=31536000, immutable` for versioned assets and `Cache-Control: no-cache` for files that should always be fresh, some browsers aggressively cache while others don't. Configure `StaticFileOptions.OnPrepareResponse` to set explicit headers: long max-age for cache-busted assets with content hashes in filenames, short or no-cache for files that change without a URL change.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 6. Unknown MIME types return 404 — new file extensions need explicit MIME type registration
 
 **Concepts**
-- throw; preserving original stack trace
-- throw ex; resetting stack trace to the catch site
-- InnerException preservation when intentionally wrapping
-- APM and structured logging dependency on accurate stack traces
+- `UseStaticFiles` serving only recognized MIME types by default
+- `StaticFileOptions.ServeUnknownFileTypes = true` to serve all file types
+- `FileExtensionContentTypeProvider.Mappings` for adding specific extensions
+- Security risk of enabling `ServeUnknownFileTypes` broadly
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, which means Application Insights, Serilog, and `IExceptionHandler` all point at the handler rather than the code that actually failed. Bare `throw;` preserves the full original stack trace. Use `throw;` when logging and delegating upward; wrap with a new exception type only when adding context — `throw new OrderProcessingException("...", ex)` — so the original failure is preserved in `InnerException`. This rule applies identically in async code after `await`.
+By default, `UseStaticFiles()` only serves files with MIME types it recognizes — files with unknown extensions return 404. This affects custom file formats, `.webmanifest` files, `.wasm` binaries, font formats like `.woff2`, and other relatively new types. The correct fix is to register specific MIME types: `var provider = new FileExtensionContentTypeProvider(); provider.Mappings[".webmanifest"] = "application/manifest+json"; app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = provider })`. Setting `ServeUnknownFileTypes = true` is a broad override that serves all files with `application/octet-stream` and is a security risk because it may serve executable or configuration files without intended restrictions.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 7. Static files are case-sensitive on Linux — path casing must match file system exactly
 
 **Concepts**
-- Kestrel as application server vs edge gateway
-- TLS termination and certificate management at the reverse proxy
-- WAF, rate limiting, and static file caching at the edge
-- UseForwardedHeaders required for client IP logging
+- Linux file system case sensitivity vs Windows insensitivity
+- `GET /images/logo.PNG` returning 404 when file is `logo.png` on Linux
+- Docker container deployments exposing Windows-only casing bugs
+- Standardizing all static asset names to lowercase
 
 **Answer**
 
-Kestrel is a production-grade application server optimized for running .NET efficiently, but directly exposing it to the internet skips TLS certificate centralization, WAF filtering, centralized rate limiting, and efficient static-file caching that reverse proxies handle. nginx, IIS, Azure Front Door, or AWS ALB typically sit in front so certificates are managed at the proxy layer with automatic renewal. If Kestrel is exposed directly, client IP logging requires `UseForwardedHeaders` configuration, and containers typically bind Kestrel to an internal port while the ingress controller handles external HTTPS.
+On Windows, `/images/Logo.png` and `/images/logo.png` serve the same file. On Linux — including most Docker containers — they are distinct paths, and `GET /images/logo.png` returns 404 when the file is named `Logo.png`. Applications developed on Windows and deployed to Linux containers discover this only in staging or production. Standardize all static file names to lowercase and ensure all `<img src="">`, `<link href="">`, and `<script src="">` references match the lowercase file names exactly. Add a build-time file naming check or linting rule to catch case mismatches before deployment.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 8. `MapFallbackToFile` intercepts all unmatched paths including API routes — API 404s become 200 HTML
 
 **Concepts**
-- launchSettings.json applies only to dotnet run and IDE launch
-- ASPNETCORE_URLS and ASPNETCORE_ENVIRONMENT as production env vars
-- appsettings.Production.json for non-secret production tuning
+- SPA fallback returning `index.html` for all unmatched paths
+- `MapFallbackToFile` registered after API endpoint mapping
+- API 404s masked as HTTP 200 responses with HTML body
+- Conditional exclusion of `/api` prefix from fallback
 
 **Answer**
 
-`Properties/launchSettings.json` contains URLs, environment variables, and launch profiles that are read only by `dotnet run`, Visual Studio, and VS Code — the file is not deployed to production hosts and has no effect on them. Relying on it for environment name or URL configuration leads to wrong `ASPNETCORE_ENVIRONMENT` or binding address in deployed environments. Production URLs and environment come from host-level environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
+`MapFallbackToFile("index.html")` is designed for SPA hosting — it returns `index.html` for any path not matched by earlier endpoints, enabling deep-linked client routes to work. However, if registered before `MapControllers()` or API endpoint mappings, it intercepts requests to unknown API paths and returns `index.html` with status 200 instead of 404. JSON clients receive HTML, `fetch()` calls throw parse errors, and debugging is difficult because the response appears successful. Always register `MapControllers()` and all API endpoints before `MapFallbackToFile`, and optionally add a path exclusion that prevents the fallback from matching any path starting with `/api`.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 9. Serving files outside `wwwroot` requires an explicit `PhysicalFileProvider` with a mapped path
 
 **Concepts**
-- default(false) for missing JSON field
-- Nullable bool? for tri-state intent
-- PATCH semantics requiring omitted-vs-false distinction
-- Update DTO design for partial updates
+- `UseStaticFiles()` serving from `wwwroot` (web root) by default
+- `PhysicalFileProvider` for serving from arbitrary directories
+- Security implications of exposing arbitrary filesystem paths
+- `RequestPath` prefixing URLs for non-wwwroot file serving
 
 **Answer**
 
-A non-nullable `bool` property in a PATCH DTO cannot distinguish "field omitted from JSON" from "explicitly set to false" because `System.Text.Json` deserializes missing properties to `default(false)`, which corrupts partial-update semantics — a client updating only an email address accidentally resets a consent flag to false. PATCH endpoints need `bool?`, separate update DTOs that only include fields being modified, or tri-state enums like `Unspecified | OptIn | OptOut` to represent intent explicitly. Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
+`UseStaticFiles()` without options serves only from the `wwwroot` folder (the web root configured at startup). Serving files from other project directories — reports, generated exports, or user-uploaded files stored outside `wwwroot` — requires explicitly configuring `StaticFileOptions` with a `PhysicalFileProvider`: `new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Reports"))`. Always use a `RequestPath` prefix like `"/downloads"` to keep the URL namespace organized and avoid accidentally overlapping with API routes. Be extremely careful about path traversal — never construct the `PhysicalFileProvider` path from user input, and prefer serving user-uploaded content through a controller action with access control rather than static file serving.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 10. Source maps (`.js.map`) in `wwwroot` expose TypeScript source to attackers
 
 **Concepts**
-- X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host headers
-- ForwardedHeadersOptions.KnownProxies for trusted network restriction
-- Pipeline position — must run before HTTPS redirection and auth
-- Header spoofing risk when trusting all proxies
+- Source maps mapping minified JS back to original TypeScript source
+- `wwwroot` serving `.js.map` files to any unauthenticated client
+- Removing source maps from production `wwwroot` as a security measure
+- CI/CD pipeline controlling which files are included in publish output
 
 **Answer**
 
-Without `UseForwardedHeaders()` configured with known proxy IPs, `HttpContext.Request.Scheme` stays `http` even when clients used HTTPS, `Request.Host` reflects the internal address, and the client IP is the proxy — breaking HTTPS redirects, secure cookie flags, and audit logs. Call `UseForwardedHeaders()` as early as possible, before HTTPS redirection, authentication, link generation, and rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your specific reverse proxy network rather than all proxies, since trusting all enables header spoofing by any client.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- UseStaticFiles() serving without authentication
-- wwwroot as a public CDN root
-- Secrets management via environment variables and Key Vault
-- Build pipeline verification of publish output
-
-**Answer**
-
-Every file in `wwwroot` is served to unauthenticated anonymous clients by `UseStaticFiles()` — there is no authentication gate by default. Placing `.env` files, `appsettings.Production.json`, private keys, or backup configs there makes them directly downloadable via their URL path. Only public assets such as CSS, JavaScript, images, and public PDFs belong in `wwwroot`. Sensitive configuration must live in environment variables, Azure Key Vault, or similar secret managers, and build pipelines should verify that publish output does not include secrets in the web root.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback order relative to API endpoint mapping
-- /api/* returning index.html with HTTP 200 as a silent failure
-- Endpoint-first ordering in Program.cs
-
-**Answer**
-
-Registering `MapFallbackToFile("index.html")` before API endpoint mapping causes any unmatched API route — including valid 404s — to return `index.html` with HTTP 200, which breaks JSON parsers on clients and masks the real failure. The correct order is to map API routes with `MapControllers()` or `MapGroup("/api")` first, then static files, then the SPA fallback last. Symptoms include CORS errors appearing as HTML responses and Swagger fetch failures in production SPA hosting.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- BackgroundService singleton lifetime
-- Scoped service constructor injection causing disposal errors
-- IServiceScopeFactory.CreateAsyncScope() per background job
-- ValidateScopes detecting this at startup
-
-**Answer**
-
-A singleton `BackgroundService` cannot constructor-inject scoped services like `DbContext` because hosted services live for the application lifetime while scoped instances are disposed after their first scope ends, causing `ObjectDisposedException` or scope validation errors at startup. The fix is to inject `IServiceScopeFactory`, then inside each background job call `await using var scope = factory.CreateAsyncScope()`, resolve the scoped service from `scope.ServiceProvider`, and dispose the scope when the job finishes. Enable `ValidateScopes` in Development to catch this before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR broadcast scope — single server instance only
-- Redis or Azure Service Bus backplane for multi-instance routing
-- Sticky sessions vs backplane trade-offs
-- Azure SignalR Service as a managed alternative
-
-**Answer**
-
-SignalR tracks connected clients per server instance, so a broadcast from one instance reaches only the clients connected to that instance. With multiple instances behind a load balancer, users on different nodes never receive events raised on other nodes — a critical failure for real-time chat or notifications. Sticky sessions keep one client on one node but do not route server-side events across nodes. The solution is a Redis or Azure Service Bus backplane registered with `AddSignalR().AddStackExchangeRedis(...)`, or the managed Azure SignalR Service. Test scale-out with at least two instances before launch.
+Source map files (`.js.map`) allow browsers to display the original TypeScript source when debugging minified JavaScript. When these files are present in `wwwroot`, they are served by `UseStaticFiles()` to anyone who requests them — exposing proprietary TypeScript source code, internal variable names, business logic structure, and architectural patterns that attackers can use for reconnaissance. Production builds should strip source maps from the publish output or serve them only to authenticated developers via a separate endpoint. Configure webpack, Vite, or the .NET build process to omit `.js.map` files from the production `wwwroot` entirely, or serve them from a separate non-public path accessible only to internal teams.
 
 ---
 

@@ -466,3 +466,147 @@ A consumer group in Kafka is a named set of consumer instances that jointly cons
 Distributed tracing with correlation IDs is the standard approach: a unique identifier is attached to the originating request and propagated through every event, message, and HTTP call so that all spans across all services can be linked into a single trace. Without it, a failure in Service C triggered by an event from Service A is nearly impossible to diagnose because the log entries appear unrelated. The W3C Trace Context standard — `traceparent` and `tracestate` headers — is the modern cross-service format, and OpenTelemetry is the standard SDK for .NET that implements this, automatically injecting and extracting these headers for HTTP and AMQP messaging. When publishing an event you embed the current `Activity.Current.Id` into the message headers; when consuming, you extract it and create a child `Activity` so the consumer span is linked to the publisher's trace. MassTransit has native OpenTelemetry support — it reads and writes `traceparent` headers automatically when you add `cfg.UseOpenTelemetry()` — and you export traces to a backend like Jaeger, Zipkin, or Azure Application Insights to view a waterfall showing which service published the event, which consumed it, how long each step took, and where an error occurred. Correlation IDs should also appear in every log entry using structured logging with `LogContext.PushProperty` in Serilog or `BeginScope` in Microsoft.Extensions.Logging so that log aggregation tools can filter all logs for a single trace end-to-end.
 
 ---
+
+## Gotchas — Event-Driven Architecture (Interview Traps)
+
+---
+
+#### Gotcha 1. Assuming At-Least-Once Delivery Guarantees Message Ordering
+
+**Concepts**
+- At-least-once delivery independent of ordering guarantee
+- Partitioned topics preserving order within a partition
+- Consumer receiving duplicate events out of sequence
+- Idempotent consumer and sequence checking as mitigations
+
+**Answer**
+
+Message brokers that guarantee at-least-once delivery do not guarantee ordering — a network retry can deliver message 5 before message 4, and duplicate retries of message 3 can arrive after message 6 has already been processed. Ordering is a separate guarantee controlled by partition strategy: in Kafka, messages with the same partition key arrive in order within a single partition, but cross-partition ordering is not guaranteed. Consumer logic that assumes monotonically increasing sequence numbers will process events incorrectly when retries or rebalances deliver them out of order; the fix is idempotency guards and a sequence number check that ignores events already seen or applies a reordering buffer.
+
+---
+
+#### Gotcha 2. Not Making Consumers Idempotent
+
+**Concepts**
+- At-least-once delivery guaranteeing duplicate messages under failure
+- Non-idempotent consumer charging a card twice
+- Idempotency key stored in processed-messages table
+- Deduplication window and checkpointing strategies
+
+**Answer**
+
+Any consumer relying on at-least-once delivery must assume it will receive the same message more than once — a broker restart, a consumer crash mid-processing, or a network timeout will cause redelivery of messages whose acknowledgement was lost. A consumer that charges a payment card, sends an email, or decrements inventory without deduplication will cause double charges, duplicate emails, or negative inventory. The standard solution is to store a processed-messages table with the message ID as a unique key; before processing, check if the ID exists — if it does, acknowledge without processing; if it does not, process and insert the ID atomically within the same transaction.
+
+---
+
+#### Gotcha 3. Breaking Event Schema Without Versioning
+
+**Concepts**
+- Event as a public contract consumed by multiple services
+- Removing or renaming a field breaking downstream consumers
+- Additive-only changes as the safe evolution strategy
+- Event versioning with V1/V2 event types or schema registry
+
+**Answer**
+
+An event published by Service A is a public contract — removing the `CustomerId` field or renaming `Amount` to `TotalAmount` immediately breaks every consumer that reads those fields, and those consumers may be deployed independently with no ability to redeploy synchronously. Safe event schema evolution follows the Additive-Only rule: never remove or rename fields; only add new optional fields. Breaking changes require a new event type (`OrderPlacedV2`) published alongside the old one, with consumers migrated over time. Using a schema registry (Confluent Schema Registry, Azure Schema Registry) enforces compatibility rules at publish time and prevents incompatible schemas from reaching the broker.
+
+---
+
+#### Gotcha 4. Publishing Events Outside a Database Transaction (No Outbox)
+
+**Concepts**
+- Dual-write problem between database and message broker
+- Process crash between commit and publish losing the event
+- Transactional Outbox Pattern as the reliable solution
+- At-least-once guarantee only achievable with outbox
+
+**Answer**
+
+Publishing a domain event directly to a message broker after `SaveChangesAsync()` commits creates a dual-write gap: if the process crashes after the database commits but before the broker publish completes, the event is permanently lost and downstream consumers never receive it. The Transactional Outbox Pattern solves this by writing the serialised event to an `OutboxMessages` table inside the same database transaction as the aggregate change — the broker publish happens later via a background relay process that reads and forwards unprocessed outbox records, marking them delivered. This ensures the database change and the event publication are atomic from the application's perspective.
+
+---
+
+#### Gotcha 5. No Dead-Letter Queue Monitoring
+
+**Concepts**
+- Dead-letter queue receiving messages that failed all retry attempts
+- Silent accumulation without alerts masking service failures
+- Consumer bug causing all messages to dead-letter
+- DLQ monitoring, alerting, and replay workflow
+
+**Answer**
+
+A dead-letter queue (DLQ) that accumulates messages silently without alerts is an invisible black hole — a consumer bug that throws on every message will process zero orders while the team sees no errors unless they happen to inspect the DLQ. Every DLQ should have a metric alert that fires when the queue depth exceeds zero messages, a runbook for triage, and a replay mechanism to reprocess messages after the consumer bug is fixed. Interviewers often ask "what happens to a poison message?" and expect the answer to include retry policy, DLQ routing, alerting, and a replay strategy rather than just "it goes to the DLQ."
+
+---
+
+#### Gotcha 6. Tight Coupling Through Specific Event Field Names
+
+**Concepts**
+- Consumer depending on internal implementation fields of the publisher
+- "Smart consumer" understanding publisher internals
+- Event carrying semantic facts, not internal state snapshots
+- Consumer contract tests preventing unexpected breakage
+
+**Answer**
+
+When a consumer maps `event.InternalOrderStatusCode` to its own status logic, it is depending on an internal implementation detail of the publishing service — any refactor of that field breaks the consumer silently. Events should carry semantic business facts ("an order was placed, its ID is X, the total is Y") not internal state snapshots ("the order state machine transitioned to state 7"). Consumer-Driven Contract Testing with Pact ensures that the producer's event schema continues to satisfy the contracts all consumers have registered, alerting before any breaking field-name change reaches production.
+
+---
+
+#### Gotcha 7. Using Request-Reply Pattern on a Message Bus Without a Timeout
+
+**Concepts**
+- Request-reply on async message bus blocking the caller indefinitely
+- Reply queue orphaned if the responding service crashes
+- Timeout and correlation ID as mandatory parts of the pattern
+- Direct HTTP call preferred for synchronous request-reply semantics
+
+**Answer**
+
+Implementing request-reply semantics over a message bus by publishing a request event and waiting for a reply event on a reply queue without a timeout will block the calling thread indefinitely if the responding service crashes, is slow, or routes the reply to the wrong correlation ID. The request-reply pattern on async infrastructure requires an explicit timeout and correlation ID so the caller can abort waiting and return an error after a defined period. In most cases, if request-reply semantics are needed, a direct gRPC or HTTP call with a configurable deadline is simpler and more reliable than implementing the pattern over a message bus.
+
+---
+
+#### Gotcha 8. Event Payload Too Large for the Broker Default Limit
+
+**Concepts**
+- RabbitMQ default 128 MB vs Kafka default 1 MB message size limits
+- Large payload causing message rejection or serialization failure
+- Claim Check Pattern storing payload in blob storage
+- Event carrying reference, not full data
+
+**Answer**
+
+A service that embeds large attachments, full document bodies, or large JSON arrays directly in an event message will hit broker payload limits — Kafka's default maximum message size is 1 MB (configurable but still bounded), and exceeding it causes the producer to throw at publish time. The Claim Check Pattern solves this: store the large payload in blob storage (Azure Blob, S3) and publish only a reference URL in the event message — consumers fetch the full payload on demand. Beyond broker limits, large messages also increase serialization time, memory pressure, and broker storage costs, so the claim-check pattern is the right approach even when the payload size is below the hard limit but still large.
+
+---
+
+#### Gotcha 9. Publishing Internal Domain Events Directly to External Consumers
+
+**Concepts**
+- Domain event as an internal implementation fact
+- Integration event as a public contract for cross-service communication
+- Internal domain event leaking private aggregate state
+- Mapper translating domain events to integration events at the boundary
+
+**Answer**
+
+A domain event like `OrderLineQuantityAdjustedInternallyDueToInventoryRecalculation` contains internal implementation detail that external consumers cannot meaningfully react to and should not depend on. Domain events are internal to the bounded context; integration events are the public contract published across service boundaries and must be stable, versioned, and semantically meaningful to consumers. The boundary service maps domain events to integration events before publishing: `OrderQuantityAdjustedEvent` with a stable contract replaces the internal event at the point it crosses the bounded-context boundary. Leaking domain events directly to the broker gives consumers an unstable contract tied to internal implementation.
+
+---
+
+#### Gotcha 10. Using a Single Exchange/Topic for All Events Without Routing
+
+**Concepts**
+- Noisy-neighbour problem in a shared topic
+- Consumer subscribed to all events filtering in application code
+- Topic-per-event or exchange routing for selective consumption
+- Message filtering cost at consumer versus routing at broker
+
+**Answer**
+
+Routing all events from all services through a single `application.events` topic forces every consumer to receive every event and filter out irrelevant ones in application code — a billing service that cares only about `PaymentFailedEvent` must process thousands of `InventoryUpdatedEvent` messages and discard them, wasting network bandwidth and processing cycles. Proper routing strategies — RabbitMQ topic exchanges with routing keys, Kafka topics per event type, or Azure Service Bus topic subscriptions with filter rules — ensure each consumer receives only the events it cares about, reducing load and preventing a high-volume event from starving consumers of a low-volume one.
+
+---

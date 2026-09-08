@@ -288,203 +288,147 @@ The `Microsoft.ApplicationInsights.AspNetCore` package registers an `ILoggerProv
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
+## Gotchas — Logging & Diagnostics (Interview Traps)
 
 ---
 
-#### Gotcha 1. Middleware order — routing before auth
+#### Gotcha 1. Log level filtering is per-provider and per-category — minimum level alone does not control output
 
 **Concepts**
-- `UseRouting` before `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata availability for auth middleware
-- Correct pipeline order in `Program.cs`
+- `Logging:LogLevel:Default` as the global minimum level
+- Per-provider filter configuration overriding the global minimum
+- Per-category rules applied before per-provider rules
+- Most specific rule wins — category path matching is prefix-based
 
 **Answer**
 
-In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata — registering auth before routing means the endpoint has not been selected yet, which breaks endpoint-aware authorization and policy resolution. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints (`MapControllers` / `MapGet`). Symptoms of wrong order include anonymous access to protected endpoints or 401 responses without proper challenge behavior, so always verify middleware order in `Program.cs` during code review for new services.
+Setting `Logging:LogLevel:Default` to `Information` globally does not mean every provider emits all Information logs. Each provider (Console, Application Insights, Serilog) applies its own filter on top of the minimum level, and categories can be filtered more finely than the global level. The most specific matching rule wins: `Logging:LogLevel:Microsoft.EntityFrameworkCore` overrides `Logging:LogLevel:Microsoft`, which overrides `Default`. A common mistake is setting the global minimum to `Debug` expecting to see all debug output, then being surprised that the Console provider filters it to `Warning` via its own section. Always check provider-specific and category-specific rules in configuration when log output doesn't match expectations.
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 2. Structured log template parameter order must match argument order
 
 **Concepts**
-- Captive `DbContext` living past its scope
-- Stale EF change tracker accumulating unrelated entities
-- `ValidateScopes` as the detection mechanism
+- Message template positional parameters — `{0}` vs named `{OrderId}`
+- `ILogger.LogInformation("{UserId} placed order {OrderId}", userId, orderId)` — order matters
+- Argument names in templates for structured log property names
+- Mismatched parameter count causing `FormatException` or wrong property names
 
 **Answer**
 
-Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`. The singleton holds one scoped instance forever instead of one per request, so EF change trackers accumulate unrelated entities across requests. Enable `ValidateScopes` in Development/staging to catch illegal scope combinations at startup, and fix by injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation. This applies equally to singleton services, hosted services, and cached delegates in Minimal APIs.
+`ILogger.LogInformation("User {UserId} placed order {OrderId}", userId, orderId)` maps arguments by position to template placeholders. Swapping arguments — `LogInformation("User {UserId} placed order {OrderId}", orderId, userId)` — silently assigns `orderId` to the `UserId` property and `userId` to `OrderId` in structured log sinks, producing misleading queries. Unlike `string.Format`, no `FormatException` is thrown for mismatched types — Serilog and other structured logging providers serialize whatever argument is supplied. Use named placeholders that match local variable names for readability, and always verify the argument order matches the template when adding or refactoring log statements.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 3. `ILogger<T>` vs `ILoggerFactory` — `T` sets the category name, not the log provider
 
 **Concepts**
-- Socket exhaustion from per-use `HttpClient` instantiation
-- `HttpMessageHandler` lifecycle managed by `IHttpClientFactory`
-- Named and typed client registration pattern
+- `ILogger<T>` category derived from `typeof(T).FullName`
+- `ILoggerFactory.CreateLogger("CategoryName")` for custom category strings
+- Category name used for log filtering — must match configuration keys
+- Injecting `ILogger` without generic type loses category context
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected. `HttpClient` is disposable but not meant for per-use disposal — `using var client = new HttpClient()` is an anti-pattern because the OS connection handle is held by the handler, not the client object. `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly; register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()`. Symptoms include `SocketException` and timeout errors only under production traffic, not in local testing.
+`ILogger<OrderService>` creates a logger with category `Namespace.OrderService`, which is used for per-category filtering in `appsettings.json`. If you inject `ILogger` (non-generic) into a class, the category defaults to an empty string or the framework's generic type, losing the per-class filtering granularity. Custom category names via `ILoggerFactory.CreateLogger("Payment.Processor")` are valid for shared utilities that aren't tied to a single class. The category name must match the prefix used in `Logging:LogLevel` configuration — a mismatch means category-specific log level rules never apply. Always prefer `ILogger<T>` for class-level loggers.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 4. Logging sensitive data — connection strings and secrets captured in log messages
 
 **Concepts**
-- `IOptions<T>` — fixed snapshot at first resolution
-- `IOptionsSnapshot<T>` — per-request recalculation, scoped
-- `IOptionsMonitor<T>` — singleton-safe with change notifications
-- Stale configuration when `.Value` is cached in a constructor field
+- Structured logging capturing all argument values verbatim
+- Database exception messages containing connection string fragments
+- `DbContext.EnableSensitiveDataLogging()` exposing parameter values
+- Log scrubbing and redaction at the provider level
 
 **Answer**
 
-`IOptions<T>` captures a configuration snapshot at first resolution — reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled, because the wrapper holds the computed value without subscribing to change tokens. `IOptionsSnapshot<T>` recalculates per request scope so a singleton cannot inject it without creating a captive dependency. `IOptionsMonitor<T>` is the singleton-safe wrapper that supports change notifications via `OnChange` and exposes `CurrentValue` for the latest merged configuration. Misconfiguration persists silently until process restart when `.Value` was cached at construction.
+Structured logging captures all argument values verbatim — passing a connection string, user email, API key, or credit card number as a log argument writes it to every configured log sink. EF Core's `EnableSensitiveDataLogging()` is useful during development but must never be enabled in production, as it logs SQL parameter values including passwords and PII. When logging exceptions from database operations, the exception message sometimes includes connection string fragments. Use `[LogSensitiveDataRedacted]` attributes, a custom destructuring policy in Serilog, or dedicated log scrubber middleware to prevent sensitive values from reaching log aggregators or sinks that store logs persistently.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 5. `LogError` records the error — it does not throw, and execution continues
 
 **Concepts**
-- HTTP GET body stripped by clients, proxies, and CDNs
-- `[FromQuery]` with `[AsParameters]` for complex GET filters
-- Silent binding failure rather than explicit error
+- `_logger.LogError(ex, "message")` writing to log sinks, not throwing
+- Execution continuing after `LogError` unless explicitly thrown or returned
+- `LogCritical` vs `LogError` — same execution behavior, different severity level
+- Combining logging with re-throwing to both record and propagate
 
 **Answer**
 
-Using `[FromBody]` on GET action parameters or minimal API handlers is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies, so binding fails silently in production. Query strings and route values are the correct binding sources for GET requests, and complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys. Failures often appear only in specific browsers or CDN layers, not in Swagger "Try it out" during development. REST conventions expect GET to be safe and idempotent with parameters in the URL.
+`_logger.LogError(exception, "Order processing failed")` writes the error to all configured log sinks and then returns — execution continues on the next line. A common mistake is writing `_logger.LogError(ex, "Unexpected error")` and returning a success response, effectively swallowing the exception after recording it. If the caller or global error handler should also see the exception, log it and then re-throw with bare `throw`. Similarly, `_logger.LogCritical` has higher severity semantics but identical execution behavior — it does not halt the application. Explicitly check whether logging is intended to supplement exception propagation or replace it.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 6. Log scopes do not flow across `async void` or fire-and-forget tasks
 
 **Concepts**
-- Default `JsonNamingPolicy.CamelCase` in ASP.NET Core 8
-- Silent binding to default values on case mismatch
-- `PropertyNameCaseInsensitive` as a compatibility bridge
+- `ILogger.BeginScope()` using `AsyncLocal<T>` for scope propagation
+- `AsyncLocal` flowing into `await` continuations but not across `Task.Run` thread boundaries correctly
+- Scope correlation IDs missing in background task logs
+- Capturing scope data explicitly before starting background work
 
 **Answer**
 
-ASP.NET Core 8 Web API serializes JSON with camelCase property names by default via `JsonNamingPolicy.CamelCase`, so incoming JSON with PascalCase keys (for example `"CustomerName"`) may not bind to `CustomerName` unless case-insensitive matching is enabled. Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values since System.Text.Json's default matching is exact-case on deserialization. Prefer standardizing clients on camelCase and documenting the contract in OpenAPI, and add validation attributes so silent binding failures become 400 responses instead of corrupt data.
+`ILogger.BeginScope()` stores scope properties in an `AsyncLocal<T>` which flows through awaited continuations in the same logical async context. However, work started with `Task.Run()` from within a scope may or may not carry that scope depending on the synchronization context and how the work is detached. Fire-and-forget tasks using `_ = SomeAsync()` definitely lose scope context because the async logical call chain is detached. When background work must carry correlation context — such as a request ID or user ID — capture the values explicitly from the current scope before starting the background task and create a new scope with those values inside the background work's own logging context.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 7. Default log level in production is `Warning` — `Information` logs are not emitted unless configured
 
 **Concepts**
-- `throw ex` resetting the stack trace to the catch block
-- `throw;` preserving the original stack trace
-- `InnerException` preservation when wrapping in a new exception
+- `appsettings.Production.json` default `LogLevel:Default` of `Warning`
+- `appsettings.Development.json` default of `Information`
+- Application logs emitted at `Information` silently suppressed in production
+- Intentional production default to reduce log volume and cost
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown. Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis, so always use `throw;` when rethrowing after logging or cleanup in a catch block. Wrap in a new exception only when adding context — `throw new OrderProcessingException("...", ex)` — to preserve `InnerException`. This trap appears in both application code and background worker error handlers.
+`WebApplication.CreateBuilder` sets the default log level to `Information` in development and `Warning` in production via the environment-specific `appsettings` files. Application code that logs business events at `Information` will appear in development but be silently suppressed in production unless the configuration is overridden. This is the intended behavior — production logging at `Information` for all categories generates significant volume — but teams that expect production-level tracing of business events must configure the specific categories they need at `Information` in `appsettings.Production.json`. Discovering that no application logs appear in production after deployment is a common first-week surprise.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 8. Console provider outputs plain text by default — structured logging requires a separate sink
 
 **Concepts**
-- Kestrel as application server vs full edge gateway
-- TLS termination, WAF, and rate limiting at the reverse proxy
-- `UseForwardedHeaders` required for accurate client IP and scheme
+- Console log provider formatting as human-readable text, not JSON
+- Serilog, NLog, or Application Insights for structured JSON output
+- `AddJsonConsole()` for structured JSON output to console
+- Log aggregators requiring structured output for queryable properties
 
 **Answer**
 
-Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching that production deployments typically require. Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front since TLS certificates are easier to manage at the proxy layer. Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy, and containers typically bind Kestrel to port 8080 internally while the ingress controller handles HTTPS externally.
+The built-in `Console` log provider writes human-readable text suitable for local development but is not structured JSON. Log aggregators such as Datadog, Elasticsearch, and Azure Monitor are most effective when ingesting structured JSON where fields like `orderId`, `userId`, and `requestId` are queryable properties rather than substrings of a text line. Use `AddJsonConsole()` for structured console output in containers, or replace the console provider with Serilog or NLog configured with a structured sink. Serilog's `WriteTo.Console(new JsonFormatter())` or Application Insights `AddApplicationInsightsTelemetry()` produce the structured output that log aggregators expect.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 9. `appsettings.json` log level changes require restart unless `reloadOnChange` and a live config monitor are in use
 
 **Concepts**
-- `launchSettings.json` as development-only launch configuration
-- Production host using environment variables, not launch profiles
-- `ASPNETCORE_ENVIRONMENT` and `ASPNETCORE_URLS` as runtime configuration
+- `AddJsonFile("appsettings.json", reloadOnChange: true)` enabling live reload
+- `IOptionsMonitor<LoggingOptions>` not used by the logging framework directly
+- Log provider filters re-evaluated on `IConfiguration` reload
+- Production log level changes without restart using environment variables
 
 **Answer**
 
-Settings in `Properties/launchSettings.json` — including `applicationUrl`, environment variables, and launch profiles — apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts. Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings. Assuming `launchSettings.json` sets Production behavior leads to wrong environment or binding in deployed environments since the published application does not include or read the file. Use `appsettings.Production.json` and host-level env vars for production values.
+By default, `AddJsonFile` loads `appsettings.json` once at startup. Setting `reloadOnChange: true` enables file-watcher-based live reload of the configuration, but whether the logging infrastructure actually picks up changed log levels depends on the provider. The built-in logging framework does re-apply filters when `IConfiguration` is reloaded because it reads from the live `IConfiguration` instance rather than a snapshot. However, third-party providers like Serilog require their own reload wiring via `ReadFrom.Configuration(configuration, reloadOnChanges: true)`. Changing log levels via environment variables is the most reliable approach for production because environment variable changes require a process restart, making the change deliberate and auditable.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 10. `ActivitySource` and OpenTelemetry tracing require explicit listener registration — no output without a listener
 
 **Concepts**
-- Non-nullable `bool` defaulting to `false` on JSON omission
-- Three-state intent: unspecified, opt-in, opt-out
-- `bool?` or enum tri-state for partial-update DTOs
+- `ActivitySource.StartActivity()` returning `null` when no listener is subscribed
+- OpenTelemetry tracer provider requiring `AddSource("SourceName")` registration
+- `Activity.Current` null without an active span
+- `AddOpenTelemetry().WithTracing()` as the listener registration point
 
 **Answer**
 
-A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics. PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent, since a user omitting `sendNewsletter` should mean "leave as is" rather than "opt out". Marketing consent and feature flags are common domains where this bug causes compliance or logic errors, and nullable fields should be documented in OpenAPI so generated clients represent optional updates correctly.
-
----
-
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
-
-**Concepts**
-- `X-Forwarded-Proto` and `X-Forwarded-For` headers
-- Wrong scheme causing broken HTTPS redirects and cookie secure flags
-- `KnownProxies` configuration to prevent header spoofing
-
-**Answer**
-
-Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs. Call `UseForwardedHeaders()` early, before middleware that reads scheme or host such as HTTPS redirection, link generation, or rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your reverse proxy network since trusting all proxies enables header spoofing. Local development without a proxy does not need this; production behind nginx/IIS/ALB does.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles()` serving all `wwwroot` contents unauthenticated
-- Secrets and config files must stay outside the web root
-- `appsettings.Production.json` in `wwwroot` as a critical security incident
-
-**Answer**
-
-Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default, so placing secrets, `.env`, backup configs, or private keys there exposes them over HTTP. Only public assets (CSS, JS, images, public PDFs) belong in `wwwroot`, while sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers. An accidental copy of `appsettings.Production.json` into `wwwroot` is a critical security incident since the file is served as a plain-text download. Use build pipelines to verify web root contents before deploy.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback returning `index.html` for unmatched routes including `/api/*`
-- API endpoint registration ordering before fallback
-- CORS and Swagger failures masked by HTML responses
-
-**Answer**
-
-SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers. Map API routes (`MapControllers`, minimal API groups) before `MapFallbackToFile("index.html")`, and scope fallback to non-API paths or use conditional fallback that excludes `/api` prefixes. Symptoms include CORS errors masked as HTML responses and Swagger fetch failures in production SPA hosting, so the correct order in `Program.cs` is: API endpoints first, static files, fallback last.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- Singleton `BackgroundService` incompatible with constructor-injected scoped services
-- `CreateAsyncScope()` per job to create a fresh scope
-- `ValidateScopes` catching this defect at startup
-
-**Answer**
-
-A singleton `BackgroundService` that injects scoped services (`DbContext`, repositories) directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration. Inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes. The same rule applies to timers and `Task.Run` loops started from singletons, and enabling `ValidateScopes` catches this defect before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR hub broadcasting to connected clients on the same instance only
-- Redis or Azure Service Bus backplane for multi-node event routing
-- Sticky sessions insufficient without a backplane
-
-**Answer**
-
-SignalR broadcasts from one server instance reach only clients connected to that instance — without a Redis or Azure Service Bus backplane (or Azure SignalR Service), users on different nodes never receive each other's real-time events. Sticky sessions keep one client on one node but do not route events raised on other nodes to that client, so adding a second instance without a backplane means events silently disappear for users on the wrong node. Register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application, and test scale-out with at least two instances before launch rather than single-node staging alone.
+`ActivitySource.StartActivity("operation")` returns `null` when no `ActivityListener` is subscribed to the source — the activity is simply not created. Code that assumes `Activity.Current` is non-null after `StartActivity()` throws `NullReferenceException` when no tracer is registered. In OpenTelemetry, the tracer provider must register the source by name: `tracerProviderBuilder.AddSource("MyApp.Orders")`. Without this registration, the `ActivitySource` creates no spans and emits nothing to the exporter. This is a common issue in development environments where OpenTelemetry is configured for production but not locally — all tracing calls silently no-op, which is correct behavior but confuses developers who expect spans to appear.
 
 ---
 

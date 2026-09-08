@@ -293,221 +293,149 @@ Data Annotations are attributes declared directly on ViewModel properties, evalu
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — Data Annotations & Validation (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. `[Required]` on non-nullable `bool` never failing
 
 **Concepts**
-- Business logic bypassing unit tests in views
-- Authorization placement in filters vs Razor
-- Service-layer calculations vs view-layer duplication
-- Presentation formatting as the boundary of view responsibility
+- Non-nullable `bool` — `false` is a valid non-null value; `[Required]` always passes
+- Unchecked checkbox — posts nothing; model binder sets `bool` to `false`
+- `bool?` with `[Required]` — forces explicit selection by requiring non-null
+- Hidden-field pattern — posts `false` for unchecked, ensuring deliberate intent
 
 **Answer**
 
-The problem with placing pricing, discount calculations, or authorization checks in `.cshtml` files is that Razor views cannot be meaningfully unit-tested in isolation, which means that business rule changes require verifying behavior through full integration tests or manual browser checks. Business logic in views also tends to diverge from the same logic in API endpoints or batch jobs, since the duplication is invisible and there is no shared test suite enforcing consistency. Authorization in particular belongs in filters, policies, or controller/service checks that run before the view even executes — a view that shows or hides UI based on role checks is not a substitute for server-enforced authorization. I treat Razor as a presentation layer responsible only for formatting data the controller or ViewModel already prepared, nothing more.
+`[Required]` checks that a value is not null — for a non-nullable `bool`, even `false` satisfies that check. An unchecked consent checkbox posts nothing to the server and the model binder sets the `bool` property to `false`, which passes `[Required]` silently. The fix for mandatory consent is `bool? Agreed { get; set; }` with `[Required]` — now a null value (unchecked) fails validation. The hidden-field pattern (`<input type="hidden" name="Agreed" value="false" />` plus a checkbox posting `true`) is an alternative: the field always posts, so the binding always succeeds and the value reflects intent. Use `bool?` with `[Required]` for explicit consent checkboxes where unchecked must fail.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. Client-side validation not wired because jQuery Validate scripts are missing or out of order
 
 **Concepts**
-- Lazy-loaded navigation triggering N+1 queries in views
-- Mass assignment surface from entity properties
-- Schema coupling between UI and database
-- ViewModel whitelisting as the correct defense
+- `jquery.validate.js` — core validation library, must load before unobtrusive
+- `jquery.validate.unobtrusive.js` — ASP.NET Core bridge that reads `data-val-*` attributes
+- Script load order — jQuery â†’ jquery.validate â†’ jquery.validate.unobtrusive
+- Missing unobtrusive script — validation rules present in HTML but no client enforcement
 
 **Answer**
 
-Passing EF Core entities directly to Razor views creates several compounding problems. Lazy-loaded navigation properties can trigger unintended database queries during rendering — a loop over `Order.LineItems` in a partial can fire one query per order if the navigations were not eagerly loaded, causing N+1 performance issues that are invisible until load testing. On POST, binding an entity directly exposes every property to mass assignment: even if the form only renders `Name` and `Email`, an attacker can add `IsAdmin=true` to the request body and it will bind. Entities also carry schema-specific fields like `RowVersion`, `InternalMarginPercent`, and FK ids that should never appear in HTML. The fix is to define ViewModels that expose only the fields the view needs and map between entities and ViewModels in the controller or a mapping service.
+ASP.NET Core MVC emits `data-val="true"` and `data-val-required` attributes on inputs, but client validation only fires when `jquery.validate.unobtrusive.js` is loaded and parses those attributes. If `jquery.validate.unobtrusive.js` is missing or loads before jQuery or before `jquery.validate.js`, the unobtrusive library fails to initialize silently — the HTML attributes are present, but no client validation fires and every POST proceeds to the server. The required script order is: jQuery, then jquery.validate, then jquery.validate.unobtrusive. Server-side validation still runs, but the UX degrades to a full page reload for every invalid submission, which is often mistaken for "validation not working."
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. Skipping `ModelState.IsValid` under the assumption that client validation is sufficient
 
 **Concepts**
-- HTML form submitting `application/x-www-form-urlencoded`
-- `[FromBody]` expecting JSON via input formatter
-- Silent binding failure leaving model at defaults
-- `FormData` following form binding rules, not JSON path
+- Client validation — bypassable by direct POST, Postman, or disabled JavaScript
+- `ModelState.IsValid` in MVC — not automatic; must be checked explicitly before any persist
+- `[ApiController]` on `ControllerBase` — does auto-return 400 on invalid `ModelState`
+- MVC `Controller` — does NOT auto-return 400; developer must add the guard manually
 
 **Answer**
 
-Standard browser forms submit `application/x-www-form-urlencoded` or `multipart/form-data` — they do not send JSON bodies. When an action parameter is decorated with `[FromBody]`, the model binder uses the JSON input formatter, finds no JSON in the request body, and leaves every property at its default value. The action runs with an apparently valid but empty model, so inserts save empty strings and zeroes with no error. The trap is that `ModelState` may appear clean since no conversion failure occurred — properties just stayed at defaults. The fix is to remove `[FromBody]` for conventional MVC form POSTs and allow the default form value provider to bind from the encoded body. `[FromBody]` belongs only on AJAX or API endpoints where the client explicitly sets `Content-Type: application/json` and sends a JSON payload.
+Unlike `[ApiController]` endpoints which automatically return 400 when `ModelState` is invalid, standard MVC controllers with `Controller` as the base class do not. If the POST action omits `if (!ModelState.IsValid) return View(model);`, invalid data reaches the service and the database even when client-side validation is enabled. An attacker using curl or Postman never runs browser JavaScript at all. The MVC server-side check is mandatory: gate every POST action with `ModelState.IsValid` before any persist, redirect, or side effect. Relying on `[ApiController]` behavior on a view-returning MVC controller is a common misconception that leads to silent validation bypass.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. Custom `ValidationAttribute` not inheriting from `ValidationAttribute` base
 
 **Concepts**
-- Client validation as bypassable UX convenience
-- Server-side `ModelState.IsValid` as the mandatory security gate
-- Direct POST bypassing browser JavaScript
-- Remote validation not enforced on the server during POST
+- `[AttributeUsage(AttributeTargets.Property)]` — controls where the attribute can be applied
+- `ValidationAttribute.IsValid(object value)` — method to override for validation logic
+- `IClientModelValidator` — interface for emitting `data-val-*` HTML attributes for client-side
+- Missing base class — attribute applies but `ModelState` never populated with errors
 
 **Answer**
 
-Client-side validation runs only in the browser and can be stripped out entirely by disabling JavaScript, using curl, Postman, or any HTTP client that never loads the page. An attacker submitting an invalid email, a negative price, or a missing required field directly to the action endpoint will succeed if the server does not check `ModelState.IsValid` before persisting. MVC controllers do not automatically return 400 on invalid models the way `[ApiController]` does, so the guard must be explicit. I always gate POST actions with `if (!ModelState.IsValid) return View(model);` before any service call or database write. Remote validation attributes (`[Remote]`) are particularly deceptive — they fire an AJAX check on the client but are never invoked during server-side POST processing, so uniqueness constraints and availability checks must be re-enforced on the server.
+A custom attribute that inherits from `Attribute` but not from `ValidationAttribute` can be applied to properties and compiles, but it is never invoked by the MVC validation pipeline. `ModelState` is populated only for attributes that inherit from `ValidationAttribute` or implement `IModelValidator`. The fix is `class NoFutureDateAttribute : ValidationAttribute` with `override bool IsValid(object? value)`. For client-side validation support, also implement `IClientModelValidator.AddValidation(ClientModelValidationContext)` to emit the `data-val-*` attributes that `jquery.validate.unobtrusive` reads. Without `IClientModelValidator`, the custom rule runs server-side only, which is acceptable but means a page reload for the error message.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. `[Remote]` attribute validating on client but not enforced on POST
 
 **Concepts**
-- Duplicate submission on browser refresh after POST response
-- Post-Redirect-Get pattern separating mutation from display
-- `TempData` for flash messages surviving the redirect
-- AJAX idempotency as the equivalent concern
+- `[Remote("Action", "Controller")]` — fires AJAX GET check during client-side validation
+- POST action — never invokes `[Remote]` endpoint; no server-side enforcement
+- Uniqueness check example — email exists validation passes on AJAX but can still be bypassed
+- Explicit server-side re-check — required in the POST action after `ModelState.IsValid`
 
 **Answer**
 
-Returning the same view directly after a successful POST leaves the browser on a POST URL, so pressing refresh resubmits the same form data — creating duplicate orders, double charges, or repeated inserts. The browser's built-in "Confirm Form Resubmission" dialog warns users but does not prevent the problem on automated retries or programmatic submissions. The correct pattern is Post-Redirect-Get: after a successful mutation, `return RedirectToAction(nameof(Index))` sends a 302 response and the browser follows with a GET request, making the final URL safe to refresh. Success messages should travel via `TempData` to the redirect target since they cannot survive the redirect in `ViewData`. For AJAX partial POSTs the same concern applies — I disable the submit button during the request or implement idempotency server-side so duplicate submissions produce the same safe result.
+`[Remote("CheckEmail", "Users")]` triggers an AJAX call to `CheckEmail` during client-side validation, which is useful for real-time feedback. However, the MVC validation pipeline does not call the Remote endpoint during server-side POST processing — `ModelState.IsValid` returns true even if the remote check would fail. An attacker submitting the POST directly bypasses the remote check entirely. Any uniqueness, availability, or cross-system validation that `[Remote]` covers must also be re-checked explicitly in the POST action after `ModelState.IsValid` passes. The `[Remote]` attribute improves UX; it is not a substitute for server-side business rule enforcement.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. `[StringLength]` vs `[MaxLength]` — different enforcement points
 
 **Concepts**
-- `ModelState` as request-scoped state
-- Validation errors lost on `RedirectToAction`
-- `return View(model)` on failure vs redirect on success
-- `TempData` serialization for errors that must survive redirect
+- `[StringLength(max)]` — validation annotation, enforced by `ModelState`; also emits client-side `data-val-length`
+- `[MaxLength(max)]` — EF Core schema convention; does not add `ModelState` validation by default
+- `[MaxLength]` without `[StringLength]` — database truncation or exception, no form validation error
+- Both together — correct for forms where schema constraint and input validation must match
 
 **Answer**
 
-`ModelState` is scoped to the current HTTP request and is discarded when the response is sent, which means validation errors do not survive a `RedirectToAction`. A common bug is redirecting on both success and failure: the redirect GET action sees an empty `ModelState`, renders a clean form, and the user has no idea what went wrong. The standard pattern is to redirect only on success and return `View(model)` on validation failure — this keeps errors visible inline without any special plumbing. When a redirect on failure is genuinely required (such as PRG with a pre-populated form), errors can be serialized to `TempData` as a dictionary and re-added to `ModelState` on the GET action, but this is complex enough that I treat it as a last resort and prefer the simpler return-on-failure approach.
+`[MaxLength(100)]` tells EF Core to generate a `VARCHAR(100)` column but does not add a `ModelState` validation error when a form submits a 200-character string — the string reaches the database and causes a truncation or `DbUpdateException`. `[StringLength(100)]` adds both the `ModelState` validation error and the client-side `data-val-length` attribute that jQuery Validate reads. For form-bound models, `[StringLength(100)]` is the correct annotation for user-facing length enforcement. `[MaxLength(100)]` is the correct annotation for EF Core schema generation. Applying only one means either the schema constraint or the UX validation is missing. Both annotations can coexist and serve their respective purposes.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. `IValidatableObject` validation running even when individual property annotations have already failed
 
 **Concepts**
-- `TempData` consumed on first read by default
-- `Peek()` for non-consuming reads
-- `Keep()` to retain after consuming
-- Single consumption point pattern
+- `IValidatableObject.Validate(context)` — always called after attribute validation, regardless of failures
+- Cross-field validation — correct use case for `IValidatableObject`
+- Null field access — a required field that failed binding may be null inside `Validate`
+- Guard with `if (!validationContext.Members.Any())` — not reliable; check each field for null
 
 **Answer**
 
-TempData is designed to survive exactly one request after being set, but within a single request it is consumed on the first read — so if the layout reads a flash message to display a banner and the view also reads the same key to conditionally show an icon, the view sees `null`. The fix is to use `TempData.Peek("Message")` in whichever component reads first, since `Peek` returns the value without marking it consumed. Alternatively, call `TempData.Keep("Message")` after the first read to keep it available for the remainder of the request. The cleanest approach is to have a single consumption point — typically a dedicated layout partial that reads and renders the flash message — and keep views from trying to access the same key independently. Cookie-based `TempData` also has a size limit around 4 KB, so avoid stuffing large object graphs or lists into it.
+`IValidatableObject.Validate` is called by the MVC validation pipeline even when property-level validation has already failed. This means a required property like `EndDate` may be null inside `Validate` if the user did not provide it — a `NullReferenceException` inside `Validate` will crash the validation pass instead of displaying the original required error. The fix is to guard each cross-field check: `if (StartDate == default || EndDate == default) yield break;` so the cross-field rule is only enforced when both fields have valid values. `IValidatableObject` is the correct place for "end date must be after start date" — not for replacing or duplicating attribute-level validation.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. `[Compare]` attribute field name not matching the compared property name
 
 **Concepts**
-- `[Area("AreaName")]` required for area route discovery
-- `{area:exists}` constraint in area route registration
-- Area-less controller treated as a root controller
-- Route registration order mattering for specificity
+- `[Compare("Password")]` — string argument must match the property name exactly (case-sensitive)
+- Renamed property — `Password` renamed to `NewPassword` requires updating the `Compare` argument
+- Compile-time safety — no compiler check on the string argument
+- `nameof(RegisterViewModel.Password)` — refactor-safe alternative to hardcoded string
 
 **Answer**
 
-Controllers placed under `Areas/Admin/Controllers/` are not automatically associated with the Admin area — they require an explicit `[Area("Admin")]` attribute to be matched by the area route. Without the attribute, MVC treats the controller as an ordinary root controller, so requests to `/admin/dashboard` either 404 or accidentally match a catch-all route. Area routing is registered separately in `Program.cs` using `MapControllerRoute` with a `{area:exists}` constraint, and this route must be registered before the default catch-all route so area paths take priority. Forgetting the attribute while the route is registered produces confusing behavior where the area URL patterns exist in the route table but the controllers are never matched by them.
+`[Compare("Password")]` on a `ConfirmPassword` property compares the two fields during validation. The string argument `"Password"` must match the property name exactly and is case-sensitive on some platforms. If the `Password` property is renamed to `NewPassword` during refactoring, the `[Compare]` argument still says `"Password"` — the comparison silently fails to find the target property and the validation either passes (all values match null) or produces a confusing error. The refactor-safe approach is `[Compare(nameof(RegisterViewModel.Password))]` which is checked at compile time, so a rename produces a build error rather than a silent runtime mismatch.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Localized validation error messages requiring `ResourceType` configuration
 
 **Concepts**
-- Tag Helper ambient area context for URL generation
-- `asp-area` required for cross-area link generation
-- Area links 404 or hitting wrong controller without it
-- `Url.Action` area route values requirement
+- `[Required(ErrorMessage = "Name is required")]` — hardcoded string, not localizable
+- `[Required(ErrorMessageResourceType = typeof(Messages), ErrorMessageResourceName = "NameRequired")]` — resource-backed
+- Missing `ResourceType` — resource name is treated as a literal string, not a key
+- `IStringLocalizer` with `ValidationProblem` — alternative localization approach via DI
 
 **Answer**
 
-Tag Helpers use the current request's route data as ambient values when generating URLs, which means they inherit the current area context automatically. From within the Admin area, omitting `asp-area` on a link to `AccountController` generates a URL in the Admin area segment, likely 404-ing because there is no `AccountController` in Admin. Crossing area boundaries requires explicitly setting `asp-area="Admin"` on the tag helper — omitting it generates a URL without the area segment when the current request is not in an area, or uses the wrong area when it is. The same rule applies to `Url.Action` calls: always pass `new { area = "Admin" }` in the route values dictionary when targeting an area controller from outside that area. Links from root views to area controllers and from one area to another both require `asp-area` to be explicit.
+`[Required(ErrorMessage = "Name is required")]` embeds a hardcoded English string in the annotation. To localize validation messages, set `ErrorMessageResourceType = typeof(Messages)` (the resource class) and `ErrorMessageResourceName = "NameRequired"` (the resource key). Without `ErrorMessageResourceType`, `ErrorMessageResourceName` is treated as a literal string and displayed verbatim rather than looked up in a resource file. The resource class must have a public static property matching `ErrorMessageResourceName` or the resource lookup throws. An alternative approach is FluentValidation, which integrates with `IStringLocalizer<T>` using constructor injection and avoids attribute-based resource configuration entirely.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. `ModelState` errors from API controller vs MVC controller behaving differently
 
 **Concepts**
-- Unchecked checkbox posting nothing vs posting `false`
-- Non-nullable `bool` binding empty field to `false`
-- `[Required]` not distinguishing `false` from absent
-- `bool?` with `[Required]` for true-or-null consent
-- `[Range(typeof(bool), "true", "true")]` for must-be-true validation
+- `[ApiController]` + `ControllerBase` — automatically returns 400 `ProblemDetails` when `ModelState` invalid
+- MVC `Controller` — does NOT auto-return 400; must check `ModelState.IsValid` manually
+- `ConfigureApiBehaviorOptions.SuppressModelStateInvalidFilter` — disables auto-400 for custom handling
+- Mixed project — same ViewModel with annotations, different validation behavior per controller type
 
 **Answer**
 
-HTML checkboxes only submit their value when checked — an unchecked checkbox does not appear in the POST body at all. When the model property is non-nullable `bool`, the model binder sets missing fields to `false`, which is a perfectly valid non-null value, so `[Required]` passes without complaint. This means a required consent checkbox with `bool AcceptedTerms` can be submitted unchecked and validation will not catch it. The fix is to use `bool?` with `[Required]`, so an unchecked (absent) field binds to `null` and fails the required check, while an explicitly checked field binds to `true` and passes. For legal consent that must be positively affirmed, I also add `[Range(typeof(bool), "true", "true")]` or a custom attribute to reject `false` explicitly, since `bool?` with `[Required]` only distinguishes null from non-null.
+`[ApiController]` on a `ControllerBase` subclass automatically returns a 400 response with `ValidationProblemDetails` when model binding produces an invalid `ModelState` — the action method body is never entered. MVC controllers inheriting `Controller` without `[ApiController]` do not share this behavior — the action runs regardless of `ModelState` validity, and the developer must gate it with `if (!ModelState.IsValid) return View(model);`. In a project with both MVC and API controllers using the same ViewModel, the same annotation-annotated ViewModel behaves differently: the API endpoint auto-validates and the MVC form does not. Missing this distinction is the source of "the API returns 400 but the form accepts invalid input" bugs when both endpoints share a controller class.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-zero-based index requirement for collection binding
-- Phantom null entries inserted at missing indices
-- Client-side re-indexing after row deletion
-- Server-side empty-row filtering as defense
-
-**Answer**
-
-Collection binding relies on contiguous indices starting at zero: `Lines[0]`, `Lines[1]`, `Lines[2]`. When a user deletes a middle row in the UI and the remaining rows keep their original indices — say `Lines[0]` and `Lines[2]` — the binder inserts a default/null entry at index 1 and places the actual data at index 2. Server logic that iterates `model.Lines` without filtering then processes a phantom empty line, potentially saving a blank order line or misaligning SKUs with quantities. The fix is to re-index rows in JavaScript immediately after any deletion so the submitted names are always gap-free. As a server-side safety net, filtering `model.Lines.Where(l => !string.IsNullOrEmpty(l.Sku))` before processing discards empty phantom rows even if the client-side re-indexing is buggy.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor auto HTML-encoding as the default XSS defense
-- `@Html.Raw` bypassing encoding entirely
-- Trusted HTML sanitizer library for rich content
-- Content-Security-Policy as defense-in-depth, not a replacement
-
-**Answer**
-
-Razor's default `@model.Property` output HTML-encodes the value, turning `<script>alert(1)</script>` into harmless entity-encoded text. `@Html.Raw(model.UserComment)` bypasses that encoding entirely and injects the string verbatim into the page, so attacker-supplied JavaScript executes in every viewer's browser. This is one of the most common XSS vectors in MVC applications. If rich HTML content from users must be rendered, the only safe approach is to sanitize it server-side with a trusted library (HtmlSanitizer) that allows a controlled whitelist of tags and attributes before it ever touches `@Html.Raw`. Content-Security-Policy headers limit the blast radius when XSS does occur but are not a substitute for encoding — a policy without `'unsafe-inline'` still leaves DOM-based XSS paths open.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form Tag Helper automatic antiforgery token injection
-- Manual `RequestVerificationToken` header or field for AJAX
-- `[AutoValidateAntiforgeryToken]` validating all unsafe methods
-- Same-origin cookie sent automatically vs header requiring manual setup
-
-**Answer**
-
-The Form Tag Helper automatically injects a hidden `__RequestVerificationToken` input when rendering a POST form, so full-page form submissions include the token without any developer action. AJAX requests made with `fetch` or jQuery do not go through the Form Tag Helper, so they must manually read the token value from the hidden field on the page and include it either as a form field or in a custom request header. Forgetting this produces a 400 `Bad Request` with an antiforgery validation failure message that can look like a generic server error. `[AutoValidateAntiforgeryToken]` on the controller class validates all unsafe HTTP methods automatically, so every AJAX POST, PUT, and DELETE to that controller requires the token. The fix is never to disable antiforgery validation to "fix" AJAX — add the token to the request instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub not registered in DI for direct injection
-- `IHubContext<THub>` as the singleton proxy for external broadcasting
-- Connection context required for hub method execution
-- Thin hub pattern with business logic in services
-
-**Answer**
-
-SignalR `Hub` subclasses are not registered in the DI container as injectable services — they are instantiated per connection by the SignalR infrastructure, which means injecting a concrete `Hub` into a controller constructor either fails at activation or produces an instance with no valid connection context. The correct approach is to inject `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()` that allows sending messages to connected clients from anywhere outside the hub — controllers, background services, or domain event handlers. The hub class itself should be kept thin, delegating business logic to scoped or transient services that can be injected normally. For multi-instance deployments, the `IHubContext` must be paired with a Redis backplane or Azure SignalR Service so the broadcast reaches clients connected to other instances.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane for multi-node fan-out
-- Instance-local connection IDs and group membership
-- `AddStackExchangeRedis` or `AddAzureSignalR` for scale-out
-
-**Answer**
-
-Sticky sessions ensure a client always reconnects to the same server instance, but they do not solve the fan-out problem. When a controller on instance A calls `IHubContext.Clients.User(id).SendAsync(...)`, that message is dispatched only to clients connected to instance A — users on instance B, C, and D never see it. This creates inconsistent real-time behavior under load that is nearly impossible to reproduce in single-server development. Connection IDs and group memberships are also stored locally per instance, so `Groups.AddToGroupAsync` on one node does not make the client a member on others. The fix is to register a shared backplane — `AddStackExchangeRedis(connectionString)` or `AddAzureSignalR(connectionString)` — so every instance publishes and subscribes to the same message bus and all clients receive every broadcast.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

@@ -497,110 +497,147 @@ public void Dispose()
 
 ---
 
-## Gotchas
+## Gotchas — Exception Handling in C# (Interview Traps)
 
 ---
 
-## Q17. A `catch when` filter is evaluated but the type matches — can the exception still escape?
+#### Gotcha 1. throw ex resets the stack trace; bare throw preserves the original stack
 
 **Concepts**
-- `when` is evaluated after type matching, before entering the handler body
-- If `when` expression is false, the clause is skipped — exception continues unwinding
-- No catch block further up the call stack may see the exception until unwinding completes
-- Filter evaluation happens before stack unwinding — faulting stack frames are still live
-- Subsequent catch clauses for the same or base types are still tested after a false filter
-- An unhandled exception after all filters are false propagates to the caller as if no catch existed
+- throw ex creates new StackTrace from current location
+- bare throw re-throws with original StackTrace
+- ExceptionDispatchInfo.Capture for cross-thread re-throw
+- stack trace is crucial for root-cause analysis
 
 **Answer**
 
-Yes. A `when` filter whose expression evaluates to false causes the entire catch clause to be skipped, even though the exception type matched. The runtime proceeds to the next clause in source order. If no remaining clause matches — or all remaining filters also evaluate to false — the exception propagates to the caller exactly as if no catch existed at all. The observable gotcha is that you can write a catch clause for a specific type, see the type match in a debugger, and still have the exception escape because the `when` condition was false. This is intentional: filters are designed to let exceptions pass through to outer handlers when the current catch cannot actually handle them. A related subtlety is that because filter evaluation precedes unwinding, a debugger set to break on first-chance exceptions sees the full faulting stack, which is one of the key benefits of `catch when` over catching and re-throwing.
+Writing catch (Exception ex) { throw ex; } replaces the exception's stack trace with the current call site, destroying the original location information that identifies the root cause. Using bare throw; (without the exception variable) re-throws the same exception object with its original stack trace intact, which is the correct pattern in all re-throw scenarios.
 
 ---
 
-## Q18. If an exception is thrown inside a `finally` block, what happens to the original exception?
+#### Gotcha 2. catch(Exception) catches almost everything including memory-critical exceptions you should not handle
 
 **Concepts**
-- A new exception thrown from `finally` replaces the original exception in the propagation chain
-- The original exception is lost — not chained as `InnerException`
-- The new exception propagates to the caller instead
-- Catch blocks in the enclosing scope see only the new exception
-- Using `throw;` inside finally is valid but rare and still replaces the pending exception
-- Best practice: do not throw from finally; catch and log inside finally instead
-- `ExceptionDispatchInfo` cannot save you here — the original is simply discarded
+- Catches OutOfMemoryException, StackOverflowException, AccessViolationException
+- these indicate process-level failures
+- ThreadAbortException is a special case
+- catch only exceptions you can recover from
 
 **Answer**
 
-If `finally` throws a new exception, the CLR discards the original exception that was being propagated and replaces it with the new one. There is no automatic chaining — the original is gone. This is one of the most silent data-loss bugs in C#. The caller catches or sees only the new finally-exception, with no trace of what triggered the finally block in the first place. The fix is to wrap the finally body's risky work in its own try/catch and log or swallow inside it rather than letting a secondary exception escape. A `Dispose()` call in a finally block is the most common trigger: if the underlying stream's `Close()` throws, the original business exception that caused the early return is lost.
-
-```csharp
-// DANGEROUS — finally throws, original exception disappears
-try
-{
-    ProcessPayment(balance, amount);
-}
-finally
-{
-    auditWriter.Flush();  // if Flush() throws, ProcessPayment exception is gone
-}
-
-// SAFE — secondary exceptions handled inside finally
-finally
-{
-    try { auditWriter.Flush(); }
-    catch (Exception flushEx) { logger.LogWarning(flushEx, "Flush failed on cleanup path"); }
-}
-```
+Catching the base Exception type captures not only application-level exceptions but also CLR-level failures like OutOfMemoryException and, on older .NET Framework, ThreadAbortException. Attempting to continue after OutOfMemoryException is unsafe because the process state may be inconsistent. Catch Exception only at application boundaries for logging, and re-throw or terminate gracefully rather than attempting recovery.
 
 ---
 
-## Q19. When you `await Task.WhenAll(...)`, which exceptions do you see in the catch block?
+#### Gotcha 3. Task.Wait() wraps exceptions in AggregateException; await unwraps to the inner exception
 
 **Concepts**
-- `await Task.WhenAll` throws only the first inner exception by default
-- The remaining exceptions in the `AggregateException` are silently discarded
-- To see all failures, capture the `Task` and check `.Exception.Flatten()` after it faults
-- `Task.Wait()` and `Task.Result` throw an `AggregateException` containing all failures
-- `await` unwraps `AggregateException` to its first inner exception for ergonomics
-- You can re-enable aggregate visibility by catching `Exception` and inspecting the task directly
-- `Task.WhenAll` marks itself faulted after all tasks complete, even if some succeed
+- Task.Wait() throws AggregateException
+- await throws the inner exception directly
+- AggregateException.InnerExceptions for multiple
+- exception handling code must account for both patterns
 
 **Answer**
 
-`await Task.WhenAll(t1, t2, t3)` waits for all tasks to complete and then, if any faulted, throws an exception. However, `await` unwraps the `AggregateException` that `WhenAll` stores internally and throws only the first inner exception, discarding the rest. If all three tasks threw different exceptions, the catch block sees only the first one; the other two are invisible. To observe every failure, capture the `Task` reference before awaiting, catch `Exception` after `await`, and then inspect `whenAllTask.Exception?.Flatten().InnerExceptions`. Alternatively, avoid `await Task.WhenAll` entirely when you need all errors: await tasks individually in a loop or use `Task.WhenEach` (added in .NET 9) which yields tasks as they complete.
+task.Wait() throws AggregateException containing the original exception in InnerExceptions, while await task; throws the first inner exception directly. Code that catches ArgumentException from an awaited method will not catch the same exception thrown from task.Wait(), because it arrives wrapped in an AggregateException — a common porting bug when converting sync to async code.
 
 ---
 
-## Q20. What happens if you rethrow an exception using `throw;` when you captured it with `ExceptionDispatchInfo.Throw()`?
+#### Gotcha 4. finally always executes before the method returns, including after a return statement
 
 **Concepts**
-- `ExceptionDispatchInfo.Capture(ex)` takes a snapshot of the exception and its current stack trace
-- `.Throw()` rethrows the exception and appends the rethrow site with a separator marker
-- The stack trace shows the original throw site, the separator, and the `.Throw()` call site
-- If `.Throw()` is called inside a catch block, a subsequent `throw;` would rethrow the same object again
-- `throw;` after `ExceptionDispatchInfo.Throw()` adds yet another rethrow marker to the trace
-- The exception object's stack trace field is mutated by each rethrow call
-- In practice, call `.Throw()` only once per captured instance
+- return value is evaluated, stored
+- finally runs
+- the stored value is then returned
+- finally cannot change return value directly (only via ref/global state); exceptions in finally replace the original exception
 
 **Answer**
 
-`ExceptionDispatchInfo.Throw()` rethrows the captured exception and appends the current call site to the stack trace with a "--- End of stack trace from previous location ---" separator. If you then catch that exception and use `throw;`, the runtime appends another rethrow marker, so the stack trace grows by another entry. Each `.Throw()` or `throw;` call mutates the exception object's stack trace text in place. In practice this is rarely a problem because you call `.Throw()` once to replay the exception on the calling thread and let it propagate naturally from there. The gotcha is catching the result of `.Throw()` and rethrowing multiple times in a retry loop — you end up with a progressively longer stack trace that can obscure the original throw site among layers of retry markers.
+When a return statement executes inside a try block, the return value is computed and saved, then the finally block runs, and then the saved value is actually returned. The finally block cannot change the return value unless it modifies a captured variable or throws a new exception. A throw in finally replaces the exception in flight if the try block was already throwing.
 
 ---
 
-## Q21. Can a `catch (Exception)` block catch a `StackOverflowException` or `OutOfMemoryException`?
+#### Gotcha 5. Exceptions thrown in finally blocks swallow the original exception
 
 **Concepts**
-- `StackOverflowException` cannot be caught in .NET Core — the CLR terminates the process
-- `OutOfMemoryException` can be caught but the runtime state is unreliable after it
-- Both are `SystemException` descendants in the type hierarchy
-- Catching and swallowing `OutOfMemoryException` can mask resource leaks
-- `ThreadAbortException` (removed in .NET Core) was also special in .NET Framework
-- Best practice: do not catch `OutOfMemoryException` unless you have a deliberate degradation path
-- A `StackOverflowException` in .NET Core triggers the runtime's fast-fail — finally blocks may not run
+- Active exception during unwinding
+- finally throw replaces it
+- original exception is lost
+- log before rethrowing or use ExceptionDispatchInfo; only one exception can propagate at a time
 
 **Answer**
 
-In .NET Core (and therefore .NET 10) a `StackOverflowException` causes the CLR to perform a hard fast-fail — the process terminates, finally blocks do not run, and no managed catch block can intercept it. This is a deliberate design to prevent a corrupted stack from continuing execution. `OutOfMemoryException` is technically catchable via `catch (Exception)` or `catch (OutOfMemoryException)`, and in specific scenarios — such as a retry that can release a large buffer and try a smaller allocation — catching it is defensible. However, the managed heap may be in an inconsistent state after OOM, so most catch actions risk further failures. The general guidance for production .NET 10 code is to let both exceptions terminate the process or app domain and rely on process-level restart policies (Kubernetes, Windows Service recovery) rather than attempting in-process recovery.
+If a try block throws and the finally block also throws, C# propagates only the finally exception — the original try-block exception is silently lost. This can mask real bugs: the finally exception points to a symptom while the original exception contained the root cause. Always guard finally cleanup code carefully and use logging before rethrowing if you need to preserve context.
+
+---
+
+#### Gotcha 6. ExceptionDispatchInfo.Capture preserves the original stack trace for re-throwing across contexts
+
+**Concepts**
+- Capture saves exception and stack trace
+- Throw() re-throws with original trace
+- useful for cross-thread exception propagation
+- avoids losing trace when storing and rethrowing later
+
+**Answer**
+
+ExceptionDispatchInfo.Capture(ex) stores a snapshot of the exception including its full stack trace. Calling .Throw() on the captured info later re-throws the exception with the original stack trace appended (plus the current re-throw location), unlike new Exception("...", ex) which changes the outer trace. This is the correct mechanism for propagating exceptions from background tasks or across async boundaries.
+
+---
+
+#### Gotcha 7. IDisposable.Dispose throwing during exception handling loses the original exception
+
+**Concepts**
+- using block Dispose runs in implicit finally
+- Dispose exception replaces in-flight exception
+- using declaration vs using statement
+- track both with try/finally and exception aggregation
+
+**Answer**
+
+When a using block's body throws and the Dispose call also throws, the Dispose exception propagates and the body exception is lost, because C# can only propagate one exception at a time. If you need to capture both, replace the using block with explicit try/catch/finally, store the original exception in a variable, and decide in the finally block whether to throw the disposal exception, the original exception, or wrap both in an AggregateException.
+
+---
+
+#### Gotcha 8. Exception filters (when clause) run before the catch block, in the original stack frame
+
+**Concepts**
+- when predicate runs before stack unwind
+- original stack still intact for logging
+- filter that returns false lets exception propagate to next handler
+- useful for condition-based catch selection
+
+**Answer**
+
+The when clause of a catch (Exception ex) when (LogAndReturn(ex)) filter runs in the context of the exception handler search — before any stack unwinding occurs. This means the filter can examine the full call stack while it is still intact, making it ideal for logging with complete context. A filter that returns false simply skips that catch block and continues the search upward.
+
+---
+
+#### Gotcha 9. Catching and rethrowing OperationCanceledException loses the CancellationToken context
+
+**Concepts**
+- OperationCanceledException carries CancellationToken
+- swallowing prevents upstream from detecting cancellation
+- catch only non-cancellation exceptions
+- use ex is not OperationCanceledException pattern
+
+**Answer**
+
+OperationCanceledException signals cooperative cancellation and should generally propagate unmodified so callers can distinguish cancellation from errors. Wrapping it in a new Exception or swallowing it forces the caller to lose the cancellation signal. Use catch (Exception ex) when (ex is not OperationCanceledException) or a separate catch (OperationCanceledException) that just re-throws to preserve the cancellation semantics.
+
+---
+
+#### Gotcha 10. Custom exception classes should be serializable for cross-AppDomain scenarios and remote diagnostics
+
+**Concepts**
+- [Serializable] attribute
+- custom exception ctor(SerializationInfo, StreamingContext)
+- BinaryFormatter removed in .NET 6+
+- JSON-serializable exceptions for modern distributed systems
+
+**Answer**
+
+Well-designed custom exceptions implement the serialization constructor CustomException(SerializationInfo info, StreamingContext context) and mark the class [Serializable]. In modern .NET where BinaryFormatter is removed, this matters less for in-process scenarios, but exceptions that cross service boundaries (logged to centralized systems or re-hydrated from structured logs) still benefit from consistent serialization of custom properties to prevent data loss during deserialization.
 
 ---
 

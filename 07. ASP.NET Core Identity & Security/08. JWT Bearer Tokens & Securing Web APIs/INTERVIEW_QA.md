@@ -565,7 +565,7 @@ JWT authentication has several well-known pitfalls that regularly appear in secu
 
 ---
 
-## Gotcha 1. JWT payload is Base64URL-encoded, not encrypted
+#### Gotcha 1. JWT payload is Base64URL-encoded, not encrypted
 
 **Concepts**
 - Base64URL as reversible encoding with no security properties
@@ -578,7 +578,7 @@ A common misconception is that because a JWT looks like random characters, its c
 
 ---
 
-## Gotcha 2. `ValidateIssuerSigningKey` defaults to `false`
+#### Gotcha 2. `ValidateIssuerSigningKey` defaults to `false`
 
 **Concepts**
 - ValidateIssuerSigningKey default-false trap
@@ -591,7 +591,7 @@ A common misconception is that because a JWT looks like random characters, its c
 
 ---
 
-## Gotcha 3. `UseAuthentication` must come before `UseAuthorization` in the middleware pipeline
+#### Gotcha 3. `UseAuthentication` must come before `UseAuthorization` in the middleware pipeline
 
 **Concepts**
 - Ordered sequential middleware pipeline
@@ -605,7 +605,7 @@ ASP.NET Core's middleware pipeline is ordered and sequential — each middleware
 
 ---
 
-## Gotcha 4. JWTs cannot be revoked without additional infrastructure
+#### Gotcha 4. JWTs cannot be revoked without additional infrastructure
 
 **Concepts**
 - Stateless validation — no built-in per-token invalidation
@@ -618,7 +618,7 @@ Because JWT validation is stateless — the server checks only the signature, cl
 
 ---
 
-## Gotcha 5. CORS `AllowAnyOrigin` and `AllowCredentials` cannot be combined
+#### Gotcha 5. CORS `AllowAnyOrigin` and `AllowCredentials` cannot be combined
 
 **Concepts**
 - CORS specification prohibition on wildcard origin with credentials
@@ -628,3 +628,68 @@ Because JWT validation is stateless — the server checks only the signature, cl
 **Answer**
 
 The CORS specification explicitly prohibits responding with `Access-Control-Allow-Origin: *` when the request includes credentials. ASP.NET Core enforces this at runtime — calling `AllowAnyOrigin().AllowCredentials()` together throws an `InvalidOperationException` at startup. The correct approach when credentials are required is to use `WithOrigins("https://app.example.com")` to name specific allowed origins rather than using the wildcard. Developers sometimes work around the startup exception by setting the `Access-Control-Allow-Origin` header manually in middleware, bypassing the policy system entirely — this is an insecure pattern that can inadvertently reflect arbitrary origins.
+
+---
+
+#### Gotcha 6. The `alg:none` Attack — Accepting Tokens With No Signature
+
+**Concepts**
+- `alg: "none"` in JWT header claiming the token is unsigned
+- Libraries that accept `none` without explicit opt-in — silent signature bypass
+- `ValidAlgorithms` allowlist in `TokenValidationParameters` as the defence
+
+**Answer**
+
+The JWT specification allows `alg: "none"` to indicate an unsigned token. Some JWT libraries, when `ValidateIssuerSigningKey` is not enforced or when the algorithm is not restricted, will accept a token whose header declares `alg: "none"` and whose signature segment is empty — effectively allowing an attacker to forge any token payload without knowing the signing key. `Microsoft.IdentityModel.Tokens` does not accept `alg: "none"` by default, but third-party or older libraries may. The defence is to configure `TokenValidationParameters.ValidAlgorithms = new[] { "RS256" }` (or whichever algorithm the issuer uses), which causes the middleware to reject any token signed with an unexpected or absent algorithm before even attempting signature verification.
+
+---
+
+#### Gotcha 7. Symmetric Signing Keys Must Never Be Shared Across Trust Boundaries
+
+**Concepts**
+- Symmetric key holder can both verify and forge tokens
+- Any party holding the key is fully trusted — no asymmetric verification split
+- RS256 / ES256 as the secure choice when resource servers must only verify
+
+**Answer**
+
+When a JWT is signed with a symmetric algorithm such as HMAC-SHA256 (`HS256`), any party holding the signing key can both verify existing tokens and forge new ones with arbitrary claims. Sharing a symmetric signing key with a resource server (API) that only needs to verify tokens gives that server the ability to issue tokens — a significant overprivilege. The secure design for systems where the issuer (authorization server) and the verifier (resource server) are separate components is to use an asymmetric algorithm: the issuer signs with a private key it never shares, and the resource server verifies with the corresponding public key. Symmetric keys should be used only in closed systems where a single component both issues and verifies tokens.
+
+---
+
+#### Gotcha 8. Token `exp` Is Validated Against Server Clock — Clock Skew Must Be Configured
+
+**Concepts**
+- Server UTC clock as the reference for `exp` validation
+- `ClockSkew` defaulting to 5 minutes — tokens valid longer than their `exp` suggests
+- Distributed systems with misaligned clocks causing premature or delayed expiry
+
+**Answer**
+
+JWT expiry (`exp`) is validated against the server's UTC clock. `TokenValidationParameters.ClockSkew` defaults to 5 minutes, meaning a token is considered valid for up to 5 minutes after its `exp` timestamp to account for minor clock drift between the issuer and the validator. In distributed systems where server clocks are not synchronized, this default can cause tokens to be accepted past their intended expiry or rejected before they expire from the client's perspective. Teams that want strict expiry enforcement should set `ClockSkew = TimeSpan.Zero` explicitly; teams operating in environments with known clock drift should ensure NTP synchronization and set the skew accordingly, rather than inflating it arbitrarily to mask synchronization problems.
+
+---
+
+#### Gotcha 9. Not Validating `aud` Allows Tokens Issued for One API to Access Another
+
+**Concepts**
+- `aud` binding a token to its intended audience
+- `ValidateAudience = true` required alongside `ValidAudience`
+- Confused deputy attack: valid token, wrong audience
+
+**Answer**
+
+`TokenValidationParameters.ValidateAudience` defaults to `true`, but the validation is only meaningful when `ValidAudience` (or `ValidAudiences`) is also configured. An API that sets `ValidateAudience = false`, or configures an overly broad audience such as `"api"`, will accept any JWT regardless of which resource it was actually issued for. An attacker who obtains a valid token for API-A can replay it against API-B if neither API validates the audience claim. Each API must configure the exact audience identifier that the authorization server embeds in tokens intended for that API — typically a URI or application ID — and reject tokens for any other audience.
+
+---
+
+#### Gotcha 10. Bearer Token in a Query String Is Logged — Only the Authorization Header Is Safe
+
+**Concepts**
+- Query string parameters persisted in server access logs, browser history, and referrer headers
+- Authorization header not logged by most HTTP server access-log configurations
+- `AddAuthentication().AddJwtBearer()` not supporting query string tokens by default
+
+**Answer**
+
+Some integrations — particularly SignalR hubs and download endpoints — pass the bearer token as a query string parameter (`?access_token=...`) because browser APIs cannot set custom headers for these request types. Query string parameters are written to server access logs, appear in browser history, and are included in `Referer` headers on subsequent navigations, all of which can expose the token to unintended parties. The `Authorization: Bearer` header is not logged by default in standard HTTP server configurations. When query string token support must be used, it should be enabled explicitly via `JwtBearerEvents.OnMessageReceived`, applied only to the specific path (e.g., `/hubs/`), and paired with short token lifetimes to limit the exposure window.

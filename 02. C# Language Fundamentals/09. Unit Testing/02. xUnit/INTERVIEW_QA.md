@@ -926,3 +926,148 @@ public sealed class OrderIntegrationTests : IClassFixture<DatabaseFixture>
 2. Remove the `DELETE FROM Orders` statement from `Test_CreateOrder_SetsId` — if the table is clean at the start of each test via the rollback pattern, the delete is unnecessary.
 3. Rewrite `Test_CountOrders_AfterCreate` to perform its own insert inside its own transaction, assert the count, and roll back — it should not depend on another test's data.
 4. Rename both tests to describe their individual behavior rather than implying a sequence: `SaveOrder_ValidOrder_PersistsRow` and `GetOrderCount_AfterSingleInsert_ReturnsOne`.
+
+
+## Gotchas — xUnit (Interview Traps)
+
+---
+
+#### Gotcha 1. `[Fact]` vs `[Theory]` — Fact is a single test; Theory runs multiple times with `[InlineData]`
+
+**Concepts**
+- `[Fact]`: one execution, no parameters
+- `[Theory]`: parameterized; requires at least one `[InlineData]`, `[MemberData]`, or `[ClassData]`
+- `[Theory]` without a data attribute causes a runtime error, not a compile error
+- each `[InlineData]` row appears as a separate test in the test runner
+
+**Answer**
+
+`[Fact]` marks a single, non-parameterized test method. `[Theory]` marks a method that accepts parameters and is driven by one or more data attributes; the test runner invokes it once per data row. A `[Theory]` method with no data attributes compiles successfully but throws `InvalidOperationException: No data found for Theory` at runtime — the compiler does not catch this. Each `[InlineData]` row appears as a separate named test in the test results, making it easy to see which specific input caused a failure. `[MemberData]` and `[ClassData]` are used when the data is too complex or large to inline as attribute arguments.
+
+---
+
+#### Gotcha 2. xUnit creates a new test class instance per test — `IClassFixture<T>` for shared setup
+
+**Concepts**
+- xUnit instantiates the test class constructor for each test method
+- no shared state between tests via instance fields (by design)
+- `IClassFixture<T>` provides one shared fixture instance per test class
+- `ICollectionFixture<T>` shares one fixture across multiple test classes
+
+**Answer**
+
+Unlike MSTest (which reuses the test class instance by default), xUnit creates a brand new instance of the test class for each test method. This means instance fields initialized in the constructor are fresh for every test — there is no accidental shared mutable state between tests. When expensive setup (e.g., starting a test database or loading a file) must be shared, implement `IClassFixture<T>` by declaring `public class MyTests : IClassFixture<DatabaseFixture>` and injecting the fixture via the constructor. The fixture is constructed once per test class and disposed after the last test in the class. For sharing across multiple test classes, use `ICollectionFixture<T>` with a `[Collection("name")]` attribute.
+
+---
+
+#### Gotcha 3. `Assert.Throws<T>` vs `Record.Exception` — Throws asserts AND returns the exception
+
+**Concepts**
+- `Assert.Throws<T>(action)` asserts that the action throws exactly `T` and returns the exception
+- `Record.Exception(action)` captures any exception without asserting; returns `null` if none thrown
+- `await Assert.ThrowsAsync<T>(asyncAction)` for async code
+- `Assert.Throws<T>` fails if a derived exception type is thrown instead of exactly `T`
+
+**Answer**
+
+`var ex = Assert.Throws<ArgumentException>(() => sut.Process(null))` both asserts that `ArgumentException` is thrown and returns the exception object for further inspection (`ex.ParamName`, `ex.Message`). If no exception or a different exception type is thrown, the test fails with a descriptive message. `Record.Exception(() => sut.Process(null))` captures whatever exception occurs (or `null` if none) without asserting — useful when you want to check multiple conditions on the exception or test that no exception is thrown. `Assert.Throws<T>` uses exact type matching, not `is`: if the code throws `ArgumentNullException` (which derives from `ArgumentException`), `Assert.Throws<ArgumentException>` still fails; use `Assert.ThrowsAny<ArgumentException>` for "this type or derived".
+
+---
+
+#### Gotcha 4. `Assert.Equal` collection overload — compares elements, not reference
+
+**Concepts**
+- `Assert.Equal(expected, actual)` on collections compares element-by-element using `Equals`
+- `Assert.Same(expected, actual)` checks reference identity
+- order matters: `[1, 2, 3]` is not equal to `[3, 2, 1]` by default
+- `Assert.Equivalent` (xUnit 2.7+) for order-insensitive deep comparison
+
+**Answer**
+
+`Assert.Equal(new[] { 1, 2, 3 }, new[] { 1, 2, 3 })` passes because xUnit's `Equal` for `IEnumerable<T>` compares elements in order using the element's `Equals`. Two distinct array objects with the same elements are considered equal — this is value equality, not reference equality. `Assert.Same` would fail for separately allocated arrays even with identical content. Element order matters: `Assert.Equal(new[] { 1, 2, 3 }, new[] { 3, 2, 1 })` fails. When order should not matter, use `Assert.Equivalent(expected, actual, strict: false)` (xUnit 2.7+) or sort both collections before comparing. For dictionaries and complex objects, `Assert.Equivalent` performs a deep structural comparison.
+
+---
+
+#### Gotcha 5. `[Collection]` attribute — tests in the same collection share a `ICollectionFixture<T>`
+
+**Concepts**
+- `[Collection("IntegrationTests")]` groups test classes into one collection
+- all classes in the collection share one `ICollectionFixture<T>` instance
+- xUnit does NOT run test classes in the same collection in parallel (by design)
+- a collection with no `ICollectionFixture<T>` still serializes test class execution
+
+**Answer**
+
+`[Collection("IntegrationTests")]` applied to two test classes tells xUnit they belong to the same collection. xUnit then: (a) creates a single shared `ICollectionFixture<T>` instance that is injected into all test classes in the collection, and (b) does not run the test classes in parallel with each other. This is the mechanism for sharing an expensive resource (a database container, a test server) across multiple test classes without reinitializing it for each class. It is also the mechanism for serializing classes that must not run concurrently (e.g., tests that mutate a shared database). Applying `[Collection]` without a corresponding `ICollectionFixture<T>` still serializes the classes, which is sometimes used deliberately to prevent parallelism even without shared state.
+
+---
+
+#### Gotcha 6. `IAsyncLifetime` — async setup and teardown for xUnit fixtures
+
+**Concepts**
+- `IAsyncLifetime` provides `InitializeAsync()` and `DisposeAsync()` for async fixture lifecycle
+- replaces constructor (synchronous) when setup involves async I/O
+- xUnit awaits `InitializeAsync` before running any test in the class
+- `IAsyncLifetime` on the test class itself provides per-test async setup/teardown
+
+**Answer**
+
+xUnit calls the test class constructor synchronously, which means async initialization cannot be awaited in the constructor. `IAsyncLifetime` provides `InitializeAsync()` and `DisposeAsync()` methods that xUnit awaits around each test. Implementing `IAsyncLifetime` on a fixture class (used with `IClassFixture<T>`) allows async initialization — starting a container, opening a database connection, seeding data — before the first test runs. Implementing it on the test class itself provides per-test async setup (like `[TestInitialize]` in MSTest). Using `Task.Run(() => asyncSetup()).GetAwaiter().GetResult()` in the constructor as a workaround can cause deadlocks in synchronization-context environments and should never be used.
+
+---
+
+#### Gotcha 7. `Assert.True(condition)` vs meaningful assertion — always prefer specific assertions for better error messages
+
+**Concepts**
+- `Assert.True(a == b)` reports only "True was expected to be True" on failure
+- `Assert.Equal(a, b)` reports the expected and actual values
+- `Assert.True` is appropriate only for custom conditions with no specific assertion
+- specific assertions (`Equal`, `Contains`, `Null`, `Empty`) produce actionable failure messages
+
+**Answer**
+
+`Assert.True(order.Total == 99.99m)` is legal xUnit but produces a useless failure message: "Assert.True() Failure. Expected: True. Actual: False." — you have to debug to find the actual value. `Assert.Equal(99.99m, order.Total)` produces "Assert.Equal() Failure. Expected: 99.99. Actual: 105.00" — the failure is self-describing. Always use the most specific assertion available: `Assert.Equal` for values, `Assert.Contains` for collections and strings, `Assert.Null` / `Assert.NotNull`, `Assert.Empty` / `Assert.NotEmpty`, `Assert.Throws` for exceptions. Reserve `Assert.True` and `Assert.False` for conditions where no specific assertion exists, and always add a failure message: `Assert.True(result, "Expected valid result for input X")`.
+
+---
+
+#### Gotcha 8. Skip attribute: `[Fact(Skip = "reason")]` — test is not run but still appears in results
+
+**Concepts**
+- `[Fact(Skip = "...")]` skips the test; it appears as "Skipped" in the test report
+- reason string is mandatory best practice — documents why the test is skipped
+- skipped tests still count toward the test report but not toward pass/fail
+- skipping should be temporary; accumulating skipped tests reduces trust in the suite
+
+**Answer**
+
+`[Fact(Skip = "Blocked by issue #1234 — API not yet implemented")]` prevents the test from running while keeping it visible in the test report as "Skipped". This is different from commenting out the test — a skipped test is still discovered and reported, serving as a visible reminder that coverage is temporarily incomplete. The skip reason should reference an issue or explain the temporary condition so the team can decide when to re-enable it. A test suite with dozens of permanent skips is a sign of deferred work; treat the skip reason as a to-do comment and set up a process to review and clear skipped tests periodically.
+
+---
+
+#### Gotcha 9. Parallel test execution — xUnit runs test classes in parallel by default; use `[Collection]` to serialize
+
+**Concepts**
+- xUnit default: test CLASSES run in parallel; test METHODS within a class run sequentially
+- shared mutable static state between classes causes intermittent failures under parallelism
+- `[Collection("name")]` groups classes that must not run in parallel with each other
+- `xunit.runner.json` with `"parallelizeAssembly": false` disables all parallelism
+
+**Answer**
+
+xUnit's default behavior runs test classes in parallel threads, which finds concurrency bugs in production code but also exposes test suite design flaws. Tests in different classes that mutate shared static fields, a shared database without row-level isolation, or a shared port number will fail intermittently depending on execution order and timing. The `[Collection("SharedResource")]` attribute groups classes into one collection that xUnit runs sequentially. For integration tests that all need database access, placing them in one collection with a shared `DatabaseFixture` ensures they run sequentially against the same database instance, eliminating race conditions without sacrificing the shared setup cost.
+
+---
+
+#### Gotcha 10. `Output` via `ITestOutputHelper` — Console.WriteLine output is not captured; inject ITestOutputHelper
+
+**Concepts**
+- `Console.WriteLine` output is not visible in the xUnit test report
+- inject `ITestOutputHelper` via constructor and call `_output.WriteLine(...)`
+- output is captured per-test and shown only when the test fails (reduces noise)
+- useful for diagnostic information without polluting the pass output
+
+**Answer**
+
+xUnit does not capture `Console.WriteLine` output because tests run in threads without a bound console. To produce diagnostic output visible in the test results, inject `ITestOutputHelper` via the test class constructor: `public MyTests(ITestOutputHelper output) => _output = output;` and call `_output.WriteLine($"Processing {item}")` inside the test. xUnit captures this output per test and includes it in the test result when the test fails — it does not appear for passing tests, which keeps the output noise-free for the majority of green tests. This is the correct pattern for logging intermediate values during a debugging session or for capturing data that helps diagnose a flaky test failure.
+
+---

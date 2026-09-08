@@ -280,198 +280,147 @@ Class-level `[Route]` defines the shared URL prefix for the controller — all a
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
-
-#### Gotcha 1. POST returning 200 instead of 201
-
-**Concepts**
-- `201 Created` with `Location` header as REST create contract
-- `CreatedAtAction` / `CreatedAtRoute` generating correct response
-
-**Answer**
-
-A successful resource creation via POST should return `201 Created` with a `Location` header pointing to the new resource URI. I use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to produce `201`. Returning `200` for create operations hides the new resource URL from standard HTTP client libraries and OpenAPI-generated SDKs.
+## Gotchas — Routing & API Conventions (Interview Traps)
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 1. `[controller]` token changes when class is renamed
 
 **Concepts**
-- GET defined as safe and idempotent
-- Browsers, CDNs, and crawlers invoking GET without user intent
+- `[Route("api/[controller]")]` derives the URL segment from the class name at startup
+- Renaming `OrdersController` to `PurchasesController` changes public URL to `/api/purchases`
+- Partner integrations and OpenAPI clients silently break
+- Pin with literal route or `[ControllerName("orders")]` to decouple
 
 **Answer**
 
-GET must be safe and idempotent — performing deletes or updates on GET violates HTTP semantics, breaks caching proxies, and creates security holes when URLs are prefetched. I use POST, PUT, PATCH, or DELETE for state changes and keep GET read-only.
+`[Route("api/[controller]")]` inserts the controller class name (minus the "Controller" suffix) into the URL at application startup, so renaming the class to `PurchasesController` changes every public endpoint URL from `/api/orders` to `/api/purchases` with zero compile-time warning. Every consumer that hard-coded or code-generated client URLs from the previous contract receives 404. I pin the URL with a literal route — `[Route("api/orders")]` — or apply `[ControllerName("orders")]` to decouple the route segment from the class name, and always run integration tests that assert endpoint URLs before any rename reaches production.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 2. Ambiguous route templates — string parameter swallowing integer routes
 
 **Concepts**
-- `ProblemDetails` / `ValidationProblemDetails` as standard error shapes
-- HTTP status codes driving client retry logic and APM alerting
+- `{id:int}` constraint — matches only numeric values
+- `{category}` — matches any string including numeric strings like `"10"`
+- Two competing templates for same path shape causes intermittent wrong action hit
+- Route resolution order — literal segments beat parameterized; constrained beats unconstrained
 
 **Answer**
 
-Business failures must map to appropriate `4xx` or `5xx` status codes — a `200` response with an error flag masks failures in dashboards and forces every client to parse the body. I return `ProblemDetails` or `ValidationProblemDetails` with appropriate status codes.
+`[HttpGet("{id:int}")]` and `[HttpGet("{category}")]` on the same controller both match `GET /api/products/10` because `"10"` is a valid string. Route resolution does not guarantee which action wins when both templates match the same path shape, so the wrong action executes intermittently depending on registration order. The fix is to use distinct path levels: `GET /api/products/{id:int}` for by-id and `GET /api/products/categories/{category}` for by-category so the templates never compete.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 3. Action-level absolute route overriding class-level prefix
 
 **Concepts**
-- Navigation properties triggering N+1 queries during serialization
-- Circular references causing JSON serializer loops
-- DTOs as stable public contract
+- Template starting with `/` or `~/` is absolute — ignores class-level `[Route]` prefix
+- Template without leading slash is relative — appended to class prefix
+- Absolute route on action unintentionally bypasses versioned prefix
+- Duplicate prefix bug: class `api/[controller]` + action `api/orders/{id}` produces doubled prefix
 
 **Answer**
 
-EF Core entities expose navigation properties and circular references that cause N+1 queries and `JsonException` at runtime. I return DTOs projected from EF queries to decouple the API contract from schema migrations.
+An action-level route template that begins with `/` or `~/` registers as an absolute path, completely ignoring the class-level `[Route]` prefix. This is useful for legacy alias routes but is a common bug when a developer copies a full path from documentation into the attribute: the route registers correctly but duplicates or contradicts the class prefix, producing URLs that differ from what the controller's other actions expose. Conversely, appending a redundant `api/orders/...` as a relative template doubles the `api` prefix. I always use relative templates on actions — path segments only, no leading slash — and rely on the class-level `[Route]` for the common prefix.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 4. Route constraint syntax errors silently preventing endpoint registration
 
 **Concepts**
-- ASP.NET Core 8 defaulting to camelCase via `System.Text.Json`
-- PascalCase client payloads binding as missing properties silently
+- Route constraint syntax: `{id:int}`, `{id:guid}`, `{id:minlength(3)}`
+- Typo in constraint — `{id:integer}` — causes endpoint to not register, returning 404
+- No startup error thrown for unknown constraint names
+- `int` vs `long` vs `guid` vs `regex(...)` available constraints
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON — PascalCase property names from some clients bind as missing properties at default values, causing silent data loss. I use `[JsonPropertyName]` or `PropertyNameCaseInsensitive = true` to align expectations.
+A typo in a route constraint — `{id:integer}` instead of `{id:int}`, or `{name:minLen(2)}` instead of `{name:minlength(2)}` — causes the endpoint to silently fail to register, returning 404 for all requests to that path. ASP.NET Core does not throw at startup for unknown constraint names by default. I validate route constraints in integration tests that assert every expected endpoint is reachable, and I use the exact constraint names from the documentation: `int`, `long`, `guid`, `bool`, `datetime`, `decimal`, `double`, `float`, `minlength(n)`, `maxlength(n)`, `length(n)`, `min(n)`, `max(n)`, `range(n,m)`, `alpha`, `regex(expr)`.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 5. Conventional routing used in a `[ApiController]` project
 
 **Concepts**
-- HTTP clients, proxies, and caches stripping GET request bodies
-- `[FromQuery]` for filters; POST to search endpoint for complex objects
+- `[ApiController]` requires attribute routing — ignores `MapControllerRoute`
+- Conventional routing designed for MVC actions with view names in URLs
+- `MapControllers()` vs `MapControllerRoute(...)` — different endpoint registration
+- Attribute routing expresses the full contract co-located with the action
 
 **Answer**
 
-Many HTTP clients, proxies, and caches ignore or strip GET request bodies — filters sent as JSON in GET requests fail silently. I use `[FromQuery]` for simple filters or POST to a dedicated search endpoint for complex filter objects.
+Conventional routing via `MapControllerRoute` is designed for MVC view controllers where the action name appears in the URL and a single route template covers many controller/action combinations. For `[ApiController]` Web API controllers, conventional routing is ignored — the attribute routes on the controller class and action methods are the only registration. Attempting to reach an `[ApiController]` endpoint via a conventional route template returns 404 because the framework requires attribute routing when `[ApiController]` is present. I use `app.MapControllers()` (no template argument) for Web API projects and `MapControllerRoute` only for MVC view areas.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 6. `CreatedAtAction` with missing parent route values in nested resources
 
 **Concepts**
-- CORS enforced by browsers only
-- Authentication and authorization as actual security boundary
+- Nested resource route: `api/customers/{customerId}/orders/{orderId}`
+- All route parameters needed in the anonymous object — missing one appends as query string
+- `CreatedAtAction(nameof(Get), new { orderId = order.Id }, dto)` — missing `customerId`
+- Correct: `new { customerId, orderId = order.Id }`
 
 **Answer**
 
-CORS is enforced by browsers only — it does not stop curl, Postman, or server-to-server calls. I register `AddCors` and `UseCors` for browser SPA access, and enforce JWT, cookies, or API keys separately for actual security.
+`CreatedAtAction` uses the routing system to generate the `Location` header URL. For a nested route like `api/customers/{customerId}/orders/{orderId}`, both `customerId` and `orderId` must be supplied in the route values anonymous object. Omitting `customerId` causes link generation to fall back to appending it as a query string — the `Location` header becomes `api/customers/{customerId}/orders?orderId=7` instead of `api/customers/3/orders/7`. I include every route parameter from the target action's template in the `CreatedAtAction` call, and assert the `Location` header with a follow-up GET in integration tests.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 7. Route ordering — literal vs parameterized segments at same depth
 
 **Concepts**
-- Browsers rejecting `*` origin with credentialed requests
-- `WithOrigins` and `AllowCredentials` required together
+- Literal segments have higher priority than parameterized segments in ASP.NET Core routing
+- `GET /api/products/featured` matches the literal `featured` action first
+- Two unconstrained parameterized templates at same depth still compete
+- Ordering guarantees: literals beat parameters; constrained parameters beat unconstrained
 
 **Answer**
 
-Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers. I specify explicit origins with `WithOrigins` and call `AllowCredentials` — the two cannot be combined with `AllowAnyOrigin`.
+ASP.NET Core's routing engine gives literal segments higher priority than parameterized ones, so `[HttpGet("featured")]` correctly takes priority over `[HttpGet("{id:int}")]` for `GET /api/products/featured`. However, `[HttpGet("{id:int}")]` and `[HttpGet("{category}")]` compete for the same request pattern because both are parameterized at the same depth — a numeric string like `"10"` satisfies both. Constraints narrow the match set but cannot disambiguate two unconstrained string parameters at the same position. The reliable fix is to give each variant a distinct URL shape.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 8. Lowercase URL policy breaking link generation
 
 **Concepts**
-- Swagger UI disclosing full API surface to public
-- Environment check gating `MapSwagger` and `UseSwaggerUI`
+- `RouteOptions.LowercaseUrls = true` — lowercases path segments in generated URLs
+- `CreatedAtAction` and `LinkGenerator` apply the policy to generated `Location` URLs
+- Path base not included unless `UsePathBase` is registered before routing
+- Reverse proxy adding path prefix that `LinkGenerator` does not know about
 
 **Answer**
 
-Public Swagger UI discloses the full API surface and try-it-out access. I gate `MapSwagger` and `UseSwaggerUI` behind environment checks or authorization middleware.
+`LowercaseUrls = true` in `RouteOptions` applies to URL generation only, not to routing match — so `GET /api/Orders/5` still resolves to the action even though the generated `Location` header says `/api/orders/5`. The problem is that link generation does not automatically include path bases added by `UsePathBase` unless that middleware runs before the request reaches routing. Integration tests that create a `WebApplicationFactory` without configuring the path base produce generated URLs without the prefix, masking the production bug where a gateway adds `/api/v1` as the base path.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 9. `MapControllers()` vs `MapDefaultControllerRoute()` — order matters
 
 **Concepts**
-- `[ApiController]` enabling automatic `400` validation and binding source inference
-- Mixed controllers producing inconsistent error contracts
+- `MapControllers()` — registers only attribute-routed `[ApiController]` endpoints
+- `MapDefaultControllerRoute()` — adds a conventional `{controller=Home}/{action=Index}` template
+- Endpoint registration order determining fallback for ambiguous paths
+- Adding `MapDefaultControllerRoute()` to a pure API project causing unexpected shadows
 
 **Answer**
 
-Without `[ApiController]`, automatic `400 ValidationProblemDetails` and binding source inference are disabled — mixed controllers in the same Web API produce inconsistent error contracts. I apply `[ApiController]` at the controller or assembly level.
+`MapControllers()` registers endpoints for `[ApiController]`-decorated controllers using their attribute route templates. Calling `MapDefaultControllerRoute()` in addition registers a conventional catch-all template that can shadow or conflict with attribute routes if registered in the wrong order. For a pure Web API project, only `MapControllers()` should be called; adding `MapDefaultControllerRoute()` is a leftover from an MVC template and can cause unexpected 404s or wrong-action matches when a URL happens to match both the conventional template and an attribute route.
 
 ---
 
-#### Gotcha 11. Blocking on `.Result` in async actions
+#### Gotcha 10. `[HttpGet]` and `[Route]` on the same action producing double route registration
 
 **Concepts**
-- Thread-pool starvation from `.Result` / `.Wait()` under concurrent load
-- Classic deadlock from synchronization context contention
+- `[Route("items")]` on action + `[HttpGet]` — two separate routes registered
+- One registers without HTTP method constraint; one registers GET only
+- POST to the non-HTTP-method-constrained route — action reached unexpectedly
+- Use only `[HttpGet("items")]` for combined method + route
 
 **Answer**
 
-Blocking on `.Result` or `.Wait()` causes thread-pool starvation and deadlocks under load. I always mark controller actions `async Task<IActionResult>` and `await` all the way through the service layer.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness checking whether process should be restarted
-- SQL checks belonging on readiness only
-
-**Answer**
-
-If the liveness probe fails when SQL is down, Kubernetes restarts pods that cannot fix the dependency. I put SQL, Redis, and external service checks on readiness only and map `/health/live` to a lightweight self-check.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- Lazy-loaded navigation properties triggering one SQL query per row
-- `Select` projection to DTOs generating a single bounded query
-
-**Answer**
-
-Returning entities with lazy-loaded navigation properties triggers one SQL query per row. I project directly to DTOs in LINQ so EF Core generates a single query with only the columns needed.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Concurrent inserts and deletes shifting offset window between pages
-- Keyset pagination using stable indexed key
-
-**Answer**
-
-Concurrent inserts and deletes cause duplicate or skipped rows with `Skip/Take`. Keyset pagination with `WHERE id > @lastId ORDER BY id LIMIT @pageSize` is stable regardless of concurrent writes.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers querying the database per parent row
-- DataLoader batching concurrent resolutions into single round-trips
-
-**Answer**
-
-Field resolvers that query the database per parent row explode SQL under load. I register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC using HTTP/2 binary framing not exposed to browser JavaScript
-- gRPC-Web middleware required for browser clients
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript. I add `AddGrpcWeb()` and `EnableGrpcWeb()` on mapped gRPC services and configure CORS for the browser origin.
+Placing both `[Route("items")]` and `[HttpGet]` on the same action registers two routes: one that matches any HTTP method and one that matches only GET. A POST request to that URL reaches the action through the method-unconstrained `[Route]` registration even though the developer intended GET-only. I use the combined `[HttpGet("path")]`, `[HttpPost("path")]`, etc. attributes which declare both the HTTP method and the route template in one attribute, and avoid placing a bare `[Route]` attribute on actions in API controllers.
 
 ---
 

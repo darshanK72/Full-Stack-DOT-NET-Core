@@ -484,215 +484,157 @@ This ensures `LoadConfigAsync` is called once. `Lazy<Task<T>>` is thread-safe fo
 
 ---
 
-## Gotchas & Traps
+## Gotchas — Async and Await (Interview Traps)
 
 ---
 
-## Q16. Classic deadlock: how does calling .Result on an async method deadlock in WPF?
+#### Gotcha 1. async void Exceptions Crash the Process
 
 **Concepts**
-- DispatcherSynchronizationContext on UI thread
-- .Result blocks UI thread waiting for task completion
-- Task continuation needs UI thread to resume
-- Deadlock: UI thread waiting for continuation; continuation waiting for UI thread
-- Fix: async all the way, or ConfigureAwait(false) throughout
+- async void has no Task to hold the exception
+- Exception is posted to the SynchronizationContext and becomes unhandled
+- Process terminates in most .NET environments
+- Only valid use of async void is event handlers
+- Fix: change to async Task; wrap event handler body in try/catch
 
 **Answer**
 
-```csharp
-// DEADLOCK: WPF button click handler
-private void Button_Click(object sender, RoutedEventArgs e)
-{
-    // Blocks the UI thread (DispatcherSynchronizationContext)
-    var result = GetDataAsync().Result;
-    label.Content = result;
-}
-
-private async Task<string> GetDataAsync()
-{
-    // After await, continuation wants to resume on UI thread (captured context)
-    var data = await httpClient.GetStringAsync("https://api.example.com/data");
-    return data;
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Deadlock | UI thread blocked by `.Result`; continuation posted to UI thread | Application hangs indefinitely — hard freeze |
-| Root cause | SynchronizationContext captured at await; post requires blocked thread | Classic circular wait |
-| Hidden risk | Works on console/ASP.NET Core (no SynchronizationContext) | Only fails in UI/ASP.NET Classic environments |
-
-**Fix priority:**
-1. Make the click handler `async void`: `private async void Button_Click(...)` and `await GetDataAsync()`.
-2. Add `ConfigureAwait(false)` to every `await` in `GetDataAsync()` as a library-safe fallback — continuations won't need the UI thread.
-3. Never use `.Result` or `.Wait()` on the UI thread.
+`async void` methods cannot be awaited, so any exception they throw has nowhere to go — it is posted to `SynchronizationContext.Current` and becomes an unhandled exception, terminating the process. Unlike `async Task`, there is no `Task.Exception` property to observe later. The only legitimate use of `async void` is for event handlers, because event delegates are `void`-returning and cannot be changed. Even there, the handler body should be wrapped in `try/catch` to prevent silent crashes. In all other contexts, change the return type to `async Task`.
 
 ---
 
-## Q17. What is the async void exception trap?
+#### Gotcha 2. Sync-Over-Async Deadlocks in Single-Threaded Contexts
 
 **Concepts**
-- async void exceptions posted to SynchronizationContext
-- No Task to observe the exception
-- Process termination in many environments
-- Compiler gives no warning for async void in non-event contexts
-- Test frameworks may also fail silently
+- SynchronizationContext posts continuations back to a single thread
+- .Result or .Wait() blocks that thread
+- Continuation cannot run — deadlock
+- No deadlock in ASP.NET Core or console apps (no single-threaded context)
+- Fix: await all the way through the call chain
 
 **Answer**
 
-```csharp
-// DANGER: async void swallows exception context
-async void FireAndForgetAsync()
-{
-    await Task.Delay(100);
-    throw new InvalidOperationException("This terminates the process");
-}
-
-void CallerMethod()
-{
-    FireAndForgetAsync(); // no Task returned, no await possible
-    // Exception posted to SynchronizationContext → process crash
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Exception Propagation | Exception cannot be caught by caller | Silent application crash |
-| Composability | No Task returned — cannot await, cancel, or chain | Untestable code |
-| Debugging | Stack trace lost when posted to SynchronizationContext | Hard to diagnose crash location |
-
-**Fix priority:**
-1. Change return type to `async Task`: allows caller to `await` and catch exceptions.
-2. If fire-and-forget is required, wrap in a `Task.Run` with explicit exception handling.
-3. Register `TaskScheduler.UnobservedTaskException` as a safety net for logging.
+Calling `.Result` or `.Wait()` on an async method in a WPF, WinForms, or ASP.NET Classic environment blocks the single context thread. The awaited method captures that context at its `await`, and its continuation is scheduled to run on the same thread — which is blocked waiting for it. The result is a permanent deadlock. This pattern works fine in ASP.NET Core and console apps because they have no single-threaded `SynchronizationContext`, but it reliably deadlocks in UI apps. The only safe fix is to propagate `await` through the entire call chain.
 
 ---
 
-## Q18. What is the "not awaiting a task" (fire-and-forget) bug?
+#### Gotcha 3. ConfigureAwait(false) Is Required in Library Code
 
 **Concepts**
-- Assigning Task to _ (discard) without error handling
-- Returning before task completes (race condition)
-- Exception silently lost
-- Application state may be inconsistent
-- Proper fire-and-forget pattern with logging
+- Library code runs in arbitrary caller contexts
+- Without ConfigureAwait(false), continuations marshal back to the caller's context
+- If caller uses .Result in a UI thread, deadlock risk increases
+- ConfigureAwait(false) is defensive coding in libraries — not optional
+- Application-layer code that uses UI or request context should NOT use ConfigureAwait(false)
 
 **Answer**
 
-```csharp
-// BUG: not awaiting — task result/exception silently lost
-public async Task UpdateCacheAsync(string key, object value)
-{
-    await _db.SaveAsync(key, value);
-    _ = _cache.RefreshAsync(key); // NOT awaited — fire and forget
-    // Method returns before cache refresh completes
-    // If RefreshAsync throws, exception is lost
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Exception Safety | RefreshAsync exception never observed | Cache inconsistency with no diagnostic |
-| Race Condition | Caller may read stale cache before refresh completes | Data integrity issue |
-| Lifecycle | No cancellation on shutdown — refresh may run after service stops | Resource leak |
-
-**Fix priority:**
-1. If the cache refresh should complete before returning: `await _cache.RefreshAsync(key)`.
-2. If truly fire-and-forget: add explicit fault handling: `_ = _cache.RefreshAsync(key).ContinueWith(t => _logger.LogError(t.Exception, "Cache refresh failed"), TaskContinuationOptions.OnlyOnFaulted)`.
-3. For background work with lifecycle management, enqueue to a hosted `IBackgroundTaskQueue`.
+Library methods that do not need to resume on the caller's context should always add `.ConfigureAwait(false)` to every internal `await`. Without it, continuations post back to whatever `SynchronizationContext` the caller has — typically the UI thread or request thread — increasing the chance of deadlocks when callers use the library from synchronous code. This is defensive practice: the library does not know how it will be called. Application code that accesses UI controls, `HttpContext`, or `DbContext` after an `await` must not use `ConfigureAwait(false)` on that specific `await`, because it needs to resume on the original context.
 
 ---
 
-## Q19. What is awaiting in a loop vs Task.WhenAll — which is better?
+#### Gotcha 4. await in catch and finally Requires C# 6 or Later
 
 **Concepts**
-- Sequential await: tasks run one at a time (serial)
-- Task.WhenAll: all tasks run in parallel
-- Awaiting in loop misses parallelism opportunity
-- Task.WhenAll: all tasks created before any is awaited
-- Consider bounded parallelism for large collections
+- C# 5 and earlier: await not allowed in catch or finally blocks
+- C# 6+: await is permitted in both catch and finally
+- Pre-C# 6 workaround: flag variable + second try block
+- Incorrect workaround can miss awaiting the cleanup task
+- Most code targets C# 9+ today — but legacy codebases still exist
 
 **Answer**
 
-```csharp
-// SEQUENTIAL — slow: each fetch waits for previous to complete
-async Task<List<string>> FetchAllSequential(IEnumerable<string> urls)
-{
-    var results = new List<string>();
-    foreach (var url in urls)
-        results.Add(await httpClient.GetStringAsync(url)); // serial
-    return results;
-}
-
-// PARALLEL — fast: all fetches in-flight simultaneously
-async Task<string[]> FetchAllParallel(IEnumerable<string> urls)
-{
-    var tasks = urls.Select(url => httpClient.GetStringAsync(url));
-    return await Task.WhenAll(tasks); // parallel
-}
-```
-
-The sequential version runs in `N × latency` time; the parallel version runs in approximately `max(latency)` time. For I/O-bound operations like HTTP requests, `Task.WhenAll` is almost always better. However, for large collections (thousands of URLs), creating all tasks at once can overwhelm the target service or exhaust resources — use `SemaphoreSlim` to bound concurrency. The rule: if the operations are independent and I/O-bound, prefer `Task.WhenAll` with bounded concurrency over sequential `await` in a loop.
+In C# 5, `await` was not permitted inside `catch` or `finally` blocks. Developers who needed to perform async cleanup on exception had to set a flag, exit the catch block, and conditionally execute the async cleanup afterward — an awkward and error-prone pattern. C# 6 removed this restriction, and today `await` works correctly inside both `catch` and `finally`. This is a non-issue for code targeting modern C#, but when maintaining pre-C# 6 codebases or understanding older patterns, awareness of this limitation explains why some cleanup code is written in an unusual flag-based style.
 
 ---
 
-## Q20. What happens when you use ConfigureAwait(false) incorrectly in UI code?
+#### Gotcha 5. Returning Task Without async Avoids Unnecessary State Machine Overhead
 
 **Concepts**
-- ConfigureAwait(false) removes context capture
-- Continuation runs on ThreadPool, not UI thread
-- Accessing UI elements from non-UI thread throws InvalidOperationException
-- Correct use: library methods that don't touch UI
-- Wrong use: UI code that accesses controls after await
+- Adding async to a method that only delegates creates a state machine for no benefit
+- State machine adds allocation and overhead per call
+- If the method simply returns the result of another async call, drop async/await
+- Exception semantics differ slightly: without async, exceptions propagate synchronously
+- Benchmark before optimizing — the overhead is small for most paths
 
 **Answer**
 
-`ConfigureAwait(false)` is correct in library code that does not need the original context. In UI code, it causes exceptions when the code after the `await` tries to access UI elements:
-
-```csharp
-// BUG in WPF code-behind: ConfigureAwait(false) in UI handler
-private async void LoadButton_Click(object sender, RoutedEventArgs e)
-{
-    var data = await LoadDataAsync().ConfigureAwait(false); // opts out of UI context
-    label.Content = data; // CRASH: InvalidOperationException — wrong thread
-}
-
-// CORRECT in WPF code-behind: no ConfigureAwait(false)
-private async void LoadButton_Click(object sender, RoutedEventArgs e)
-{
-    var data = await LoadDataAsync(); // captures UI context, resumes on UI thread
-    label.Content = data; // safe
-}
-```
-
-The guideline: application-layer code that accesses context-sensitive resources (UI controls, `HttpContext`, `DbContext`) should not use `ConfigureAwait(false)`. Library code that has no such dependencies should always use it. The simplest rule: if you need to touch a UI element after the `await`, do not use `ConfigureAwait(false)` on that `await`.
+When an async method body is simply `return await SomeOtherAsync()`, the `async` keyword creates an unnecessary state machine — an allocation and a few nanoseconds of overhead per call. The same behavior can be achieved by removing `async` and returning the `Task` directly: `return SomeOtherAsync()`. However, there is a subtle difference: without `async`, exceptions thrown synchronously before the task is returned propagate directly to the caller rather than being wrapped in the returned task. For methods with no logic before the `return`, either style works; for methods with guard clauses before the return, keep `async` to ensure all exceptions are captured in the task.
 
 ---
 
-## Q21. What are the pitfalls of using async with LINQ?
+#### Gotcha 6. Exceptions Wrap Into AggregateException Only via .Result, Not via await
 
 **Concepts**
-- LINQ Select does not await — returns IEnumerable<Task<T>>
-- ToList() needed to materialize tasks before WhenAll
-- Async lambdas in Where/OrderBy not awaited
-- Parallel execution vs sequential — LINQ doesn't control it
-- System.Linq.Async for true async LINQ
+- await unwraps AggregateException and rethrows only the first inner exception
+- .Result/.Wait() throw AggregateException wrapping the task's exceptions
+- Code that catches AggregateException with await never fires
+- Code that catches specific exception types works with await
+- Mismatch causes swallowed exceptions when switching between await and .Result
 
 **Answer**
 
-Standard LINQ operators do not support async natively. Passing an async lambda to `Select` creates an `IEnumerable<Task<T>>`, not `IEnumerable<T>`. Not materializing the tasks leads to deferred execution issues:
+`await` unwraps a faulted task's exception and rethrows the first `InnerException` directly — the `catch (AggregateException)` block never fires. `.Result` and `.Wait()` throw an `AggregateException` wrapping all task exceptions. Code written to catch `AggregateException` breaks silently when migrated from `.Result` to `await`, because the `catch` clause is never entered. The fix is to catch the specific exception type in async code (e.g., `catch (InvalidOperationException)`) and reserve `AggregateException` handling for code that explicitly uses `.Result` or `Task.WhenAll` results without awaiting.
 
-```csharp
-// BUG: LINQ deferred — tasks not started yet
-var results = items.Select(async item => await ProcessAsync(item));
-// results is IEnumerable<Task<string>> — nothing has run
+---
 
-// CORRECT: materialize into array of started tasks, then WhenAll
-var tasks = items.Select(item => ProcessAsync(item)).ToArray();
-var results = await Task.WhenAll(tasks);
-```
+#### Gotcha 7. IAsyncDisposable Requires "await using", Not Just "using"
 
-Async lambdas in `Where` or `OrderBy` are even more dangerous: `Select` returns `Task<bool>` from the predicate, not `bool`, so filtering does not work as intended. The `System.Linq.Async` NuGet package from the Reactive Extensions team provides `SelectAwait`, `WhereAwait`, and other operators that properly handle async lambdas with sequential execution. For parallel LINQ, prefer `Task.WhenAll` over `AsParallel().Select(async ...)`, which has poor async support.
+**Concepts**
+- IAsyncDisposable.DisposeAsync returns ValueTask
+- A plain "using" statement calls Dispose(), not DisposeAsync()
+- If the type only implements IAsyncDisposable (not IDisposable), "using" fails to compile
+- "await using" is the correct syntax for async disposal
+- Common with EF Core DbContext, HttpClient handlers, and stream wrappers
+
+**Answer**
+
+`IAsyncDisposable` exposes `DisposeAsync()` which returns a `ValueTask`. Using such a type inside a plain `using` statement calls `Dispose()` — if the type implements only `IAsyncDisposable` (not the synchronous `IDisposable`), this fails to compile. Even when both interfaces are implemented, a plain `using` block calls the synchronous `Dispose`, bypassing the async cleanup path entirely. The correct syntax is `await using var resource = new AsyncResource()`, which calls `DisposeAsync()` and awaits the result. This is particularly important for EF Core's `DbContext` and custom stream wrappers that need async flush on disposal.
+
+---
+
+#### Gotcha 8. CancellationToken Must Flow Through the Entire Call Chain
+
+**Concepts**
+- Passing CancellationToken only to the top-level method does not cancel inner calls
+- Inner awaits that don't receive the token cannot be cancelled
+- Results in slow cancellation: outer method is cancelled but inner work continues
+- Pass the token to every async method, every HttpClient call, every EF Core query
+- CancellationToken.None is an anti-pattern in library code
+
+**Answer**
+
+Cancellation in .NET is cooperative — every method that can be cancelled must receive the `CancellationToken` and pass it to its own inner calls. Accepting a token at the entry point but not threading it through to `HttpClient.GetAsync`, `DbContext.SaveChangesAsync`, or `Task.Delay` calls means those operations continue running after cancellation is requested, causing slow or incomplete cancellation. The pattern to follow: every async method signature that does any I/O should accept a `CancellationToken` parameter with a default of `default`, and pass it to every inner awaitable call.
+
+---
+
+#### Gotcha 9. CPU-Bound Work in async Methods Must Use Task.Run
+
+**Concepts**
+- async/await is designed for I/O-bound work — it does not parallelize CPU work
+- CPU-bound code inside an async method still runs synchronously on the calling thread
+- Task.Run moves CPU work to a ThreadPool thread
+- Blocking the calling thread in an async method defeats its purpose
+- Use Task.Run for CPU-intensive operations in async UI or server code
+
+**Answer**
+
+`async/await` does not make CPU-bound work faster or non-blocking — it only releases the calling thread during genuine waits (I/O, timers, network). A CPU-intensive loop inside an `async` method runs synchronously on whatever thread called it, blocking that thread just as a non-async method would. For CPU-bound work that must not block the calling thread (e.g., in a UI handler), use `await Task.Run(() => CpuIntensiveWork())` to offload the computation to a ThreadPool thread. For ASP.NET Core server code, `Task.Run` for CPU work is generally unnecessary because there is no UI thread to protect — but it still helps for extremely long-running computations that would otherwise hold a request thread.
+
+---
+
+#### Gotcha 10. Async Constructors Are Not Allowed — Use a Static Factory Method
+
+**Concepts**
+- Constructors cannot be async and cannot return Task
+- Calling an async method from a constructor leaves it fire-and-forget
+- The object is returned before async initialization completes
+- Pattern: private constructor + public static async factory method
+- Alternatively: a separate InitializeAsync() method called after construction
+
+**Answer**
+
+C# constructors are synchronous and cannot be `async`. Calling an async initialization method inside a constructor and not awaiting it creates a fire-and-forget task — the constructor returns the object before initialization completes, leaving the object in a partially initialized state. The standard pattern is a private constructor combined with a `public static async Task<T> CreateAsync(...)` factory method that awaits all async initialization before returning the fully ready object. Callers use `var obj = await MyClass.CreateAsync()` instead of `new MyClass()`. An alternative is a public `InitializeAsync()` method, but this is less safe because callers can forget to call it.
 
 ---
 

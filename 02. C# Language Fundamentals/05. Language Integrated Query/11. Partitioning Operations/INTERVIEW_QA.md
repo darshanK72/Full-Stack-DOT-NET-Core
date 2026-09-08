@@ -287,3 +287,147 @@ foreach (var chunk in orders.Chunk(100))
 ```
 
 The first approach (database-side `Skip`/`Take`) is more memory-efficient for very large datasets. The second approach (in-memory `Chunk`) is simpler but loads all records first — use it only when the total count is manageable.
+
+## Gotchas — Partitioning Operations (Interview Traps)
+
+---
+
+#### Gotcha 1. `Skip(n)` and `Take(n)` Are Deferred — No Data Fetched Until Enumerated
+
+**Concepts**
+- `Skip` and `Take` are lazy operators; they build a query description, not a result
+- Assigning `var page = source.Skip(10).Take(10)` stores the query object
+- Data is fetched only when the sequence is iterated (e.g., `foreach`, `ToList()`, `Count()`)
+- On `IQueryable`, the SQL OFFSET/FETCH is emitted at enumeration time, not at the `Skip`/`Take` call
+
+**Answer**
+
+`source.Skip(10).Take(10)` produces a deferred query object — no elements are read, no SQL is executed, and no memory is allocated for results until the query is consumed. This is correct behaviour but surprises developers who expect partial data to be available after the call. Materializing with `ToList()` or iterating with `foreach` is what triggers actual data retrieval. For `IQueryable`, the OFFSET/FETCH clause appears in the SQL only at enumeration time.
+
+---
+
+#### Gotcha 2. `Skip(n)` on Non-Indexed Sources Is O(n) — Not O(1)
+
+**Concepts**
+- `Skip(n)` enumerates and discards the first `n` elements; it cannot jump to position `n` in O(1)
+- `IEnumerable<T>` has no random-access index; iterating is the only way to advance the position
+- For large `n`, `Skip` over a non-indexed source has significant cost even though no results are returned
+- `IList<T>` does support random access, and some LINQ implementations optimise for this, but the interface contract does not guarantee it
+
+**Answer**
+
+`source.Skip(1000000).Take(10)` on an in-memory `IEnumerable<T>` discards one million elements one by one — O(n) work — before returning the ten desired elements. On a database-backed `IQueryable`, EF Core translates `Skip` to SQL `OFFSET`, which lets the database skip rows efficiently; but on any in-memory non-indexed collection, the overhead grows linearly with `n`. For paginating over large in-memory collections, consider keyset pagination or materializing into an array and using array slicing instead.
+
+---
+
+#### Gotcha 3. `Take(n)` Short-Circuits After `n` Elements — Efficient for Expensive Sources
+
+**Concepts**
+- `Take(n)` stops pulling elements from the source after `n` elements have been yielded
+- The upstream source is only partially enumerated, which is valuable for expensive generators or large files
+- Combining with a lazy source (e.g., reading lines from a large file) limits actual work to `n` elements
+- `Take(0)` returns an empty sequence immediately without evaluating any source elements
+
+**Answer**
+
+`source.Take(5)` evaluates at most five elements from the source regardless of the source's total length. For a generator that reads from a network stream, a large file, or a computationally expensive sequence, `Take` acts as an early-exit mechanism that avoids unnecessary work. This is why methods like `ReadLines(path).Take(100)` are safe for gigabyte-sized files — only the first 100 lines are ever read.
+
+---
+
+#### Gotcha 4. `SkipWhile` Is Not the Same as `Skip(n)` — Stops Skipping at the First Non-Match
+
+**Concepts**
+- `SkipWhile(predicate)` skips elements while the predicate is true and stops skipping at the first false
+- Elements after the first non-matching element are always returned, even if the predicate would be true again
+- `Skip(n)` skips an exact count; `SkipWhile` skips a condition-dependent prefix
+- If no element satisfies the predicate (all elements match), `SkipWhile` returns an empty sequence
+
+**Answer**
+
+`source.SkipWhile(x => x < 5)` skips `1, 2, 3, 4` and then stops skipping when it reaches `5`; from that point all remaining elements are returned, including any later values less than 5. The predicate is only evaluated for the leading prefix — once it returns `false`, the predicate is never consulted again. This behaviour means `SkipWhile` is not a filter; it is a prefix-trimmer.
+
+---
+
+#### Gotcha 5. `TakeWhile` Stops at the First Non-Match — Later Matching Elements Are Lost
+
+**Concepts**
+- `TakeWhile(predicate)` returns elements from the start while the predicate is true
+- As soon as one element fails the predicate, enumeration stops completely
+- Subsequent elements that would satisfy the predicate are never returned
+- `TakeWhile` is a prefix-taker, not a filter; use `Where` to keep matching elements throughout the sequence
+
+**Answer**
+
+`source.TakeWhile(x => x < 5)` on `{1, 2, 6, 3, 4}` returns `{1, 2}` and stops at `6` — the elements `3` and `4` that follow are never returned even though they satisfy the predicate. Developers who expect `TakeWhile` to behave like a `Where` clause will lose elements. `TakeWhile` is only appropriate when the desired elements form a contiguous prefix of the sequence.
+
+---
+
+#### Gotcha 6. Pagination Pattern — `Skip((page-1)*size).Take(size)` Degrades for Large Offsets
+
+**Concepts**
+- `Skip(offset).Take(pageSize)` is the standard LINQ pagination pattern
+- On non-indexed in-memory sources, `Skip` cost is O(offset) — later pages are slower
+- On databases, SQL `OFFSET n FETCH NEXT m ROWS` also degrades for large offsets on many engines
+- Keyset (seek) pagination using a `WHERE id > lastId` pattern scales O(1) per page
+
+**Answer**
+
+`orders.Skip((page - 1) * 20).Take(20)` works correctly but page 5000 skips 99,980 rows — on an in-memory collection that means discarding 99,980 elements; on a database it means the engine must scan and skip those rows. For large datasets requiring deep pagination, keyset pagination (`WHERE Id > @lastSeenId ORDER BY Id`) maintains constant performance regardless of page number. The offset pattern is acceptable for small datasets or shallow pagination where page depths stay low.
+
+---
+
+#### Gotcha 7. `Chunk(n)` (.NET 6+) — Last Chunk May Be Smaller Than `n`
+
+**Concepts**
+- `Chunk(size)` splits the sequence into arrays of at most `size` elements each
+- The last chunk contains the remaining elements, which may be fewer than `size`
+- `Chunk` is lazy — it yields one chunk at a time without buffering the entire sequence
+- Passing `size <= 0` throws `ArgumentOutOfRangeException`
+
+**Answer**
+
+`Enumerable.Range(1, 10).Chunk(3)` produces `{1,2,3}`, `{4,5,6}`, `{7,8,9}`, `{10}` — the last chunk has only one element. Code that assumes all chunks are exactly `size` elements will fail on the last chunk. Always handle the final chunk's potentially smaller size. `Chunk` was introduced in .NET 6; earlier code used manual `Skip`/`Take` pagination loops or a custom `Batch` extension method.
+
+---
+
+#### Gotcha 8. `SkipLast(n)` and `TakeLast(n)` Buffer the Tail — O(n) Memory
+
+**Concepts**
+- `TakeLast(n)` must buffer the last `n` elements while reading the entire sequence to find the end
+- `SkipLast(n)` must read `n` elements ahead to know which elements are the last `n`
+- Both operators are O(total-length) time and O(n) memory regardless of source type
+- Available since .NET Core 2.0 / .NET Standard 2.1; not available in .NET Framework
+
+**Answer**
+
+`source.TakeLast(5)` buffers the last five elements by reading the entire source — it cannot know which elements are "last" without consuming the sequence to its end. On a sequence of one million elements, `TakeLast(5)` reads all one million even though it returns only five. For `IQueryable` sources, EF Core translates `TakeLast` to `ORDER BY … DESC FETCH FIRST n ROWS` which is efficient; the O(n) cost applies only to in-memory `IEnumerable` sources.
+
+---
+
+#### Gotcha 9. EF Core `Skip`/`Take` Requires `OrderBy` for Deterministic Pagination
+
+**Concepts**
+- SQL `OFFSET … FETCH` without an `ORDER BY` clause returns rows in an undefined, non-deterministic order
+- EF Core will throw or warn if `Skip`/`Take` is used without `OrderBy` on some providers
+- Omitting `OrderBy` before pagination can cause rows to appear on multiple pages or be skipped entirely
+- The `OrderBy` column should be unique (e.g., a primary key) to guarantee stable pagination
+
+**Answer**
+
+`dbContext.Orders.Skip(20).Take(10)` without an `OrderBy` asks the database for rows 21–30 in an unspecified order. The database is free to return any 10 rows from the table because relational tables have no inherent ordering. Adding `OrderBy(o => o.Id)` before `Skip`/`Take` establishes a deterministic row sequence that SQL `OFFSET/FETCH` can act on consistently across requests. The ordering column should be unique; using a non-unique column can still cause duplicate or missing rows across pages.
+
+---
+
+#### Gotcha 10. `Take(0)` Returns an Empty Sequence — Not Null
+
+**Concepts**
+- `Take(0)` returns a valid empty `IEnumerable<T>`, never `null`
+- Iterating an empty sequence is safe — the `foreach` body simply never executes
+- `Take(n)` with `n` greater than the source length returns all source elements without throwing
+- Both edge cases are safe and defined; no guard code is needed around `Take` calls
+
+**Answer**
+
+`source.Take(0)` produces an empty sequence and `source.Take(1000)` on a 5-element source returns all 5 elements — both are correct and safe. `Take` never throws for non-negative values and never returns `null`, so callers do not need to check for null or guard against empty results. This contrasts with `First()` and `Single()`, which throw on empty sequences. The only invalid argument is a negative count, which throws `ArgumentOutOfRangeException` in .NET 6+ (earlier versions treated negative as zero).
+
+---

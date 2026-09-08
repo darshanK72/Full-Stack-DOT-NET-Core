@@ -472,169 +472,157 @@ This pattern is essential for bulk operations (image processing, ETL) where you 
 
 ---
 
-## Gotchas & Traps
+## Gotchas — Parallel Programming (Interview Traps)
 
 ---
 
-## Q15. What is the race condition in Parallel.ForEach with shared mutable state?
+#### Gotcha 1. Exceptions Are Collected Into AggregateException, Not Rethrown Immediately
 
 **Concepts**
-- Multiple threads writing to the same variable without synchronization
-- Interleaved read-modify-write operations
-- Lost updates
-- Fix: Interlocked, lock, or thread-local state
-- No compiler/runtime warning for this class of bug
+- Parallel.For/ForEach/Invoke collect all exceptions from all threads
+- After all iterations complete (or Stop is called), AggregateException is thrown
+- AggregateException.InnerExceptions contains every thrown exception
+- Catching Exception instead of AggregateException misses multiple faults
+- Flatten() simplifies nested AggregateException hierarchies
 
 **Answer**
 
-```csharp
-// RACE CONDITION: multiple threads increment count simultaneously
-int count = 0;
-Parallel.ForEach(items, item =>
-{
-    if (Matches(item))
-        count++; // NOT thread-safe: read-modify-write is not atomic
-});
-Console.WriteLine($"Count: {count}"); // result is non-deterministic, usually wrong
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Race Condition | `count++` is three operations (read, increment, write) — not atomic | Count is consistently lower than actual; magnitude depends on core count |
-| Non-Determinism | Result varies between runs | Tests may pass sometimes, fail other times |
-| No Warning | Compiler does not detect this | Silent data corruption |
-
-**Fix priority:**
-1. Use `Interlocked.Increment(ref count)` for atomic increment.
-2. Use `lock` if the operation is more complex than a single increment.
-3. Use thread-local accumulation (`localInit`/`localFinally` pattern) for maximum throughput — eliminates contention entirely.
+When multiple iterations of `Parallel.ForEach` or `Parallel.For` throw exceptions, the parallel loop does not stop immediately — it lets running iterations complete and collects every thrown exception. The `AggregateException` thrown after the loop contains them all in `InnerExceptions`. Catching `Exception` with a plain `catch` block will catch the `AggregateException`, but without iterating `InnerExceptions`, all but the first fault are silently dropped. Always catch `AggregateException` explicitly and use `.Flatten().Handle(...)` or iterate `InnerExceptions` to process every failure.
 
 ---
 
-## Q16. Why doesn't Stop() immediately stop a Parallel.For loop?
+#### Gotcha 2. Shared Mutable State Causes Silent Data Corruption
 
 **Concepts**
-- Stop() signals future dispatch to cease
-- Already-started iterations run to completion
-- "No new iterations beyond current" — not abort
-- IsStopped property on ParallelLoopState
-- Use IsStopped to short-circuit long-running iterations
+- Multiple threads reading and writing the same variable without synchronization
+- count++ is not atomic: read-modify-write = three separate operations
+- Lost updates: both threads read the same value, both increment, one write is lost
+- Non-deterministic: fails more under high core count
+- Fix: Interlocked for simple scalars, lock for compound operations, thread-local accumulation for throughput
 
 **Answer**
 
-A common misconception is that `Stop()` immediately terminates all iterations. It does not — it is a signal to the scheduler to stop dispatching new iterations. Iterations already in progress continue to their natural end. Calling `Stop()` from one thread while 7 other threads are mid-iteration means all 7 will finish their current item before the loop winds down.
-
-```csharp
-Parallel.For(0, 1_000_000, (i, state) =>
-{
-    if (FoundResult(i))
-    {
-        state.Stop();
-        return; // exit this iteration quickly
-    }
-
-    // For long-running iterations, also check IsStopped periodically:
-    for (int step = 0; step < 1000; step++)
-    {
-        if (state.IsStopped) return; // exit early if another thread stopped
-        DoStep(i, step);
-    }
-});
-```
-
-If each iteration is long (contains inner loops or multiple operations), check `state.IsStopped` periodically inside the iteration to exit as quickly as possible after `Stop()` is signaled. Without this check, a 10-second iteration will run its full duration even after `Stop()` was called.
+`Parallel.ForEach` runs loop bodies concurrently on multiple threads. Incrementing a shared `int` counter with `count++` is a three-step operation (read, add, write) — two threads can read the same value, both compute the same result, and one write overwrites the other, losing an increment. This happens silently with no exception and is non-deterministic: tests on a single-core CI machine may pass while production on 16 cores consistently produces wrong counts. Use `Interlocked.Increment(ref count)` for a single atomic increment, or a thread-local accumulator pattern to eliminate contention entirely.
 
 ---
 
-## Q17. What is the danger of using async lambdas inside Parallel.ForEach?
+#### Gotcha 3. LINQ Source Is Re-Enumerated Under Partitioning
 
 **Concepts**
-- Parallel.ForEach action is Action<T> — synchronous
-- async lambda becomes async void — exceptions lost
-- Parallel.ForEach returns before async work completes
-- TPL does not await async bodies
-- Fix: collect tasks and await with Task.WhenAll
+- PLINQ partitions the source IEnumerable into chunks for parallel processing
+- If the source is a non-replayable IEnumerable (e.g., database cursor, network stream), re-enumeration fails
+- Materialize with .ToList() or .ToArray() before calling .AsParallel()
+- Lazy IEnumerable sources with side effects may execute side effects multiple times
+- IList and arrays partition by index and do not re-enumerate
 
 **Answer**
 
-```csharp
-// BUG: async lambda in Parallel.ForEach becomes async void
-Parallel.ForEach(items, async item =>
-{
-    await ProcessAsync(item); // fire-and-forget! Parallel.ForEach doesn't await this
-});
-// Returns here before any async work completes — all tasks are fire-and-forget
-// Exceptions are lost (async void behavior)
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Premature Return | Parallel.ForEach completes before async operations finish | Downstream code uses incomplete results |
-| Exception Loss | async void swallows exceptions from each item | Silent failures for all async operations |
-| Resource Leak | Async operations continue after method returns | Concurrent access to disposed resources |
-
-**Fix priority:**
-1. Collect tasks instead: `var tasks = items.Select(item => ProcessAsync(item)); await Task.WhenAll(tasks);`
-2. For bounded concurrency: use `SemaphoreSlim` + `Task.WhenAll`.
-3. Never use `async` lambdas with `Parallel.ForEach`, `Parallel.For`, or `Parallel.Invoke` — these APIs are synchronous only.
+PLINQ partitions the source collection to distribute work across threads. For `IEnumerable` sources that are not `IList` or arrays, PLINQ may use a chunk partitioner that re-reads the source. If the source is a one-time-forward-only cursor (a database reader, a network stream, a generator with side effects), re-enumeration throws or produces incorrect results. Always materialize the source into a `List<T>` or array with `.ToList()` or `.ToArray()` before calling `.AsParallel()`, unless the source is explicitly an array or `IList<T>`.
 
 ---
 
-## Q18. When does PLINQ perform worse than sequential LINQ?
+#### Gotcha 4. MaxDegreeOfParallelism = -1 Means Unlimited — Not One Per Core
 
 **Concepts**
-- Partitioning overhead for small collections
-- Fast operations where overhead > work
-- Ordered queries with merge overhead
-- Side effects in queries (breaks parallelism assumptions)
-- Memory pressure from parallel execution
+- Default MaxDegreeOfParallelism is -1 (unlimited)
+- Parallel.ForEach without setting it will use as many threads as the scheduler allows
+- On a 64-core machine this can overwhelm downstream resources
+- Setting it to Environment.ProcessorCount limits CPU saturation
+- For I/O-bound parallel work, a higher value (e.g., 4 × cores) may be appropriate
 
 **Answer**
 
-PLINQ has overhead: source partitioning, cross-thread coordination, and result merging. For small collections (fewer than ~1000 elements) or operations that complete in microseconds, this overhead exceeds the parallelism benefit and PLINQ runs slower than sequential LINQ.
-
-```csharp
-// FAST sequentially — parallelism overhead dominates:
-var sum = numbers.AsParallel().Sum(); // slower than numbers.Sum() for small arrays
-
-// SLOW sequentially — parallelism pays off:
-var results = largeImagePaths.AsParallel()
-    .Select(path => LoadAndTransformImage(path)) // 50ms per item
-    .ToList();
-```
-
-Other scenarios where PLINQ hurts: `AsOrdered()` on a large collection (merge overhead), queries that access shared state (serial contention), and non-deterministic queries where ordering matters to the logic. Benchmark before and after adding `AsParallel()` — it is not always a win. PLINQ works best for independent, CPU-bound operations on large collections (>1000 items) where each item takes >1ms to process.
+The default `MaxDegreeOfParallelism = -1` means the Parallel library may use any number of ThreadPool threads, not one per core. On a machine with many cores or under a burst load, this can create hundreds of concurrent iterations, overwhelming databases, external APIs, or file systems. Explicitly set `MaxDegreeOfParallelism = Environment.ProcessorCount` for CPU-bound work to avoid over-subscribing the CPU. For I/O-bound parallel work, a higher value is often beneficial, but it should be tuned and bounded rather than left unlimited.
 
 ---
 
-## Q19. What is the thundering herd problem in parallel batch processing?
+#### Gotcha 5. Break() vs Stop() Have Different Index Semantics
 
 **Concepts**
-- All workers complete simultaneously and hammer a downstream resource
-- Database, API, or network becomes bottleneck
-- Staggered starts as mitigation
-- Bounded concurrency limits peak load
-- Exponential backoff on rate limit responses
+- Break(): process all iterations with index less than or equal to current — no new iterations beyond this index
+- Stop(): stop dispatching all future iterations regardless of index
+- Break() with index semantics: lower-index iterations may still run after Break() is called
+- Stop() is the correct choice for early exit (e.g., search for first match)
+- Break() is for "process at least through this index" guarantees
 
 **Answer**
 
-When `Parallel.ForEach` or `Task.WhenAll` fans out to many workers that all finish roughly simultaneously, they can all hit a downstream resource (database, external API, file system) at once, creating a spike that exceeds the resource's capacity. This "thundering herd" effect causes the downstream resource to reject or slow down requests.
+`ParallelLoopState.Break()` and `Stop()` are both early-exit mechanisms but with different guarantees. `Break()` tells the loop "do not start any new iterations with an index higher than the current iteration's index" — lower-indexed iterations that haven't run yet may still execute to ensure partial ordering. `Stop()` tells the loop "do not start any new iterations at all, regardless of index." For a parallel search where you want to stop as soon as any match is found, `Stop()` is the right choice. `Break()` is for algorithms that need to process a prefix of the range up to some discovered boundary.
 
-```csharp
-// THUNDERING HERD: all 10,000 DB calls start simultaneously
-await Task.WhenAll(items.Select(item => _db.SaveAsync(item)));
+---
 
-// BOUNDED: at most 20 concurrent DB calls at any time
-var sem = new SemaphoreSlim(20);
-await Task.WhenAll(items.Select(async item =>
-{
-    await sem.WaitAsync();
-    try { await _db.SaveAsync(item); }
-    finally { sem.Release(); }
-}));
-```
+#### Gotcha 6. Parallel.Invoke May Execute Actions Sequentially
 
-Bounded concurrency with `SemaphoreSlim` (or `Polly`'s `BulkheadPolicy`) caps peak load. For APIs with per-second rate limits, add `await Task.Delay(...)` between batches. Staggered starts (e.g., `await Task.Delay(i * 10)`) can smooth the load curve. The goal is to keep downstream resources within their capacity while still achieving meaningful parallelism.
+**Concepts**
+- Parallel.Invoke may inline some actions on the calling thread
+- If only one hardware thread is available, all actions run sequentially
+- Not a guarantee of concurrent execution — it is a hint
+- For guaranteed parallelism, use Task.WhenAll with Task.Run
+- Thread count in ParallelOptions still limits concurrency
+
+**Answer**
+
+`Parallel.Invoke` is a scheduling hint, not a guarantee of simultaneous execution. If there is only one available processor or the ThreadPool is busy, the runtime may execute all provided actions sequentially on the calling thread. Tests that assume parallel execution (e.g., checking that two operations truly overlapped in time) may fail on a single-core CI machine. `Parallel.Invoke` is appropriate for expressing "these actions can be parallelized" — not for guaranteeing they will be. For guaranteed parallel execution, use `Task.WhenAll(Task.Run(a1), Task.Run(a2))`.
+
+---
+
+#### Gotcha 7. PLINQ Overhead Makes It Slower Than Sequential for Small Collections
+
+**Concepts**
+- PLINQ adds partitioning, thread coordination, and result merging overhead
+- For small collections (<1000 elements) or microsecond-duration operations, overhead exceeds benefit
+- AsOrdered() adds merge cost — defeats most parallelism benefit
+- Benchmark both paths before choosing PLINQ
+- Diminishing returns for operations faster than ~1ms per element
+
+**Answer**
+
+PLINQ's parallelism overhead — source partitioning, cross-thread scheduling, and result merging — is measurable. For collections with fewer than roughly 1 000 elements, or per-element operations that complete in microseconds, the overhead exceeds the parallelism savings and PLINQ is slower than sequential LINQ. Adding `.AsOrdered()` adds a merge phase that serializes output ordering and further reduces the benefit. Always benchmark both the sequential and parallel versions with production-representative data before choosing PLINQ. PLINQ is most effective for large, independent, CPU-bound operations where each item takes at least a millisecond.
+
+---
+
+#### Gotcha 8. Random Is Not Thread-Safe — Parallel Code Produces Incorrect Random Numbers
+
+**Concepts**
+- System.Random is not thread-safe — concurrent calls corrupt internal state
+- Corrupted state produces sequences of all zeros or other degenerate output
+- Thread-static Random instances are the traditional workaround
+- Random.Shared (static, .NET 6+) is thread-safe and should be preferred
+- Seeding multiple Random instances with the same seed produces identical sequences
+
+**Answer**
+
+`System.Random` maintains internal state that is not protected against concurrent access. When multiple threads call methods on the same `Random` instance in a `Parallel.ForEach` loop, they corrupt each other's internal state, causing the random number generator to return degenerate output (often a long sequence of zeros). The traditional workaround is a `[ThreadStatic] Random` field, each initialized with a different seed. The modern solution, available since .NET 6, is `Random.Shared` — a thread-safe static instance that uses lock-free operations and is safe to call from any number of threads simultaneously.
+
+---
+
+#### Gotcha 9. Side Effects in PLINQ Queries Are Dangerous
+
+**Concepts**
+- PLINQ assumes queries are pure functions
+- Side effects (incrementing a counter, writing to a list) execute on multiple threads concurrently
+- Ordering of side effects is non-deterministic
+- Correct use: transform-and-collect pattern (no shared mutation)
+- For side-effecting work, use Parallel.ForEach, not PLINQ
+
+**Answer**
+
+PLINQ is built around the functional model where query operations are pure transformations without side effects. When a PLINQ `Select`, `Where`, or other operator accesses shared mutable state — incrementing a counter, writing to a `List<T>`, or updating a dictionary — multiple threads execute those operations concurrently without synchronization, causing data races and incorrect output. PLINQ is appropriate for transforming a source collection into a result collection where each element's transformation is independent. For operations with side effects, use `Parallel.ForEach` with explicit thread-safe access patterns.
+
+---
+
+#### Gotcha 10. Parallel.ForEach With async Body Does Not Await — Use Parallel.ForEachAsync
+
+**Concepts**
+- Parallel.ForEach accepts Action<T> — synchronous only
+- async lambda becomes async void in that context
+- Parallel.ForEach returns before any async work finishes
+- Exceptions from async void are lost
+- .NET 6+ Parallel.ForEachAsync is the correct API for async parallel work
+
+**Answer**
+
+Passing an `async` lambda to `Parallel.ForEach` makes it `async void` because `Action<T>` is a void-returning delegate. `Parallel.ForEach` has no way to await the returned task — it fires every iteration as a fire-and-forget and returns immediately, before any async work completes. Exceptions are silently swallowed. For async parallel work in .NET 6 and later, use `Parallel.ForEachAsync(source, options, async (item, ct) => { ... })`, which correctly awaits each async body and propagates exceptions. For earlier runtimes, collect tasks with `items.Select(item => ProcessAsync(item))` and await with `Task.WhenAll`, using `SemaphoreSlim` to bound concurrency.
 
 ---
 

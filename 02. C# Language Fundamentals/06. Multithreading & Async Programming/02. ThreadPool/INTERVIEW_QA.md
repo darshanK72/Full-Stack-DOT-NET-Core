@@ -358,159 +358,157 @@ This model means a server with 20 worker threads can handle thousands of concurr
 
 ---
 
-## Gotchas & Traps
+## Gotchas — ThreadPool (Interview Traps)
 
 ---
 
-## Q15. What happens when you call Task.Wait() or .Result inside a ThreadPool work item?
+#### Gotcha 1. ThreadPool Threads Are Background Threads
 
 **Concepts**
-- Synchronous block holds the pool thread
-- Nested task may be inlined (same thread) or deadlock risk
-- ThreadPool starvation if many work items block simultaneously
-- SynchronizationContext deadlock in UI/ASP.NET Classic contexts
-- Fix: await all the way through
+- IsBackground = true on all ThreadPool threads
+- Process exits when last foreground thread finishes
+- Background work is killed on process exit without cleanup
+- Use CancellationToken for graceful shutdown signaling
+- Hosted services (IHostedService) for lifecycle-managed background work
 
 **Answer**
 
-```csharp
-// PROBLEMATIC: blocking a pool thread on an async operation
-Task.Run(async () =>
-{
-    // This blocks the current pool thread
-    var result = SomeAsyncMethod().Result;
-    Process(result);
-});
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Starvation | Pool thread blocked during I/O latency | Cannot service other work items while blocked |
-| Deadlock | In SynchronizationContext contexts, `.Result` can deadlock | Application hangs indefinitely |
-| Scalability | N concurrent `.Result` calls needs N+1 pool threads | Throughput degrades under load |
-
-**Fix priority:**
-1. Replace `.Result` with `await`: `var result = await SomeAsyncMethod();` — the pool thread is released during the await.
-2. If you genuinely need synchronous execution, use `GetAwaiter().GetResult()` only in a context with no `SynchronizationContext` (never in UI or ASP.NET Classic code).
-3. Consider `TaskCreationOptions.LongRunning` if the operation truly must block a thread — at least it won't starve the pool.
+All ThreadPool threads — including those backing `Task.Run` — have `IsBackground = true`. When the last foreground thread finishes, the runtime kills all background threads immediately without running `finally` blocks or completing pending work. Fire-and-forget tasks that perform cleanup (flushing a buffer, closing a file) may leave resources in an inconsistent state. For work that must complete before shutdown, use a lifecycle-managed pattern such as `IHostedService` with `StopAsync`, or explicitly join background tasks during shutdown.
 
 ---
 
-## Q16. Why can you not rely on ThreadLocal<T> values persisting correctly across ThreadPool work items?
+#### Gotcha 2. Long-Running Work Starves the Pool
 
 **Concepts**
-- Pool threads are reused: thread-local state persists between work items
-- Stale values from prior work item contaminate current work item
-- No per-work-item initialization guarantee
-- AsyncLocal<T> as the correct solution for flowing context
-- Reset pattern as workaround
+- Each blocking thread holds a pool slot indefinitely
+- Hill-climbing injects one new thread per ~500 ms
+- Pool exhaustion causes request latency to cascade
+- TaskCreationOptions.LongRunning requests a dedicated thread
+- new Thread() with IsBackground = true as explicit alternative
 
 **Answer**
 
-ThreadPool threads are long-lived and shared. When a thread-local value is set during one work item, it remains set when the same thread is assigned the next work item — potentially from a completely different operation or request. This is not a hypothetical: under load, threads are reused rapidly and the stale state creates subtle, non-deterministic bugs.
-
-```csharp
-// DANGEROUS: stale correlation ID
-private static ThreadLocal<string> _correlationId = new ThreadLocal<string>();
-
-Task.Run(() =>
-{
-    _correlationId.Value = "req-123";
-    HandleRequest(); // reads "req-123" — correct
-});
-// Same thread later:
-Task.Run(() =>
-{
-    // _correlationId.Value is still "req-123" — stale!
-    HandleRequest(); // silently uses wrong correlation ID
-});
-```
-
-The correct solution for flowing context across async continuations is `AsyncLocal<T>`, which propagates with the execution context rather than being tied to a specific OS thread. `AsyncLocal` correctly handles cross-thread continuations and does not have the stale-value problem. Use `ThreadLocal<T>` only for genuine per-thread optimization (e.g., per-thread `Random` instance) where you explicitly initialize it each time.
+The ThreadPool is designed for short work items. When a pool thread blocks on I/O, `Thread.Sleep`, or `.Result`, it holds its slot without doing useful work. If many threads block simultaneously, the pool exhausts and new items queue up; the hill-climbing algorithm injects one replacement thread every ~500 ms, so recovery is slow. For genuinely long-running work, use `Task.Factory.StartNew(..., TaskCreationOptions.LongRunning)` to get a dedicated thread outside the pool, preventing pool starvation. Never use `Thread.Sleep` in a pool thread — use `await Task.Delay` instead.
 
 ---
 
-## Q17. What are the risks of swallowed exceptions in QueueUserWorkItem?
+#### Gotcha 3. QueueUserWorkItem Swallows Exceptions
 
 **Concepts**
-- QueueUserWorkItem is fire-and-forget with no return value
-- Exceptions not caught in callback crash the process (CLR 2+)
-- No natural aggregation or retry mechanism
-- Task.Run as the exception-safe alternative
-- AppDomain.UnhandledException as last-resort logger
+- WaitCallback has no return value and no exception propagation
+- Unhandled exception in callback crashes the process (CLR 2+)
+- No aggregation, no retry, no caller notification
+- Must wrap callback body in try/catch
+- Task.Run captures exceptions in Task.Exception — prefer it
 
 **Answer**
 
-Every `ThreadPool.QueueUserWorkItem` callback must catch its own exceptions. There is no mechanism to propagate errors back to the enqueuing thread. If an exception escapes the callback, the CLR's behavior depends on version: in .NET Core and .NET 5+, unhandled exceptions on any thread crash the process. There is no way to observe the exception after the fact.
-
-```csharp
-// Silently crashes the process in .NET Core:
-ThreadPool.QueueUserWorkItem(_ =>
-{
-    throw new InvalidOperationException("silent crash");
-});
-
-// Safe pattern: always wrap with try/catch
-ThreadPool.QueueUserWorkItem(_ =>
-{
-    try { DoWork(); }
-    catch (Exception ex) { _logger.LogError(ex, "Work item failed"); }
-});
-```
-
-The modern alternative is `Task.Run(() => DoWork())`, which captures exceptions in the task and lets you observe them via `await` or `.Exception`. If you are not awaiting the task (fire-and-forget), attach a continuation to log faults: `task.ContinueWith(t => Log(t.Exception), TaskContinuationOptions.OnlyOnFaulted)`.
+`ThreadPool.QueueUserWorkItem` is fire-and-forget: if the callback throws an unhandled exception, it propagates as an unhandled thread exception and terminates the process in .NET Core. There is no mechanism to propagate the exception back to the code that queued the work. Every `QueueUserWorkItem` callback must have its own `try/catch` to prevent silent crashes. The modern alternative, `Task.Run`, captures exceptions in the task's fault state and rethrows them when the task is awaited, enabling composable error handling without wrapping every callback manually.
 
 ---
 
-## Q18. What happens if you call Thread.Sleep inside a ThreadPool thread?
+#### Gotcha 4. SetMinThreads and SetMaxThreads Have Opposite Risk Profiles
 
 **Concepts**
-- Thread transitions to WaitSleepJoin state
-- Pool slot occupied for entire sleep duration
-- No I/O benefit (thread not doing anything)
-- Hill-climbing algorithm injects replacement over time
-- Fix: await Task.Delay for non-blocking pause
+- SetMinThreads: raises immediate-creation threshold (reduces ramp-up delay)
+- SetMaxThreads: caps absolute thread count (risky to lower)
+- Low max = artificial starvation under load
+- High min = unnecessary memory and context-switch overhead at idle
+- Monitor threadpool-thread-count before tuning
 
 **Answer**
 
-`Thread.Sleep` inside a pool thread occupies a pool slot for the sleep duration without doing any useful work. This is strictly worse than doing I/O — at least I/O is productive. During the sleep, the thread cannot service other work items, and if many pool threads sleep simultaneously, the pool starves.
-
-```csharp
-// BAD: wastes a pool thread slot
-Task.Run(() =>
-{
-    Thread.Sleep(5000); // holds thread for 5 seconds
-    DoWork();
-});
-
-// GOOD: releases the thread during the delay
-await Task.Run(async () =>
-{
-    await Task.Delay(5000); // thread returned to pool; resumed after delay
-    DoWork();
-});
-```
-
-`Task.Delay` schedules a timer callback and returns immediately, releasing the thread. After the delay, a pool thread picks up the continuation. For retry loops with backoff, use `await Task.Delay(backoffMs, cancellationToken)` which also supports cancellation. The only legitimate use of `Thread.Sleep` in pool code is in emergency/diagnostic scenarios (e.g., simulating latency in tests), never in production paths.
+`SetMinThreads` controls how many threads the pool creates immediately without the 500 ms injection delay — raising it is low-risk and helps with burst startup latency. `SetMaxThreads` sets an absolute ceiling and is dangerous to lower: if request volume exceeds the cap, the pool stalls and requests pile up in a way that is indistinguishable from starvation. The default maximum (32 767+) is intentionally large for this reason. Always use `dotnet-counters` to observe actual `threadpool-thread-count` before changing either value, and treat the minimum as a performance tuning knob and the maximum as a last resort.
 
 ---
 
-## Q19. What are the risks of overriding the maximum ThreadPool thread count in production?
+#### Gotcha 5. Thread Injection Delay Causes Burst Latency Spikes
 
 **Concepts**
-- Default maximum is very high (32,767+)
-- Lowering cap can cause unexpected queuing under load
-- Raising minimum helps with burst; does not fix starvation root cause
-- Context switching overhead with too many threads
-- Monitoring-first: understand the problem before tuning
+- CLR adds at most one new thread per ~500 ms when the pool is stalled
+- Cold-start burst causes latency ramp-up over several seconds
+- SetMinThreads pre-warms threads to skip injection delay
+- Injection delay is intentional to prevent over-creation for transient bursts
+- dotnet-counters threadpool-queue-length reveals starvation
 
 **Answer**
 
-Reducing `SetMaxThreads` below the default in a production service carries significant risk: if request volume exceeds the cap, work items queue up and latency spikes in a way that looks exactly like starvation — because it is. You have created artificial starvation. Most services should never lower the max.
+When the ThreadPool is exhausted and new work arrives, the hill-climbing algorithm injects one new thread every ~500 ms — a deliberate rate limit to prevent runaway thread creation for transient bursts. During a cold start or sudden traffic spike, this means the first 5–10 seconds of load may experience latency proportional to the time needed to grow the pool. The standard mitigation is `ThreadPool.SetMinThreads(cores * N, cores * N)` in startup code to pre-allocate threads and bypass the injection delay for the expected steady-state concurrency.
 
-Raising `SetMinThreads` is less risky and is sometimes legitimate for high-burst workloads where the 500ms injection delay is unacceptable. However, it is still treating a symptom: if the pool needs 100 threads on every request, the real issue is synchronous blocking that should be made async.
+---
 
-Setting the minimum too high wastes memory (each thread has a stack) and increases context-switching overhead when the threads are idle, which can degrade performance relative to a lower minimum. The recommended approach is: profile first using `dotnet-counters`, identify whether the bottleneck is starvation (fix blocking) or burst ramp-up time (consider raising min), and make targeted, measured changes. Never blindly tune thread counts without monitoring the effect.
+#### Gotcha 6. ThreadLocal\<T\> State Persists Across Work Items on the Same Thread
+
+**Concepts**
+- Pool threads are long-lived and reused across many work items
+- ThreadLocal<T> value set in one work item remains for next work item on same thread
+- Stale per-request state (correlation ID, tenant ID) contaminates subsequent requests
+- AsyncLocal<T> flows correctly with async execution context across thread switches
+- Reset ThreadLocal<T> at work item start if reuse is intentional
+
+**Answer**
+
+`ThreadLocal<T>` ties a value to an OS thread, not to a logical unit of work. Because ThreadPool threads are reused across many work items, a value set during one work item persists when the same thread later services a different work item — potentially from a completely different request or user. This is a silent data contamination bug that is difficult to reproduce in tests but occurs consistently under load. Use `AsyncLocal<T>` for values that should flow with the logical async call chain (correlation IDs, security context), and reset any `ThreadLocal<T>` values explicitly at the top of each work item when reuse is required.
+
+---
+
+#### Gotcha 7. SynchronizationContext Is Null on Pool Threads
+
+**Concepts**
+- SynchronizationContext.Current is null on ThreadPool threads
+- await continuations resume on any available pool thread (no context marshaling)
+- UI/ASP.NET Classic code has a SynchronizationContext that posts work back to specific threads
+- ConfigureAwait(false) is a no-op when Current is already null
+- Accessing request state from pool continuations in ASP.NET Core is safe
+
+**Answer**
+
+`SynchronizationContext.Current` is `null` on ThreadPool threads and in ASP.NET Core. This means `await` continuations run on any available pool thread — no marshaling overhead, no deadlock risk from the classic `.Result` pattern. This is intentional: ASP.NET Core removed the ambient synchronization context to enable higher throughput. Code that relies on `SynchronizationContext.Current` being non-null (e.g., some WPF data-binding internals, legacy ASP.NET HttpContext access) will fail silently or throw when called from a pool thread without an explicit context.
+
+---
+
+#### Gotcha 8. Hill-Climbing Is Not Instantaneous — It Experiments Gradually
+
+**Concepts**
+- Hill-climbing measures throughput and adjusts thread count experimentally
+- Throughput-decreasing experiments cause temporary performance regression
+- Pool may overshoot or undershoot optimal thread count
+- Not suitable for workloads with rapidly changing optimal parallelism
+- Manual tuning via SetMinThreads for predictable workloads
+
+**Answer**
+
+The .NET ThreadPool uses a hill-climbing algorithm that continuously experiments with thread count to maximize throughput. It slightly increases threads, measures throughput, and decides whether to continue. This means the pool is always oscillating slightly around the optimal count, and it takes several measurement cycles (each ~500 ms) to converge after a load pattern changes. Workloads with highly variable parallelism can cause the algorithm to chase the wrong target, temporarily under-provisioning or over-provisioning. For predictable workloads, `SetMinThreads` and `SetMaxThreads` give more deterministic behavior.
+
+---
+
+#### Gotcha 9. QueueUserWorkItem vs Task.Run — Feature Gap Matters
+
+**Concepts**
+- QueueUserWorkItem: no return value, no cancellation, no continuation
+- Task.Run: awaitable, cancellable, exception-propagating
+- QueueUserWorkItem has no built-in way to know when work finishes
+- Task.WhenAll / Task.WhenAny require Task objects
+- Prefer Task.Run for all new code; QueueUserWorkItem is legacy
+
+**Answer**
+
+`ThreadPool.QueueUserWorkItem` predates the Task Parallel Library and lacks most of its compositional features. There is no way to await completion, propagate exceptions to the caller, attach continuations, or pass cancellation tokens. `Task.Run` provides all of these: the returned `Task` can be awaited, chained with `ContinueWith` or `Task.WhenAll`, and cancelled. For any new code, `Task.Run` is the correct choice; `QueueUserWorkItem` is appropriate only when integrating with older APIs that expect a `WaitCallback`.
+
+---
+
+#### Gotcha 10. Sync-Over-Async Can Deadlock All Pool Threads
+
+**Concepts**
+- Calling .Result or .Wait() on a Task inside a pool thread blocks that thread
+- If every pool thread blocks, callbacks for completions cannot run
+- Result: complete deadlock with no CPU activity
+- Especially dangerous in recursive or fan-out async patterns
+- Fix: await all the way through; never block pool threads
+
+**Answer**
+
+When a ThreadPool thread calls `.Result` or `.Wait()` on a `Task`, it blocks, occupying its slot. If that `Task`'s completion requires executing a continuation on a pool thread, but all pool threads are blocked waiting for results, no thread is available to run the continuation — a deadlock. In any high-throughput async service, sync-over-async under load reliably deadlocks all pool threads, making the service completely unresponsive. The hill-climbing algorithm eventually injects new threads that break the deadlock, but recovery takes seconds. The fix is always to propagate `await` through the entire call chain.
 
 ---
 

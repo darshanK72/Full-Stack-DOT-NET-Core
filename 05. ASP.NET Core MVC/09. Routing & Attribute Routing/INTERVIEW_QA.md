@@ -280,219 +280,149 @@ The standard areas pattern is `{area:exists}/{controller=Home}/{action=Index}/{i
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — Routing & Attribute Routing (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. Conventional route order — more specific routes shadowed by catch-all
 
 **Concepts**
-- Business logic in Razor — untestable and duplicated from the service layer
-- Separation of concerns — view as presentation only
-- Authorization checks in templates bypassing security layers
-- Divergent behavior when view and API/batch logic run the same rule separately
+- `MapControllerRoute` registration order — first match wins
+- Catch-all default route — `{controller=Home}/{action=Index}/{id?}` matches almost everything
+- Specific routes — must be registered before the catch-all default
+- Shadowed route — request matches the wrong action silently, returning wrong data or 404
 
 **Answer**
 
-Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render only what the controller or ViewModel already prepared, since Razor calculations cannot be tested independently and often diverge from API or batch logic running the same rule. Authorization belongs in filters, policies, or controller checks executed before the view — not in view conditionals that a developer can accidentally omit.
+In conventional routing, routes are evaluated in registration order and the first match wins. Registering the default `{controller=Home}/{action=Index}/{id?}` route first means any more specific route registered afterward — such as a custom `/admin/dashboard` route — is never reached because the default already matched. Area routes and special-path routes must come before the default catch-all. The symptom is the action receiving the wrong `id` value or a completely different action being invoked when only the URL is changed. Attribute routing bypasses this ordering entirely since each attribute route is matched against the URL independently, making it the safer choice for complex routing needs.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. Duplicate attribute route templates causing `AmbiguousMatchException`
 
 **Concepts**
-- Over-posting via direct entity binding on POST
-- Lazy-loaded navigation properties triggering unexpected queries during rendering
-- ViewModel as the narrow data contract between controller and view
-- Entity-to-ViewModel mapping responsibility
+- Two actions with identical `[HttpGet("items")]` — both match, framework cannot choose
+- `AmbiguousMatchException` — thrown at route selection, not at compile time
+- Route disambiguation — use different templates, constraints, or HTTP verb restrictions
+- Optional parameter — does not create two distinct templates from one attribute
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties, enables over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during Razor rendering — each navigation access issues a database round-trip the developer may not anticipate. Mass assignment on POST can update properties the user should never control, such as `IsAdmin`. The correct pattern is a dedicated ViewModel with only the fields the view needs, mapped from the entity in the controller or a mapping service.
+Two actions with `[HttpGet("catalog/items")]` have identical route templates — the router finds two candidates and throws `AmbiguousMatchException`. The exception is a runtime failure that only manifests when the route is requested, not at startup or compile time. An optional parameter like `[HttpGet("catalog/items/{category?}")]` creates one template that matches both `/catalog/items` and `/catalog/items/toys` — it does not create two separate routes. To serve both a default list and a filtered list, either merge into one action with an optional `category` parameter, or use distinct templates such as `[HttpGet("catalog/items")]` and `[HttpGet("catalog/items/{category}")]`. Duplicate templates can also arise from multiple controllers having the same route prefix and the same action name.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. Route constraints not matching causing 404 instead of 400
 
 **Concepts**
-- Browser form encoding — `application/x-www-form-urlencoded` vs JSON
-- `[FromBody]` routing to the JSON input formatter only
-- Silent binding failure — model parameter receives default values
-- `FormData` following the form value provider, not the JSON formatter
+- `{id:int}` constraint — fails the route match entirely; returns 404 for non-integer segments
+- No constraint — route matches; model binder fails; `ModelState` has error, 400 is possible
+- 404 vs 400 semantic — route mismatch is "no route found"; binding failure is "bad request"
+- Constraint choice — use when only that type should reach the action; omit for validation messages
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` tells MVC to use the JSON input formatter, which expects `Content-Type: application/json` — when a form POST arrives, the formatter finds no matching content and the model parameter receives default values while the action runs silently. Remove `[FromBody]` for conventional form POSTs and let the form value provider bind fields. Use `[FromBody]` only when the client explicitly sends JSON with the correct Content-Type header.
+`[HttpGet("{id:int}")]` requires the route segment to parse as an integer at the routing layer. A request to `/Products/abc` does not match the route and returns a 404 — the client never reaches the action or model binding. Without the `:int` constraint, the route matches, the binder tries to convert "abc" to `int`, fails, adds a conversion error to `ModelState`, and the action receives `id = 0` with `ModelState.IsValid == false`. The behavioral difference matters: 404 signals a wrong URL (client should fix the request path) while 400 signals a bad request to a valid route. Choose constraints deliberately based on whether a non-integer should be treated as "no such route" or as "bad input to this route."
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. Route template on the controller conflicting with the route template on the action
 
 **Concepts**
-- Client validation as a UX convenience, not a security boundary
-- Server-side validation mandatory before any persist, redirect, or side effect
-- Direct POST attacks bypassing browser scripts entirely
+- `[Route("products")]` on controller — all action routes are relative to this prefix
+- `[HttpGet("/absolute")]` — leading slash makes the route absolute, ignores controller prefix
+- `[HttpGet("list")]` — relative, combined with controller prefix to produce `products/list`
+- Double prefix — controller `[Route("api/products")]` + action `[HttpGet("api/products/list")]` duplicates the path
 
 **Answer**
 
-Client-side validation is bypassable — attackers can POST directly using tools like Postman or curl without running browser validation scripts. Server-side `ModelState.IsValid` is mandatory before any persist, redirect, or side effect. Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent. Client validation improves UX for legitimate users only, and treating missing server validation as a security defect regardless of client script presence is the right standard.
+`[Route("products")]` on the controller sets a prefix; action routes without a leading `/` are appended to it. `[HttpGet("list")]` produces `products/list`. An action with `[HttpGet("/list")]` (leading slash) ignores the controller prefix and produces just `/list` — sometimes intended, often a mistake. Adding `[Route("api/products")]` on both the controller and the action produces `api/products/api/products/list`, doubling the prefix. The rule is: set the segment prefix once — either on the controller or on the action — and keep the other relative. Templates on actions should never repeat the controller prefix.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. Area routes not registered before the default route
 
 **Concepts**
-- Duplicate form submission triggered by browser refresh after POST
-- Post-Redirect-Get (PRG) pattern — mutation then safe redirect
-- `RedirectToAction` separating command (POST) from display (GET)
-- TempData carrying flash messages across the redirect
+- Area routes — must be registered with `MapAreaControllerRoute` before the default `MapControllerRoute`
+- Default route matching area segment — `{controller=Home}` can match "Admin" as a controller name
+- `{area:exists}` constraint — only matches area segment when a registered area with that name exists
+- 404 for all area URLs — symptom of default route registered first
 
 **Answer**
 
-Returning the same view after a successful POST means the browser's last request was the POST. When the user refreshes, the browser re-submits the POST body, which can duplicate an order, a payment, or a registration. The fix is Post-Redirect-Get: return `RedirectToAction(nameof(Index))` after a successful create or update so the browser's last request is a safe GET. TempData carries flash success messages across the redirect, and the GET action loads fresh data from services rather than relying on state passed from the POST.
+Area routing requires `app.MapAreaControllerRoute("admin_default", "Admin", "Admin/{controller=Dashboard}/{action=Index}/{id?}")` to be registered before `app.MapControllerRoute("default", ...)`. When the default route comes first, a request to `/Admin/Users/Index` matches `{controller=Admin}/{action=Users}/{id=Index}` — treating `Admin` as a controller name — and returns 404 because there is no root-level `AdminController` with a `Users` action. The `{area:exists}` constraint on the area route ensures it only matches the URL when "Admin" is a registered area name, preventing false matches. Every area route must precede the default catch-all in `Program.cs`.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. `IActionConstraint` vs route constraint — different execution times and purposes
 
 **Concepts**
-- `ModelState` as request-scoped data lost on redirect
-- Return `View(model)` on validation failure to preserve errors inline
-- TempData serialization as a fallback for post-redirect error persistence
-- AJAX partial forms avoiding the redirect problem entirely
+- Route constraint — evaluated during route matching; filters candidate routes
+- `IActionConstraint` — evaluated after route matching; filters among matched action candidates
+- `[HttpGet]` / `[HttpPost]` — implemented as `IActionConstraint`, not route constraints
+- Route constraint misuse — cannot access `HttpContext.User` or request headers
 
 **Answer**
 
-`ModelState` lives in the controller's `ViewDataDictionary` for the current request only — a redirect ends that request and starts a new one with an empty `ModelState`, so validation errors disappear. The standard pattern is redirect only on success and return `View(model)` on validation failure in the same POST response so errors remain visible. If a redirect on failure is truly required, serialize errors to TempData (watching cookie size limits) or run a second validation pass on the GET action. AJAX partial forms avoid the problem by returning the form partial with inline errors without any redirect.
+Route constraints like `{id:int}` or `{slug:regex(^[a-z]+$)}` execute during URL matching before any action is selected and have access only to the route template and URL segments — not to the HTTP request headers, body, or `HttpContext.User`. `IActionConstraint` implementations like HTTP verb attributes (`[HttpGet]`) execute after route matching, when the framework already has a set of candidate actions, and can access the full `HttpContext`. Trying to authorize based on a query string or user role inside a route constraint fails because `HttpContext` is not available at that stage. Authorization belongs in middleware, `IActionConstraint`, or action filters — not in route constraints.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. Named routes used in `RedirectToRoute` but renamed after initial setup
 
 **Concepts**
-- TempData consume-on-read default semantics
-- Layout consuming flash key before the child view reads it
-- `Peek()` — read without marking for deletion in the same request
-- `Keep()` — preserve a consumed key for the next request
+- Named routes — `name: "product_detail"` in `MapControllerRoute` or `[Route("...", Name="...")]`
+- `RedirectToRoute("product_detail", ...)` — runtime exception if route name does not exist
+- Route name not a compile-time constant — refactoring controller or action does not update string
+- `RedirectToAction` — safer alternative that references action method directly
 
 **Answer**
 
-TempData marks entries for deletion the moment they are read via the indexer. If the layout reads a flash message first, the child view's subsequent read of the same key returns null — the message disappears intermittently depending on render order. The fix is to use `TempData.Peek("Message")` in the layout, which reads the value without consuming it and leaves it available for the child view. Alternatively, centralizing flash display in a single `_FlashMessages.cshtml` partial avoids the double-read problem by giving ownership of all TempData keys to one place.
+`RedirectToRoute("product_detail", new { id = 5 })` requires a route named `product_detail` to exist at runtime. If the route was renamed from `product_detail` to `products_show` in `Program.cs` or the attribute was changed, the `RedirectToRoute` call throws `InvalidOperationException` at runtime with no compile-time warning. `RedirectToAction(nameof(ProductsController.Details), "Products", new { id = 5 })` uses `nameof` which is checked at compile time — renaming the action method produces a build error, not a runtime crash. Use named routes only when necessary (for link generation across areas) and prefer `RedirectToAction` with `nameof` for redirects within the same application.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. Optional route parameters behaving differently from default values
 
 **Concepts**
-- `[Area("AreaName")]` as required routing metadata on area controllers
-- Controller in `Areas/` folder without attribute treated as a root controller
-- `{area:exists}` constraint not matching unannotated controllers
-- Compile-time success masking a runtime 404
+- `{id?}` — optional segment; action receives null or default when omitted
+- `{id=5}` — default value; route always provides 5 when the segment is omitted
+- Null vs default — `{id?}` with `int id` receives 0 (not null) due to type default
+- `int? id` vs `int id` — `int?` receives null when omitted; `int` receives 0
 
 **Answer**
 
-A controller physically located in `Areas/Admin/Controllers/` is not automatically registered with the area route — it needs `[Area("Admin")]` on the class. Without it, MVC treats the controller as a root controller so the `{area:exists}` route template does not match it and requests to `/Admin/Dashboard` return 404. The project compiles without the attribute because it is optional at compile time, giving false confidence until the first HTTP request hits the area URL. Every area controller must declare `[Area("AreaName")]` matching its folder, and the area route must be registered before the default route in `Program.cs`.
+`[HttpGet("{id?}")]` with `public IActionResult Details(int id)` does not produce a null `id` when the segment is omitted — it produces `0` because `int` defaults to `0`, not null. A check of `if (id == 0)` is needed to detect the absent segment. Using `int? id` makes the absence explicit — `id` is null when the segment is omitted, `id` has a value when present. `{id=5}` is distinct: when the segment is omitted, the route populates `id = 5` as a default, so the action always receives a non-null value. Choose `int?` with `{id?}` when absence must be distinguishable from a legitimate zero value.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Ambiguous match between conventional route and attribute route on the same controller
 
 **Concepts**
-- Ambient area route values from the current request
-- Absent area context in root views producing wrong URLs
-- Explicit `asp-area` required for cross-area and root-to-area links
-- `Url.Action` requiring area route values in the anonymous object
+- Mixed routing — convention and attribute routes on the same controller
+- Conventional route — matches `{controller}/{action}` pattern
+- Attribute route — `[Route("custom-path")]` on the controller or action
+- `AmbiguousMatchException` — when both routes match the same URL
 
 **Answer**
 
-Tag Helpers inherit ambient route values from the current request, so from within an Admin area view, `asp-controller="Users"` may generate `/Admin/Users` correctly because the ambient area is `Admin`. However, from a root view or a different area, the same Tag Helper generates `/Users` with no area prefix because there is no ambient area value. Cross-area links require explicit `asp-area="Admin"` on every anchor that targets an area controller. The same rule applies to `Url.Action` — pass `new { area = "Admin" }` in the route values object or the URL will be missing the area prefix.
+Mixing conventional and attribute routing on the same controller can produce `AmbiguousMatchException`. When a controller has `[Route("api/orders")]` at the class level and `MapControllerRoute` also matches `api/Orders/Index`, both routes claim the request and the framework throws. MVC recommends that controllers either use fully attribute-routed actions or fully conventional routes, not both. The `[Route]` attribute on a controller disables conventional routing for all actions in that controller — any action without an explicit route attribute on a `[Route]`-decorated controller is unreachable via conventional routes. When converting a controller to attribute routing, add explicit route attributes to all actions before removing the conventional route.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. Route data values leaking between requests in URL generation
 
 **Concepts**
-- Unchecked checkbox posting no value — binding sets non-nullable `bool` to `false`
-- `[Required]` passing validation because `false` is a valid non-null value
-- `bool?` with `[Required]` requiring an explicit `true` for consent scenarios
-- Hidden-field pattern for deliberate `false` submission
+- Ambient route values — current request's route values used automatically in link generation
+- `asp-action="Edit"` without `asp-id` — uses the current request's `id` from ambient values
+- Unexpected URL — link on `/Products/Details/5` generates `/Products/Edit/5` even when editing a different id
+- Explicit route values — always specify `asp-route-id` when the target id differs from current
 
 **Answer**
 
-An unchecked checkbox posts nothing — no form field at all — so model binding sets a non-nullable `bool` to its default `false`. `[Required]` then passes validation because `false` is a valid non-null value, meaning a user can submit a consent checkbox unchecked and the server accepts it. For explicit consent requirements, use `bool?` with `[Required]` since a null value (no field posted) fails `[Required]` while `true` (checked) passes. The hidden-field pattern — a hidden input with value `false` plus a checkbox with value `true` — ensures the form always posts a value so unchecked deliberately sends `false`.
+Tag helpers and `Url.Action` use the current request's route values as "ambient" values when generating URLs. On a `/Products/Details/5` page, `<a asp-action="Edit">` generates `/Products/Edit/5` because it picks up `id=5` from the ambient route data. This is convenient when the target id matches — but on a page that iterates over a list, each iteration generates a link with the same ambient `id` rather than the row's id. The fix is to explicitly provide the id: `<a asp-action="Edit" asp-route-id="@item.Id">`. When in doubt about which route values will be ambient, always specify them explicitly rather than relying on ambient value inheritance.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-index requirement for MVC form collection binding
-- Gap indices causing silent truncation or misalignment of bound items
-- Client-side reindexing after row deletion
-- Custom `IModelBinder` for non-contiguous index tolerance
-
-**Answer**
-
-MVC's collection binder expects form field names like `Lines[0].Name`, `Lines[1].Name` in contiguous order starting at zero. When a user deletes a middle row from a dynamic form, the remaining indices become `Lines[0]` and `Lines[2]`, with index 1 missing. The binder stops at the first gap so subsequent items are silently dropped or bound incorrectly. The fix is to reindex client-side after every row deletion so indices are always contiguous. A custom `IModelBinder` can tolerate non-contiguous indices for complex scenarios, but client-side reindexing is simpler and easier to test.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor default `@` encoding preventing XSS
-- `Html.Raw` bypassing encoding for attacker-supplied strings
-- AJAX partial HTML injection via `innerHTML` as an XSS surface
-- Content-Security-Policy as defense in depth, not a substitute for encoding
-
-**Answer**
-
-Razor's default `@` encoding prevents XSS by HTML-encoding output so attacker-supplied angle brackets and script tags render as visible text. `@Html.Raw(Model.UserComment)` bypasses that protection, rendering whatever string the user submitted directly into the HTML — including `<script>` tags and event handlers. AJAX-loaded partials injected via `innerHTML` carry the same risk: any script in the injected HTML executes in the victim's session. Use `@Model.UserComment` for auto-encoded output, or sanitize with a trusted HTML sanitizer library if preserving some HTML formatting is genuinely required.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Antiforgery cookie-and-field/header pair preventing CSRF
-- Form Tag Helpers emitting the hidden token field automatically
-- Manual `RequestVerificationToken` header required for `fetch` and jQuery AJAX
-- `[AutoValidateAntiforgeryToken]` covering all unsafe methods on a controller
-
-**Answer**
-
-Form Tag Helpers emit the `__RequestVerificationToken` hidden field automatically, but `fetch` and jQuery AJAX calls must include the token manually — as the `RequestVerificationToken` header or as the form field in the POST body. Without it, `[ValidateAntiForgeryToken]` or `[AutoValidateAntiforgeryToken]` returns 400 Bad Request before the action executes. The fix is to read the hidden field value from the page and include it on every mutating AJAX request. Disabling antiforgery on MVC cookie-auth endpoints to work around the 400 is not acceptable — CSRF protection exists precisely because those endpoints are vulnerable.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub — per-connection transient lifecycle, not registered in DI for direct injection
-- `IHubContext<THub>` — singleton proxy for server-side broadcasting
-- Hub instance lacking connection context when activated outside SignalR
-- Redis backplane or Azure SignalR for cross-instance message fan-out
-
-**Answer**
-
-Hubs are not registered in DI for direct injection into controllers — injecting a concrete `Hub` type either fails activation or produces an instance without a valid connection context, since hubs are per-connection objects managed by SignalR's infrastructure. The correct mechanism for broadcasting from a controller or service is `IHubContext<THub>`, a singleton proxy registered by `AddSignalR()` that routes messages through SignalR. For multi-instance deployments, pair it with a Redis backplane or Azure SignalR Service so messages reach clients on all pods, not just the current process.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- In-memory connection registry local to each pod
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane and Azure SignalR Service for full fan-out
-- Group membership and connection IDs scoped per process instance
-
-**Answer**
-
-Each ASP.NET Core process maintains its own in-memory registry of connections, groups, and user mappings. Sticky sessions route the same client to the same pod for their WebSocket lifetime, but when a controller on instance A calls `IHubContext.Clients.User(id).SendAsync`, that call only reaches users connected to instance A — users on instance B miss the message. The fix is a Redis backplane (`AddStackExchangeRedis`) or Azure SignalR Service, which routes events across all instances so any process can reach any connected client. Sticky sessions are still useful to avoid connection migration overhead but are not a substitute for a cross-instance backplane.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

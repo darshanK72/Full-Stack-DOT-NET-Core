@@ -371,82 +371,147 @@ For three or fewer known parts at a single call site, `Concat` or `+` are fine. 
 
 ---
 
-## Gotchas
+## Gotchas — Strings in C# (Interview Traps)
 
 ---
 
-## Q16. A developer writes `rawInput.ToUpperInvariant();` on a separate line but the resulting data is never normalized. What went wrong?
+#### Gotcha 1. String concatenation in a loop is O(n²) due to immutability — use StringBuilder
 
 **Concepts**
-- Immutability — instance methods return new strings, never mutate receiver
-- Discarded return value — silent no-op at runtime
-- Reassignment required: `s = s.ToUpperInvariant()`
-- Same trap applies to `Trim`, `Replace`, `ToLower`, `Insert`, `Remove`
-- Compiler does not warn on discarded string return values by default
+- Each + creates a new string
+- N concatenations allocate O(1)+O(2)+...+O(N) bytes = O(N²)
+- StringBuilder uses a char[] with amortized doubling
+- string.Join or LINQ string.Concat for simple cases
 
 **Answer**
 
-`ToUpperInvariant()` honors immutability — it returns a new `string` object containing the upper-cased sequence; the original variable `rawInput` is unaffected. Discarding the return value means the transformation never persists anywhere, yet the code compiles and runs without any error or warning. This is one of the most common string bugs in C# and typically surfaces as "normalization silently does nothing" — duplicate records, case-sensitive lookup misses, or security checks that accept both `"admin"` and `"ADMIN"`. The fix is to assign: `rawInput = rawInput.ToUpperInvariant();` or to return directly without the intermediate: `return rawScanLine.Trim().ToUpperInvariant();`. The same principle applies to every `string` instance method — `Trim`, `Replace`, `ToLower`, `Substring`, `Insert`, `Remove` — all return new strings.
+Because strings are immutable, str = str + piece creates a new string object on every iteration, copying all previous characters again. A loop over N items that builds a string by concatenation allocates O(N²) total bytes, causing noticeable GC pressure as N grows. Use StringBuilder, which maintains an internal buffer and appends without copying previous content.
 
 ---
 
-## Q17. `"abc" == new string(new[] { 'a', 'b', 'c' })` — will this be `true` or `false`? What about `ReferenceEquals`?
+#### Gotcha 2. string == uses ordinal content comparison; Unicode normalization can make equal-looking strings unequal
 
 **Concepts**
-- `==` on string — overloaded to compare character sequences (value equality)
-- `ReferenceEquals` — object identity
-- `new string(chars)` — allocates a new heap object, bypasses intern pool
-- Literal `"abc"` may be interned; `new string(...)` is not
-- Result: `==` is `true`; `ReferenceEquals` is `false`
+- == on string compares char-by-char (ordinal)
+- "café" and "cafe\u0301" look identical but differ
+- String.Normalize() to NFC form
+- StringComparer.CurrentCulture for linguistic comparison
 
 **Answer**
 
-`==` will return `true` because the `string` class overloads the operator to compare character sequences, and both sides contain the same three characters. `ReferenceEquals` will return `false` because `new string(new[] { 'a', 'b', 'c' })` explicitly allocates a fresh heap object; the compiler interns the literal `"abc"` but does not intern runtime-constructed strings. The gotcha appears in code that switches from `==` to a reference-identity check (perhaps through an `object` variable): `object o = new string(chars); o == "abc"` calls `object.operator==`, which is reference equality, and returns `false` even though the characters are the same. Always use typed `string` variables or `.Equals(StringComparison.Ordinal)` to ensure value semantics are in play.
+The letter 'é' can be represented as a single Unicode code point (U+00E9, precomposed) or as 'e' followed by the combining acute accent (U+0301, decomposed). These two representations look identical on screen but compare as unequal with ==. Use string.Normalize(NormalizationForm.FormC) before comparing strings that originate from different sources.
 
 ---
 
-## Q18. What does `string.Split('|')` return when the input string contains no pipe character?
+#### Gotcha 3. String.IsNullOrEmpty returns false for whitespace-only strings — use IsNullOrWhiteSpace for user input
 
 **Concepts**
-- No-match behavior — returns single-element array with the full original string
-- Array length 1, not 0
-- Safe index access — `parts[0]` is valid, `parts[1]` throws `IndexOutOfRangeException`
-- Contrast with empty string — `"".Split('|')` returns `[""]`
-- Always validate `.Length` before indexing specific positions
+- IsNullOrEmpty returns true only for null or ""
+- IsNullOrWhiteSpace includes spaces, tabs, newlines
+- user input validation should use IsNullOrWhiteSpace
+- server-side validation should never rely on client-side trimming
 
 **Answer**
 
-When the separator is absent, `Split` returns a one-element array whose sole entry is the entire original string — it does not return an empty array, and it does not throw. This behavior is correct and documented, but it surprises developers who expect "nothing to split" to mean "nothing returned." The danger materializes in code that unconditionally accesses `parts[1]` or `parts[2]` — with no pipe in the input, those indices throw `IndexOutOfRangeException`. In `ScanLineParser.Parse`, the three-field scan format is assumed, but defensive production code should validate `pipeParts.Length == 3` (or at least `>= 3`) before accessing the service and SKU segments. Similarly, an empty input string `""` split on any character returns `[""]` — a one-element array containing an empty string, not a zero-element array — because there is one segment before and after zero occurrences of the separator.
+String.IsNullOrEmpty(" ") returns false because a string consisting entirely of spaces is not empty. String.IsNullOrWhiteSpace(" ") returns true. For any validation of user-provided text, IsNullOrWhiteSpace is almost always the correct check, since users can trivially bypass an IsNullOrEmpty guard by submitting a single space.
 
 ---
 
-## Q19. Why can `$"{orderTotal:C}"` produce different output on different production servers even with identical code?
+#### Gotcha 4. Verbatim string @'...' treats \\ as two literal backslashes, not one
 
 **Concepts**
-- `CultureInfo.CurrentCulture` — implicit provider for interpolation format specifiers
-- `:C` — currency format driven by current culture
-- Thread culture set by OS locale or ASP.NET request pipeline
-- `de-DE` uses comma decimal separator; `en-US` uses period
-- `InvariantCulture` required for stable logs and wire formats
+- @ prefix disables escape sequences
+- \n in verbatim string is two chars (backslash + n)
+- \\ in verbatim is two backslashes
+- paths require @ to avoid escape confusion
 
 **Answer**
 
-String interpolation format specifiers are resolved against `CultureInfo.CurrentCulture`, which is the locale configured on the executing thread. On a US server `{orderTotal:C}` produces `$127.50`; on a German server it produces `127,50 €`; on a Japanese server it produces `¥128`. If the same interpolated string is used in both a displayed shipping label (where regional formatting is desirable) and a JSON audit log or database column (where format must be stable), the log entries become incomparable across regions, and downstream parsers that expect a decimal point will fail in European deployments. The fix for invariant contexts is to step out of interpolation and use `string.Format(CultureInfo.InvariantCulture, "{0:F2}", orderTotal)` or call `orderTotal.ToString("F2", CultureInfo.InvariantCulture)` explicitly. Interpolation remains appropriate for user-facing display when the correct locale is confirmed, but it should never be the default choice for data that must round-trip through storage or transmission.
+In a regular string literal, \\ represents a single backslash. In a verbatim string literal (@"C:\Users\name"), each backslash is literal, so @"C:\Users\name" is the correct way to write a Windows path. Writing @"C:\\Users\\name" would produce double backslashes in the path, which most Windows APIs do not accept.
 
 ---
 
-## Q20. What is the pitfall of calling `StartsWith`, `EndsWith`, or `Contains` without a `StringComparison` argument?
+#### Gotcha 5. Interpolated strings evaluate immediately — they cannot be deferred or translated
 
 **Concepts**
-- Default overloads — use `CurrentCulture` (locale-sensitive) in older .NET versions
-- .NET 5+ — default changed toward `Ordinal` in some overloads but varies
-- Explicit `StringComparison.Ordinal` removes ambiguity and is faster
-- CA1307/CA1310 analyzer warnings in Roslyn
-- Culture-sensitive prefix matching can match ligatures and digraphs unexpectedly
+- $"Hello {name}" evaluates name at the expression
+- cannot be passed to LINQ IQueryable translators
+- FormattableString allows deferred culture-specific formatting
+- Expression<Func<T>> required for query translation
 
 **Answer**
 
-The parameterless overloads of `StartsWith`, `EndsWith`, and `Contains` historically defaulted to `CurrentCulture`, and while .NET 5+ improved some defaults, the safest and most explicit practice is always to pass a `StringComparison`. Culture-sensitive matching can cause unexpected results: in some locales, a ligature like "ﬁ" (fi ligature) matches "fi" in a culture-sensitive search but not an ordinal one; diacritics may be ignored or expanded differently across cultures. In `ScanLineParser.Parse`, `orderSegment.StartsWith("ORD", StringComparison.Ordinal)` is used deliberately — machine prefixes like "ORD" must match literally, not according to whatever locale is active on the server. Roslyn analyzers CA1307 and CA1310 flag missing `StringComparison` arguments to encourage explicit mode specification. The rule of thumb: pass `StringComparison.Ordinal` or `OrdinalIgnoreCase` for identifiers, codes, and tokens; pass `CurrentCulture` or `CurrentCultureIgnoreCase` only for user-visible text where locale matching is intentional.
+A string interpolation expression $"Order {id} from {date:yyyy-MM-dd}" evaluates all embedded expressions immediately and produces a string value. This means it cannot be used with Entity Framework or other LINQ providers that translate expressions to SQL, because by the time the LINQ provider sees it, the expressions have already been computed into a single string.
+
+---
+
+#### Gotcha 6. String.Format with {0:C} is culture-sensitive — different locales produce different currency symbols
+
+**Concepts**
+- :C uses CultureInfo.CurrentCulture's currency format
+- server culture differs from client
+- FormattableString.Invariant for invariant culture
+- CultureInfo.InvariantCulture for machine-readable
+
+**Answer**
+
+string.Format("{0:C}", 42.5m) produces "$42.50" on a US system and "42,50 €" on a French system. For logging, serialization, or any output that will be parsed programmatically, pass CultureInfo.InvariantCulture to prevent locale-dependent formatting. Only use CurrentCulture formatting for output directly presented to the end user.
+
+---
+
+#### Gotcha 7. String.Intern only guarantees that literals and explicitly interned strings share identity — new string objects are not automatically interned
+
+**Concepts**
+- Literal strings are interned by compiler
+- new string('a', 1) is not interned
+- string.Intern returns the interned reference
+- ReferenceEquals on interned strings; IsInterned returns null if not interned
+
+**Answer**
+
+String literals in compiled code are interned so identical literals map to the same heap object. However, strings constructed at runtime (from user input, file reads, concatenation, or new string()) are separate heap objects even if their content matches an interned string. Relying on reference equality for runtime strings causes subtle bugs; always use == (content equality) for string comparison.
+
+---
+
+#### Gotcha 8. Substring always allocates a new string — use AsSpan for zero-allocation substring operations
+
+**Concepts**
+- Substring creates heap copy
+- ReadOnlySpan<char> via AsSpan is zero-copy
+- Span works only in sync methods
+- Memory<char> for async; performance-critical code prefers span-based APIs
+
+**Answer**
+
+str.Substring(0, 5) allocates a new string object on the heap containing the first five characters. str.AsSpan(0, 5) returns a ReadOnlySpan<char> that points directly into the original string's memory without allocating anything. For parsing, searching, and slicing in performance-critical hot paths, the span-based string APIs (Span<char>, MemoryExtensions) eliminate thousands of short-lived heap allocations.
+
+---
+
+#### Gotcha 9. string.Contains with StringComparison overload was added in .NET Core 2.1 — not in .NET Framework
+
+**Concepts**
+- .NET Framework 4.x Contains has no StringComparison overload
+- .NET Standard 2.0 also lacks it
+- use IndexOf with StringComparison on .NET Framework
+- .NET Core 2.1+ has the overload
+
+**Answer**
+
+The string.Contains(string value, StringComparison comparisonType) overload is available in .NET Core 2.1 and later but does not exist in .NET Framework 4.x. Code targeting .NET Standard 2.0 or .NET Framework must use str.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0 for case-insensitive contains checks.
+
+---
+
+#### Gotcha 10. string.Split() with no arguments splits on all whitespace; Split(' ') splits only on space characters
+
+**Concepts**
+- Split() uses char.IsWhiteSpace (space, tab, newline, etc.)
+- Split(' ') splits on ASCII space only
+- StringSplitOptions.RemoveEmptyEntries removes empty tokens
+- tabs in TSV data not split by Split(' ')
+
+**Answer**
+
+Calling "a\tb".Split() with no arguments returns ["a","b"] because the overload splits on any whitespace character including tab. Calling "a\tb".Split(' ') returns ["a\tb"] as a single element because space (ASCII 32) is not the same as tab (ASCII 9). The distinction matters when parsing TSV files or any whitespace-delimited data where tab characters are the separators.
 
 ---
 

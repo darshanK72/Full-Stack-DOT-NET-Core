@@ -182,67 +182,147 @@ By default, `^` matches only at the very start of the input string and `$` match
 
 ---
 
-## Gotchas
+## Gotchas — Regular Expressions (Interview Traps)
 
 ---
 
-## Q11. Why does creating a new Regex with RegexOptions.Compiled inside a hot loop cause memory pressure?
+#### Gotcha 1. Catastrophic backtracking — nested quantifiers (`(a+)+`) cause exponential time on non-matching input
 
 **Concepts**
-- Compiled regex generates a dynamic assembly
-- dynamic assembly not GC-collected
-- memory leak pattern
-- static readonly field solution
-- [GeneratedRegex] as zero-overhead alternative
+- nested quantifiers create exponentially many backtracking paths
+- partial match followed by overall failure triggers full path exploration
+- `MatchTimeout` as mandatory guard for user-supplied patterns
+- `RegexOptions.NonBacktracking` (.NET 7+) for linear-time guarantee
 
 **Answer**
 
-`RegexOptions.Compiled` causes the runtime to generate a small dynamic assembly containing IL for the pattern's matching logic. This is a one-time cost that makes subsequent matches significantly faster. The problem is that when a `new Regex(pattern, RegexOptions.Compiled)` call appears inside a method that is called repeatedly, a new dynamic assembly is generated on every invocation. Dynamic assemblies are not garbage collected in the same way as ordinary objects — they persist for the lifetime of the AppDomain. Under sustained load this creates a memory leak as hundreds or thousands of abandoned compiled regex assemblies accumulate. The fix is to move the Regex construction to a `static readonly` field or a `static partial Regex` method with `[GeneratedRegex]`, ensuring the compilation happens once. If the pattern must be dynamic (built from user config at runtime), use `RegexOptions.Compiled` only for patterns that will be reused many times, and cache them explicitly in a `ConcurrentDictionary<string, Regex>`.
+A pattern like `(a+)+` applied to a string `"aaaaaaaaab"` (many `a`s followed by a non-matching character) causes the backtracking engine to explore an exponential number of ways to partition the `a`s between the inner `+` and outer `+` before concluding the overall match fails. With 20 or more characters in the input, this can take seconds or minutes. The mandatory production mitigation is to set a `MatchTimeout` on every `Regex` that processes user-supplied or external content: `new Regex(pattern, RegexOptions.None, TimeSpan.FromMilliseconds(150))`. When the engine exceeds the timeout, it throws `RegexMatchTimeoutException` instead of hanging. For patterns that must be user-defined, `RegexOptions.NonBacktracking` guarantees linear time but cannot support backreferences or lookaheads.
 
 ---
 
-## Q12. What is the ReDoS risk of the pattern (order\s+\d+)+ on a malformed input?
+#### Gotcha 2. `Regex` compiled flag — `RegexOptions.Compiled` reduces per-call overhead but increases startup time; use for hot paths
 
 **Concepts**
-- nested quantifier catastrophic backtracking
-- + inside + pattern
-- exponential backtracking path count
-- MatchTimeout as mandatory mitigation
-- NonBacktracking option
+- `RegexOptions.Compiled` generates IL via dynamic assembly on first use
+- startup cost: significant for infrequently used patterns
+- `[GeneratedRegex]` as the AOT-compatible compile-time alternative
+- cached `static readonly Regex` required to amortize compilation cost
 
 **Answer**
 
-The pattern `(order\s+\d+)+` contains nested quantifiers: `\s+` inside a group that itself is quantified with `+`. On a string that partially matches — for example, `"order 123 order 456 order "` (trailing space, no digit to complete the last group) — the engine explores an exponential number of ways to partition the matches between the inner `\s+` and outer `+` quantifiers before concluding the overall match fails. With a sufficiently long malformed input a caller can cause the regex thread to consume 100% CPU for an extended period. The practical mitigation is to specify a `MatchTimeout` — `new Regex(pattern, RegexOptions.None, TimeSpan.FromMilliseconds(100))` — which throws `RegexMatchTimeoutException` instead of hanging. The pattern should also be rewritten to eliminate the nesting ambiguity: `order\s+\d+` (matching each occurrence individually via `Matches`) is equivalent and runs in linear time. For .NET 10, `RegexOptions.NonBacktracking` guarantees linear execution but cannot be used if the pattern requires backreferences.
+`RegexOptions.Compiled` causes the regex engine to JIT-compile the pattern into IL code when the `Regex` object is first constructed. This makes subsequent matches faster — typically 2-5x faster than interpreted mode — but the compilation itself takes tens to hundreds of milliseconds. If a compiled `Regex` is created inside a method that is called on every request, the startup cost is paid repeatedly and the pattern's dynamic assembly accumulates in memory without being garbage collected, creating a memory leak. The correct usage is `private static readonly Regex Pattern = new Regex(@"...", RegexOptions.Compiled)` — constructed once, reused forever. In .NET 7+ the `[GeneratedRegex]` source generator is preferred: it produces equivalent IL at build time with zero runtime startup cost and is fully AOT-compatible.
 
 ---
 
-## Q13. Why does greedy matching cause HTML tag stripping to fail?
+#### Gotcha 3. `Regex.IsMatch` vs `Regex.Match` — IsMatch stops at first match; Match returns full match details
 
 **Concepts**
-- greedy .* spans from first < to last >
-- stripping entire content between non-adjacent tags
-- lazy .*? closer to correct but still fragile
-- HTML is not regular language
-- HtmlAgilityPack as correct tool
+- `IsMatch` returns `bool`; stops at first successful match for efficiency
+- `Match` returns a `Match` object with captured groups
+- `Matches` returns all matches as a `MatchCollection`
+- `IsMatch` is more efficient when only existence is needed
 
 **Answer**
 
-The pattern `<.*>` applied to `<div>Title</div><script>alert(1)</script>` matches greedily from the first `<` all the way to the final `>`, consuming the entire string as one match including all text content between tags. The `Replace` call therefore removes everything between the outermost angle brackets, leaving an empty string — not just the tags. Switching to lazy `<.*?>` produces closer behavior but still has correctness gaps: it won't handle attributes that contain `>` characters, it won't handle embedded quotes, and it won't handle multi-line tags. More critically, using order of operations in `StripTags` — stripping tags first, then scripts — is wrong: after the first Replace removes the tag delimiters, the second Replace's `<script…>` pattern finds nothing because the script tags were already removed along with everything else. HTML is not a regular language and cannot be reliably parsed with regex. The correct tool is a dedicated HTML parser such as HtmlAgilityPack or AngleSharp, which builds a DOM and allows safe traversal and removal of specific node types.
+`Regex.IsMatch(input, pattern)` returns `true` as soon as the engine finds the first position where the pattern matches, making it the most efficient choice when you only need to know whether a match exists. `Regex.Match` returns the full `Match` object including captured groups, start position, length, and value — it also stops at the first match unless you call `match.NextMatch()`. `Regex.Matches` returns a lazy `MatchCollection` of all non-overlapping matches. A common mistake is using `Matches` and checking `.Count > 0` when `IsMatch` is both simpler and faster. Conversely, using `IsMatch` when the capture groups are needed results in having to call `Match` anyway, effectively evaluating the pattern twice.
 
 ---
 
-## Q14. What is the Multiline / CRLF gotcha when parsing Windows-generated config files?
+#### Gotcha 4. Static `Regex.IsMatch` caches recently used patterns — not always faster than a `new Regex()`
 
 **Concepts**
-- Windows line endings \r\n
-- $ in Multiline mode matches before \n not \r
-- trailing \r in captured group values
-- \r?$ pattern fix
-- cross-platform file handling
+- static `Regex` methods cache the last 15 compiled patterns in an MRU cache
+- cache eviction under high variety of patterns causes repeated re-compilation
+- explicit `static readonly Regex` avoids eviction
+- `Regex.CacheSize` property to tune the static cache size
 
 **Answer**
 
-On Windows, line endings are `\r\n` (carriage return + newline). With `RegexOptions.Multiline`, `$` matches the position just before `\n`, but the `\r` immediately preceding it is still part of the matched text for a pattern like `^(\w+)=(.*)$`. The second captured group `(.*)` captures everything up to `\r`, and `$` then matches before `\n` — but the `\r` is included in the captured value. Downstream code that expects `"5432"` gets `"5432\r"`, which causes `int.Parse` to throw or comparison to fail silently. The fix is either to use `\r?$` in the pattern to explicitly consume the optional carriage return, or to normalize line endings before matching with `input.Replace("\r\n", "\n")`. The best production practice for config parsing is to use a dedicated config library (`IConfiguration`, `System.CommandLine`) that handles platform-specific line endings rather than applying raw regex to multi-platform file content.
+The static methods `Regex.IsMatch(input, pattern)`, `Regex.Match(...)`, and `Regex.Replace(...)` maintain an internal MRU cache of up to 15 compiled patterns by default (configurable via `Regex.CacheSize`). When your code uses only a handful of patterns, the cache works well and the static form is convenient. But if the application uses more than 15 distinct patterns (or if patterns are constructed dynamically from user input), patterns are evicted from the cache and must be recompiled on next use. In a high-throughput application using 30+ patterns, the eviction churn causes measurable latency spikes. The reliable solution is to store each pattern in a `static readonly Regex` field, guaranteeing zero recompilation regardless of how many other patterns are in use.
+
+---
+
+#### Gotcha 5. Greedy vs lazy quantifiers — `.*` vs `.*?` — greedy matches as much as possible
+
+**Concepts**
+- greedy `.*` matches the longest possible string first
+- lazy `.*?` matches the shortest possible string first
+- greedy causes "over-matching" across multiple delimiters
+- lazy does not guarantee correctness for nested or overlapping delimiters
+
+**Answer**
+
+The greedy quantifier `.*` consumes as many characters as possible before yielding back during backtracking. In a pattern like `<div>(.*)</div>` applied to `<div>A</div><div>B</div>`, the greedy `.*` matches from the first `A` all the way to `B` — it finds the last `</div>` in the string rather than the first one. Switching to `<div>(.*?)</div>` makes the quantifier lazy: it matches as few characters as possible, stopping at the first `</div>`. This is closer to the intended behavior for simple cases but still fails on nested tags. The general lesson is that greedy vs lazy controls the matching strategy but does not fix fundamental parser limitations — HTML and nested structures require a proper parser, not a regex tweak.
+
+---
+
+#### Gotcha 6. `^` and `$` match start/end of line in `Multiline` mode; start/end of string otherwise
+
+**Concepts**
+- default: `^` matches start of string, `$` matches end of string
+- `RegexOptions.Multiline`: `^` and `$` match at each line boundary
+- `\A` and `\Z` always anchor to string boundaries regardless of Multiline
+- `RegexOptions.Singleline` makes `.` match newlines (unrelated to `^`/`$`)
+
+**Answer**
+
+Without `RegexOptions.Multiline`, `^` anchors to the start of the entire input string and `$` anchors to the end. A pattern like `^\d+$` applied to a multi-line string will only match if the entire string is digits. With `RegexOptions.Multiline`, `^` matches at the start of each line (after each `\n`) and `$` matches at the end of each line (before each `\n`), so `^\d+$` matches any line that contains only digits. The anchors `\A` and `\Z` are immune to `Multiline`: `\A` always matches the start of the string and `\Z` always matches the end (or before a final newline). Using `\A` and `\Z` instead of `^` and `$` is the explicit, mode-independent way to anchor to string boundaries.
+
+---
+
+#### Gotcha 7. Capturing groups vs non-capturing groups — `(...)` vs `(?:...)` — unnecessary captures waste memory
+
+**Concepts**
+- `(...)` captures the group and stores it in `Match.Groups`
+- `(?:...)` groups without capturing — no allocation in `Groups` collection
+- backreference requires a capturing group
+- named groups `(?<name>...)` are also capturing groups
+
+**Answer**
+
+Every `(...)` in a pattern creates a capturing group, allocating a `Group` object in the `Match.Groups` collection for each match. In patterns with many groupings used only for precedence or alternation, these allocations are wasteful. Converting grouping-only constructs to non-capturing groups `(?:...)` reduces allocations and can improve performance in hot-path regex operations. Named groups `(?<year>\d{4})` are capturing groups with string keys — they are appropriate when the captured value is used by name in code or replacement strings. Pure structural groupings (e.g., `(?:foo|bar)+`) should always use `(?:...)` to signal that the capture value is irrelevant and to avoid unnecessary memory use.
+
+---
+
+#### Gotcha 8. Character class `[^...]` negation — `[^abc]` matches any char NOT a, b, or c, including newline
+
+**Concepts**
+- `[^abc]` negated class matches any character not in the set
+- includes newline `\n` unless explicitly excluded
+- `[^\n]` to exclude newline explicitly in multi-line input
+- `.` does not match newline by default; negated classes always include `\n`
+
+**Answer**
+
+A negated character class `[^abc]` matches any single character that is NOT `a`, `b`, or `c` — including whitespace, punctuation, and, crucially, the newline character `\n`. This means a pattern like `[^,]+` on a CSV line will consume the newline at the end of the line, potentially merging data from the next line into the current field match. To explicitly exclude newline from a negated class, add `\n` to the exclusion: `[^,\n]+`. The `.` metacharacter does not match newline by default (it only does with `RegexOptions.Singleline`), but negated character classes are not affected by `Singleline` — they always include `\n` unless it is explicitly excluded.
+
+---
+
+#### Gotcha 9. `Regex.Replace` with a match evaluator delegate — used for dynamic replacement logic
+
+**Concepts**
+- `MatchEvaluator` delegate called once per match
+- enables lookup tables, transformations, and conditional replacements
+- return value replaces the entire matched substring
+- `MatchTimeout` applies to the matching phase, not the evaluator execution
+
+**Answer**
+
+`Regex.Replace(input, pattern, match => transform(match.Value))` calls the evaluator delegate once for every match found. The delegate receives the full `Match` object — including all captured groups — and returns the replacement string. This is the idiomatic way to implement dynamic replacements that depend on the matched content, such as looking up a localized string for each matched code, applying a case transformation, or encoding special characters. The delegate itself is synchronous; for async lookups (database or cache), the pattern must pre-load the lookup table before calling `Replace`. The `MatchTimeout` set on the `Regex` governs the matching phase; the evaluator execution time is separate and is not covered by the timeout, so keep evaluator logic fast.
+
+---
+
+#### Gotcha 10. .NET `Regex` source generators (`[GeneratedRegex]`) in .NET 7+ — compile-time compiled patterns
+
+**Concepts**
+- `[GeneratedRegex(@"pattern", RegexOptions.X)]` on a `static partial Regex` method
+- compiler generates a `Regex` subclass with the state machine baked in at build time
+- zero runtime startup cost; no dynamic assembly; fully AOT-compatible
+- requires `partial` class and `partial` method declaration
+
+**Answer**
+
+The `[GeneratedRegex]` attribute, introduced in .NET 7, instructs the Roslyn source generator to produce a `Regex`-derived class with the compiled state machine emitted as plain C# source code during build. The resulting pattern has zero runtime startup overhead and no dependence on dynamic assembly generation, making it fully compatible with Native AOT publishing. Usage requires a `static partial` method returning `Regex` inside a `partial` class. The generator produces an implementation that behaves identically to `RegexOptions.Compiled` but without the runtime cost. For any pattern used in a production application, `[GeneratedRegex]` is the preferred form over `new Regex(...)` or static method invocations.
 
 ---
 

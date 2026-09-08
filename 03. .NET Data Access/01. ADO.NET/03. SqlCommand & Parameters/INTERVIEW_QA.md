@@ -101,35 +101,157 @@ Use `ExecuteScalar` when the query is guaranteed to return exactly one value —
 
 ---
 
-## Gotchas
-
-#### Gotcha 1. String concatenation instead of parameters
-
-**Answer:** Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM.
-
-- ADO.NET and Dapper require explicit parameters — never embed raw user strings in SQL text.
-- EF Core `FromSqlInterpolated` is safe; passing an ordinary interpolated string to `FromSqlRaw` is not.
-- Code review should treat any dynamic SQL without placeholders as a blocking defect.
+## Gotchas — SqlCommand & Parameters (Interview Traps)
 
 ---
 
-#### Gotcha 3. `AddWithValue` and wrong SQL types
+#### Gotcha 1. String concatenation in SQL enables injection
 
-**Answer:** `SqlParameter.AddWithValue` infers parameter types from CLR values, which may not match the database column type — causing implicit conversions, index scans, and poor plan cache behavior.
+**Concepts**
+- SQL injection via string interpolation or concatenation
+- `@placeholder` parameterization as the prevention
+- `ADO.NET` has no automatic sanitization
+- plan cache pollution from dynamic literal strings
+- blocking defect in code review
 
-- Prefer explicit `SqlParameter` with `SqlDbType`, size, and precision matching the column definition.
-- String inference often picks oversized `nvarchar` lengths, preventing optimal index seeks on narrower columns.
-- Dapper and EF Core parameterize with more predictable typing but custom ADO.NET still needs explicit types.
+**Answer**
+
+Building SQL with C# string interpolation (`$"WHERE Id = {id}"`) or concatenation sends user input as literal SQL text, enabling SQL injection and preventing query plan reuse. ADO.NET does not sanitize input automatically — every user-supplied value must be bound through a `SqlParameter` with an explicit `@placeholder` and the value set separately. Code review should flag any dynamic SQL string construction without parameter placeholders as a blocking security defect.
 
 ---
 
-#### Gotcha 2. Open DataReader blocks second command
+#### Gotcha 2. `AddWithValue` infers wrong SQL types — index scans and plan pollution
 
-**Answer:** Running another `SqlCommand` on the same connection while a `SqlDataReader` is still open fails on SQL Server unless Multiple Active Result Sets (MARS) is enabled in the connection string.
+**Concepts**
+- `AddWithValue` CLR-to-SQL type inference
+- `string` inferred as `nvarchar(len)` — oversized, breaks seeks
+- implicit conversion prevents index seek
+- `decimal` precision and scale not inferred correctly
+- explicit `SqlDbType`, size, and precision as the fix
 
-- Always dispose or finish reading the `DataReader` before issuing the next command on that connection.
-- A common bug loads a header row then tries to load detail rows on the same connection without closing the reader.
-- EF Core manages readers internally, but raw ADO.NET code in the same request must respect this rule.
+**Answer**
+
+`SqlParameter.AddWithValue` infers the SQL type from the CLR value, which frequently does not match the database column definition. A `string` parameter is typically inferred as `nvarchar(4000)` or `nvarchar(max)`, while the column may be `varchar(100)` — causing an implicit type conversion that prevents an index seek and forces a full scan. For `decimal` parameters the scale is often wrong. Always use an explicit `SqlParameter` specifying `SqlDbType`, `Size`, and `Precision`/`Scale` that exactly match the column, especially on columns involved in index seeks.
+
+---
+
+#### Gotcha 3. ExecuteNonQuery returns -1 for SELECT statements
+
+**Concepts**
+- `ExecuteNonQuery` return value for non-DML statements
+- `-1` returned for SELECT, `SET NOCOUNT ON` stored procedures
+- rows affected vs scalar result distinction
+- `ExecuteScalar` for single-value results
+- `ExecuteReader` for row result sets
+
+**Answer**
+
+`ExecuteNonQuery` returns the number of rows affected by INSERT, UPDATE, or DELETE, but returns `-1` for SELECT statements and for stored procedures that begin with `SET NOCOUNT ON`. Relying on the return value of `ExecuteNonQuery` to detect whether a SELECT found a row is always wrong — use `ExecuteScalar` for a single-value result or `ExecuteReader` for a result set. Check the `ExecuteNonQuery` return value only on DML commands where "0 rows affected" has explicit business meaning (e.g., optimistic concurrency conflict detection).
+
+---
+
+#### Gotcha 4. ExecuteScalar returns DBNull.Value — direct cast throws
+
+**Concepts**
+- `ExecuteScalar` returns `object?`
+- `DBNull.Value` for `MAX`/`SUM`/`MIN` on empty result set
+- `COUNT(*)` always returns integer, not null
+- `InvalidCastException` on direct `(int)` cast of `DBNull`
+- null-coalescing pattern with `as int?`
+
+**Answer**
+
+`ExecuteScalar` returns `object?` — casting it directly to `int` throws `InvalidCastException` when the result is `DBNull.Value`, which occurs for aggregate functions like `MAX` or `SUM` on an empty result set. `COUNT(*)` always returns a non-null integer, but scalar subqueries or aggregates with no matching rows return `DBNull`. Use `result is DBNull ? 0 : (int)result` or `(result as int?) ?? 0` to handle both cases safely. Always null-check before casting any value returned from `ExecuteScalar`.
+
+---
+
+#### Gotcha 5. CommandType.Text used to call a stored procedure — RPC vs batch
+
+**Concepts**
+- `CommandType.StoredProcedure` sends RPC call
+- `CommandType.Text` with `EXEC ProcName` sends batch statement
+- plan reuse difference between RPC and ad-hoc batch
+- `CommandText` must be procedure name only with `StoredProcedure`
+- `EXEC ProcName @p` as text vs RPC parameter binding
+
+**Answer**
+
+When `CommandType.StoredProcedure` is set, `CommandText` must contain only the schema-qualified procedure name (e.g., `dbo.usp_GetOrder`) — adding `EXEC` or parentheses causes `SqlException: could not find stored procedure 'EXEC dbo.usp_GetOrder'`. With `CommandType.Text` and `EXEC ProcName @p1, @p2`, SQL Server treats the whole string as an ad-hoc batch, which has inferior plan-reuse characteristics compared to the RPC call generated by `CommandType.StoredProcedure`. Choose `StoredProcedure` with bound `SqlParameter` objects for all production procedure calls.
+
+---
+
+#### Gotcha 6. Parameter collection not cleared when reusing SqlCommand
+
+**Concepts**
+- `SqlCommand.Parameters` accumulates across calls
+- duplicate parameter names throw `ArgumentException`
+- reuse pattern requires explicit `Parameters.Clear()`
+- new `SqlCommand` per operation as safer pattern
+- connection reuse vs command reuse distinction
+
+**Answer**
+
+If a `SqlCommand` instance is reused across multiple calls without clearing its `Parameters` collection, adding the same parameter name a second time throws `ArgumentException: The SqlParameter is already contained by another SqlParameterCollection`. The safest pattern is to create a new `SqlCommand` instance per operation rather than reusing one, which also avoids subtle bugs from stale parameter values. If reuse is required for performance, call `command.Parameters.Clear()` before adding parameters for the next execution.
+
+---
+
+#### Gotcha 7. CommandTimeout too short for bulk or reporting operations
+
+**Concepts**
+- `CommandTimeout` default of 30 seconds
+- long-running bulk inserts, reports, and index operations
+- `SqlException: Execution Timeout Expired`
+- `CommandTimeout = 0` for unlimited (use with care)
+- per-command timeout vs connection-level setting
+
+**Answer**
+
+The default `SqlCommand.CommandTimeout` is 30 seconds, which is appropriate for transactional CRUD but far too short for bulk inserts, complex aggregate reports, or maintenance operations like index rebuilds. When these commands time out in production they throw `SqlException: Execution Timeout Expired`, and the partial work already committed by the server is not automatically rolled back unless the command was inside a transaction. Set `command.CommandTimeout = 300` (or higher) for known long operations; use `0` for unlimited timeout only on maintenance commands that must run to completion without interference.
+
+---
+
+#### Gotcha 8. Using `SqlDbType.NVarChar` for `varchar` column causes implicit conversion
+
+**Concepts**
+- Unicode `nvarchar` vs non-Unicode `varchar` parameter mismatch
+- implicit conversion prevents index seek
+- collation-aware comparison change with Unicode input
+- parameter type must match column type exactly
+- performance regression detectable in execution plan
+
+**Answer**
+
+Passing a parameter with `SqlDbType.NVarChar` for a column defined as `varchar` forces SQL Server to perform an implicit conversion on every row comparison, which prevents an index seek and degrades to a full index scan. The execution plan will show an implicit conversion warning on the column predicate. Always match the parameter `SqlDbType` to the exact column type: use `SqlDbType.VarChar` for `varchar` columns and set `Size` to the column's defined length to ensure the parameter binding is identical to the column definition.
+
+---
+
+#### Gotcha 9. Missing `SqlCommand.Transaction` assignment — command runs outside the transaction
+
+**Concepts**
+- `SqlCommand.Transaction` property must be set explicitly
+- command not enrolled in transaction auto-commits
+- partial rollback when transaction fails
+- each `SqlCommand` needs the same transaction reference
+- `BeginTransaction` return value must be held and assigned
+
+**Answer**
+
+Creating a `SqlTransaction` via `connection.BeginTransaction()` does not automatically enroll subsequent `SqlCommand` objects — each command's `Transaction` property must be set explicitly to the same transaction instance. Forgetting to assign `command.Transaction = tx` causes that command to execute under implicit autocommit, meaning it commits immediately even if the transaction later rolls back. Always hold the `SqlTransaction` reference returned by `BeginTransaction` and assign it to every command that must participate in the unit of work.
+
+---
+
+#### Gotcha 10. `SqlParameter.Size` not set for output parameters — truncation at default 0
+
+**Concepts**
+- output parameter `Size` defaults to 0 for string/binary types
+- zero-size output truncates or returns empty value
+- `Direction = ParameterDirection.Output` requires explicit `Size`
+- `AddWithValue` cannot be used for output parameters
+- explicit `SqlDbType`, `Size`, and `Direction` required
+
+**Answer**
+
+For output parameters of type `nvarchar`, `varchar`, or `varbinary`, the `SqlParameter.Size` property must be set explicitly — the default value of 0 causes the parameter to receive an empty or truncated result even when the stored procedure writes a full string. `AddWithValue` cannot be used for output parameters because type inference only works for input binding. Always define output parameters as `new SqlParameter("@Name", SqlDbType.NVarChar, 200) { Direction = ParameterDirection.Output }` with `Size` matching the maximum expected value length.
 
 ---
 

@@ -575,3 +575,147 @@ public static bool HasPromotionalItem(
 ```
 
 Choices explained: `IReadOnlyList<CartItem>` signals the method does not modify the cart and that it is enumerable. `IReadOnlyCollection<string>` for promo SKUs signals a finite, non-modifiable set. Materializing `promoSkus` into a `HashSet<string>` before the `Any` call avoids an O(m) scan of `promoSkus` for every cart item; without this, the naive `cart.Any(item => promoSkus.Contains(item.Sku))` would be O(n × m). `StringComparer.OrdinalIgnoreCase` handles casing differences between the cart's stored SKU format and the promotions table without requiring normalization at write time. The `Any` call stops at the first promotional item it finds, making the best-case cost O(1) regardless of cart size. Return the `bool` directly rather than storing in a variable and returning it — quantifier results are immutable and do not benefit from named intermediate values in simple methods.
+
+## Gotchas — Quantifier Operations (Interview Traps)
+
+---
+
+#### Gotcha 1. `Any()` on an Empty Sequence Returns `false`
+
+**Concepts**
+- Parameterless `Any()` returns `true` if the sequence has at least one element, `false` if empty
+- `Any(predicate)` returns `false` on an empty sequence regardless of the predicate
+- Contrast with `All()`: empty sequences return `true` for `All` (vacuous truth) but `false` for `Any`
+- This asymmetry is a classic interview trap
+
+**Answer**
+
+`Enumerable.Empty<int>().Any()` returns `false` — an empty sequence has no elements, so the condition "at least one element exists" is false. `Any(predicate)` also returns `false` on an empty sequence because there is no element to satisfy the predicate. Interviewers often contrast this with `All()`, which returns `true` on an empty sequence by vacuous truth, to test whether candidates understand the logical duality between the two operators.
+
+---
+
+#### Gotcha 2. `All()` on an Empty Sequence Returns `true` — Vacuous Truth
+
+**Concepts**
+- `All(predicate)` returns `true` when the sequence is empty (vacuous truth)
+- No element violates the predicate because there are no elements to check
+- This follows formal logic: a universal statement over an empty domain is true by definition
+- Code that expects `All()` to return `false` for empty sequences will have a logic bug
+
+**Answer**
+
+`Enumerable.Empty<int>().All(x => x > 0)` returns `true` because there is no element that violates the predicate. This is correct by formal logic — "all elements satisfy P" is vacuously true when there are no elements — but it surprises developers who expect an empty sequence to return `false`. Guard against this by combining `Any()` with `All()`: `source.Any() && source.All(predicate)` returns `false` for an empty sequence and `true` only when every element of a non-empty sequence satisfies the predicate.
+
+---
+
+#### Gotcha 3. `Any()` Short-Circuits — Stop at the First Match
+
+**Concepts**
+- `Any()` stops enumerating as soon as it finds one element that satisfies the predicate
+- More efficient than `Count() > 0` or `Count(predicate) > 0`, which always enumerate the full sequence
+- Short-circuit behaviour means the rest of the sequence is never evaluated after the first match
+- Especially important for lazy sequences, network streams, or deferred database queries
+
+**Answer**
+
+`source.Any(x => x.IsActive)` stops iterating as soon as it encounters one active element; `source.Count(x => x.IsActive) > 0` always scans the entire sequence even if the very first element matches. On large collections or deferred queries, replacing `Count() > 0` with `Any()` is a straightforward performance improvement with identical semantics. On `IQueryable`, EF Core translates `Any` to `SELECT TOP 1 1 WHERE …` rather than `SELECT COUNT(*)`.
+
+---
+
+#### Gotcha 4. `All()` Short-Circuits — Stops at the First Non-Match
+
+**Concepts**
+- `All(predicate)` stops enumerating as soon as one element fails the predicate
+- Returns `false` immediately on the first failing element without checking the rest
+- Like `Any()`, avoids full enumeration in the common failure case
+- On EF Core `IQueryable`, translates to a `NOT EXISTS` sub-query rather than a full scan
+
+**Answer**
+
+`source.All(x => x.Price > 0)` stops and returns `false` the moment it encounters an element with a non-positive price, without evaluating the remaining elements. This short-circuit makes `All` efficient when violations are common or early in the sequence. On databases via EF Core, `All` translates to `NOT EXISTS (SELECT 1 FROM … WHERE NOT (condition))`, which terminates as soon as a violation is found at the storage layer.
+
+---
+
+#### Gotcha 5. `Contains()` Uses `Equals` — Custom Types Need a Correct Override
+
+**Concepts**
+- `Contains(value)` calls `Equals` on each element using the default equality comparer
+- Reference types without `Equals` override compare by reference identity, not by field values
+- Two objects with identical fields but different references will not match
+- Use `record` types (which auto-generate value equality) or implement `IEquatable<T>` and `GetHashCode`
+
+**Answer**
+
+`list.Contains(new Order(42))` returns `false` if `Order` is a class that does not override `Equals`, because the default reference equality compares memory addresses. The new instance is a different object than the one in the list even though the data is identical. The fix is to override `Equals` and `GetHashCode`, implement `IEquatable<T>`, or use a `record` type which auto-generates structural equality. The `Contains(value, IEqualityComparer<T>)` overload lets you supply custom comparison logic without modifying the type.
+
+---
+
+#### Gotcha 6. `Any(pred)` vs `Where(pred).Any()` — Same Result, Prefer the Concise Form
+
+**Concepts**
+- `Any(predicate)` and `Where(predicate).Any()` are semantically identical
+- Both short-circuit at the first matching element
+- `Any(pred)` is more concise and avoids allocating an intermediate iterator for the `Where`
+- On `IQueryable`, both translate to the same SQL; on `IEnumerable`, `Any(pred)` is marginally cheaper
+
+**Answer**
+
+`source.Any(x => x.IsActive)` and `source.Where(x => x.IsActive).Any()` produce the same result with the same short-circuit behaviour, but `Any(pred)` avoids allocating an extra `WhereEnumerableIterator` object on the heap. The difference is negligible in most code, but using `Any(pred)` is idiomatic and signals intent more clearly. Code review tools and analyzers will often flag the `Where(...).Any()` pattern as a simplification opportunity.
+
+---
+
+#### Gotcha 7. `Contains` on `IQueryable` vs `IEnumerable` — SQL `IN` vs Linear Scan
+
+**Concepts**
+- On `IQueryable<T>`, `Contains` translates to a SQL `IN (...)` clause
+- On `IEnumerable<T>`, `Contains` performs a linear O(n) scan
+- A `List<string>` passed as the argument to an EF Core query generates parameterized `IN` SQL
+- Very large `IN` lists can hit database parameter limits; consider a temp table or join instead
+
+**Answer**
+
+`dbContext.Orders.Where(o => orderIds.Contains(o.Id))` — where `orderIds` is a `List<int>` — translates to `WHERE Id IN (1, 2, 3, …)` in SQL, which is efficient. If `orderIds` is converted to `IEnumerable` before the query, EF Core may still handle it, but calling `.AsEnumerable()` on the `DbSet` first forces client-side evaluation — loading all rows then scanning in memory. Always keep `Contains` calls inside the `IQueryable` chain to get SQL-level filtering.
+
+---
+
+#### Gotcha 8. `Any` vs `List<T>.Exists` — Equivalent but Not Interchangeable
+
+**Concepts**
+- `List<T>.Exists(predicate)` is the `List<T>`-specific method equivalent to `Any(predicate)`
+- `Exists` is only available on `List<T>`; `Any` works on any `IEnumerable<T>`
+- Both short-circuit; `Exists` avoids the LINQ extension method dispatch overhead by a tiny margin
+- Prefer `Any` when coding to `IEnumerable<T>` or `IReadOnlyList<T>` interfaces for generality
+
+**Answer**
+
+`list.Exists(x => x.Active)` and `list.Any(x => x.Active)` are functionally identical for a `List<T>` and both short-circuit. `Exists` is a direct `List<T>` instance method that avoids extension-method dispatch and is marginally faster in micro-benchmarks, but the difference is immeasurable in real applications. `Any` is preferred when the variable is typed as an interface (`IEnumerable<T>`, `IReadOnlyList<T>`) because `Exists` is not available on those interfaces.
+
+---
+
+#### Gotcha 9. Combining `All` and Negation — De Morgan's Law in LINQ
+
+**Concepts**
+- `!source.All(x => condition)` is logically equivalent to `source.Any(x => !condition)` by De Morgan's Law
+- Both express "at least one element violates the condition"
+- `source.Any()` combined with `!source.All(pred)` is redundant — just use `source.Any(x => !pred(x))`
+- Understanding the duality helps simplify complex boolean LINQ expressions
+
+**Answer**
+
+`!source.All(x => x.IsValid)` and `source.Any(x => !x.IsValid)` are identical in logic and in short-circuit behaviour — both stop at the first invalid element. The negated `All` form reads naturally in English ("not all are valid") but the `Any(!pred)` form is often more direct in code. Interviewers use this pair to test knowledge of De Morgan's Law and whether candidates can recognise and simplify equivalent boolean LINQ expressions.
+
+---
+
+#### Gotcha 10. `SequenceEqual` — Order-Sensitive Element-by-Element Equality
+
+**Concepts**
+- `SequenceEqual` returns `true` only if both sequences have the same elements in the same order
+- Uses the default equality comparer for the element type unless a custom comparer is supplied
+- Two sequences with the same elements in different order return `false`
+- For order-insensitive comparison, sort both sequences first or use `HashSet<T>.SetEquals`
+
+**Answer**
+
+`new[]{1,2,3}.SequenceEqual(new[]{3,2,1})` returns `false` because `SequenceEqual` compares element by element in order, not as sets. It also requires both sequences to be the same length — it returns `false` as soon as lengths differ. For set equality (same elements regardless of order), use `new HashSet<T>(a).SetEquals(b)` or sort both sequences before calling `SequenceEqual`. Custom equality logic for element comparison can be provided via the `IEqualityComparer<T>` overload.
+
+---

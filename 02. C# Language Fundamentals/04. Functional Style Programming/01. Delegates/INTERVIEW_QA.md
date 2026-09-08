@@ -481,150 +481,147 @@ This pattern also gives you exception isolation: wrap the individual call in a `
 
 ---
 
-## Gotchas
+## Gotchas — Delegates (Interview Traps)
 
 ---
 
-## Q19. Why does invoking a multicast delegate with a return type only give you the last result?
+#### Gotcha 1. Multicast Delegate Return Value — Only the Last Result Is Kept
 
 **Concepts**
-- multicast invocation discards intermediate return values
-- only the last invocation's return value is captured
-- hidden data loss in subscriber chains
-- GetInvocationList as the workaround
-- API design implication
+- multicast invocation discards all intermediate return values
+- only the final subscriber's return value reaches the caller
+- silent data loss with no compiler warning
+- GetInvocationList is the correct workaround for collecting all results
 
 **Answer**
 
-This is one of the most surprising behaviors for developers new to multicast delegates. When you invoke a delegate that holds multiple subscribers and has a non-void return type, the runtime calls each subscriber in order and silently discards every return value except the one from the final subscriber. The caller only ever sees the last result. There is no exception, no warning, and no indication that earlier results existed.
-
-```csharp
-Func<int, int> pipeline = x => x + 1;
-pipeline += x => x * 10;
-pipeline += x => x - 3;
-
-int result = pipeline(5);
-// result == (5 - 3) == 2  ← only the last subscriber's output
-// (5 + 1) and (5 * 10) are computed and thrown away
-```
-
-The practical implication is that multicast delegates with return types are almost always a design mistake unless you are explicitly using `GetInvocationList()` to collect all results. APIs that chain transformations should compose functions explicitly (e.g., `x => transform1(transform2(x))` or a pipeline list), not rely on multicast. Event-style patterns avoid this entirely by using `void` return types (`Action`, `EventHandler`), which is part of why the .NET event convention mandates void return.
+When a multicast delegate with a non-void return type is invoked, the runtime calls every subscriber in order and silently throws away every return value except the one produced by the last subscriber. There is no exception, no warning, and no indication that earlier results existed. APIs that need every subscriber's result must iterate `GetInvocationList()`, cast each entry to the concrete delegate type, and invoke individually to collect all return values.
 
 ---
 
-## Q20. What happens when one subscriber in a multicast chain throws an exception?
+#### Gotcha 2. Invoking a Null Delegate Throws NullReferenceException
 
 **Concepts**
-- default invocation aborts chain on first exception
-- subsequent subscribers never run
-- GetInvocationList for exception isolation
-- partial side-effect risk
-- aggregate exception pattern
+- uninitialized delegate variable is null
+- direct invocation `myDelegate(args)` throws NullReferenceException
+- null-conditional `?.Invoke()` is the safe pattern
+- thread-safe snapshot: copy the reference before invoking
 
 **Answer**
 
-When the runtime invokes a multicast delegate and one subscriber throws, the exception propagates immediately to the call site and every subscriber after the failing one is silently skipped. This means a bug in subscriber number two can prevent subscribers three through N from ever running — a problem that is especially serious when those subscribers have critical responsibilities like releasing locks, committing transactions, or sending alerts.
-
-Consider an order-shipped event with three subscribers: an email notifier, a warehouse update, and an analytics tracker. If the email notifier throws, the warehouse is never updated and the analytics tracker never fires. From the perspective of the publisher, the call appeared to partially succeed — one handler ran — but the system is now in an inconsistent state.
-
-The only way to isolate subscribers is to iterate `GetInvocationList()` manually and wrap each call in a `try/catch`. You can accumulate all exceptions into an `AggregateException` and rethrow at the end to inform the publisher that something went wrong without starving later subscribers:
-
-```csharp
-List<Exception>? errors = null;
-foreach (EventHandler<OrderEventArgs> h in OnShipped!.GetInvocationList())
-{
-    try { h(this, args); }
-    catch (Exception ex) { (errors ??= []).Add(ex); }
-}
-if (errors is not null) throw new AggregateException(errors);
-```
+A delegate variable that has never been assigned, or from which the last subscriber was removed via `-=`, is null. Calling it directly as `myDelegate(args)` throws a `NullReferenceException`. The idiomatic guard is `myDelegate?.Invoke(args)`, which the compiler lowers to a single null check and a call. In multithreaded code, copy the reference into a local first — `var snapshot = myDelegate; snapshot?.Invoke(args);` — because the variable could be set to null between a separate null check and the actual call.
 
 ---
 
-## Q21. Why does adding a lambda with += and removing it with -= (using a different expression) fail silently?
+#### Gotcha 3. Two Lambda Instances with Identical Code Are Not Equal
 
 **Concepts**
-- delegate equality by target object + method pointer
-- each lambda expression is a distinct instance
-- closure class identity
-- cached delegate field pattern
-- anonymous method unsubscription pitfall
+- delegate equality compares target object and method pointer
+- each lambda expression is a distinct compiler-generated instance
+- `-=` with a different lambda expression silently does nothing
+- store the lambda in a field for reliable unsubscription
 
 **Answer**
 
-Delegate removal via `-=` relies on equality: the runtime searches the invocation list for a subscriber that equals the right-hand operand (same target object and same method pointer). Lambda expressions compile to methods on compiler-generated closure classes, and two separate lambda expressions in source code — even with identical bodies — compile to different methods or different class instances. As a result, the delegate produced by the second lambda expression never equals the one produced by the first, and `-=` scans the list, finds no match, and returns the original delegate unchanged without any warning or error.
-
-This silent no-op is a common source of memory leaks in long-lived objects: you subscribe a lambda in a constructor, try to unsubscribe it later with what looks like the same code, and the subscription persists forever, keeping the subscriber alive through the publisher's strong reference.
-
-The fix is to store the lambda in a field, local, or static variable before subscribing, and pass the same variable to both `+=` and `-=`:
-
-```csharp
-private readonly EventHandler<OrderEventArgs> _onShipped;
-
-public OrderTracker(OrderService svc)
-{
-    _onShipped = (_, e) => Track(e.Order);
-    svc.OrderShipped += _onShipped;
-}
-
-public void Detach(OrderService svc) => svc.OrderShipped -= _onShipped;
-```
-
-Using a named method instead of a lambda also works, because method group conversions to the same method on the same instance produce equal delegates.
+Two independently created lambda expressions — even with byte-for-byte identical source text — compile to different methods or different closure class instances and therefore compare as unequal. This means subscribing with one lambda and then trying to unsubscribe with a separately written but identical lambda is a silent no-op: `Delegate.Remove` finds no match and returns the original delegate unchanged. The fix is to store the subscribing lambda in a field and pass the same reference to both `+=` and `-=`.
 
 ---
 
-## Q22. What is the += null delegate pitfall and why does it work?
+#### Gotcha 4. An Exception in One Multicast Subscriber Stops the Entire Chain
 
 **Concepts**
-- null left-hand side with `+=`
-- Delegate.Combine(null, d) returns d
-- uninitialized event field pattern
-- implicit null initialization
-- safe first subscription
+- default multicast invocation aborts on the first exception
+- later subscribers never run
+- partial side-effects leave the system in an inconsistent state
+- manual `GetInvocationList` loop with per-subscriber try/catch for isolation
 
 **Answer**
 
-When you write `myDelegate += handler` and `myDelegate` is currently `null`, the compiler expands this to `myDelegate = Delegate.Combine(myDelegate, handler)`, which becomes `myDelegate = Delegate.Combine(null, handler)`. The `Delegate.Combine` method treats a null first argument as an empty left side and simply returns the second argument. So the result is that `myDelegate` is now pointing to `handler` — the operation succeeds silently without a `NullReferenceException`.
-
-This is intentional and relied upon throughout the BCL. Event fields in classes are declared without initialization — `public event EventHandler? OrderShipped;` — and the first subscriber's `+=` brings them from null to a real delegate instance. Developers do not need to write `OrderShipped = new EventHandler(...)` before the first subscription.
-
-The important asymmetry is with invocation: `myDelegate?.Invoke()` handles null safely, but `myDelegate(args)` without the null-conditional throws. The pattern is therefore: always initialize event fields as null (safe), use `+=` freely to subscribe (safe), but always use `?.Invoke` to fire (critical). Mixing `+=` carefreeness with direct invocation carefreeness is the source of `NullReferenceException` bugs in event-heavy code.
+When the runtime invokes a multicast delegate and any subscriber throws, execution stops immediately at that subscriber and every subsequent subscriber in the chain is silently skipped. In an order-shipped event with three handlers (email, warehouse, analytics), a crash in the email handler means the warehouse and analytics handlers never fire. The only remedy is to iterate `GetInvocationList()` manually, wrapping each invocation in a try/catch and optionally accumulating exceptions into an `AggregateException` to report all failures after all subscribers have had a chance to run.
 
 ---
 
-## Q23. How can closed-over loop variables cause subtle bugs in delegate-heavy code?
+#### Gotcha 5. Delegate Variance — Covariant Returns and Contravariant Parameters
 
 **Concepts**
-- single loop variable shared by all iterations
-- closure captures reference not snapshot
-- all delegates see final loop value
-- fix via local copy inside loop body
-- `foreach` vs `for` loop distinction in C# 5+
+- covariant return: a method returning a derived type is assignable to a base-return delegate
+- contravariant parameter: a method accepting a base type is assignable to a derived-parameter delegate
+- applies only to reference types — value types are excluded
+- `Func<out TResult>` and `Action<in T>` encode variance in their generic annotations
 
 **Answer**
 
-When you create delegates inside a `for` loop and capture the loop variable, all delegates share a reference to the same variable — the one that changes on each iteration and ends at its final value when the loop completes. By the time any of those delegates is invoked (say, after the loop finishes), the loop variable holds its post-loop value, so every delegate computes using that final value rather than the per-iteration value you intended.
+Delegate variance allows a method to be assigned to a delegate variable when the signatures are not identical but are safely substitutable. Covariance allows a method returning `Dog` to be assigned to a `Func<Animal>` because any caller expecting an `Animal` can safely receive a `Dog`. Contravariance allows a method accepting `Animal` to be assigned to an `Action<Dog>` because a method that can handle any `Animal` can certainly handle a `Dog`. Both forms of variance apply only to reference types; attempting to use variance with value types such as `int` is a compile-time error.
 
-```csharp
-var actions = new List<Action>();
-for (int i = 0; i < 5; i++)
-    actions.Add(() => Console.WriteLine(i));   // captures i, not a copy
+---
 
-actions.ForEach(a => a());  // prints 5, 5, 5, 5, 5 — not 0,1,2,3,4
-```
+#### Gotcha 6. `+` Creates a New Delegate; `+=` Reassigns the Variable
 
-The fix is to copy `i` into a new local variable declared inside the loop body. Each iteration's local is a distinct variable, so each closure captures its own independent copy:
+**Concepts**
+- `Delegate.Combine` allocates a new immutable instance
+- `+` does not modify either operand in place
+- `+=` is syntactic sugar for `variable = variable + newTarget`
+- forgetting to assign the result of `+` silently discards the combination
 
-```csharp
-for (int i = 0; i < 5; i++)
-{
-    int copy = i;
-    actions.Add(() => Console.WriteLine(copy));  // each closure captures its own copy
-}
-```
+**Answer**
 
-In C# 5 and later, `foreach` loops were fixed at the language level: the iteration variable is effectively re-declared on each iteration, so closures over `foreach` variables do not exhibit this problem. `for` loop counters, however, are still single shared variables and still require the copy pattern.
+The `+` operator on two delegate instances calls `Delegate.Combine` and returns a brand-new delegate whose invocation list is the concatenation of both operands, but neither original is mutated. Writing `var combined = a + b;` stores the result in `combined` while `a` and `b` remain unchanged. The `+=` operator is shorthand for `a = a + b;` — it reassigns the variable so the combined delegate is stored back. Using `+` without capturing the result is a silent bug where the new combined delegate is created and then immediately discarded.
+
+---
+
+#### Gotcha 7. Instance Method Delegate Captures `this` — Memory Leak Risk
+
+**Concepts**
+- instance method delegate stores a reference to the target object
+- event subscription via instance method keeps the subscriber alive
+- publisher outliving the subscriber prevents GC
+- `IDisposable.Dispose` must unsubscribe to release the reference
+
+**Answer**
+
+When you create a delegate from an instance method — `myObj.MyMethod` or `this.HandleEvent` — the delegate stores a reference to the target object alongside the method pointer. If that delegate is added to an event on a longer-lived publisher such as a singleton service, the publisher's invocation list holds a reference to the subscriber, preventing garbage collection for the publisher's entire lifetime. This is the most common cause of event-related memory leaks in .NET. The fix is to implement `IDisposable` on the subscriber, cache the delegate in a field, and call `-=` in `Dispose` to release the reference.
+
+---
+
+#### Gotcha 8. Thread Safety of Multicast Delegate Invocation
+
+**Concepts**
+- the delegate variable is a reference that can be replaced concurrently
+- null-check and invoke must operate on the same snapshot
+- copy-before-invoke pattern prevents a race between check and call
+- delegate instances themselves are immutable and safe to invoke once captured
+
+**Answer**
+
+Delegate instances are immutable, so invoking a captured reference from multiple threads is safe. The danger lies in the reference variable: another thread could reassign the field (or remove the last subscriber, making it null) between your null check and the invocation. The standard fix is to copy the field into a local before doing anything with it: `var handler = _onEvent; handler?.Invoke(args);`. Since the local holds a strong reference to the snapshot, even if another thread replaces the field afterward, the local remains non-null and safe to call.
+
+---
+
+#### Gotcha 9. `Action` vs `Func` vs Custom Delegate — When to Use Each
+
+**Concepts**
+- `Action` for void-returning callbacks
+- `Func` for value-returning callbacks, last type argument is always the return type
+- custom delegate for `ref`/`out`/`params` parameters or domain-specific naming
+- `Predicate<T>` equals `Func<T, bool>` by signature but they are not interchangeable
+
+**Answer**
+
+`Action` and `Func` cover virtually all callback shapes in modern C# and should be the default choice. Use `Action` when the callback returns nothing and `Func` when it returns a value; the last type argument of `Func` is always the return type. Declare a custom named delegate type when: the callback needs `ref`, `out`, or `params` parameters that `Func` and `Action` cannot express; the name of the delegate carries domain-specific meaning that `Func<decimal, string, decimal>` would obscure; or the delegate forms part of a stable public API contract. `Predicate<T>` exists for legacy BCL compatibility and is not assignable to `Func<T, bool>` without wrapping — in new code prefer `Func<T, bool>`.
+
+---
+
+#### Gotcha 10. Delegate Wrapping Overhead — Virtual Dispatch vs Direct Call vs Cached Delegate
+
+**Concepts**
+- calling through a delegate adds an indirect call via function pointer
+- comparable cost to a virtual dispatch; JIT cannot inline through a delegate
+- lambda expression converted in a hot path can allocate a new delegate object each time
+- static method group conversions are cached by .NET 5+ runtime; instance method groups still allocate
+
+**Answer**
+
+Calling a method directly is faster than calling it through a delegate because the delegate adds an indirect call through a function pointer and prevents JIT inlining. More importantly, converting a method group or creating a lambda on a hot path can allocate a new delegate object on every call. Starting in .NET 5, the runtime caches delegate instances for static method group conversions, making those allocation-free. Instance method group conversions still allocate per conversion, so in performance-critical code they should be cached in a static or instance field rather than recreated on every invocation.
 
 ---
 

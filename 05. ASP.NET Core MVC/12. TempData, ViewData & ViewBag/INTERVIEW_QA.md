@@ -280,219 +280,149 @@ Never store passwords, API keys, JWT tokens, session secrets, or credit card num
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — TempData, ViewData & ViewBag (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. TempData consumed on first read — content disappears on second access
 
 **Concepts**
-- Business logic in Razor — untestable and duplicated from the service layer
-- Separation of concerns — view as presentation only
-- Authorization checks in templates bypassing security layers
-- Divergent behavior when view and API/batch logic run the same rule separately
+- TempData default behavior — entry marked for deletion after the first read
+- Layout reading before child view — layout consumes the entry; child view sees null
+- `TempData.Peek("Key")` — reads without marking for deletion
+- `TempData.Keep("Key")` — retains a consumed entry for the next request
 
 **Answer**
 
-Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render only what the controller or ViewModel already prepared, since Razor calculations cannot be tested independently and often diverge from API or batch logic. Authorization belongs in filters, policies, or controller checks executed before the view — not in view conditionals that a developer can accidentally omit.
+TempData marks entries for deletion the moment they are read via the indexer or `TempData["Key"]`. If the layout reads a flash message first and then the child view tries to read the same key, the second access returns null because the entry was already marked for deletion during the layout pass. `TempData.Peek("Message")` reads the value without consuming it. `TempData.Keep("Message")` after reading marks the entry to survive into the next request. The cleanest pattern is a single consumption point — one partial `_FlashMessages.cshtml` rendered once in the layout that owns all TempData reads — rather than relying on multiple read points.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. TempData serialization failing for complex objects
 
 **Concepts**
-- Over-posting via direct entity binding on POST
-- Lazy-loaded navigation properties triggering unexpected queries during rendering
-- ViewModel as the narrow data contract between controller and view
-- Entity-to-ViewModel mapping responsibility
+- Default TempData provider — cookie-based; serializes values as JSON
+- Complex objects — must be JSON-serializable; non-serializable types throw at serialization
+- `TempData["Error"] = new OrderError(...)` — works if class is JSON-serializable
+- Size limit — cookie-based TempData has a 4096-byte limit per cookie
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties, enables over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during Razor rendering — each navigation access issues a database round-trip. Mass assignment on POST can update properties the user should never control, such as `IsAdmin`. The correct pattern is a dedicated ViewModel with only the fields the view needs, mapped from the entity in the controller or a mapping service.
+The default cookie-based `ITempDataProvider` serializes TempData entries as JSON. Simple types (`string`, `int`, `bool`) and plain DTOs serialize cleanly. Objects with circular references, non-public property setters, or `[JsonIgnore]` on required properties fail serialization and throw at the point of assignment or response commit. Complex domain objects or exception objects should not be stored in TempData — store a `string` error message or a small DTO instead. The 4KB cookie size limit is another constraint: storing a list of validation errors or a large model in TempData exceeds the limit and either truncates silently or throws. For larger state that must survive a redirect, use session or a database-backed `ITempDataProvider`.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. ViewBag magic string typos silently returning null
 
 **Concepts**
-- Browser form encoding — `application/x-www-form-urlencoded` vs JSON
-- `[FromBody]` routing to the JSON input formatter only
-- Silent binding failure — model parameter receives default values
-- `FormData` following the form value provider rules
+- `ViewBag.Title` and `ViewBag.PageTitle` — unrelated dynamic properties; typo writes to different key
+- No compile-time check — `@ViewBag.Title` returns null with no error if nothing was assigned
+- `ViewBag` as `dynamic` — any property access compiles and runs; null is the default for missing keys
+- Strongly typed ViewModel — compile-time alternative that catches typos as build errors
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` tells MVC to use the JSON input formatter — when a form POST arrives, the formatter finds no matching content and the model receives default values while the action runs silently. Remove `[FromBody]` for conventional form POSTs and let the form value provider bind fields. Use `[FromBody]` only when the client explicitly sends JSON with the correct Content-Type header.
+`ViewBag.PageTitle = "Dashboard"` in the controller and `@ViewBag.Title` in the layout are unrelated — the typo writes to a different dynamic property. No compiler or IDE tool catches this because `ViewBag` is `dynamic` and any property access is valid syntax. At runtime the layout reads `null` from `ViewBag.Title` and may fall back to a default silently. The "intermittent blank page title" bug only surfaces during manual testing of the specific route. Replacing `ViewBag.Title` with a ViewModel property `string PageTitle { get; set; }` gives compile-time safety via `@Model.PageTitle` — a rename triggers a build error rather than a silent null.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. ViewBag type loss when reading from Razor — explicit cast required
 
 **Concepts**
-- Client validation as a UX convenience, not a security boundary
-- Server-side validation mandatory before any persist, redirect, or side effect
-- Direct POST attacks bypassing browser scripts entirely
+- `ViewBag` is `dynamic` — property type is `object` at runtime
+- Razor `@ViewBag.Items` — treated as `object`; methods like `.Count` or foreach require cast
+- `ViewData["Items"] as IEnumerable<Product>` — explicit cast with null check
+- Silent failure — wrong type assignment returns null from `as` cast; `(Type)ViewBag.Items` throws
 
 **Answer**
 
-Client-side validation is bypassable — attackers can POST directly without running browser scripts. Server-side `ModelState.IsValid` is mandatory before any persist, redirect, or side effect. Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent. Treating missing server validation as a security defect regardless of client script presence is the right standard.
+`ViewBag.Items = products` stores the list as `object` under the dynamic dispatch. Calling `@foreach (var p in ViewBag.Items)` works at runtime because dynamic dispatch resolves the `IEnumerable` interface. However, `@ViewBag.Items.Count` throws `RuntimeBinderException` because `Count` is a property of `List<T>`, not of the dynamic proxy — explicit cast is required: `@((List<Product>)ViewBag.Items).Count`. Assigning the wrong type (an `int` when a `List` is expected) only surfaces when the Razor code tries to enumerate the value. The strongly typed ViewModel with `IReadOnlyList<Product> Items` eliminates all casting and makes mismatches a compile-time error.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. `ViewData` vs `ViewBag` are the same storage — writing to one reads from the other
 
 **Concepts**
-- Duplicate form submission triggered by browser refresh after POST
-- Post-Redirect-Get (PRG) pattern — mutation then safe redirect
-- `RedirectToAction` separating command (POST) from display (GET)
-- TempData carrying flash messages across the redirect
+- `ViewBag.Title` is syntactic sugar for `ViewData["Title"]`
+- Same underlying dictionary — setting `ViewData["Title"]` overwrites `ViewBag.Title`
+- Mixed usage — controller sets `ViewBag.Title`; layout reads `ViewData["Title"]`; works correctly
+- Confusion — inconsistent use across files misleads readers into thinking they are separate
 
 **Answer**
 
-Returning the same view after a successful POST means the browser's last request was the POST. When the user refreshes, the browser re-submits the POST body, which can duplicate an order or registration. The fix is Post-Redirect-Get: return `RedirectToAction(nameof(Index))` after a successful mutation so the browser's last request is a safe GET. TempData carries flash success messages across the redirect.
+`ViewBag` is a dynamic wrapper over `ViewData` — `ViewBag.Title` and `ViewData["Title"]` access the same dictionary entry. Setting `ViewData["Title"] = "Home"` in the controller and reading `@ViewBag.Title` in the layout works correctly because they share storage. The confusion arises when developers believe they are separate and accidentally use both to store different values under the same key, or switch from one to the other during refactoring without realizing they are the same. The inconsistency is a code style issue but not a functional bug — the bigger risk is using different key names (see Gotcha 3), not using different access syntax for the same key.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. TempData not surviving redirect when using In-Memory session provider in production
 
 **Concepts**
-- `ModelState` as request-scoped data lost on redirect
-- Return `View(model)` on validation failure to preserve errors inline
-- TempData serialization as a fallback for post-redirect error persistence
-- AJAX partial forms avoiding the redirect problem entirely
+- Default TempData provider — cookie-based, works without session configuration
+- Session-based TempData provider — requires `AddSession()` and `UseSession()` in the pipeline
+- Server restart or load balancing — in-memory session lost between requests on different nodes
+- Distributed session — `AddStackExchangeRedisCache()` + `AddSession()` for multi-node survival
 
 **Answer**
 
-`ModelState` lives in the controller's `ViewDataDictionary` for the current request only — a redirect ends that request with an empty `ModelState`. The standard pattern is redirect only on success and return `View(model)` on validation failure. If a redirect on failure is truly required, serialize errors to TempData or run a second validation pass on the GET action.
+`services.AddSession()` with in-memory session is the default backing store when using the session-based `ITempDataProvider`. On a single server this works, but a server restart or a load-balanced request routed to a different node loses the session entirely, destroying any TempData waiting in the session between the POST and the redirect GET. The default cookie-based TempData provider avoids this because TempData is stored in the response cookie and travels with the client through the redirect — no server-side state. For multi-node deployments, either use the cookie-based provider (the default) or configure distributed session with Redis: `services.AddStackExchangeRedisCache(...)` plus `services.AddSession()`.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. TempData cookie size limit exceeded — silent data loss or exception
 
 **Concepts**
-- TempData consume-on-read default semantics
-- Layout consuming flash key before the child view reads it
-- `Peek()` — read without marking for deletion in the same request
-- `Keep()` — preserve a consumed key for the next request
+- Cookie-based TempData — 4096-byte limit per cookie by default
+- Large payload — storing error lists, serialized models, or exceptions exceeds the limit
+- Silent truncation or `CryptographicException` — limit exceeded; TempData entry lost or error thrown
+- Alternative — store only a reference key in TempData, load data from database or cache
 
 **Answer**
 
-TempData marks entries for deletion the moment they are read via the indexer. If the layout reads a flash message first, the child view returns null. The fix is to use `TempData.Peek("Message")` in the layout, which reads without consuming. Centralizing flash display in a single partial avoids the double-read problem entirely.
+The default cookie-based `CookieTempDataProvider` serializes all TempData entries into a single encrypted cookie. The combined serialized and encrypted payload must fit within the 4096-byte cookie size limit enforced by browsers and most web servers. Storing a list of 50 validation errors, a serialized form model, or a large exception message exceeds this limit — the cookie is rejected silently or the response fails with a `CryptographicException`. The fix is to store only a short identifier in TempData (e.g., a GUID that references a server-side record) and load the actual data from `IDistributedCache` or a database on the redirect GET. Keep TempData payloads to short strings and simple value types.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. `ViewData` not accessible in `_Layout.cshtml` when set only in a partial view
 
 **Concepts**
-- `[Area("AreaName")]` as required routing metadata on area controllers
-- Controller in `Areas/` folder without attribute treated as a root controller
-- `{area:exists}` constraint not matching unannotated controllers
-- Compile-time success masking a runtime 404
+- `ViewData` dictionary — shared across the view, layout, and all partials within one request
+- Partial rendered inside a view — can read and write the same `ViewData` as the parent view
+- Layout renders before sections and partials — `ViewData` set in a partial is not available to the layout header
+- Layout header data — must be set in the controller action before the view renders
 
 **Answer**
 
-A controller physically in `Areas/Admin/Controllers/` is not automatically registered with the area route — it needs `[Area("Admin")]` on the class. Without it, MVC treats it as a root controller and requests return 404. The project compiles without the attribute, giving false confidence until the first HTTP request hits the area URL.
+`ViewData["Title"]` set inside `_MyPartial.cshtml` is visible to the parent view and layout because they all share the same `ViewDataDictionary` for the request. However, the layout renders its `<head>` section before it calls `@RenderBody()` where the partial is invoked. If the partial sets `ViewData["Title"]`, the layout's `<title>@ViewData["Title"]</title>` tag rendered in `<head>` has already been written — the title is empty or shows the default. Data needed in the layout `<head>` must be set in the controller action before `return View()`, not in a partial that renders inside `@RenderBody()`.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Reading TempData in both the layout and the child view causing double display
 
 **Concepts**
-- Ambient area route values from the current request
-- Absent area context in root views producing wrong URLs
-- Explicit `asp-area` required for cross-area and root-to-area links
-- `Url.Action` requiring area route values in the anonymous object
+- TempData consumed on first read — layout reads the key; child view gets null
+- Both trying to display flash message — only one will succeed; other shows nothing
+- `TempData.Peek` in layout — reads without consuming; child view still sees the message
+- Single ownership — designate one location (layout or view) as the sole consumer
 
 **Answer**
 
-Tag Helpers inherit ambient route values from the current request. From a root view, `asp-controller="Users"` generates `/Users` with no area prefix. Cross-area links require explicit `asp-area="Admin"` on every anchor targeting an area controller. The same rule applies to `Url.Action` — pass `new { area = "Admin" }` in the route values object.
+When both `_Layout.cshtml` and the child view `Index.cshtml` read `TempData["SuccessMessage"]` to display a flash notification, the first reader consumes the entry and the second reader gets null — only one message renders and the other location shows nothing. If the layout renders first and shows the message, the view renders an empty notification area. The fix is a single ownership model: designate one location as the sole consumer of each TempData key. A `_Notifications.cshtml` partial rendered once in the layout using `TempData.Peek` (or rendered once after `@RenderBody()` with regular read) is the cleanest approach — no dual reading, no coordination required across multiple files.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. `ViewBag` properties set in a base controller not available when using `[NonController]` helpers
 
 **Concepts**
-- Unchecked checkbox posting no value — binding sets non-nullable `bool` to `false`
-- `[Required]` passing validation because `false` is a valid non-null value
-- `bool?` with `[Required]` requiring explicit `true` for consent scenarios
-- Hidden-field pattern for deliberate `false` submission
+- Base controller `OnActionExecuting` — sets `ViewBag.CurrentUser` for all actions
+- `[NonController]` attribute — excludes the class from controller discovery
+- `ViewBag` from base `OnActionExecuting` — only runs for controllers discovered by MVC
+- Filter vs base class — base class filter runs for all inheriting controllers; middleware does not set ViewBag
 
 **Answer**
 
-An unchecked checkbox posts nothing, so model binding sets a non-nullable `bool` to `false`. `[Required]` passes because `false` is non-null. For explicit consent, use `bool?` with `[Required]` — null (no field posted) fails `[Required]`. The hidden-field pattern ensures the form always posts a value.
+A base `Controller` class that overrides `OnActionExecuting` to set `ViewBag.CurrentUser = User.Identity.Name` runs for all inheriting controllers as part of the MVC filter pipeline. However, if a service or helper class marked `[NonController]` inherits from this base to access the logic, the `OnActionExecuting` never fires — `[NonController]` removes it from the MVC activation pipeline entirely. Also, `ViewBag` properties set in the base `OnActionExecuting` are request-scoped and only valid within the current controller's action pipeline — they are not available in middleware, background services, or class libraries. Keep `ViewBag` population in the controller pipeline where the MVC request context is active.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-index requirement for MVC form collection binding
-- Gap indices causing silent truncation or misalignment
-- Client-side reindexing after row deletion
-- Custom `IModelBinder` for non-contiguous index tolerance
-
-**Answer**
-
-MVC's collection binder expects contiguous indices starting at zero. Gap indices cause the binder to stop so subsequent items are silently dropped. The fix is to reindex client-side after every row deletion. A custom `IModelBinder` can tolerate non-contiguous indices for complex scenarios.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor default `@` encoding preventing XSS
-- `Html.Raw` bypassing encoding for attacker-supplied strings
-- AJAX partial HTML injection via `innerHTML` as an XSS surface
-- Content-Security-Policy as defense in depth, not a substitute
-
-**Answer**
-
-Razor's default `@` encoding prevents XSS. `@Html.Raw(Model.UserComment)` bypasses that protection, rendering `<script>` tags and event handlers. AJAX-loaded partials injected via `innerHTML` carry the same risk. Use `@Model.UserComment` for auto-encoded output, or sanitize with a trusted HTML sanitizer library.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Antiforgery cookie-and-field/header pair preventing CSRF
-- Form Tag Helpers emitting the hidden token field automatically
-- Manual `RequestVerificationToken` header required for `fetch` and jQuery AJAX
-- `[AutoValidateAntiforgeryToken]` covering all unsafe methods on a controller
-
-**Answer**
-
-Form Tag Helpers emit the token automatically, but `fetch` and jQuery AJAX must include it manually as the `RequestVerificationToken` header or form field. Without it, antiforgery validation returns 400 before the action executes. Disabling antiforgery on MVC cookie-auth endpoints to work around the 400 is not acceptable.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub — per-connection transient lifecycle, not registered in DI for direct injection
-- `IHubContext<THub>` — singleton proxy for server-side broadcasting
-- Hub instance lacking connection context when activated outside SignalR
-- Redis backplane or Azure SignalR for cross-instance message fan-out
-
-**Answer**
-
-Hubs are not registered in DI for direct injection — injecting a concrete `Hub` either fails activation or produces an instance without a connection context. The correct mechanism is `IHubContext<THub>`, a singleton proxy registered by `AddSignalR()`. For multi-instance deployments, pair it with a Redis backplane or Azure SignalR Service.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- In-memory connection registry local to each pod
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane and Azure SignalR Service for full fan-out
-- Group membership and connection IDs scoped per process instance
-
-**Answer**
-
-Each process maintains its own in-memory connection registry. Sticky sessions route a client to the same pod but do not fan-out cross-instance messages — a controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users on instance B. The fix is a Redis backplane or Azure SignalR Service.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

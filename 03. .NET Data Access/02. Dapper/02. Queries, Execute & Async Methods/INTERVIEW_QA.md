@@ -109,67 +109,157 @@ Dapper mirrors its synchronous API with async counterparts that accept optional 
 
 ---
 
-## Gotchas
+## Gotchas — Dapper Queries, Execute & Async Methods (Interview Traps)
 
 ---
 
-## Gotcha 6. Dapper `Query` without `using` on connection
+#### Gotcha 1. `QueryAsync` without `await` — fire-and-forget discards results
 
 **Concepts**
-- deferred IEnumerable execution timing
-- connection lifetime vs enumeration lifetime
-- ToList() materialization inside scope
-- QueryAsync same requirement
-- ObjectDisposedException on late iteration
+- unawaited `Task<IEnumerable<T>>` runs but result is never consumed
+- `QueryAsync` returning `IEnumerable<T>` requires `await` to get data
+- compiler warning for unawaited task may be suppressed accidentally
+- exceptions from unawaited tasks are swallowed silently
+- always `await` and materialize with `.ToList()` inside connection scope
 
 **Answer**
 
-Returning deferred `IEnumerable<T>` from Dapper before the connection is disposed postpones SQL execution until the caller iterates — which often happens after the `using` block has already closed the connection. The result is an `ObjectDisposedException` or "connection is closed" error at runtime, not at the point of the `Query` call. The fix is to materialize inside the connection scope with `.ToList()` or `.ToArray()` before returning from the method. Async variants like `QueryAsync` have the same requirement — `await` is not enough if the connection is disposed before the caller enumerates the returned `IEnumerable`.
+Calling `QueryAsync<T>` without `await` returns a `Task<IEnumerable<T>>` that runs in the background and whose result is never consumed — the caller gets an empty or null variable and no exception, making this a silent data-loss bug. The compiler typically warns about unawaited tasks, but if the variable is discarded with `_` or the warning is suppressed, it compiles cleanly. Always `await` and immediately materialize: `var rows = (await conn.QueryAsync<Product>(sql, param)).ToList()` inside the `using` connection scope.
 
 ---
 
-## Gotcha 7. `QuerySingle` when zero or many rows exist
+#### Gotcha 2. `Execute` returning 0 rows — not an exception, may be ignored
 
 **Concepts**
-- QuerySingle strict uniqueness assertion
-- QueryFirstOrDefault optional absence handling
-- unique key invariant requirement
-- duplicate data producing hard failures
-- EF Core SingleOrDefault vs FirstOrDefault parallel
+- `Execute`/`ExecuteAsync` returns `int` rows affected
+- 0 rows affected is a valid SQL outcome, not an error
+- optimistic update with no matching WHERE — silently does nothing
+- caller must check `rowsAffected == 1` for critical updates
+- stale primary key or soft-deleted row as common cause
 
 **Answer**
 
-Dapper's `QuerySingle` throws `InvalidOperationException` if zero rows or more than one row match. `QueryFirstOrDefault` returns `default(T)` when the result set is empty, making it the correct choice for lookups where absence is a valid outcome. I use `QuerySingle` only when exactly one row is a domain invariant enforced by a unique key. When duplicate data exists — even if it shouldn't — `QuerySingle` becomes a hard failure that `QueryFirstOrDefault` would handle differently. The choice should be driven by whether duplicates indicate a programming error or a legitimate business condition.
+`ExecuteAsync` returns the number of rows affected — if the UPDATE or DELETE WHERE clause matches no rows, it returns 0 without throwing. Code that calls `ExecuteAsync` and ignores the return value silently performs a no-op update, which can mean a stale key, a soft-deleted row, or an incorrect WHERE clause. Always check `var affected = await conn.ExecuteAsync(sql, param); if (affected == 0) throw new NotFoundException()` for critical writes where "0 rows" is a business error.
 
 ---
 
-## Gotcha 4. Leaked connections exhaust the pool
+#### Gotcha 3. `QueryFirst` throws on empty result — use `QueryFirstOrDefault` for optional rows
 
 **Concepts**
-- connection pool slot exhaustion
-- undisposed SqlConnection leak
-- await using disposal pattern
-- DbContext long-lived instance
-- load-only failure mode
+- `QueryFirst<T>` throws `InvalidOperationException` on empty result
+- `QueryFirstOrDefault<T>` returns `default(T)` on empty
+- `QuerySingle<T>` throws on 0 or 2+ rows
+- `QuerySingleOrDefault<T>` returns `default(T)` on 0, throws on 2+
+- correct choice driven by business rule, not personal preference
 
 **Answer**
 
-Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots. Those slots remain occupied until they time out, eventually causing "timeout expired obtaining connection from pool" errors under concurrent load. The fix is to always use `await using` for connections and readers so disposal runs even when exceptions occur. The symptoms typically appear only under concurrent load — a classic production-only failure mode that passes all local tests. Long-lived undisposed `DbContext` instances cause the same pool exhaustion pattern.
+`QueryFirst<T>` throws `InvalidOperationException` when the query returns no rows — it asserts that at least one row must exist. `QueryFirstOrDefault<T>` returns `default(T)` (null for reference types) when no rows match, making it appropriate for lookups where absence is a valid outcome. Using `QueryFirst` where absence is expected converts a legitimate "not found" condition into a hard exception. Choose by the business rule: required existence → `QueryFirst`; optional existence → `QueryFirstOrDefault`; exactly one → `QuerySingle`/`QuerySingleOrDefault`.
 
 ---
 
-## Gotcha 5. Transaction started after first command
+#### Gotcha 4. Buffered vs unbuffered `Query` — unbuffered keeps connection open during iteration
 
 **Concepts**
-- autocommit implicit semantics
-- BeginTransaction timing requirement
-- unit-of-work atomicity boundary
-- EF Core SaveChanges per-call commit
-- integration test masking
+- buffered (default): all rows loaded into `List<T>` before returning
+- unbuffered (`buffered: false`): rows streamed lazily, connection stays open
+- caller must iterate to completion for connection to be released
+- abandoned enumeration leaves connection in pool-occupied state
+- use unbuffered only with `await using` and complete enumeration
 
 **Answer**
 
-Beginning a `SqlTransaction` only after the first statement has already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first. `BeginTransaction` must be called immediately after opening the connection, before any DML. EF Core's `SaveChanges` without an explicit transaction auto-commits each call — wrapping multi-step work in an explicit transaction is necessary when all-or-nothing semantics are required. Integration tests with single-user data often miss this race because implicit commits appear to work correctly in isolation.
+By default, Dapper's `Query<T>` buffers all rows into a `List<T>` before returning — the connection is used only for the query duration and can be disposed immediately after. With `buffered: false`, Dapper returns a lazy `IEnumerable<T>` that streams rows from the live reader — the connection remains open until enumeration completes. If the caller abandons the enumeration early without disposing the connection, the pool slot is leaked. Use unbuffered only inside a `using` connection scope and ensure complete enumeration or explicit connection disposal on any exit path.
+
+---
+
+#### Gotcha 5. `ExecuteScalarAsync<T>` silently returns `default(T)` on null
+
+**Concepts**
+- `ExecuteScalarAsync<T>` casts result to `T`
+- returns `default(T)` when result is `null` or `DBNull`
+- `int` `default` is 0 — silently wrong for missing aggregate
+- `T?` as the return type to distinguish null from zero
+- explicit null check before using the returned value
+
+**Answer**
+
+`ExecuteScalarAsync<int>` returns `0` when the scalar result is `null` or `DBNull.Value`, which is `default(int)`. A `MAX()` on an empty table returns `DBNull` from SQL Server — mapped to `0` silently, which may be a valid or invalid value in your domain. Use `ExecuteScalarAsync<int?>()` to get a nullable result that is `null` when no rows exist and `0` only when the actual aggregate value is zero. Always handle the null case explicitly rather than relying on the default value to indicate "no data."
+
+---
+
+#### Gotcha 6. Multiple result sets — `Query()` only reads the first; use `QueryMultiple`
+
+**Concepts**
+- `Query<T>` consumes only the first result set from a multi-set SP
+- subsequent result sets are silently ignored
+- `QueryMultiple` returns `GridReader` for consuming each set in order
+- grid reader must be consumed in the same order as SP emits sets
+- `using` on `GridReader` to dispose after all grids read
+
+**Answer**
+
+If a stored procedure or batch emits multiple `SELECT` result sets, calling `QueryAsync<T>` reads only the first set and silently ignores all subsequent ones. To consume multiple result sets, use `conn.QueryMultipleAsync(sql, param)` which returns a `GridReader`. Call `await grid.ReadAsync<T>()` in the same order as the procedure emits its SELECTs. Always wrap `GridReader` in `using`, and never call `Read` on a grid position that has already been consumed.
+
+---
+
+#### Gotcha 7. Async methods without `CancellationToken` — client disconnect cannot abort query
+
+**Concepts**
+- Dapper async methods accept optional `CancellationToken`
+- token propagated to underlying ADO.NET `ExecuteReaderAsync`
+- SQL Server receives TDS Attention packet on cancellation
+- `HttpContext.RequestAborted` as natural cancellation source
+- un-cancelled queries waste server resources after client disconnect
+
+**Answer**
+
+All Dapper async methods (`QueryAsync`, `ExecuteAsync`, `ExecuteScalarAsync`) accept an optional `CancellationToken` that propagates to the underlying ADO.NET command and sends a TDS Attention packet to SQL Server when fired. Omitting the token means a client disconnect or request timeout cannot abort the in-progress query — the database continues executing while the HTTP response is already gone. Pass `HttpContext.RequestAborted` as the `cancellationToken` argument on every Dapper async call in controller or service methods.
+
+---
+
+#### Gotcha 8. `Connection Timeout` exceeded when borrowing a pool slot — not a query timeout
+
+**Concepts**
+- "timeout expired obtaining connection from pool" is a pool timeout
+- `Connection Timeout` in connection string (default 15s)
+- separate from `command.CommandTimeout` (query execution timeout)
+- pool starvation from connection leaks, not slow queries
+- diagnostic: measure pool wait time vs query execution time
+
+**Answer**
+
+The "timeout expired obtaining connection from pool" error is a connection pool wait timeout (controlled by `Connection Timeout` in the connection string, default 15 seconds), not a query execution timeout (`Command Timeout`). It fires when all pool slots are occupied and no slot becomes available within the wait window. This is almost always caused by connection leaks (undisposed connections) rather than slow queries — diagnose by checking for undisposed connections, measuring pool wait time with `SqlClientEventSource`, and reviewing connection lifetimes in the code.
+
+---
+
+#### Gotcha 9. `CommandTimeout` on Dapper calls — must be passed explicitly per call
+
+**Concepts**
+- Dapper uses `IDbCommand.CommandTimeout` default (30s) when not specified
+- no global Dapper `CommandTimeout` setting exists
+- passed as optional `commandTimeout` parameter per method call
+- long-running reports and batch operations need explicit override
+- `SqlMapper.Settings.CommandTimeout` as global default in some versions
+
+**Answer**
+
+Dapper uses the default `IDbCommand.CommandTimeout` (30 seconds) when no `commandTimeout` is specified. Unlike EF Core, which lets you configure a global command timeout on `DbContext`, Dapper requires explicit per-call timeout overrides: `conn.QueryAsync<T>(sql, param, commandTimeout: 300)`. For long-running reports or batch operations called via Dapper, always pass `commandTimeout` explicitly — relying on the 30-second default will cause `SqlException: Execution Timeout Expired` on any query that takes more than half a minute.
+
+---
+
+#### Gotcha 10. `SET NOCOUNT ON` in stored procedure causes `Execute` to return -1
+
+**Concepts**
+- `SET NOCOUNT ON` suppresses row-count TDS messages
+- `ExecuteAsync` returns `-1` when `NOCOUNT ON` is active
+- rows-affected check breaks for stored procedures with `NOCOUNT`
+- use output parameter for row count when SP uses `NOCOUNT ON`
+- common DBA practice that breaks ADO.NET row-count assumptions
+
+**Answer**
+
+`SET NOCOUNT ON` inside a stored procedure suppresses the TDS "done in proc" row-count messages that normally populate the rows-affected return value. When a Dapper `ExecuteAsync` calls such a procedure, it returns `-1` regardless of how many rows were actually affected. Code that checks `if (affected == 0)` to detect missing rows will fail to fire, silently treating a successful operation with `NOCOUNT ON` as a "not found" condition. Use a stored procedure output parameter or a `SELECT @@ROWCOUNT` result set to reliably capture the row count when `NOCOUNT ON` is active.
 
 ---
 

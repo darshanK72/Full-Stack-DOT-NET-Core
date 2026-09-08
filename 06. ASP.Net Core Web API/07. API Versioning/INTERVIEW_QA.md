@@ -292,214 +292,147 @@ URL versioning changes the endpoint address per major version — `/api/v1/order
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — API Versioning (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. URL path versioning breaking `CreatedAtAction` `Location` headers
 
 **Concepts**
-- HTTP 201 Created — correct status for resource creation
-- Location header — URI of the new resource
-- `CreatedAtAction` — sets both status and Location
+- `CreatedAtAction` uses `LinkGenerator` — generates URL from current request path base
+- URL version prefix `/api/v2/orders` must be included in route values or path base
+- Missing version segment in `Location` header — follow-up GET returns 404
+- `CreatedAtRoute` with named route preserving version prefix more reliably
 
 **Answer**
 
-A POST that creates a resource must return 201 Created with a Location header, not 200 OK. I use `CreatedAtAction(nameof(Get), new { id = newEntity.Id }, newEntity)` since it sets both the correct status code and the Location header. Returning 200 hides the resource location from HTTP client libraries and OpenAPI-generated SDKs.
+When URL-path versioning is used (`/api/v2/orders`), `CreatedAtAction` generates the `Location` header URL using the routing system which must include the version segment. If the route values object does not include the version, or if the path base is not configured, the generated `Location` says `/api/orders/7` instead of `/api/v2/orders/7` and the client's follow-up GET returns 404. I verify `Location` headers by asserting the full URL in integration tests, confirming that the generated URL includes the version prefix and resolves successfully.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. Missing default version — unversioned clients receive 400
 
 **Concepts**
-- HTTP GET — safe and idempotent
-- Browser prefetch and CDN cache replay
-- POST/PUT/PATCH/DELETE — correct verbs for mutations
+- `AssumeDefaultVersionWhenUnspecified = true` — accepts requests without version indicator
+- Without it — requests without `?api-version=` or `X-Api-Version:` header receive `400`
+- Default version value set in `ApiVersioningOptions.DefaultApiVersion`
+- Migration from unversioned API — existing clients break without the default assumption
 
 **Answer**
 
-GET must be safe and idempotent — browsers prefetch URLs, CDNs cache and replay GET responses, and crawlers follow links without user intent. A side-effecting GET runs its mutation uncontrollably. I keep GET read-only and use the appropriate mutation verb.
+When versioning is first introduced to a previously unversioned API, all existing clients that send no version indicator start receiving `400 Bad Request` unless `AssumeDefaultVersionWhenUnspecified = true` is set in `ApiVersioningOptions` with a `DefaultApiVersion` pointing to the initial API version. Without this setting, the framework treats missing version as an error rather than defaulting. I enable the assumption and set `DefaultApiVersion = new ApiVersion(1, 0)` as part of any versioning rollout, then document the transition plan for eventually requiring an explicit version.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. Deprecated version still active with no consumer notification
 
 **Concepts**
-- HTTP status codes — semantic failure signaling
-- `ProblemDetails` / `ValidationProblemDetails` — RFC 7807 error bodies
-- 200 masking failures — invisible in APM and gateways
+- `[ApiVersion("1.0", Deprecated = true)]` — marks version deprecated
+- No HTTP-level signal without `Sunset` and `Deprecation` response headers
+- Clients have no programmatic way to detect deprecation without response headers
+- `Sunset` RFC 8594 header — ISO 8601 date when the version goes offline
 
 **Answer**
 
-Returning 200 with a failure flag forces every consumer to parse the body to detect failure. I return `ValidationProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for domain violations so the HTTP layer carries the failure signal.
+Marking a version with `Deprecated = true` in the `[ApiVersion]` attribute documents the deprecation for OpenAPI tools but sends no signal to runtime clients calling the API — they continue to receive 200 responses with no warning. To notify clients, I add `Sunset` (RFC 8594) and `Deprecation` response headers using a `IResultFilter` or middleware that appends them when the requested API version is deprecated. This gives clients a machine-readable signal they can log, alert on, or surface in developer dashboards, and drives migration before the sunset date.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. Version-neutral endpoints conflicting with versioned routes
 
 **Concepts**
-- EF navigation properties — lazy-load triggers during serialization
-- Circular references — serializer loop risk
-- DTOs — explicit public contract, no schema leakage
+- `[ApiVersionNeutral]` — marks endpoint as version-independent (health, metrics, swagger)
+- Without it, health check endpoint may require a version parameter
+- Version-neutral endpoints accessible at any version prefix path
+- Accidentally making versioned controllers version-neutral — removes version constraints
 
 **Answer**
 
-EF Core entities expose internal columns, navigation properties, and circular references. Lazy-loaded navigations trigger SQL during JSON writing and circular references cause serializer loops. I map entities to response DTOs before returning from actions.
+Health check, metrics, and OpenAPI endpoints should not require an API version — attaching version constraints forces Kubernetes probes and monitoring tools to specify a version in their requests. `[ApiVersionNeutral]` removes the version constraint from an endpoint so it is accessible regardless of whether a version is specified. The trap is accidentally applying `[ApiVersionNeutral]` to a business endpoint, which removes its version isolation and makes all versions resolve to the same action — breaking any per-version differentiation of behavior.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. Multiple versions on one controller without `[MapToApiVersion]`
 
 **Concepts**
-- `System.Text.Json` camelCase default
-- Silent binding failure — PascalCase keys arrive as null
-- `PropertyNameCaseInsensitive` — migration compatibility
+- `[ApiVersion("1.0")]` `[ApiVersion("2.0")]` on same controller — both versions route to same actions
+- `[MapToApiVersion("2.0")]` — limits a specific action to one declared version only
+- Without `[MapToApiVersion]` — all actions on the controller respond to all declared versions
+- Separate controllers per version vs multi-version controller pattern
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON, so legacy clients sending PascalCase keys get null bindings and a silent success response with wrong data. The migration fix is `PropertyNameCaseInsensitive = true`; the permanent fix is for the client to adopt camelCase.
+Declaring `[ApiVersion("1.0")]` and `[ApiVersion("2.0")]` on a single controller without `[MapToApiVersion]` on any actions causes every action to respond to both versions — there is no per-action differentiation. Adding a new overloaded action also tagged without `[MapToApiVersion]` causes ambiguous match errors when the v2 route is requested. `[MapToApiVersion("2.0")]` on the new action limits it to version 2 while the v1 action uses `[MapToApiVersion("1.0")]`. I prefer separate controller classes per major version for clean isolation, using `[MapToApiVersion]` only for minor additions within a shared controller.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Header and query-string versioning not visible in browser-based tools
 
 **Concepts**
-- GET body — stripped by clients and proxies
-- `[FromQuery]` — correct source for GET filters
-- `POST /search` — for complex filter payloads
+- URL path versioning — visible in every URL, toolable everywhere
+- Header versioning (`X-Api-Version`) — invisible in browser URL bar, ignored by CDNs
+- Query string versioning — visible in URL but bypasses some content negotiation setups
+- Swagger UI — must be configured to send the version header or query param
 
 **Answer**
 
-Most HTTP clients and proxies strip GET request bodies, so `[FromBody]` on GET actions fails silently with null models. I use `[FromQuery]` for filter parameters and a `POST /search` endpoint for complex objects.
+Header versioning keeps URLs clean but makes the version invisible in server logs, CDN cache keys, and browser developer tools. CDNs typically cache by URL only, so `/api/orders?pageSize=10` returns the same cached response for `X-Api-Version: 1` and `X-Api-Version: 2` unless `Vary: X-Api-Version` is configured. Swagger UI must be configured with a global parameter or an operation filter to inject the version header on every request, otherwise it sends no version and hits the default. URL-path versioning is the most observable and toolable strategy for public APIs.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. Swagger generating wrong document for versioned API
 
 **Concepts**
-- CORS — browser-only enforcement
-- Non-browser clients — unaffected
-- Authentication and authorization — real API security boundary
+- `AddVersionedApiExplorer()` required alongside `Asp.Versioning.Mvc`
+- One `SwaggerDoc` and one `SwaggerEndpoint` per version
+- Swashbuckle's `DocInclusionPredicate` filtering actions by version group name
+- Missing `DocInclusionPredicate` — all actions appear in all version documents
 
 **Answer**
 
-CORS is a browser policy — curl, Postman, and server-to-server clients are unaffected. Authentication and authorization middleware protect the API from all unauthorized callers regardless of CORS configuration.
+Without a `DocInclusionPredicate`, Swashbuckle includes every controller action in every swagger document, so the v1 document shows v2-only endpoints and vice versa. I configure `c.DocInclusionPredicate((version, apiDescription) => apiDescription.GroupName == version)` so each document shows only its own version's operations. I also call `AddVersionedApiExplorer(options => { options.GroupNameFormat = "'v'VVV"; options.SubstituteApiVersionInUrl = true; })` to ensure the version placeholder in route templates is replaced with the actual version value in each document.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. Breaking change introduced as a minor version bump
 
 **Concepts**
-- `AllowAnyOrigin()` — wildcard origin, incompatible with credentials
-- `WithOrigins` — explicit allowlist for credentialed requests
-- CORS specification — forbids wildcard + credentials
+- Breaking change — removing/renaming a field, changing a type, removing an endpoint
+- Semantic versioning for APIs — breaking changes require a major version bump
+- Additive changes — new optional fields, new endpoints — safe in same version
+- Non-breaking assumption violated — client SDK regenerated, missing field causes null
 
 **Answer**
 
-The CORS specification forbids combining `Access-Control-Allow-Origin: *` with credentials. When the SPA sends cookies or an Authorization header I use `WithOrigins("https://app.example.com").AllowCredentials()`.
+Renaming a response field, changing a field type, or removing an endpoint are breaking changes that require a new major version — clients that code-generated their SDK against the old contract get runtime errors or silent null bindings when they regenerate against the new one. Adding a new optional field or a new endpoint to an existing version is additive and non-breaking. I treat any removal or type change as a major version increment, maintain the old version for the documented sunset period, and use contract tests comparing old and new OpenAPI documents to detect unintentional breaking changes before deployment.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. URL versioning with query string fallback mixing strategies
 
 **Concepts**
-- Swagger UI in production — full API surface exposed
-- `IsDevelopment()` environment check
-- OpenAPI JSON for CI vs interactive UI for developers
+- Multiple versioning strategies active simultaneously — URL path + query string
+- URL takes precedence over query string by default
+- Mixing strategies causes confusion about which version a request targets
+- `ApiVersionReader.Combine` — explicit multi-reader configuration
 
 **Answer**
 
-Swagger UI in production exposes every endpoint and schema for reconnaissance. I gate `UseSwagger()` and `UseSwaggerUI()` behind `if (app.Environment.IsDevelopment())` and serve the JSON document separately for CI tooling through an IP-restricted path.
+When `Asp.Versioning.Mvc` is configured with multiple readers — URL segment, query string, and header — the framework uses the first reader that finds a version value in the order they were registered. A request to `GET /api/v1/orders?api-version=2.0` has conflicting version signals: v1 in the path and v2 in the query string. The URL segment reader wins by default, returning v1 behavior while the client thinks it requested v2. I configure a single canonical versioning strategy per API and document it explicitly, avoiding mixed strategies unless the API has a specific migration reason for accepting both.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. `[ApiVersion]` not applied — controller responds to all version requests
 
 **Concepts**
-- `[ApiController]` — automatic validation, binding inference
-- Inconsistent error contracts — mixed controller setup
+- Controller without `[ApiVersion]` attribute — reachable from any version
+- Versioned route prefix (`/api/v2/...`) does not imply version constraint on controller
+- `[ApiVersion("2.0")]` required to constrain the controller to version 2 clients only
+- Missing constraint — v1 clients inadvertently reach v2-only behavior
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses and binding inference do not apply, causing inconsistent error contracts. I apply `[ApiController]` at the assembly level.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- `.Result` / `.Wait()` — sync-over-async blocking
-- Thread-pool starvation — blocked threads reduce throughput
-- `async Task<IActionResult>` — correct signature
-
-**Answer**
-
-Blocking on `.Result` ties up thread-pool threads, reducing concurrent capacity. I mark actions `async Task<IActionResult>` and propagate `await` through the service layer.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness probe — pod restart signal
-- Readiness probe — load balancer exclusion
-- SQL down — dependency failure, not pod failure
-
-**Answer**
-
-A failed liveness probe causes Kubernetes to restart the pod. SQL being down cannot be healed by restarting the app, so the SQL check belongs on the readiness probe.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- N+1 query problem — one SQL per row
-- DTO projection with `Select` — single JOIN query
-- `Include` / `ThenInclude` — eager load
-
-**Answer**
-
-Serializing entities with lazy-loaded navigation properties triggers one SQL query per row. I fix this by projecting to DTOs in LINQ for a single query, or using `Include`/`ThenInclude` for explicit eager loads.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination — shifts on concurrent mutations
-- Keyset pagination — stable cursor on indexed key
-- Cursor tokens in response metadata
-
-**Answer**
-
-`Skip`/`Take` shifts when rows are inserted or deleted concurrently. Keyset pagination anchors on the last seen key — `WHERE id > @lastId ORDER BY id LIMIT @pageSize` — which is stable under concurrent mutations.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers — per-parent-row execution by default
-- DataLoader — batches sub-queries within a request
-- HotChocolate DataLoader registration in DI
-
-**Answer**
-
-Field resolvers in HotChocolate execute per parent row — 100 authors with a `books` resolver executes 101 queries. DataLoader collects all keys within a request phase and dispatches one batched query. I register DataLoader classes scoped to the request.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC — HTTP/2 binary framing inaccessible to browsers
-- gRPC-Web — browser-compatible translation
-- `AddGrpcWeb()` / `EnableGrpcWeb()` and CORS
-
-**Answer**
-
-Browsers cannot access native gRPC's HTTP/2 framing. gRPC-Web wraps messages in a format browsers can use via Fetch, enabled by `AddGrpcWeb()` and `EnableGrpcWeb()`. Cross-origin calls also need CORS configured.
+A controller at path `/api/v2/orders` but without `[ApiVersion("2.0")]` is reachable by any versioned or unversioned request — the URL prefix is just a path segment, not a version constraint. A v1 client requesting `/api/v1/orders` may route to this controller if no v1 controller is registered for the same path, giving them v2 behavior without any version negotiation. `[ApiVersion("2.0")]` on the controller class is what actually ties the controller to a specific API version in the versioning framework's routing decisions.
 
 ---
 

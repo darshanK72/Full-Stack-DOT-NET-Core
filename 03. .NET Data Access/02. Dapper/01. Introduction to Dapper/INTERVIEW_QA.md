@@ -141,66 +141,157 @@ Dapper never generates SQL. You supply the complete statement as a string or the
 
 ---
 
-## Gotchas
+## Gotchas — Introduction to Dapper (Interview Traps)
 
 ---
 
-## Gotcha 1. String concatenation instead of parameters
+#### Gotcha 1. String interpolation in SQL — Dapper does not prevent injection
 
 **Concepts**
-- SQL injection via string interpolation
-- parameterization bypass
-- FromSqlInterpolated vs FromSqlRaw distinction
-- ADO.NET and Dapper explicit parameter requirement
+- Dapper extension methods accept raw SQL strings
+- no automatic sanitization or parameterization of interpolated strings
+- `@placeholder` with anonymous object as the correct pattern
+- `$"WHERE Id = {id}"` passed to `QueryAsync` is a critical vulnerability
+- injection risk identical to raw ADO.NET string concatenation
 
 **Answer**
 
-Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM. ADO.NET and Dapper require explicit parameters — `@Id` with a bound value — and never automatically sanitize concatenated strings. EF Core's `FromSqlInterpolated` is safe because it internally converts the interpolation holes to parameters; passing an ordinary interpolated string to `FromSqlRaw` is not safe. Code review should treat any dynamic SQL without parameter placeholders as a blocking defect.
+Dapper's `QueryAsync(sql, param)` accepts whatever SQL string you pass — it does not inspect, sanitize, or rewrite the string. Interpolating user input directly (`$"WHERE Name = '{name}'"`) creates a SQL injection vulnerability identical to raw ADO.NET string concatenation. Always use `@placeholder` syntax in the SQL string and pass values through the anonymous parameter object: `conn.QueryAsync<Product>("WHERE Name = @name", new { name })`. Dapper binds the object properties to named parameters automatically.
 
 ---
 
-## Gotcha 4. Leaked connections exhaust the pool
+#### Gotcha 2. Connection not disposed — connection pool exhaustion
 
 **Concepts**
-- connection pool slot exhaustion
-- undisposed SqlConnection leak
-- await using disposal pattern
-- DbContext long-lived instance
-- load-only failure mode
+- `IDbConnection` must be wrapped in `using` or `await using`
+- Dapper opens a closed connection automatically but never closes it
+- pool slot not returned to pool until Dispose
+- GC finalization too slow for production concurrency
+- "timeout expired obtaining connection from pool" error
 
 **Answer**
 
-Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots. Those slots remain occupied until they time out, eventually causing "timeout expired obtaining connection from pool" errors under concurrent load. The fix is to always use `await using` for connections and readers so disposal runs even when exceptions occur. The symptoms typically appear only under concurrent load — a classic production-only failure mode that passes all local tests. Long-lived undisposed `DbContext` instances cause the same pool exhaustion pattern.
+Dapper opens a closed `IDbConnection` automatically before executing, but it never closes or disposes the connection — that is the caller's responsibility. Failing to wrap the connection in `using` or `await using` leaves pool slots checked out until garbage collection, which is too slow under concurrent API traffic. The pool exhausts silently and the error ("timeout expired obtaining connection from pool") appears only under load, passing all single-user local tests. Always use `using IDbConnection conn = new SqlConnection(_cs)` to guarantee disposal.
 
 ---
 
-## Gotcha 6. Dapper `Query` without `using` on connection
+#### Gotcha 3. Returning deferred `IEnumerable<T>` after connection closed
 
 **Concepts**
-- deferred IEnumerable execution timing
-- connection lifetime vs enumeration lifetime
-- ToList() materialization inside scope
-- QueryAsync same requirement
-- ObjectDisposedException on late iteration
+- Dapper `Query<T>` returns `IEnumerable<T>` via deferred execution
+- connection disposal before enumeration causes `ObjectDisposedException`
+- `ToList()` / `ToArray()` materializes inside connection scope
+- `QueryAsync` same issue — `await` alone does not protect
+- `IReadOnlyList<T>` return type signals materialized result
 
 **Answer**
 
-Returning deferred `IEnumerable<T>` from Dapper before the connection is disposed postpones SQL execution until the caller iterates — which often happens after the `using` block has already closed the connection. The result is an `ObjectDisposedException` or "connection is closed" error at runtime, not at the point of the `Query` call. The fix is to materialize inside the connection scope with `.ToList()` or `.ToArray()` before returning from the method. Async variants like `QueryAsync` have the same requirement — `await` is not enough if the connection is disposed before the caller enumerates the returned `IEnumerable`.
+Dapper's buffered `Query<T>` returns an `IEnumerable<T>` that is executed and buffered immediately by default, but if called with `buffered: false` or if the `using` block exits before enumeration, SQL runs after the connection is closed, throwing `ObjectDisposedException` or "connection is closed". Always call `.ToList()` or `.ToArray()` inside the `using` block before returning, and change the return type to `IReadOnlyList<T>` to signal to callers that the sequence is fully materialized. With `QueryAsync`, the same applies — `await` the task and materialize inside the connection scope.
 
 ---
 
-## Gotcha 7. `QuerySingle` when zero or many rows exist
+#### Gotcha 4. `QuerySingle` throws on zero or more than one row
 
 **Concepts**
-- QuerySingle strict uniqueness assertion
-- QueryFirstOrDefault optional absence handling
-- unique key invariant requirement
-- duplicate data producing hard failures
-- EF Core SingleOrDefault vs FirstOrDefault parallel
+- `QuerySingle<T>` strict uniqueness assertion
+- throws `InvalidOperationException` on 0 or 2+ rows
+- `QueryFirstOrDefault<T>` for optional single-row lookups
+- `QueryFirst<T>` for required first-row with multiple possible rows
+- unique key invariant as the precondition for `QuerySingle`
 
 **Answer**
 
-Dapper's `QuerySingle` throws `InvalidOperationException` if zero rows or more than one row match. `QueryFirstOrDefault` returns `default(T)` when the result set is empty, making it the correct choice for lookups where absence is a valid outcome. I use `QuerySingle` only when exactly one row is a domain invariant enforced by a unique key. When duplicate data exists — even if it shouldn't — `QuerySingle` becomes a hard failure that `QueryFirstOrDefault` would handle differently. The choice should be driven by whether duplicates indicate a programming error or a legitimate business condition.
+`QuerySingle<T>` throws `InvalidOperationException` if the query returns zero rows or more than one row — it asserts exact uniqueness as a domain invariant. Use it only when a unique database constraint guarantees exactly one matching row. For optional lookups (absence is valid), use `QueryFirstOrDefault<T>` which returns `default(T)` when no rows match. For required first-row scenarios where multiple rows may exist, use `QueryFirst<T>`. Using `QuerySingle` where `QueryFirstOrDefault` is correct converts a business condition into a hard exception.
+
+---
+
+#### Gotcha 5. Dynamic type from Dapper — no compile-time safety, runtime `RuntimeBinderException`
+
+**Concepts**
+- `Query` without type parameter returns `IEnumerable<dynamic>`
+- `dynamic` property access fails at runtime with wrong column name
+- typo in column alias causes `RuntimeBinderException`
+- no IntelliSense, no rename refactoring for dynamic properties
+- strongly-typed `Query<T>` as the correct production pattern
+
+**Answer**
+
+Calling Dapper's `Query()` without a type parameter returns `IEnumerable<dynamic>` — every column becomes a property on a dynamic object. Accessing `row.ProductNme` (a typo) compiles without error but throws `RuntimeBinderException` at runtime when the column is not found. For exploratory or throw-away code this is acceptable, but all production queries should use `Query<T>` with a mapped POCO so that column-property mismatches are caught as mapping failures and typos trigger compile-time errors from the typed property.
+
+---
+
+#### Gotcha 6. `QueryMultiple` — consuming a grid reader twice throws
+
+**Concepts**
+- `GridReader` from `QueryMultiple` is forward-only
+- each `Read<T>()` call advances to the next result set
+- calling `Read<T>()` on an already-consumed grid throws
+- grid must be consumed in the same order as SP result sets
+- `using` on `GridReader` to dispose after all grids consumed
+
+**Answer**
+
+`GridReader` returned by `QueryMultiple` is forward-only — each call to `Read<T>()` or `ReadAsync<T>()` consumes one result set in order. Calling `Read<T>()` twice on the same result set index, or calling it out of order relative to the stored procedure's SELECT sequence, either throws an `ObjectDisposedException` or silently maps the wrong rows to the wrong type. Always consume grids in the same order as the procedure emits them, wrap `GridReader` in `using`, and never re-read a grid that has already been consumed.
+
+---
+
+#### Gotcha 7. Dapper extension methods on `IDbConnection` — calling on closed connection without auto-open
+
+**Concepts**
+- Dapper opens a closed connection automatically before executing
+- Dapper does not reopen a `Broken` state connection
+- manually pre-opened connection works but requires consistent state
+- `connection.Open()` before Dapper calls is redundant but harmless
+- broken connection from connection pool returns error on reuse
+
+**Answer**
+
+Dapper automatically calls `Open()` on a closed connection before executing a query and leaves it in the same open/closed state it was when the call began. However, Dapper does not attempt to reopen a connection in a `Broken` state — a connection returned from the pool that has been severed by a network interruption will fail and throw without any retry. For production code, implement a resilience policy (Polly retry) that catches transient connectivity exceptions and retries with a fresh connection rather than reusing the broken one.
+
+---
+
+#### Gotcha 8. Dapper maps by column name — SQL alias required when columns conflict
+
+**Concepts**
+- Dapper maps column name to property name (case-insensitive)
+- JOIN producing two columns named `Id` — last value wins
+- explicit alias required for ambiguous column names in multi-table JOINs
+- `AS OrderId` and `AS CustomerId` disambiguation pattern
+- silent wrong-value mapping when duplicate column names exist
+
+**Answer**
+
+Dapper maps columns to POCO properties by matching column names case-insensitively. When a query joins two tables and both have a column named `Id`, only the last one in the SELECT list survives — Dapper overwrites the property with each matching column. This produces silently wrong data rather than an exception. Always alias duplicate column names in JOIN queries: `SELECT o.Id AS OrderId, c.Id AS CustomerId, ...` so each target property in the POCO maps to exactly one distinct column name.
+
+---
+
+#### Gotcha 9. No schema migration support in Dapper — requires external tooling
+
+**Concepts**
+- Dapper is a micro-ORM with no migration system
+- schema changes require external migration tool (DbUp, Flyway, EF migrations)
+- Dapper and EF Core migrations can coexist on the same database
+- stored SQL scripts as the migration mechanism with Dapper
+- production schema drift from manual DBA changes not tracked
+
+**Answer**
+
+Dapper has no migration or schema-management system — it maps SQL results to objects and nothing else. Schema changes must be managed by an external tool such as DbUp, Flyway, or EF Core Migrations (even when Dapper is the primary query layer). Without a migration tool, schema changes applied manually by DBAs are not tracked, making environment synchronization error-prone. Choose a migration tool early in the project and commit all schema changes through it, regardless of which ORM layer runs the application queries.
+
+---
+
+#### Gotcha 10. `DynamicParameters` direction and output parameter value not read until after execution
+
+**Concepts**
+- `DynamicParameters.Add` with `direction: ParameterDirection.Output`
+- output value not available until after `Execute`/`QueryAsync` completes
+- `dp.Get<int>("@OutParam")` to read output value after execution
+- forgot to call `Get<T>` and reading stale `null` from object
+- `ParameterDirection.ReturnValue` for SP RETURN code
+
+**Answer**
+
+When using `DynamicParameters` for stored procedure output parameters, the output value is populated only after the Dapper method completes execution. Reading `dp.Get<int>("@OutputParam")` before the `ExecuteAsync` or `QueryAsync` call completes returns the default value, not the SP-assigned value. Always call `dp.Get<T>("@ParamName")` after the awaited Dapper call. Also set `direction: ParameterDirection.ReturnValue` for SP `RETURN` codes — they use a distinct direction from `Output` parameters.
 
 ---
 

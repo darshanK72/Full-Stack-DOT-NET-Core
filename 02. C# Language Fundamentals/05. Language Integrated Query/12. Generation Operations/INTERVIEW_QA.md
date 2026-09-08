@@ -273,3 +273,147 @@ public IEnumerable<string> GetFeatureFlags(int userId)
 **Systemic prevention:** Enable `<Nullable>enable</Nullable>` in the project. With nullable references enabled, `IEnumerable<string>` (not nullable) forces the compiler to warn whenever a nullable value could be returned from this non-nullable return type. Update the repository interface signature to `IEnumerable<string>` (not `IEnumerable<string>?`) to document the contract that null is never returned.
 
 **At call sites:** The callers that used `if (flags != null) foreach (...)` can be simplified to just `foreach (...)` once the source contract is updated.
+
+## Gotchas — Generation Operations (Interview Traps)
+
+---
+
+#### Gotcha 1. `Enumerable.Range(start, count)` — `count` Is the Number of Elements, Not the End Value
+
+**Concepts**
+- `Range(start, count)` generates `count` sequential integers beginning at `start`
+- `Range(1, 5)` produces `{1, 2, 3, 4, 5}` — NOT `{1, 2, 3, 4}` up to but not including 5
+- Confusing the second parameter with an end value is the single most common `Range` mistake
+- `Range(1, 0)` returns an empty sequence; `Range(start, negative)` throws `ArgumentOutOfRangeException`
+
+**Answer**
+
+`Enumerable.Range(1, 5)` generates exactly five elements: `1, 2, 3, 4, 5`. The second argument is the count of elements to produce, not the inclusive or exclusive upper bound. Developers migrating from Python's `range(start, stop)` (where `stop` is an exclusive end value) are especially prone to this mistake. To generate integers from 1 to 10 inclusive, write `Range(1, 10)`, not `Range(1, 11)`.
+
+---
+
+#### Gotcha 2. `Enumerable.Repeat(element, count)` — All Elements Are the Same Reference for Reference Types
+
+**Concepts**
+- `Repeat(element, count)` returns the same `element` reference for every position in the sequence
+- Mutating one element mutates all of them, because they are the same object
+- This is safe for immutable types (strings, value types, records with no mutable state)
+- For independent mutable objects, use `Range(0, count).Select(_ => new MyClass())` instead
+
+**Answer**
+
+`Enumerable.Repeat(new List<int>(), 5)` creates five elements that all reference the same `List<int>` instance. Adding to `result[0]` also adds to `result[1]` through `result[4]`. This catches developers who expect `Repeat` to clone the object. For independent mutable instances, use `Enumerable.Range(0, 5).Select(_ => new List<int>())` which calls the factory for each element, producing five separate lists.
+
+---
+
+#### Gotcha 3. `Enumerable.Empty<T>()` Returns a Cached Singleton — Zero Allocations
+
+**Concepts**
+- `Empty<T>()` returns the same cached instance on every call for the same type parameter
+- Eliminates heap allocation compared to `new T[0]`, `new List<T>()`, or `Enumerable.Range(0, 0)`
+- The returned sequence is safe to enumerate and returns immediately without iterating
+- `Array.Empty<T>()` is the equivalent cached empty array if an array type is specifically required
+
+**Answer**
+
+`Enumerable.Empty<string>()` returns a shared, zero-allocation empty sequence. It is the preferred way to return "no results" from a method with an `IEnumerable<T>` return type, signalling the intent clearly and avoiding unnecessary object creation. Because the same instance is returned on every call for a given type, using it in high-frequency paths produces zero GC pressure.
+
+---
+
+#### Gotcha 4. `Enumerable.Range` Is Deferred — Materializing Large Ranges Allocates Large Arrays
+
+**Concepts**
+- `Range(start, count)` is a lazy generator; no array is created until the sequence is consumed
+- `Range(0, 10_000_000).ToList()` allocates a `List<int>` of ten million elements
+- Chaining LINQ operators on a `Range` without materializing processes each element on demand
+- For summary operations (`Sum`, `Average`, `Max`), materializing is unnecessary — compose directly
+
+**Answer**
+
+`Enumerable.Range(0, 10_000_000).Sum()` computes the sum by streaming without ever allocating an array; `Enumerable.Range(0, 10_000_000).ToList().Sum()` allocates approximately 40 MB first then computes the same result. Because `Range` is deferred, you can apply `Where`, `Select`, `Sum`, `Count`, and other operators without paying the allocation cost of materializing the entire range. Only call `ToList()` or `ToArray()` when you genuinely need a reusable in-memory collection.
+
+---
+
+#### Gotcha 5. `Repeat` with Mutable Reference Objects — Mutating One Mutates All
+
+**Concepts**
+- `Repeat(obj, n)` yields the same object reference `n` times; it does not clone the object
+- Any mutation through one element reference is immediately visible through all other references
+- This applies to arrays, lists, classes, and any other mutable reference type
+- Immutable types (strings, value types, immutable records) are safe with `Repeat`
+
+**Answer**
+
+`var rows = Enumerable.Repeat(new int[3], 4)` creates a sequence of four references all pointing to one array. Assigning `rows.First()[0] = 99` makes `rows.Last()[0]` equal `99` as well. The fix is `Enumerable.Range(0, 4).Select(_ => new int[3])`, which calls the factory four times and produces four independent arrays. Immutable types like `string` or `int` are unaffected because you cannot mutate them through a reference.
+
+---
+
+#### Gotcha 6. `Range(0, n).Select(i => CreateItem(i))` — Idiomatic Lazy Factory Pattern
+
+**Concepts**
+- Combining `Range` and `Select` is the standard way to generate a lazily evaluated sequence of n items
+- The factory delegate is called exactly once per element, at enumeration time
+- The index `i` is available inside the selector, enabling position-dependent initialization
+- This pattern replaces `for` loops that append to a list when a LINQ-composable result is preferred
+
+**Answer**
+
+`Enumerable.Range(0, n).Select(i => new SensorReading(i, DateTime.UtcNow.AddMinutes(i)))` creates a lazy sequence of `n` readings without allocating the results until consumption. The factory is evaluated for each element on demand — if the consumer calls `Take(5)`, only five readings are created. This is the idiomatic alternative to a `for` loop followed by `list.Add(...)` when the result is immediately fed into a LINQ pipeline.
+
+---
+
+#### Gotcha 7. No Built-in `Enumerable.Infinite()` — Use a `yield return` Iterator
+
+**Concepts**
+- LINQ has no built-in generator for an unbounded sequence; `Range` and `Repeat` both require a count
+- Infinite sequences are created with a `yield return` loop in an iterator method
+- Consumers must use `Take(n)` or `TakeWhile` to limit an infinite sequence, or it never terminates
+- Infinite sequences are useful for simulation, event streams, and retry loops
+
+**Answer**
+
+There is no `Enumerable.Infinite()` in the BCL. The standard pattern is `static IEnumerable<int> Naturals() { int i = 0; while (true) yield return i++; }`. Callers must use `Naturals().Take(100)` or `Naturals().TakeWhile(n => n < 100)` to prevent infinite enumeration. Passing an unbounded sequence to an operator that consumes all elements — `ToList()`, `Sum()`, `Count()` — will loop forever or until the process is killed.
+
+---
+
+#### Gotcha 8. `Range(0, 0)` Returns an Empty Sequence — Same as `Empty<int>()`
+
+**Concepts**
+- `Range(start, 0)` is valid and returns an empty sequence without throwing
+- Equivalent to `Enumerable.Empty<int>()` in terms of element count but not in terms of allocation
+- `Range(start, negative)` throws `ArgumentOutOfRangeException`; only zero count is safe
+- Edge case worth knowing for interview questions about `Range` boundary behaviour
+
+**Answer**
+
+`Enumerable.Range(5, 0)` produces an empty sequence — zero elements starting at 5. The call is valid and does not throw. This mirrors the behaviour of `Repeat(element, 0)`. However, `Range(5, -1)` throws `ArgumentOutOfRangeException` because a negative count is invalid. When generating ranges conditionally, guard against negative counts rather than relying on zero-count being safe.
+
+---
+
+#### Gotcha 9. `Enumerable.Range` Integer Overflow — Start + Count May Exceed `int.MaxValue`
+
+**Concepts**
+- `Range(int.MaxValue, 2)` or similar combinations overflow the internal counter silently or throw
+- The implementation checks `start + count - 1 > int.MaxValue` and throws `ArgumentOutOfRangeException`
+- For ranges exceeding `int` bounds, implement a custom `long`-based generator with `yield return`
+- This is an edge case but appears in questions about large-scale data processing
+
+**Answer**
+
+`Enumerable.Range(int.MaxValue - 1, 5)` throws `ArgumentOutOfRangeException` because adding `count - 1` to `start` overflows `int.MaxValue`. The BCL implementation validates this at construction time. For sequences that require more than `int.MaxValue` elements or that start at large values, implement a custom iterator with `long` arithmetic: `static IEnumerable<long> LargeRange(long start, long count) { for (long i = 0; i < count; i++) yield return start + i; }`.
+
+---
+
+#### Gotcha 10. Generation Operators Are Composable — Entire Pipeline Remains Lazy
+
+**Concepts**
+- `Range`, `Repeat`, and `Empty` all return `IEnumerable<T>` and compose with all LINQ operators
+- Chains like `Range(1, 100).Where(n => n % 2 == 0).Select(n => n * n).Sum()` are fully lazy
+- No intermediate arrays are allocated; each element flows through the pipeline one at a time
+- Materializing with `ToList()` or `ToArray()` at the end is only necessary when the result must be reused
+
+**Answer**
+
+`Enumerable.Range(1, 1000).Where(n => n % 3 == 0).Select(n => n * n).Sum()` streams through without allocating any intermediate list or array — each number is generated, tested, squared, and summed as a single pass. Generation operators are first-class members of the LINQ pipeline: they produce `IEnumerable<T>` and integrate seamlessly with filtering, projection, aggregation, and partitioning operators. Understanding this composability is key to writing memory-efficient LINQ code.
+
+---

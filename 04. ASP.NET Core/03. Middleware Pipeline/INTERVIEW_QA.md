@@ -276,217 +276,147 @@ Middleware registered with `UseMiddleware<T>()` can inject singleton and transie
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
+## Gotchas — Middleware Pipeline (Interview Traps)
 
 ---
 
-## Gotcha 1. Middleware order — routing before auth
+#### Gotcha 1. Not calling `next()` short-circuits the pipeline — response may never be written
 
 **Concepts**
-- `UseRouting` before auth — endpoint metadata for authorization evaluation
-- Recommended pipeline order
-- Auth before routing — `[Authorize]` metadata unavailable
-- Symptoms: anonymous access or incorrect challenge behavior
+- `next()` delegate invoking the remainder of the pipeline
+- Short-circuiting by not calling `next()` — intentional vs accidental
+- Response committed check before writing — `HttpResponse.HasStarted`
+- Terminal middleware with `app.Run()` not calling `next` by design
 
 **Answer**
 
-In ASP.NET Core endpoint routing, the authorization middleware evaluates `[Authorize]` attributes and minimal API `.RequireAuthorization()` policies by reading metadata from the selected endpoint. When authorization middleware runs before routing, the endpoint hasn't been selected yet and that metadata doesn't exist — the result is either no policy enforcement or an incorrect 401 challenge for routes that should allow anonymous access. The correct order is exception handling → forwarded headers → routing → authentication → authorization → endpoint mapping. I make this a checklist item on every PR that touches `Program.cs` because the symptom — anonymous access to protected routes — appears only at runtime and not during unit tests that mock the auth layer.
+Every middleware registered with `app.Use()` receives a `next` delegate representing the rest of the pipeline. Not calling `next()` short-circuits the pipeline and prevents any subsequent middleware from running, including endpoint routing and response generation. When this happens accidentally — a missing `await next(context)` in an `if` branch — the request hangs or returns an empty response with no status code. Always verify that all code paths through a middleware either call `next()` or write a complete response, including appropriate status code and Content-Type headers. `app.Run()` is intentionally terminal and should be used when a middleware always produces a response without delegating.
 
 ---
 
-## Gotcha 2. Scoped service in a Singleton
+#### Gotcha 2. Exception handling middleware must be registered first to catch all downstream exceptions
 
 **Concepts**
-- Captive dependency anti-pattern — scoped lifetime inside singleton
-- `DbContext` accumulating cross-request tracked entities
-- `ValidateScopes` detecting lifetime violations at startup
-- `IServiceScopeFactory` for per-operation controlled scoped resolution
+- Middleware pipeline as nested delegate chain — outermost registered first
+- `UseExceptionHandler` or `UseDeveloperExceptionPage` as the outermost wrapper
+- Exceptions from routing, auth, and endpoints caught only if handler runs before them
+- Placement order determines which exceptions are observed
 
 **Answer**
 
-Injecting a scoped service like `DbContext` into a singleton's constructor creates a captive dependency because the singleton holds onto the scoped instance long after its owning scope has ended. The EF Core change tracker accumulates entities from unrelated requests, stale entities appear in queries, and eventually the disposed context throws. I enable `ValidateScopes` in development (`builder.Host.UseDefaultServiceProvider(o => o.ValidateScopes = true)`) to catch this at startup rather than in production. The fix is to inject `IServiceScopeFactory` or `IDbContextFactory<TContext>` into the singleton and create a new scope per unit of work, disposing the scope when the operation completes.
+The middleware pipeline is a nested chain of delegates — the first registered middleware is the outermost wrapper and runs first on request and last on response. Exception handling middleware catches exceptions thrown by all downstream delegates, but only if it is registered before them. An `UseExceptionHandler` registered after `UseRouting` cannot catch routing or authentication exceptions. The canonical `Program.cs` order is: `UseExceptionHandler` / `UseDeveloperExceptionPage` first, then forwarded headers, then routing, then auth, then endpoints. If your exception handler registers after any middleware that can throw, those exceptions propagate unhandled to the host.
 
 ---
 
-## Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 3. Writing to the response after headers are sent throws `InvalidOperationException`
 
 **Concepts**
-- Socket exhaustion from per-use `HttpClient` instantiation
-- `HttpMessageHandler` pooling via `IHttpClientFactory`
-- Named and typed HTTP clients registered in DI
-- DNS change handling in long-lived handlers
+- HTTP response headers sent with the first byte of body
+- `HttpResponse.HasStarted` flag indicating committed response
+- `SetStatusCode` or `Append` headers throwing after body starts
+- Exception handling middleware checking `HasStarted` before handling
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a singleton method causes socket exhaustion because each instance holds its own connection pool and the underlying `HttpMessageHandler` sockets aren't released until GC finalizes them — which can take minutes under load. `HttpClient` is designed for reuse, not per-use disposal. `IHttpClientFactory` solves this by pooling and rotating `HttpMessageHandler` instances so connections are reused efficiently while still being recycled at a configured interval to respect DNS changes. I register typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject `ExternalApiClient` normally — the factory manages handler lifetime invisibly.
+Once the HTTP response body starts being written to the client, the response headers have already been sent and cannot be modified. Calling `context.Response.StatusCode = 500` or `context.Response.Headers.Append(...)` after body bytes have been flushed throws `InvalidOperationException: Headers are read-only, response has already started`. Exception handling middleware must check `context.Response.HasStarted` before attempting to write an error response — if `HasStarted` is true, the error can only be logged and the connection should be aborted rather than trying to write a new response. This is why exception middleware must be the first registered: it needs to intercept exceptions before any body bytes are sent.
 
 ---
 
-## Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 4. `app.Use` vs `app.Run` — `Run` terminates, `Use` continues
 
 **Concepts**
-- `IOptions<T>` — singleton snapshot, frozen at first resolution
-- `IOptionsSnapshot<T>` — per-scope recalculation on config reload
-- `IOptionsMonitor<T>` — live updates with `OnChange` callback for singletons
-- `ReloadOnChange: true` only benefits monitor and snapshot, not plain options
+- `app.Use(next => ...)` — receives and may invoke `next` delegate
+- `app.Run(ctx => ...)` — terminal middleware, never calls `next`
+- Registering middleware after `app.Run` — dead code
+- `app.Map()` for conditional pipeline branching
 
 **Answer**
 
-The common mistake with `IOptions<T>` is injecting it into a singleton service and expecting configuration file changes to take effect after a reload — they never will, because `IOptions<T>` reads configuration once and freezes the result. When a singleton needs live configuration, I inject `IOptionsMonitor<T>` instead, which exposes a `CurrentValue` property that always reflects the latest configuration and an `OnChange` callback for reacting to updates. For scoped services where per-request recalculation is enough, `IOptionsSnapshot<T>` recomputes once per scope. The `reloadOnChange: true` JSON provider setting is only meaningful when code reads via monitor or snapshot — `IOptions<T>` silently ignores it.
+`app.Run` registers a terminal middleware that never calls the `next` delegate, so any middleware registered after `app.Run` is dead code — it never executes. `app.Use` registers middleware that receives a `next` delegate and decides whether to call it. This is an easy mistake to introduce when middleware is reorganized in `Program.cs`: moving a `Run`-terminated branch before other middleware silently swallows all subsequent registrations. When adding a catch-all or fallback handler, verify it is the last registration in the pipeline, and use `app.Map` for conditional branching rather than early `Run` calls.
 
 ---
 
-## Gotcha 5. GET with `[FromBody]`
+#### Gotcha 5. Branching with `app.Map` creates an isolated sub-pipeline that does not continue to the main pipeline
 
 **Concepts**
-- HTTP GET semantics — no request body
-- CDN and proxy behavior stripping GET bodies
-- `[FromQuery]` and route values as correct GET binding sources
-- `[AsParameters]` for complex filter DTOs
+- `app.Map("/prefix", branch => {...})` — separate pipeline for matched prefix
+- Requests matched by `Map` do not flow to main pipeline after the branch
+- `app.MapWhen` for predicate-based branching
+- `app.UseWhen` for conditional middleware that still continues to main pipeline
 
 **Answer**
 
-Using `[FromBody]` on a GET endpoint works in Swagger's "Try it out" during development because Swagger sends the body regardless of HTTP verb, but many production HTTP intermediaries — CDNs, load balancers, and browser preflight logic — are permitted by the HTTP spec to strip or ignore GET request bodies. The failure is silent: the parameter binds to its default value with no error. The correct sources for GET parameters are route values with `[FromRoute]` and query string keys with `[FromQuery]`. When I need to accept a complex filter object on a GET, I use `[AsParameters]` to bind a DTO from query string properties rather than a body.
+`app.Map("/health", ...)` creates a branch pipeline that handles all requests matching `/health` and then stops — the request never flows back to the main pipeline after the branch completes. This is correct for dedicated health check endpoints, but a common mistake is using `app.Map` when `app.UseWhen` was intended: `app.UseWhen` applies middleware conditionally and then returns to the main pipeline. If exception handling or authentication middleware is registered on the main pipeline but a branch is created with `Map` before those registrations, the branch runs without them. Use `Map` for completely separate handling and `UseWhen` for conditional augmentation of the main flow.
 
 ---
 
-## Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 6. `IMiddleware` vs conventional middleware — lifetime differences
 
 **Concepts**
-- `JsonNamingPolicy.CamelCase` — default in ASP.NET Core Web API
-- Silent property binding failure — no exception thrown
-- `PropertyNameCaseInsensitive` as mitigation option
-- OpenAPI contract as canonical naming source
+- Conventional middleware — instantiated once at startup as a singleton
+- `IMiddleware` — resolved from DI per request, enabling scoped lifetime
+- Constructor-injected services in conventional middleware are singleton-scoped
+- `UseMiddleware<T>()` for both types
 
 **Answer**
 
-ASP.NET Core 8 Web API serializes and deserializes JSON with camelCase property names by default, so a client sending `"CustomerName"` has that property silently ignored during model binding — the target property keeps its default value and no validation error fires. This trips up teams migrating from ASP.NET Framework where PascalCase was the convention. The cleanest resolution is updating clients to match the camelCase contract and publishing that contract via OpenAPI. If I must temporarily support both casings I can enable case-insensitive deserialization with `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)`, but I also add `[Required]` on non-optional properties so silent binding failures surface as 400 responses rather than incorrect data.
+Conventional middleware created with `app.Use(async (ctx, next) => {...})` or using `UseMiddleware<MyMiddleware>()` with a class that takes `RequestDelegate` in its constructor is instantiated once at startup and behaves as a singleton. Any service injected into its constructor is resolved once and kept alive for the application lifetime, which makes injecting scoped services like `DbContext` a captive dependency bug. `IMiddleware` solves this: implement `IMiddleware`, register it with `AddScoped<MyMiddleware>()`, and call `app.UseMiddleware<MyMiddleware>()`. The DI container resolves a new instance per request, allowing scoped service injection. The distinction is easy to miss because both use the same `UseMiddleware<T>()` call.
 
 ---
 
-## Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 7. Accessing `HttpContext` after the request completes causes null reference or stale data
 
 **Concepts**
-- `throw ex` resets stack trace to catch block
-- `throw` preserving full original stack trace
-- Wrapping with `InnerException` for added domain context
-- APM and structured logging dependency on accurate stack traces
+- `HttpContext` valid only during the active request's lifetime
+- Background `Task.Run` capturing `HttpContext` outliving the request
+- `IHttpContextAccessor.HttpContext` returning `null` after request ends
+- Copying needed values before fire-and-forget background work starts
 
 **Answer**
 
-Rethrowing with `throw ex` discards the original stack trace and replaces it with the catch block location, which means Application Insights, Serilog, and any error tracking tool show the catch site as the error origin rather than the line that actually failed. This makes root-cause analysis in production significantly harder. Bare `throw` without a variable preserves the original trace through the rethrow. The only case where I create a new exception is when I want to add domain context: `throw new OrderProcessingException("Failed during payment", ex)` wraps the original as `InnerException` so both the domain message and the original stack trace are available in logs.
+`HttpContext` is valid only during the scope of the active HTTP request. When middleware or action code starts a background task with `Task.Run` and captures `HttpContext`, the context may be recycled or nulled by the framework before the background task accesses it — especially `Request.Body`, which is disposed when the request scope ends. If a background operation needs data from the request, extract and copy the required values — user ID, request headers, body content — into local variables before starting the background work. Never pass `HttpContext` itself to a background thread or fire-and-forget task.
 
 ---
 
-## Gotcha 8. Kestrel as the only production layer
+#### Gotcha 8. `UseStaticFiles` must be registered before `UseRouting` to prevent static paths matching as API routes
 
 **Concepts**
-- Kestrel as application server, not edge gateway
-- TLS termination and certificate management at reverse proxy layer
-- WAF protection, DDoS mitigation, and static file caching at edge
-- `UseForwardedHeaders` requirement when behind a proxy
+- `UseStaticFiles` serving files before routing inspects the path
+- Route template potentially matching static file paths as API endpoints
+- Static file serving short-circuiting the pipeline without going through auth
+- Order: `UseStaticFiles` → `UseRouting` → `UseAuthentication` → `UseAuthorization`
 
 **Answer**
 
-Kestrel is production-grade for serving application requests, but running it directly exposed to the internet means I'm handling TLS certificate provisioning and renewal in application code, missing centralized WAF protection and DDoS mitigation, and serving static files without edge caching. In practice I run Kestrel on an internal port — `http://+:8080` in a container — and let nginx, IIS ARR, Azure Front Door, or an AWS ALB handle HTTPS termination, rate limiting, and CDN caching. When I do this I must call `app.UseForwardedHeaders()` early in the pipeline, configured with trusted proxy networks, so `Request.Scheme` reflects `https` and rate limiting partitions by real client IP rather than the proxy's internal address.
+When `UseStaticFiles` is registered before `UseRouting`, requests for static files are served directly and the pipeline short-circuits before routing runs — which is the desired behavior. If `UseRouting` runs first, the path is evaluated as a potential API route, and if a route template matches a static file path, the route wins over the file. More critically, `UseStaticFiles` has no authentication gate — it serves files to unauthenticated clients. If authentication middleware must protect static files, a custom `StaticFileMiddleware` with an `OnPrepareResponse` callback or a different serving approach is needed. For most applications, `UseStaticFiles` before `UseRouting` is correct.
 
 ---
 
-## Gotcha 9. `launchSettings.json` in production
+#### Gotcha 9. Async middleware must `await` all async calls — synchronous blocking causes thread pool starvation
 
 **Concepts**
-- `launchSettings.json` — IDE and `dotnet run` only, never deployed
-- `ASPNETCORE_URLS` and `ASPNETCORE_ENVIRONMENT` as production replacements
-- Development HTTPS cert not available in deployed environments
-- User secrets not deployed — secrets vault or platform config required
+- `.Result` or `.Wait()` blocking async calls inside middleware
+- Thread pool starvation under load from blocked threads
+- `async Task` middleware delegate returning `Task`, not `void`
+- `await next(context)` vs `next(context).Wait()` — always the former
 
 **Answer**
 
-`launchSettings.json` is excluded from `dotnet publish` output, so everything in it — `applicationUrl`, `environmentVariables`, browser launch settings — applies only to local `dotnet run` and IDE sessions. Developers discover this the hard way when the app behaves correctly locally but ignores all their profile settings after deploy. In production I set `ASPNETCORE_ENVIRONMENT=Production` through the container manifest or App Service configuration, bind Kestrel via `ASPNETCORE_URLS`, and supply secrets through Key Vault or managed identity. The development HTTPS certificate trusted on a developer's machine isn't present in a container image — TLS is handled at the proxy layer instead.
+Middleware that calls `next(context).Wait()` or `someAsyncService.DoWorkAsync().Result` blocks the thread synchronously, preventing the thread pool thread from handling other requests while the async operation completes. Under load this causes thread pool starvation where the thread pool grows slowly while request latency climbs. All middleware should be declared with `async Task` return types and `await` every async operation, including `await next(context)`. This ensures threads are returned to the pool while I/O awaits. Synchronous blocking with `.Result` or `.Wait()` also risks deadlocks in certain synchronization contexts.
 
 ---
 
-## Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 10. Middleware registered after `UseEndpoints` or `MapControllers` never runs for matched routes
 
 **Concepts**
-- `bool` default value — indistinguishable from omitted field
-- `bool?` for tri-state PATCH: null = omitted, true = opt-in, false = opt-out
-- System.Text.Json behavior — missing JSON properties default to `false`
-- Explicit enum for complex intent beyond binary
+- Endpoint execution short-circuiting the pipeline after the matched handler runs
+- Response pipeline running in reverse — after-logic in middleware runs post-endpoint
+- Middleware after endpoint mapping only reached by unmatched requests
+- Logging or correlation middleware must be registered before endpoint mapping
 
 **Answer**
 
-A non-nullable `bool` on a PATCH DTO makes it impossible to distinguish "this field was not included in the request" from "the field was explicitly set to false" because `System.Text.Json` sets any missing boolean key to `false`. This matters for consent flags, feature toggles, and any domain concept that has a genuine tri-state: not yet expressed, explicitly opted in, explicitly opted out. I use `bool?` on PATCH DTOs so `null` means "omitted — leave unchanged", `true` means "explicitly enabled", and `false` means "explicitly disabled". For cases with more than three states or where the intent needs to be unambiguous in the API contract, I use an explicit enum like `ConsentState { Unspecified, OptIn, OptOut }`.
-
----
-
-## Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
-
-**Concepts**
-- `X-Forwarded-For`, `X-Forwarded-Proto` header processing
-- `UseForwardedHeaders` placement — before HTTPS redirection and auth
-- Trusted proxy network configuration in `ForwardedHeadersOptions`
-- HTTPS redirect loops and incorrect client IP without it
-
-**Answer**
-
-Without `UseForwardedHeaders()`, an app behind a TLS-terminating reverse proxy always sees `Request.Scheme` as `http` and `Connection.RemoteIpAddress` as the proxy's internal IP. This causes HTTPS redirect middleware to loop because the scheme never becomes `https`, breaks cookie `Secure` flags that check scheme, and makes rate limiting by IP useless since every request appears to come from the same proxy address. I call `UseForwardedHeaders()` as one of the first middleware registrations, before anything that reads scheme or host. I also configure `ForwardedHeadersOptions.KnownNetworks` or `KnownProxies` to list only my actual proxy infrastructure — trusting all IPs would allow an attacker to spoof their identity via a forged `X-Forwarded-For` header.
-
----
-
-## Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles()` — unauthenticated public access to all files under `wwwroot`
-- `wwwroot` restricted to public client-side assets
-- Configuration and secrets outside web root, accessed via `IConfiguration`
-- Accidental sensitive file exposure risk
-
-**Answer**
-
-Every file placed under `wwwroot` is served by `UseStaticFiles()` to unauthenticated callers with no access control — there is no built-in mechanism to make individual files in `wwwroot` private. The folder is correct for CSS, JavaScript, images, and other public client assets. Placing configuration files, `.env` files, private keys, or an `appsettings.Production.json` backup there would expose them to anyone who guesses or scans the path. Configuration secrets belong outside the web root and are loaded by `IConfiguration` backed by environment variables, Azure Key Vault, or user secrets — never as static files that the web server can serve directly.
-
----
-
-## Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback — returns `index.html` for unmatched paths
-- Registration order — API endpoints before fallback
-- `index.html` masking API errors as HTTP 200 responses
-- Conditional fallback excluding `/api` prefix paths
-
-**Answer**
-
-`MapFallbackToFile("index.html")` exists for SPA hosting so deep-linked client routes get the app's entry point, but if it's registered before `MapControllers()`, requests to API paths that don't match an existing route return `index.html` with status 200 rather than a proper 404. HTTP clients parsing that HTML as JSON throw cryptic parse errors instead of useful 404 responses, and Swagger fetch failures become `SyntaxError` in the browser console rather than meaningful HTTP errors. I always register `MapControllers()` and all API endpoint mapping before `MapFallbackToFile`, and optionally add a route constraint or `UseWhen` guard that excludes `/api/*` paths from the fallback entirely.
-
----
-
-## Gotcha 14. Background service without scope factory
-
-**Concepts**
-- `BackgroundService` singleton lifetime vs scoped service design
-- `IServiceScopeFactory` for per-job scoped resolution
-- Captive dependency in hosted services — disposed context during long lifetime
-- `ValidateScopes` catching constructor injection violations at startup
-
-**Answer**
-
-A `BackgroundService` is a singleton because hosted services live for the application lifetime, which means it cannot safely hold a constructor-injected `DbContext` — that context is scoped, designed for one request's lifetime, and after its scope ends the context is disposed while the background service still references it. I inject `IServiceScopeFactory` into the background service's constructor instead, then at the start of each background iteration I call `await using var scope = factory.CreateAsyncScope()`, resolve `DbContext` from `scope.ServiceProvider`, do the work, and let the scope dispose when the iteration block exits. Enabling `ValidateScopes` in development catches the illegal constructor injection at startup before it fails silently in production.
-
----
-
-## Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR in-process connection store — instance-local broadcasts
-- Redis or Azure Service Bus backplane for cross-instance fan-out
-- Sticky sessions — necessary but not sufficient for multi-instance
-- Azure SignalR Service as managed backplane alternative
-
-**Answer**
-
-SignalR maintains connection state in memory per server instance, so a hub method that broadcasts to all clients only reaches those connected to the same pod. When the application runs on multiple instances — horizontal scaling in Kubernetes or Azure App Service — a message sent on instance A never reaches clients connected to instance B. Sticky sessions are necessary to maintain WebSocket connections to the right pod but don't solve cross-instance fan-out for events triggered by business logic. The fix is a backplane: `AddSignalR().AddStackExchangeRedis(redisConnectionString)` installs a Redis pub/sub channel shared across all instances so every broadcast reaches all clients regardless of which pod they're on. Azure SignalR Service is the managed alternative that removes the need to run and maintain Redis.
+Once an HTTP request is matched to an endpoint by `MapControllers()` or `MapGet()`, the endpoint handler executes and produces a response, short-circuiting the remaining "request" direction of the pipeline. Middleware registered after the endpoint mapping calls is never invoked for matched requests — only for unmatched 404 paths. This matters for cross-cutting concerns like correlation ID injection, audit logging, or response compression: these must be registered before `MapControllers()`. The response pipeline does run in reverse through already-executed middleware after the endpoint completes, which is how response compression and security headers work when placed before the endpoint mapping.
 
 ---
 

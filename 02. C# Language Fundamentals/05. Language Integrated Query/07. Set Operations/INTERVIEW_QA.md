@@ -170,6 +170,150 @@ All four set operators use `HashSet<T>` internally, giving O(1) average-case loo
 
 ---
 
+## Gotchas — Set Operations (Interview Traps)
+
+---
+
+#### Gotcha 1. `Distinct()` Uses Default Equality — Custom Types Need `Equals`/`GetHashCode`
+
+**Concepts**
+- `Distinct()` uses the default `EqualityComparer<T>.Default` for the element type
+- Reference types without overridden `Equals`/`GetHashCode` use reference equality — distinct by object identity
+- Two logically equal instances of a class are NOT deduplicated unless `Equals` is overridden
+- Pass a custom `IEqualityComparer<T>` as an argument to `Distinct(comparer)` to override this
+
+**Answer**
+
+`Distinct()` deduplicates elements using the type's default equality. For value types and `string`, this is structural equality. For custom classes, the default is reference equality — two separate instances with identical field values are considered different, so `Distinct()` will not remove them. Either override `Equals` and `GetHashCode` on the class, implement `IEquatable<T>`, or pass a custom `IEqualityComparer<T>`: `source.Distinct(new CustomerEqualityComparer())`.
+
+---
+
+#### Gotcha 2. `Union()` Deduplicates; `Concat()` Does Not
+
+**Concepts**
+- `Union(second)` returns all unique elements from both sequences — duplicates are removed
+- `Concat(second)` appends the second sequence to the first — no deduplication
+- `Union` uses set semantics; `Concat` uses bag/list semantics
+- `Concat` is O(n+m) without hashing; `Union` builds a hash set internally — more memory usage
+
+**Answer**
+
+`Union(second)` is a set union: it returns each element that appears in either sequence exactly once, regardless of how many times it appears across both. `Concat(second)` simply appends — the result may contain duplicates from either or both sequences. Choosing `Union` when `Concat` is semantically correct wastes memory building a hash set; choosing `Concat` when uniqueness is required produces duplicates in the output. Always be explicit about whether deduplication is needed.
+
+---
+
+#### Gotcha 3. `Intersect()` Uses Set Semantics — Duplicates in Input Are Not Duplicated in Output
+
+**Concepts**
+- `Intersect(second)` returns elements present in both sequences, with each appearing at most once
+- Even if an element appears three times in the first sequence and twice in the second, it appears once in the result
+- This is set intersection, not multiset (bag) intersection
+- Use `GroupBy` or counting-based logic when you need to account for quantity of each element
+
+**Answer**
+
+`Intersect` returns the set of elements common to both sequences — each element appears at most once in the result regardless of how many times it occurs in the inputs. If you have `{1,1,2,3}` and `{1,1,2}`, `Intersect` returns `{1,2}`, not `{1,1,2}`. When you need to account for frequency — returning as many occurrences as the minimum count across both sequences — you need a custom multiset intersection, not `Intersect`.
+
+---
+
+#### Gotcha 4. `Except()` Is Not Symmetric — Order of Arguments Matters
+
+**Concepts**
+- `A.Except(B)` returns elements in `A` that are not in `B`
+- `B.Except(A)` returns elements in `B` that are not in `A` — a different set
+- `Except` is equivalent to set difference, which is not commutative
+- To find elements unique to either sequence (symmetric difference), combine: `A.Except(B).Concat(B.Except(A))`
+
+**Answer**
+
+`Except(second)` returns elements that are in the first (receiver) sequence but not in the second (argument) sequence. Swapping the operands produces a different result. `customers.Except(activeCustomers)` finds inactive customers; `activeCustomers.Except(customers)` would find actives not in the full customer list (unlikely to be useful). When symmetric difference is needed — elements in exactly one of the two sequences — use `A.Except(B).Concat(B.Except(A))`.
+
+---
+
+#### Gotcha 5. `DistinctBy()` (.NET 6+) Deduplicates by a Key, Not the Whole Element
+
+**Concepts**
+- `DistinctBy(keySelector)` keeps the first element with each distinct key value
+- `Distinct()` uses full element equality; `DistinctBy` uses only the projected key
+- Pre-.NET 6: simulate with `GroupBy(key).Select(g => g.First())`
+- `DistinctBy` returns the source element, not just the key
+
+**Answer**
+
+`DistinctBy(x => x.CustomerId)` returns the first source element for each distinct `CustomerId`, rather than deduplicating on full element equality as `Distinct()` does. This is essential when working with objects that have a natural identity key but differ in other properties — for example, picking one representative order per customer. Prior to .NET 6, the same effect required `GroupBy(x => x.CustomerId).Select(g => g.First())`.
+
+---
+
+#### Gotcha 6. Set Operations Are Deferred — Computation Happens at Enumeration
+
+**Concepts**
+- `Union`, `Intersect`, `Except`, and `Distinct` are all deferred operators
+- The hash set used for deduplication is built fresh on every enumeration
+- Re-enumerating a `Distinct()` result over a database query re-executes the query
+- Materialize with `ToList()` or `ToHashSet()` to avoid repeated computation
+
+**Answer**
+
+Like `Where` and `Select`, the set operators `Union`, `Intersect`, `Except`, and `Distinct` are lazy — they produce an iterator that computes the result on demand. Each enumeration rebuilds the internal hash set used for deduplication. For expensive source queries, enumerate once and reuse: `var uniqueIds = source.Select(x => x.Id).Distinct().ToList()`. Calling the same `Distinct()` query twice executes the source query twice and rebuilds the hash set twice.
+
+---
+
+#### Gotcha 7. Set Operations Do Not Guarantee Output Order
+
+**Concepts**
+- `Distinct`, `Union`, `Intersect`, `Except` produce no defined output order
+- Implementation in .NET happens to preserve insertion order in many cases, but this is not guaranteed
+- Do not rely on the order of set operation results without an explicit `OrderBy`
+- EF Core translates set operations to SQL `DISTINCT`, `UNION`, `INTERSECT`, `EXCEPT` — SQL also provides no order guarantee
+
+**Answer**
+
+The LINQ specification does not guarantee the output order of `Distinct`, `Union`, `Intersect`, or `Except`. The .NET runtime implementation happens to preserve the order of first occurrence for `Distinct` and `Union` on in-memory sequences, but this is an implementation detail, not a contract. Code that depends on order without an explicit `OrderBy` is fragile. Always follow a set operation with `OrderBy` when order matters to the consumer.
+
+---
+
+#### Gotcha 8. `UnionBy`, `IntersectBy`, `ExceptBy` (.NET 6+) Compare by Projected Key
+
+**Concepts**
+- `UnionBy(second, keySelector)` deduplicates by key, not full element equality
+- `IntersectBy(second, keySelector)` returns elements from the first sequence whose key appears in the second
+- `ExceptBy(second, keySelector)` removes elements from the first sequence whose key appears in the second
+- Pre-.NET 6: achieve these with `GroupBy`, `Join`, or `HashSet`-based filtering
+
+**Answer**
+
+The `.NET 6` additions `UnionBy`, `IntersectBy`, and `ExceptBy` add key-selector variants of the classic set operators. `source.IntersectBy(activeIds, x => x.Id)` returns elements from `source` whose `Id` appears in `activeIds`, comparing by key rather than full object equality. This avoids the need to override `Equals`/`GetHashCode` on complex types just to enable set membership tests.
+
+---
+
+#### Gotcha 9. `HashSet<T>.IntersectWith` Mutates in Place; LINQ `Intersect` Returns a New Sequence
+
+**Concepts**
+- `HashSet<T>.IntersectWith(other)` modifies the `HashSet` to retain only elements in `other`
+- LINQ `Intersect(second)` returns a new lazy `IEnumerable<T>` and does not modify either input
+- Choosing between them depends on whether you want mutation or immutable composition
+- `HashSet` operations are O(n) amortized; LINQ `Intersect` also builds a `HashSet` internally
+
+**Answer**
+
+`HashSet<T>.IntersectWith(collection)` is a destructive, in-place operation: after the call, the `HashSet` contains only the elements also present in `collection`. LINQ `Intersect(second)` is non-destructive and returns a new, lazily evaluated sequence. If you need to update a live `HashSet` membership based on a new data snapshot, `IntersectWith` is efficient. If you need to intersect two sequences without modifying either, use LINQ `Intersect`. Mixing the two up causes unintended data loss.
+
+---
+
+#### Gotcha 10. `Except` Builds a `HashSet` Internally — O(n+m), Not O(n×m)
+
+**Concepts**
+- LINQ `Except` materializes the second sequence into a `HashSet<T>` for O(1) membership tests
+- Total cost is O(n+m): O(m) to build the set, O(n) to scan the first sequence with lookups
+- Naively rewriting `Except` as `Where(x => !second.Contains(x))` with a `List` is O(n×m)
+- For very large second sequences, prefer `ToHashSet()` explicitly to control when hashing happens
+
+**Answer**
+
+LINQ `Except(second)` is internally efficient: it first materializes `second` into a `HashSet<T>`, then iterates the first sequence checking membership in O(1) per element. Total time complexity is O(n+m) where n is the size of the first sequence and m is the size of the second. A naive equivalent using `Where(x => !secondList.Contains(x))` with a `List<T>` is O(n×m) — quadratic. When working with large exclusion sets, LINQ `Except` or an explicit `HashSet<T>` is always preferable to a `Contains` check against a `List`.
+
+---
+
 ## Q11. Scenario: A sync service compares two lists of IDs to find items added, removed, and unchanged. How do you implement this with set operations? (Scenario)
 
 **Concepts**

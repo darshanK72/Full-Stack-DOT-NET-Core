@@ -558,3 +558,147 @@ app.MapGet("/reports/{id}", (string id, IReportStore store) =>
 **Answer**
 
 The default choice should be an `IDisposable` (or `IAsyncDisposable`) temp workspace object created at request entry: its constructor creates the directory under a Guid-named path, and its `Dispose` method calls `Directory.Delete(path, recursive: true)`. Using this object in a `using` statement in the handler means the compiler generates a `try/finally` that disposes on every exit path including unhandled exceptions — no cleanup logic is duplicated across endpoints. Inline `try/finally` in each handler works but forces each developer to write the same pattern and makes it easy to forget in a new endpoint. A periodic janitor that deletes directories older than N hours is valuable as a secondary defense — catching leaks from third-party library code and out-of-process kills — but must never be the primary mechanism because it allows unbounded growth between sweeps and can race against active scratch directories if naming is not unique. In Kubernetes, mount scratch space with `emptyDir: {sizeLimit: "500Mi"}` so container-level disk exhaustion fails fast with an eviction rather than silently filling the node's filesystem.
+
+## Gotchas — File & Directory Operations (Interview Traps)
+
+---
+
+#### Gotcha 1. `File.ReadAllText` Loads the Entire File Into Memory — Use Streaming for Large Files
+
+**Concepts**
+- `File.ReadAllText` reads the complete file contents into a single `string` on the heap
+- For a 2 GB log file this allocates a string exceeding the LOH threshold, causing GC pressure and potential `OutOfMemoryException`
+- `File.ReadLines` returns a lazy `IEnumerable<string>` that reads one line at a time, keeping memory constant
+- `StreamReader.ReadLine()` in a loop is the explicit equivalent of `File.ReadLines`
+
+**Answer**
+
+`File.ReadAllText("huge.log")` attempts to create a single `string` equal to the entire file size. A 500 MB file creates a 500 MB string object, a 2 GB file throws `OutOfMemoryException` on 32-bit processes and causes large-object heap fragmentation on 64-bit. `File.ReadLines("huge.log")` is the streaming alternative: it opens a `StreamReader` internally and yields one line at a time, keeping memory usage proportional to the longest line rather than the whole file.
+
+---
+
+#### Gotcha 2. `File.Exists` Before `File.Open` Is a TOCTOU Race
+
+**Concepts**
+- Time-of-check/time-of-use (TOCTOU) race: the file may be deleted or renamed between the `Exists` check and the `Open` call
+- Another process or thread can create or delete the file in the gap
+- The atomic alternative is to open the file with the appropriate `FileMode` and handle the resulting exception
+- `FileMode.OpenOrCreate` and `FileMode.Open` with a `catch (FileNotFoundException)` are the correct patterns
+
+**Answer**
+
+`if (File.Exists(path)) File.Open(path, FileMode.Open)` contains a race: the file can disappear in the nanoseconds between the check and the open, causing `FileNotFoundException` on the open call despite the successful exists check. The correct pattern is to call `File.Open` directly and handle the exception: `try { using var fs = File.Open(path, FileMode.Open); … } catch (FileNotFoundException) { … }`. This eliminates the gap and is also faster by avoiding an extra stat call.
+
+---
+
+#### Gotcha 3. Path Separator — Use `Path.Combine`, Not String Concatenation
+
+**Concepts**
+- `\` is the Windows path separator; `/` works on Windows and is the separator on Linux/macOS
+- String concatenation like `"C:\\folder" + "\\" + fileName` is fragile and OS-specific
+- `Path.Combine("folder", "sub", "file.txt")` inserts the correct separator for the current OS
+- Hardcoding `\\` in paths causes `FileNotFoundException` on Linux/macOS containers
+
+**Answer**
+
+`Path.Combine("data", "exports", "report.csv")` produces `data\exports\report.csv` on Windows and `data/exports/report.csv` on Linux — the correct separator for each platform. String concatenation like `"data" + "\\" + "exports"` hard-codes the Windows separator and breaks on Linux/macOS. In cross-platform .NET code (ASP.NET Core, Docker containers), always use `Path.Combine` and `Path.DirectorySeparatorChar` rather than literal separator characters.
+
+---
+
+#### Gotcha 4. `Directory.Delete(path)` Throws If the Directory Is Not Empty
+
+**Concepts**
+- `Directory.Delete(path)` without the recursive flag throws `IOException` if any files or subdirectories exist
+- `Directory.Delete(path, recursive: true)` deletes all contents recursively then removes the directory
+- Hidden files, system files, and files locked by another process can still cause failure even with `recursive: true`
+- Always wrap recursive delete in try-catch to handle locked or access-denied files gracefully
+
+**Answer**
+
+`Directory.Delete("temp")` throws `IOException: The directory is not empty` if the directory contains even one file or subdirectory. Pass `recursive: true` to delete all contents first: `Directory.Delete("temp", recursive: true)`. Even with `recursive: true`, files locked by another process or files with restricted permissions will throw `UnauthorizedAccessException` or `IOException`, so wrap the call in a try-catch for production use.
+
+---
+
+#### Gotcha 5. `File.Move` Across Volumes Throws on Windows — Copy-Then-Delete Instead
+
+**Concepts**
+- `File.Move(source, dest)` maps to the OS rename/move operation, which is atomic within a volume
+- Cross-volume moves (e.g., from `C:\` to `D:\`) are not supported by the OS rename syscall on Windows
+- .NET throws `IOException` for cross-volume moves unless `overwrite: true` is used on .NET 5+ (which internally copies)
+- The safe pattern: copy the file to the destination, verify, then delete the source
+
+**Answer**
+
+`File.Move(@"C:\temp\a.txt", @"D:\output\a.txt")` throws `IOException` on Windows because the rename syscall cannot span volumes. In .NET 5+, an `overwrite` parameter was added and the implementation falls back to a copy-then-delete for cross-volume moves, but the exception is still thrown in earlier versions. For maximum compatibility and to ensure correct handling of failures mid-transfer, implement the pattern explicitly: `File.Copy(source, dest, overwrite: false); File.Delete(source);` inside a try-finally.
+
+---
+
+#### Gotcha 6. `FileStream` Default Buffer Size Is 4096 Bytes — Tune for Large Sequential Reads
+
+**Concepts**
+- `new FileStream(path, FileMode.Open)` uses a default 4096-byte internal buffer
+- For large sequential reads, a larger buffer (e.g., 65536 bytes) reduces the number of OS read syscalls
+- The buffer size is set in the constructor: `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 65536)`
+- `File.OpenRead()` uses the default 4096 buffer; construct `FileStream` directly to override it
+
+**Answer**
+
+The default 4096-byte buffer causes a large file to be read in many small OS calls. For sequential read-heavy workloads (log processing, CSV import), increasing the buffer to 64 KB or 128 KB can cut I/O syscall count by 16–32x and significantly improve throughput. Pass the buffer size explicitly: `new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 65536)`. For random-access patterns, a larger buffer wastes memory without throughput benefit.
+
+---
+
+#### Gotcha 7. `Directory.GetFiles` Returns Full Absolute Paths — Not Just File Names
+
+**Concepts**
+- `Directory.GetFiles(path)` returns an array of full absolute paths, not just file names
+- Use `Path.GetFileName(fullPath)` to extract the file name from each result
+- `Directory.EnumerateFiles(path)` returns the same full paths but lazily
+- The path format (rooted vs relative) in the result depends on whether `path` was rooted or relative
+
+**Answer**
+
+`Directory.GetFiles(@"C:\data")` returns `{ @"C:\data\file1.csv", @"C:\data\file2.csv" }` — full paths, not `{ "file1.csv", "file2.csv" }`. Code that passes these results directly as file names to another API expecting bare names will fail. Use `Path.GetFileName(f)` inside the processing loop to extract just the file name, or use `new DirectoryInfo(path).GetFiles()` and access the `Name` property for bare names.
+
+---
+
+#### Gotcha 8. `File.WriteAllText` Overwrites Without Warning — Check Existence If Preservation Is Needed
+
+**Concepts**
+- `File.WriteAllText(path, content)` creates the file if it does not exist, or silently replaces it if it does
+- There is no "write-only-if-new" flag on `WriteAllText`; it always overwrites
+- To append to an existing file, use `File.AppendAllText(path, content)`
+- To write only if the file does not exist, check `File.Exists` first (accepting the TOCTOU risk) or open with `FileMode.CreateNew`
+
+**Answer**
+
+`File.WriteAllText("config.json", newContent)` destroys the previous contents of `config.json` silently and without backup. Code that intends to only create the file if it is missing must use `FileMode.CreateNew` (which throws `IOException` if the file already exists) or check `File.Exists` first. `File.AppendAllText` is the correct method for adding content to an existing file without overwriting it.
+
+---
+
+#### Gotcha 9. Long Path Support on Windows Requires Opting In — Paths Over 260 Characters Fail
+
+**Concepts**
+- The Windows `MAX_PATH` limit of 260 characters applies to most Win32 file APIs by default
+- Paths longer than 260 characters throw `PathTooLongException` without the long-path opt-in
+- Two opt-in mechanisms: the `\\?\` prefix on individual paths, or a registry/manifest setting to enable long paths globally
+- .NET on Windows requires `<LongPathsEnabled>true</LongPathsEnabled>` in the app manifest or the registry key
+
+**Answer**
+
+`File.ReadAllText(@"C:\a\b\c\...\verylongpath\file.txt")` throws `PathTooLongException` on Windows if the path exceeds 260 characters and the process has not opted into long-path support. The system-wide fix is setting `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled = 1` (Windows 10 1607+), and adding `<LongPathAware>true</LongPathAware>` to the application manifest. On Linux and macOS, the path limit is typically 4096 characters and the issue does not arise.
+
+---
+
+#### Gotcha 10. Encoding Detection — `File.ReadAllText` Without Encoding Uses UTF-8 With BOM Detection
+
+**Concepts**
+- `File.ReadAllText(path)` with no encoding argument defaults to `Encoding.UTF8` with BOM detection
+- If the file has no BOM and contains non-UTF-8 byte sequences, garbled or exception-producing output results
+- ANSI-encoded files (common in legacy systems) require `Encoding.GetEncoding(1252)` or the appropriate code page
+- Always specify the encoding explicitly when reading files from external systems or legacy applications
+
+**Answer**
+
+`File.ReadAllText("legacy.csv")` succeeds only if `legacy.csv` is UTF-8 or UTF-8 with BOM. An ANSI-encoded Windows-1252 file containing characters like `é` or `ñ` will either produce garbled output or throw a `DecoderFallbackException`. The fix is `File.ReadAllText("legacy.csv", Encoding.GetEncoding(1252))` or `Encoding.Latin1`. When encoding is unknown, use `StreamReader` with `detectEncodingFromByteOrderMarks: true` and fall back gracefully if detection fails.
+
+---

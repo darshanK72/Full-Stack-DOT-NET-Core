@@ -462,187 +462,157 @@ Custom schedulers are rarely needed in modern code but are useful for: throttlin
 
 ---
 
-## Gotchas & Traps
+## Gotchas — Tasks & Task Parallel Library (Interview Traps)
 
 ---
 
-## Q16. What is the async void anti-pattern and why is it dangerous?
+#### Gotcha 1. Task.Result and .Wait() Block and Can Deadlock
 
 **Concepts**
-- async void: exceptions crash the process (not observable via Task)
-- async Task: exceptions stored in Task, propagated on await
-- async void only appropriate for event handlers
-- Fire-and-forget with Task.Run instead
-- TopLevelExceptionHandler for async void
+- .Result and .Wait() synchronously block the calling thread
+- In SynchronizationContext environments, the awaited continuation posts back to that context
+- Blocking the context thread prevents the continuation from running — deadlock
+- Works fine in ASP.NET Core and console apps (no SynchronizationContext)
+- Fix: await end-to-end; use GetAwaiter().GetResult() only in context-free code
 
 **Answer**
 
-```csharp
-// DANGEROUS: async void
-async void LoadDataAsync()
-{
-    await Task.Delay(100);
-    throw new InvalidOperationException("silent crash");
-}
-
-button.Click += (s, e) => LoadDataAsync(); // exception terminates process
-
-// SAFE: async Task
-async Task LoadDataAsync()
-{
-    await Task.Delay(100);
-    throw new InvalidOperationException("properly propagated");
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Exception Safety | Exception escapes to SynchronizationContext, then crashes process | Undiagnosable process termination |
-| Observability | Caller cannot await or catch exceptions | Silent failure |
-| Lifecycle | Caller cannot know when work completes | Race conditions in tests |
-
-**Fix priority:**
-1. Change `async void` to `async Task` everywhere except event handlers.
-2. In event handlers that must use `async void`, wrap the body in `try/catch` and handle all exceptions explicitly.
-3. For fire-and-forget work, use `Task.Run(async () => { try { await Work(); } catch { Log(ex); } })`.
+`Task.Result` and `Task.Wait()` block the calling thread until the task completes. In environments with a `SynchronizationContext` (WPF, ASP.NET Classic), the continuation scheduled after `await` posts back to that context. If the context thread is blocked waiting for the result, the continuation can never run — a deadlock. This is one of the most common async bugs and it almost never manifests in unit tests (which use a thread-pool context) but consistently reproduces in production UI or web environments.
 
 ---
 
-## Q17. What is the unobserved task exception problem?
+#### Gotcha 2. Unobserved Task Exceptions Are Silently Swallowed
 
 **Concepts**
-- Task that faults without being awaited
-- UnobservedTaskException event
-- CLR behavior changed between .NET 4.0 and 4.5
-- Fire-and-forget tasks with no error observation
-- GC-triggered event (non-deterministic)
+- Task faults but is never awaited or its .Exception property never read
+- In .NET 4.5+ the process does not crash by default (changed from .NET 4.0)
+- TaskScheduler.UnobservedTaskException fires at GC time — non-deterministic
+- Fire-and-forget tasks must explicitly handle exceptions inside
+- Subscribe to UnobservedTaskException as a diagnostic safety net
 
 **Answer**
 
-If a `Task` faults (throws an exception) and nothing ever reads its `Exception` property or awaits it, the exception becomes "unobserved." In .NET 4.5+, unobserved exceptions do not crash the process by default (changed from 4.0 where they did). Instead, when the task is garbage-collected, `TaskScheduler.UnobservedTaskException` fires — but this is non-deterministic because GC timing is not predictable.
-
-This means you can silently lose errors. A fire-and-forget task that throws an exception will never surface unless you subscribe to `UnobservedTaskException`.
-
-```csharp
-// Silently swallows exception
-Task.Run(() => throw new InvalidOperationException("lost forever"));
-
-// Safe fire-and-forget
-_ = Task.Run(async () =>
-{
-    try { await DoWorkAsync(); }
-    catch (Exception ex) { _logger.LogError(ex, "Background task failed"); }
-});
-```
-
-Always observe task exceptions, either through `await`, `.ContinueWith(t => ..., OnlyOnFaulted)`, or a try/catch inside the task body. Subscribe to `TaskScheduler.UnobservedTaskException` as a safety net for logging any that slip through in tests.
+If a `Task` throws and nothing ever awaits it or reads `.Exception`, the exception is "unobserved." In .NET 4.5 and later, unobserved exceptions no longer crash the process — they fire `TaskScheduler.UnobservedTaskException` when the task is garbage-collected, which is non-deterministic. This means you can silently lose errors with no log entry and no crash. Every fire-and-forget task must wrap its body in `try/catch` and log failures explicitly; relying on the unobserved exception event for anything other than a last-resort diagnostic is not reliable.
 
 ---
 
-## Q18. What causes a deadlock when using .Result on an async method in WPF or ASP.NET?
+#### Gotcha 3. Task.Factory.StartNew Does Not Unwrap Nested Tasks
 
 **Concepts**
-- SynchronizationContext captures UI/request context
-- async method continuation scheduled back to captured context
-- .Result blocks the captured context's thread
-- Continuation can never run — deadlock
-- Fix: ConfigureAwait(false) or end-to-end async
+- StartNew with async lambda returns Task<Task> not Task
+- Outer task completes when async lambda returns its inner Task (not when inner Task completes)
+- Awaiting the outer task does not await the inner async work
+- Task.Run unwraps automatically — prefer it for async lambdas
+- Use Unwrap() explicitly if StartNew with an async lambda is necessary
 
 **Answer**
 
-```csharp
-// DEADLOCK in WPF or ASP.NET Classic
-public string GetData()
-{
-    return GetDataAsync().Result; // blocks UI thread
-}
-
-public async Task<string> GetDataAsync()
-{
-    // After this await, continuation is posted back to UI thread
-    var data = await httpClient.GetStringAsync(url);
-    return data;
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Deadlock | `.Result` blocks UI thread; continuation tries to post back to blocked UI thread | Application hangs forever |
-| Root Cause | SynchronizationContext captured at `await`; `.Result` holds that context thread | Classic deadlock |
-| Hidden Risk | Works in console / ASP.NET Core (no SynchronizationContext) but fails in WPF / ASP.NET Classic | Environment-specific bug |
-
-**Fix priority:**
-1. Make the caller async: `public async Task<string> GetData()` and `await GetDataAsync()`.
-2. If synchronous callers truly cannot be avoided, add `ConfigureAwait(false)` to every `await` inside `GetDataAsync` — this prevents the continuation from requiring the original context.
-3. Never use `.Result` in code that runs on a `SynchronizationContext`-bound thread. Use `GetAwaiter().GetResult()` only in context-free code (console app main, background threads).
+`Task.Factory.StartNew(async () => { ... })` returns `Task<Task>`. The outer task completes when the async lambda hits its first `await` and returns the inner `Task` — not when the async work finishes. Awaiting the outer `Task<Task>` only waits for the lambda to start, not for it to finish. `Task.Run` was specifically designed to unwrap one level of nesting and should be preferred for async lambdas. If `StartNew` is needed for its scheduling options, call `.Unwrap()` on the result to get back the inner task that represents the actual completion.
 
 ---
 
-## Q19. What is the ValueTask double-await bug?
+#### Gotcha 4. ContinueWith Runs on the ThreadPool, Not the Original Context
 
 **Concepts**
-- ValueTask may not be awaited more than once
-- Underlying IValueTaskSource may recycle state
-- Second await reads garbage or throws
-- Convert to Task with .AsTask() for multiple consumption
-- Compiler does not catch this bug
+- ContinueWith default scheduler is TaskScheduler.Default (ThreadPool)
+- Does not capture SynchronizationContext like await does
+- Accessing UI controls or HttpContext from ContinueWith callback throws
+- TaskScheduler.FromCurrentSynchronizationContext() for UI continuations
+- Prefer await over ContinueWith in almost all cases
 
 **Answer**
 
-`ValueTask<T>` must be awaited exactly once. Some implementations use pooled `IValueTaskSource<T>` objects for efficiency — after the first `await` completes, the source is returned to a pool and may be reused for a completely different operation. A second `await` on the same `ValueTask<T>` then reads from a recycled, unrelated source, producing incorrect results or corrupting state.
-
-```csharp
-// BUG: ValueTask awaited twice
-ValueTask<int> valueTask = GetValueAsync();
-int first = await valueTask;  // ok
-int second = await valueTask; // BUG: undefined behavior
-
-// FIX: convert to Task first if you need multiple awaits
-Task<int> task = GetValueAsync().AsTask();
-int first = await task;
-int second = await task; // safe - Task can be awaited multiple times
-```
-
-Similarly, storing a `ValueTask` and awaiting it later (after the method has had time to advance) is dangerous. The rule: capture the return value and await it immediately, in the same expression or the very next statement. If you need to await it multiple times, share results, or observe it from multiple places, call `.AsTask()` once and distribute the `Task<T>`.
+Unlike `await`, `ContinueWith` does not capture the current `SynchronizationContext` by default — its continuation runs on the ThreadPool. Code that accesses UI elements, `HttpContext`, or other context-bound resources inside a `ContinueWith` callback will throw or produce incorrect results. To schedule a continuation on the UI thread, pass `TaskScheduler.FromCurrentSynchronizationContext()` as the scheduler argument. In nearly all modern code, `await` is preferable to `ContinueWith` precisely because it handles context correctly.
 
 ---
 
-## Q20. What is the fire-and-forget task leak pattern?
+#### Gotcha 5. AttachedToParent Faults the Parent Task
 
 **Concepts**
-- Task created but never awaited or observed
-- Exceptions are silently lost
-- Task lifecycle not tracked
-- Background work without cancellation on shutdown
-- Proper fire-and-forget alternatives
+- TaskCreationOptions.AttachedToParent makes child task lifecycle part of parent
+- If child faults, the exception propagates to the parent task
+- Can surprise callers who don't expect a parent to fault from a child
+- DenyChildAttach on the parent prevents accidental attachment
+- Task.Run uses DenyChildAttach by default — StartNew does not
 
 **Answer**
 
-Fire-and-forget tasks — created with `Task.Run` or `_ = SomeAsync()` — are a common source of silent failures. If the task faults, the exception disappears. If the application shuts down, the task may be abruptly terminated mid-execution. If many fire-and-forget tasks accumulate, there is no way to wait for them during graceful shutdown.
+When a task is created with `TaskCreationOptions.AttachedToParent`, its faulting or cancellation propagates to the parent task. This is an opt-in mechanism, but it can create surprising behavior when a library uses `Task.Factory.StartNew` (which does not set `DenyChildAttach`) and a child task created inside it faults — the fault propagates upward to a task the caller was awaiting for something else. `Task.Run` always uses `DenyChildAttach`, which is why it is safer as a default. When using `StartNew`, explicitly add `DenyChildAttach` to prevent accidental parent-child coupling.
 
-```csharp
-// LEAKY fire-and-forget
-void OnEvent(Event e)
-{
-    Task.Run(() => HandleEventAsync(e)); // no awaiting, no error handling
-}
+---
 
-// BETTER: tracked fire-and-forget with logging
-void OnEvent(Event e)
-{
-    _ = HandleEventAsync(e).ContinueWith(
-        t => _logger.LogError(t.Exception, "Event handling failed"),
-        TaskContinuationOptions.OnlyOnFaulted);
-}
+#### Gotcha 6. Task.WhenAll Propagates Only the First Exception on Await
 
-// BEST: use a background task queue with lifecycle management
-void OnEvent(Event e)
-{
-    _backgroundQueue.Enqueue(e); // IHostedService consumes the queue with CancellationToken
-}
-```
+**Concepts**
+- WhenAll collects all exceptions into AggregateException
+- Awaiting the Task from WhenAll rethrows only the first exception
+- All other task exceptions are silently discarded
+- Access task.Exception.InnerExceptions to see all faults
+- Use try/catch on individual tasks or inspect WhenAll result directly
 
-For production code, use a hosted background service (`IHostedService` + `BackgroundService`) or `Channel<T>` to manage fire-and-forget work. This provides lifecycle tracking, graceful shutdown, bounded concurrency, and error handling in one place.
+**Answer**
+
+`Task.WhenAll` waits for all tasks and collects all exceptions into an `AggregateException`. However, when you `await` the `Task` returned by `WhenAll`, the runtime unwraps and rethrows only the first exception — all others are silently dropped from the catch block. If multiple tasks fail, the caller sees only one error. To capture all failures, assign the `WhenAll` task to a variable, `await` it inside a `try/catch`, then inspect the variable's `.Exception.InnerExceptions` collection in the catch handler to see every fault.
+
+---
+
+#### Gotcha 7. OperationCanceledException vs TaskCanceledException
+
+**Concepts**
+- TaskCanceledException derives from OperationCanceledException
+- Awaiting a cancelled task throws TaskCanceledException
+- CancellationToken.ThrowIfCancellationRequested throws OperationCanceledException
+- Catching the base type OperationCanceledException handles both
+- Task.IsCanceled is true only when the task was cancelled via its CancellationToken
+
+**Answer**
+
+`TaskCanceledException` is a subclass of `OperationCanceledException`. Awaiting a task that was cancelled throws `TaskCanceledException`; calling `token.ThrowIfCancellationRequested()` throws `OperationCanceledException`. If catch blocks only handle `TaskCanceledException`, they miss cancellations from `ThrowIfCancellationRequested` called inside the task body. Catch `OperationCanceledException` as the base type to handle both cases consistently. Additionally, `Task.IsCanceled` is only true when the task was cancelled via its associated `CancellationToken` — tasks that throw `OperationCanceledException` directly have `IsFaulted = true`, not `IsCanceled`.
+
+---
+
+#### Gotcha 8. ValueTask Must Be Awaited Exactly Once
+
+**Concepts**
+- ValueTask<T> backed by IValueTaskSource<T> may use a pooled object
+- After the first await, the backing source may be recycled
+- Second await reads from a recycled, unrelated source — undefined behavior
+- Convert to Task<T> with .AsTask() if multiple awaits or multiple consumers are needed
+- Compiler does not warn about this misuse
+
+**Answer**
+
+`ValueTask<T>` is designed for single-await, single-consumer use. Some implementations pool the underlying `IValueTaskSource<T>` — after the first `await` completes, the source returns to the pool and may be reused for a different operation. A second `await` on the same `ValueTask<T>` then reads from a recycled, unrelated source, producing incorrect results or corrupting state. The rule: capture the `ValueTask` and await it immediately. If you need to await it multiple times, pass it to multiple consumers, or observe it later, call `.AsTask()` first and work with the `Task<T>` instead.
+
+---
+
+#### Gotcha 9. Task.Delay Does Not Block a Thread — Thread.Sleep Does
+
+**Concepts**
+- Thread.Sleep blocks the calling thread for the duration
+- Task.Delay schedules a timer callback and returns immediately
+- The thread is released to the pool during await Task.Delay
+- Resumption occurs on a (possibly different) pool thread
+- Use Task.Delay in async code; Thread.Sleep only in synchronous, non-pool contexts
+
+**Answer**
+
+`Thread.Sleep(ms)` blocks the current OS thread for the specified duration — the thread cannot service other work during this time. `await Task.Delay(ms)` schedules a timer callback, returns the thread to the pool immediately, and resumes the continuation after the delay on an available pool thread. In an async method, using `Thread.Sleep` wastes a pool slot for the entire sleep duration. For retry loops, polling, and backoff delays in async code, always use `await Task.Delay(ms, cancellationToken)` so the thread is free during the wait and cancellation is respected.
+
+---
+
+#### Gotcha 10. Parallel.ForEach Loop Bodies See a Shared Captured Variable
+
+**Concepts**
+- Closures in Parallel.ForEach capture variables by reference
+- For-loop variable shared across iterations if not captured in a local
+- Classic "print 5 five times instead of 0 1 2 3 4" bug
+- Each Parallel.ForEach iteration receives the current item as a parameter — that is safe
+- External loop variables (indexes, counters) used inside lambdas must be locally captured
+
+**Answer**
+
+When a `Parallel.ForEach` body closes over an external loop variable (such as a `for` counter used alongside the parallel body), all lambda invocations share the same captured reference. By the time any thread executes, the variable may have advanced to its final value, causing every iteration to see the same number. The item parameter passed directly to the `Parallel.ForEach` delegate is safe — it is a distinct copy per invocation. The trap arises when you introduce an outer `for` loop and reference its index variable inside the `Parallel.ForEach` lambda — always copy it into a local `var captured = i` before the lambda to create a distinct capture per iteration.
 
 ---
 

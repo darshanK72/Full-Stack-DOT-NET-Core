@@ -297,202 +297,147 @@ Hosted services start after the host builds the service provider and complete th
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
-
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- `UseRouting` before `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata — only available after routing selects the endpoint
-- `[Authorize]` policy resolution depends on endpoint selection
-
-**Answer**
-
-In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata. When auth runs before routing, the endpoint has not been selected yet, which means `[Authorize]` metadata on minimal routes or controllers may not apply correctly and policy resolution breaks silently. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms include anonymous access to protected endpoints or 401 responses without proper challenge behavior.
+## Gotchas — Background & Hosted Services (Interview Traps)
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. `BackgroundService` is a singleton — injecting scoped services directly causes captive dependency
 
 **Concepts**
-- Captive dependency — singleton outliving the scoped instance
-- EF change tracker corruption across requests
-- `ValidateScopes` — startup detection of scope violations
-- `IServiceScopeFactory` or `IDbContextFactory<T>` as fix
+- Hosted services registered as singletons for application lifetime
+- Scoped `DbContext` injected into singleton living past its scope
+- `IServiceScopeFactory` for creating per-operation scoped resolution
+- `ValidateScopes` catching illegal scope injection at startup in Development
 
 **Answer**
 
-Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`. The singleton holds one scoped instance forever rather than one per request, so EF change trackers accumulate unrelated entities. Enabling `ValidateScopes` in Development and staging catches illegal scope combinations at startup. The fix is injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation. This applies equally to singleton services, hosted services, and cached delegates in Minimal APIs.
+`BackgroundService` is registered as a singleton because hosted services live for the application lifetime. Injecting a scoped service like `DbContext` directly into its constructor creates a captive dependency — the scoped instance is created once at startup and held indefinitely instead of being created and disposed per unit of work. If `ValidateScopes` is enabled in Development, the host throws at startup. If not, the EF Core change tracker accumulates stale entities across all background iterations and eventually throws `ObjectDisposedException`. The correct pattern is injecting `IServiceScopeFactory`, then inside `ExecuteAsync` using `await using var scope = factory.CreateAsyncScope()` and resolving services from `scope.ServiceProvider`.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. Unhandled exceptions in `ExecuteAsync` stop the hosted service — .NET 5 and earlier crash the host
 
 **Concepts**
-- `HttpClient` socket exhaustion from per-use instantiation
-- `IHttpClientFactory` — handler lifetime and connection pooling
-- Named or typed client registration
+- Unhandled exception in `ExecuteAsync` completing the internal `Task`
+- `BackgroundService` monitoring the task internally and stopping the service
+- .NET 5 and earlier: unhandled exception crashes the entire host process
+- .NET 6+: `BackgroundServiceExceptionBehavior` controlling crash vs stop behavior
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected. `HttpClient` is disposable but not meant for per-use disposal, so `using var client = new HttpClient()` in a singleton is an anti-pattern. `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly. I register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()`. Symptoms include `SocketException` and timeout errors only under production traffic, not in local testing.
+If `ExecuteAsync` throws an unhandled exception, the `BackgroundService` infrastructure catches it, logs it, and marks the service as stopped. In .NET 5 and earlier, this behavior is configurable but defaults to crashing the entire host process (consistent with Worker Service behavior). In .NET 6 and later, the default changed to `Ignore` — the exception stops the service but the host continues running, which can leave the application in a degraded state without the background processing silently. Configure `HostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.StopHost` if the background service is critical and its failure should take down the app so infrastructure restart policies trigger.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. `StopAsync` timeout — graceful shutdown may be truncated by the default 5-second timeout
 
 **Concepts**
-- `IOptions<T>` — snapshot at first resolution, never updates
-- `IOptionsSnapshot<T>` — recalculates per request scope
-- `IOptionsMonitor<T>` — change notifications via `OnChange`
-- Singleton services require `IOptionsMonitor<T>` for live config
+- `IHostedService.StopAsync(CancellationToken)` called during host shutdown
+- Default host shutdown timeout of 5 seconds
+- Long-running cleanup work truncated when timeout expires
+- `HostOptions.ShutdownTimeout` for extending the shutdown window
 
 **Answer**
 
-`IOptions<T>` captures a configuration snapshot at first resolution, so reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope while `IOptionsMonitor<T>` supports change notifications via `OnChange`. Singleton services must use `IOptionsMonitor<T>` or read options inside scoped operations if they need live updates. Misconfiguration persists silently until process restart when `.Value` was cached at construction.
+When the application shuts down, the host calls `StopAsync` on all hosted services with a cancellation token that fires after the configured shutdown timeout (default 5 seconds). Background services that perform cleanup work — flushing queues, completing in-flight database writes, sending a final message — may be aborted mid-cleanup when the timeout expires. Extend the timeout with `builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(30))` for services with meaningful shutdown work. Inside `StopAsync`, respect the cancellation token and exit promptly when cancelled rather than ignoring it, so clean shutdown is possible within the extended window.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 4. `CancellationToken` not checked in tight loops — background service ignores shutdown signal
 
 **Concepts**
-- HTTP GET body — stripped by proxies, caches, and browsers
-- `[FromQuery]` with `[AsParameters]` for complex GET filters
-- Silent binding failure in production vs Swagger
+- `ExecuteAsync(CancellationToken stoppingToken)` receiving shutdown signal
+- Tight processing loop without checking `stoppingToken.IsCancellationRequested`
+- `await Task.Delay(interval, stoppingToken)` respecting cancellation for delays
+- Graceful shutdown requiring loop exit on cancellation
 
 **Answer**
 
-Using `[FromBody]` on GET action parameters is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies so binding fails silently in production. Query strings and route values are the correct binding sources for GET requests. Complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys. Failures often appear only in specific browsers or CDN layers, not in Swagger during development. REST conventions expect GET to be safe and idempotent with parameters in the URL.
+A `BackgroundService` loop that processes work without checking the `stoppingToken` continues running after the host initiates shutdown, preventing graceful termination and extending shutdown time unnecessarily. Replace `while (true)` with `while (!stoppingToken.IsCancellationRequested)` or use `await Task.Delay(pollingInterval, stoppingToken)` inside the loop — when `stoppingToken` fires, `Task.Delay` throws `OperationCanceledException`, which `ExecuteAsync` should let propagate (do not catch `OperationCanceledException` unless to perform cleanup). Pass `stoppingToken` to all async calls inside the loop so database queries, HTTP calls, and queue reads also cancel promptly when shutdown is requested.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 5. Multiple hosted services start in registration order but stop in reverse — dependencies on execution order are fragile
 
 **Concepts**
-- `JsonNamingPolicy.CamelCase` — ASP.NET Core 8 default
-- `PropertyNameCaseInsensitive` — opt-in case-insensitive binding
-- Silent default-value binding when keys do not match
+- `AddHostedService<T>()` registering multiple services
+- Startup order: services start in registration order
+- Shutdown order: services stop in reverse registration order
+- No explicit coordination mechanism between hosted services
 
 **Answer**
 
-ASP.NET Core 8 Web API serializes JSON with camelCase property names by default via `JsonNamingPolicy.CamelCase`, so incoming JSON with PascalCase keys such as `"CustomerName"` may not bind to `CustomerName` unless case-insensitive matching is enabled. Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values such as empty string or zero. I prefer standardizing clients on camelCase and documenting the contract in OpenAPI. The optional mitigation is `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)`, but explicit camelCase contracts are cleaner. Adding validation attributes turns silent binding failures into 400 responses rather than corrupt data.
+Multiple services registered with `AddHostedService<T>()` start in the order they were registered and stop in reverse order. While this is deterministic, there is no built-in coordination mechanism to ensure one service is fully operational before another begins processing. Background services that consume a queue filled by another background service may start and process before the producer is ready. Use `IHostApplicationLifetime.ApplicationStarted` to delay dependent service work until all services have completed their `StartAsync` phase, or use a shared coordination primitive like a `SemaphoreSlim` or a `Channel<T>` that naturally buffers until a producer is running.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 6. `IHostedService.StartAsync` must not block — long initialization work blocks the entire host startup
 
 **Concepts**
-- `throw ex` — resets stack trace to catch block
-- Bare `throw` — preserves original exception origin
-- `throw new WrapperException("...", ex)` — preserving InnerException
+- `StartAsync` intended for lightweight, non-blocking initialization
+- `ExecuteAsync` for long-running background work
+- Host startup timeout affected by blocking `StartAsync`
+- Fire-and-forget task from `StartAsync` for deferred startup work
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown. Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis, so I always use `throw;` when rethrowing after logging or cleanup. Wrapping in a new exception is appropriate only when adding context: `throw new OrderProcessingException("...", ex)` preserves the `InnerException`. This trap appears in both application code and background worker error handlers.
+`IHostedService.StartAsync` must return quickly — it is called sequentially for all hosted services during host startup, and a service that blocks in `StartAsync` (waiting for a database, warming a cache, or running migrations) delays the startup of all subsequent services and can trigger host startup timeouts. Long-running work belongs in `ExecuteAsync` for `BackgroundService` subclasses, or started as a background task in `StartAsync` and stored for later cancellation. If a service must wait for a dependency to be healthy before starting work, defer that check to the first iteration of `ExecuteAsync` rather than blocking `StartAsync`.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 7. Fire-and-forget `Task.Run` from a controller — not tracked, exceptions lost, not cancelled on shutdown
 
 **Concepts**
-- Kestrel — application server, not an edge gateway
-- Reverse proxy — TLS termination, WAF, rate limiting
-- `UseForwardedHeaders` — client IP and scheme restoration
+- `_ = Task.Run(...)` from controller action bypassing hosted service lifecycle
+- Unobserved `TaskException` event for fire-and-forget exceptions
+- Graceful shutdown not waiting for fire-and-forget tasks
+- `IHostedService` as the correct mechanism for background work
 
 **Answer**
 
-Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching that production deployments typically require. Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front. TLS certificates are easier to manage at the proxy layer with automatic renewal. Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy. Containers often bind Kestrel to port 8080 internally while the ingress controller handles HTTPS externally.
+Starting background work from a controller action with `_ = Task.Run(...)` or `_ = Task.Factory.StartNew(...)` creates an untracked task that is not monitored by the host, not cancelled during shutdown, and whose exceptions are silently swallowed (as unobserved task exceptions). If the application shuts down while the task is running, it is aborted without cleanup. For any background work that must complete reliably, use `IHostedService` or `BackgroundService` registered via `AddHostedService<T>()`. If work must be triggered by a request, enqueue it into a `Channel<T>` or a queue that a registered background service consumes — this decouples the request from the background execution and keeps work lifecycle management in the host.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 8. `IHostApplicationLifetime` vs `CancellationToken` in `ExecuteAsync` — different cancellation signals
 
 **Concepts**
-- `launchSettings.json` — development ergonomics only, not deployed
-- `ASPNETCORE_URLS` and `ASPNETCORE_ENVIRONMENT` — runtime configuration
-- `appsettings.Production.json` — correct production values location
+- `stoppingToken` in `ExecuteAsync` fired when service's `StopAsync` is called
+- `IHostApplicationLifetime.ApplicationStopping` fired when host begins shutdown
+- `ApplicationStarted` for post-startup work that should not run before app is ready
+- Using both for different coordination needs
 
 **Answer**
 
-Settings in `Properties/launchSettings.json` including `applicationUrl`, environment variables, and launch profiles apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile — they are not deployed to production hosts. Production URLs and environment come from environment variables such as `ASPNETCORE_URLS` and `ASPNETCORE_ENVIRONMENT`, container configuration, or IIS and nginx site settings. Assuming `launchSettings.json` sets Production behavior leads to wrong environment or binding in deployed environments. The file is development ergonomics, not runtime configuration, so `appsettings.Production.json` and host-level env vars are the correct locations for production values.
+The `stoppingToken` passed to `ExecuteAsync` fires when the individual service's `StopAsync` is invoked, which normally coincides with host shutdown but can also be invoked independently. `IHostApplicationLifetime.ApplicationStopping` fires when the host begins its shutdown sequence, which may precede `StopAsync` calls. `ApplicationStarted` fires after all hosted services have completed `StartAsync` and the host is fully running. For a background service that should wait until the application is fully started before beginning work, register a callback on `ApplicationStarted` inside `ExecuteAsync` rather than immediately processing — this prevents the service from attempting to use databases or services that have not finished their own startup.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 9. `PeriodicTimer` vs `Task.Delay` — `PeriodicTimer` does not drift, `Task.Delay` accumulates timing error
 
 **Concepts**
-- Non-nullable `bool` — cannot distinguish omitted from explicit `false`
-- `bool?` for tri-state PATCH intent
-- System.Text.Json deserializes missing properties to `default`
+- `Task.Delay(interval, token)` sleeping for interval after each iteration
+- Wall-clock drift accumulation when iteration work takes time
+- `PeriodicTimer` (introduced .NET 6) firing at fixed intervals regardless of iteration duration
+- `await timer.WaitForNextTickAsync(token)` pattern for non-drifting periodic work
 
 **Answer**
 
-A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics. PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent. Marketing consent and feature flags are common domains where this bug causes compliance or logic errors. Create DTOs may use non-nullable bool when explicit values are always required on insert. Nullable fields should be documented in OpenAPI so generated clients represent optional updates correctly.
+A background service loop using `await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken)` sleeps 30 seconds after each iteration completes, so if each iteration takes 5 seconds, work happens every 35 seconds — the interval drifts. `PeriodicTimer` (introduced in .NET 6) fires at fixed wall-clock intervals: `await using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30)); while (await timer.WaitForNextTickAsync(stoppingToken))` fires every 30 seconds regardless of how long each iteration takes, as long as the work completes before the next tick. Use `PeriodicTimer` for scheduling work that must happen at consistent calendar-aligned intervals; use `Task.Delay` when the interval between the end of one execution and the start of the next is what matters.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 10. Hosted service exceptions during startup are swallowed unless re-thrown from `StartAsync`
 
 **Concepts**
-- `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` headers
-- `ForwardedHeadersOptions` — trust only known proxy networks
-- `Request.Scheme` and client IP wrong without forwarded headers
+- Exception in `StartAsync` stopping that service but not necessarily others
+- `ValidateOnStart` for configuration validation at startup vs in `StartAsync`
+- Host failing to start if `StartAsync` throws an exception
+- Dependency check logic in `StartAsync` vs `ExecuteAsync`
 
 **Answer**
 
-Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs. I call `UseForwardedHeaders()` early, before middleware that reads scheme or host such as HTTPS redirection, link generation, and rate limiting by IP. I configure `ForwardedHeadersOptions` to trust only my reverse proxy network because trusting all proxies enables header spoofing. Local development without a proxy does not need this; production behind nginx, IIS, or an ALB does.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles` — serves `wwwroot` to unauthenticated clients
-- Sensitive config outside web root — `IConfiguration`, secret managers
-- Accidental `appsettings.Production.json` in `wwwroot`
-
-**Answer**
-
-Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default, so placing secrets, `.env` files, backup configs, or private keys there exposes them over HTTP. Only public assets such as CSS, JS, images, and public PDFs belong in `wwwroot`. Sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers. Accidental copy of `appsettings.Production.json` into `wwwroot` is a critical security incident, so build pipelines should verify web root contents before deploy.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback — must be registered after API endpoint mapping
-- `/api/*` 404 responses returned as `index.html`
-- Middleware registration order in `Program.cs`
-
-**Answer**
-
-SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers. I map API routes with `MapControllers` or minimal API groups before `MapFallbackToFile("index.html")`, and scope the fallback to non-API paths or use conditional fallback that excludes `/api` prefixes. Symptoms include CORS errors masked as HTML responses and Swagger fetch failures in production SPA hosting. The order in `Program.cs` is: API endpoints first, static files, fallback last.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- Singleton hosted service — cannot constructor-inject scoped services
-- `IServiceScopeFactory.CreateAsyncScope` — per-job scope
-- `ValidateScopes` — startup detection of injected scoped services
-
-**Answer**
-
-A singleton `BackgroundService` that injects scoped services such as `DbContext` or repositories directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration. Hosted services live for the application lifetime so scoped dependencies must not be constructor-injected. The fix is to inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes. The same rule applies to timers and `Task.Run` loops started from singletons. Enabling `ValidateScopes` catches this defect before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR backplane — Redis or Azure Service Bus for cross-instance fan-out
-- Sticky sessions — per-client affinity, not cross-instance event routing
-- `AddStackExchangeRedis` — backplane registration
-
-**Answer**
-
-SignalR broadcasts from one server instance reach only clients connected to that instance. Without a Redis or Azure Service Bus backplane, users on different nodes never receive each other's real-time events, since each instance only knows about its local connections. Sticky sessions keep one client on one node but do not route events raised on other nodes to that client. I register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application. Raw WebSocket apps need equivalent custom pub/sub while SignalR's backplane is the built-in solution. Multi-instance scale-out should be tested with at least two instances before launch.
+If `StartAsync` throws an exception, the host propagates it and fails to start — the process exits with an error. This is the desired behavior for true startup failures like missing critical configuration or failed database connection checks that must block app startup. However, wrapping all `StartAsync` logic in a `try/catch` that logs and swallows exceptions makes startup silently succeed with a misconfigured or non-functional background service. Distinguish between startup failures that must block the app (re-throw from `StartAsync`) and transient initial failures that the service can retry in `ExecuteAsync`. Configuration validation should use `ValidateOnStart()` in the DI options system rather than manual checks in `StartAsync`.
 
 ---
 

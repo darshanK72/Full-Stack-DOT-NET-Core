@@ -290,221 +290,149 @@ Area views run the closest `_ViewStart.cshtml` first — `Areas/{AreaName}/Views
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — Layouts, Sections & Partial Views (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. `@RenderSection` required vs optional — missing section throws exception
 
 **Concepts**
-- Business logic bypassing unit tests in views
-- Authorization placement in filters vs Razor
-- Service-layer calculations vs view-layer duplication
-- Presentation formatting as the boundary of view responsibility
+- `@RenderSection("Scripts")` — `required: true` by default; throws when section absent
+- `@RenderSection("Scripts", required: false)` — silently skips when the view has no section
+- Section defined in view but not rendered in layout — content silently discarded
+- Runtime exception — `InvalidOperationException: Section 'Scripts' is not defined`
 
 **Answer**
 
-The problem with placing pricing, discount calculations, or authorization checks in `.cshtml` files is that Razor views cannot be meaningfully unit-tested in isolation, which means that business rule changes require verifying behavior through full integration tests or manual browser checks. Business logic in views also tends to diverge from the same logic in API endpoints or batch jobs, since the duplication is invisible and there is no shared test suite enforcing consistency. Authorization in particular belongs in filters, policies, or controller/service checks that run before the view even executes — a view that shows or hides UI based on role checks is not a substitute for server-enforced authorization. I treat Razor as a presentation layer responsible only for formatting data the controller or ViewModel already prepared, nothing more.
+`@RenderSection("Scripts")` with no second argument defaults to `required: true`. Any view that does not define `@section Scripts { }` throws `InvalidOperationException: Section 'Scripts' is not defined` at runtime. The safe default for optional layout extension points is `@RenderSection("Scripts", required: false)`, which renders the section if present and silently skips it if absent. The inverse problem — defining `@section Sidebar { }` in a view whose layout never calls `@RenderSection("Sidebar")` — silently discards the section content with no error. Both directions cause lost content or unexpected exceptions; auditing layout/section contracts with integration tests that assert rendered HTML is the only reliable catch.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. `@section` defined in a nested layout not propagating to the root layout
 
 **Concepts**
-- Lazy-loaded navigation triggering N+1 queries in views
-- Mass assignment surface from entity properties
-- Schema coupling between UI and database
-- ViewModel whitelisting as the correct defense
+- Nested layouts — child layout renders `@RenderBody()` from its parent layout
+- Section scope — sections defined in a child layout view are not automatically visible to a parent layout
+- Section propagation — each intermediate layout must re-define and re-render sections upward
+- Silent content loss — script tags from child views never appear in the parent `<head>`
 
 **Answer**
 
-Passing EF Core entities directly to Razor views creates several compounding problems. Lazy-loaded navigation properties can trigger unintended database queries during rendering — a loop over `Order.LineItems` in a partial can fire one query per order if the navigations were not eagerly loaded, causing N+1 performance issues that are invisible until load testing. On POST, binding an entity directly exposes every property to mass assignment: even if the form only renders `Name` and `Email`, an attacker can add `IsAdmin=true` to the request body and it will bind. Entities also carry schema-specific fields like `RowVersion`, `InternalMarginPercent`, and FK ids that should never appear in HTML. The fix is to define ViewModels that expose only the fields the view needs and map between entities and ViewModels in the controller or a mapping service.
+When `_AdminLayout.cshtml` uses `_Layout.cshtml` as its own layout, sections defined with `@section Scripts {}` in a view that uses `_AdminLayout` are rendered by `_AdminLayout`'s `@RenderSection("Scripts")`, not by `_Layout`. If `_Layout` also has its own `@RenderSection("Scripts", required: false)` for the page-level `<script>` block, it never receives the child view's section content because sections do not bubble up through nested layouts automatically. To propagate a section through multiple layout levels, each intermediate layout must re-define and re-render it: `@section Scripts { @RenderSection("Scripts", required: false) }`. Forgetting this produces pages where scripts from child views never appear in the root layout's script block.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. `@Html.Partial` (synchronous) blocking thread pool threads under load
 
 **Concepts**
-- HTML form submitting `application/x-www-form-urlencoded`
-- `[FromBody]` expecting JSON via input formatter
-- Silent binding failure leaving model at defaults
-- `FormData` following form binding rules, not JSON path
+- `@Html.Partial` — synchronous rendering, blocks the thread pool thread
+- `@await Html.PartialAsync` — async, releases thread while partial renders
+- `<partial name="_X" model="m" />` tag helper — always async, idiomatic ASP.NET Core
+- Thread pool starvation — many simultaneous sync partial renders reduce concurrency
 
 **Answer**
 
-Standard browser forms submit `application/x-www-form-urlencoded` or `multipart/form-data` — they do not send JSON bodies. When an action parameter is decorated with `[FromBody]`, the model binder uses the JSON input formatter, finds no JSON in the request body, and leaves every property at its default value. The action runs with an apparently valid but empty model, so inserts save empty strings and zeroes with no error. The trap is that `ModelState` may appear clean since no conversion failure occurred — properties just stayed at defaults. The fix is to remove `[FromBody]` for conventional MVC form POSTs and allow the default form value provider to bind from the encoded body. `[FromBody]` belongs only on AJAX or API endpoints where the client explicitly sets `Content-Type: application/json` and sends a JSON payload.
+`@Html.Partial("_Widget", model)` is synchronous and blocks the thread pool thread for the entire rendering duration. Under concurrent load with many views each rendering multiple partials, threads pile up waiting for CPU or I/O, causing latency spikes and reduced throughput. `@await Html.PartialAsync("_Widget", model)` and the `<partial name="_Widget" model="model" />` tag helper are async and release the thread while rendering. The `@await` is required — `@Html.PartialAsync` without `await` discards the `Task` silently and produces empty output. Prefer the `<partial>` tag helper for new code as it is idiomatic, always async, and reads more like HTML than a Razor method call.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. `@section` defined inside a partial view — silently ignored
 
 **Concepts**
-- Client validation as bypassable UX convenience
-- Server-side `ModelState.IsValid` as the mandatory security gate
-- Direct POST bypassing browser JavaScript
-- Remote validation not enforced on the server during POST
+- `@section` in a partial — compiled without error but ignored at runtime
+- Sections only honored in views rendered directly as action results
+- Script injection from partials — must be moved to the calling view's `@section Scripts`
+- View Component — correct abstraction when a widget needs its own scripts and data
 
 **Answer**
 
-Client-side validation runs only in the browser and can be stripped out entirely by disabling JavaScript, using curl, Postman, or any HTTP client that never loads the page. An attacker submitting an invalid email, a negative price, or a missing required field directly to the action endpoint will succeed if the server does not check `ModelState.IsValid` before persisting. MVC controllers do not automatically return 400 on invalid models the way `[ApiController]` does, so the guard must be explicit. I always gate POST actions with `if (!ModelState.IsValid) return View(model);` before any service call or database write. Remote validation attributes (`[Remote]`) are particularly deceptive — they fire an AJAX check on the client but are never invoked during server-side POST processing, so uniqueness constraints and availability checks must be re-enforced on the server.
+`@section Scripts { <script src="widget.js"></script> }` inside `_Widget.cshtml` compiles without error but is silently ignored — sections are only honored in views rendered directly as action results, not in partials called via `@await Html.PartialAsync` or `<partial>`. Any scripts defined inside a partial's section block never appear in the final HTML. The fix is to move the `<script>` tag to the `@section Scripts` block of the calling view, accepting the coupling between the partial and its host. For reusable, self-contained widgets that legitimately need to inject scripts and styles, a View Component is the correct abstraction — its view is rendered directly as an action result and can define sections.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. Nested layouts producing duplicate `<html>`, `<head>`, or `<body>` tags
 
 **Concepts**
-- Duplicate submission on browser refresh after POST response
-- Post-Redirect-Get pattern separating mutation from display
-- `TempData` for flash messages surviving the redirect
-- AJAX idempotency as the equivalent concern
+- Parent layout — declares full `<html>`, `<head>`, `<body>` skeleton
+- Child layout — should contain only structural fragment and `@RenderBody()`
+- Duplicate structural tags — malformed HTML breaks browser parsing and CSS cascade
+- `@{ Layout = "_ParentLayout"; }` in child layout — correct composition pattern
 
 **Answer**
 
-Returning the same view directly after a successful POST leaves the browser on a POST URL, so pressing refresh resubmits the same form data — creating duplicate orders, double charges, or repeated inserts. The browser's built-in "Confirm Form Resubmission" dialog warns users but does not prevent the problem on automated retries or programmatic submissions. The correct pattern is Post-Redirect-Get: after a successful mutation, `return RedirectToAction(nameof(Index))` sends a 302 response and the browser follows with a GET request, making the final URL safe to refresh. Success messages should travel via `TempData` to the redirect target since they cannot survive the redirect in `ViewData`. For AJAX partial POSTs the same concern applies — I disable the submit button during the request or implement idempotency server-side so duplicate submissions produce the same safe result.
+When `_AdminLayout.cshtml` sets `@{ Layout = "_Layout"; }`, it should contain only the admin-specific structural fragment (sidebar, breadcrumbs, secondary nav) and a `@RenderBody()` call — not its own `<html>`, `<head>`, or `<body>` tags. A child layout that includes a full HTML skeleton produces duplicate structural elements in the rendered output, breaking browser parsing and causing stylesheet and script loading failures. The parent layout provides the skeleton; child layouts add structure within `@RenderBody()`. Validate the nested layout hierarchy by inspecting raw HTML with browser developer tools — duplicate structural tags are invisible in the visual render but cause layout and script failures.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. `_ViewStart.cshtml` applying an unwanted layout to API-style partial views
 
 **Concepts**
-- `ModelState` as request-scoped state
-- Validation errors lost on `RedirectToAction`
-- `return View(model)` on failure vs redirect on success
-- `TempData` serialization for errors that must survive redirect
+- `_ViewStart.cshtml` — runs before every view in its folder and all subfolders
+- `Layout = "_Layout"` inheritance — applies to all views including partial-only routes
+- Partial view returning full HTML page — unwanted layout wrapper added by `_ViewStart`
+- `@{ Layout = null; }` in a view — explicitly disables the inherited layout
 
 **Answer**
 
-`ModelState` is scoped to the current HTTP request and is discarded when the response is sent, which means validation errors do not survive a `RedirectToAction`. A common bug is redirecting on both success and failure: the redirect GET action sees an empty `ModelState`, renders a clean form, and the user has no idea what went wrong. The standard pattern is to redirect only on success and return `View(model)` on validation failure — this keeps errors visible inline without any special plumbing. When a redirect on failure is genuinely required (such as PRG with a pre-populated form), errors can be serialized to `TempData` as a dictionary and re-added to `ModelState` on the GET action, but this is complex enough that I treat it as a last resort and prefer the simpler return-on-failure approach.
+`_ViewStart.cshtml` in the `Views/` root sets `Layout = "_Layout"` for every view in the tree. A view intended to return only an HTML partial or a fragment for an AJAX update inherits this layout and renders an unexpected full HTML document around the partial content. The fix is to override in the specific view: `@{ Layout = null; }` as the first line disables the inherited layout for that view. For a cluster of views in a subfolder that all need a different layout or no layout, placing a `_ViewStart.cshtml` in that subfolder with its own `Layout` assignment overrides the root `_ViewStart` for the entire subfolder.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. Calling `@RenderBody()` more than once in a layout
 
 **Concepts**
-- `TempData` consumed on first read by default
-- `Peek()` for non-consuming reads
-- `Keep()` to retain after consuming
-- Single consumption point pattern
+- `@RenderBody()` — renders view content exactly once; single-use slot
+- Second `@RenderBody()` call — throws `InvalidOperationException` at runtime
+- Two-column layout — use `@RenderBody()` for main content and `@RenderSection("Sidebar")` for the second column
+- `RenderBody has already been called` — only manifests at runtime, not at compile time
 
 **Answer**
 
-TempData is designed to survive exactly one request after being set, but within a single request it is consumed on the first read — so if the layout reads a flash message to display a banner and the view also reads the same key to conditionally show an icon, the view sees `null`. The fix is to use `TempData.Peek("Message")` in whichever component reads first, since `Peek` returns the value without marking it consumed. Alternatively, call `TempData.Keep("Message")` after the first read to keep it available for the remainder of the request. The cleanest approach is to have a single consumption point — typically a dedicated layout partial that reads and renders the flash message — and keep views from trying to access the same key independently. Cookie-based `TempData` also has a size limit around 4 KB, so avoid stuffing large object graphs or lists into it.
+`@RenderBody()` can only be called once per layout. Calling it a second time throws `InvalidOperationException: RenderBody has already been called` — this is a runtime-only error, not caught at compile time. Developers sometimes add a second `@RenderBody()` to populate a second content area, expecting the same view content in both columns, but the framework enforces single-use. For two-column layouts, place `@RenderBody()` in the main content column and use `@RenderSection("Sidebar", required: false)` in the second column — views can then optionally inject sidebar content while the main body renders in its designated slot.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. Partial view model type mismatch causing runtime cast exception
 
 **Concepts**
-- `[Area("AreaName")]` required for area route discovery
-- `{area:exists}` constraint in area route registration
-- Area-less controller treated as a root controller
-- Route registration order mattering for specificity
+- `<partial model="Model.Order">` — passes the actual runtime type to the partial
+- Partial's `@model OrderDetailViewModel` — expects a specific type
+- `InvalidCastException` at render time — not caught at compile time in development
+- Precompilation — Razor SDK validates model types at `dotnet publish -c Release`
 
 **Answer**
 
-Controllers placed under `Areas/Admin/Controllers/` are not automatically associated with the Admin area — they require an explicit `[Area("Admin")]` attribute to be matched by the area route. Without the attribute, MVC treats the controller as an ordinary root controller, so requests to `/admin/dashboard` either 404 or accidentally match a catch-all route. Area routing is registered separately in `Program.cs` using `MapControllerRoute` with a `{area:exists}` constraint, and this route must be registered before the default catch-all route so area paths take priority. Forgetting the attribute while the route is registered produces confusing behavior where the area URL patterns exist in the route table but the controllers are never matched by them.
+`<partial name="_OrderDetail" model="Model.Cart" />` passes a `Cart` object to a partial whose `@model OrderDetailViewModel` expects a different type. At runtime the view engine attempts to assign `Cart` to `OrderDetailViewModel` and throws `InvalidCastException`. The error only surfaces when the specific parent view renders — a missing integration test lets it ship to Production. Precompilation in a Release publish catches this at build time since the Razor SDK generates strongly typed view classes and detects the type mismatch. In development, running `dotnet publish -c Release` locally or adding an integration test that hits the parent view route surfaces the mismatch before deploy.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Layout data loaded with `@inject` service calls adding hidden queries per page render
 
 **Concepts**
-- Tag Helper ambient area context for URL generation
-- `asp-area` required for cross-area link generation
-- Area links 404 or hitting wrong controller without it
-- `Url.Action` area route values requirement
+- `@inject IMenuService menus` in `_Layout.cshtml` — runs on every page render across the app
+- Uncached service call per request — hidden query outside controller profiling span
+- Partial rendered in loop with injected service — NÃ—M queries per page
+- `IMemoryCache` inside the service, or View Component with caching — correct patterns
 
 **Answer**
 
-Tag Helpers use the current request's route data as ambient values when generating URLs, which means they inherit the current area context automatically. From within the Admin area, omitting `asp-area` on a link to `AccountController` generates a URL in the Admin area segment, likely 404-ing because there is no `AccountController` in Admin. Crossing area boundaries requires explicitly setting `asp-area="Admin"` on the tag helper — omitting it generates a URL without the area segment when the current request is not in an area, or uses the wrong area when it is. The same rule applies to `Url.Action` calls: always pass `new { area = "Admin" }` in the route values dictionary when targeting an area controller from outside that area. Links from root views to area controllers and from one area to another both require `asp-area` to be explicit.
+`@inject IMenuService MenuService` in `_Layout.cshtml` followed by `@await MenuService.GetMenuAsync()` runs that query on every single page render across the entire application. If the menu query takes 20ms uncached, every route adds 20ms from the layout alone, and the query appears under view rendering in profiling traces rather than under the controller action, making it hard to attribute. The correct patterns are: cache the result in `IMemoryCache` with a reasonable TTL inside the service; use a View Component for the menu widget which has its own `InvokeAsync` and can short-circuit on cache hit; or populate the data in an action filter that sets it on `ViewData` so the layout reads from a pre-populated dictionary.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. Missing `@addTagHelper` directive causing `<partial>` to render as literal HTML
 
 **Concepts**
-- Unchecked checkbox posting nothing vs posting `false`
-- Non-nullable `bool` binding empty field to `false`
-- `[Required]` not distinguishing `false` from absent
-- `bool?` with `[Required]` for true-or-null consent
-- `[Range(typeof(bool), "true", "true")]` for must-be-true validation
+- `<partial name="_Foo" />` — Tag Helper that requires `@addTagHelper` registration
+- Missing `_ViewImports.cshtml` directive — tag helper not registered, element renders as unknown HTML
+- `@Html.Partial("_Foo")` — HTML helper method, works without tag helper registration
+- `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` — required in `_ViewImports.cshtml`
 
 **Answer**
 
-HTML checkboxes only submit their value when checked — an unchecked checkbox does not appear in the POST body at all. When the model property is non-nullable `bool`, the model binder sets missing fields to `false`, which is a perfectly valid non-null value, so `[Required]` passes without complaint. This means a required consent checkbox with `bool AcceptedTerms` can be submitted unchecked and validation will not catch it. The fix is to use `bool?` with `[Required]`, so an unchecked (absent) field binds to `null` and fails the required check, while an explicitly checked field binds to `true` and passes. For legal consent that must be positively affirmed, I also add `[Range(typeof(bool), "true", "true")]` or a custom attribute to reject `false` explicitly, since `bool?` with `[Required]` only distinguishes null from non-null.
+`<partial name="_Foo" />` is a Tag Helper that requires `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` in `_ViewImports.cshtml` at the appropriate folder level. If that directive is missing, the tag helper is not registered and the `<partial>` element renders as a literal unknown HTML tag with no partial view content — producing empty output silently. The synchronous `@Html.Partial("_Foo")` is an HTML helper method call via Razor and works without tag helper registration. When migrating from HTML helpers to tag helpers or when `<partial>` produces no visible output, the first check is that `_ViewImports.cshtml` at the correct folder level includes the tag helper registration directive.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-zero-based index requirement for collection binding
-- Phantom null entries inserted at missing indices
-- Client-side re-indexing after row deletion
-- Server-side empty-row filtering as defense
-
-**Answer**
-
-Collection binding relies on contiguous indices starting at zero: `Lines[0]`, `Lines[1]`, `Lines[2]`. When a user deletes a middle row in the UI and the remaining rows keep their original indices — say `Lines[0]` and `Lines[2]` — the binder inserts a default/null entry at index 1 and places the actual data at index 2. Server logic that iterates `model.Lines` without filtering then processes a phantom empty line, potentially saving a blank order line or misaligning SKUs with quantities. The fix is to re-index rows in JavaScript immediately after any deletion so the submitted names are always gap-free. As a server-side safety net, filtering `model.Lines.Where(l => !string.IsNullOrEmpty(l.Sku))` before processing discards empty phantom rows even if the client-side re-indexing is buggy.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor auto HTML-encoding as the default XSS defense
-- `@Html.Raw` bypassing encoding entirely
-- Trusted HTML sanitizer library for rich content
-- Content-Security-Policy as defense-in-depth, not a replacement
-
-**Answer**
-
-Razor's default `@model.Property` output HTML-encodes the value, turning `<script>alert(1)</script>` into harmless entity-encoded text. `@Html.Raw(model.UserComment)` bypasses that encoding entirely and injects the string verbatim into the page, so attacker-supplied JavaScript executes in every viewer's browser. This is one of the most common XSS vectors in MVC applications. If rich HTML content from users must be rendered, the only safe approach is to sanitize it server-side with a trusted library (HtmlSanitizer) that allows a controlled whitelist of tags and attributes before it ever touches `@Html.Raw`. Content-Security-Policy headers limit the blast radius when XSS does occur but are not a substitute for encoding — a policy without `'unsafe-inline'` still leaves DOM-based XSS paths open.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form Tag Helper automatic antiforgery token injection
-- Manual `RequestVerificationToken` header or field for AJAX
-- `[AutoValidateAntiforgeryToken]` validating all unsafe methods
-- Same-origin cookie sent automatically vs header requiring manual setup
-
-**Answer**
-
-The Form Tag Helper automatically injects a hidden `__RequestVerificationToken` input when rendering a POST form, so full-page form submissions include the token without any developer action. AJAX requests made with `fetch` or jQuery do not go through the Form Tag Helper, so they must manually read the token value from the hidden field on the page and include it either as a form field or in a custom request header. Forgetting this produces a 400 `Bad Request` with an antiforgery validation failure message that can look like a generic server error. `[AutoValidateAntiforgeryToken]` on the controller class validates all unsafe HTTP methods automatically, so every AJAX POST, PUT, and DELETE to that controller requires the token. The fix is never to disable antiforgery validation to "fix" AJAX — add the token to the request instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub not registered in DI for direct injection
-- `IHubContext<THub>` as the singleton proxy for external broadcasting
-- Connection context required for hub method execution
-- Thin hub pattern with business logic in services
-
-**Answer**
-
-SignalR `Hub` subclasses are not registered in the DI container as injectable services — they are instantiated per connection by the SignalR infrastructure, which means injecting a concrete `Hub` into a controller constructor either fails at activation or produces an instance with no valid connection context. The correct approach is to inject `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()` that allows sending messages to connected clients from anywhere outside the hub — controllers, background services, or domain event handlers. The hub class itself should be kept thin, delegating business logic to scoped or transient services that can be injected normally. For multi-instance deployments, the `IHubContext` must be paired with a Redis backplane or Azure SignalR Service so the broadcast reaches clients connected to other instances.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane for multi-node fan-out
-- Instance-local connection IDs and group membership
-- `AddStackExchangeRedis` or `AddAzureSignalR` for scale-out
-
-**Answer**
-
-Sticky sessions ensure a client always reconnects to the same server instance, but they do not solve the fan-out problem. When a controller on instance A calls `IHubContext.Clients.User(id).SendAsync(...)`, that message is dispatched only to clients connected to instance A — users on instance B, C, and D never see it. This creates inconsistent real-time behavior under load that is nearly impossible to reproduce in single-server development. Connection IDs and group memberships are also stored locally per instance, so `Groups.AddToGroupAsync` on one node does not make the client a member on others. The fix is to register a shared backplane — `AddStackExchangeRedis(connectionString)` or `AddAzureSignalR(connectionString)` — so every instance publishes and subscribes to the same message bus and all clients receive every broadcast.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

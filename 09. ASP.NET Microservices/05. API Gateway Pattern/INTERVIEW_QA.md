@@ -549,3 +549,147 @@ A self-hosted gateway runs inside your own infrastructure — a container you bu
 | Data sovereignty | Full control | Data may leave the region depending on configuration |
 
 ---
+
+## Gotchas — API Gateway Pattern (Interview Traps)
+
+---
+
+#### Gotcha 1. The Gateway Becomes a Distributed Monolith
+
+**Concepts**
+- Business logic accumulating in gateway configuration
+- All services forced to deploy in lockstep with gateway changes
+- Gateway as a pure routing and cross-cutting concerns layer
+- Backend-for-Frontend pattern distributing consumer-specific logic
+
+**Answer**
+
+An API gateway that starts hosting business logic — data transformation, orchestration rules, business validation — becomes a distributed monolith: every service change requires a gateway update, a central team owns a deployment bottleneck, and the gateway becomes the hardest single component to change in the system. The gateway should only perform cross-cutting infrastructure concerns: authentication, rate limiting, SSL termination, routing, and logging — nothing that requires knowledge of business rules. When consumer-specific aggregation or transformation is genuinely needed, a Backend-for-Frontend (BFF) service owned by the consuming team is the correct pattern, keeping the gateway free of business logic.
+
+---
+
+#### Gotcha 2. Fan-Out Latency Not Bounded With a Timeout
+
+**Concepts**
+- Aggregation endpoint calling multiple upstream services in parallel
+- Slowest service determining the response latency without a timeout
+- Task.WhenAll without cancellation token causing indefinite wait
+- Circuit breaker and timeout on each upstream call
+
+**Answer**
+
+A gateway aggregation endpoint that calls three upstream services in parallel with `Task.WhenAll` will block until all three complete — if one service has a 30-second timeout or is hanging, the gateway holds the client connection open for 30 seconds on every request, exhausting connection pool capacity. Each upstream call must carry its own cancellation token with a short deadline, and the aggregation must decide whether to return partial results or fail fast when any upstream times out. Interviewers probe this by asking what happens to the gateway when one of five upstream services becomes slow — the expected answer includes per-call timeouts, partial result handling, and circuit breaker state.
+
+---
+
+#### Gotcha 3. Rate Limiting Not Scoped to Client Identity
+
+**Concepts**
+- Global rate limit throttling all clients equally
+- One misbehaving client consuming all available capacity
+- Per-client rate limit keyed by API key, IP, or authenticated user
+- Rate limit header communication to clients
+
+**Answer**
+
+A global rate limit that allows 1000 requests per second across all clients means a single script or misbehaving API consumer can exhaust the entire quota and throttle legitimate users to zero. Rate limits must be scoped to a client identity — API key, authenticated user ID, or IP address — so each client has its own independent quota. Gateways like YARP and Azure APIM support per-key rate limiting; for custom implementations in ASP.NET Core, the `Microsoft.AspNetCore.RateLimiting` middleware supports keyed policies via `GetHttpContext().User` or request headers. The gateway should also return `Retry-After` and `X-RateLimit-*` headers so clients can self-regulate.
+
+---
+
+#### Gotcha 4. Circuit Breaker Placed Only at the Gateway
+
+**Concepts**
+- Gateway circuit breaker protecting the gateway, not services
+- Service-to-service calls bypassing the gateway
+- Circuit breaker needed at each service client, not just the entry point
+- Polly circuit breaker per HttpClient in each microservice
+
+**Answer**
+
+Placing a circuit breaker only in the API gateway protects clients from direct gateway failures, but service-to-service calls that bypass the gateway — internal gRPC calls, message-triggered service invocations — have no protection at all. When Service A calls Service B internally and Service B is failing, the circuit breaker at the gateway does nothing to prevent A from exhausting its thread pool waiting for B. Each service must have its own circuit breaker on every `HttpClient` or gRPC channel that calls a downstream dependency, implemented with Polly `CircuitBreakerPolicy` or `CircuitBreakerAsync`. The gateway's circuit breaker is an additional layer for client-facing traffic, not a substitute for service-level resilience.
+
+---
+
+#### Gotcha 5. SSL Termination at Gateway Without Re-Encryption to Backends
+
+**Concepts**
+- mTLS between gateway and backend services
+- Plain HTTP on the internal network as a security gap
+- Zero-trust network model requiring encryption everywhere
+- Service mesh providing transparent mutual TLS
+
+**Answer**
+
+Terminating TLS at the gateway and forwarding requests to backend services over plain HTTP on the internal network creates an unencrypted communication path that is vulnerable to lateral movement attacks if an attacker gains access to the internal network segment — a zero-trust security model requires encryption everywhere, not just at the perimeter. For sensitive workloads, the gateway should re-encrypt traffic to backends using mTLS (mutual TLS), which also authenticates both ends of the connection. A service mesh like Istio or Linkerd handles mTLS transparently at the infrastructure layer without requiring application code changes, making zero-trust achievable without gateway-specific configuration for each backend.
+
+---
+
+#### Gotcha 6. Authentication at the Gateway Without Authorization at Each Service
+
+**Concepts**
+- Authentication verifying identity versus authorization checking permissions
+- Authenticated request assumed authorised by backend service
+- Confused deputy attack via gateway identity forwarding
+- Each service validating claims it cares about
+
+**Answer**
+
+Validating JWT tokens at the gateway and forwarding requests to backend services as "authenticated" does not mean those services should trust the request to perform any operation — a valid token from a standard user could reach an admin endpoint if the backend does not check the `role` or `scope` claim. Each service must perform its own authorization check on the claims forwarded in the request header; the gateway performs authentication (is this a valid token from our issuer?) while each service performs authorization (does this token have the `orders:write` scope needed for this endpoint?). Delegating all authorization to the gateway creates a confused-deputy vulnerability.
+
+---
+
+#### Gotcha 7. No Health Check Integration in the Gateway Routing Table
+
+**Concepts**
+- Gateway routing to unhealthy service instances
+- Health check response determining routing eligibility
+- Active versus passive health checks
+- Circuit breaker opening on repeated health check failures
+
+**Answer**
+
+An API gateway that does not integrate service health checks will continue routing requests to a backend instance that has failed, returning 500s or timeouts to clients even though healthy replicas exist. Active health checks — the gateway periodically probing a `/health` endpoint on each backend — allow it to remove failing instances from the routing pool within seconds of detection. Passive health checks mark an instance unhealthy based on consecutive error responses. YARP supports both active and passive health checks with configurable thresholds; without this, the gateway acts as a dumb router and amplifies backend failures into user-visible errors instead of routing around them.
+
+---
+
+#### Gotcha 8. Caching Responses for Non-Idempotent or User-Specific Endpoints
+
+**Concepts**
+- Response cache hit returning another user's data
+- POST or PATCH response cached and replayed incorrectly
+- Cache key must include user identity for personalised responses
+- Cache-Control directives as the authoritative source
+
+**Answer**
+
+Enabling response caching at the gateway for endpoints that return user-specific data — account details, order history — without including the user identity in the cache key will return one user's data to a different user who makes the same request with a different token. Non-idempotent methods (POST, PATCH, DELETE) must never be cached since replaying a cached POST response can cause the client to believe it successfully submitted data it never actually sent. Cache keys must include every dimension that affects the response: user ID, locale, requested resource version, and any relevant query parameters.
+
+---
+
+#### Gotcha 9. Gateway Performing Service Discovery Lookups on Every Request
+
+**Concepts**
+- DNS or service registry lookup on every inbound request adding latency
+- Cached address table with TTL-based refresh
+- Stale address causing routing to a deregistered instance
+- Periodic refresh versus per-request lookup trade-off
+
+**Answer**
+
+Resolving the backend service address from Consul or Kubernetes DNS on every inbound request adds a synchronous network round trip to every request's latency — under high load this compounds and can add tens of milliseconds per request. The gateway should maintain a cached address table, refreshed periodically on a background timer (typically every few seconds to a minute), and use health-check-confirmed addresses from the cache. The trade-off is staleness: a too-long TTL means the gateway routes to a deregistered instance after a deployment; a too-short TTL means frequent discovery lookups. Combining periodic refresh with passive health checks that immediately remove failing addresses balances freshness and performance.
+
+---
+
+#### Gotcha 10. Missing Correlation ID Injection at the Gateway
+
+**Concepts**
+- Correlation ID generated at the gateway entry point
+- X-Correlation-ID header forwarded to all downstream services
+- Downstream logs without correlation ID being un-traceable
+- Gateway as the authoritative source of the trace root
+
+**Answer**
+
+Without a correlation ID injected at the gateway, every downstream service generates its own unrelated request IDs, making it impossible to correlate log entries across services for a single user-facing request. The API gateway is the ideal injection point: if the incoming request carries an `X-Correlation-ID` header (from a client that generated one), forward it; if not, generate a new GUID and inject it into all forwarded requests. Every downstream service must read this header and include its value in all structured log entries using Serilog's `LogContext` or OpenTelemetry's baggage propagation. A request that fails deep in Service D becomes trivially diagnosable when every log entry from gateway to database carries the same correlation ID.
+
+---

@@ -511,7 +511,7 @@ Authentication is the process of verifying who a user is — establishing identi
 
 ---
 
-## Gotcha 1. CORS is not a security boundary on the server
+#### Gotcha 1. CORS is not a security boundary on the server
 
 **Concepts**
 - CORS browser-only enforcement — non-browser clients unaffected
@@ -524,7 +524,7 @@ A common misconception is that configuring a restrictive CORS policy prevents un
 
 ---
 
-## Gotcha 2. SameSite=None requires Secure — omitting it silently drops the cookie
+#### Gotcha 2. SameSite=None requires Secure — omitting it silently drops the cookie
 
 **Concepts**
 - Silent cookie rejection by Chrome 80+ — no error in console
@@ -537,7 +537,7 @@ Setting `SameSite=None` without the `Secure` attribute causes modern browsers to
 
 ---
 
-## Gotcha 3. Server-side output encoding, not input sanitization, is the correct XSS defence
+#### Gotcha 3. Server-side output encoding, not input sanitization, is the correct XSS defence
 
 **Concepts**
 - Encoding at render time vs sanitizing at input time
@@ -550,7 +550,7 @@ A frequent misconception is that stripping or rejecting HTML characters at input
 
 ---
 
-## Gotcha 4. AllowAnyOrigin() and AllowCredentials() cannot be combined
+#### Gotcha 4. AllowAnyOrigin() and AllowCredentials() cannot be combined
 
 **Concepts**
 - CORS spec prohibition on wildcard origin with credentials
@@ -563,7 +563,7 @@ ASP.NET Core's CORS middleware explicitly throws an `InvalidOperationException` 
 
 ---
 
-## Gotcha 5. [Authorize] is an authentication check, not an authorization check
+#### Gotcha 5. [Authorize] is an authentication check, not an authorization check
 
 **Concepts**
 - [Authorize] without policy/role verifying only that user is authenticated
@@ -573,3 +573,68 @@ ASP.NET Core's CORS middleware explicitly throws an `InvalidOperationException` 
 **Answer**
 
 The `[Authorize]` attribute without a policy or role parameter only verifies that the user is authenticated (logged in), not that the user has permission to access a specific resource. Developers often assume that placing `[Authorize]` on a controller action means the user's access is fully secured, but this leaves resource-level authorization gaps that lead to IDOR vulnerabilities. An authenticated user who accesses `/orders/9999` with a bare `[Authorize]` attribute can retrieve order 9999 even if it belongs to a different customer, because no check verifies ownership. True resource-level security requires an additional check inside the action body — comparing the resource's owner to the current user's identity — or using `IAuthorizationService` with a resource-based policy that encodes the ownership rule.
+
+---
+
+#### Gotcha 6. `Content-Security-Policy` With `unsafe-inline` Negates XSS Protection for Inline Scripts
+
+**Concepts**
+- CSP directive `script-src 'unsafe-inline'` allowing inline `<script>` tags — defeating CSP for XSS
+- Nonce-based or hash-based inline script allowlist as the safer alternative
+- `report-uri` / `report-to` for monitoring violations before enforcing
+
+**Answer**
+
+A Content-Security-Policy header is a strong XSS mitigation only when `unsafe-inline` is absent from `script-src`. Adding `unsafe-inline` to permit existing inline scripts allows any injected inline script to execute — the attacker's injected `<script>` is just as "unsafe-inline" as the legitimate one, so the policy provides no XSS protection. The correct approach for existing inline scripts is to use a CSP nonce: generate a per-request random nonce, emit it in the CSP header (`script-src 'nonce-abc123'`), and add the same `nonce="abc123"` attribute to each legitimate `<script>` tag. Injected scripts cannot know the current nonce and will therefore be blocked. The transition from `unsafe-inline` to nonce-based CSP should first be run in `Content-Security-Policy-Report-Only` mode to catch violations without breaking functionality.
+
+---
+
+#### Gotcha 7. HSTS `preload` Requires a Specific `max-age` and Separate Submission — It Is Not Automatic
+
+**Concepts**
+- `includeSubDomains` and `max-age >= 31536000` as prerequisites for preload list submission
+- `preload` directive in the header being necessary but not sufficient — manual submission required
+- All subdomains must support HTTPS before submitting — no partial preload
+
+**Answer**
+
+`Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` tells browsers that this domain intends to be on the HSTS preload list, but the header alone does not add the domain to that list. A separate manual submission to `hstspreload.org` is required, and the domain must meet strict criteria: HTTPS must be served on the root domain and all subdomains, the certificate must be valid, and `max-age` must be at least one year. Once submitted, removal from the preload list takes months to propagate — a domain with an insecure subdomain that is submitted before all subdomains are HTTPS-ready will break those subdomains for all users of browsers that have the preload list, with no quick recourse.
+
+---
+
+#### Gotcha 8. Open Redirect via `ReturnUrl` — `LocalRedirect` or `IsLocalUrl` Must Be Used
+
+**Concepts**
+- Unvalidated `ReturnUrl` redirecting to attacker-controlled external URLs
+- `Url.IsLocalUrl(returnUrl)` validating the URL stays within the same origin
+- `LocalRedirect(returnUrl)` throwing when the URL is not local — safe fail-fast alternative
+
+**Answer**
+
+Login and logout flows commonly accept a `returnUrl` query parameter to redirect users back where they came from. If the value is not validated, an attacker can craft a link like `/login?returnUrl=https://evil.example.com` that redirects victims to a phishing site after a successful login — appearing to originate from the legitimate domain. The fix is to use `Url.IsLocalUrl(returnUrl)` before redirecting and fall back to a safe default if the check fails, or to use `LocalRedirect(returnUrl)` which throws an `InvalidOperationException` for non-local URLs, preventing the redirect entirely. Never use `Redirect(returnUrl)` with an unvalidated parameter, even if the URL was placed in the query string by the application itself, because it can be tampered with by the user.
+
+---
+
+#### Gotcha 9. Clickjacking Protection Requires `X-Frame-Options` or `frame-ancestors` in CSP
+
+**Concepts**
+- `X-Frame-Options: DENY` preventing all framing — `SAMEORIGIN` allowing same-origin framing
+- CSP `frame-ancestors` superseding `X-Frame-Options` in modern browsers
+- Both headers needed for comprehensive coverage across old and new browsers
+
+**Answer**
+
+Clickjacking (UI redressing) attacks embed a target page in a transparent `<iframe>` and trick users into clicking what they believe is a harmless element. The defence is to prevent the page from being framed. `X-Frame-Options: DENY` is understood by all browsers but is less flexible — it cannot allow specific origins. `Content-Security-Policy: frame-ancestors 'none'` is the modern equivalent and supports a richer allowlist but is not respected by Internet Explorer. A page protected only by one of these headers may still be frameable in browsers that do not support it. Serving both provides defense in depth: `X-Frame-Options: SAMEORIGIN` and `Content-Security-Policy: frame-ancestors 'self'` together cover the full browser range while permitting same-origin embedding.
+
+---
+
+#### Gotcha 10. CSRF Antiforgery Validation Is Skipped for Safe HTTP Methods — State Changes Must Never Use GET
+
+**Concepts**
+- ASP.NET Core antiforgery validating only POST, PUT, PATCH, DELETE by default
+- GET, HEAD, OPTIONS considered safe — no token required
+- State-changing GET endpoints (confirm email, delete account via link) exposing CSRF attack surface
+
+**Answer**
+
+ASP.NET Core's antiforgery middleware only validates the antiforgery token on non-safe HTTP methods (POST, PUT, PATCH, DELETE). GET, HEAD, and OPTIONS requests are exempt because the HTTP specification defines them as safe (idempotent and side-effect-free). An application that performs a state change on a GET request — such as a `/account/confirm?token=...` link that immediately deletes or confirms data, or a `/logout` GET action — creates a CSRF attack vector: an attacker embeds the URL in an `<img src>` or `<a href>` on another page and the victim's browser makes an authenticated GET request with cookies attached, triggering the state change without user intent. All state-modifying operations must use POST (or appropriate mutating methods) and must include antiforgery token validation.

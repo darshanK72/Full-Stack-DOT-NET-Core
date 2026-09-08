@@ -260,97 +260,147 @@ The `new` keyword serves two unrelated purposes in C#. In `new Product(...)` it 
 
 ---
 
-## Gotcha Questions
+## Gotchas — Constructors & Method Overloading (Interview Traps)
 
 ---
 
-## Q16. A convenience constructor chains via `: this(sku, 1)` to a parameterized constructor that validates SKU. Why might validation still be bypassed?
+#### Gotcha 1. Constructor chaining with this() runs the chained constructor to completion before the calling body executes
 
 **Concepts**
-- Constructor body executes after delegated-to constructor
-- Field assignment in intermediate constructor body
-- Chain execution order
-- Validation placed in the chained-to constructor
-- Re-assignment in calling constructor body bypasses validated values
+- `this()` chain executes first
+- Then the calling constructor body
+- `base()` similarly runs base first
+- Field initializers run before the first `this()` chain constructor
 
 **Answer**
 
-Constructor chaining guarantees the delegated-to constructor runs first and completes fully before the chaining constructor's body runs. If the most-parameterized constructor does the validation, then any simple chain like `: this("MISC", 1)` will correctly run through that validation. The trap arises when the calling constructor body then reassigns fields after chaining — those post-chain assignments bypass the validated path. Similarly, if validation is placed only in the intermediate constructor body rather than the most-parameterized one, adding another overload that chains past the intermediate level will skip it. The canonical safe pattern is: put all validation in the most-parameterized constructor, have all overloads chain to it directly or transitively, and never reassign init-only or readonly fields outside that terminal constructor.
+When a constructor uses `this(arg)` to call another overload, that entire overload executes — including its own body — before control returns to the calling constructor's body. Field initializers run before any constructor in the chain begins. This order matters when one constructor calls `this()` and expects the chained constructor to set up state that the calling body needs.
 
 ---
 
-## Q17. Why does adding a default value to an existing method parameter break binary compatibility in a published NuGet package?
+#### Gotcha 2. base() is called implicitly only if the base class has a public parameterless constructor
 
 **Concepts**
-- Default values are baked into caller IL at compile time
-- Not a runtime default resolved in the callee
-- Re-compilation of consumers required for new default
-- Binary vs source compatibility
-- Versioning policy for public APIs
+- Implicit `base()` only for parameterless
+- CS7036 if base lacks parameterless ctor
+- Must call `base(args)` explicitly
+- Base chain runs top-down
 
 **Answer**
 
-When a compiler encounters a call to a method with optional parameters and the caller omits an argument, it does not emit a "use the default" instruction. Instead, it inlines the actual default value at the call site in the caller's IL. This means the default value lives in the compiled caller assembly, not in the library assembly. If you later publish a new version of the library with a changed default value, existing compiled callers still use the old default from their own IL — they will not pick up the change until they are recompiled against the new library. This is a source-compatible but binary-incompatible change. For stable APIs consumed by external teams, explicit overloads are safer because the logic for supplying the default lives entirely in the library and is always up-to-date at runtime without requiring consumer recompilation.
+If you do not explicitly call `base(args)` in a derived class constructor, the compiler inserts an implicit call to `base()` — the parameterless base constructor. If the base class defines only parameterized constructors, this implicit call fails with CS7036 because no parameterless constructor exists. You must explicitly call `base(requiredArg)` in every derived class constructor.
 
 ---
 
-## Q18. What happens when two overloads are equally applicable — for example, `Foo(int, double)` and `Foo(double, int)` — and you call `Foo(1, 2)`?
+#### Gotcha 3. Static constructor runs at most once per type and cannot be called or retried
 
 **Concepts**
-- Overload resolution tie-breaking rules
-- CS0121 ambiguous call error
-- Implicit conversion widening
-- Compile-time error, not runtime
-- Resolution via explicit casts at call site
+- Triggered by first instance or static member access
+- Executes once in the AppDomain
+- Exception makes type permanently unusable (`TypeInitializationException`)
+- Cannot call manually
 
 **Answer**
 
-When the compiler finds multiple overloads that are equally applicable after applying implicit conversions, it cannot choose one without introducing bias, so it emits CS0121 — an ambiguous call error that prevents the code from compiling. In the example `Foo(1, 2)`, both `int` arguments can be implicitly widened to `double`, so both overloads are reachable. Neither is "better" than the other because neither requires fewer conversions. The fix is at the call site: cast one or both arguments to make one overload the unambiguous winner — `Foo((double)1, 2)` selects `Foo(double, int)`. Alternatively, restructure the overload signatures so they cannot both apply to the same argument combination. This is a compile-time error, not a runtime exception, which is preferable: the problem is surfaced immediately rather than producing silently wrong behavior.
+The static constructor (or type initializer) runs exactly once for the lifetime of the type in the application. If it throws, the CLR marks the type as failed, and every subsequent attempt to use it throws `TypeInitializationException` with the original exception as the inner exception — there is no retry. Static constructors with unreliable initialization (file reads, network calls) are a reliability hazard.
 
 ---
 
-## Q19. In C# 12 primary constructors, does the compiler generate backing fields automatically for the parameters?
+#### Gotcha 4. Overload resolution selects exact match first, then widening, then params — optional parameters are lower priority than explicit
 
 **Concepts**
-- Primary constructor parameters as class-scoped identifiers
-- No automatic field generation (unlike records)
-- Capture required for persistence beyond construction
-- `record` vs `class` primary constructor difference
-- Lazy capture semantics
+- Exact type match wins
+- Widening in order of closest
+- `params` array is lowest priority
+- Optional parameter overloads can produce ambiguity warnings
 
 **Answer**
 
-For regular classes and structs, C# 12 primary constructor parameters are scoped identifiers available throughout the class body, but the compiler does not automatically generate backing fields for them. If a parameter is used only in field or property initializers, the compiler may optimize it away entirely after initialization. If it is captured by a method body or lambda in the class, the compiler synthesizes an unnamed backing field. This is in sharp contrast to record primary constructors, where each parameter automatically becomes a public init-only property. The practical implication is that writing `public class Service(ILogger logger)` and expecting `logger` to be accessible in method bodies without explicit capture is correct, but you should explicitly write `private readonly ILogger _logger = logger;` to make storage intent clear, benefit from IDE refactoring, and avoid confusion when the compiler's synthetic field name differs from what you expect in debugger watches.
+When multiple overloads could accept a given argument, the compiler first tries exact type match, then applies numeric widening in order of closeness (`int` to `long` before `int` to `double`), and uses `params` arrays only as a last resort. Optional parameters create additional candidate overloads that can produce ambiguity warnings; if both `M(int a)` and `M(int a, int b = 0)` exist, `M(42)` is ambiguous in some cases.
 
 ---
 
-## Q20. Why does a static constructor have no access modifier, and what if it throws?
+#### Gotcha 5. Optional parameter default values are embedded in the calling assembly — changing them requires recompiling callers
 
 **Concepts**
-- Access modifiers not allowed on static constructors (compiler error)
-- Single invocation guarantee by CLR
-- Unhandled exception → `TypeInitializationException`
-- Type permanently faulted for the AppDomain lifetime
-- Lazy<T> as the alternative for fallible initialization
+- Defaults embedded at call site at compile time
+- No runtime indirection
+- Versioning problem for library authors
+- Overloads without defaults avoid this
 
 **Answer**
 
-Static constructors must not have an access modifier because they are never called directly by user code — the CLR controls when they run. Adding `public` or `private` to a static constructor is a compile error. More critically, if an unhandled exception escapes from a static constructor, the CLR wraps it in a `TypeInitializationException` and marks the type as faulted. Every subsequent attempt to use any member of that type — including in retry logic — throws the same `TypeInitializationException` without re-running the constructor. This makes the type permanently unusable for the lifetime of the `AppDomain`. The implication is that static constructors must not perform I/O or any operation that could fail under deployment conditions (missing file, unavailable service). Instead, use `Lazy<T>` with `LazyThreadSafetyMode.ExecutionAndPublication` for deferred initialization that allows retries after failure, or an explicit `Initialize()` method that returns a result instead of throwing.
+When a caller compiles against a method with an optional parameter default, the compiler bakes the default value into the caller's IL directly. If the library later ships with a changed default and only the library is redeployed, all existing callers continue to pass the old default until they are recompiled against the new library — a silent behavioral change.
 
 ---
 
-## Q21. Can you overload operators in C#, and what rules apply?
+#### Gotcha 6. Named arguments allow passing arguments to non-adjacent optional parameters, not out of order for positional
 
 **Concepts**
-- `operator` keyword for overloading
-- Must be `public static`
-- Restriction on which operators are overloadable
-- `==` and `!=` must be overloaded together
-- `GetHashCode` and `Equals` pairing
+- Named args set parameters by name
+- Positional after named is CS1738
+- Reorder only optional parameters
+- Useful for long optional parameter lists
 
 **Answer**
 
-C# allows you to overload many operators using the `operator` keyword in a `public static` method. For example, `public static Money operator +(Money a, Money b)` enables the `+` syntax for a custom type. Restrictions include: at least one operand must be of the declaring type, and certain operators must be overloaded in pairs — you cannot overload `==` without also overloading `!=`. Overloading `==` implicitly means the type is expressing value-equality semantics, which requires overriding `Equals(object)` and `GetHashCode()` for consistency; otherwise `==` returns the operator result while `Equals` still performs reference comparison, causing confusing inconsistencies. In .NET 10, the numeric interfaces introduced in .NET 7 (`IAdditionOperators<T,T,T>`) allow generic arithmetic over operator-overloaded types, which is a common pattern in financial and scientific computing.
+Named arguments allow you to specify which optional parameter you are providing without supplying all the preceding ones — `M(required: "x", optional2: true)` — by naming the target parameter. You cannot mix positional arguments after named arguments (CS1738). Named arguments do not change the order in which parameters are evaluated; they only select which optional slot to fill.
+
+---
+
+#### Gotcha 7. MemberwiseClone is protected — the class must expose its own Clone method to external callers
+
+**Concepts**
+- `MemberwiseClone` returns `object`
+- Requires explicit override or new method
+- Shallow copy semantics
+- `ICloneable` is legacy — prefer typed `Clone<T>()` pattern
+
+**Answer**
+
+`Object.MemberwiseClone()` is a protected method, meaning it can only be called from within the class hierarchy. External code that needs to clone instances must call a public method you define (often `Clone()` or `Copy()`) that internally calls `MemberwiseClone()` and casts the result. This indirection gives the class control over what 'cloning' means, which is important for classes that need deep copying instead.
+
+---
+
+#### Gotcha 8. A constructor that throws leaves an object in a partially initialized state — the finalizer may still run
+
+**Concepts**
+- If finalizer registered before throw, GC will call it
+- `GC.SuppressFinalize` not called
+- Finalizer may reference null fields
+- Guard finalizer with null checks
+
+**Answer**
+
+If a class has a finalizer and its constructor throws after the object is allocated but before `GC.SuppressFinalize` is called, the GC will still run the finalizer on the partially-constructed object. The finalizer may then try to access fields that were never initialized, causing `NullReferenceException` inside the finalizer thread. Guard finalizer code with null checks or only register the finalizer after successful construction.
+
+---
+
+#### Gotcha 9. Primary constructor parameters in C# 12 records and classes are scoped differently
+
+**Concepts**
+- Record primary ctor params become public init properties
+- Class primary ctor params are captured fields only if used
+- Not automatically public
+- Accessed by name within the class
+
+**Answer**
+
+In a record (`record Point(int X, int Y)`), the primary constructor parameters automatically become public init-only properties `X` and `Y`. In a class (`class MyService(ILogger logger)`), the primary constructor parameter `logger` is only a private captured field used by other members; it is not a public property. This difference causes confusion when developers expect class primary constructor parameters to expose public members the way record parameters do.
+
+---
+
+#### Gotcha 10. Overloading on ref and out is not allowed — they have the same parameter-passing mechanism signature
+
+**Concepts**
+- `ref` and `out` are both by-reference
+- CS0663 for `ref`/`out` overloading
+- Different method names needed
+- `in` is allowed as a separate overload from by-value
+
+**Answer**
+
+`void M(ref int x)` and `void M(out int x)` in the same class cause CS0663 because the compiler cannot distinguish between them at the call site — both are called with the `ref` or `out` keyword and a variable argument. To distinguish, use different method names. However, `void M(int x)` and `void M(in int x)` can coexist as overloads because one passes by value and the other by read-only reference.
 
 ---
 

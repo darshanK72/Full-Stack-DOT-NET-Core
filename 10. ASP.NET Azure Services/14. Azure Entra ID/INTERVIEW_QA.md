@@ -508,3 +508,147 @@ The `aud` claim identifies the intended recipient of the access token — typica
 A multi-tenant application is registered once in your home tenant but configured to accept sign-in from users in any Entra ID organization, and each customer tenant gets its own service principal when an admin consents. Tokens include a `tid` claim identifying which tenant the user belongs to so your app can partition data per organization. The authority URL uses `common` or `organizations` instead of a fixed tenant ID during sign-in so users from any tenant can authenticate. Your API must validate issuers from multiple tenants — or use a custom validator — and must never trust tokens without checking `tid` against your customer registry. Admin consent in each customer tenant is required before that organization's users can use the app; SaaS onboarding flows often redirect customer admins through a consent URL. Data isolation becomes your responsibility: store `tid` and `oid` with every record and filter queries by tenant, since Entra ID does not segregate your application's database.
 
 ---
+
+## Gotchas — Azure Entra ID (Interview Traps)
+
+---
+
+#### Gotcha 1. App registration and enterprise app (service principal) are different objects — RBAC assigned to the app registration has no effect
+
+**Concepts**
+- An app registration defines the application identity in the home tenant
+- An enterprise application (service principal) is the instance of the app in a tenant
+- RBAC role assignments must target the service principal's object ID, not the app registration's object ID
+- Portal UI for app registrations and enterprise apps are in different blades
+
+**Answer**
+
+Every app registration in Entra ID has a corresponding enterprise application (service principal) in the same tenant. These are distinct objects with different object IDs. When assigning Azure RBAC roles (for example "Storage Blob Data Contributor"), the assignment must target the service principal object ID, not the app registration object ID. The Azure portal's App Registrations blade and the Enterprise Applications blade are separate; role assignments made against an app registration's client ID have no effect on the service principal's access. Developers who copy the app registration's object ID when assigning RBAC discover that the service account has no access even though the portal shows a role assignment.
+
+---
+
+#### Gotcha 2. Scope claims and role claims serve different flows — confusing them causes 403 in API authorization policies
+
+**Concepts**
+- `scp` claim in a token: delegated permission, user is present; the app acts on behalf of the user
+- `roles` claim in a token: application permission, daemon/service-to-service; no user context
+- ASP.NET Core `RequireScope("read")` checks `scp`; `RequireRole("Admin")` checks `roles`
+- An API policy checking `scp` for a daemon token finds no scope claim and returns 403
+
+**Answer**
+
+In OAuth 2.0 with Entra ID, delegated permissions (scopes) are represented in the `scp` claim and appear in tokens obtained by user-authenticated flows (Authorization Code, On-Behalf-Of). Application permissions (app roles) are represented in the `roles` claim and appear in tokens from the Client Credentials flow (daemon services). An ASP.NET Core `AddMicrosoftIdentityWebApi` policy that uses `RequireScope("api.read")` to protect an endpoint will return 403 for daemon tokens because daemon tokens contain `roles`, not `scp`. The API must check the appropriate claim type based on whether it expects a delegated (user) or application (service) caller.
+
+---
+
+#### Gotcha 3. Multi-tenant token validation requires TenantId = "organizations" or "common" — single-tenant configuration rejects external tenant tokens
+
+**Concepts**
+- Single-tenant apps have `TenantId` set to the home tenant GUID in the ASP.NET Core options
+- Multi-tenant apps set `TenantId = "organizations"` to accept tokens from any work/school account
+- The `issuer` claim in a multi-tenant token includes the caller's tenant GUID, not the API's tenant
+- Issuer validation must be custom or disabled for multi-tenant APIs
+
+**Answer**
+
+An ASP.NET Core API configured with `TenantId = "<home-tenant-guid>"` in `AddMicrosoftIdentityWebApi` validates that the token's issuer matches the home tenant's issuer URL. A token issued to a user in a different organization (a different tenant GUID) has a different issuer and is rejected with 401. For a multi-tenant API that serves users from multiple organizations, `TenantId` must be set to `"organizations"` or `"common"`, and issuer validation must be configured to validate against the caller's tenant-specific issuer (typically done with `ValidateIssuer = false` combined with a custom `IssuerValidator` that checks allowed tenants).
+
+---
+
+#### Gotcha 4. Access tokens expire in 1 hour — caching tokens without checking expiry causes 401 after the first hour
+
+**Concepts**
+- Entra ID access tokens have a default lifetime of 1 hour (3600 seconds)
+- The `exp` claim encodes the expiry as a Unix timestamp
+- Applications that cache a token in a variable without checking `exp` use expired tokens
+- MSAL handles token refresh automatically; manual `HttpClient` token management does not
+
+**Answer**
+
+Entra ID access tokens are valid for one hour by default. Application code that obtains a token at startup, stores it in a static variable, and reuses it for all subsequent requests will begin receiving 401 Unauthorized after the first hour. MSAL-managed token acquisition handles this transparently by checking the token's expiry before each use and silently refreshing it using a refresh token or client credentials. Applications that manually call the token endpoint and cache the result must check the `exp` claim before each use and re-acquire when the token is within a few minutes of expiry. Long-running services (daemon apps, background workers) are particularly susceptible to this trap.
+
+---
+
+#### Gotcha 5. DefaultAzureCredential exhausts all credential sources in order — developer machines without configured credentials take 30+ seconds to fail
+
+**Concepts**
+- `DefaultAzureCredential` tries environment, workload identity, managed identity, Visual Studio, Azure CLI, etc. in order
+- Each source that is not configured times out before the next is tried
+- The aggregate failure takes 30+ seconds and produces a multi-paragraph error listing all sources
+- `ManagedIdentityCredential` directly avoids the fallback chain in production
+
+**Answer**
+
+`DefaultAzureCredential` is designed for portability across local development and production environments, but it achieves this by trying many credential sources sequentially. On a developer machine without Azure CLI logged in, without environment variables set, and without Visual Studio credentials, each source in the chain times out (typically 5–10 seconds each) before moving to the next, causing the total acquisition attempt to take 30+ seconds before raising an error. This is a slow and confusing failure mode during integration testing. The fix is to log into Azure CLI (`az login`) or set environment variables (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`) for the development environment, or to use `ManagedIdentityCredential` in production code to skip the fallback chain.
+
+---
+
+#### Gotcha 6. Consent must be granted before delegated scopes appear in the token — missing consent produces a token with fewer scopes than expected
+
+**Concepts**
+- Delegated permissions require admin consent (for admin-only permissions) or user consent
+- An app that requests `User.Read.All` (admin consent required) gets a token without that scope if consent was not granted
+- The token is issued successfully; only the scope list is shorter than requested
+- Developers who assume all requested scopes are present can receive 403 from Microsoft Graph
+
+**Answer**
+
+When an application requests OAuth 2.0 scopes that require admin consent and the admin has not yet granted consent in the Entra ID portal, the token is still issued — but without the unconsented scope. The application receives a valid token and calls Microsoft Graph or the target API, which then returns 403 because the required permission is absent. The absence of the scope in the token is not an error during token acquisition; it is only visible by inspecting the `scp` claim in the decoded JWT. Developers who see 403 from downstream APIs should first check the token's `scp` claim to verify that all required scopes are present before debugging the API's authorization logic.
+
+---
+
+#### Gotcha 7. Client secret expiry causes sudden authentication failures — secrets expire silently with no platform notification
+
+**Concepts**
+- App registration client secrets have a maximum lifetime of 2 years (24 months)
+- No built-in alert exists when a client secret is about to expire
+- Expired secret causes `AADSTS7000222: The provided client secret keys are expired`
+- Managed identity or certificate credentials eliminate the expiry risk
+
+**Answer**
+
+Client secrets for Entra ID app registrations have a maximum lifetime of 24 months. When a secret expires, every token acquisition using that secret returns `AADSTS7000222: The provided client secret keys are expired`, which is a hard authentication failure for all services using that secret. Entra ID does not send proactive notifications before expiry; only an Azure Monitor alert or a Calendar-based rotation process prevents surprise failures. The production mitigation is to use managed identities for Azure resource authentication (which have no expiry) or to use certificate credentials (which have their own expiry but can be monitored via Key Vault certificate lifetime alerts).
+
+---
+
+#### Gotcha 8. OIDC metadata endpoint is cached — signing key rollover takes up to 24 hours to be picked up without explicit cache refresh
+
+**Concepts**
+- `AddMicrosoftIdentityWebApi` caches the OpenID Connect metadata (JWKS keys) by default
+- Entra ID performs automatic signing key rollover approximately every 6 weeks
+- A rolled key that is not yet reflected in the local metadata cache causes `IDX10501: Signature validation failed`
+- `AutomaticRefreshInterval` and `RequireHttpsMetadata` settings control metadata refresh behavior
+
+**Answer**
+
+ASP.NET Core `AddMicrosoftIdentityWebApi` fetches the OpenID Connect discovery document and JWKS signing keys on startup and caches them. Entra ID rotates signing keys automatically approximately every 6 weeks with a 24-hour overlap period during which both old and new keys are valid. If the application's metadata cache is not refreshed during this overlap, it continues validating tokens with the old key. After the old key is fully retired, the application's cached metadata becomes stale and all tokens signed with the new key fail validation with `IDX10501: Signature validation failed`. The ASP.NET Core identity middleware refreshes keys automatically, but applications that override the metadata cache refresh interval may block this behavior.
+
+---
+
+#### Gotcha 9. MSAL token caching in confidential client applications requires in-process or distributed cache — default in-memory cache is not shared across instances
+
+**Concepts**
+- MSAL default in-memory token cache is per-process
+- Multiple App Service instances each have their own MSAL cache
+- Without shared cache, each instance independently acquires tokens and may hit Entra ID throttling
+- `Microsoft.Identity.Web.TokenCache` package provides Redis-backed distributed MSAL cache
+
+**Answer**
+
+MSAL confidential client applications (Web APIs that call downstream services) cache access tokens to avoid acquiring a new token on every request. By default, MSAL uses an in-memory cache that is isolated to the process. When an ASP.NET Core API scales to multiple instances, each instance has its own independent MSAL cache, so all instances independently request tokens from Entra ID. Under high traffic with many instances, this generates a large volume of token requests to Entra ID, potentially hitting token issuance throttle limits. The `Microsoft.Identity.Web` package provides a distributed token cache backed by Redis or SQL Server using `AddDistributedTokenCaches()`, which shares the token cache across all instances.
+
+---
+
+#### Gotcha 10. validate-jwt APIM policy and ASP.NET Core JWT middleware have different default clock skew — a valid token can fail one validation and pass the other
+
+**Concepts**
+- APIM `validate-jwt` uses a 0-second clock skew by default
+- ASP.NET Core `AddJwtBearer` uses a 5-minute clock skew by default
+- A token whose `nbf` is 1 minute in the future passes ASP.NET Core middleware but fails APIM
+- Clock synchronization issues between issuer, APIM, and application hosts cause intermittent 401
+
+**Answer**
+
+JWT validation has a clock skew tolerance to allow for small clock differences between the token issuer and the validator. ASP.NET Core's `AddJwtBearer` defaults to a 5-minute `ClockSkew`, meaning tokens that are up to 5 minutes expired or not-yet-valid are accepted. Azure APIM's `validate-jwt` policy defaults to 0 clock skew — no tolerance at all. A token issued with a `nbf` (not before) claim 60 seconds in the future will be rejected by APIM but accepted by ASP.NET Core middleware. When the same token is validated in both places, the more restrictive APIM policy determines the outcome. This difference causes intermittent 401 responses that appear as flaky authentication without an obvious cause in the logs.
+
+---

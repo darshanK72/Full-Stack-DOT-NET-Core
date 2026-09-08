@@ -282,50 +282,11 @@ No — `IOptionsSnapshot<T>` is registered with a scoped lifetime because it is 
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
+## Gotchas — Configuration & Options Pattern (Interview Traps)
 
 ---
 
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- `UseRouting` before `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata availability for auth middleware
-- Correct pipeline order in `Program.cs`
-
-**Answer**
-
-In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata — registering auth before routing means the endpoint has not been selected yet, which breaks endpoint-aware authorization and policy resolution. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints (`MapControllers` / `MapGet`). Symptoms of wrong order include anonymous access to protected endpoints or 401 responses without proper challenge behavior, so always verify middleware order in `Program.cs` during code review for new services.
-
----
-
-#### Gotcha 2. Scoped service in a Singleton
-
-**Concepts**
-- Captive `DbContext` living past its scope
-- Stale EF change tracker accumulating unrelated entities
-- `ValidateScopes` as the detection mechanism
-
-**Answer**
-
-Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`. The singleton holds one scoped instance forever instead of one per request, so EF change trackers accumulate unrelated entities across requests. Enable `ValidateScopes` in Development/staging to catch illegal scope combinations at startup, and fix by injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation. This applies equally to singleton services, hosted services, and cached delegates in Minimal APIs.
-
----
-
-#### Gotcha 3. `new HttpClient()` in a singleton
-
-**Concepts**
-- Socket exhaustion from per-use `HttpClient` instantiation
-- `HttpMessageHandler` lifecycle managed by `IHttpClientFactory`
-- Named and typed client registration pattern
-
-**Answer**
-
-Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected. `HttpClient` is disposable but not meant for per-use disposal — `using var client = new HttpClient()` is an anti-pattern because the OS connection handle is held by the handler, not the client object. `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly; register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()`. Symptoms include `SocketException` and timeout errors only under production traffic, not in local testing.
-
----
-
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 1. `IOptions<T>` vs reload
 
 **Concepts**
 - `IOptions<T>` — fixed snapshot at first resolution
@@ -339,146 +300,137 @@ Instantiating `HttpClient` with `new` inside a long-lived singleton prevents soc
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 2. Production secrets committed to source-controlled `appsettings` files
 
 **Concepts**
-- HTTP GET body stripped by clients, proxies, and CDNs
-- `[FromQuery]` with `[AsParameters]` for complex GET filters
-- Silent binding failure rather than explicit error
+
+- Git history retaining committed secrets permanently even after deletion
+- User Secrets as development-only, not deployed to production
+- Key Vault, Secrets Manager, or env var injection for production values
+- Options pattern shape unchanged regardless of secret source
 
 **Answer**
 
-Using `[FromBody]` on GET action parameters or minimal API handlers is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies, so binding fails silently in production. Query strings and route values are the correct binding sources for GET requests, and complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys. Failures often appear only in specific browsers or CDN layers, not in Swagger "Try it out" during development, since Swagger sends directly to local Kestrel without intermediate proxies. REST conventions expect GET to be safe and idempotent with parameters in the URL.
+Connection strings, API keys, and tokens committed to `appsettings.Production.json` or any JSON file in source control become permanently accessible in git history even after a subsequent commit removes them — the key is leaked and must be rotated immediately. User Secrets (`dotnet user-secrets`) are a development-only mechanism; they live under the developer's user profile and are never deployed, so they cannot substitute for production secret management. The fix is to remove secrets from all committed JSON files, store placeholders or Key Vault references instead, and supply real values via Azure Key Vault (`AddAzureKeyVault`), AWS Secrets Manager, Kubernetes Secrets mounted as env vars (`Stripe__SecretKey`), or CI/CD pipeline secret injection. The consuming code is unchanged — `services.Configure<StripeOptions>(configuration.GetSection("Stripe"))` works identically regardless of whether the value comes from a file or a vault provider.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 3. `launchSettings.json` is not deployed — it does not set production behavior
 
 **Concepts**
-- Default `JsonNamingPolicy.CamelCase` in ASP.NET Core 8
-- Silent binding to default values on case mismatch
-- `PropertyNameCaseInsensitive` as a compatibility bridge
 
-**Answer**
-
-ASP.NET Core 8 Web API serializes JSON with camelCase property names by default via `JsonNamingPolicy.CamelCase`, so incoming JSON with PascalCase keys (for example `"CustomerName"`) may not bind to `CustomerName` unless case-insensitive matching is enabled. Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values (empty string, zero) since System.Text.Json's default matching is exact-case on deserialization. Prefer standardizing clients on camelCase and documenting the contract in OpenAPI, and add validation attributes so silent binding failures become 400 responses instead of corrupt data.
-
----
-
-#### Gotcha 7. `throw ex` vs `throw`
-
-**Concepts**
-- `throw ex` resetting the stack trace to the catch block
-- `throw;` preserving the original stack trace
-- `InnerException` preservation when wrapping in a new exception
-
-**Answer**
-
-Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown. Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis, so always use `throw;` when rethrowing after logging or cleanup in a catch block. Wrap in a new exception only when adding context — `throw new OrderProcessingException("...", ex)` — to preserve `InnerException`. This trap appears in both application code and background worker error handlers.
-
----
-
-#### Gotcha 8. Kestrel as the only production layer
-
-**Concepts**
-- Kestrel as application server vs full edge gateway
-- TLS termination, WAF, and rate limiting at the reverse proxy
-- `UseForwardedHeaders` required for accurate client IP and scheme
-
-**Answer**
-
-Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching that production deployments typically require. Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front since TLS certificates are easier to manage at the proxy layer with automatic renewal. Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy, and containers typically bind Kestrel to port 8080 internally while the ingress controller handles HTTPS externally.
-
----
-
-#### Gotcha 9. `launchSettings.json` in production
-
-**Concepts**
 - `launchSettings.json` as development-only launch configuration
-- Production host using environment variables, not launch profiles
-- `ASPNETCORE_ENVIRONMENT` and `ASPNETCORE_URLS` as runtime configuration
+- Published application not including or reading the file
+- `ASPNETCORE_ENVIRONMENT` and `ASPNETCORE_URLS` as production runtime configuration
 
 **Answer**
 
-Settings in `Properties/launchSettings.json` — including `applicationUrl`, environment variables, and launch profiles — apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts. Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings. Assuming `launchSettings.json` sets Production behavior leads to wrong environment or binding in deployed environments since the published application does not include or read the file. Use `appsettings.Production.json` and host-level env vars for production values.
+Settings in `Properties/launchSettings.json` — including `applicationUrl`, environment variables, and launch profiles — apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts and the published application does not read the file at all. Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings. Relying on `launchSettings.json` for production behavior leads to wrong environment selection or wrong port binding in deployed environments. Use `appsettings.Production.json` for non-secret defaults and host-level environment variables for environment selection and URL binding.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 4. No `ValidateOnStart` — invalid configuration silently reaches the first customer call
 
 **Concepts**
-- Non-nullable `bool` defaulting to `false` on JSON omission
-- Three-state intent: unspecified, opt-in, opt-out
-- `bool?` or enum tri-state for partial-update DTOs
+
+- `Configure<T>()` binding without validation by default
+- Empty string and 0 as valid CLR values that pass binding silently
+- `ValidateDataAnnotations()` applying `[Required]`, `[Range]`, `[Url]` attributes
+- `ValidateOnStart()` failing startup rather than deferring to first consumer
 
 **Answer**
 
-A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics. PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent, since a user omitting `sendNewsletter` should mean "leave as is" rather than "opt out". Marketing consent and feature flags are common domains where this bug causes compliance or logic errors, and nullable fields should be documented in OpenAPI so generated clients represent optional updates correctly.
+`Configure<T>()` binds configuration without running any validation — empty strings, zero timeouts, and out-of-range values are accepted as valid CLR defaults, so an `appsettings` typo or a missing required key causes no startup error. The application launches, traffic arrives, and only the first payment, email, or database call throws, often with a misleading error that does not point to missing configuration. Pairing `AddOptions<T>().Bind(section).ValidateDataAnnotations().ValidateOnStart()` causes the host to fail at startup with a clear validation error that names the offending properties, surfacing misconfiguration in staging before it reaches production. Use `[Required]` on keys that must be present, `[Range]` on numeric bounds, and `IValidateOptions<T>` for cross-property rules that attribute annotations cannot express.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 5. `IOptionsSnapshot<T>` injected into a singleton — captive dependency
 
 **Concepts**
-- `X-Forwarded-Proto` and `X-Forwarded-For` headers
-- Wrong scheme causing broken HTTPS redirects and cookie secure flags
-- `KnownProxies` configuration to prevent header spoofing
+
+- `IOptionsSnapshot<T>` registered as scoped, recomputed per scope
+- Captive dependency when snapshot injected into a singleton constructor
+- `ValidateScopes` throwing at startup on this combination
+- `IOptionsMonitor<T>` as the singleton-safe live-reload alternative
 
 **Answer**
 
-Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs. Call `UseForwardedHeaders()` early, before middleware that reads scheme or host such as HTTPS redirection, link generation, or rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your reverse proxy network since trusting all proxies enables header spoofing. Local development without a proxy does not need this; production behind nginx/IIS/ALB does.
+`IOptionsSnapshot<T>` is registered as a scoped service because it is designed to be recomputed per request scope to reflect configuration reloads. Injecting it into a singleton creates a captive dependency — the singleton outlives the scope, and with `ValidateScopes` enabled the application fails at startup. Without validation, the scoped snapshot is resolved from the root provider once and is never refreshed, silently defeating its reload semantics. Singleton services should use `IOptions<T>` for static settings or `IOptionsMonitor<T>` when live reload is required; `IOptionsMonitor<T>` is singleton-safe and exposes `CurrentValue` plus an `OnChange` callback without depending on a request scope.
 
 ---
 
-#### Gotcha 12. Static files in `wwwroot` are public
+#### Gotcha 6. `GetSection("Key")` returns an empty section — never null — for missing keys
 
 **Concepts**
-- `UseStaticFiles()` serving all `wwwroot` contents unauthenticated
-- Secrets and config files must stay outside the web root
-- `appsettings.Production.json` in `wwwroot` as a critical security incident
+
+- `GetSection` returning a non-null empty `IConfigurationSection` when key is absent
+- `.Exists()` as the correct presence check
+- `GetRequiredSection` throwing when section is absent
+- Section name typo silently leaving all properties at CLR defaults
 
 **Answer**
 
-Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default, so placing secrets, `.env`, backup configs, or private keys there exposes them over HTTP. Only public assets (CSS, JS, images, public PDFs) belong in `wwwroot`, while sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers. An accidental copy of `appsettings.Production.json` into `wwwroot` is a critical security incident since the file is served as a plain-text download. Use build pipelines to verify web root contents before deploy.
+`configuration.GetSection("Payment")` always returns a non-null `IConfigurationSection` regardless of whether the section exists. When the section is missing, `Exists()` returns `false` and `Bind(myObject)` leaves all properties at their CLR defaults without any error, so a typo in the section name (`"Payemnt"`) passes binding silently and every setting ends up at zero, empty, or false. Check existence with `section.Exists()` when the section is optional, use `GetRequiredSection("Payment")` (throws `InvalidOperationException` when absent) for mandatory sections, or rely on `ValidateDataAnnotations().ValidateOnStart()` to surface the default-value consequence as a validation failure at startup.
 
 ---
 
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
+#### Gotcha 7. `reloadOnChange: false` on the JSON provider — `IOptionsMonitor.OnChange` never fires
 
 **Concepts**
-- SPA fallback returning `index.html` for unmatched routes including `/api/*`
-- API endpoint registration ordering before fallback
-- CORS and Swagger failures masked by HTML responses
+
+- `reloadOnChange: true` required to trigger `IChangeToken` on file edit
+- `IOptionsMonitor.OnChange` wired correctly but never triggered without file watcher
+- Custom-added providers not inheriting the default host `reloadOnChange` setting
+- Vault providers with their own refresh mechanism independent of file watchers
 
 **Answer**
 
-SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers. Map API routes (`MapControllers`, minimal API groups) before `MapFallbackToFile("index.html")`, and scope fallback to non-API paths or use conditional fallback that excludes `/api` prefixes. Symptoms include CORS errors masked as HTML responses and Swagger fetch failures in production SPA hosting, so the correct order in `Program.cs` is: API endpoints first, static files, fallback last.
+If the `appsettings.json` provider is registered without `reloadOnChange: true`, file edits on disk never trigger an `IChangeToken` notification, so `IOptionsMonitor<T>.OnChange` callbacks and `IOptionsSnapshot<T>` reload on next request both silently stop working even though the wiring looks correct. The default `WebApplication.CreateBuilder` enables `reloadOnChange: true`, but custom template configurations or providers added with `builder.Configuration.AddJsonFile(path)` without the flag omit it. Verify configuration sources during debugging; enable `reloadOnChange: true` deliberately and document which flags require a pod restart versus dynamic toggle so operators have accurate expectations when pushing a configuration change.
 
 ---
 
-#### Gotcha 14. Background service without scope factory
+#### Gotcha 8. Environment variable hierarchy separator — double underscore on Linux, not colon
 
 **Concepts**
-- Singleton `BackgroundService` incompatible with constructor-injected scoped services
-- `CreateAsyncScope()` per job to create a fresh scope
-- `ValidateScopes` catching this defect at startup
+
+- Double underscore (`__`) as the cross-platform hierarchy separator for env vars
+- Colon (`:`) accepted on Windows but not valid in Linux environment variable names
+- Silent binding failure when key is not mapped to the correct hierarchy path
+- Kubernetes ConfigMaps and CI environment blocks must use `__`
 
 **Answer**
 
-A singleton `BackgroundService` that injects scoped services (`DbContext`, repositories) directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration, because hosted services live for the application lifetime and scoped dependencies must not be constructor-injected. Inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes. The same rule applies to timers and `Task.Run` loops started from singletons, and enabling `ValidateScopes` catches this defect before production deployment.
+Hierarchical configuration keys in environment variables must use double underscores (`ConnectionStrings__DefaultConnection`) not colons because the colon character is not a valid environment variable name character on Linux. The colon works on Windows where the env var provider accepts it, so teams that develop on Windows and deploy to Linux containers find that `ConnectionStrings:DefaultConnection` binds correctly in local testing but silently fails in production — the variable is treated as a flat non-hierarchical key that matches nothing in the configuration tree. Always use `__` in Kubernetes ConfigMaps, GitHub Actions `env:` blocks, Docker Compose environment sections, and any cross-platform CI script for hierarchical configuration keys.
 
 ---
 
-#### Gotcha 15. SignalR without a backplane on multiple instances
+#### Gotcha 9. Named options `.Value` resolves the default name — `.Get("name")` required for named registrations
 
 **Concepts**
-- SignalR hub broadcasting to connected clients on the same instance only
-- Redis or Azure Service Bus backplane for multi-node event routing
-- Sticky sessions insufficient without a backplane
+
+- `Options.DefaultName` (empty string) as the key for unnamed `Configure<T>()` registrations
+- `.Value` always resolving the default name regardless of named registrations
+- `.Get("name")` required to resolve a named options registration
+- Last-wins for multiple unnamed `Configure<T>()` calls on the same type
 
 **Answer**
 
-SignalR broadcasts from one server instance reach only clients connected to that instance — without a Redis or Azure Service Bus backplane (or Azure SignalR Service), users on different nodes never receive each other's real-time events. Sticky sessions keep one client on one node but do not route events raised on other nodes to that client, so adding a second instance without a backplane means events silently disappear for users on the wrong node. Register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application, and test scale-out with at least two instances before launch rather than single-node staging alone.
+`IOptionsSnapshot<T>.Value` and `IOptions<T>.Value` always resolve the options registered under `Options.DefaultName` (the empty string), not any named registration. When you register two named options — `Configure<T>("primary", ...)` and `Configure<T>("secondary", ...)` — and then read `.Value`, you get an unbound instance with all properties at CLR defaults because no unnamed registration was made. Named options must always be resolved with `.Get("primary")` or `.Get("secondary")`. Additionally, multiple unnamed `Configure<T>()` calls accumulate in registration order and the factory merges all of them; a second unnamed registration overwrites the same property values in order, so last one wins — which surprises teams expecting only one to apply.
+
+---
+
+#### Gotcha 10. `ASPNETCORE_ENVIRONMENT` vs `DOTNET_ENVIRONMENT` — wrong variable for worker services
+
+**Concepts**
+
+- `DOTNET_ENVIRONMENT` read by the generic host and worker services
+- `ASPNETCORE_ENVIRONMENT` read by `WebApplication` and ASP.NET Core web host
+- Worker services silently staying in Production when `ASPNETCORE_ENVIRONMENT` is set instead
+- `WebApplication.CreateBuilder` reading both, with `ASPNETCORE_ENVIRONMENT` taking precedence
+
+**Answer**
+
+The generic host (worker services, console apps) reads `DOTNET_ENVIRONMENT` to select the environment, while the ASP.NET Core web host reads `ASPNETCORE_ENVIRONMENT`. When deploying a worker service and setting `ASPNETCORE_ENVIRONMENT=Development`, the host ignores it — the environment remains Production, `appsettings.Development.json` does not load, and User Secrets are not applied. This is a common copy-paste mistake from web app deployment scripts applied to worker service containers. Use `DOTNET_ENVIRONMENT` for generic host workloads; `WebApplication.CreateBuilder` reads both and `ASPNETCORE_ENVIRONMENT` takes precedence when both are set, so using `DOTNET_ENVIRONMENT` universally is the safest cross-project approach.
 
 ---
 

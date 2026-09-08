@@ -133,59 +133,157 @@ EF Core uses migrations — versioned C# files with `Up` and `Down` methods that
 
 ---
 
-## Gotchas
+## Gotchas — Introduction to Entity Framework Core (Interview Traps)
 
 ---
 
-## Gotcha 9. Scoped `DbContext` captured in a singleton
+#### Gotcha 1. Scoped DbContext captured in a singleton service
 
 **Concepts**
-- scoped DbContext captured in singleton field
-- captive dependency anti-pattern
-- IDbContextFactory for singleton database access
+- `DbContext` is scoped per HTTP request in ASP.NET Core
+- singleton service holding a scoped `DbContext` — captive dependency
+- context disposed while singleton still alive — `ObjectDisposedException`
+- tracked state leaking across requests from different users
+- `IDbContextFactory<TContext>` as the correct singleton injection pattern
 
 **Answer**
 
-Registering a singleton service that holds a scoped `DbContext` creates a captive dependency — the context may be disposed while the singleton lives, or state leaks across HTTP requests. `DbContext` is scoped per request in ASP.NET Core — singletons must not store it in fields; Inject `IDbContextFactory<TContext>` into singletons when long-lived services need occasional database access. Symptoms include "Cannot access a disposed context" or cross-user data contamination in tracked entities.
+Registering a singleton service that stores a scoped `DbContext` in a field creates a captive dependency — the context may be disposed at the end of the first request while the singleton continues to live across all subsequent requests. Symptoms are `ObjectDisposedException: Cannot access a disposed context` and intermittent cross-user data contamination in tracked entities. When a singleton genuinely needs database access, inject `IDbContextFactory<TContext>` instead and create/dispose a short-lived context instance per operation.
 
 ---
 
-## Gotcha 11. N+1 from lazy load or missing Include
+#### Gotcha 2. DbContext is not thread-safe — never share across threads
 
 **Concepts**
-- N+1 from missing Include in loop
-- one query per parent row multiplication
-- eager loading and projection as fixes
+- `DbContext` internal state not thread-safe
+- concurrent queries on same context cause undefined behavior
+- `Parallel.ForEach` with shared context corrupts change tracker
+- separate context instance per thread/task via `IDbContextFactory`
+- ASP.NET Core scopes one context per request on one thread
 
 **Answer**
 
-Listing parent entities then accessing navigation properties in a loop without eager loading or projection fires one SQL query per parent row — classic N+1 performance collapse in EF Core APIs. One query for N orders plus N queries for each order's lines equals N+1 round-trips per request; Fix with `Include`/`ThenInclude`, split queries, or `Select` projections that join needed data in one statement. EF Core command logging revealing identical query templates with different IDs signals N+1 immediately.
+`DbContext` is not thread-safe — running concurrent operations (parallel queries, parallel `SaveChanges`) on the same instance corrupts the change tracker and produces unpredictable exceptions. ASP.NET Core's DI system scopes one context per request, and requests are handled on a single thread, so normal request handlers are safe. The problem arises in background services or `Parallel.ForEach` — each parallel branch must have its own `DbContext` instance obtained from `IDbContextFactory<TContext>`.
 
 ---
 
-## Gotcha 13. Client-side evaluation of LINQ
+#### Gotcha 3. N+1 queries from accessing navigation properties in a loop
 
 **Concepts**
-- ToList before filter forces full table load
-- EF Core 3+ exception for accidental client evaluation
-- EF.Functions and translatable expression rewrites
+- navigation property access on unloaded entity fires hidden SQL
+- lazy loading proxy triggers per-row database roundtrip
+- N parent entities → N separate SQL queries for children
+- `Include`/`ThenInclude` for eager loading
+- EF Core command logging to detect N+1 pattern
 
 **Answer**
 
-Calling `ToList()` before filtering or using non-translatable C# logic in `Where` forces EF Core to pull entire tables into application memory — acceptable in development with small seeds, catastrophic in production at scale. EF Core 3+ throws on many accidental client evaluations instead of silently downloading whole tables; `AsEnumerable()` explicitly switches to LINQ to Objects — any following `Where` runs in memory. Rewrite with translatable expressions, `EF.Functions`, database-side filtering, or raw SQL for unsupported logic.
+Accessing a navigation property in a loop over unloaded entities fires one SQL query per parent entity — the classic N+1 performance collapse. With lazy loading enabled, this happens silently without any visible query call in the source code. EF Core command logging revealing many identical query templates with different ID parameter values is the diagnostic signal. Fix with `.Include(o => o.Lines)` for eager loading, `.AsSplitQuery()` when multiple collections cause Cartesian explosion, or `.Select()` projection when only a subset of data is needed.
 
 ---
 
-## Gotcha 14. Tracking overhead on read-only queries
+#### Gotcha 4. Client-side LINQ evaluation — full table loaded into memory
 
 **Concepts**
-- change tracking snapshot overhead on read-only queries
-- AsNoTracking omission on GET endpoints
-- global QueryTrackingBehavior.NoTracking setting
+- `AsEnumerable()` or `ToList()` before filter causes full table scan
+- EF Core 3+ throws `InvalidOperationException` for untranslatable predicates
+- non-translatable C# method in `Where()` forces client evaluation
+- `EF.Functions` for database-side string/date functions
+- raw SQL or stored procedure for complex untranslatable logic
 
 **Answer**
 
-Omitting `AsNoTracking()` on large read-only lists makes EF Core snapshot every entity for change detection that will never run, wasting memory and CPU on GET endpoints. Tracking stores original and current values per property for each row materialized; ASP.NET Core read services should default to `AsNoTracking()` plus DTO projection. Global `QueryTrackingBehavior.NoTracking` with explicit tracking on command paths prevents accidental overhead.
+Calling `AsEnumerable()` or `ToList()` before applying a `Where` filter switches EF Core to LINQ-to-Objects mode, pulling the full table into application memory before filtering. EF Core 3+ throws for untranslatable predicates in `Where` rather than silently downloading entire tables as earlier versions did. When a `Where` predicate uses a C# method that EF Core cannot translate, use `EF.Functions` equivalents, rewrite as translatable expressions, or use raw SQL. Never call `AsEnumerable()` before `Where` on large tables.
+
+---
+
+#### Gotcha 5. `AsNoTracking` omitted on read-only queries — change tracking overhead
+
+**Concepts**
+- EF Core snapshots every entity's original values for change detection
+- tracking overhead: CPU and memory per materialized entity
+- GET-only endpoints with no `SaveChanges` waste tracking resources
+- `AsNoTracking()` disables snapshots for read-only queries
+- global `QueryTrackingBehavior.NoTracking` with per-query opt-in
+
+**Answer**
+
+By default, EF Core tracks every entity it materializes — storing original and current values per property for change detection at `SaveChanges` time. On read-only GET endpoints that never call `SaveChanges`, this tracking is pure overhead. Add `AsNoTracking()` to any query that only reads and returns data, or configure `QueryTrackingBehavior.NoTracking` globally and add explicit tracking only on queries that feed `SaveChanges`. The memory and CPU savings are measurable for large result sets.
+
+---
+
+#### Gotcha 6. `SaveChanges` commits all tracked changes, not just the intended entity
+
+**Concepts**
+- `SaveChanges` flushes every `Added`/`Modified`/`Deleted` tracked entity
+- unintended changes on other tracked entities committed together
+- multi-step service methods accumulating unrelated changes
+- one context per unit-of-work as the design guideline
+- `ChangeTracker.Clear()` to discard unintended pending changes
+
+**Answer**
+
+`SaveChanges` commits every entity currently tracked by the context in an `Added`, `Modified`, or `Deleted` state — not just the entity you intended to save. If another service method earlier in the request modified a different entity on the same scoped context, that change is also committed. Use a short-lived context scoped to one unit of work, or call `context.ChangeTracker.Clear()` to discard unintended tracked state before the intended save. EF Core 7+ `ExecuteUpdate`/`ExecuteDelete` bypass the change tracker entirely for targeted bulk operations.
+
+---
+
+#### Gotcha 7. In-Memory provider does not enforce relational constraints
+
+**Concepts**
+- In-Memory provider is an in-process dictionary, not a SQL engine
+- no FK constraints, cascade rules, or uniqueness enforcement
+- tests passing on In-Memory fail on SQL Server in staging
+- `Testcontainers` or SQL Server LocalDB for relational fidelity tests
+- shared In-Memory database name causes cross-test pollution
+
+**Answer**
+
+EF Core's In-Memory provider stores entities in memory as an in-process dictionary — it does not enforce foreign key constraints, cascade delete rules, unique indexes, or any SQL Server-specific behavior. Tests that pass on In-Memory (including cascade and FK tests) frequently fail on SQL Server in staging. Use a real provider (LocalDB or Testcontainers SQL Server) for tests that assert relational behavior. If you use In-Memory, give each test a unique database name via `Guid.NewGuid().ToString()` to avoid cross-test state pollution.
+
+---
+
+#### Gotcha 8. Lazy loading after DbContext disposed — serializer-triggered hidden queries fail
+
+**Concepts**
+- lazy loading proxy accesses navigation property post-disposal
+- JSON serializer touches all public properties including navigations
+- `ObjectDisposedException` thrown mid-serialization
+- `Include` or DTO projection before context scope ends
+- request-scoped context disposed at end of pipeline
+
+**Answer**
+
+If lazy loading is enabled and an entity with unloaded navigation properties is returned from a controller action, the JSON serializer may access those navigation properties while serializing the response — but the scoped `DbContext` may already be disposed at that point in the request pipeline, causing `ObjectDisposedException`. Always load all required navigation properties with `Include` before the context scope ends, or project to a DTO that contains only the data the response needs, eliminating any navigation property access outside the context lifetime.
+
+---
+
+#### Gotcha 9. EF Core provider swap is not zero-cost — LINQ differences and migration regeneration
+
+**Concepts**
+- LINQ translates differently between providers (SQL Server vs PostgreSQL)
+- `UseSqlServer` vs `UseNpgsql` — connection string format change
+- migration history must be regenerated for new provider
+- provider-specific types (`rowversion`, `nvarchar`) not portable
+- SQL Server-specific LINQ (`FromSqlRaw` with T-SQL) may not translate
+
+**Answer**
+
+Swapping EF Core's database provider is a NuGet and `Use*` extension change at the surface, but the SQL generated for the same LINQ query differs between providers — queries that work on SQL Server may not translate correctly on PostgreSQL or SQLite. Migration history is specific to each provider and must be regenerated after a swap. Provider-specific types like `rowversion`, spatial types, and JSON columns require different Fluent API configuration per provider. After a provider swap, regenerate migrations, run the full test suite against the target provider, and verify execution plans on hot queries.
+
+---
+
+#### Gotcha 10. `context.Database.EnsureCreated()` vs `MigrateAsync()` — no migration history recorded
+
+**Concepts**
+- `EnsureCreated` creates schema if absent but records no migration history
+- `MigrateAsync` applies pending migrations and records them in `__EFMigrationsHistory`
+- mixing `EnsureCreated` with migrations causes migration failure on first run
+- `EnsureCreated` appropriate only for ephemeral test databases
+- production always uses `MigrateAsync` or migration scripts
+
+**Answer**
+
+`context.Database.EnsureCreated()` creates the database schema directly from the current model if the database does not exist, but it does not write any entries to `__EFMigrationsHistory`. If you then run `dotnet ef database update`, EF Core sees no applied migrations and tries to apply all of them — including `InitialCreate`, which conflicts with the schema already created by `EnsureCreated`. Use `EnsureCreated` only for test databases that are created and destroyed per test run; use `MigrateAsync` or migration scripts for all production and staging environments.
 
 ---
 

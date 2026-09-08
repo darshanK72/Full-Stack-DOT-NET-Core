@@ -293,229 +293,147 @@ ASP.NET Core 8 Web API defaults to `JsonNamingPolicy.CamelCase` in `System.Text.
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — Model Binding & Validation (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. `[FromBody]` vs `[FromForm]` for mixed file and JSON payloads
 
 **Concepts**
-- HTTP 201 Created — correct status for resource creation
-- Location header — URI of the new resource
-- `CreatedAtAction` / `CreatedAtRoute` — helpers that set both
-- REST contract — status codes as semantic communication
+- `[FromBody]` reads the raw request body as JSON/XML — incompatible with multipart
+- `[FromForm]` reads `multipart/form-data` or `application/x-www-form-urlencoded`
+- Combining `IFormFile` with `[FromBody]` DTO — fails because both try to read the same body
+- Correct pattern: `[FromForm]` for the DTO alongside `IFormFile` in the same action
 
 **Answer**
 
-A successful POST that creates a resource must return 201 Created with a Location header pointing at the new resource's URI, not 200 OK. Returning 200 omits the resource location from the response contract, so HTTP client libraries and OpenAPI-generated SDKs that rely on the Location header will silently miss it. I use `CreatedAtAction(nameof(Get), new { id = newEntity.Id }, newEntity)` rather than `Ok(newEntity)` since it sets both the correct status code and the Location header. Including the created representation in the body is also useful so callers do not need an immediate follow-up GET.
+`[FromBody]` and `IFormFile` cannot coexist in the same action because both claim the request body stream and a request can only have one body. Sending a file alongside JSON metadata requires `multipart/form-data` encoding where the action uses `[FromForm]` on the metadata DTO and `IFormFile` on the file parameter — both bind from form fields, not the raw body. Attempting to use `[FromBody]` for the metadata alongside `IFormFile` causes either the file or the metadata to bind as null, with no binding error thrown.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. Missing `[ApiController]` — `ModelState` not automatically checked
 
 **Concepts**
-- HTTP GET — safe and idempotent by specification
-- Browser prefetch and CDN cache replay
-- Side effects on safe methods — security and caching violations
-- Correct verbs — POST/PUT/PATCH/DELETE for mutations
+- `[ApiController]` auto-returns `400 ValidationProblemDetails` when `ModelState` is invalid
+- Without it, invalid models reach the action body silently
+- Manual `if (!ModelState.IsValid) return ValidationProblem()` guard needed
+- `[Required]` and `[Range]` annotations evaluated but not acted upon without the attribute
 
 **Answer**
 
-GET must be safe and idempotent — calling it any number of times must have no side effects. Performing deletes or updates in a GET action creates real production issues because browsers prefetch URLs in link previews, CDNs cache and replay GET responses, and crawlers follow URLs without user intent. A side-effecting GET runs its mutation uncontrollably. I keep GET strictly read-only and use POST for creates, PUT or PATCH for updates, and DELETE for deletions.
+`[Required]` and `[Range]` Data Annotations are evaluated during model binding regardless of `[ApiController]`, but without it the framework does not automatically short-circuit to 400 — the request reaches the action with an invalid `ModelState`. An action that skips the manual `if (!ModelState.IsValid)` check then passes a partially-filled model to the service layer, potentially inserting corrupt data. I apply `[ApiController]` at assembly level in `Program.cs` to ensure every controller benefits from automatic model state validation.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. Overposting via `[FromBody]` binding all model properties
 
 **Concepts**
-- HTTP status codes — semantic failure signaling
-- `ProblemDetails` / `ValidationProblemDetails` — RFC 7807 error bodies
-- 200 masking failures — APM and gateway blindness
-- Client retry logic — keyed on status codes not body flags
+- `[FromBody]` binding every public property by default
+- Client sending `IsAdmin = true` or `Id = 999` silently accepted and persisted
+- `[BindNever]` / `[JsonIgnore]` preventing binding of sensitive properties
+- Input DTOs (CreateXDto) as the correct pattern instead of entity types
 
 **Answer**
 
-Returning HTTP 200 with `{ "success": false }` forces every consumer to parse the response body to detect failure rather than using standard HTTP status code semantics. API gateways, APM tools, and retry logic all key on status codes — a 200 registers as success in dashboards even when the operation failed. I return `ValidationProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for domain rule violations so the HTTP layer carries the failure signal.
+Binding an EF entity or a model with privileged fields directly from `[FromBody]` allows clients to set any public property — including `IsAdmin`, `Id`, `CreatedAt`, or internal audit fields — by simply including them in the request JSON. This is a mass-assignment vulnerability. The fix is to use dedicated input DTOs (`CreateOrderDto`) that expose only the fields the client is permitted to supply, and map them to the entity in the service layer. If entity binding is unavoidable, `[BindNever]` or `[JsonIgnore]` on individual properties excludes them from binding.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. `[Required]` on non-nullable value types is always valid
 
 **Concepts**
-- EF Core navigation properties — lazy-load triggers during serialization
-- Circular references — serializer loop risk
-- Schema leakage — internal columns exposed to clients
-- DTOs — explicit public contract shape
-- N+1 query risk during JSON output
+- Non-nullable value type (`int`, `decimal`, `bool`) — always has a value by default
+- `[Required]` on `int Price` — never fails because 0 satisfies the attribute
+- Use `[Range(1, int.MaxValue)]` or make the type nullable `int?` to require a real value
+- C# 8 nullable reference types changing semantics for reference type `[Required]`
 
 **Answer**
 
-EF Core entities mirror the database schema including internal columns, shadow properties, and navigation properties that are not meant for clients. Serializing them directly causes lazy-loaded navigation properties to trigger additional SQL queries during the JSON write, and circular references between entities cause `System.Text.Json` to throw. I always map entities to response DTOs before returning from an action, which decouples the public API shape from database schema changes and eliminates lazy-load and circular reference risks.
+`[Required]` on a non-nullable value type such as `public int Price { get; set; }` is effectively a no-op because model binding assigns the default value `0` for a missing field, and `0` satisfies `[Required]`. A client that omits `Price` entirely gets a successful response with `Price = 0` rather than a validation error. To require a real value, either make the property nullable (`public int? Price { get; set; }`) and keep `[Required]`, or add `[Range(1, int.MaxValue)]` to reject default-value submissions. For boolean fields this is especially subtle — `[Required]` on `bool Accepted` succeeds with `false`.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. Complex object bound from query string without `[FromQuery]`
 
 **Concepts**
-- `System.Text.Json` camelCase default
-- Silent binding failure — PascalCase keys arrive as null
-- `PropertyNameCaseInsensitive` — migration compatibility
-- `[JsonPropertyName]` — per-property key override
+- Complex types inferred as `[FromBody]` by `[ApiController]`
+- `[FromQuery]` required for complex objects bound from query string
+- `GET /api/orders?status=Pending&pageSize=10` — filter DTO needs `[FromQuery]`
+- Each property mapped to a named query parameter
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON, so a legacy client sending `{ "CustomerName": "Acme" }` gets a null binding since the PascalCase key does not match. The response is 201 or 204 success with partially saved data and no error, making the defect invisible. The fix during migration is `PropertyNameCaseInsensitive = true` in `AddJsonOptions`; the long-term fix is for the client to adopt camelCase. I treat the naming policy as a published contract decision.
+With `[ApiController]`, a complex type parameter without an explicit binding source attribute is inferred as `[FromBody]`, so a GET action with a `FilterDto` parameter tries to read the request body — which is typically empty for GET requests — instead of the query string. The DTO binds as null or with default values. The fix is `public IActionResult Search([FromQuery] FilterDto filter)`, which binds each property of `FilterDto` from a matching query parameter name. Nested complex types within a `[FromQuery]`-bound object are flattened — they do not support JSON-encoded nesting in query strings.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Array binding syntax from query string
 
 **Concepts**
-- GET body — stripped by clients, proxies, and CDNs
-- `[FromBody]` on GET — unreliable across the HTTP ecosystem
-- `[FromQuery]` — correct source for GET filters
-- `POST /search` — for complex filter objects
+- Repeated parameter: `?ids=1&ids=2&ids=3` — standard MVC array binding
+- Comma-separated: `?ids=1,2,3` — not bound as array by default, arrives as single string
+- `[FromQuery] int[] ids` — binds repeated keys, not comma-separated
+- Custom `ModelBinder` or string-split converter needed for comma-separated
 
 **Answer**
 
-Most practical HTTP components — browsers, fetch, CDNs, API gateways — strip or ignore GET request bodies, so `[FromBody]` on GET actions fails silently with null models. Integration tests against localhost mask the issue because Kestrel reads GET bodies directly. I use `[FromQuery]` for filter parameters on GET endpoints, and for complex filter objects I introduce a `POST /search` endpoint.
+`[FromQuery] int[] ids` binds from repeated query parameters — `?ids=1&ids=2&ids=3` — mapping each occurrence to an array element. It does not parse comma-separated values: `?ids=1,2,3` arrives as the string `"1,2,3"` and causes a type conversion failure or binds as a single invalid value. Clients that construct URLs with comma-separated list values must either switch to repeated parameters or the action must accept `string ids` and split manually. I document the expected query string format in OpenAPI using `[FromQuery(Name = "ids")]` and the standard repeated-key pattern.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. FluentValidation not integrated into `ModelState` pipeline
 
 **Concepts**
-- CORS — browser-only enforcement
-- Non-browser clients — unaffected by CORS
-- Authentication and authorization — real API security boundary
+- FluentValidation requires explicit DI registration + `AddFluentValidation()`
+- Without integration, validators never run — `ModelState` stays valid for invalid inputs
+- `[ApiController]` auto-400 fires on `ModelState`, not FluentValidation result directly
+- `.NET 7+` package: `FluentValidation.AspNetCore` registers validators automatically
 
 **Answer**
 
-CORS is a browser-enforced policy that controls whether JavaScript on one origin can read cross-origin responses — curl, Postman, and server-to-server clients are completely unaffected. I configure CORS to give browser SPA clients cross-origin access, but that is entirely separate from protecting the API itself — JWT validation or API key checks are what actually prevent unauthorized access.
+Adding a FluentValidation `AbstractValidator<T>` class without calling `services.AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<T>())` results in validators that are never invoked — every request passes as valid. Even with the integration registered, FluentValidation runs validators and populates `ModelState`; the `[ApiController]` auto-400 then fires on that populated `ModelState`. If `FluentValidation.AspNetCore` is not installed and only the core `FluentValidation` package is present, the integration is absent and validators must be invoked manually.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. Nullable reference type `string?` vs `[Required]` semantic difference
 
 **Concepts**
-- `AllowAnyOrigin()` — sets wildcard `Access-Control-Allow-Origin: *`
-- CORS specification — forbids wildcard + credentials combination
-- `WithOrigins` — explicit origin allowlist for credentialed requests
-- `AllowCredentials()` — requires specific origin
+- C# nullable annotations (`string?`) — compile-time nullability hint only
+- `[Required]` — runtime model binding check, rejects missing/null/empty values
+- `string Name` without `[Required]` — null accepted at runtime despite non-nullable annotation
+- `.NET 6+` `SuppressImplicitRequiredAttributeForNonNullableReferenceTypes` option
 
 **Answer**
 
-The CORS specification forbids combining `Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials: true` because wildcard origin plus credentials would allow any website to make authenticated requests on behalf of the user. Browsers reject this combination. When the SPA sends cookies or an Authorization header I must replace `AllowAnyOrigin()` with `WithOrigins("https://app.example.com")` and chain `AllowCredentials()`.
+C# nullable reference type annotations (`string` vs `string?`) are compile-time hints only — the model binder does not read them and will happily bind null to a `string Name` property at runtime if the field is missing in the payload. `[Required]` is the attribute that causes the model binder to reject null or missing values at runtime. In ASP.NET Core 6+, non-nullable reference type properties on model classes implicitly generate `[Required]`-like validation behavior when `SuppressImplicitRequiredAttributeForNonNullableReferenceTypes` is `false` — but this setting and its interaction with record types can surprise developers who rely on it without understanding its scope.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. `[AsParameters]` in minimal APIs vs `[FromQuery]` binding behavior
 
 **Concepts**
-- Swagger UI in production — API surface reconnaissance risk
-- `IsDevelopment()` environment check
-- OpenAPI document — reveals endpoints and schemas
+- Minimal API handler parameters — each declared separately or grouped via `[AsParameters]`
+- `[AsParameters]` — binds an object's properties from route/query/header without `[FromBody]`
+- `[AsParameters]` does not work in MVC controllers — minimal API only
+- Complex type without `[AsParameters]` in minimal API — inferred as `[FromBody]`
 
 **Answer**
 
-Swagger UI in production exposes every endpoint, parameter, and schema to anyone who can reach the URL. I wrap `UseSwagger()` and `UseSwaggerUI()` in an environment check so they never activate outside Development. When internal developers need the OpenAPI document in production I serve it through an IP-restricted reverse proxy path or behind an authenticated portal.
+In minimal API route handlers, a complex type parameter without any binding attribute is inferred as `[FromBody]`, mirroring `[ApiController]` behavior. `[AsParameters]` tells the minimal API pipeline to treat each property of the parameter type as a separate binding source (route, query, or header), which allows using a DTO to group filter parameters without sending a body. This attribute exists only for minimal APIs — it has no effect on `ControllerBase` actions, where `[FromQuery]` on the DTO is the equivalent pattern. Using `[AsParameters]` in a controller action compiles but silently does nothing.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. `[BindRequired]` vs `[Required]` for query string parameters
 
 **Concepts**
-- `[ApiController]` — automatic validation, binding inference, attribute routing
-- `ValidationProblemDetails` — automatic 400 response body
-- Inconsistent error contracts — mixed controller setup
+- `[Required]` — validates that a bound value is not null/empty, but missing key binds as null/default first
+- `[BindRequired]` — adds a `ModelState` error when the key is absent from the request entirely
+- GET with optional filter — `[Required]` accepts missing key (binds as null) without error
+- `[BindRequired]` on query parameter — 400 when key not present in query string
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses, binding source inference, and strict attribute routing do not apply. A controller missing the attribute returns 200 with an invalid model unless the action manually checks `ModelState.IsValid`. I apply `[ApiController]` at the assembly level so every controller shares the same API conventions.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- `.Result` / `.Wait()` — sync-over-async blocking
-- Thread-pool starvation — blocked threads unavailable for new requests
-- Deadlock risk — synchronization context blocking
-- `async Task<IActionResult>` — correct action signature
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` ties up a thread-pool thread while I/O completes, reducing concurrent request capacity. Under load this creates a thread starvation spiral. I mark controller actions `async Task<IActionResult>` and propagate `await` through the service layer to EF Core and `HttpClient` calls so threads return to the pool during every I/O wait.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness probe — Kubernetes pod restart signal
-- Readiness probe — load balancer exclusion signal
-- SQL down — dependency failure, not pod failure
-- `/health/live` vs `/health/ready` — separate endpoint responsibilities
-
-**Answer**
-
-A failed liveness probe causes Kubernetes to kill and restart the pod. If the SQL check is part of liveness and the database goes down, every pod restarts in a loop even though the application code is healthy and a restart cannot fix the outage. The database check belongs on the readiness probe, which removes the pod from the load balancer until the dependency recovers without unnecessary restarts.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- N+1 query problem — one query per row for related data
-- Lazy loading — navigation property trigger during serialization
-- DTO projection — single query with JOIN via `Select`
-- `Include` / `ThenInclude` — eager load alternative
-
-**Answer**
-
-Serializing entities with lazy-loaded navigation properties triggers one SQL query per row during JSON writing. A list of 100 orders serialized with their Customer navigation executes 101 queries. I fix this by projecting directly to DTOs in LINQ so EF Core generates a single query with a JOIN, or by using `Include`/`ThenInclude` for object graphs that must be included explicitly.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination — `Skip`/`Take` shifts on concurrent mutations
-- Keyset pagination — stable cursor on indexed key
-- Duplicate and skipped rows — consequence of offset instability
-- Cursor tokens in response metadata
-
-**Answer**
-
-`Skip((page - 1) * pageSize).Take(pageSize)` calculates an offset from the result set start, so concurrent inserts push later rows into the next page causing duplicates, and deletions cause rows to be skipped. Keyset pagination uses `WHERE id > @lastId ORDER BY id LIMIT @pageSize`, anchoring on the last seen key rather than a position, which is stable under concurrent mutations. I expose the last key as a cursor token in response metadata.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- GraphQL field resolvers — per-parent-row execution by default
-- DataLoader — batching and deduplication across resolvers
-- N+1 in GraphQL — 1 root query + N child queries
-- HotChocolate DataLoader registration in DI
-
-**Answer**
-
-Field resolvers in HotChocolate execute independently for each parent object by default — 100 authors with a `books` field resolver executes 101 queries. DataLoader collects all the keys requested during a single execution phase and dispatches one batched query, deduplicating repeated keys. I register DataLoader classes in DI scoped to the request so concurrent resolver calls group into single round-trips.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC — HTTP/2 binary framing inaccessible to browser JavaScript
-- gRPC-Web — browser-compatible subset protocol
-- `AddGrpcWeb()` / `EnableGrpcWeb()` — ASP.NET Core middleware
-- CORS — required alongside gRPC-Web for cross-origin calls
-
-**Answer**
-
-Browsers do not expose the HTTP/2 trailer and binary framing native gRPC requires, so Blazor WASM and SPA clients cannot use the standard gRPC protocol. gRPC-Web wraps gRPC messages in a format browsers can use via Fetch, enabled by `AddGrpcWeb()` and `EnableGrpcWeb()` in the ASP.NET Core pipeline. Cross-origin browser calls also need CORS configured for the gRPC-Web preflight and response headers.
+`[Required]` validates the value after binding — if a query parameter key is missing entirely from the request, model binding assigns null or default first and then `[Required]` may or may not reject that default. For value types the default (0 or false) satisfies `[Required]`, so a missing key produces no error. `[BindRequired]` adds a `ModelState` error at the binding step if the key is absent from the request, regardless of value type. For mandatory query parameters where a missing key must be rejected, I use `[BindRequired]`. For optional parameters with a validation rule on the supplied value, I use `[Required]` or `[Range]` without `[BindRequired]`.
 
 ---
 

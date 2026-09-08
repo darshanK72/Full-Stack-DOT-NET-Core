@@ -275,188 +275,149 @@ Implementing `IDisposable` on a controller is unreliable because ASP.NET Core do
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-#### Gotcha 1. Business logic in Razor views
-
-**Concepts**
-- Pricing and discount calculations in `.cshtml` — no unit test coverage
-- Authorization checks in Razor — bypassable by alternate routes
-
-**Answer**
-
-Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render data the controller or ViewModel already prepared. Calculations in Razor cannot be tested independently and often diverge from API or batch logic. Razor should be limited to presentation formatting, not business decisions.
+## Gotchas — Controllers & Actions (Interview Traps)
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 1. `async void` action method crashing the process
 
 **Concepts**
-- Lazy-loaded navigations — unexpected queries during rendering
-- Over-posting — mass assignment via unlocked navigation properties
+- `async void` — exceptions propagate to `SynchronizationContext`, not the caller
+- MVC framework — cannot await `async void`, client hangs or process crashes
+- Unhandled exception — tears down the worker process under concurrent load
+- Fix — always return `Task<IActionResult>` or `Task<ActionResult<T>>`
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during rendering and mass assignment can update properties the user should not control such as `IsAdmin`. The fix is dedicated ViewModels with only the fields the view needs.
+The MVC framework awaits the `Task` returned by an action method to know when it completes and to catch exceptions through the filter pipeline. When an action is `async void`, the framework activates it and immediately returns — it has nothing to await. Any exception thrown inside the `async void` continuation propagates to the `SynchronizationContext` as an unhandled fault and can tear down the worker process. The result is either an orphaned request (client hangs or times out) or a process restart under load. Every async action must return `Task<IActionResult>`, `Task<ActionResult<T>>`, or a concrete subclass — never `async void`.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 2. Returning `object` instead of `ActionResult<T>`
 
 **Concepts**
-- Browser forms — `application/x-www-form-urlencoded`, not JSON
-- `[FromBody]` uses JSON input formatter — leaves model empty silently
+- `object` return — loses typed contract, OpenAPI schema, and content negotiation metadata
+- `ActionResult<T>` — strongly typed with implicit conversion from `T` and from `IActionResult`
+- Swagger — cannot infer response schemas from `object` return type
+- `[ProducesResponseType]` — required alongside `ActionResult<T>` for non-success status codes
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values. I remove `[FromBody]` for conventional form POSTs and use it only when the client sends JSON with the correct Content-Type.
+Returning `object` compiles because `BadRequest()`, `NotFound()`, and the entity all coerce to `object`, but it loses type contracts, breaks OpenAPI metadata, and defeats content negotiation. Swagger cannot infer response schemas for `object`, so generated API clients lose all type information. `ActionResult<T>` is the correct return type — it satisfies the framework's result pipeline and the OpenAPI introspection. The implicit conversion operator means `return dto` is valid without wrapping in `Ok(dto)` when the 200 case is clear. Add `[ProducesResponseType(typeof(ProductDto), 200)]` and `[ProducesResponseType(404)]` alongside for full Swagger documentation.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 3. Using `Controller` base class for JSON-only endpoints
 
 **Concepts**
-- Client-side validation — bypassable by direct POST
-- Server-side `ModelState.IsValid` — mandatory security gate
+- `Controller` — includes Razor view infrastructure (views, TempData, ViewBag)
+- `ControllerBase` — lean base without view support, correct for API endpoints
+- `[ApiController]` — requires `ControllerBase`; enables auto-400, ProblemDetails, binding inference
+- Wrong base — loses automatic model-validation responses and structured error formatting
 
 **Answer**
 
-Client-side validation is bypassable by direct POST. Server-side validation is mandatory before any persist, redirect, or side effect. I always gate POST actions with `if (!ModelState.IsValid) return View(model);`. Missing server validation is a security defect regardless of client script presence.
+`Controller` inherits from `ControllerBase` and adds Razor view support — `View()`, `TempData`, `ViewBag` — all unused overhead for a JSON endpoint. More critically, `[ApiController]` requires `ControllerBase` and provides automatic 400 responses on model binding failure, binding source inference, and `ProblemDetails` error formatting. Applying `[ApiController]` to a `Controller` subclass produces behavior inconsistencies because `Controller` was not designed for the `[ApiController]` contract. JSON-only endpoints should inherit `ControllerBase` with `[ApiController]`; view-returning MVC controllers inherit `Controller` without `[ApiController]`.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 4. Missing `[HttpGet]`/`[HttpPost]` causing `AmbiguousMatchException`
 
 **Concepts**
-- Browser refresh after `return View()` — resubmits POST body
-- PRG — `return RedirectToAction` after successful mutation
+- Overloaded action names — both match any HTTP verb without verb constraints
+- `[HttpGet]` / `[HttpPost]` — disambiguate by HTTP method at the router level
+- `AmbiguousMatchException` — thrown at route selection, not at compilation
+- Parameter presence — does not create distinct routes without HTTP verb attributes
 
 **Answer**
 
-Returning the same view after a successful POST causes duplicate submission when the user refreshes the page. The fix is Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create or update. Flash success messages go via TempData on the redirect target.
+Two action methods with the same name — one with no parameters for GET and one taking a model for POST — both match without `[HttpGet]` and `[HttpPost]` attributes. When the router resolves `POST /Account/Login`, it finds two candidates and throws `AmbiguousMatchException`. Adding `[HttpGet]` to the display overload and `[HttpPost]` to the submit overload makes the HTTP verb the disambiguating constraint. Parameter presence alone does not create distinct routes — routing uses URL templates and HTTP verbs, not method signatures. Missing these attributes on controllers with overloaded action names causes runtime failures that only appear when both routes are exercised.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 5. Service locator pattern inside action methods
 
 **Concepts**
-- `ModelState` — request-scoped, does not survive redirect
-- On failure — `return View(model)` with errors inline
+- `HttpContext.RequestServices.GetRequiredService<T>()` — service locator anti-pattern
+- Hidden dependency — invisible in constructor, untestable without a real DI container
+- Null field on direct POST — service only set when a specific action runs first
+- Constructor injection — explicit, always initialized, mockable in unit tests
 
 **Answer**
 
-`ModelState` is request-scoped and does not survive `RedirectToAction`. The correct pattern is to redirect only on success and on validation failure return `View(model)` with errors inline. To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache.
+Resolving services via `HttpContext.RequestServices.GetRequiredService<T>()` inside action methods hides the dependency from the constructor, making it invisible to anyone reading the class and impossible to mock in unit tests without a real DI container. A common failure mode is a controller with a parameterless constructor that resolves a service in one action and stores it in a field — a direct POST to any other action sees the field as null because the dependency-setting action never ran. Constructor injection is the correct pattern: declare the dependency in the constructor, let the container provide it at activation time, and the field is always valid for every action.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 6. Public helper methods on controllers accidentally becoming routable
 
 **Concepts**
-- TempData consumed on first read by default
-- `TempData.Peek` — read without consuming
+- Public methods on a controller — discovered as actions by MVC convention
+- `[NonAction]` — explicitly marks a public method as not routable
+- Helper methods — should be `private` or `protected`, or decorated with `[NonAction]`
+- Route shadowing — unexpected public method matching before intended action
 
 **Answer**
 
-TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless `Peek()` or `Keep()` is used. I prefer a single consumption point — typically the layout or a dedicated partial, not both. Cookie-based TempData has size limits.
+Every public method on a controller is treated as an action by the MVC framework unless explicitly excluded. A public helper method `public string FormatCurrency(decimal v)` added for code reuse becomes routable at `GET /Controller/FormatCurrency` and can match before an intended action if route templates are ambiguous. The fix is to make helper methods `private` or `protected`, or add `[NonAction]` when the method must be public for other reasons such as interface implementation or testing. This also applies to properties — the rule is: if you add a public member to a controller that is not intended to handle an HTTP request, annotate it `[NonAction]` immediately.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 7. Not passing `CancellationToken` to async operations
 
 **Concepts**
-- `[Area("AreaName")]` — required for area route discovery
-- Without attribute — controller treated as root, returns 404
+- `CancellationToken ct` — automatically bound to `HttpContext.RequestAborted` by MVC
+- Client disconnect — `ct` is cancelled when the client closes the connection
+- Missing token — DB queries and HTTP calls continue running after client disconnect
+- Thread pool and connection waste — abandoned work holds resources until completion
 
 **Answer**
 
-Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong route. Every area controller must declare `[Area("AreaName")]` matching its folder. Area routing is registered separately with the `{area:exists}` constraint.
+ASP.NET Core binds a `CancellationToken` action parameter to `HttpContext.RequestAborted` automatically — no attribute or model binding configuration needed. When a client closes the connection, the token is cancelled and any `await` that respects it throws `OperationCanceledException`, letting the framework clean up and log a non-fatal cancellation. Without the cancellation token, EF Core queries, `HttpClient` calls, and other awaitable operations continue to completion even after the client has left, wasting database connections and thread pool threads. Every async action that calls services, databases, or external HTTP should accept `CancellationToken ct` and pass it through the entire call chain.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 8. `BadRequest(string)` returning plain text instead of `ProblemDetails`
 
 **Concepts**
-- Tag Helpers — default to current area context
-- Cross-area links — require explicit `asp-area` and `asp-controller`
+- `BadRequest(string)` — returns `text/plain` 400, not a structured JSON error body
+- `ProblemDetails` — RFC 7807 structured JSON format expected by API clients
+- `ValidationProblem()` — returns 400 with `ModelState` errors as `application/problem+json`
+- API client parsing — plain-text errors break JSON error deserializers in SDK clients
 
 **Answer**
 
-Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment. Cross-area links require both `asp-area` and `asp-controller`. The same rule applies to `Url.Action` with `new { area = "Admin" }` in route values.
+`return BadRequest("SKU too long")` produces a 400 response with a plain-text body. API clients that expect JSON — including generated SDK clients and `System.Net.Http.Json` helpers — fail to parse the error, often surfacing it as a deserialization exception rather than a meaningful error message. The correct pattern for `[ApiController]` endpoints is `return ValidationProblem()` for validation errors and `return Problem(detail: "...", statusCode: 400)` for custom errors. `[ApiController]` enables automatic `ValidationProblem` responses for model binding failures but does not automatically convert `BadRequest(string)` calls in action bodies — those must be changed manually.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 9. Calling a result factory without `return`
 
 **Concepts**
-- Unchecked checkbox posts nothing — model binding sets `bool` to `false`
-- `[Required]` on `bool` never fails — `false` is a valid non-null value
+- `View(model)` / `Ok(dto)` — factory methods that create an `IActionResult` object
+- Calling without `return` — discards the result, action falls through with empty 200 response
+- No compiler warning — unlike unawaited `Task`, discarded `IActionResult` is silent
+- Every code path must `return` — including early-exit guard clauses
 
 **Answer**
 
-An unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value. I use `bool?` with `[Required]` to require explicit true selection for consent checkboxes.
+`View(order)` and `Ok(dto)` are factory methods that return an `IActionResult` object — calling them without `return` discards the result and the action falls through, sending an empty 200 response with no body. The compiler does not warn about discarding an `IActionResult` the way it warns about unawaited `Task`s. This error is common in refactors where a developer adds an early-return guard but forgets `return` on the main path. The symptom is a client receiving an empty or unexpected response while the action appears to run without exceptions in the log. Every code path in an action must end with a `return` statement.
 
 ---
 
-#### Gotcha 11. Collection binding with gap indices
+#### Gotcha 10. Using `IActionResult` instead of `ActionResult<T>` on API actions
 
 **Concepts**
-- Model binder expects contiguous zero-based indices
-- Gap indices — truncation or misalignment after row deletion
+- `IActionResult` — untyped interface; Swagger infers no response schema
+- `ActionResult<T>` — combines typed response body `T` with `IActionResult` flexibility
+- Implicit conversion — `return dto` works without `Ok(dto)` inside `ActionResult<T>`
+- `[ProducesResponseType]` — adds non-200 status codes to OpenAPI documentation
 
 **Answer**
 
-Deleting a form row leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment. I reindex client-side after row deletion so indices are contiguous starting at zero, or implement a custom `IModelBinder` that tolerates non-contiguous indices.
+`IActionResult` is the untyped interface — it satisfies the action return type but carries no type information for OpenAPI tools to introspect. Swagger generates an empty schema for `IActionResult` responses, breaking auto-generated client SDKs. `ActionResult<T>` carries the type `T` while still allowing the action to return `NotFound()`, `BadRequest()`, or `Ok(dto)`. The implicit conversion operator on `ActionResult<T>` allows `return dto` without wrapping in `Ok(dto)`, keeping code concise. For actions that return multiple status codes, add `[ProducesResponseType(typeof(ProductDto), 200)]` and `[ProducesResponseType(404)]` alongside the return type for complete Swagger documentation.
 
 ---
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Default Razor `@` — HTML-encodes, prevents XSS
-- `@Html.Raw` — bypasses encoding, executes injected script
-
-**Answer**
-
-Default Razor encoding prevents XSS. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side. I prefer `@Model.UserComment` (auto-encoded) for plain text or sanitize with a trusted HTML sanitizer library before using Raw.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form tag helpers — emit antiforgery token automatically
-- `fetch` / jQuery AJAX — must send token manually
-
-**Answer**
-
-Form tag helpers emit antiforgery tokens automatically but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` as a header or form field. `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe verb methods. I do not disable antiforgery on MVC cookie-auth endpoints — I add the token instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hubs not registered in DI for direct injection
-- `IHubContext<THub>` — singleton proxy for broadcasting
-
-**Answer**
-
-Hubs are not registered in DI for direct injection. Injecting a concrete `Hub` fails activation or produces an instance without connection context. The correct pattern is `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()`.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions — per-client affinity, not cross-instance event routing
-- `AddStackExchangeRedis` or `AddAzureSignalR` — multi-instance fan-out
-
-**Answer**
-
-Sticky sessions alone do not fan-out events across server instances. A controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users on instance B. Multi-node deployments need `AddStackExchangeRedis` or `AddAzureSignalR`.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 #### Q1. (R) Review this action from a code review. The developer says "it compiles and works in Swagger." What is wrong with the return type and result handling?

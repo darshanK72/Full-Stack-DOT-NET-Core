@@ -586,3 +586,68 @@ When a lockout period expires naturally — the current UTC time passes the stor
 Developers sometimes treat purpose strings as sensitive configuration values and try to keep them private, believing that secrecy provides additional protection. Purpose strings provide cryptographic isolation between subsystems — a token for one purpose cannot satisfy validation for another — but they are not a source of cryptographic strength; that comes entirely from the key ring. Incorporating the purpose string into the key derivation step means knowing the purpose string gives an attacker no advantage without also having access to the master key, so there is nothing gained by treating purpose strings as secrets. Treating a purpose string as a secret and then rotating it as part of a secret-rotation policy would invalidate all existing tokens protected under that purpose — an unnecessary and disruptive operational event that provides no security improvement.
 
 ---
+
+#### Gotcha 6. Lockout Requires `lockoutOnFailure: true` on Every `PasswordSignInAsync` Call
+
+**Concepts**
+- `lockoutOnFailure` parameter controlling per-call lockout tracking — not a global setting
+- Calling with `false` never incrementing `AccessFailedCount` regardless of `LockoutOptions`
+- Brute-force window opened when the parameter is omitted or set to `false`
+
+**Answer**
+
+Account lockout is triggered only when `PasswordSignInAsync` is called with `lockoutOnFailure: true`. Passing `false` — or building a custom authentication flow that calls `CheckPasswordAsync` instead — means failed attempts are never counted toward the lockout threshold, regardless of how `LockoutOptions.MaxFailedAccessAttempts` is configured. Many tutorials demonstrate `PasswordSignInAsync(user, password, rememberMe, lockoutOnFailure: false)` as a shortcut to avoid accidental lockout during development, but this pattern carries into production code and silently disables lockout for every login attempt. The safe default is always `lockoutOnFailure: true`; if administrator bypass is required, use `CheckPasswordAsync` explicitly and document the intent.
+
+---
+
+#### Gotcha 7. `AllowedUserNameCharacters` Rejects, Not Strips — Invalid Characters Return an `IdentityResult` Failure
+
+**Concepts**
+- `AllowedUserNameCharacters` as a whitelist — characters outside it fail `CreateAsync`
+- No automatic stripping or normalization of disallowed characters
+- User-visible error message required — silent failure is not possible
+
+**Answer**
+
+`IdentityOptions.User.AllowedUserNameCharacters` is a whitelist: any character in the submitted username that is not in the allowed set causes `UserManager.CreateAsync` to return a failed `IdentityResult` with an error such as "Username 'user@example.com' is invalid, can only contain letters or digits." The validator does not trim or strip disallowed characters — the entire username is rejected. This surprises developers who want to allow email addresses as usernames but forget to add `@` and `.` to `AllowedUserNameCharacters`. The fix is to extend the whitelist: `options.User.AllowedUserNameCharacters += "@."`, or to store the email separately from the username and use a generated unique identifier as the username.
+
+---
+
+#### Gotcha 8. `IDataProtector.Unprotect()` Throws `CryptographicException` — It Never Returns `null`
+
+**Concepts**
+- `Unprotect` throwing on tampered, expired, or wrong-purpose data
+- No null return path — every failure is an exception
+- `try/catch CryptographicException` as mandatory pattern for any user-controlled input
+
+**Answer**
+
+`IDataProtector.Unprotect()` throws a `CryptographicException` when the payload has been tampered with, was protected under a different purpose string, was protected with a revoked or expired key, or is simply malformed. It does not return `null` or a sentinel value — any input that cannot be successfully unprotected results in an exception. Developers who pass user-controlled data (URL parameters, cookie values, request body fields) to `Unprotect` without wrapping the call in a `try/catch CryptographicException` block will expose unhandled exception behavior, which can reveal stack traces or cause cascading failures. The mandatory pattern for any Unprotect call that processes external input is `try { var value = protector.Unprotect(input); } catch (CryptographicException) { /* treat as invalid */ }`.
+
+---
+
+#### Gotcha 9. A Sub-Protector Cannot Decrypt Data Protected by Its Parent Protector
+
+**Concepts**
+- `CreateProtector("Purpose").CreateProtector("SubPurpose")` producing a distinct key derivation path
+- Parent purpose + child purpose forming the full cryptographic domain
+- Purpose hierarchy mixing causing permanent unprotect failures
+
+**Answer**
+
+`IDataProtector` instances created with `CreateProtector("A").CreateProtector("B")` are cryptographically distinct from `CreateProtector("A")` or `CreateProtector("B")` — the full purpose chain forms the key derivation input. Data protected by `CreateProtector("Session")` cannot be unprotected by `CreateProtector("Session").CreateProtector("Cookie")`, even though the child was derived from the parent. This distinction matters when refactoring code that introduces sub-purposes: any data already in transit (cookies, tokens, email links) that was protected under the old single-level purpose will fail to unprotect under the new hierarchical purpose, invalidating all existing sessions and tokens on deployment. Purpose changes must be coordinated with a key-rotation and migration plan, or rolled out with a transitional period that accepts both old and new purposes.
+
+---
+
+#### Gotcha 10. Password Validators Run on Both `CreateAsync` and `ChangePasswordAsync` — Custom Rules Must Handle Both Paths
+
+**Concepts**
+- `IPasswordValidator<TUser>` called by `UserManager` on creation and password change
+- `ResetPasswordAsync` also running validators — not just `ChangePasswordAsync`
+- Custom validator receiving the `TUser` — can implement user-specific rules
+
+**Answer**
+
+Custom `IPasswordValidator<TUser>` implementations are invoked by `UserManager` whenever a password is set — this includes `CreateAsync`, `ChangePasswordAsync`, `ResetPasswordAsync`, and `AddPasswordAsync`. A validator that checks the password against the user's display name or email (to prevent users from using their name as their password) must handle cases where the user object is partially populated: during `CreateAsync` the user may not yet have a normalized email if it was set after construction but before registration, while during `ResetPasswordAsync` the user is loaded from the database and is fully populated. Writing a validator that assumes a particular property is always present and not null will cause a `NullReferenceException` on one of these paths. Always guard against null user properties and test the validator across all password-setting code paths.
+
+---

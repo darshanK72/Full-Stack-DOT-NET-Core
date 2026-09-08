@@ -86,35 +86,157 @@ ASP.NET Core APIs are stateless and JSON-centric — clients expect typed DTOs t
 
 ---
 
-## Gotchas
-
-#### Gotcha 4. Leaked connections exhaust the pool
-
-**Answer:** Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load.
-
-- Always use `await using` for connections and readers so disposal runs on exceptions too.
-- Symptoms appear only under concurrent load, making this a classic production-only failure mode.
-- Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+## Gotchas — DataSet, DataTable & SqlDataAdapter (Interview Traps)
 
 ---
 
-#### Gotcha 14. Tracking overhead on read-only queries
+#### Gotcha 1. SqlDataAdapter.Fill is synchronous — blocks thread pool in async APIs
 
-**Answer:** Omitting `AsNoTracking()` on large read-only lists makes EF Core snapshot every entity for change detection that will never run, wasting memory and CPU on GET endpoints.
+**Concepts**
+- `SqlDataAdapter.Fill()` is synchronous with no async overload
+- blocks thread pool thread during network I/O
+- wrong tool for ASP.NET Core async request handlers
+- `SqlDataReader` with `ReadAsync` as the async alternative
+- `Task.Run` wrapping as last resort (still blocks a thread)
 
-- Tracking stores original and current values per property for each row materialized.
-- ASP.NET Core read services should default to `AsNoTracking()` plus DTO projection.
-- Global `QueryTrackingBehavior.NoTracking` with explicit tracking on command paths prevents accidental overhead.
+**Answer**
+
+`SqlDataAdapter.Fill(dataSet)` has no async overload — it blocks the calling thread for the entire database round-trip. Calling it from an `async` ASP.NET Core action without wrapping in `Task.Run` runs synchronously on the request thread, and wrapping with `Task.Run` still blocks a thread-pool thread rather than releasing it. For new web API code, replace `DataAdapter.Fill` with `SqlDataReader` and `await reader.ReadAsync()` to achieve true non-blocking I/O and avoid thread-pool starvation under load.
 
 ---
 
-#### Gotcha 5. Transaction started after first command
+#### Gotcha 2. SELECT * with SqlDataAdapter materializes unnecessary columns into memory
 
-**Answer:** Beginning a `SqlTransaction` only after the first statement already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first.
+**Concepts**
+- `SELECT *` fetches all columns regardless of usage
+- each row in `DataTable` stores all column values in memory
+- schema changes add columns that silently inflate memory
+- explicit column list reduces payload and allocation
+- API response shape should drive column selection
 
-- Call `BeginTransaction` immediately after opening the connection, before any DML.
-- EF Core `SaveChanges` without an explicit transaction auto-commits each call — wrap multi-step work explicitly.
-- Integration tests with single-user data often miss this race because implicit commits appear to "work."
+**Answer**
+
+Using `SELECT *` with `SqlDataAdapter.Fill` transfers every column in the result set to the application and stores it in-memory in each `DataRow`, even when the caller needs only a few columns. If the table schema grows, new columns silently inflate every request's memory footprint. Always specify only the columns required by the consumer in the SELECT list, which reduces both network payload and heap allocation, especially for wide tables with many rarely-used columns.
+
+---
+
+#### Gotcha 3. `AcceptChanges` called before `DataAdapter.Update` discards pending changes
+
+**Concepts**
+- `DataRow.RowState` drives which rows are sent in `Update`
+- `AcceptChanges()` sets all `RowState` values to `Unchanged`
+- `Update` with all-unchanged rows sends no SQL
+- `AcceptChanges` timing must be after `Update`, not before
+- correct pattern: `Update` then `AcceptChanges`
+
+**Answer**
+
+`SqlDataAdapter.Update(dataSet)` determines which rows to INSERT, UPDATE, or DELETE by inspecting each `DataRow.RowState` — only rows with `Added`, `Modified`, or `Deleted` states generate SQL. Calling `AcceptChanges()` before `Update` resets all `RowState` values to `Unchanged`, causing `Update` to generate no SQL at all and silently skip all pending changes. The correct order is always `adapter.Update(dataSet)` first, then `dataSet.AcceptChanges()` to mark the synchronized state.
+
+---
+
+#### Gotcha 4. DataSet is not thread-safe under concurrent access
+
+**Concepts**
+- `DataSet` and `DataTable` lack thread-safety guarantees
+- concurrent reads and writes cause data corruption
+- shared static or singleton `DataSet` is an anti-pattern
+- explicit locking required for concurrent shared tables
+- immutable DTO cache as thread-safe alternative
+
+**Answer**
+
+`DataSet` and `DataTable` are not thread-safe — concurrent read and write operations from multiple threads without synchronization cause data corruption and unpredictable exceptions. A shared `DataTable` used as an application-level cache without locking will produce intermittent errors under concurrent load. For high-concurrency read caches, use `IMemoryCache` with immutable DTO snapshots rather than a shared mutable `DataTable`, or apply explicit `lock` guards around every access to the shared table.
+
+---
+
+#### Gotcha 5. DataRow null vs DBNull.Value — typed access throws on null
+
+**Concepts**
+- `DataRow` stores `DBNull.Value` for SQL NULL
+- C# `null` and `DBNull.Value` are distinct
+- `row["Col"] as string` returns null for `DBNull`
+- `(string)row["Col"]` throws `InvalidCastException` for `DBNull`
+- `row.IsNull("Col")` check before typed access
+
+**Answer**
+
+A `DataRow` stores SQL NULL values as `DBNull.Value`, not C# `null`. Casting `(string)row["Name"]` where the column is NULL throws `InvalidCastException` because `DBNull.Value` cannot be cast to `string`. The safe patterns are `row["Name"] as string` (returns `null` for `DBNull`) or `row.IsNull("Name") ? null : (string)row["Name"]`. Typed `DataTable` columns generated by Visual Studio designer handle this transparently, but hand-coded `DataRow` access requires explicit null handling.
+
+---
+
+#### Gotcha 6. `DataTable.Copy()` vs `DataTable.Clone()` — data vs schema only
+
+**Concepts**
+- `Copy()` duplicates schema and all rows
+- `Clone()` duplicates schema with no rows
+- using `Clone()` expecting data produces empty table
+- explicit loop required to copy selected rows to cloned table
+- `Select(filter)` + row import as filtered-copy pattern
+
+**Answer**
+
+`DataTable.Copy()` creates a new table with the same schema and all rows, while `DataTable.Clone()` creates a new table with the same schema but no rows. Using `Clone()` when you intended `Copy()` produces an empty table with no data, which is a common source of silent bugs when the code then proceeds to process "all rows" and finds none. To copy a filtered subset of rows to a cloned table, use `table.Clone()` followed by `foreach (DataRow row in table.Select(filter)) cloned.ImportRow(row)`.
+
+---
+
+#### Gotcha 7. Modifying DataRows inside a `foreach` over `DataTable.Rows`
+
+**Concepts**
+- `DataTable.Rows` modification during enumeration
+- `InvalidOperationException`: collection was modified
+- `Delete()` inside `foreach` defers deletion to `AcceptChanges`
+- safe pattern: iterate a copy or use index-based loop
+- `DataTable.Select()` returns array safe for modification loop
+
+**Answer**
+
+Calling `row.Delete()` or adding rows to a `DataTable` while iterating its `Rows` collection with `foreach` throws `InvalidOperationException: Collection was modified; enumeration operation may not execute`. The `DataRow.Delete()` method marks the row for deletion but does not remove it immediately — calling `AcceptChanges()` finalizes the removal, which is safe to do outside the loop. For structural modifications, either iterate a snapshot from `table.Select()` (which returns a `DataRow[]`) or use an index-based `for` loop iterating backward.
+
+---
+
+#### Gotcha 8. DataSet XML serialization includes schema metadata — not suitable for JSON APIs
+
+**Concepts**
+- `DataSet.GetXml()` produces schema-heavy output
+- JSON serialization of `DataTable` via Newtonsoft produces non-standard shape
+- `RowState`, `RowError`, `TableName` appear in serialized output
+- API consumers expect clean DTO JSON contracts
+- DTO projection as the correct API response pattern
+
+**Answer**
+
+Serializing a `DataTable` or `DataSet` to JSON via Newtonsoft.Json produces a non-standard, schema-heavy response that includes `TableName`, `RowState`, `RowError`, and other internal metadata rather than clean DTO properties. `System.Text.Json` does not support `DataTable` serialization at all by default. Web API controllers should never return `DataSet` or `DataTable` directly — always map rows to typed DTOs before returning from an action method, giving callers a stable, documented JSON contract.
+
+---
+
+#### Gotcha 9. DataAdapter.Fill on a large table loads everything into memory
+
+**Concepts**
+- `Fill` materializes every row before returning
+- memory pressure from multi-hundred-thousand row tables
+- OOM risk under parallel requests
+- `WHERE` clause or paging required before `Fill`
+- SqlDataReader as streaming alternative for large data
+
+**Answer**
+
+`SqlDataAdapter.Fill(dataSet)` materializes the entire result set into memory before the method returns. Without a `WHERE` clause, this loads the full table into RAM on every request — a pattern that causes out-of-memory exceptions under parallel traffic on large tables. Always add appropriate filtering (a `WHERE` clause in the `SelectCommand`) or server-side pagination (OFFSET-FETCH) before calling `Fill`, and consider whether `SqlDataReader` with streaming row processing is more appropriate than a full in-memory snapshot.
+
+---
+
+#### Gotcha 10. `DataRelation` navigation does not lazy-load — requires explicit Fill
+
+**Concepts**
+- `DataRelation` is in-memory relationship between filled tables
+- related rows must already be in `DataSet` for navigation to work
+- no automatic lazy-loading as in EF Core
+- `GetChildRows()` returns empty array if child table not filled
+- multi-table `Fill` required before `DataRelation` navigation
+
+**Answer**
+
+`DataRelation` enables navigation between `DataTable` objects inside a `DataSet`, but it only traverses rows already present in memory — it does not issue additional SQL queries to load missing rows. Calling `parentRow.GetChildRows("Relation")` returns an empty array if the child table was not populated with a `Fill` call beforehand. Unlike EF Core's navigation properties, `DataRelation` has no lazy-loading mechanism; all tables involved in a relationship must be explicitly loaded before in-memory navigation is used.
 
 ---
 

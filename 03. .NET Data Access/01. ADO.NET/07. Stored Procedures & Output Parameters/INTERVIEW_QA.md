@@ -86,35 +86,157 @@ Stored procedures run logic close to data, reduce round trips, and enforce rules
 
 ---
 
-## Gotchas
-
-#### Gotcha 1. String concatenation instead of parameters
-
-**Answer:** Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM.
-
-- ADO.NET and Dapper require explicit parameters — never embed raw user strings in SQL text.
-- EF Core `FromSqlInterpolated` is safe; passing an ordinary interpolated string to `FromSqlRaw` is not.
-- Code review should treat any dynamic SQL without placeholders as a blocking defect.
+## Gotchas — Stored Procedures & Output Parameters (Interview Traps)
 
 ---
 
-#### Gotcha 3. `AddWithValue` and wrong SQL types
+#### Gotcha 1. `CommandText` set to `"EXEC ProcName"` with `CommandType.StoredProcedure`
 
-**Answer:** `SqlParameter.AddWithValue` infers parameter types from CLR values, which may not match the database column type — causing implicit conversions, index scans, and poor plan cache behavior.
+**Concepts**
+- `CommandType.StoredProcedure` sends RPC call with bare procedure name
+- `CommandText` must contain procedure name only, no `EXEC` keyword
+- `SqlException: could not find stored procedure 'EXEC dbo.ProcName'`
+- `CommandType.Text` + `EXEC ProcName @p` as text alternative
+- RPC vs ad-hoc batch plan reuse distinction
 
-- Prefer explicit `SqlParameter` with `SqlDbType`, size, and precision matching the column definition.
-- String inference often picks oversized `nvarchar` lengths, preventing optimal index seeks on narrower columns.
-- Dapper and EF Core parameterize with more predictable typing but custom ADO.NET still needs explicit types.
+**Answer**
+
+With `CommandType.StoredProcedure`, the `CommandText` must be the bare schema-qualified procedure name only (e.g., `dbo.usp_GetOrder`) — adding `EXEC`, parentheses, or parameter placeholders causes `SqlException: could not find stored procedure 'EXEC dbo.usp_GetOrder'`. SQL Client sends an RPC call and binds parameters from the `Parameters` collection, not from the SQL text. Reserve `EXEC ProcName @p1, @p2` as a string for `CommandType.Text` only, and prefer `StoredProcedure` for production code because it generates more efficient plan reuse.
 
 ---
 
-#### Gotcha 5. Transaction started after first command
+#### Gotcha 2. Output parameter `Direction` not set — value is never populated
 
-**Answer:** Beginning a `SqlTransaction` only after the first statement already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first.
+**Concepts**
+- `SqlParameter.Direction` defaults to `ParameterDirection.Input`
+- output parameter with wrong direction is treated as input-only
+- value not populated after `ExecuteNonQuery`/`ExecuteScalar`
+- `ParameterDirection.Output` vs `ParameterDirection.InputOutput`
+- `ParameterDirection.ReturnValue` for SP return codes
 
-- Call `BeginTransaction` immediately after opening the connection, before any DML.
-- EF Core `SaveChanges` without an explicit transaction auto-commits each call — wrap multi-step work explicitly.
-- Integration tests with single-user data often miss this race because implicit commits appear to "work."
+**Answer**
+
+`SqlParameter.Direction` defaults to `ParameterDirection.Input` — if you forget to set it to `ParameterDirection.Output` for an output parameter, SQL Client sends the parameter as input-only and never reads the value back. After the command executes, `parameter.Value` will be `DBNull.Value` or the initial value you set rather than the value assigned by the stored procedure. Always explicitly set `Direction = ParameterDirection.Output` and also set `SqlDbType` and `Size` for string output parameters.
+
+---
+
+#### Gotcha 3. Reading output parameter value before closing the DataReader
+
+**Concepts**
+- output parameter values populated only after reader is closed
+- reading output param while reader open returns stale/default value
+- `ExecuteReader` + output params requires reader disposal first
+- `ExecuteNonQuery` for non-result-set stored procedures
+- reader `Close()`/`Dispose()` before accessing output param
+
+**Answer**
+
+When a stored procedure returns both a result set and output parameters, the output parameter values are not available until the `SqlDataReader` is closed. Reading `parameter.Value` while the reader is still open returns `DBNull.Value` or the initial default rather than the SP-assigned value. Always close or dispose the reader before accessing output parameter values: `using (var reader = cmd.ExecuteReader()) { while (reader.Read()) ... } var result = (int)outputParam.Value;`.
+
+---
+
+#### Gotcha 4. Return value parameter requires `ParameterDirection.ReturnValue` — not `Output`
+
+**Concepts**
+- SQL `RETURN @n` vs `OUTPUT` parameter distinction
+- `ParameterDirection.ReturnValue` for SP integer return code
+- return value always populated, even for scalar or no-result SPs
+- conventional use for status codes (0 = success, non-zero = error)
+- must be added to parameters before execute, not after
+
+**Answer**
+
+Stored procedures can return an integer via the `RETURN` statement, which is separate from `OUTPUT` parameters. To capture it, add a `SqlParameter` with `Direction = ParameterDirection.ReturnValue` and no name (or any name) to the command before executing. Using `ParameterDirection.Output` instead of `ReturnValue` fails to capture the RETURN value — output parameters only receive values from explicitly `SELECT`ed or `SET`-assigned variables in the procedure. The return value is typically used for status codes: 0 for success and non-zero for error conditions.
+
+---
+
+#### Gotcha 5. `AddWithValue` for output parameters — type inference cannot work
+
+**Concepts**
+- `AddWithValue` infers type from input value
+- output parameter has no input value for inference
+- zero-size string inferred for output `nvarchar` — truncation
+- explicit `SqlDbType` and `Size` required for output params
+- `AddWithValue` should never be used for output parameters
+
+**Answer**
+
+`SqlParameter.AddWithValue` infers the SQL type from the CLR value supplied at binding time — output parameters have no input value, so inference defaults to a zero-size or incorrect type, causing the output value to be truncated or empty. Always define output parameters explicitly with `new SqlParameter("@ResultName", SqlDbType.NVarChar, 200) { Direction = ParameterDirection.Output }` — specifying `SqlDbType` and `Size` that match the stored procedure's declared parameter. This is one case where `AddWithValue` is simply not suitable.
+
+---
+
+#### Gotcha 6. CommandTimeout too short for long-running stored procedures
+
+**Concepts**
+- default `CommandTimeout` of 30 seconds
+- long-running ETL, report, or bulk-operation stored procedures
+- `SqlException: Execution Timeout Expired`
+- server continues executing after timeout — no automatic rollback
+- per-command timeout vs per-connection timeout distinction
+
+**Answer**
+
+The default `SqlCommand.CommandTimeout` of 30 seconds is too short for stored procedures that perform bulk operations, generate large reports, or execute long-running ETL logic. When the timeout fires, the `SqlException: Execution Timeout Expired` is thrown in the .NET client, but the SQL Server session may continue running the procedure until it completes or the session is killed separately. Always set `command.CommandTimeout` explicitly for long-running stored procedures, and consider adding a `CancellationToken` to allow the caller to cancel the operation cleanly.
+
+---
+
+#### Gotcha 7. Stored procedure name not schema-qualified — depends on caller's default schema
+
+**Concepts**
+- unqualified name (`ProcName`) resolved against caller's default schema
+- different users with different default schemas call different procedures
+- schema-qualified name (`dbo.ProcName`) is unambiguous
+- case sensitivity on case-sensitive collation servers
+- always use `schema.ProcedureName` in production code
+
+**Answer**
+
+Calling a stored procedure without schema qualification (e.g., `command.CommandText = "usp_GetOrders"` instead of `"dbo.usp_GetOrders"`) resolves against the executing user's default schema, which may differ between development and production database logins. In a case-sensitive collation environment, even `Dbo.usp_GetOrders` vs `dbo.usp_GetOrders` fails. Always use fully qualified names (`schema.ProcedureName`) in all `CommandText` values to ensure consistent resolution regardless of the database login used.
+
+---
+
+#### Gotcha 8. `ExecuteNonQuery` return value for stored procedures is the RETURN code, not rows affected
+
+**Concepts**
+- `ExecuteNonQuery` returns SP `RETURN` value, not rows affected
+- `SET NOCOUNT ON` in SP makes row count unavailable
+- confusion between `RETURN` code and rows affected
+- `-1` returned when `SET NOCOUNT ON` is active
+- output parameter or result set for actual row counts
+
+**Answer**
+
+For stored procedures, `ExecuteNonQuery` returns the SP's `RETURN` value (the integer returned by the `RETURN` statement), not the number of rows affected by DML inside the procedure. If the procedure uses `SET NOCOUNT ON` (common practice to suppress extra TDS result messages), `ExecuteNonQuery` returns `-1`. Do not rely on `ExecuteNonQuery`'s return value to determine rows affected inside a stored procedure — use an output parameter that the procedure explicitly sets, or check a dedicated `@@ROWCOUNT` output variable.
+
+---
+
+#### Gotcha 9. Stored procedure with dynamic SQL inside can still be vulnerable to injection
+
+**Concepts**
+- stored procedure encapsulation does not prevent injection inside SP
+- `EXEC(@sql)` or `sp_executesql` with concatenation inside SP
+- `sp_executesql` with typed parameters for dynamic SQL in SP
+- calling SP parameterized from ADO.NET does not protect internal SP SQL
+- security review must include SP code, not just ADO.NET callers
+
+**Answer**
+
+Wrapping a query in a stored procedure and calling it parameterized from ADO.NET prevents injection at the ADO.NET call boundary, but the procedure itself may concatenate user input into a dynamic `EXEC(@sql)` or `sp_executesql` call internally, creating injection inside the procedure. Parameterized calling from ADO.NET only protects the interface — the procedure's internal SQL construction must also use parameterized `sp_executesql` with properly typed parameters. Code review for injection must include the T-SQL source of any stored procedure that builds dynamic SQL internally.
+
+---
+
+#### Gotcha 10. Multiple result sets from a stored procedure — only first set accessible without `NextResult()`
+
+**Concepts**
+- `ExecuteReader` returns first result set by default
+- `reader.NextResult()` advances to the next result set
+- stored procedures returning multiple `SELECT` results
+- `Dapper.QueryMultiple` vs manual `NextResult()` for multiple sets
+- forgetting `NextResult()` leaves subsequent result sets unconsumed
+
+**Answer**
+
+A stored procedure can emit multiple `SELECT` result sets; `ExecuteReader` initially positions on the first set. To access the second and subsequent sets, call `reader.NextResult()` which advances the reader to the next result set and returns `true` if one exists. Forgetting to call `NextResult()` leaves subsequent result sets unconsumed on the network stream, which blocks the connection from processing further commands cleanly. With Dapper, `QueryMultiple` returns a `GridReader` with `Read<T>()` / `ReadAsync<T>()` calls for each successive result set.
 
 ---
 

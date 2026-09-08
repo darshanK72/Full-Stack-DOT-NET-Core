@@ -102,20 +102,157 @@ Yes. EF Core scaffolding generates partial classes intentionally — you add `Pr
 
 ---
 
-## Gotchas
+## Gotchas — Database-First & Reverse Engineering (Interview Traps)
 
 ---
 
-## Gotcha 4. Leaked connections exhaust the pool
+#### Gotcha 1. `--force` re-scaffold overwrites hand-edited generated files — customizations lost
 
 **Concepts**
-- connection pool exhaustion from undisposed connections
-- await using for guaranteed disposal
-- DbContext undisposed as equivalent risk
+- `dotnet ef dbcontext scaffold --force` regenerates all entity and context files
+- hand edits in generated files lost on next scaffold run
+- `partial class` in separate files to survive re-scaffold
+- team rule: never edit generated `Models/*.cs` directly
+- scaffold command documented in README for reproducible regeneration
 
 **Answer**
 
-Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load. Always use `await using` for connections and readers so disposal runs on exceptions too; Symptoms appear only under concurrent load, making this a classic production-only failure mode. Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+Running `dotnet ef dbcontext scaffold --force` replaces every generated entity and `DbContext` file, overwriting any hand edits. Computed properties, domain methods, or additional attributes added directly to generated files disappear silently on the next scaffold. Use `partial class` in a separate `*.Partial.cs` file to add custom logic that survives re-scaffold, and establish a team rule that generated files are never edited directly — all customizations belong in partial classes or external `IEntityTypeConfiguration<T>` classes.
+
+---
+
+#### Gotcha 2. Scaffold connection string hardcoded in `OnConfiguring` — never commit to source
+
+**Concepts**
+- `dotnet ef dbcontext scaffold` writes connection string into `OnConfiguring`
+- committing this file to source control exposes production credentials
+- connection string in `OnConfiguring` overrides DI configuration
+- remove or guard `OnConfiguring` before committing
+- `--no-onconfiguring` flag to skip connection string in generated context
+
+**Answer**
+
+`dotnet ef dbcontext scaffold` writes the connection string directly into `DbContext.OnConfiguring` by default. Committing this file exposes database credentials in version control. Before committing the scaffolded output, either delete the `OnConfiguring` override entirely (using the `--no-onconfiguring` flag on the scaffold command), or add the `if (!optionsBuilder.IsConfigured)` guard so the hardcoded string is only used when no DI-provided options are present — which should never happen in production.
+
+---
+
+#### Gotcha 3. Scaffold does not capture stored procedures, views with complex logic, or triggers
+
+**Concepts**
+- scaffold only reverse-engineers tables and views visible as SELECT-able entities
+- stored procedures not reflected in generated DbContext or entities
+- triggers, computed columns with SQL expressions not fully captured
+- `FromSqlRaw` or Dapper for stored procedure execution alongside scaffold
+- hybrid approach: scaffold for tables, manual SP access methods
+
+**Answer**
+
+`dotnet ef dbcontext scaffold` generates entities and `DbSet` registrations for tables and simple views, but stored procedures, triggers, and views with complex T-SQL logic are not captured. Stored procedures must still be called via `ExecuteSqlRaw`, `FromSqlRaw`, or Dapper alongside the scaffolded context. Any logic in triggers that silently modifies data is not visible to EF Core's change tracker — tracked entities are not updated after a trigger fires and require explicit reloading.
+
+---
+
+#### Gotcha 4. Re-scaffold after schema change regenerates files — partial class isolation mandatory
+
+**Concepts**
+- DBA adds column or renames table → re-scaffold required
+- all generated entity files replaced on every scaffold run
+- `partial class` files in separate directory survive re-scaffold
+- `IEntityTypeConfiguration<T>` in non-generated file for Fluent API additions
+- CI check that scaffold output is clean to detect schema drift
+
+**Answer**
+
+When the DBA adds a column, renames a table, or changes a type, the scaffold must be re-run to keep entities in sync. Every re-scaffold replaces all generated files — any customization written directly in `Models/*.cs` is lost. Create a separate `Models/Partial/` directory containing `*.Partial.cs` files with the same namespace and `partial class` declaration for all computed properties, custom methods, and non-scaffold interfaces. Similarly, add Fluent API customizations in `IEntityTypeConfiguration<T>` classes outside the generated `DbContext`.
+
+---
+
+#### Gotcha 5. Generated entity names may conflict with domain model class names
+
+**Concepts**
+- scaffold names entities after database table names
+- conflict when domain model has a class with the same name
+- `--context-dir` and `--output-dir` for namespace/directory separation
+- generated `Product` vs domain `Product` in same namespace causes build error
+- `--context` flag to rename generated `DbContext` class
+
+**Answer**
+
+`dotnet ef dbcontext scaffold` names entities directly from table names — if your domain model already has a `Product` class in the same namespace, the scaffolded `Product` entity causes a build error. Use `--output-dir Data/Models` and `--namespace MyApp.Data.Models` to place generated entities in a separate namespace from domain classes, ensuring the compiler can distinguish them. Use `--context ApplicationReadDbContext` to give the scaffolded context a distinct name from any existing `DbContext` in the project.
+
+---
+
+#### Gotcha 6. Nullable reference type annotations differ between scaffold and hand-authored models
+
+**Concepts**
+- scaffold emits `null!` or `string?` based on column nullability
+- hand-authored models may use different nullable annotation conventions
+- `required` keyword vs `[Required]` vs `null!` initializer approaches
+- mixing conventions causes inconsistent nullability across the entity layer
+- `--nullable` flag on scaffold command for explicit nullable annotation mode
+
+**Answer**
+
+Scaffolded entities use `null!` suppressor syntax for non-nullable reference types (e.g., `public string Name { get; set; } = null!;`) which differs from hand-authored models that may use the `required` keyword or `[Required]` annotations. Mixing conventions across the entity layer makes the codebase's nullability contract unclear. Establish a team convention before the first scaffold run and use the scaffold command's output consistently — either always scaffold with `--no-onconfiguring` and review output, or post-process the generated files with a template that matches your convention.
+
+---
+
+#### Gotcha 7. Scaffold from older or different schema version — entity/migration mismatch
+
+**Concepts**
+- scaffold run against a stale or wrong environment's database
+- generated entities do not match current production schema
+- migration applied in one environment but not reflected in scaffold source
+- always scaffold from the target environment's current schema
+- CI pipeline that re-scaffolds and verifies no untracked changes
+
+**Answer**
+
+Scaffolding from a development database that is behind production (missing applied migrations) generates entities that do not match the current production schema. Queries against columns that exist in production but not in the dev scaffold fail at runtime. Always scaffold from the most current schema — run all pending migrations before re-scaffolding, or scaffold from a production-schema-compatible database. A CI step that re-scaffolds from the current schema and checks for unexpected file changes catches schema drift early.
+
+---
+
+#### Gotcha 8. `--table` filter on scaffold — unlisted tables missing from context, FK violations
+
+**Concepts**
+- `--table` flag scaffolds only specified tables
+- FK relations to unscaffolded tables generate no navigation properties
+- FK columns exist in entity but the related `DbSet` is absent from context
+- queries crossing FK boundary not supported by EF Core without related entity
+- full schema scaffold vs targeted scaffold trade-off
+
+**Answer**
+
+Using `--table` to scaffold only a subset of tables generates entities for those tables but no navigation properties for FK relationships to tables outside the filter. EF Core cannot join across an FK boundary to an entity that has no `DbSet` registration. If queries need to join Products to their Categories, both must be scaffolded. Either scaffold the full schema and filter at the application layer, or accept that cross-boundary navigation must be done via raw SQL or Dapper when only a subset is scaffolded.
+
+---
+
+#### Gotcha 9. `HasComputedColumnSql` not scaffolded — computed column treated as regular column in INSERT
+
+**Concepts**
+- SQL Server computed columns (`AS expression`) not reliably captured by scaffold
+- EF Core attempts to INSERT to a computed column — SQL error
+- `[DatabaseGenerated(DatabaseGeneratedOption.Computed)]` or Fluent API required
+- scaffold may omit computed column or generate it without computed annotation
+- always verify scaffold output for computed columns and add annotation manually
+
+**Answer**
+
+Scaffold does not always detect and annotate SQL Server computed columns with `[DatabaseGenerated(DatabaseGeneratedOption.Computed)]`. EF Core then attempts to include the column in INSERT statements, causing a SQL error because computed columns are read-only. After scaffolding, verify any computed columns in the schema and add `[DatabaseGenerated(DatabaseGeneratedOption.Computed)]` or `entity.Property(e => e.FullName).HasComputedColumnSql("...").ValueGeneratedOnAddOrUpdate()` manually in the partial context configuration.
+
+---
+
+#### Gotcha 10. Provider-specific types (spatial, JSON, hierarchyid) not scaffolded without provider extensions
+
+**Concepts**
+- `geography`, `hierarchyid`, `json` columns require provider extension packages
+- scaffold without extension maps these to `object` or skips the column
+- `NetTopologySuite` for spatial types, `Microsoft.EntityFrameworkCore.SqlServer` extensions
+- provider extension must be loaded before scaffold command
+- scaffolded `object` property causes runtime mapping failure
+
+**Answer**
+
+SQL Server spatial types (`geography`, `geometry`), `hierarchyid`, and JSON column types require provider-specific extensions (`NetTopologySuite`, `Microsoft.EntityFrameworkCore.SqlServer` with spatial support) to scaffold correctly. Without the extension loaded, the scaffold tool maps these columns to `object` or skips them entirely. After scaffolding, any `object`-typed property for a spatial column will fail at runtime. Install the required extension packages and add them to the `DbContextOptions` before re-scaffolding to get correctly-typed properties and provider-aware mapping.
 
 ---
 

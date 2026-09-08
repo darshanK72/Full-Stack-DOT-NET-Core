@@ -502,3 +502,147 @@ finally
 **Answer**
 
 On Windows, `Path.Combine("C:", "exports", "output.csv")` produces `"C:exports\\output.csv"` — a path relative to the current directory on drive C: — which is already not the intended `"C:\\exports\\output.csv"` (note the missing backslash after `C:`). On Linux, `"C:"` is a valid relative folder name, so the combined result is `"C:/exports/output.csv"` which creates a subdirectory named `"C:"` in the current working directory. Neither is correct. The right approach for a CLI tool is to default outputs to a path relative to `AppContext.BaseDirectory` (for outputs shipped with the app) or to use `Environment.GetFolderPath(SpecialFolder.Desktop)` / `SpecialFolder.MyDocuments` for user-facing exports. Expose an `--output` flag so users can specify an absolute path on any OS: `Path.GetFullPath(outputArg)` resolves the user-provided path correctly on both platforms.
+
+## Gotchas — Path & Environment Classes (Interview Traps)
+
+---
+
+#### Gotcha 1. `Path.Combine` Ignores Earlier Segments When a Later Argument Is an Absolute Path
+
+**Concepts**
+- If any argument after the first is an absolute path (rooted), `Path.Combine` discards all preceding arguments
+- `Path.Combine("base", "/absolute")` returns `"/absolute"`, not `"base/absolute"`
+- This mirrors the POSIX shell path join rule but surprises .NET developers
+- Sanitise user-supplied path segments with `Path.GetFileName` or validate they are relative before combining
+
+**Answer**
+
+`Path.Combine("C:\\data", "/uploads", "file.txt")` returns `"/uploads/file.txt"` on Windows, discarding `"C:\\data"` entirely. This is by design — the second argument is absolute, so it replaces everything that came before. User input or configuration values that contain an absolute path will silently override the intended base directory. Always validate that sub-path components are relative (not rooted) with `!Path.IsPathRooted(component)` before passing them to `Path.Combine`.
+
+---
+
+#### Gotcha 2. `Path.GetFileName` vs `Path.GetFileNameWithoutExtension` — Extension Inclusion
+
+**Concepts**
+- `Path.GetFileName(@"C:\data\report.csv")` returns `"report.csv"` (with extension)
+- `Path.GetFileNameWithoutExtension(@"C:\data\report.csv")` returns `"report"` (without extension)
+- Both methods accept the path even when the file does not exist — no file system access is made
+- `Path.GetExtension` returns the extension including the leading dot: `".csv"`, not `"csv"`
+
+**Answer**
+
+`Path.GetFileName` and `Path.GetFileNameWithoutExtension` are pure string operations — they parse the path string and return the appropriate segment without touching the file system. Use `GetFileName` when the extension must be preserved (displaying the file name to a user, passing to another file API). Use `GetFileNameWithoutExtension` when you need to generate a derived file name like adding a suffix: `Path.GetFileNameWithoutExtension(path) + "_backup" + Path.GetExtension(path)`.
+
+---
+
+#### Gotcha 3. `Environment.GetFolderPath` — Roaming vs Local Application Data
+
+**Concepts**
+- `SpecialFolder.ApplicationData` returns the roaming profile path (`AppData\Roaming`) — synced across domain computers
+- `SpecialFolder.LocalApplicationData` returns `AppData\Local` — machine-local, not synced
+- Large caches, databases, and temp files should use `LocalApplicationData` to avoid filling the roaming profile
+- On Linux/macOS, both map to `~/.config` or `~/.local/share` depending on the environment
+
+**Answer**
+
+Storing a large SQLite cache or user-generated media in `SpecialFolder.ApplicationData` (roaming) causes those files to synchronise across every domain-joined computer the user logs into, inflating profile size and slowing logon. Use `SpecialFolder.LocalApplicationData` for caches, databases, and large per-machine files. Use `SpecialFolder.ApplicationData` only for small, portable preferences that should follow the user from machine to machine, such as theme settings or window layout.
+
+---
+
+#### Gotcha 4. `Path.GetTempPath()` Is Not Guaranteed to Persist Across Reboots
+
+**Concepts**
+- `Path.GetTempPath()` returns the system or user temp directory (`%TEMP%` on Windows, `/tmp` on Linux)
+- Files in temp directories may be deleted by the OS on reboot, by cleanup tasks, or by other processes
+- Temp files must be explicitly deleted when they are no longer needed; leaking temp files degrades disk space
+- For persistent scratch storage, use `SpecialFolder.LocalApplicationData` with a well-named subdirectory
+
+**Answer**
+
+`Path.GetTempPath()` is appropriate for genuinely temporary files that exist only for the duration of a request or process. However, files placed there are not protected — the OS, antivirus tools, and cleanup utilities may delete them. Never store anything in the temp directory that must survive process restart or be accessed later. For files that must persist between application sessions (user data, partial downloads), use `SpecialFolder.LocalApplicationData` and manage cleanup yourself.
+
+---
+
+#### Gotcha 5. `Path.GetInvalidFileNameChars()` — Validate Names Before Creating Files
+
+**Concepts**
+- On Windows, file names cannot contain `\`, `/`, `:`, `*`, `?`, `"`, `<`, `>`, `|`, or null
+- `Path.GetInvalidFileNameChars()` returns these platform-specific invalid characters
+- User-supplied file names (from form inputs, API parameters, URLs) must be sanitised before use
+- `Path.GetInvalidPathChars()` covers path-level invalid characters; file name chars are a superset
+
+**Answer**
+
+If a user supplies a file name like `"report: Q1/2025.csv"`, creating a file with that name on Windows throws `IOException` because `:` and `/` are invalid file name characters. Sanitise user input with: `var safe = string.Concat(name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));`. Always validate before I/O; do not rely on the OS error message to guide the user. Additionally, watch for reserved Windows device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`) which are invalid as file names regardless of extension.
+
+---
+
+#### Gotcha 6. `Environment.CurrentDirectory` Is Process-Wide Mutable State — Use Absolute Paths
+
+**Concepts**
+- `Environment.CurrentDirectory` is a global, mutable property shared across all threads in the process
+- One thread or library changing it affects all relative path resolutions in every other thread
+- Unit test frameworks and libraries commonly change the current directory without warning
+- Always use absolute paths in production code; never depend on `Environment.CurrentDirectory` being a specific value
+
+**Answer**
+
+`File.ReadAllText("config.json")` resolves the relative path against `Environment.CurrentDirectory` at the time of the call. If a third-party library or another thread changes the current directory, the same call suddenly points to a different file or throws `FileNotFoundException`. The fix is to use an absolute base path: `Path.Combine(AppContext.BaseDirectory, "config.json")` or `Path.GetFullPath("config.json")` snapshotted once at startup.
+
+---
+
+#### Gotcha 7. `Path.GetFullPath(path)` Resolves Relative Paths Against `CurrentDirectory` at Call Time
+
+**Concepts**
+- `Path.GetFullPath("relative/path")` combines the path with `Environment.CurrentDirectory` at the moment of the call
+- If `CurrentDirectory` changes between startup and the call, the result is different
+- `Path.GetFullPath(path, basePath)` (.NET Core 2.1+) resolves relative to an explicit base, not `CurrentDirectory`
+- Snapshot the result early at application startup to avoid the mutable `CurrentDirectory` hazard
+
+**Answer**
+
+`Path.GetFullPath("data/config.json")` returns an absolute path by prepending `Environment.CurrentDirectory`. If the current directory is `C:\app` at startup but changes to `C:\temp` before the call, the result changes from `C:\app\data\config.json` to `C:\temp\data\config.json`. Use `Path.GetFullPath("data/config.json", AppContext.BaseDirectory)` to anchor the resolution to the application's directory rather than the mutable current directory.
+
+---
+
+#### Gotcha 8. `Environment.GetEnvironmentVariable` Returns `null` for Missing Variables — Not an Exception
+
+**Concepts**
+- A missing environment variable returns `null`, not an empty string, and not an exception
+- Null-coalescing is required: `var value = Environment.GetEnvironmentVariable("MY_VAR") ?? "default"`
+- `Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Machine/User/Process)` allows scoped lookup
+- Configuration systems like `IConfiguration` in ASP.NET Core handle missing env vars more gracefully
+
+**Answer**
+
+`var connStr = Environment.GetEnvironmentVariable("DB_CONNECTION");` returns `null` if `DB_CONNECTION` is not set. Using this value without a null check — `connStr.Length` or passing to a method expecting non-null — throws `NullReferenceException`. Always apply a null check or null-coalescing: `var connStr = Environment.GetEnvironmentVariable("DB_CONNECTION") ?? throw new InvalidOperationException("DB_CONNECTION not set");`. In ASP.NET Core applications, prefer the `IConfiguration` abstraction which provides default values and a richer missing-key story.
+
+---
+
+#### Gotcha 9. `Path.DirectorySeparatorChar` Differs by OS — Use `Path.Combine` for Portability
+
+**Concepts**
+- `Path.DirectorySeparatorChar` is `\` on Windows and `/` on Linux/macOS
+- Hardcoding `\\` or `\` in paths breaks on Linux/macOS containers
+- Forward slash `/` works as a path separator on Windows (Win32 accepts both), but `\` does not work on Linux/macOS
+- `Path.Combine` inserts the correct separator automatically
+
+**Answer**
+
+Code like `baseDir + "\\" + subDir` hard-codes the Windows path separator and fails in Linux Docker containers. `baseDir + "/" + subDir` works on all platforms because Windows accepts `/` as a separator, but it is still a code smell. The correct approach is always `Path.Combine(baseDir, subDir)` which uses the right separator for the current OS. The same applies to paths in configuration files and command-line arguments — document whether the application accepts either separator.
+
+---
+
+#### Gotcha 10. `Path.GetExtension` Returns the Extension Including the Leading Dot
+
+**Concepts**
+- `Path.GetExtension("file.csv")` returns `".csv"` (with dot), not `"csv"` (without dot)
+- Comparisons using `== ".csv"` are correct; comparisons using `== "csv"` will always be false
+- Returns an empty string `""` for files with no extension, not `null`
+- For a file like `"archive.tar.gz"`, returns `".gz"` — only the last extension, not the full multi-part extension
+
+**Answer**
+
+`Path.GetExtension("report.csv") == "csv"` always returns `false` because the method returns `".csv"` with the leading dot. The correct comparison is `Path.GetExtension("report.csv") == ".csv"`, or using `string.Equals` with `StringComparison.OrdinalIgnoreCase` for case-insensitive matching. For multi-part extensions like `.tar.gz`, the method returns only `.gz`; to extract `.tar.gz` you need custom logic that calls `GetExtension` on the result of `GetFileNameWithoutExtension`.
+
+---

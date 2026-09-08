@@ -597,3 +597,68 @@ Passing `lockoutOnFailure: false` to `PasswordSignInAsync` disables lockout trac
 **Answer**
 
 Calling `.Result` or `.GetAwaiter().GetResult()` on async `UserManager` or `RoleManager` methods in a synchronous context can cause deadlocks when a `SynchronizationContext` is present — for example, in some hosting scenarios or tests that run on a single-threaded context. The deadlock occurs because the async continuation waits to be scheduled back onto the same thread that is already blocked waiting for the result, creating a circular dependency. The correct fix is to make the seeding method `async`, use `await` throughout, and call it from an `async` entry point such as `Program.cs` top-level statements with `await` or inside an `async` `IHostedService.StartAsync` method.
+
+---
+
+#### Gotcha 6. `AddDefaultIdentity` Does Not Register Role Services
+
+**Concepts**
+- `AddDefaultIdentity` omitting `RoleManager` and role-related services
+- `AddIdentity<TUser, TRole>` required when roles are needed
+- `InvalidOperationException` at runtime when injecting `RoleManager` after `AddDefaultIdentity`
+
+**Answer**
+
+`AddDefaultIdentity<TUser>()` is a convenience method that registers Identity with cookie authentication and Razor Pages UI scaffolding, but it deliberately omits role services — `RoleManager<TRole>` is not registered. Developers who start with `AddDefaultIdentity` and later need role management inject `RoleManager<IdentityRole>` and encounter an `InvalidOperationException` at runtime because the service was never registered. The fix is to replace `AddDefaultIdentity` with `AddIdentity<ApplicationUser, IdentityRole>()`, or to call `.AddRoles<IdentityRole>()` on the Identity builder returned by `AddDefaultIdentity`, which adds role support without switching the full registration path.
+
+---
+
+#### Gotcha 7. `IdentityResult.Succeeded` Must Always Be Checked — `UserManager` Methods Do Not Throw
+
+**Concepts**
+- `UserManager.CreateAsync`, `AddToRoleAsync`, etc. returning `IdentityResult` — not throwing on failure
+- Proceeding without checking `Succeeded` silently skipping validation errors
+- `IdentityResult.Errors` containing the list of validation failures
+
+**Answer**
+
+All mutating `UserManager` and `RoleManager` methods return `IdentityResult` rather than throwing exceptions on validation failures. A password that does not meet the configured `PasswordOptions` requirements causes `CreateAsync` to return a failed `IdentityResult` with descriptive errors, but the method returns normally and execution continues — any code that does not inspect `result.Succeeded` before proceeding will assume success. This is a common pattern violation in registration flows: the user is never persisted, but the code continues to issue a sign-in cookie and redirect to the home page, leaving the developer confused as to why the account does not exist. Always inspect `result.Succeeded` and expose `result.Errors` to the caller to surface the failure reason.
+
+---
+
+#### Gotcha 8. Custom `ApplicationUser` Properties Require a New EF Core Migration
+
+**Concepts**
+- Code-first schema — no automatic schema update at runtime
+- Missing migration causing `SqlException` at runtime from missing columns
+- `dotnet ef migrations add` required after every model change
+
+**Answer**
+
+Adding a property to `ApplicationUser` (or any other Identity entity) changes the EF Core model but does not automatically update the database schema. Without running `dotnet ef migrations add` and `dotnet ef database update` (or the equivalent `Database.Migrate()` call at startup), the new column does not exist in the database and Identity queries that reference it will throw a `SqlException` at runtime. The error is easy to miss because the application starts without issue — the failure only surfaces when the affected code path is exercised. The discipline is to always generate a migration immediately after modifying any Identity entity, even for nullable or optional properties, and to include both the migration file and the model snapshot in source control.
+
+---
+
+#### Gotcha 9. `NormalizeEmail(null)` Returns `null` — Case-Insensitive Email Lookup Finds Nothing
+
+**Concepts**
+- `ILookupNormalizer.NormalizeEmail` returning `null` for `null` input
+- `FindByEmailAsync` querying the `NormalizedEmail` column — not the display `Email` column
+- User created without email confirmation having a `null` normalized email
+
+**Answer**
+
+`UserManager.FindByEmailAsync` queries the `NormalizedEmail` column, not the `Email` column. If a user is created without setting an email — or if the normalizer is called with a `null` value — `NormalizedEmail` is `null`, and `FindByEmailAsync` with any non-null query will never match that user. This problem surfaces in external login flows where an email-less provider account is created and a subsequent "forgot password" or account-linking request by email fails to find the account. Additionally, a user whose email is set but whose `NormalizedEmail` was never populated (due to a custom store that ignores `SetNormalizedEmailAsync`) will fail all email-based lookups silently. The fix is to ensure `SetNormalizedEmailAsync` is always called when an email is assigned.
+
+---
+
+#### Gotcha 10. EF Core's Change Tracker Caches Stale `IdentityUser` Data Within the Same Request
+
+**Concepts**
+- `DbContext` per-request lifetime — in-memory entity cache within the same `DbContext` instance
+- `UpdateAsync` modifying the tracked entity — subsequent `FindByIdAsync` returning the cached version
+- `AsNoTracking` or explicit reload required for fresh data
+
+**Answer**
+
+Because `IdentityDbContext` uses a scoped `DbContext` (one instance per HTTP request), EF Core's change tracker caches entities in memory for the lifetime of that request. A `FindByIdAsync` call after `UpdateAsync` on the same user within the same request will return the cached (now stale) entity state rather than re-querying the database — which can make it appear that the update succeeded when the underlying validation or concurrency conflict caused a silent failure. This affects scenarios like changing a password and then immediately sending a confirmation email that reads the refreshed user record. The fix is to use `DbContext.Entry(user).Reload()` or to query with `AsNoTracking()` to bypass the first-level cache and ensure a fresh read from the database.

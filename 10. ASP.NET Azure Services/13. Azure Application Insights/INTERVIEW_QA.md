@@ -570,3 +570,147 @@ Workspace-based Application Insights links each Application Insights resource to
 Teams most often get surprised by adaptive sampling hiding request volume unless KQL uses `itemCount`, by shipping personally identifiable information (PII) in URLs or custom properties, by ingestion bills growing after disabling sampling at high traffic, and by broken distributed traces when one microservice omits `traceparent` propagation. For sampling, treat sampled rows as estimates and use `sum(itemCount)` in aggregations; rely on exceptions being retained for debugging since they are far less likely to be dropped. For PII and secrets, scrub query strings, JWTs, and email addresses in telemetry initializers; never put credentials in custom dimensions since they are retained for the workspace retention period. For cost, filter health checks and static assets, tune log levels, use a daily cap alert on the workspace, and consider an OpenTelemetry Collector for pre-sampling before Azure ingestion. For propagation, ensure every service and background worker forwarding HTTP or queue messages copies W3C headers; one uninstrumented hop splits the Application Map and hides root cause during cross-service incidents.
 
 ---
+
+## Gotchas — Azure Application Insights (Interview Traps)
+
+---
+
+#### Gotcha 1. Adaptive sampling is enabled by default — high-traffic exceptions are sampled out and appear to never occur
+
+**Concepts**
+- Adaptive sampling dynamically reduces telemetry volume based on traffic rate
+- Exception telemetry can be sampled out at high traffic, causing them to appear absent in the portal
+- `SamplingPercentage = 100` disables sampling; `ExcludeTypes` preserves specific telemetry types
+- Sampled-out telemetry is never sent to Application Insights and cannot be recovered
+
+**Answer**
+
+Application Insights adaptive sampling is enabled by default in most SDK configurations and adjusts the sampling rate automatically to keep telemetry volume manageable and costs predictable. Under high traffic, the sampler may reduce the sampling percentage to 10% or less, which means 90% of exceptions, traces, and dependency calls are never sent to Application Insights. A production incident where exceptions are occurring but the Exceptions blade shows zero events is almost always caused by adaptive sampling discarding the exception telemetry. The fix is to add `ExcludeTypes = "Exception"` to the adaptive sampling configuration so exceptions are never sampled out, while other telemetry types continue being sampled.
+
+---
+
+#### Gotcha 2. Custom dimensions added via TelemetryInitializer persist on all telemetry from that request — PII added here causes compliance violations
+
+**Concepts**
+- `TelemetryInitializer` runs on every telemetry item produced during a request
+- Properties added to `telemetry.Properties` are stored permanently in Log Analytics
+- PII (email, user ID, IP) stored in custom dimensions violates GDPR and HIPAA retention rules
+- Application Insights has a built-in `anonymize` option and can be configured to redact specific fields
+
+**Answer**
+
+A custom `ITelemetryInitializer` that adds `telemetry.Properties["UserEmail"] = context.User.Identity.Name` runs on every trace, dependency, exception, and request telemetry item for the duration of the HTTP request. This data is stored indefinitely in the Log Analytics workspace until the workspace retention period expires. Adding personally identifiable information such as email addresses, full names, or precise geolocation to Application Insights custom dimensions creates a GDPR compliance issue because this data is not anonymized, may be retained longer than permitted, and is accessible to anyone with Log Analytics Contributor access. Custom dimensions should use anonymized identifiers (hashed user IDs, masked IP addresses) rather than raw PII.
+
+---
+
+#### Gotcha 3. Live Metrics requires an authenticated connection key since SDK 2.15 — old instrumentation-key-only connection strings show disconnected
+
+**Concepts**
+- SDK versions before 2.15 used a separate `QuickPulse` connection for Live Metrics
+- Connection string format (`InstrumentationKey=...;IngestionEndpoint=...`) includes all necessary endpoints
+- Using only a plain instrumentation key GUID (not a connection string) causes Live Metrics to fail
+- The portal shows "Not connected" in the Live Stream even when regular telemetry flows correctly
+
+**Answer**
+
+Azure Application Insights introduced connection strings as the recommended configuration format to replace plain instrumentation keys. Live Metrics (Live Stream) requires an authenticated endpoint that is included in the full connection string but not derivable from an instrumentation key alone. Applications configured with `APPINSIGHTS_INSTRUMENTATIONKEY` as a GUID (without the `InstrumentationKey=...;IngestionEndpoint=...` format) may send regular telemetry correctly but show "Live Metrics Stream: Not connected" in the portal. Upgrading to connection string configuration (`APPLICATIONINSIGHTS_CONNECTION_STRING`) resolves the Live Metrics disconnection.
+
+---
+
+#### Gotcha 4. ILogger.LogError with an exception sends a Trace telemetry item, not an Exception item — exceptions may be double-counted
+
+**Concepts**
+- `ILogger.LogError(exception, message)` creates both a Trace and an Exception telemetry item
+- The Trace carries the message text; the Exception carries the exception details
+- Separately calling `TelemetryClient.TrackException(exception)` creates a third Exception item
+- Double-counting inflates the exception rate in the Failures blade
+
+**Answer**
+
+When `ILogger.LogError(exception, "An error occurred")` is called through the Application Insights ILogger provider, the SDK generates both a Trace telemetry item (with the log message) and an Exception telemetry item (with the stack trace). If the same exception handler also calls `_telemetryClient.TrackException(exception)` explicitly, a second Exception item is created. Both Exception items appear separately in the Application Insights Failures blade, inflating the exception count by 2×. Teams debugging exception rates should check whether dual logging is occurring before concluding that the exception frequency has genuinely doubled.
+
+---
+
+#### Gotcha 5. Dependency tracking for HttpClient requires the DependencyTrackingTelemetryModule — manually created HttpClients are not tracked
+
+**Concepts**
+- `AddApplicationInsightsTelemetry()` registers the `DependencyTrackingTelemetryModule`
+- `HttpClient` instances created via `IHttpClientFactory` are automatically tracked
+- `new HttpClient()` directly in code bypasses the tracking module
+- Gaps in the Application Map indicate untracked dependency calls
+
+**Answer**
+
+Application Insights dependency tracking intercepts `HttpClient` calls through `DiagnosticSource` events emitted by `HttpClientHandler`. Clients created via `IHttpClientFactory` (which is wired into the tracking module) have outgoing requests automatically captured as Dependency telemetry. An `HttpClient` instance created with `new HttpClient()` directly bypasses `IHttpClientFactory` and its associated tracking, producing gaps in the Application Map where external service calls appear absent. The Application Map then shows services that the application calls but with no connection lines, misleadingly suggesting they are independent services.
+
+---
+
+#### Gotcha 6. Log Analytics workspace default retention is 90 days — queries for incidents older than 90 days return no data
+
+**Concepts**
+- Log Analytics workspace interactive retention defaults to 90 days
+- Total retention (archive tier) can extend to 2 years but costs more per GB
+- Post-incident investigations that need data older than the retention period find nothing
+- Retention must be configured at the workspace level before data is generated, not retroactively
+
+**Answer**
+
+The default Log Analytics workspace configuration retains interactive query data for 90 days. An investigation into a production incident that occurred 4 months ago will find no Application Insights telemetry — the data has been purged. Increasing the retention period is a workspace-level setting that applies only to data ingested after the change; data already purged cannot be recovered retroactively. Organizations with compliance requirements (SOC 2, PCI) or extended incident investigation windows must configure retention periods (up to 730 days in the basic tier) before going live, not after the first major incident.
+
+---
+
+#### Gotcha 7. Application Map requires correlation headers — services that strip headers appear as disconnected islands
+
+**Concepts**
+- Application Map builds from `traceparent` (W3C Trace Context) or legacy `Request-Id` correlation headers
+- Middleware, API gateways, or proxies that strip these headers break the distributed trace chain
+- Each Application Insights SDK instance that receives a correlated call joins the same operation
+- APIM, Azure Front Door, and custom middleware must be configured to forward correlation headers
+
+**Answer**
+
+Application Insights constructs the Application Map by correlating telemetry items that share the same operation ID, which is propagated through `traceparent` (W3C Trace Context) or `Request-Id` HTTP headers. If any intermediary — a load balancer, APIM policy, Azure Front Door rule, or custom ASP.NET Core middleware — strips or overwrites these headers, downstream services create new operation IDs and appear as separate, unrelated islands on the Application Map. APIM must be configured with a `set-header` policy to forward `traceparent` and `tracestate` headers to the backend, and APIM's own `Application Insights` configuration must be enabled to link APIM calls into the same trace.
+
+---
+
+#### Gotcha 8. Smart Detection fires on anomalies in historical baseline — new deployments trigger false-positive alerts for 24–48 hours
+
+**Concepts**
+- Smart Detection builds a baseline from historical performance and exception patterns
+- A new deployment changes the telemetry baseline temporarily
+- Initial false positives (failure rate anomaly, slow response) occur while the new baseline is established
+- Smart Detection alerts should be suppressed or investigated before acting during the first hours after a major deployment
+
+**Answer**
+
+Application Insights Smart Detection monitors telemetry for anomalies compared to a learned historical baseline. After a major deployment, the application's telemetry profile changes — response times, error rates, and dependency patterns all shift. For 24–48 hours after a major deployment, Smart Detection may generate false-positive alerts about "increased exception rate" or "degradation in response time" because the new baseline has not been established yet. Runbooks should include a note to verify whether an alert immediately post-deployment is due to a real regression or Smart Detection relearning the new normal before initiating an incident response.
+
+---
+
+#### Gotcha 9. Telemetry initialization before startup completes is discarded — setting the connection string inside a request handler loses the first batch
+
+**Concepts**
+- Application Insights SDK must have a connection string before the first telemetry is flushed
+- Setting `TelemetryConfiguration.Active.ConnectionString` late in a middleware loses startup telemetry
+- `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable is the earliest injection point
+- `AddApplicationInsightsTelemetry(connectionString)` in `Program.cs` configures it before first request
+
+**Answer**
+
+Application Insights telemetry is buffered and flushed in batches. If the connection string or instrumentation key is not set before the SDK starts collecting telemetry, the first batch of telemetry (startup traces, first request dependency calls) is queued without a destination and is discarded when the batch is flushed with no endpoint configured. Setting the connection string inside an ASP.NET Core middleware or a background service that runs after the first request has already been processed means all telemetry from startup and initial requests is lost. The connection string must be available at SDK initialization time, either via the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable or in `appsettings.json` loaded before `AddApplicationInsightsTelemetry()` is called.
+
+---
+
+#### Gotcha 10. Custom metrics sent with TrackMetric are aggregated — sending per-event measurements uses TrackEvent with custom dimensions instead
+
+**Concepts**
+- `TrackMetric` pre-aggregates values and sends summary statistics (avg, min, max, count) per flush interval
+- Individual metric events are not queryable separately with `TrackMetric`
+- `TrackEvent` with numeric custom properties preserves individual event values for per-event queries
+- `GetMetric` API in SDK 2.x is the recommended approach for efficient aggregated metrics
+
+**Answer**
+
+`TelemetryClient.TrackMetric(name, value)` is designed to track aggregate metrics like CPU percentage or queue depth. The SDK pre-aggregates multiple `TrackMetric` calls with the same name into a single telemetry item (count, sum, min, max) per flush interval. If you need to query individual measurement events — for example each payment amount, each order size — `TrackMetric` loses the per-event values. Use `TrackEvent("OrderPlaced", properties: ..., metrics: {"Amount": 99.99})` to preserve individual event values as custom measurements queryable in Kusto with `customMetrics` or `customMeasurements`. The `GetMetric` API is the recommended modern replacement for `TrackMetric` with automatic pre-aggregation and dimension support.
+
+---

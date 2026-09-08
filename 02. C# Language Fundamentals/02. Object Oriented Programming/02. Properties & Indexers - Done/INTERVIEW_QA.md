@@ -261,97 +261,148 @@ The property pattern, available since C# 8 and extended in C# 9 and 10, allows a
 
 ---
 
-## Gotcha Questions
+## Gotchas — Properties & Indexers (Interview Traps)
 
 ---
 
-## Q16. Why is it a mistake to produce side effects inside a property getter, and what bugs does it cause in practice?
+#### Gotcha 1. Auto-property with only { get; } creates a backing field — the property is not a free-standing value
 
 **Concepts**
-- Caller expectation of idempotency
-- Data-binding repeated reads
-- Serialization and debugging reads
-- Hidden counter/timestamp mutation
-- `[DebuggerBrowsable]` implicit reads
+- `{ get; }` compiles to private backing field + getter
+- Private set possible for post-construction assignment
+- Init-only setter for object initializer
+- Not the same as a field
 
 **Answer**
 
-A property getter is expected to be a pure read: callers, frameworks, and tooling assume that reading `obj.SomeProperty` twice in a row yields the same value without changing any observable state. Violating this creates a category of subtle, hard-to-reproduce bugs. Data-binding systems such as WinForms, WPF, and Blazor can read a bound property dozens of times per render cycle — if the getter increments a `ViewCount` or updates a `LastRendered` timestamp on every read, those values will be wildly inflated. Debugger watch windows and IDE data-tip popups call getters automatically when you hover over a variable; if the getter has a side effect, simply pausing on a breakpoint mutates state. JSON serializers enumerate all readable properties during serialization — a getter that modifies internal state makes serialization a destructive operation. The fix is to separate concerns: the getter returns a value, while mutation happens in a method with an imperative name (`IncrementViewCount()`, `RecordRender()`). If you must cache or lazily initialize inside a getter, use `Lazy<T>` or a pattern where the backing field is set exactly once and all subsequent reads are pure returns. The only sanctioned exception is lazy initialization behind a thread-safe check — and even then, the observable value of the property is stable from the caller's perspective.
+A property declared as `public string Name { get; }` generates a compiler-created private backing field. The value is stored there and accessed only through the property getter. Unlike a field, the backing field's name is inaccessible in source code, which means you cannot address it directly in constructors — you must either use `{ get; set; }` or `{ get; init; }` and set it through the property name.
 
 ---
 
-## Q17. Why does changing a property from full to auto-implementation silently break validation, and how do you catch this in code review?
+#### Gotcha 2. init-only setter can be set via object initializers but NOT after object creation — unlike private set
 
 **Concepts**
-- Auto-property removes custom setter logic
-- Validation silently disappears
-- No compile-time warning
-- Data integrity regression at runtime
-- Code review checklist for property changes
+- `init` setter is write-once
+- Callable from object initializer or constructor
+- `private set` allows post-construction change in the class
+- `init` setter prevents mutation from both inside and outside after construction
 
 **Answer**
 
-When a developer changes `public string Isbn { get => _isbn; set { if (...) throw ...; _isbn = value.Trim(); } }` to `public string Isbn { get; set; }` to "clean up" the code, the compiler accepts both forms with no warning — but every guard and transformation in the original setter is silently discarded. From that point forward, any caller can assign whitespace, null, or malformed data directly to the property, and the change will persist to the database or downstream system without error. This regression is especially dangerous in deserialization paths: JSON or XML parsers bypass constructors and set properties directly, so a prior import guard in the setter is the only line of defence. To catch this in code review, look for any property change from full to auto form and ask: does the original setter contain any `if`, `throw`, assignment to a related field, or event invocation? If yes, the refactoring discards behaviour, not boilerplate. The rule of thumb is: a full property with a body is documentation of an invariant. Auto-property is appropriate only when there is genuinely nothing to enforce. Tests that exercise boundary values (empty string, whitespace, negative numbers) will catch the regression in CI, which is why boundary-value coverage on domain properties is important.
+A property with an `init` accessor (`public string Name { get; init; }`) can be assigned during object creation via an object initializer (`new Person { Name = "Ada" }`) but cannot be reassigned afterward, not even within the class. A `private set` accessor can be reassigned inside the class methods at any time. Choose `init` for immutable value objects and `private set` when post-construction assignment from within the class is needed.
 
 ---
 
-## Q18. What is the defensive-copy gotcha with struct properties, and when does it silently mutate the wrong copy?
+#### Gotcha 3. Properties that throw in their getter confuse debuggers and cause surprising evaluation order issues
 
 **Concepts**
-- Value-type copy semantics
-- Property getter returning a struct value
-- Mutating methods called on the copy
-- `readonly struct` compiler enforcement
-- `ref` return properties as a workaround
+- Debugger evaluates getters for Watch/Locals
+- Throwing getter shows exception icon in debugger
+- Lazy initialization that throws is hard to diagnose
+- `[DebuggerBrowsable]` to suppress
 
 **Answer**
 
-When a property returns a value type (struct), the getter returns a copy of the value, not a reference to the original storage. If you call a mutating method on that copy, the mutation applies to the transient copy and is immediately discarded — the original field is unchanged, and the bug leaves no trace. For example, if `public Point Location { get; set; }` holds a `System.Drawing.Point`, then `obj.Location.Offset(10, 10);` compiles cleanly but silently no-ops: the getter returns a copy of `Point`, `Offset` mutates that copy, the copy is thrown away, and `obj.Location` is unchanged. The correct fix is to read, modify, and reassign: `obj.Location = new Point(obj.Location.X + 10, obj.Location.Y + 10);`. Declaring a struct as `readonly struct` causes the compiler to emit a defensive copy whenever a non-readonly method is called on it through a readonly reference, but only warns if you enable the appropriate analyzer. In C# 10+ with `ref` return properties, you can return a managed reference to the backing field, allowing in-place mutation — but this is an advanced technique reserved for high-performance scenarios with careful ownership semantics. The practical rule: never call mutating methods on a property result unless the property is known to return a reference type.
+Visual Studio and other debuggers call property getters automatically to display values in Watch windows and the Locals panel. A getter that throws an exception shows an error icon rather than a value, which obscures the actual object state. Attaching `[DebuggerBrowsable(DebuggerBrowsableState.Never)]` to expensive or error-prone properties prevents debugger evaluation and keeps the debugging experience clean.
 
 ---
 
-## Q19. Can you give an indexer the same parameter type as a property name — and what naming conflict does that create in IL?
+#### Gotcha 4. Indexer this[int index] is not the same as an array — it does not implement IList<T> automatically
 
 **Concepts**
-- `IndexerName` attribute (`System.Runtime.CompilerServices`)
-- Default IL name: `Item` / `get_Item` / `set_Item`
-- Conflict with a property named `Item`
-- Compiler error when names collide
-- Renaming indexers for COM interop
+- Indexer compiles to `get_Item`/`set_Item`
+- Must implement `IList<T>` explicitly for LINQ compatibility
+- Custom indexers can accept any parameter type
+- Multiple indexers possible with different parameter types
 
 **Answer**
 
-The C# compiler translates every indexer into an IL property named `Item` by default, with accessor methods `get_Item` and `set_Item`. This means if a class simultaneously declares an indexer and a regular property named `Item`, the compiler raises an error: the two would compile to the same IL member name. The fix is to apply `[System.Runtime.CompilerServices.IndexerName("Element")]` (or any other name) to the indexer, which instructs the compiler to use that string for the generated IL property name instead of `Item`. The C# bracket syntax is unaffected — callers still write `obj[key]` — but the underlying IL method is now `get_Element`. This attribute also matters for COM interop, where the default indexer name must match a specific expected name in the COM type library. In most purely managed code this conflict is rare because naming a property `Item` is itself unusual, but it surfaces in library code that wraps existing COM or native interfaces. Knowing the underlying IL name is also useful when consuming an indexer via reflection: `GetProperty("Item")` or `GetProperty("Element")` depending on whether the attribute was applied.
+A class with an indexer `this[int index]` looks like an array in source code but is a regular method pair `get_Item(int)` and `set_Item(int, T)` at the IL level. The class does not gain `IList<T>` membership simply by defining an indexer; that interface requires explicit implementation of `Count`, `Add`, `Contains`, and other members. LINQ methods like `list.ElementAt(n)` work via `IList<T>` or `IEnumerable<T>`, not directly through the indexer.
 
 ---
 
-## Q20. What happens when you use `init` with `required` together, and what edge case breaks consumer code?
+#### Gotcha 5. INotifyPropertyChanged: raising PropertyChanged before the assignment means listeners see the old value
 
 **Concepts**
-- `required init` combination legality
-- Constructor with `[SetsRequiredMembers]` bypass
-- Derived class required member inheritance
-- Object initializer scope rules
-- Deserialization frameworks and required members
+- Event raised before new value stored
+- Subscribers read stale value
+- Raise after assignment
+- CoerceValue pattern in WPF can override
+- Batch change notifications for multiple props
 
 **Answer**
 
-`required` and `init` can and commonly should appear together: `public required string Name { get; init; }` means the consumer must supply `Name` in an object initializer and cannot change it afterwards. The edge case that breaks consumer code arises when a class also provides a parameterized constructor decorated with `[SetsRequiredMembers]`. In that case, code calling the constructor does not need an object initializer at all — the attribute suppresses the compiler check. But if that constructor exists alongside object-initializer usage, a caller who forgets `[SetsRequiredMembers]` on a factory or copy constructor will discover the compiler now silently enforces all required members again for that path. A related edge case: derived classes inherit required members from base classes. If the base declares `public required string Id { get; init; }` and the derived class adds a constructor that calls `base(...)`, the derived constructor must also be decorated with `[SetsRequiredMembers]` or the required member check resurfaces. Deserialization frameworks (System.Text.Json in .NET 7+) have built-in awareness of `required` members and will throw `JsonException` if the JSON payload omits a required property — which is the correct runtime enforcement, but it means changing a property from optional to `required` is a **breaking deserialization change** that requires a versioning strategy.
+If you raise `PropertyChanged` before assigning the new value to the backing field, any subscriber that reads the property in response to the notification will observe the old value — because the assignment has not happened yet. Always store the new value first, then raise `PropertyChanged`. In WPF two-way bindings, this timing difference can cause the UI to display the wrong value momentarily.
 
 ---
 
-## Q21. Why can an indexer not be `static`, and what is the practical implication of this restriction?
+#### Gotcha 6. required keyword enforces initialization at object creation site but does not run validation logic
 
 **Concepts**
-- Indexer tied to instance state
-- Static context has no `this` receiver
-- Workaround: static dictionary property
-- Contrast with static properties
-- Design signal for collection ownership
+- `required` forces property assignment in initializer
+- Compile error if omitted
+- Validation logic must be in setter or constructor
+- `init`-only with validation in setter
 
 **Answer**
 
-An indexer uses the `this` keyword as its identifier, which represents the current instance. A static context has no instance — there is no `this` — so the language specification prohibits `static` indexers outright; the compiler rejects the combination. The practical implication is that any type that needs indexed access must be instantiated, even if it wraps a shared or global data structure. If you want type-level keyed access, the correct pattern is a static property that returns a collection type: `public static IReadOnlyDictionary<string, Config> Defaults => _defaults;`, where callers then write `Config.Defaults["timeout"]`. This is slightly more verbose than `Config["timeout"]` would be, but it is explicit about ownership: the dictionary object is a first-class value, and bracket access belongs to the dictionary, not to the `Config` type. The restriction also serves as a design signal — if you find yourself wanting a static indexer, the underlying data probably belongs in a named static collection property, a static factory method, or a dedicated registry class. In performance-critical cache scenarios, `System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>` provides the required thread-safe keyed access through its own instance indexer.
+Marking a property `required` means the compiler will require it to be set in every object initializer. This prevents accidentally omitting a mandatory field, but it does not enforce any constraints on the value — the setter runs, but if the setter does nothing (auto-property), any value is accepted. Add validation logic explicitly in the setter if the value must satisfy business rules.
+
+---
+
+#### Gotcha 7. Auto-property backing field name contains angle brackets — it cannot be referenced by name in source
+
+**Concepts**
+- Backing field is named `<PropertyName>k__BackingField`
+- Inaccessible from C# source
+- Accessible via reflection
+- Serializers that read fields will not see auto-property backing if they filter out compiler-generated names
+
+**Answer**
+
+The compiler-generated backing field for an auto-property has a name like `<Name>k__BackingField` that contains angle brackets, making it impossible to reference in C# source code. Reflection-based serializers that enumerate fields (rather than properties) may serialize this backing field under the mangled name unless they apply a filter for `CompilerGeneratedAttribute`.
+
+---
+
+#### Gotcha 8. Expression-bodied read-only property calls the expression on every access; initializer-based get-only evaluates once
+
+**Concepts**
+- `=> expr` is re-evaluated each access
+- `{ get; } = expr` evaluated once at init
+- Use lazy backing field for expensive computation
+- `Lazy<T>` for thread-safe lazy init
+
+**Answer**
+
+`public int Count => _list.Count` recomputes `_list.Count` on every access. In contrast, `public int Count { get; } = ComputeExpensiveValue()` evaluates the expression exactly once at field initialization time. For expensive computations that should be cached after first access, use a private nullable backing field with a null-coalescing assignment, or `Lazy<T>` for thread-safety.
+
+---
+
+#### Gotcha 9. Overriding a virtual property can only narrow or maintain access — not widen it
+
+**Concepts**
+- Override cannot widen access from `protected` to `public`
+- Can `sealed` the override
+- Getter/setter visibility must be at least as restrictive as base
+- Roslyn CS0507 error for widening
+
+**Answer**
+
+If a base class declares `protected virtual string Name { get; }`, a derived class cannot override it as `public override string Name { get; }` because overrides cannot widen access. The override's visibility must be at most the same as the base's visibility (`protected` or more restrictive). This prevents callers from bypassing the base class's access control through a derived reference.
+
+---
+
+#### Gotcha 10. Indexer on an interface with a default implementation in C# 8+ has explicit implementation complexity
+
+**Concepts**
+- Default interface indexer provides fallback
+- Implementing class can override
+- Explicit implementation hides from direct class access
+- Calling through interface invokes default or override
+
+**Answer**
+
+An interface can define an indexer with a default implementation in C# 8+, which implementing classes inherit when called through the interface reference. If the implementing class provides an indexer with the same signature, that implementation is used for direct class calls. To override the default interface indexer explicitly, use the explicit implementation syntax `IInterfaceName.this[int index]` — otherwise the default runs for interface-typed callers.
 
 ---
 

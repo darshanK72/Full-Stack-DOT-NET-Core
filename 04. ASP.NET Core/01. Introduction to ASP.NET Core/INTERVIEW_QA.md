@@ -294,219 +294,147 @@ Porting a .NET Framework Web API to ASP.NET Core requires replacing the entire h
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
-
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- `UseRouting` must precede `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata read by auth middleware after routing selects endpoint
-- Authorization policy evaluation against matched endpoint metadata
-- Recommended order: exceptions → forwarded headers → routing → auth → endpoints
-
-**Answer**
-
-The ASP.NET Core middleware pipeline runs in registration order, so authorization middleware can only read the matched endpoint's metadata — including `[Authorize]` attributes and policy names — if routing has already run. When `UseAuthentication` or `UseAuthorization` is registered before `UseRouting`, the endpoint has not been selected yet, so endpoint-aware authorization is silently skipped and protected routes become accessible anonymously. The correct order is: exception handling, forwarded headers, routing, authentication, authorization, then endpoint mapping (`MapControllers`, `MapGet`). Symptoms of this mistake are 401 responses without proper WWW-Authenticate challenges or, more dangerously, anonymous access to endpoints that carry `[Authorize]` metadata.
+## Gotchas — Introduction to ASP.NET Core (Interview Traps)
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. Kestrel is an application server, not a full edge gateway
 
 **Concepts**
-- Captive dependency anti-pattern (scoped inside singleton)
-- `DbContext` change tracker accumulating entities across requests
-- `ValidateScopes` startup validation catching illegal combinations
-- `IServiceScopeFactory` for creating explicit per-operation scopes
-- `IDbContextFactory<T>` for singleton operations on `DbContext`
+- Kestrel as cross-platform application web server
+- Reverse proxy pattern with nginx, IIS, Azure Front Door
+- TLS termination and WAF at the proxy layer
+- `UseForwardedHeaders` for accurate client IP and scheme behind a proxy
 
 **Answer**
 
-When a singleton service captures a scoped dependency like `DbContext` in its constructor, the scoped instance is created once and held for the application lifetime instead of being created and disposed per request. The result is that EF Core's change tracker accumulates entities from every request, thread safety is violated, and eventually a disposed-object exception surfaces when the original scope ends while the singleton's reference persists. The fix is to inject `IServiceScopeFactory` into the singleton and create a scope per operation — `using var scope = factory.CreateScope()` — or use `IDbContextFactory<T>`, which handles scoping internally. Enable `ValidateScopes: true` in Development and Staging environments so the container catches illegal scope combinations at startup, where they're easy to diagnose, rather than in production under load.
+Kestrel is ASP.NET Core's built-in web server and runs in every deployment, but it is not designed to be the sole public internet endpoint. Production deployments almost always place a reverse proxy — nginx, IIS, Azure Front Door, or an AWS ALB — in front to handle TLS certificate management, WAF protection, rate limiting, and edge caching. Kestrel binds to an internal port while the proxy terminates HTTPS and forwards HTTP internally. When running behind a proxy, `UseForwardedHeaders()` must be called early in the pipeline so `Request.Scheme` reads `https` and `Connection.RemoteIpAddress` reflects the real client IP rather than the proxy address.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. `ASPNETCORE_ENVIRONMENT` is case-sensitive on Linux
 
 **Concepts**
-- `HttpMessageHandler` socket pool lifetime
-- Socket exhaustion from per-use `HttpClient` instantiation
-- `IHttpClientFactory` managing handler lifetimes and recycling
-- Typed and named client registration pattern
+- Linux environment variable case sensitivity vs Windows insensitivity
+- `IHostEnvironment.IsProduction()` matching exact string
+- `appsettings.{Environment}.json` filename resolution by exact name
+- Silent fallback to base settings when variable casing is wrong
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a singleton — or wrapping it in a `using` block — defeats the connection pool because each `HttpClient` instance owns its own `HttpMessageHandler` and holds its sockets open until garbage collected, not until `Dispose` is called. Under real traffic this produces socket exhaustion that surfaces only in production, typically as `SocketException` or connection timeout errors that don't appear in local testing. `IHttpClientFactory` solves this by managing `HttpMessageHandler` lifetimes separately from `HttpClient` lifetimes: handlers are pooled and recycled on a timer so DNS changes propagate, while `HttpClient` instances are lightweight wrappers that can be created per-use. Register typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject `IExternalApi` into your services rather than `HttpClient` directly.
+`ASPNETCORE_ENVIRONMENT=production` on a Linux host does not match `"Production"` — `IHostEnvironment.IsProduction()` returns false and `appsettings.Production.json` is never loaded, so the application silently runs with base or Development settings. This is one of the most common causes of "works locally but behaves wrong in Docker" bugs. The value must exactly match the casing used in `appsettings.{Environment}.json` filenames and the `IsDevelopment()` / `IsProduction()` helper checks. Always validate the environment name as the very first diagnostic step when environment-specific settings are not applying in a deployed environment.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. `builder.Build()` finalizes the DI container — services cannot be added after it
 
 **Concepts**
-- `IOptions<T>` snapshot fixed at first resolution
-- `IOptionsSnapshot<T>` recalculating per request scope
-- `IOptionsMonitor<T>` live change notifications via `OnChange`
-- Singleton services requiring `IOptionsMonitor` for live updates
-- `reloadOnChange` in configuration without corresponding options interface
+- `builder.Services` for registration before `Build()`
+- `app.Services` for resolution only, not registration
+- `InvalidOperationException` thrown when registering after build
+- Two-phase builder pattern in the minimal hosting model
 
 **Answer**
 
-`IOptions<T>` resolves and caches the configuration snapshot at the first call to `.Value`, which means a singleton that reads `IOptions<T>.Value` at construction time will never see updated values even if `appsettings.json` reloads with `reloadOnChange: true`. `IOptionsSnapshot<T>` recalculates per request scope and works correctly for scoped or transient services, but singleton services must use `IOptionsMonitor<T>`, which exposes an `OnChange` callback and always returns current values from `.CurrentValue`. The failure mode is silent: the process keeps running with stale configuration until it restarts, which makes this easy to miss in testing where configuration rarely changes mid-run. For singleton services that need live feature flags or connection string updates, `IOptionsMonitor<T>` is the correct interface.
+The `WebApplicationBuilder` separates configuration into two phases: registration on `builder.Services` before calling `builder.Build()`, and resolution via `app.Services` after build. Once `Build()` is called, the DI container is compiled and sealed — any attempt to register new services throws `InvalidOperationException` or is silently ignored. Teams migrating from ASP.NET Framework sometimes try to add services inside middleware lambdas or late-running extension methods, but those registrations happen too late. All service registrations must occur before `builder.Build()` is called in `Program.cs`.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 4. `HttpContext.Current` does not exist in ASP.NET Core
 
 **Concepts**
-- HTTP GET semantics discouraging request bodies
-- Proxy and CDN stripping of GET bodies
-- `[FromQuery]` with `[AsParameters]` for complex GET filter objects
-- Safe and idempotent GET expectations in REST conventions
+- `HttpContext.Current` removed — thread-static incompatible with async/await
+- `IHttpContextAccessor` as the correct replacement
+- `AsyncLocal<T>` flowing context through awaited continuations
+- Null `HttpContext` outside of an active HTTP request scope
 
 **Answer**
 
-`[FromBody]` on a GET handler tells the model binder to deserialize the request body, but many HTTP clients, CDNs, caching proxies, and browsers strip or ignore bodies on GET requests by convention, so the bound parameter silently receives its default value rather than the intended data. The failure typically appears only in production or behind specific infrastructure, not in Swagger's "Try it out" during development where the body is sent verbatim. Complex filter objects on GET endpoints should use `[FromQuery]` with either individual parameters or `[AsParameters]` on a DTO class, which maps query string keys to properties without needing a body. This also keeps GET endpoints safe, idempotent, and cacheable — properties that body-bearing GETs sacrifice.
+`HttpContext.Current` was a thread-static field in ASP.NET Framework that broke under `async/await` because continuations run on any thread. ASP.NET Core eliminated it entirely. The correct replacement is injecting `IHttpContextAccessor` and reading `.HttpContext`. `IHttpContextAccessor` uses `AsyncLocal<T>` internally, which flows correctly through awaited continuations. Outside an active HTTP request — in background services, console hosts, or test harnesses — `HttpContextAccessor.HttpContext` returns `null`. Code that accesses `HttpContext` must be null-checked or restructured to accept it as a method parameter rather than reaching for it globally.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 5. `UseHttpsRedirection` causes redirect loops behind a TLS-terminating proxy
 
 **Concepts**
-- Default `JsonNamingPolicy.CamelCase` serialization in ASP.NET Core
-- Silent binding failure leaving properties at default values
-- `PropertyNameCaseInsensitive` as an opt-in deserialization setting
-- Standardizing client contracts on camelCase
+- HTTPS redirection checking `Request.Scheme` to decide when to redirect
+- Proxy terminating TLS — Kestrel sees `http` internally
+- `UseForwardedHeaders` must precede `UseHttpsRedirection`
+- Disabling `UseHttpsRedirection` inside containers where ingress handles TLS
 
 **Answer**
 
-ASP.NET Core serializes JSON with camelCase property names by default via `System.Text.Json` and `JsonNamingPolicy.CamelCase`, so when mobile or legacy clients POST JSON with PascalCase keys — `"CustomerName"` instead of `"customerName"` — model binding silently leaves the matching C# property at its default value rather than throwing a 400. The binding failure is invisible in logs because the deserialization itself succeeds without error. Standardizing clients on camelCase and documenting the contract in OpenAPI is the cleanest fix; if backward compatibility requires accepting PascalCase, `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` enables case-insensitive matching, though this loosens the contract for all endpoints. Adding `[Required]` or `Range` validation attributes on key properties turns silent binding failures into explicit 400 responses, making the bug visible during development rather than at runtime.
+`UseHttpsRedirection` redirects any request where `Request.Scheme` is `http` to the HTTPS equivalent. Behind a TLS-terminating proxy, Kestrel receives plain HTTP internally so `Request.Scheme` is always `http`, causing every request to be redirected in an infinite loop. The fix is to call `UseForwardedHeaders()` before `UseHttpsRedirection()` so the scheme is populated from `X-Forwarded-Proto` before the redirect check runs. In Kubernetes or Azure Container Apps where TLS is handled at the ingress layer, it is often correct to disable `UseHttpsRedirection` entirely inside the pod and let the ingress controller enforce HTTPS.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 6. Code placed after `app.Run()` is unreachable during normal execution
 
 **Concepts**
-- Stack trace reset by `throw ex` vs preservation by bare `throw`
-- `InnerException` preservation when wrapping exceptions
-- Exception filters and Application Insights relying on accurate stack traces
+- `app.Run()` blocking until application shutdown
+- `app.RunAsync()` for non-blocking host composition
+- `IHostApplicationLifetime` for shutdown callbacks
+- Startup vs post-shutdown cleanup patterns
 
 **Answer**
 
-`throw ex` reassigns the exception's stack trace to the current catch block line, so exception filters, structured logging, and Application Insights show the re-throw site rather than the original failure location, hiding root causes behind infrastructure code. Bare `throw;` preserves the complete original stack trace through the catch block. When rethrowing after logging or cleanup, always use `throw;`. The only valid reason to wrap is when you need to add domain context: `throw new OrderProcessingException("Failed to process order", ex)` preserves the original as `InnerException` while surfacing a domain-meaningful type to callers. This trap appears in both application code and background worker error handlers where developers assume rethrowing under a new type requires `throw ex`.
+`app.Run()` starts Kestrel and blocks the calling thread until the application shuts down. Any code placed after `app.Run()` in `Program.cs` is unreachable during normal operation and executes only after shutdown — which is almost never the intended behavior. Developers who want to run code at shutdown should register `IHostApplicationLifetime.ApplicationStopping` or `ApplicationStopped` callbacks before the `Run()` call. `app.RunAsync()` is available when composing multiple hosts, but in the standard single-app minimal hosting pattern `app.Run()` is both correct and idiomatic.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 7. `IWebHostEnvironment` vs `IHostEnvironment` — `WebRootPath` is only on the web variant
 
 **Concepts**
-- Kestrel as application server vs full edge gateway
-- TLS certificate management complexity per instance
-- WAF, rate limiting, and static-file caching at the proxy layer
-- `UseForwardedHeaders` for client IP when behind a proxy
-- Ingress controller handling HTTPS externally in containers
+- `IHostEnvironment` — base interface with `ContentRootPath`
+- `IWebHostEnvironment` — adds `WebRootPath` for the `wwwroot` folder
+- Injecting the wrong interface compiles but loses `WebRootPath`
+- `ContentRootPath` for non-web assets vs `WebRootPath` for served files
 
 **Answer**
 
-Kestrel is production-grade for running ASP.NET Core application logic, but using it as the sole public internet endpoint means every concern that production deployments typically handle at the network edge — TLS certificate rotation, cipher policy, rate limiting, WAF rules, static-file caching, and multi-instance load balancing — must be handled either inside the .NET process or not at all. Placing nginx, IIS, Azure Front Door, or an AWS ALB in front centralizes these concerns and lets Kestrel focus on application code. Container deployments typically bind Kestrel to port 8080 on the pod network, with the ingress controller handling HTTPS externally. If Kestrel is genuinely the only layer, client IP logging and link generation still work correctly, but the operational complexity is concentrated in the app process with no separation of concerns.
+`IHostEnvironment` exposes `EnvironmentName`, `ApplicationName`, and `ContentRootPath` and is available in any hosted application. `IWebHostEnvironment` extends it with `WebRootPath`, the path to the `wwwroot` folder where static files are served from. Middleware or services that need to read or serve files from `wwwroot` must inject `IWebHostEnvironment`, not `IHostEnvironment` — injecting the base interface compiles successfully but `WebRootPath` is unavailable. This distinction matters when building middleware that reads static assets or configuration files from the web root at runtime.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 8. Static file paths are case-sensitive on Linux — `Logo.png` is not `logo.png`
 
 **Concepts**
-- `launchSettings.json` applies only to `dotnet run` and Visual Studio launch
-- `ASPNETCORE_URLS` and `ASPNETCORE_ENVIRONMENT` as production configuration
-- `appsettings.Production.json` and host-level env vars for deployed environments
-- Development ergonomics vs runtime configuration
+- Linux file system case sensitivity vs Windows case insensitivity
+- Static file URL casing must match file system casing on Linux
+- Docker image builds copying files with mismatched casing
+- Standardizing file names to lowercase as a prevention strategy
 
 **Answer**
 
-`Properties/launchSettings.json` is a development ergonomics file read only by `dotnet run`, Visual Studio, and VS Code launch profiles — it is never deployed to production servers or containers and has no effect on hosted environments. Settings there, including `applicationUrl`, `ASPNETCORE_ENVIRONMENT`, and any custom environment variables, do not carry forward to IIS, Docker, Kubernetes, or Azure App Service. Production URLs and environment names must come from the host's environment variable system — `ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`, or orchestrator config maps — and application settings from `appsettings.Production.json` or a secrets manager. Assuming `launchSettings.json` sets production behavior is how teams deploy with the wrong environment name or binding and then can't reproduce the problem locally.
+On Windows, `wwwroot/images/Logo.png` and `wwwroot/images/logo.png` refer to the same file. On Linux — including Docker containers — they are distinct paths. A URL requesting `/images/logo.png` returns 404 when the file is named `Logo.png`. Applications developed on Windows and deployed to Linux containers regularly hit this problem in CI after working fine on developer machines. The fix is to standardize all static file names and HTML references to lowercase and enforce consistent casing in the CI pipeline, since the Windows development environment hides the problem entirely.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 9. Partial migration to minimal hosting — `Startup.cs` methods are never called
 
 **Concepts**
-- `System.Text.Json` deserializing absent JSON fields to `default(bool) = false`
-- Tri-state semantics requiring `bool?` or an enum
-- PATCH vs PUT semantics for partial updates
-- Nullable model properties in OpenAPI client generation
+- Top-level statements replacing `Startup.cs` in minimal hosting model
+- `ConfigureServices` and `Configure` not called without `UseStartup<T>()`
+- Silent DI registration failure — services missing at runtime
+- Full migration vs `builder.Host.UseStartup<Startup>()` bridge
 
 **Answer**
 
-A non-nullable `bool` on a PATCH DTO cannot distinguish "field omitted from the JSON body" from "field explicitly set to false" because `System.Text.Json` deserializes missing JSON properties to `default(bool)`, which is `false`. This means a PATCH request that omits `IsActive` silently sets `IsActive = false` rather than leaving the field unchanged — a data corruption bug that's particularly dangerous for marketing consent fields, feature flags, and access control properties. The fix is `bool?` on the DTO: a `null` value means "not provided, keep existing," while `true` or `false` means "explicitly set." Alternatively, an enum with an `Unspecified` state makes intent explicit in code and in generated OpenAPI clients, which represent optional updates correctly when properties are nullable.
+The minimal hosting model uses top-level statements in `Program.cs` and eliminates `Startup.cs`. Projects that partially migrate — using `WebApplicationBuilder` while keeping a `Startup` class — find that `ConfigureServices` and `Configure` are never called, because the minimal model does not look for them automatically. DI registrations in `Startup.ConfigureServices` are silently skipped, leading to `InvalidOperationException` when services are resolved. Either migrate fully to the minimal model, or use `builder.Host.UseStartup<Startup>()` to keep the conventional pattern — mixing the two without that bridge does not work.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 10. Default `WebApplication.CreateBuilder` loads `appsettings.json` automatically — duplicate registration causes double loading
 
 **Concepts**
-- `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` headers
-- `HttpContext.Request.Scheme` showing `http` instead of `https` without middleware
-- `ForwardedHeadersOptions.KnownProxies`/`KnownNetworks` for trust scope
-- HTTPS redirection and `Secure` cookie flag requiring correct scheme
-- Proxy header spoofing risk from untrusted `ForwardedHeaders` config
+- `WebApplication.CreateBuilder` loading `appsettings.json` and `appsettings.{env}.json` by default
+- Manually adding JSON providers duplicating configuration sources
+- `IConfiguration.GetSection` returning merged values from all providers
+- `builder.Configuration.Sources.Clear()` to reset default sources
 
 **Answer**
 
-Without `UseForwardedHeaders`, `HttpContext.Request.Scheme` reads `http` because Kestrel sees an HTTP connection from the proxy, even though the client used HTTPS. This breaks HTTPS redirect middleware (which redirects in a loop or does nothing), cookie `Secure` flag generation, OAuth redirect URIs, and any link generation that uses the request scheme. `UseForwardedHeaders()` must be registered early in the pipeline — before HTTPS redirection and any middleware that reads scheme, host, or client IP. `ForwardedHeadersOptions` must be configured with `KnownProxies` or `KnownNetworks` set to your actual reverse proxy addresses because accepting forwarded headers from untrusted sources allows header injection that spoofs client IP and scheme. Local development without a proxy does not need this middleware; production behind nginx, IIS, or a cloud load balancer always does.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles` serving `wwwroot` to unauthenticated clients
-- Web root boundary and unauthorized file exposure risk
-- `IConfiguration` and environment variables for secrets outside web root
-- Build pipeline verification of web root contents
-
-**Answer**
-
-`UseStaticFiles` serves every file under `wwwroot` to any client, authenticated or not, by default — there is no authorization check on static file requests. Any secret, configuration backup, or private key that ends up in `wwwroot` is immediately accessible over HTTP with a direct path request. Only public assets — CSS, JavaScript, images, and public PDFs — belong there. Sensitive configuration must be loaded through `IConfiguration`, environment variables, or a secrets manager from outside the web root entirely. The highest-risk scenario is a CI pipeline that copies `appsettings.Production.json` into the project root and a subsequent publish step that incorrectly includes it in `wwwroot`; adding a build-time check that validates web root contents before deploy catches this before it reaches production.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback returning `index.html` for unmatched paths
-- Endpoint mapping order determining fallback behavior
-- API 404s masked as 200 HTML responses
-- Conditional fallback excluding `/api` prefix paths
-
-**Answer**
-
-`MapFallbackToFile("index.html")` matches any unresolved request, including `GET /api/unknown`, and returns the SPA shell with a 200 status. When this is registered before API endpoint mapping, legitimate API 404 responses become unexpected 200 HTML responses, which breaks JSON clients that check status codes, corrupts error handling in JavaScript fetch calls, and masks CORS errors as malformed HTML. The fix is to register API endpoints — `MapControllers()`, Minimal API groups — before `MapFallbackToFile`, so 404s from unmatched API paths propagate correctly rather than being swallowed by the fallback. If the SPA and API share the same host, a conditional fallback that excludes paths starting with `/api` is more explicit and resilient to future endpoint additions.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- `BackgroundService` singleton lifetime vs scoped service lifetime
-- `IServiceScopeFactory` for creating per-job scopes
-- `IAsyncDisposable` scope disposal pattern
-- `ValidateScopes` detecting illegal constructor injection at startup
-
-**Answer**
-
-`BackgroundService` is a singleton — it lives for the application lifetime — so injecting scoped services like `DbContext` or repository classes directly into its constructor violates the DI scope rules. If `ValidateScopes` is enabled, the host throws at startup; if it isn't, the scoped service is created once and held indefinitely, causing EF change trackers to accumulate stale data and eventually throwing `ObjectDisposedException` when the original scope ends. The correct pattern is to inject `IServiceScopeFactory`, then inside each background iteration create `await using var scope = factory.CreateAsyncScope()`, resolve the scoped dependency from `scope.ServiceProvider`, do the work, and let the scope dispose at the end of the `await using` block. This same rule applies to timer callbacks and `Task.Run` loops started from any singleton.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR hub broadcast reaching only locally connected clients
-- Redis backplane via `AddStackExchangeRedis` for cross-instance messaging
-- Azure SignalR Service as a managed backplane alternative
-- Sticky sessions retaining connection but not routing cross-node events
-- Consistent channel prefix per application in the backplane config
-
-**Answer**
-
-SignalR hub methods that broadcast to all clients — `Clients.All.SendAsync(...)` — only reach clients connected to the same server instance. When multiple instances run behind a load balancer, a user on instance A never receives a message sent from instance B unless a backplane routes the event across all instances. Sticky sessions keep each client on the same node, which prevents disconnects, but they don't route server-side broadcasts across nodes — they're a connection stability measure, not a messaging solution. The fix is a Redis backplane via `AddSignalR().AddStackExchangeRedis(connectionString)` with a consistent channel prefix, or Azure SignalR Service, which manages the backplane entirely. Testing this requires at minimum two instances with load balancing before launch; single-node staging environments hide this problem completely.
+`WebApplication.CreateBuilder` automatically registers `appsettings.json`, `appsettings.{EnvironmentName}.json`, environment variables, and command-line arguments as configuration sources. Developers who manually call `builder.Configuration.AddJsonFile("appsettings.json")` in `Program.cs` are adding a duplicate source — the file is read twice, which is harmless but confusing in diagnostics. If a project needs to reset all configuration sources and start from scratch, call `builder.Configuration.Sources.Clear()` before adding custom providers. The default sources are almost always appropriate; adding custom JSON files should be done for supplementary files, not as a replacement for the defaults.
 
 ---
 

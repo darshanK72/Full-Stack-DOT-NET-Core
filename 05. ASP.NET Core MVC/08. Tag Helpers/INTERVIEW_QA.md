@@ -292,221 +292,149 @@ Input Tag Helpers emit unobtrusive validation attributes derived from model meta
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — Tag Helpers (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. `asp-for` with nullable properties generating wrong `id` and `name` attributes
 
 **Concepts**
-- Business logic bypassing unit tests in views
-- Authorization placement in filters vs Razor
-- Service-layer calculations vs view-layer duplication
-- Presentation formatting as the boundary of view responsibility
+- `asp-for="Model.Address.City"` — generates `id="Address_City"` and `name="Address.City"`
+- Nullable navigation — if `Address` is null, accessing `Address.City` throws in the expression
+- `@?` null-conditional in `asp-for` — not supported; expression must be non-null
+- Initialize nested ViewModel — ensures `Address` is never null before rendering
 
 **Answer**
 
-The problem with placing pricing, discount calculations, or authorization checks in `.cshtml` files is that Razor views cannot be meaningfully unit-tested in isolation, which means that business rule changes require verifying behavior through full integration tests or manual browser checks. Business logic in views also tends to diverge from the same logic in API endpoints or batch jobs, since the duplication is invisible and there is no shared test suite enforcing consistency. Authorization in particular belongs in filters, policies, or controller/service checks that run before the view even executes — a view that shows or hides UI based on role checks is not a substitute for server-enforced authorization. I treat Razor as a presentation layer responsible only for formatting data the controller or ViewModel already prepared, nothing more.
+`asp-for="Model.Address.City"` uses an expression tree to generate `id` and `name` attributes. If `Address` is null at render time, the Razor expression `Model.Address.City` throws `NullReferenceException` — the `asp-for` attribute provides no null-conditional equivalent. The expression tree also generates binding names like `Address.City` which the model binder expects to match during POST. Initializing all nested ViewModel objects in the GET action — `model.Address = new AddressViewModel()` — ensures the expression is always valid. If the property can legitimately be absent, render the form section conditionally with `@if (Model.Address != null)` before the tag helper inputs.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. Missing `@addTagHelper` directive causing tag helpers to render as literal HTML
 
 **Concepts**
-- Lazy-loaded navigation triggering N+1 queries in views
-- Mass assignment surface from entity properties
-- Schema coupling between UI and database
-- ViewModel whitelisting as the correct defense
+- `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` — required directive
+- Missing from `_ViewImports.cshtml` — tag helpers not recognized; elements render as unknown HTML
+- `<form asp-action="Login">` — renders as `<form asp-action="Login">` literally, not as `<form action="/Account/Login">`
+- `_ViewImports.cshtml` scope — applies to views in the same folder and all subfolders
 
 **Answer**
 
-Passing EF Core entities directly to Razor views creates several compounding problems. Lazy-loaded navigation properties can trigger unintended database queries during rendering — a loop over `Order.LineItems` in a partial can fire one query per order if the navigations were not eagerly loaded, causing N+1 performance issues that are invisible until load testing. On POST, binding an entity directly exposes every property to mass assignment: even if the form only renders `Name` and `Email`, an attacker can add `IsAdmin=true` to the request body and it will bind. Entities also carry schema-specific fields like `RowVersion`, `InternalMarginPercent`, and FK ids that should never appear in HTML. The fix is to define ViewModels that expose only the fields the view needs and map between entities and ViewModels in the controller or a mapping service.
+Tag helpers are HTML elements and attributes that the Razor engine transforms during compilation. For the transformation to occur, `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` must appear in `_ViewImports.cshtml` at the correct folder level. Without this directive, `<form asp-action="Login">` renders verbatim as an HTML tag with a literal `asp-action` attribute — the browser receives an unknown attribute it ignores and the `action` attribute is empty, making the form POST to the current URL instead of the intended action. The fix is to verify `_ViewImports.cshtml` at the `Views/` root contains the directive. Area views also need `_ViewImports.cshtml` in `Areas/{Area}/Views/` or to inherit from the root.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. `asp-append-version` not busting cache on CDN-served static files
 
 **Concepts**
-- HTML form submitting `application/x-www-form-urlencoded`
-- `[FromBody]` expecting JSON via input formatter
-- Silent binding failure leaving model at defaults
-- `FormData` following form binding rules, not JSON path
+- `asp-append-version="true"` — appends a file-content hash as a query string to the URL
+- CDN URL — `asp-append-version` only works with local files in `wwwroot`, not external URLs
+- CDN cache invalidation — requires changing the file path or CDN cache-busting strategy
+- `<environment>` tag helper — load CDN in Production, local in Development as a workaround
 
 **Answer**
 
-Standard browser forms submit `application/x-www-form-urlencoded` or `multipart/form-data` — they do not send JSON bodies. When an action parameter is decorated with `[FromBody]`, the model binder uses the JSON input formatter, finds no JSON in the request body, and leaves every property at its default value. The action runs with an apparently valid but empty model, so inserts save empty strings and zeroes with no error. The trap is that `ModelState` may appear clean since no conversion failure occurred — properties just stayed at defaults. The fix is to remove `[FromBody]` for conventional MVC form POSTs and allow the default form value provider to bind from the encoded body. `[FromBody]` belongs only on AJAX or API endpoints where the client explicitly sets `Content-Type: application/json` and sends a JSON payload.
+`asp-append-version="true"` on an `<img>` or `<script>` tag computes the SHA-256 hash of the referenced file on disk and appends it as `?v=hash` to the URL. This only works for files served from `wwwroot` — the framework reads the local file to compute the hash. For CDN-hosted files such as `<script src="https://cdn.example.com/app.js" asp-append-version="true">`, there is no local file to hash and the attribute is silently ignored. CDN cache busting requires either versioned file paths (changing the filename on each deploy), CDN-level cache invalidation, or switching to a local `wwwroot` file with `asp-append-version`. The `<environment>` tag helper can load local files in Development (with versioning) and CDN files in Production.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. `asp-items` on `<select>` requiring `IEnumerable<SelectListItem>`, not raw strings
 
 **Concepts**
-- Client validation as bypassable UX convenience
-- Server-side `ModelState.IsValid` as the mandatory security gate
-- Direct POST bypassing browser JavaScript
-- Remote validation not enforced on the server during POST
+- `asp-items="@Model.Categories"` — expects `IEnumerable<SelectListItem>`, not `List<string>`
+- `SelectListItem` — has `Value` (posted), `Text` (displayed), and `Selected` properties
+- Enum conversion — `Html.GetEnumSelectList<MyEnum>()` generates `SelectListItem` from enum values
+- null `asp-items` — renders empty dropdown without error; model state never populates
 
 **Answer**
 
-Client-side validation runs only in the browser and can be stripped out entirely by disabling JavaScript, using curl, Postman, or any HTTP client that never loads the page. An attacker submitting an invalid email, a negative price, or a missing required field directly to the action endpoint will succeed if the server does not check `ModelState.IsValid` before persisting. MVC controllers do not automatically return 400 on invalid models the way `[ApiController]` does, so the guard must be explicit. I always gate POST actions with `if (!ModelState.IsValid) return View(model);` before any service call or database write. Remote validation attributes (`[Remote]`) are particularly deceptive — they fire an AJAX check on the client but are never invoked during server-side POST processing, so uniqueness constraints and availability checks must be re-enforced on the server.
+`asp-items` requires `IEnumerable<SelectListItem>` — providing a `List<string>` causes a runtime cast exception because the tag helper cannot implicitly convert plain strings to `SelectListItem`. `SelectListItem` has separate `Value` (the posted form field value) and `Text` (the displayed option label) properties, which strings lack. If the ViewModel property for `asp-items` is null — because it was not re-populated after a validation failure — the select renders empty without throwing an exception, and the user sees no choices, which is a silent UX failure. Always initialize and re-populate `asp-items` data in both the GET action and in every `return View(model)` path in the POST action.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. `asp-action` generating URLs for the wrong controller when `asp-controller` is omitted
 
 **Concepts**
-- Duplicate submission on browser refresh after POST response
-- Post-Redirect-Get pattern separating mutation from display
-- `TempData` for flash messages surviving the redirect
-- AJAX idempotency as the equivalent concern
+- `asp-action` without `asp-controller` — defaults to the current request's controller
+- Cross-controller links — require both `asp-action` and `asp-controller` specified
+- Area context — links within an area also default to the current area; cross-area needs `asp-area`
+- Ambiguous anchor — renders the wrong URL silently with no error at render time
 
 **Answer**
 
-Returning the same view directly after a successful POST leaves the browser on a POST URL, so pressing refresh resubmits the same form data — creating duplicate orders, double charges, or repeated inserts. The browser's built-in "Confirm Form Resubmission" dialog warns users but does not prevent the problem on automated retries or programmatic submissions. The correct pattern is Post-Redirect-Get: after a successful mutation, `return RedirectToAction(nameof(Index))` sends a 302 response and the browser follows with a GET request, making the final URL safe to refresh. Success messages should travel via `TempData` to the redirect target since they cannot survive the redirect in `ViewData`. For AJAX partial POSTs the same concern applies — I disable the submit button during the request or implement idempotency server-side so duplicate submissions produce the same safe result.
+`<a asp-action="Details">` omitting `asp-controller` generates a URL for the action `Details` on the same controller that rendered the current view. In a layout or shared partial rendered across multiple controllers, this generates different URLs depending on which controller is active — sometimes correct, sometimes pointing to a non-existent action on the current controller. The fix is to always specify `asp-controller` when the link target is not guaranteed to be on the current controller. In areas, also specify `asp-area` for cross-area links. The link tag helper generates the URL silently based on routing context — a missing attribute is not an error, just a wrong URL.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. `<cache>` tag helper serving stale content to all users after a single user's data changes
 
 **Concepts**
-- `ModelState` as request-scoped state
-- Validation errors lost on `RedirectToAction`
-- `return View(model)` on failure vs redirect on success
-- `TempData` serialization for errors that must survive redirect
+- `<cache>` — caches the rendered output in `IMemoryCache` on the server
+- Default cache key — URL and no user discrimination; all users share the same cached output
+- `vary-by-user="true"` — creates per-user cache entries
+- `expires-after` — TTL; stale content served until expiry or explicit invalidation
 
 **Answer**
 
-`ModelState` is scoped to the current HTTP request and is discarded when the response is sent, which means validation errors do not survive a `RedirectToAction`. A common bug is redirecting on both success and failure: the redirect GET action sees an empty `ModelState`, renders a clean form, and the user has no idea what went wrong. The standard pattern is to redirect only on success and return `View(model)` on validation failure — this keeps errors visible inline without any special plumbing. When a redirect on failure is genuinely required (such as PRG with a pre-populated form), errors can be serialized to `TempData` as a dictionary and re-added to `ModelState` on the GET action, but this is complex enough that I treat it as a last resort and prefer the simpler return-on-failure approach.
+`<cache expires-after="@TimeSpan.FromMinutes(5)">` with no `vary-by` attributes caches the rendered HTML block using the request URL as the key. All users see the same cached output regardless of their identity or role. A logged-in admin who sees account management links receives the same cached fragment as an anonymous user who should not see those links. For user-specific content, add `vary-by-user="true"` which includes the user's name in the cache key. For content that varies by query string, use `vary-by="@Context.Request.QueryString"`. Omitting `vary-by` on user-sensitive content is a security and correctness issue, not just a UX issue.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. `<environment>` tag helper not excluding content correctly due to wrong environment name casing
 
 **Concepts**
-- `TempData` consumed on first read by default
-- `Peek()` for non-consuming reads
-- `Keep()` to retain after consuming
-- Single consumption point pattern
+- `<environment names="Development">` — case-sensitive on Linux, case-insensitive on Windows
+- `ASPNETCORE_ENVIRONMENT` — set to "development" (lowercase) on Linux; does not match "Development"
+- Production vs Staging — both must be listed if both should exclude Development content
+- `include` vs `exclude` — `names="Production,Staging"` for conditional exclusion
 
 **Answer**
 
-TempData is designed to survive exactly one request after being set, but within a single request it is consumed on the first read — so if the layout reads a flash message to display a banner and the view also reads the same key to conditionally show an icon, the view sees `null`. The fix is to use `TempData.Peek("Message")` in whichever component reads first, since `Peek` returns the value without marking it consumed. Alternatively, call `TempData.Keep("Message")` after the first read to keep it available for the remainder of the request. The cleanest approach is to have a single consumption point — typically a dedicated layout partial that reads and renders the flash message — and keep views from trying to access the same key independently. Cookie-based `TempData` also has a size limit around 4 KB, so avoid stuffing large object graphs or lists into it.
+`<environment names="Development">` renders its content only when `IWebHostEnvironment.EnvironmentName` equals "Development". On Windows the comparison is case-insensitive, but on Linux it is case-sensitive. If `ASPNETCORE_ENVIRONMENT` is set to "development" (lowercase) on the Linux server, the `<environment names="Development">` check fails and production resources (CDN scripts) are not loaded while development resources are. The standard value is "Development" with capital D, and the environment variable should be set consistently. For the exclude pattern — load debug scripts in Development only — use `<environment exclude="Production">` which renders for any environment except Production.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. `asp-validation-summary="All"` showing both model-level and field-level errors doubled
 
 **Concepts**
-- `[Area("AreaName")]` required for area route discovery
-- `{area:exists}` constraint in area route registration
-- Area-less controller treated as a root controller
-- Route registration order mattering for specificity
+- `asp-validation-summary="ModelOnly"` — shows only errors not associated with a specific field
+- `asp-validation-summary="All"` — shows all errors including field-level ones
+- `asp-validation-for` on each field — also shows field-level errors inline
+- Double display — `All` summary + per-field spans = same error shown twice
 
 **Answer**
 
-Controllers placed under `Areas/Admin/Controllers/` are not automatically associated with the Admin area — they require an explicit `[Area("Admin")]` attribute to be matched by the area route. Without the attribute, MVC treats the controller as an ordinary root controller, so requests to `/admin/dashboard` either 404 or accidentally match a catch-all route. Area routing is registered separately in `Program.cs` using `MapControllerRoute` with a `{area:exists}` constraint, and this route must be registered before the default catch-all route so area paths take priority. Forgetting the attribute while the route is registered produces confusing behavior where the area URL patterns exist in the route table but the controllers are never matched by them.
+Using `asp-validation-summary="All"` alongside `<span asp-validation-for="Name">` on individual fields causes each field's error to appear twice — once in the summary and once below the input. `asp-validation-summary="ModelOnly"` shows only errors added to `ModelState` without a field key (e.g., `ModelState.AddModelError("", "Username already taken")`), leaving field-specific errors to the per-field `asp-validation-for` spans. The correct pattern is `asp-validation-summary="ModelOnly"` for the summary block and `asp-validation-for` on each field input. Use `asp-validation-summary="All"` only when you want a single top-level list without per-field inline spans.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Custom tag helper not processed because of missing registration
 
 **Concepts**
-- Tag Helper ambient area context for URL generation
-- `asp-area` required for cross-area link generation
-- Area links 404 or hitting wrong controller without it
-- `Url.Action` area route values requirement
+- `@addTagHelper` — must list the assembly containing the custom tag helper
+- `@addTagHelper MyApp.TagHelpers.AlertTagHelper, MyApp` — registers one specific helper
+- `@addTagHelper *, MyApp` — registers all tag helpers in the assembly
+- `_ViewImports.cshtml` scope — register in the appropriate folder's `_ViewImports.cshtml`
 
 **Answer**
 
-Tag Helpers use the current request's route data as ambient values when generating URLs, which means they inherit the current area context automatically. From within the Admin area, omitting `asp-area` on a link to `AccountController` generates a URL in the Admin area segment, likely 404-ing because there is no `AccountController` in Admin. Crossing area boundaries requires explicitly setting `asp-area="Admin"` on the tag helper — omitting it generates a URL without the area segment when the current request is not in an area, or uses the wrong area when it is. The same rule applies to `Url.Action` calls: always pass `new { area = "Admin" }` in the route values dictionary when targeting an area controller from outside that area. Links from root views to area controllers and from one area to another both require `asp-area` to be explicit.
+A custom tag helper class `AlertTagHelper : TagHelper` compiles and runs without errors, but if its assembly is not registered in `_ViewImports.cshtml` with `@addTagHelper *, MyApp`, Razor does not recognize the `<alert>` element as a tag helper — it renders as an unknown HTML element with literal attributes. The registration `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` covers the built-in helpers but not custom ones in the app assembly. Add `@addTagHelper *, MyApp` (where `MyApp` is the assembly name) to `_ViewImports.cshtml` to enable custom tag helpers. For class library tag helpers, register the library's assembly name specifically.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. `asp-for` on a complex type instead of a scalar property generating wrong input names
 
 **Concepts**
-- Unchecked checkbox posting nothing vs posting `false`
-- Non-nullable `bool` binding empty field to `false`
-- `[Required]` not distinguishing `false` from absent
-- `bool?` with `[Required]` for true-or-null consent
-- `[Range(typeof(bool), "true", "true")]` for must-be-true validation
+- `asp-for="Model.Address"` — generates a single input for the entire object, not individual fields
+- Expected usage — `asp-for="Model.Address.City"` generates `name="Address.City"` for individual binding
+- Form posting complex type — single input posts a string representation, not structured fields
+- View partial for nested objects — `<partial name="_Address" model="Model.Address" />` for complex sub-forms
 
 **Answer**
 
-HTML checkboxes only submit their value when checked — an unchecked checkbox does not appear in the POST body at all. When the model property is non-nullable `bool`, the model binder sets missing fields to `false`, which is a perfectly valid non-null value, so `[Required]` passes without complaint. This means a required consent checkbox with `bool AcceptedTerms` can be submitted unchecked and validation will not catch it. The fix is to use `bool?` with `[Required]`, so an unchecked (absent) field binds to `null` and fails the required check, while an explicitly checked field binds to `true` and passes. For legal consent that must be positively affirmed, I also add `[Range(typeof(bool), "true", "true")]` or a custom attribute to reject `false` explicitly, since `bool?` with `[Required]` only distinguishes null from non-null.
+`asp-for="Model.Address"` on a single `<input>` generates `name="Address"` and calls `ToString()` on the `AddressViewModel` to populate the value — not the structured `Address.City`, `Address.PostalCode` fields the model binder expects. The POST binds the single string input to `Address` using `ToString()` output, which fails to reconstruct the nested object and leaves all nested properties at their defaults. For complex nested objects, each property needs its own `asp-for` with the full path: `asp-for="Model.Address.City"`. When the nested form section is reused across views, extract it to a `<partial name="_AddressForm" model="Model.Address" />` which references each property with `asp-for="Model.City"` inside the partial using the partial's own `@model`.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-zero-based index requirement for collection binding
-- Phantom null entries inserted at missing indices
-- Client-side re-indexing after row deletion
-- Server-side empty-row filtering as defense
-
-**Answer**
-
-Collection binding relies on contiguous indices starting at zero: `Lines[0]`, `Lines[1]`, `Lines[2]`. When a user deletes a middle row in the UI and the remaining rows keep their original indices — say `Lines[0]` and `Lines[2]` — the binder inserts a default/null entry at index 1 and places the actual data at index 2. Server logic that iterates `model.Lines` without filtering then processes a phantom empty line, potentially saving a blank order line or misaligning SKUs with quantities. The fix is to re-index rows in JavaScript immediately after any deletion so the submitted names are always gap-free. As a server-side safety net, filtering `model.Lines.Where(l => !string.IsNullOrEmpty(l.Sku))` before processing discards empty phantom rows even if the client-side re-indexing is buggy.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor auto HTML-encoding as the default XSS defense
-- `@Html.Raw` bypassing encoding entirely
-- Trusted HTML sanitizer library for rich content
-- Content-Security-Policy as defense-in-depth, not a replacement
-
-**Answer**
-
-Razor's default `@model.Property` output HTML-encodes the value, turning `<script>alert(1)</script>` into harmless entity-encoded text. `@Html.Raw(model.UserComment)` bypasses that encoding entirely and injects the string verbatim into the page, so attacker-supplied JavaScript executes in every viewer's browser. This is one of the most common XSS vectors in MVC applications. If rich HTML content from users must be rendered, the only safe approach is to sanitize it server-side with a trusted library (HtmlSanitizer) that allows a controlled whitelist of tags and attributes before it ever touches `@Html.Raw`. Content-Security-Policy headers limit the blast radius when XSS does occur but are not a substitute for encoding — a policy without `'unsafe-inline'` still leaves DOM-based XSS paths open.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form Tag Helper automatic antiforgery token injection
-- Manual `RequestVerificationToken` header or field for AJAX
-- `[AutoValidateAntiforgeryToken]` validating all unsafe methods
-- Same-origin cookie sent automatically vs header requiring manual setup
-
-**Answer**
-
-The Form Tag Helper automatically injects a hidden `__RequestVerificationToken` input when rendering a POST form, so full-page form submissions include the token without any developer action. AJAX requests made with `fetch` or jQuery do not go through the Form Tag Helper, so they must manually read the token value from the hidden field on the page and include it either as a form field or in a custom request header. Forgetting this produces a 400 `Bad Request` with an antiforgery validation failure message that can look like a generic server error. `[AutoValidateAntiforgeryToken]` on the controller class validates all unsafe HTTP methods automatically, so every AJAX POST, PUT, and DELETE to that controller requires the token. The fix is never to disable antiforgery validation to "fix" AJAX — add the token to the request instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub not registered in DI for direct injection
-- `IHubContext<THub>` as the singleton proxy for external broadcasting
-- Connection context required for hub method execution
-- Thin hub pattern with business logic in services
-
-**Answer**
-
-SignalR `Hub` subclasses are not registered in the DI container as injectable services — they are instantiated per connection by the SignalR infrastructure, which means injecting a concrete `Hub` into a controller constructor either fails at activation or produces an instance with no valid connection context. The correct approach is to inject `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()` that allows sending messages to connected clients from anywhere outside the hub — controllers, background services, or domain event handlers. The hub class itself should be kept thin, delegating business logic to scoped or transient services that can be injected normally. For multi-instance deployments, the `IHubContext` must be paired with a Redis backplane or Azure SignalR Service so the broadcast reaches clients connected to other instances.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane for multi-node fan-out
-- Instance-local connection IDs and group membership
-- `AddStackExchangeRedis` or `AddAzureSignalR` for scale-out
-
-**Answer**
-
-Sticky sessions ensure a client always reconnects to the same server instance, but they do not solve the fan-out problem. When a controller on instance A calls `IHubContext.Clients.User(id).SendAsync(...)`, that message is dispatched only to clients connected to instance A — users on instance B, C, and D never see it. This creates inconsistent real-time behavior under load that is nearly impossible to reproduce in single-server development. Connection IDs and group memberships are also stored locally per instance, so `Groups.AddToGroupAsync` on one node does not make the client a member on others. The fix is to register a shared backplane — `AddStackExchangeRedis(connectionString)` or `AddAzureSignalR(connectionString)` — so every instance publishes and subscribes to the same message bus and all clients receive every broadcast.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

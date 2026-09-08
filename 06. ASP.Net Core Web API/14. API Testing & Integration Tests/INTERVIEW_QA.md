@@ -278,215 +278,147 @@ Direct controller testing instantiates the controller with mocked dependencies a
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — API Testing & Integration Tests (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. `WebApplicationFactory` unable to access `Program` class in .NET 6+ minimal hosting
 
 **Concepts**
-- HTTP 201 Created with Location header for resource creation
-- CreatedAtAction and CreatedAtRoute response helpers
-- REST client reliance on status codes and Location header
+- Minimal hosting model — `Program.cs` with top-level statements, no explicit `Program` class
+- `WebApplicationFactory<Program>` requires `Program` to be accessible
+- `InternalsVisibleTo` or `public partial class Program {}` stub needed
+- `WebApplicationFactory<T>` type parameter must be a class from the entry assembly
 
 **Answer**
 
-A successful resource creation must return HTTP 201 Created because that status communicates where the new resource lives via the `Location` header — returning 200 omits that contract and breaks REST clients that rely on status codes to decide their next action. I use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with a `Location` header pointing at the new resource URL, including the created representation or a minimal payload when clients need immediate data. OpenAPI-generated SDKs and standard HTTP client libraries inspect the status code, so returning 200 hides the resource URL from them silently.
+In .NET 6+ minimal hosting, `Program.cs` uses top-level statements and the compiler generates an internal `Program` class. `WebApplicationFactory<Program>` requires the class to be accessible from the test assembly — without `InternalsVisibleTo("TestProject")` in the API project's `AssemblyInfo.cs`, or without adding `public partial class Program {}` at the bottom of `Program.cs`, the test project cannot reference the class and the factory fails to compile. I add `public partial class Program { }` as an empty extension to `Program.cs` as the standard pattern for exposing the entry point to test factories.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. Authentication in integration tests — real JWT vs fake test handler
 
 **Concepts**
-- HTTP safe and idempotent method semantics
-- Browser prefetch and CDN cache replay risk
-- GET read-only contract enforcement
+- Real JWT requires a signing key and a real issuer — complex test setup
+- `TestAuthHandler` implementing `AuthenticationHandler<AuthenticationSchemeOptions>` — injects claims directly
+- `builder.ConfigureTestServices(services => services.AddAuthentication("Test").AddScheme<...>())` pattern
+- Test claims configurable per test — admin vs user vs unauthenticated scenarios
 
 **Answer**
 
-GET must be safe and idempotent, which means performing deletes or updates inside a GET handler violates HTTP semantics and creates real hazards. Browsers, CDNs, and link-preview crawlers may invoke GET URLs without any user intent, so side effects run unintentionally. Cached GET responses can replay destructive operations or deliver stale mutations across clients. State changes belong on POST, PUT, PATCH, or DELETE — GET stays read-only.
+Obtaining a real JWT in integration tests requires a running identity server or a hardcoded signing key — both are fragile and slow. I replace the authentication handler in `WebApplicationFactory.ConfigureTestServices` with a `TestAuthHandler` that reads claims from a custom request header (`X-Test-Claims`) and populates `HttpContext.User` without validating any token. Each test sends the desired claims as a JSON header, allowing exact control over identity (admin, tenant ID, specific permissions) per test case. The `TestAuthHandler` is registered only in test builds, never in production.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. `UseInMemoryDatabase` hiding EF Core translation bugs
 
 **Concepts**
-- HTTP status codes driving retry logic and APM alerting
-- ProblemDetails and ValidationProblemDetails for failures
-- Envelope error pattern anti-pattern
+- In-memory provider — does not use SQL; LINQ evaluated in-memory by .NET
+- Production uses SQL Server or PostgreSQL — some LINQ expressions not translatable to SQL
+- `EF.Functions.Like(...)`, date functions, string operations — may work in-memory, fail in SQL
+- `UseSqlite` with a real connection in integration tests for accurate translation
 
 **Answer**
 
-Business failures must map to appropriate 4xx or 5xx status codes because HTTP status codes are what drive client retry logic, API gateway routing, and APM alerting. A 200 response with a `{ success: false }` flag forces every client to parse the body before knowing whether the call worked, which bypasses standard HTTP semantics entirely. I return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures and 404, 409, or 422 for domain errors. Envelope patterns like `{ success: false }` require custom handling in every consumer and break OpenAPI contract expectations since the schema reports 200 as the success contract.
+The EF Core in-memory provider evaluates LINQ in .NET memory — any expression that cannot be translated to SQL still works because there is no SQL. In production with SQL Server or PostgreSQL, the same query throws `InvalidOperationException: could not be translated`. Integration tests using `UseInMemoryDatabase` pass while production deployments fail on the first real database query containing server-specific functions. I configure integration tests with an actual database provider — `UseSqlite` with an in-memory connection or `UseNpgsql` with a Docker test container — so LINQ translation errors surface in CI.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. Shared database state between tests causing flaky failures
 
 **Concepts**
-- Navigation property N+1 during serialization
-- Circular reference serializer loop risk
-- DTO decoupling from database schema
+- Tests sharing one `WebApplicationFactory` with one database — state from test A affects test B
+- Transaction rollback per test — wraps each test in a transaction, rolled back on `Dispose`
+- Respawn library — resets database to empty state between tests faster than `EnsureDeleted/Created`
+- `ICollectionFixture<T>` — shared factory with per-test database cleanup
 
 **Answer**
 
-EF Core entities expose navigation properties, shadow fields, and circular references that are not designed for public contracts. When the JSON serializer encounters a lazy-loaded navigation it triggers a database query per row, and circular references between entities cause serializer loops or require fragile reference-handling settings. I always serialize DTOs with explicit shapes so the API contract is decoupled from the database schema and clients only receive the fields they need. This also means schema migrations do not break the API contract for fields that were not part of the DTO.
+When multiple integration tests share a single `WebApplicationFactory` instance and the same database, test A leaving data behind causes test B to see unexpected records, producing non-deterministic failures that depend on test execution order. I use `ICollectionFixture<WebAppFactory>` to share the factory across the test class and reset the database state before each test using Respawn's `RespawnAsync()`, which truncates tables in dependency order in milliseconds. For unit-of-work isolation, wrapping each test in a `TransactionScope` that is rolled back on dispose is an alternative that avoids DDL.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. `HttpClient` base address not configured — relative URLs return 404
 
 **Concepts**
-- System.Text.Json camelCase default in ASP.NET Core 8
-- Silent binding failure on case mismatch
-- JsonPropertyName attribute and PropertyNamingPolicy override
+- `WebApplicationFactory.CreateClient()` — returns an `HttpClient` with base address pre-set to `http://localhost/`
+- Custom `HttpClient` without base address — relative URLs throw `UriFormatException`
+- `new HttpClient(factory.Server.CreateHandler())` — bypasses the pre-configured base address
+- Response base URL matching route prefix exactly
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json`, so PascalCase property names from some clients bind as missing, leaving model properties at default values and causing silent data loss on POST and PUT — the request appears to succeed but the data is wrong. I align expectations using `[JsonPropertyName("PropertyName")]` on specific fields, a custom `PropertyNamingPolicy`, or `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)` when I must accept mixed casing from a legacy client. The failure is especially insidious because the server returns 201 or 204 with no error while the data is silently incomplete.
+`WebApplicationFactory.CreateClient()` returns a pre-configured `HttpClient` with `BaseAddress = "http://localhost/"`. Creating a raw `HttpClient` or using a different handler without setting `BaseAddress` means relative paths like `GetAsync("/api/orders")` work correctly on `factory.CreateClient()` but throw or return wrong results on a manually created client. I always use `factory.CreateClient()` or `factory.CreateClient(new WebApplicationFactoryClientOptions { ... })` in integration tests and never construct `HttpClient` manually against the test server.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Not disposing `HttpResponseMessage` — handle exhaustion in test suites
 
 **Concepts**
-- GET body stripping by proxies and HTTP clients
-- [FromQuery] for simple filters
-- OpenAPI and browser fetch GET body restrictions
+- `HttpResponseMessage` wraps a response stream that must be disposed
+- Undisposed responses in long test suites — socket/file handle exhaustion
+- `using var response = await client.GetAsync(...)` — ensures disposal
+- Reading the full body before disposal with `await response.Content.ReadAsStringAsync()`
 
 **Answer**
 
-Many HTTP clients, proxies, and caches ignore or strip GET request bodies, so filters sent as JSON in a GET request fail silently or never reach the action. Model binding for `[FromBody]` on GET is not reliably supported across the HTTP ecosystem. I use query strings with `[FromQuery]` for simple filter parameters, or POST to a dedicated search endpoint for complex filter objects that would otherwise be passed as a body. OpenAPI tools and browser `fetch` also discourage or block GET bodies, which makes this pattern fragile in production regardless of what ASP.NET Core itself accepts.
+`HttpResponseMessage` wraps a response stream from the test server. In long-running test suites with hundreds of tests, undisposed responses accumulate open handles that eventually exhaust OS socket or file descriptor limits, causing test failures late in the suite with unrelated `IOException` messages. I wrap every `HttpClient` call in `using var response = await client.GetAsync(...)` and read the body before the `using` block ends. Alternatively, I call `ReadAsStringAsync()` or `ReadFromJsonAsync<T>()` which internally reads and disposes the stream.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. `WebApplicationFactory` recreated per test — slow test suite
 
 **Concepts**
-- CORS as browser-only enforcement mechanism
-- curl and server-to-server bypass of CORS
-- Authentication and authorization as real API security
+- `WebApplicationFactory` startup — builds the DI container, compiles middleware, starts Kestrel
+- Per-test recreation — minutes of startup overhead for hundreds of tests
+- `IClassFixture<WebApplicationFactory<Program>>` — shares one factory per test class
+- `ICollectionFixture<T>` — shares one factory across multiple test classes
 
 **Answer**
 
-CORS is enforced only by browsers — it does not stop curl, Postman, server-to-server calls, or any direct API request. CORS headers tell a browser whether JavaScript on one origin may read a cross-origin response; they authenticate nothing. A public API without auth is fully accessible to any non-browser client regardless of the CORS policy configured. I register `AddCors` and `UseCors` specifically to enable browser SPA access, and I enforce JWT, cookies, or API keys separately as the actual security mechanism.
+Constructing a new `WebApplicationFactory` in each test method runs the full ASP.NET Core startup pipeline (DI container build, middleware compilation, configuration loading) for every test — a suite of 200 tests can take 10 minutes when each startup takes 3 seconds. I use `IClassFixture<WebApplicationFactory<Program>>` to create one factory per test class via xUnit's fixture mechanism, reusing it across all test methods in the class. For test suites where multiple classes share the same database, `ICollectionFixture<WebAppFactory>` shares one factory across the entire collection.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. Mocking outbound HTTP calls in integration tests
 
 **Concepts**
-- Access-Control-Allow-Origin wildcard and credentials incompatibility
-- WithOrigins explicit list requirement for credentialed requests
-- AllowCredentials requirement for cookies and Authorization headers
+- `IHttpClientFactory` named clients — mockable in unit tests, real in integration tests
+- `DelegatingHandler` as a fake for outbound HTTP calls in integration tests
+- `MockHttpMessageHandler` (Moq.Contrib.HttpClient) vs real endpoint
+- Integration test isolation — control outbound calls to prevent hitting production services
 
 **Answer**
 
-Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers, so `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined in ASP.NET Core — the framework will not emit a valid CORS response for credentialed requests with a wildcard origin. I specify every trusted frontend origin explicitly with `WithOrigins`, including local dev URLs and production domains, and pair that with `AllowCredentials()`. Credentialed cross-origin calls require both a matching explicit origin and `Access-Control-Allow-Credentials: true` in the response headers.
+Integration tests that allow the application to call real external HTTP services are not isolated — tests may fail due to external service downtime, rate limits, or return unpredictable data. I replace outbound `IHttpClientFactory` clients in `ConfigureTestServices` with a fake `DelegatingHandler` that returns preconfigured responses, or use a local WireMock server. The fake handler is injected via `builder.ConfigureTestServices(s => s.AddHttpClient("PaymentService").AddHttpMessageHandler(() => new FakePaymentHandler()))`, ensuring integration tests are fast, deterministic, and do not pollute or depend on external state.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. Middleware order bugs invisible to unit tests
 
 **Concepts**
-- OpenAPI schema reconnaissance risk
-- Environment-gated Swagger UI registration
-- Production API surface disclosure
+- Unit tests invoke action methods directly — middleware pipeline not involved
+- Middleware order bugs (CORS before auth, routing order) — only visible with full pipeline
+- `WebApplicationFactory` running the real middleware pipeline end-to-end
+- HTTP-level assertions vs method-level assertions
 
 **Answer**
 
-Public Swagger UI discloses the full API surface, schemas, and try-it-out access to anyone who discovers the `/swagger` endpoint, which makes it useful reconnaissance for attackers. I wrap `MapSwagger` and `UseSwaggerUI` in `Program.cs` with an environment check so they only serve in Development or Staging, and for internal tooling that needs OpenAPI in production I gate it behind authentication middleware. Exposed OpenAPI documents reveal internal endpoint names, field names, and enum values that simplify targeted attacks even without try-it-out access.
+Unit tests that call controller action methods directly bypass the entire middleware pipeline — CORS, authentication, authorization, exception handling, and model binding all run outside the action method body. Middleware order bugs like `UseAuthorization()` before `UseAuthentication()`, or `UseCors()` placed after `UseAuthentication()`, are completely invisible to unit tests but cause 401/403/CORS failures in production. Integration tests send real HTTP requests through `WebApplicationFactory` which runs the full pipeline, so middleware order bugs surface in CI rather than production.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. `TestServer` not equivalent to Kestrel — forwarded headers not processed
 
 **Concepts**
-- [ApiController] enabling automatic model-state 400 responses
-- [FromBody] inference for complex types
-- Inconsistent error contracts from mixed controller conventions
+- `TestServer` — in-process server without real TCP sockets
+- `UseForwardedHeaders` middleware — reads `X-Forwarded-For`, `X-Forwarded-Proto` from proxy
+- `TestServer` requests — no real HTTP layer; `Request.Scheme` and `RemoteIpAddress` are direct values
+- Integration tests for proxy-dependent logic — need explicit `X-Forwarded-*` headers in test requests
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses, binding source inference, and attribute routing behaviors differ from controllers that do have it. A mix of attributed and non-attributed controllers in the same Web API produces inconsistent error contracts — some endpoints return 200 with invalid models while others automatically validate and reject. I apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions and clients can rely on consistent behavior.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- Sync-over-async thread-pool starvation
-- SynchronizationContext deadlock under ASP.NET Core
-- async Task<IActionResult> propagation through service layer
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` in async API actions ties up Kestrel request threads while I/O completes, which reduces throughput under concurrent load since the thread cannot serve other requests. Deadlocks occur when the blocked thread holds a synchronization context the async continuation needs to resume on — this is a classic symptom in some hosting environments. I mark controller actions `async Task<IActionResult>` and propagate `await` through the entire service layer down to EF Core and `HttpClient` calls, so no thread is blocked waiting for I/O.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness vs readiness probe semantics in Kubernetes
-- Unnecessary pod restart from database-down liveness failure
-- /health/live lightweight self-check vs /health/ready dependency check
-
-**Answer**
-
-If the liveness probe fails when SQL is down, Kubernetes restarts the pod — but restarting the application cannot fix a database outage, so the restarts are both unnecessary and harmful since they interrupt in-flight requests. Liveness answers whether the process itself is healthy enough to continue running; readiness answers whether the pod should receive traffic. I put SQL, Redis, and external service checks on the readiness probe only, mapping `/health/live` to a lightweight self-check and `/health/ready` to `AddDbContextCheck` or custom dependency tags so pods are removed from the load balancer during an outage without being killed.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- Lazy-loaded navigation property per-row SQL query
-- LINQ projection to DTO in a single query
-- Include/ThenInclude for explicit eager loading
-
-**Answer**
-
-Returning entities with lazy-loaded navigation properties triggers one SQL query per row in the list — a `GET /api/orders` that returns 100 orders with a `Customer` navigation fires 101 queries. I fix this by projecting directly to DTOs in LINQ so EF Core generates a single query with only the columns needed, or by using `Include`/`ThenInclude` for graphs that must be loaded together. The key is that serialization must never drive database queries; all data needed for the response should be fetched in a bounded number of round trips before serialization begins.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination instability under concurrent writes
-- Keyset pagination with stable indexed key
-- Cursor token exposure in response metadata
-
-**Answer**
-
-`Skip((page - 1) * pageSize).Take(pageSize)` shifts the window when rows are inserted or deleted between page requests, causing duplicates or gaps in the client's view. Keyset pagination avoids this by using `WHERE id > @lastId ORDER BY id LIMIT @pageSize` with the last seen key from the previous response — since the key is stable, concurrent inserts and deletes do not shift the window. I expose cursor tokens in link headers or response metadata for high-churn data, and I keep offset pagination only for small, mostly static tables where the instability risk is negligible.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolver per-parent database query explosion
-- DataLoader batching into single IN clause
-- Eager loading at root query as alternative
-
-**Answer**
-
-Field resolvers in HotChocolate that query the database per parent row explode into N+1 SQL calls under load — a list of 100 authors each resolving `books` individually fires 101 queries instead of one batched query. The fix is DataLoader: I register a batch loader in DI that collects author IDs during field resolution and issues a single `WHERE AuthorId IN (...)` query, distributing results back to the individual resolvers. When the client always requests nested fields together, I can also eager-load at the root query, but DataLoader is the more flexible solution since it only loads what was actually selected.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC HTTP/2 trailing headers inaccessible to browsers
-- gRPC-Web middleware translation requirement
-- CORS configuration alongside gRPC-Web
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing and trailing headers that browser `fetch` and `XMLHttpRequest` APIs do not expose to JavaScript, which means standard gRPC clients work server-to-server but not from a browser. Blazor WASM and SPA browsers require the gRPC-Web protocol — I add `AddGrpcWeb()` and call `EnableGrpcWeb()` on mapped gRPC services to translate between gRPC-Web and native gRPC on the server side. I also configure CORS for the browser origin alongside gRPC-Web, since cross-origin browser calls still enforce CORS on preflight and response headers.
+`WebApplicationFactory`'s `TestServer` processes requests in-process without a real TCP layer — `Request.RemoteIpAddress` and `Request.Scheme` are not populated from network sockets. If the application logic depends on `X-Forwarded-For` or `X-Forwarded-Proto` headers processed by `UseForwardedHeaders` middleware, integration tests must explicitly set these headers in the test request: `request.Headers["X-Forwarded-For"] = "1.2.3.4"`. Rate limiting, IP-based access control, and HTTPS redirect logic all depend on forwarded headers and must be tested with explicit header injection.
 
 ---
 

@@ -214,81 +214,147 @@ Both options handle object graphs that contain cycles, but they make different t
 
 ---
 
-## Gotchas
+## Gotchas — Serialization & Deserialization (Interview Traps)
 
 ---
 
-## Q13. Why does creating a new JsonSerializerOptions per call cause performance problems?
+#### Gotcha 1. `[JsonIgnore]` vs `[JsonPropertyName]` — ignoring vs renaming serialized properties
 
 **Concepts**
-- type-metadata cache inside JsonSerializerOptions
-- reflection cost on first Serialize/Deserialize per type
-- static or singleton options pattern
-- JsonSerializerOptions.Default (.NET 8+)
+- `[JsonIgnore]` excludes the property from serialization entirely
+- `[JsonPropertyName("camelCase")]` renames the property in JSON output
+- both attributes live in `System.Text.Json.Serialization`
+- confusion causes either missing fields or wrong field names in the JSON
 
 **Answer**
 
-Every `JsonSerializerOptions` instance maintains an internal cache that maps CLR types to their serialization metadata — property names, converters, constructor parameters, and so on. This cache is populated lazily on the first call for each type via reflection, which is relatively expensive. Creating a new options instance for every call means the cache is discarded after each use, so every request pays the full reflection cost for every type in the graph. Under high load — a REST endpoint processing thousands of requests per second — this produces measurable latency and excessive garbage-collector pressure. The fix is to create one `JsonSerializerOptions` instance and reuse it, registered as a singleton in the DI container or stored in a `static readonly` field. In .NET 8+ `JsonSerializerOptions.Default` provides a pre-configured instance. ASP.NET Core's `IOptions<JsonSerializerOptions>` injects the single shared instance that the framework already configures.
+`[JsonIgnore]` completely excludes a property from both serialization and deserialization, so the field never appears in JSON output and is never populated on deserialization. `[JsonPropertyName("name")]` keeps the property in the JSON but maps it to a different name — the C# name `FirstName` can serialize as `"first_name"` or `"firstName"` depending on convention. A common mistake is using `[JsonIgnore]` when the intent was only to rename, causing the consumer API to receive a null or missing field. The two attributes can be combined if you also need to suppress a renamed property conditionally using `[JsonIgnore(Condition = ...)]`.
 
 ---
 
-## Q14. What is the ReferenceHandler.IgnoreCycles trap when serializing parent/child object graphs?
+#### Gotcha 2. Circular reference handling — System.Text.Json throws by default; ReferenceHandler.Preserve
 
 **Concepts**
-- second-visit null substitution
-- lossy round-trip
-- bidirectional navigation property
-- incorrect tree rendering on the client
-- IgnoreCycles vs Preserve vs DTO projection
+- `JsonException: A possible object cycle was detected` on circular object graphs
+- `JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve`
+- `$id` and `$ref` metadata in the output
+- `ReferenceHandler.IgnoreCycles` silently writes null instead of the back-reference
 
 **Answer**
 
-`ReferenceHandler.IgnoreCycles` writes `null` wherever it encounters an object reference it has already serialized in the current traversal. This means that in a parent/child graph where `Child.Parent` points back to the parent, the parent reference on the child is silently replaced with `null` in the JSON output. A mobile or browser client that renders a tree based on this JSON will see children with `null` parents, which breaks tree navigation logic. The bug is subtle because the serialization succeeds without errors and the top-level structure looks correct. The correct approaches are: project to a one-directional DTO that excludes back-references before serializing; or use `ReferenceHandler.Preserve` for .NET-to-.NET pipelines where the receiving side understands `$id`/`$ref` syntax. For public APIs, introducing a dedicated response model that explicitly controls which relationships are included is the cleanest solution.
+By default `System.Text.Json` throws a `JsonException` when it detects a circular reference during serialization, such as `Order.Customer.Orders` pointing back to `Order`. Setting `ReferenceHandler.Preserve` resolves the cycle by emitting `$id`/`$ref` metadata tokens in the JSON — the first occurrence of an object gets `$id` and subsequent references use `$ref`. This format is understood by .NET deserializers but is non-standard and may break JavaScript clients. `ReferenceHandler.IgnoreCycles` is the softer option: it writes `null` instead of the back-reference, which round-trips incorrectly but does not throw. The cleanest production fix for public APIs is to use projection DTOs that break the cycle by design.
 
 ---
 
-## Q15. What happens when you deserialize a bool property from a payload that omits the field entirely?
+#### Gotcha 3. `[Serializable]` (BinaryFormatter) is obsolete and insecure — do not use
 
 **Concepts**
-- missing member → type default (false for bool)
-- bool vs bool? distinction
-- tristate semantics (true / false / not-set)
-- required keyword (.NET 7+)
-- JsonUnmappedMemberHandling
+- `BinaryFormatter` is disabled by default in .NET 5+ and throws by default
+- deserialization of untrusted binary data allows remote code execution
+- `[Serializable]` attribute alone does nothing for `System.Text.Json` or `XmlSerializer`
+- migration path: use `System.Text.Json` or `DataContractSerializer`
 
 **Answer**
 
-When `System.Text.Json` deserializes a payload that does not include a field corresponding to a `bool` property, it leaves the property at its C# default: `false`. This is indistinguishable from a client that explicitly sent `"isVerified": false`. If the business logic needs to distinguish "the client explicitly set this to false" from "the client never sent this field at all," the property type must be `bool?`. A `null` result then means the field was absent, `false` means it was explicitly false, and `true` means it was explicitly true. Marking a property `required` (C# 11 / .NET 7+) causes a `JsonException` at deserialization time if the key is absent, which is appropriate for fields that are mandatory on every request. For evolving DTOs, defaulting nullable optional fields to `null` and documenting the semantic difference from `false` is the correct versioning discipline.
+`BinaryFormatter` was the original .NET serializer that relied on the `[Serializable]` attribute. It is disabled by default in .NET 5+ and will throw `NotSupportedException` unless explicitly re-enabled with an AppContext switch. The reason for the hard deprecation is a well-documented class of deserialization gadget-chain attacks — deserializing untrusted binary data can execute arbitrary code on the server. Adding `[Serializable]` to a class today has no effect on `System.Text.Json` or `XmlSerializer`; it is only meaningful for the legacy `BinaryFormatter`. Any project still using `BinaryFormatter` should migrate to `System.Text.Json` for general-purpose serialization or `DataContractSerializer` for WCF compatibility.
 
 ---
 
-## Q16. Why does WriteIndented = true hurt performance in production APIs?
+#### Gotcha 4. `JsonSerializer.Deserialize` returns null for null JSON — not an empty object
 
 **Concepts**
-- extra whitespace bytes in every response
-- response payload size increase
-- serialization CPU overhead
-- development vs production options
-- environment-specific configuration
+- `JsonSerializer.Deserialize<T>("null")` returns `null` for reference types
+- no automatic empty-object construction on null input
+- nullable reference type annotation: `T?` return type in recent .NET
+- guard pattern: null check before using the deserialized object
 
 **Answer**
 
-`WriteIndented = true` causes `JsonSerializer` to emit newlines and spaces between every key and value to produce human-readable output. This increases the byte size of every response — sometimes by 30–50% for deeply nested objects — and increases the CPU time spent writing whitespace characters. Under high request volume this adds up to meaningful additional bandwidth and slightly higher serialization latency. In development it aids debugging and makes payloads readable in browser DevTools, so it is appropriate there. In production, `WriteIndented` should be `false`. The standard pattern is to configure options per environment, or to always use compact output and rely on browser extensions or API clients that pretty-print on the client side. ASP.NET Core's default `JsonSerializerOptions` uses compact output, so this pitfall typically appears when developers copy their debug options object into the production configuration.
+When `JsonSerializer.Deserialize<MyDto>("null")` is called, it returns `null` — the literal JSON string `"null"` deserializes to the null reference for any reference type. Similarly, passing an empty or null `string` as input throws `ArgumentNullException`. Code that does `var dto = JsonSerializer.Deserialize<OrderDto>(body); dto.Items.Count` will throw `NullReferenceException` when the body is `"null"`. The method's return type annotation in .NET 6+ is `T?`, signaling the nullable contract. Always null-check or use `?? throw new InvalidDataException(...)` immediately after deserialization to fail fast with a meaningful message rather than a cryptic downstream null dereference.
 
 ---
 
-## Q17. What fails when you call new XmlSerializer(typeof(T)) inside a hot loop?
+#### Gotcha 5. Polymorphic deserialization — base type result when derived type is not registered
 
 **Concepts**
-- XmlSerializer construction reflection cost
-- temporary assembly generation (legacy behavior)
-- static readonly serializer per type pattern
-- constructor vs Serialize/Deserialize cost
-- memory leak from dynamic assembly
+- `JsonSerializer.Deserialize<Animal>(json)` returns an `Animal`, not a `Dog`
+- `[JsonDerivedType]` attribute (or `JsonPolymorphismOptions`) required for .NET 7+ polymorphism
+- discriminator property `$type` in the JSON
+- Newtonsoft.Json TypeNameHandling comparison
 
 **Answer**
 
-Constructing a new `XmlSerializer` with a `Type` argument triggers reflection over that type's properties and, on some runtimes and for some type configurations, generates a temporary serialization assembly. This construction cost is significant — far higher than a single serialization call once the serializer exists. Calling `new XmlSerializer(typeof(T))` inside a hot loop or on every request creates a new object each time without benefiting from the cached serialization plan from previous calls, resulting in repeated reflection and, historically on .NET Framework, potential memory leaks from orphaned dynamic assemblies. The fix is to declare the serializer as a `static readonly` field on the class: `private static readonly XmlSerializer Serializer = new XmlSerializer(typeof(T));`. The serializer is constructed once at class initialization time and reused for all subsequent calls. There is no thread-safety issue with reusing `XmlSerializer` across threads; Serialize and Deserialize are thread-safe on a single instance.
+If you serialize a `Dog` instance (which inherits from `Animal`) and then deserialize the JSON back as `Animal`, you get an `Animal` instance — not a `Dog`. The derived-type metadata is lost because `System.Text.Json` does not emit type discriminators by default. To round-trip polymorphic hierarchies, annotate the base class with `[JsonDerivedType(typeof(Dog), typeDiscriminator: "dog")]` in .NET 7+. The serializer then emits a `$type: "dog"` field and uses it during deserialization to construct the correct derived type. Omitting the registration causes a silent data loss: no exception is thrown, but the deserialized object is missing all `Dog`-specific properties.
+
+---
+
+#### Gotcha 6. `[JsonConstructor]` — required when the type has no parameterless constructor
+
+**Concepts**
+- `System.Text.Json` calls the parameterless constructor by default
+- `JsonException` thrown when no parameterless constructor exists
+- `[JsonConstructor]` marks the constructor to use for deserialization
+- parameter names must match JSON property names (case-insensitive)
+
+**Answer**
+
+`System.Text.Json` looks for a parameterless constructor when deserializing. If a class only exposes a parameterized constructor (common in immutable record-like types), deserialization throws `JsonException: Each parameter in the deserialization constructor on type must bind to an object property or field`. Applying `[JsonConstructor]` to the constructor tells the serializer to use it, and it matches constructor parameters to JSON properties by name (case-insensitive by default). Records with primary constructors automatically work without `[JsonConstructor]` in .NET 5+ because the compiler generates both the parameterized constructor and the required property declarations. For non-record classes, `[JsonConstructor]` is the explicit annotation that enables immutable value objects to round-trip correctly.
+
+---
+
+#### Gotcha 7. `DateTime` serialization format differences — ISO 8601 vs custom formats
+
+**Concepts**
+- `System.Text.Json` defaults to ISO 8601 (`"2025-03-15T10:30:00"`)
+- time zone information: UTC Z suffix vs unspecified `DateTimeKind`
+- `DateTimeOffset` is preferred over `DateTime` for unambiguous round-trips
+- custom `JsonConverter<DateTime>` needed for non-standard formats
+
+**Answer**
+
+`System.Text.Json` serializes `DateTime` values as ISO 8601 strings by default, including a `Z` suffix when `Kind == DateTimeKind.Utc` and no suffix for `Unspecified`. A `DateTime` without kind information deserialized from `"2025-03-15T10:30:00"` produces `DateTimeKind.Unspecified`, which behaves differently from `Utc` in comparison and conversion operations. Legacy systems often produce non-ISO date formats like `"15/03/2025"`, which `System.Text.Json` cannot parse and throws on. The correct fix is to use `DateTimeOffset` throughout — it stores the offset explicitly and eliminates ambiguity. For legacy format support, implement a custom `JsonConverter<DateTime>` that uses `DateTime.ParseExact` with the known format.
+
+---
+
+#### Gotcha 8. `System.Text.Json` is case-insensitive only with `PropertyNameCaseInsensitive = true`
+
+**Concepts**
+- default behavior: property name matching is case-sensitive
+- `"firstname"` does not map to `FirstName` without the option
+- `JsonSerializerOptions.PropertyNameCaseInsensitive = true` enables relaxed matching
+- performance cost of case-insensitive matching
+
+**Answer**
+
+By default `System.Text.Json` uses case-sensitive property matching during deserialization: a JSON payload with `"firstname": "Alice"` will NOT populate a C# property named `FirstName`. Properties that do not match are silently ignored — no exception, the property stays at its default value. This is a frequent source of "deserialized object has all null properties" bugs when the JSON uses snake_case or all-lowercase conventions. Setting `JsonSerializerOptions.PropertyNameCaseInsensitive = true` enables case-insensitive matching. ASP.NET Core's default `JsonSerializerOptions` sets this to `true`, which is why the bug often appears only in console or unit test code that constructs its own options.
+
+---
+
+#### Gotcha 9. XmlSerializer requires parameterless constructor and public properties
+
+**Concepts**
+- `XmlSerializer` reflects on public, settable properties
+- no parameterless constructor causes `InvalidOperationException` at runtime
+- read-only properties are silently skipped during deserialization
+- `[XmlIgnore]` to exclude a property from XML serialization
+
+**Answer**
+
+`XmlSerializer` requires a public parameterless constructor — without it the deserializer throws `InvalidOperationException: There was an error reflecting type`. Unlike `System.Text.Json`, it cannot use a parameterized constructor or `[XmlConstructor]`. In addition, only public properties with both a getter and a setter are deserialized; read-only properties are serialized (output only) but silently skipped on deserialization, meaning the deserialized object will have its read-only properties at their default values even if the XML contains the corresponding elements. Immutable or record types do not work with `XmlSerializer` without workarounds. These constraints make `XmlSerializer` a poor fit for modern immutable DTO design.
+
+---
+
+#### Gotcha 10. `DataContractSerializer` vs `XmlSerializer` — opt-in vs opt-out model
+
+**Concepts**
+- `DataContractSerializer`: opt-in — only `[DataMember]`-annotated properties are serialized
+- `XmlSerializer`: opt-out — all public properties are serialized unless `[XmlIgnore]` is applied
+- `DataContractSerializer` supports private fields via `[DataMember]`
+- `DataContractSerializer` is the default for WCF service contracts
+
+**Answer**
+
+`DataContractSerializer` follows an opt-in model: a class must be annotated with `[DataContract]` and each member with `[DataMember]`; unannotated members are excluded. `XmlSerializer` follows opt-out: all public read/write properties are included unless explicitly decorated with `[XmlIgnore]`. A common mistake when switching from `XmlSerializer` to `DataContractSerializer` is forgetting to add `[DataMember]` to all required properties, causing them to silently disappear from the serialized output. The opt-in model is safer for sensitive data — new properties are excluded by default — but requires discipline when adding new members. `DataContractSerializer` also supports private fields with `[DataMember]`, which `XmlSerializer` does not, making it more suitable for domain objects with encapsulated state.
 
 ---
 

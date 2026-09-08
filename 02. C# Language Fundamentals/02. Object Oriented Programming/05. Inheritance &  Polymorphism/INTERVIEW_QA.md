@@ -224,67 +224,155 @@ Method hiding with `new` declares a member that shares a name with a base class 
 
 ---
 
-## Gotcha Questions
+## Gotchas — Inheritance & Polymorphism (Interview Traps)
 
 ---
 
-## Q14. A payroll loop produces `"EMP"` badge codes for all employees, including managers. The method returns `employee.GetBadgeCode()`. Why, and how do you fix it?
+#### Gotcha 1. Hiding a base method with new instead of override breaks polymorphism through a base-typed reference
 
 **Concepts**
-- `GetBadgeCode()` not declared `virtual` on base
-- `new` in derived class creates hiding, not overriding
-- Static dispatch via `Employee` reference type
-- Fix: add `virtual` to base method, `override` in derived
-- Polymorphic dispatch via vtable after fix
+- `new` creates a new method slot — not an override
+- `virtual`/`override` puts method in vtable
+- Hiding is resolved at compile time by reference type
+- `new` does not participate in virtual dispatch
+- Callers through base reference always see base version
 
 **Answer**
 
-The method `GetBadgeCode()` on `Employee` is not declared `virtual`. Derived classes (`Manager`, `ContractEmployee`) declare `GetBadgeCode()` with `new`, which hides the base method rather than overriding it. When the payroll loop iterates an `Employee[]` and calls `employee.GetBadgeCode()`, the compiler generates a `callvirt` instruction using the `Employee` type's vtable slot — which has no override because hiding methods do not participate in vtable overriding. The call always resolves to `Employee.GetBadgeCode()` returning `"EMP"`. The fix is to add `virtual` to `Employee.GetBadgeCode()` and change `new` to `override` in every derived class. After this change, the vtable slot for `GetBadgeCode` in `Manager`'s vtable points to `Manager.GetBadgeCode()`, and the polymorphic loop returns the correct badge code for each derived type without any type checks.
+When a derived class declares a method with `new`, it creates a separate method that hides the base method for callers who hold a reference of the derived type. Any caller holding a base-type reference calls the original base method regardless of the actual runtime type. This silently defeats polymorphism and is one of the most common C# interview traps.
 
 ---
 
-## Q15. A new `InternEmployee : Employee` overrides `CalculateNet()` to throw `InvalidOperationException`. Why does this violate LSP, and what should be done instead?
+#### Gotcha 2. Overriding a method replaces the base implementation entirely — base() is not called automatically
 
 **Concepts**
-- LSP — substitutability requirement
-- Override that throws breaks caller expectations
-- Payroll loop has no type-specific handling
-- Wrong inheritance relationship (interns are not payroll employees)
-- Segregated interface or exclusion from the payroll hierarchy
+- `override` replaces, does not extend
+- `base.Method()` must be called explicitly
+- Base class validation or logging is silently skipped
+- Template Method Pattern ensures base logic runs
+- `abstract` forces full derived ownership
 
 **Answer**
 
-LSP requires that a derived class can fully substitute for its base in any context that works with the base type. `ProcessPayroll` iterates `IReadOnlyList<Employee>` and calls `CalculateNet()` on every element, expecting it to return a valid `Money` result. `InternEmployee.CalculateNet()` throws instead, breaking that expectation for callers who never anticipated the exception. This is a classic LSP violation: the base class's contract is that `CalculateNet()` returns a value; the derived class strengthens the precondition by adding an implicit "not an intern" requirement. The root cause is a wrong IS-A relationship — interns are not payroll employees in the standard sense. The fix depends on the domain: either exclude interns from the `Employee` hierarchy and handle them in `StipendService` separately, or introduce a segregated interface `IPayrollCalculable` that only types supporting standard payroll calculation implement, and filter the payroll loop to `IPayrollCalculable` items. This keeps the inheritance hierarchy honest.
+An `override` in a derived class completely replaces the base method's body. If the base method contained validation, audit logging, or invariant checks, none of that runs unless the derived class explicitly calls `base.Method()`. The Template Method Pattern avoids this risk: make the base method non-virtual and have it call a protected virtual `MethodCore()` that derived classes override.
 
 ---
 
-## Q16. Why does a `ContractEmployee` override of `CalculateNet()` that omits `base.CalculateNet()` silently drop validation?
+#### Gotcha 3. Calling a virtual method from a constructor invokes the derived override before the derived constructor runs
 
 **Concepts**
-- `override` replaces base implementation — does not auto-call base
-- `base.Method()` call is explicit and optional
-- Shared validation/audit logic in base bypassed
-- Template Method Pattern as alternative
-- `abstract` base method forces full ownership
+- Virtual dispatch goes to most-derived override
+- Derived constructor body has not run yet
+- Derived fields are still zero/null
+- `NullReferenceException` inside the virtual method
+- Non-virtual or `sealed` methods are safe in ctors
 
 **Answer**
 
-When `ContractEmployee.CalculateNet()` is declared `override` and its body returns `BaseSalary + ContractBonus` without calling `base.CalculateNet()`, it completely replaces the base implementation. Any validation, audit logging, or invariant-checking code inside the base `CalculateNet()` is silently skipped. Callers and unit tests may not notice because the method still returns a value and does not throw — the missing validation is invisible. The fix depends on design intent. If validation must always run, use the Template Method Pattern: the base class provides a non-virtual `CalculateNet()` that performs validation and then calls an abstract (or virtual) `CalculateNetCore()` that derived classes override to provide their specific computation. This guarantees validation runs for all types without relying on each derived class to remember to call `base`. Alternatively, mark the base `CalculateNet()` `abstract`, forcing derived classes to own the complete calculation and include validation themselves — appropriate when each type's pay structure is entirely different.
+If a base constructor calls a virtual method and a derived class overrides it and reads its own fields, those fields are still at their zero-initialized values because the derived constructor body runs after the base constructor finishes. This pattern reliably produces `NullReferenceException` or incorrect output. Never call virtual methods from constructors.
 
 ---
 
-## Q17. Can a C# class inherit from two base classes? How is the "diamond problem" handled?
+#### Gotcha 4. Derived class can only widen but not narrow the thrown exception contract — LSP precondition rule
 
 **Concepts**
-- Single class inheritance only
-- Multiple interface implementation
-- No diamond problem with interfaces (compile-time disambiguation)
-- Default interface methods can create diamond scenarios
-- `ExplicitInterfaceImplementation` as resolution
+- LSP: derived type must not strengthen preconditions
+- Throwing where base does not breaks substitutability
+- Callers do not expect exceptions from substituted derived
+- Replace bad IS-A with composition or segregated interface
 
 **Answer**
 
-C# does not allow a class to inherit from more than one base class — this is a fundamental language design decision that eliminates the diamond problem at the class level. If `Director` needed to inherit from both `Employee` and `BoardMember` classes, C# forbids it. Multiple interface implementation is the mechanism for expressing multiple capabilities: `class Director : Employee, IBoardMember`. Since interfaces (before C# 8) had no implementation, there was no ambiguity about which implementation to inherit. C# 8 introduced default interface methods, which can create a limited form of the diamond problem: if `IAlpha` and `IBeta` both provide a default implementation of `Print()`, and `class Foo : IAlpha, IBeta` does not override it, the compiler reports an ambiguity error. The resolution is for `Foo` to explicitly implement `Print()`, or use explicit interface implementation (`void IAlpha.Print()`) to disambiguate.
+Liskov Substitution Principle requires that a derived type be usable anywhere the base is expected without breaking the caller. If the base contract says a method returns a value, an override that throws violates that contract. Callers iterating a collection of base-typed references will encounter unexpected exceptions from derived instances. The fix is to remove the type from the hierarchy or introduce a segregated interface.
+
+---
+
+#### Gotcha 5. sealed on a method or class prevents further override — but derived class can still shadow with new
+
+**Concepts**
+- `sealed override` prevents further overriding in subclasses
+- Subclass cannot introduce another `override`
+- Shadowing with `new` is still allowed
+- `sealed class` prevents inheritance entirely
+- Useful for performance (devirtualization) and invariant protection
+
+**Answer**
+
+`sealed override` on a method prevents any further class from overriding it in the inheritance chain. However, a class that inherits below the sealed level can still use `new` to shadow the method — this hides rather than overrides. Sealing a method protects the virtual slot but does not prevent hiding. `sealed class` is stronger: it prevents all further inheritance.
+
+---
+
+#### Gotcha 6. C# supports only single class inheritance — multiple inheritance comes via interfaces only
+
+**Concepts**
+- One base class at most
+- Multiple interfaces allowed
+- Default interface methods can simulate multiple inheritance
+- Diamond problem resolved by explicit implementation
+- Composition over multiple inheritance
+
+**Answer**
+
+C# allows a class to inherit from at most one base class. Multiple capabilities are expressed through interfaces. When two interfaces both provide a default implementation of the same method and a class implements both, the compiler reports an ambiguity error and requires the class to override the method explicitly. This is the only diamond-problem scenario in C#.
+
+---
+
+#### Gotcha 7. Abstract class cannot be instantiated directly — even if all abstract members are implemented in a partial manner
+
+**Concepts**
+- Abstract class keyword prevents `new AbstractClass()`
+- CS0144 compile error
+- Derived class must implement all abstract members
+- Abstract class with no abstract members is valid but unusual
+- Useful for template method and shared state
+
+**Answer**
+
+An abstract class cannot be directly instantiated with `new`, even if it has no abstract methods — the `abstract` modifier on the class is the sole barrier. CS0144 is the compile error. The only way to use it is through a derived concrete class. This is intentional: abstract classes signal that the type is a base for extension, not a standalone implementation.
+
+---
+
+#### Gotcha 8. Covariant return types (C# 9) allow derived overrides to return a more-derived type
+
+**Concepts**
+- C# 9 covariant returns
+- Override can return `DerivedType` where base returns `BaseType`
+- Caller through base type still sees `BaseType`
+- Caller through derived type sees `DerivedType`
+- IL uses a bridge method for compatibility
+
+**Answer**
+
+In C# 9+, an override can declare a more-derived return type than the base virtual method. `virtual Animal Create()` can be overridden as `override Dog Create()`. Callers using an `Animal` reference get an `Animal` return; callers using a `Dog` reference get a `Dog` return directly without casting. The compiler generates a hidden bridge method that satisfies the base interface contract.
+
+---
+
+#### Gotcha 9. Implicit base constructor call is only inserted for the parameterless base constructor
+
+**Concepts**
+- Compiler inserts implicit `base()` only if parameterless exists
+- CS7036 if base has only parameterized constructors
+- Must call `base(args)` explicitly
+- Chaining order: base runs first, then derived body
+
+**Answer**
+
+If a derived class constructor does not explicitly call `base(args)`, the compiler inserts an implicit `base()` call. If the base class has no parameterless constructor (because it declares only parameterized ones), this implicit call fails at compile time with CS7036. Every derived constructor must explicitly call `base(args)` with the required arguments.
+
+---
+
+#### Gotcha 10. Polymorphism requires a reference type — value types (structs) do not participate in virtual dispatch
+
+**Concepts**
+- Structs sealed by nature — cannot be derived
+- No vtable for structs
+- Boxing produces a reference that can be used polymorphically
+- Interfaces on structs work via boxing when referenced as interface
+- `IEnumerable<T>` on structs causes boxing per element
+
+**Answer**
+
+Structs in C# are implicitly sealed and cannot be used as base types for other structs. Virtual dispatch via vtable does not apply to unboxed struct values. When a struct is boxed and referenced as an interface type, the boxed copy participates in interface dispatch, but the box is a separate heap object — mutations through the interface reference go to the boxed copy, not the original struct on the stack.
 
 ---
 

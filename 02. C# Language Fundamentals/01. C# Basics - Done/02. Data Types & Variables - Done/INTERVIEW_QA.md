@@ -283,101 +283,147 @@ The CLR maintains an intern table where string literals that appear in compiled 
 
 ---
 
-## Gotchas
+## Gotchas — Data Types & Variables (Interview Traps)
 
 ---
 
-## Q17. Why does `(double)0.1 + (double)0.2` not equal `0.3`, and how does this affect financial calculations?
+#### Gotcha 1. float arithmetic silently loses precision — 0.1f + 0.2f != 0.3f
 
 **Concepts**
-- Binary floating-point cannot represent most decimal fractions exactly
-- 0.1 in binary is a repeating fraction
-- Accumulation of rounding error across operations
+- Binary floating-point cannot represent most decimal fractions
+- Accumulated rounding error
 - decimal type uses base-10 arithmetic
-- Comparing doubles with == is unreliable for equality
+- Comparing double with == is unreliable
 
 **Answer**
 
-The number `0.1` cannot be represented exactly in binary floating-point — in base 2 it is a repeating fraction, just as `1/3` is a repeating decimal in base 10. The nearest IEEE 754 `double` representation is approximately `0.1000000000000000055511...`. When two such imprecise approximations are added, the error compounds, producing `0.30000000000000004` rather than `0.3`. This is not a C# bug — it is the expected and correct result of IEEE 754 arithmetic. The consequence for financial code is severe: accumulating order line items, applying tax rates, or computing currency conversions using `double` or `float` will produce results that differ from correct decimal arithmetic by small but non-zero amounts. These differences may be invisible on individual transactions but become significant when summed across thousands. The fix is `decimal`, which uses base-10 arithmetic and represents `0.1m`, `0.2m`, and their sum exactly. An additional gotcha is testing `double` values for equality with `==`: because of rounding, `(0.1 + 0.2) == 0.3` is `false` for `double`. Any code that gates on a floating-point equality check — such as comparing a computed total to a threshold — is likely to behave inconsistently. Comparing doubles should use a tolerance: `Math.Abs(a - b) < epsilon` with an appropriate epsilon for the domain.
+The IEEE 754 binary representation of 0.1 is a repeating fraction, so 0.1f + 0.2f produces approximately 0.30000001 rather than 0.3. Financial calculations must use decimal, which performs base-10 arithmetic and represents 0.1m, 0.2m, and their sum exactly.
 
 ---
 
-## Q18. What happens when you call `.Value` on a null `int?`, and how should nullable values be accessed safely?
+#### Gotcha 2. Nullable<T>.Value throws InvalidOperationException when HasValue is false — not NullReferenceException
 
 **Concepts**
-- Nullable<T>.Value throws InvalidOperationException when HasValue is false
-- Null-coalescing operator ?? for safe fallback
-- Null-conditional operator ?. not applicable to value types directly
-- Pattern matching: if (score is int actual)
-- GetValueOrDefault() as an alternative to ??
+- int? is Nullable<int> struct
+- HasValue property guards Value
+- Null-coalescing ?? for safe fallback
+- GetValueOrDefault() returns T default without throw
 
 **Answer**
 
-Accessing `.Value` on a `Nullable<T>` whose `HasValue` is `false` throws `InvalidOperationException` at runtime — not `NullReferenceException`, which is a subtle distinction that can confuse developers expecting the reference-type exception. Because `int?` is a struct and not a reference, null-conditional `?.` does not apply to it in the usual way. The correct access patterns are: use `HasValue` with a conditional before calling `.Value`; use the null-coalescing operator `??` to supply a fallback (`points ?? 0`); use the `.GetValueOrDefault()` method which returns the default `T` (zero for numeric types) without risk of exception; or use a pattern match `if (loyaltyPoints is int actual)` which extracts the value into `actual` only when it is non-null. In production code that processes nullable values from an API or database, `.Value` should almost never appear without a preceding `HasValue` guard, because the incoming data is inherently untrusted and the field can be null. A related gotcha is forgetting that arithmetic involving a `null` `int?` propagates null: `null + 5` is `null` for nullable arithmetic, not `5`. This "lifted operator" behavior is consistent but surprises developers who expect it to treat null as zero.
+Accessing .Value on a null Nullable<T> throws InvalidOperationException, not NullReferenceException — a distinction that confuses developers expecting reference-type behavior. The safe access patterns are the null-coalescing operator (points ?? 0), the GetValueOrDefault() method, or a null pattern match (if (points is int actual)).
 
 ---
 
-## Q19. Why does assigning one reference-type variable to another not create a copy of the object?
+#### Gotcha 3. Assigning one reference-type variable to another copies the reference, not the object
 
 **Concepts**
-- Reference copy vs object copy (deep vs shallow)
-- Both variables pointing at the same heap object
-- Mutation through one variable is visible via the other
-- Clone or copy constructor needed for independent copies
-- Value types do not have this problem
+- Reference copy vs heap object copy
+- Both variables point to same heap object
+- Mutation through one is visible via the other
+- MemberwiseClone for shallow copy
 
 **Answer**
 
-When a reference-type variable is assigned to another, only the reference — the memory address — is copied, not the heap data the reference points to. After `StoreConfig b = a`, both `a` and `b` contain the same address and therefore observe the same object. If `StoreConfig` had mutable properties, setting `a.SomeProperty = x` would be visible when reading `b.SomeProperty`, because there is only one object. This is a frequent source of bugs when developers expect assignment to be equivalent to copying, as it is for value types. For `readonly` fields the risk is lower because mutation after construction is prevented by the compiler, but for mutable classes the aliasing problem is real. Creating a genuinely independent copy requires a deep-copy strategy: implementing `ICloneable.Clone()`, providing a copy constructor, using `MemberwiseClone()` for shallow copies, or serializing and deserializing. The `record` type added in C# 9 provides `with` expressions for non-destructive mutation that produce a new object — `var b = a with { Property = newValue }` — which is a concise way to get value semantics from an immutable record without manual copy code. For arrays, `Array.Copy()` or LINQ `.ToArray()` produce new arrays, but if the elements are reference types the element references are still shared, giving a shallow rather than deep copy.
+After StoreConfig b = a, both variables hold the same memory address pointing to one object on the heap. Changing a property through b is immediately visible when reading through a, because there is only one underlying object. Creating a truly independent copy requires a deep-copy strategy or using record with expression to produce a new instance.
 
 ---
 
-## Q20. Why can a `const` field not be assigned from a method call, and what should you use instead?
+#### Gotcha 4. const fields are inlined at compile time — consumers must recompile to pick up a changed value
 
 **Concepts**
-- const must be a compile-time constant expression
-- Method calls are runtime expressions; CS0133 compile error
-- static readonly for runtime-computed class-level values
-- Options IConfiguration injection vs Environment.GetEnvironmentVariable
-- Inlining means all assemblies that reference a const must be recompiled on change
+- const is compile-time constant expression
+- Method calls are runtime; CS0133 error for non-constant
+- static readonly evaluated once at class load time
+- Versioning trap for shared libraries
 
 **Answer**
 
-A `const` field is not a variable in the traditional sense — it is a compile-time literal that the compiler inlines directly into every reference site. Because the value must be known before any code runs, it can only be a literal, a `sizeof` expression, or an arithmetic expression on other constants. Any expression that requires executing code — including a method call, a constructor, or an environment variable read — cannot be a `const` because its result is only known at runtime. Attempting `const decimal Rate = LoadFromConfig()` produces CS0133 ("The expression being assigned to 'Rate' must be constant"). The correct replacement is `static readonly`: a static field initialised from a method call runs once when the class is first loaded by the CLR, and thereafter the computed value is held as a shared field. For application-level configuration, the production pattern is dependency injection via `IOptions<T>` or `IConfiguration` rather than a static field, because static state is difficult to mock in tests and shares lifetime across the entire process. There is also a versioning concern with `const`: because the value is inlined into every compiled assembly that references it, changing a `const` in a library requires recompiling all dependent assemblies to pick up the new value. A `static readonly` field does not have this problem — dependents load the value at runtime from the field, not from their own compiled image.
+The C# compiler replaces every reference to a const field with its literal value at compile time. This means changing a const in a shared library and redeploying only the library leaves all consuming assemblies with the old value baked in until they are recompiled, a versioning trap that static readonly avoids.
 
 ---
 
-## Q21. What is the difference between `int?` and `string?`, and why is one a runtime change and the other is not?
+#### Gotcha 5. int? and string? use completely different mechanisms despite identical ? syntax
 
 **Concepts**
-- int? is Nullable<int>: a struct wrapper, runtime type change
-- string? is a compile-time nullability annotation only
-- Nullable reference types require Nullable context in csproj
-- At runtime string? and string are both System.String
-- Null-forgiving operator ! suppresses nullability warnings
+- int? is Nullable<int> — different runtime type with HasValue
+- string? is compiler annotation only — same runtime type as string
+- Nullable context enables reference type annotations
+- Null-forgiving ! operator
 
 **Answer**
 
-The `?` suffix looks identical on value and reference types but works at fundamentally different levels. For a value type like `int`, adding `?` changes the underlying type from `System.Int32` to `System.Nullable<System.Int32>` — a genuinely different struct with a `HasValue` field, a larger memory footprint, and different runtime identity. An `int?` variable has `typeof(int?)` equal to `Nullable<int>`, and `HasValue == false` at runtime is a real, checkable state. For a reference type like `string`, adding `?` produces no change in the compiled IL or the runtime representation. `string?` is still `System.String`; there is no wrapper struct and no `HasValue` member. The `?` is purely a compile-time annotation that tells the C# compiler's nullable analysis "I intend this reference to be possibly null; warn me when I dereference it unsafely". This analysis is gated behind `<Nullable>enable</Nullable>` in the project file. The distinction matters when reasoning about performance, reflection, and runtime type checks: `boxedNullable is int?` and `boxedNullable is Nullable<int>` are both valid runtime type patterns for a boxed nullable value, while `obj is string?` at runtime always reduces to `obj is string` because the annotation is erased. Developers who treat both `?` forms as equivalent may be surprised that nullable reference type warnings disappear in a project that has `<Nullable>disable</Nullable>` set, while nullable value type behavior remains unchanged regardless.
+For value types, the ? suffix changes the underlying type from System.Int32 to System.Nullable<System.Int32> — a genuine runtime difference with a new struct wrapping. For reference types, the ? is a compile-time nullability annotation only; System.String and System.String? are the same runtime type, and the annotation simply arms the compiler's flow analysis to warn about unsafe dereferences.
 
 ---
 
-## Q22. What happens to integer overflow in unchecked arithmetic, and why is this dangerous in ID generation?
+#### Gotcha 6. Integer overflow wraps silently to the minimum value in the default unchecked context
 
 **Concepts**
-- Unchecked overflow wraps silently (two's complement)
-- int.MaxValue + 1 becomes int.MinValue
-- No exception, no warning — silent data corruption
-- checked keyword or block to enable overflow detection
-- Use long or use checked context for counters approaching int.MaxValue
+- Default arithmetic is unchecked (no overflow detection)
+- int.MaxValue + 1 == int.MinValue
+- checked keyword or block detects and throws OverflowException
+- Use long or checked for counters near type boundaries
 
 **Answer**
 
-In C#'s default unchecked arithmetic context, an `int` that overflows its maximum value wraps to its minimum. `int.MaxValue + 1` silently evaluates to `int.MinValue` (-2,147,483,648). This is identical to C-style two's complement wraparound and is chosen as the default for performance — overflow checks add a conditional branch after every integer arithmetic instruction. The danger in ID generation or transaction counters is that the counter can pass through zero and reuse values that previously identified different records. A counter that reaches `int.MaxValue` and wraps will produce `int.MinValue`, then increment toward zero again, eventually producing IDs that collide with early records. In staging environments with small datasets this never occurs; in production with years of accumulated records it can cause duplicate-key exceptions or, worse, silently attach new records to old IDs. The two correct mitigations are: (1) use `long` proactively for any counter that could realistically grow large — `long`'s maximum of 9.2 × 10^18 is effectively unbounded for most applications; (2) apply a `checked` block around the increment so that overflow throws `OverflowException` and alerts the operations team to the exhaustion, rather than silently corrupting data. Monitoring maximum ID values in production and alerting when they approach type boundaries is also a recommended practice for high-volume systems.
+In C#'s default unchecked arithmetic context, int.MaxValue + 1 silently produces -2,147,483,648 (int.MinValue) via two's-complement wraparound, with no exception and no warning. ID generators or transaction counters that approach int.MaxValue will silently wrap and produce duplicate IDs; use long proactively or wrap the arithmetic in a checked block to get a clear OverflowException.
 
 ---
 
-## Gotchas — End
+#### Gotcha 7. var is statically typed — the inferred type is fixed at compile time and cannot change
+
+**Concepts**
+- Compiler infers the type at declaration
+- var x = 42 is int, not object
+- IntelliSense shows the inferred type
+- Different from dynamic which defers to runtime
+
+**Answer**
+
+var instructs the compiler to infer the type from the right-hand side initializer, producing a strictly typed variable identical to one declared with an explicit type name. Writing var x = 42; then x = "hello"; is a compile error CS0029 because x has been inferred as int, not a shape-shifting container.
+
+---
+
+#### Gotcha 8. Local variables are NOT zero-initialized — reading before assignment is a compile error CS0165
+
+**Concepts**
+- CLR zero-initializes class fields
+- Local variable reads before assignment = CS0165
+- out parameters must be assigned before method returns
+- Nullable analysis tracks definite assignment
+
+**Answer**
+
+Unlike class fields which the CLR automatically zero-initializes, local variables must be explicitly assigned before they are read. The compiler's definite assignment analysis enforces this at compile time (CS0165), so the error surfaces before any test can catch it. Fields, by contrast, are always zero-initialized (false for bool, 0 for numerics, null for references).
+
+---
+
+#### Gotcha 9. Widening numeric conversions can still lose data at extreme boundary values
+
+**Concepts**
+- long to int truncates high bits
+- double to float loses precision
+- ulong to long wraps for values > long.MaxValue
+- checked block catches overflow in explicit casts
+
+**Answer**
+
+Implicit conversions like int to long are always safe, but explicit narrowing conversions like (int)longValue silently truncate the high bits for values outside int's range. Even 'widening' in the sense of range — like double to float — loses decimal precision because float has fewer mantissa bits, producing unexpected rounding in financial or scientific code.
+
+---
+
+#### Gotcha 10. string is a reference type but behaves like a value type because it is immutable
+
+**Concepts**
+- string inherits from object (reference type)
+- String interning
+- == compares content not reference
+- Immutability means mutations return new string
+
+**Answer**
+
+Despite being a reference type that lives on the heap, string overloads == to compare character content rather than reference identity, so "hello" == "hello" is true even if they are different heap objects. This value-like behavior stems from immutability — every string operation that appears to modify the string actually returns a new string, leaving the original unchanged.
 
 ---
 

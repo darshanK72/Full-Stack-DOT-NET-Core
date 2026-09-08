@@ -472,3 +472,147 @@ var client = new ServiceBusClient(
 ```
 
 ---
+
+## Gotchas — Azure Service Bus (Interview Traps)
+
+---
+
+#### Gotcha 1. Message lock expiry causes redelivery — long processors must renew the lock explicitly
+
+**Concepts**
+- `LockDuration` (default 60 seconds) controls how long a receiver holds the message exclusively
+- A lock that expires before `CompleteMessageAsync` makes the message visible again for redelivery
+- `ServiceBusProcessor` auto-renews locks by default; custom `ServiceBusReceiver` does not
+- Long processing logic (database writes, external API calls) can exceed the lock duration silently
+
+**Answer**
+
+When a Service Bus consumer receives a message, the broker locks it for the configured `LockDuration` (default 60 seconds). If the consumer does not complete, abandon, or renew the message within that window, the lock expires and the message becomes visible again for another consumer to receive, incrementing its delivery count. The `ServiceBusProcessor` class auto-renews locks in the background while the message handler is executing, but a raw `ServiceBusReceiver` used in a loop does not. Long-running processing logic that exceeds the lock duration without renewal causes duplicate delivery, which is invisible unless the processor checks delivery count or implements idempotent deduplication.
+
+---
+
+#### Gotcha 2. Dead-letter queue does not receive messages on lock expiry alone — only MaxDeliveryCount exhaustion triggers it
+
+**Concepts**
+- Dead-letter queue (DLQ) receives messages after `MaxDeliveryCount` attempts are exhausted
+- Lock expiry causes redelivery but does not move to DLQ unless delivery count is reached
+- Explicit `DeadLetterMessageAsync` moves to DLQ regardless of delivery count
+- Applications must monitor DLQ separately; it is not the same as a delivery failure notification
+
+**Answer**
+
+A common misconception is that any failed processing attempt moves a message to the dead-letter queue. The DLQ only receives a message after the delivery count reaches `MaxDeliveryCount` (default 10) — each lock expiry increments the count but does not send the message to DLQ until the limit is reached. A message that always fails but has its lock renewed before expiry will keep re-processing without moving to DLQ as long as the processor renews correctly. The DLQ is also a separate entity that requires its own consumer and monitoring; messages sitting in the DLQ do not produce alerts automatically and accumulate silently until the queue is explicitly inspected.
+
+---
+
+#### Gotcha 3. Session-enabled queues require a session-aware receiver — non-session receivers cannot access session messages
+
+**Concepts**
+- Session messages carry a `SessionId` and are locked per-session to a single consumer
+- `ServiceBusProcessor` with `SessionIdleTimeout` is needed for session queues
+- A non-session receiver on a session queue accepts the connection but never receives messages
+- Sessions guarantee FIFO ordering within a session, not across sessions
+
+**Answer**
+
+When a Service Bus queue has sessions enabled, all messages must carry a `SessionId` and can only be received by a session-aware receiver (`ServiceBusSessionProcessor` or `ServiceBusReceiver` obtained via `AcceptSessionAsync`). A non-session `ServiceBusProcessor` registered against a session queue connects successfully but receives zero messages because the broker serves session messages only to session-aware receivers. The absence of messages is silent — no error is raised. Developers debugging this see empty processing with no DLQ growth and assume the sender is not sending, when actually the receiver type is wrong.
+
+---
+
+#### Gotcha 4. Message size limit differs by tier — Standard tier rejects messages over 256 KB
+
+**Concepts**
+- Standard tier: maximum message size is 256 KB
+- Premium tier: configurable up to 100 MB per message
+- Sending a large payload without a claim-check pattern throws `MessageSizeExceededException`
+- Claim-check pattern stores payload in Blob Storage and sends a URI reference in the message
+
+**Answer**
+
+Azure Service Bus Standard tier enforces a hard 256 KB message size limit. Applications that serialize large domain objects (product catalogs, report data, binary attachments) directly into message bodies will hit this limit and receive `MessageSizeExceededException` at send time. The claim-check pattern solves this by storing the large payload in Azure Blob Storage, putting only the blob URI into the Service Bus message, and having the consumer retrieve the payload from Blob Storage. Upgrading to Premium tier raises the limit to 100 MB per message but adds significant cost; claim-check is the pattern regardless of tier for messages exceeding even 100 MB.
+
+---
+
+#### Gotcha 5. Prefetch on ServiceBusProcessor holds locks on multiple messages — slow processing causes lock expiry on prefetched messages
+
+**Concepts**
+- Prefetch downloads multiple messages from the broker ahead of processing to improve throughput
+- Prefetched messages have their locks held by the client even before the handler processes them
+- If the handler takes longer than `LockDuration` for earlier messages, prefetched messages expire
+- Setting prefetch count equal to or less than `MaxConcurrentCalls` prevents premature expiry
+
+**Answer**
+
+`ServiceBusProcessor.PrefetchCount` instructs the client to pre-download that many messages from the broker into a local buffer. Each prefetched message's lock starts counting down immediately when it is prefetched, not when the handler starts processing it. If the processor is handling a slow message (one that takes 55 of the 60-second lock duration), the next several prefetched messages may expire their locks and be requeued before the handler even starts on them. Setting `PrefetchCount` to zero or to a value not exceeding `MaxConcurrentCalls` prevents fetching more messages than can be concurrently processed within the lock duration.
+
+---
+
+#### Gotcha 6. CompleteMessageAsync after lock expiry may fail silently — the message is redelivered as a duplicate
+
+**Concepts**
+- `CompleteMessageAsync` requires a valid lock token that has not expired
+- On some SDK versions, calling complete on an expired lock throws `MessageLockLostException`
+- On others, the call appears to succeed but the broker ignores it; the message is redelivered
+- Idempotent message handlers prevent visible side effects from duplicate delivery
+
+**Answer**
+
+If message processing takes longer than the `LockDuration` and the lock expires, the subsequent call to `CompleteMessageAsync` with the stale lock token may throw `MessageLockLostException`. However, on some network conditions or SDK versions, the exception is swallowed or the call returns without error while the broker has already re-enqueued the message. The consumer then processes a duplicate without any indication from the SDK. This makes idempotent message processing mandatory: the handler must detect and safely skip or re-apply a previously processed message, typically by storing a processed message ID in a database or cache.
+
+---
+
+#### Gotcha 7. Geo-disaster recovery pairs metadata only — in-flight messages are lost on failover
+
+**Concepts**
+- Service Bus Geo-Disaster Recovery pairs two namespaces in different regions for metadata replication
+- Messages (queue content) are NOT replicated to the secondary namespace
+- Failing over drains the primary namespace alias to the secondary but leaves messages on the primary
+- Active-active geo-replication is a separate feature requiring Premium tier and Availability Zones
+
+**Answer**
+
+Azure Service Bus Geo-Disaster Recovery (Geo-DR) replicates namespace metadata — queues, topics, subscriptions, policies — to a secondary namespace in a paired region. It does not replicate message content. When a failover is initiated, the DNS alias switches to the secondary namespace, but any unprocessed messages in the primary namespace's queues remain on the primary and are unreachable until connectivity to the primary is restored. Applications that depend on Geo-DR for complete message durability across regional failures need active geo-replication (Premium tier with Availability Zones) or a separate application-level replication strategy.
+
+---
+
+#### Gotcha 8. ServiceBusClient is a singleton — creating one per message handler causes socket exhaustion
+
+**Concepts**
+- `ServiceBusClient` manages TCP connections and should be reused across operations
+- Each new `ServiceBusClient` instance opens new AMQP connections
+- Creating a client per controller action or per message handler exhausts OS socket limits
+- Register `ServiceBusClient` as a singleton in the DI container
+
+**Answer**
+
+`ServiceBusClient` is the long-lived, thread-safe connection holder for Azure Service Bus. It establishes AMQP persistent connections to the Service Bus namespace. Creating a new `ServiceBusClient` instance per HTTP request, per controller action, or per message handler allocates new connections and eventually exhausts operating system socket limits, manifesting as `SocketException: Address already in use` or connection refused errors under load. The correct pattern is to register `ServiceBusClient` as a singleton in the .NET DI container using `AddServiceBusClient()` from the Azure.Messaging.ServiceBus package, which reuses the same connection across all callers in the process.
+
+---
+
+#### Gotcha 9. Topics require subscriptions with filters — a topic with no subscriptions silently drops all messages
+
+**Concepts**
+- A Service Bus topic alone does not store messages; subscriptions create the actual storage queues
+- A message published to a topic with zero subscriptions is permanently lost
+- A subscription with a `False` filter or no matching filter receives no messages
+- Creating the topic without the subscription is a common infrastructure-as-code oversight
+
+**Answer**
+
+An Azure Service Bus topic is purely a routing entity; messages published to it are stored in subscription queues, not in the topic itself. If a topic has no subscriptions at the time a message is published, the message is discarded immediately with no error returned to the sender. This is a common infrastructure deployment mistake where the topic is created but the subscription entity is not yet provisioned. Similarly, a subscription with a SQL filter expression that evaluates to false for every incoming message silently receives nothing — the sender gets success and the consumer receives nothing, making the filter expression the only thing to investigate.
+
+---
+
+#### Gotcha 10. Standard tier has no ordering guarantee within a queue — Premium tier with sessions is required for FIFO
+
+**Concepts**
+- Service Bus queues deliver messages in roughly FIFO order but do not guarantee strict ordering
+- Message lock expiry, redelivery, and concurrent consumers all disturb ordering
+- Session-enabled queues on Premium tier guarantee FIFO within each session
+- Strict ordering across sessions requires a single concurrent consumer, defeating scalability
+
+**Answer**
+
+Azure Service Bus documentation states that queues deliver messages "approximately" in FIFO order, but this is not a strict guarantee. Lock expiry, redelivery after failed processing, and multiple concurrent consumers all cause messages to be processed out of order. For workflows where event order matters (financial transactions, audit logs, state machine transitions), session-enabled queues must be used. Sessions guarantee FIFO within a session ID — all messages with the same session ID are processed sequentially by a single session-locked consumer at a time. Ordering across different session IDs is not guaranteed; strict global ordering requires a single concurrent consumer which eliminates horizontal scalability.
+
+---

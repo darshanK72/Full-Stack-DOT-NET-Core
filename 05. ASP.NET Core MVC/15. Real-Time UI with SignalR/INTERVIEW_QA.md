@@ -322,203 +322,149 @@ When the app is deployed under a subpath like `/apps/mvc`, `UsePathBase` must be
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-#### Gotcha 1. Business logic in Razor views
-
-**Concepts**
-- Views as presentation-only layer
-- Business rules in Razor bypassing unit tests
-- Authorization belonging to filters and policies
-- Service layer as owner of calculations and decisions
-
-**Answer**
-
-Placing pricing, discount, or business rules in `.cshtml` files means that logic cannot be unit tested, often duplicates the service layer, and diverges from API or batch behavior over time. Views should only render data the controller or ViewModel already computed. Authorization belongs in filters, policies, or controller checks before the view executes. I keep Razor limited to presentation formatting — any calculation or decision that affects correctness lives in services.
+## Gotchas — Real-Time UI with SignalR (Interview Traps)
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 1. Hub connection not started before calling hub methods
 
 **Concepts**
-- Navigation property lazy-load triggering unexpected queries during rendering
-- Over-posting via mass assignment on POST action binding
-- Dedicated ViewModels as UI-contract decoupling layer
-- Controller or mapping service as entity-to-ViewModel boundary
+- `HubConnection` — created with `new HubConnectionBuilder().withUrl(...).build()`
+- `.start()` — must be awaited before calling `.invoke()` or `.on()`
+- Calling `.invoke()` before `.start()` — throws `InvalidOperationException` or silently fails
+- Connection state check — `connection.state === HubConnectionState.Connected` before sending
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties that trigger unexpected lazy queries during rendering and enables mass assignment of properties users should not control on POST. The fix is a dedicated ViewModel with only the fields the view needs, mapped in the controller or a mapping service before passing to the view or reading from the form.
+`const connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build()` creates the connection object but does not establish the WebSocket. Calling `connection.invoke("SendMessage", ...)` before `await connection.start()` throws because the connection is in the `Disconnected` state. The `start()` method returns a promise — await it before registering `.on()` handlers or calling `.invoke()`. The recommended pattern is: build the connection, register all `.on()` handlers (these can be registered before starting), then `await connection.start()`. Registering handlers after `start()` risks missing messages that arrive before the handlers are set up.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 2. Client not reconnecting after connection drop — perpetual disconnected state
 
 **Concepts**
-- `application/x-www-form-urlencoded` vs JSON `Content-Type` mismatch
-- `[FromBody]` using JSON input formatter, leaving model at defaults on mismatch
-- Silent binding failure producing no exception
+- Default behavior — connection drops without automatic reconnect
+- `.withAutomaticReconnect()` — enables built-in exponential backoff reconnect
+- `onreconnecting` / `onreconnected` callbacks — UI feedback during reconnect
+- `onclose` — fires after all reconnect attempts fail; manual restart needed
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model at default values when the content type doesn't match, so the action runs with empty or zero fields without any error. I remove `[FromBody]` for conventional form POSTs and let model binding read form fields.
+By default, a SignalR hub connection that drops (WebSocket closed, network interruption) does not automatically reconnect — the `onclose` event fires and the connection stays in the `Disconnected` state. Any subsequent `.invoke()` call throws. Adding `.withAutomaticReconnect()` enables built-in reconnect with exponential backoff (0, 2, 10, 30 second delays by default). During reconnect, the connection state cycles through `Reconnecting` â†’ `Connected`. The `connection.onreconnecting(error => ...)` and `connection.onreconnected(connectionId => ...)` callbacks are the correct places to update UI state (show "reconnecting..." spinner). The `connection.onclose` handler after all retries fail should prompt the user to reload or manually restart the connection.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 3. Group membership lost on reconnect — users must re-join groups
 
 **Concepts**
-- Client validation bypassable by any HTTP client
-- `ModelState.IsValid` as mandatory server enforcement gate
-- Missing server check as a security defect
+- Server-side group membership — stored in memory per connection, not per user
+- Connection ID changes on reconnect — new connection ID, old group membership gone
+- `onreconnected` callback — fires with new connection ID; must call hub method to re-join
+- Persistent group state — store user's intended groups in the hub or application state
 
 **Answer**
 
-Client-side validation is bypassable — attackers POST directly without running browser scripts. Server-side validation is mandatory before any persist, redirect, or side effect. I always gate POST actions with `if (!ModelState.IsValid) return View(model);`. Remote validation and unobtrusive rules are not security boundaries.
+When a SignalR client reconnects, it receives a new connection ID. Server-side group membership (`Groups.AddToGroupAsync(connectionId, "room-1")`) is associated with the old connection ID which is now gone — the reconnected client is not in any groups. The `connection.onreconnected(connectionId => { connection.invoke("JoinRoom", currentRoom); })` callback is the correct place to re-subscribe. The hub's `JoinRoom` method calls `Groups.AddToGroupAsync(Context.ConnectionId, room)` with the new connection ID. Any missed messages between disconnect and reconnect are silently lost unless the server persists a message history. Design the hub and client to always re-join groups after reconnect.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 4. Injecting `IHubContext<THub>` as scoped instead of using the singleton registration
 
 **Concepts**
-- Duplicate submission on browser refresh of a POST response
-- Post-Redirect-Get (PRG) pattern separating mutation from display
-- `TempData` for flash messages across redirect
+- `IHubContext<THub>` — registered as singleton by `AddSignalR()`
+- Injecting into a scoped service — works correctly; singleton can be consumed by scoped
+- Captive dependency — if someone registers a custom `IHubContext` as scoped, singleton consumers capture it
+- Direct `Hub` injection — `Hub` is NOT registered in DI; only `IHubContext<THub>` is
 
 **Answer**
 
-Returning the same view after a successful POST means the browser resubmits the POST body when the user refreshes. The fix is Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create or update, separating the mutation from the display. Flash success messages go via `TempData` on the redirect target.
+`services.AddSignalR()` registers `IHubContext<THub>` as a singleton automatically. Controllers and services that inject `IHubContext<THub>` receive the singleton instance, which is correct — `IHubContext` is designed for cross-request fan-out and does not depend on per-request state. The common mistake is attempting to inject the concrete `Hub` subclass directly (`ChatHub hub` as a constructor parameter) — Hubs are not registered in DI and attempting to resolve one throws `InvalidOperationException`. The other mistake is registering a custom `IHubContext` wrapper as scoped and then injecting it into a singleton service, creating a captive dependency. Always use `IHubContext<THub>` from `AddSignalR()` for broadcasting from controllers, services, and background jobs.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 5. Hub method name case sensitivity mismatch between server and client
 
 **Concepts**
-- `ModelState` as request-scoped, not surviving `RedirectToAction`
-- Return `View(model)` on failure, redirect only on success pattern
+- Server hub method — `public async Task SendMessage(string user, string message)`
+- JavaScript client — `connection.on("sendMessage", ...)` or `connection.on("SendMessage", ...)`
+- Default camelCase — SignalR uses camelCase on the client by default in JavaScript SDK
+- Explicit name matching — both sides must use consistent casing
 
 **Answer**
 
-`ModelState` is request-scoped and does not survive `RedirectToAction` — validation errors are lost unless I redisplay the form without redirecting on failure. The standard pattern is redirect only on success; on validation failure return `View(model)` with errors displayed inline.
+By default, the SignalR JavaScript SDK uses camelCase for method names. `Clients.All.SendAsync("SendMessage", ...)` on the server sends to a client handler registered as `connection.on("sendMessage", ...)` — with a lowercase "s" — because the protocol layer applies camelCase transformation. If the client registers `connection.on("SendMessage", ...)` with a capital "S", it never receives the message silently. The rule: server-to-client messages use the client SDK's casing convention (camelCase in JavaScript); client-to-server invocations use the exact server method name. Use `connection.on("sendMessage", ...)` for JavaScript clients receiving from server. Verify the exact method name from browser devtools network tab by inspecting the WebSocket frames.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 6. Multi-instance deployment without a backplane — users on different nodes not receiving messages
 
 **Concepts**
-- `TempData` consumed on first read by default
-- `Peek()` reading without consuming
-- `Keep()` retaining after first read for a second consumer
+- In-memory connection store — per-server; connections on server A are unknown to server B
+- Sticky sessions — per-client affinity, not cross-instance fan-out
+- Redis backplane — `AddStackExchangeRedis()` routes messages across all instances
+- Azure SignalR Service — fully managed backplane with no Redis to manage
 
 **Answer**
 
-`TempData` is consumed on the first read by default, so if the layout reads a flash message, the view sees nothing. I use `TempData.Peek("Message")` in the layout to read without consuming, or call `TempData.Keep("Message")` after the layout reads so the view can also read it. The simpler approach is a single consumption point — either the layout or a dedicated partial, not both.
+Each server instance maintains its own in-memory store of active connections. `Clients.User("userId").SendAsync(...)` on instance A only knows about connections on instance A — users connected to instance B never receive the message. Sticky sessions (IP affinity or cookie-based load balancer routing) ensure each user always hits the same instance, which prevents the connection-not-found problem but does not allow fan-out across instances (instance A cannot broadcast to all users on instance B). The fix is `services.AddSignalR().AddStackExchangeRedis("redisConnectionString")` which adds a Redis-backed message bus — messages published on any instance are fanned out to connections on all instances. Azure SignalR Service (`AddAzureSignalR(connectionString)`) is the fully managed alternative.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 7. `Hub` lifetime — services with different lifetimes cannot be cached across hub calls
 
 **Concepts**
-- `[Area("AreaName")]` required for area route discovery
-- Area routing registered separately with `{area:exists}` constraint
+- Hub instance — created per invocation (each client message creates a new hub instance)
+- `Context.ConnectionId` — valid only during the invocation
+- Storing hub instance fields — not safe for cross-call state
+- `IHubContext<THub>` — use from singleton/scoped services; not the hub instance itself
 
 **Answer**
 
-Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong conventional route. Every area controller must declare `[Area("AreaName")]` matching its folder, and area routing is registered separately in `Program.cs` with the `{area:exists}` constraint.
+Hub classes are transient — a new instance is created for each client method invocation. Storing state in a hub instance field (e.g., `private int _messageCount`) is useless because the field is reset on every call. `Context.ConnectionId` is only valid during the current invocation context and should not be cached in a field for use later. For cross-call state (e.g., tracking which rooms a connection is in), use an external store: `IMemoryCache`, `IDistributedCache`, or a database keyed by `Context.ConnectionId`. When external services (background jobs, controllers) need to send messages, inject `IHubContext<THub>` — a singleton proxy — not the Hub instance, which cannot be constructed outside the SignalR pipeline.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 8. JavaScript client using wrong hub URL — connection silently falls back or fails
 
 **Concepts**
-- Tag helpers defaulting to current area context
-- `asp-area` required for cross-area links
-- `Url.Action` requiring `area` in route values
+- `withUrl("/chatHub")` — URL must match the `MapHub<T>("/chatHub")` registration in `Program.cs`
+- Case sensitivity — URL matching may be case-sensitive on Linux servers
+- Negotiation failure — HTTP 404 at negotiate endpoint; connection never established
+- Fallback transports — WebSocket fails, long polling attempted; different performance profile
 
 **Answer**
 
-Tag helpers default to the current area context when generating URLs, so links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment. Cross-area links require both `asp-area` and `asp-controller`. The same rule applies to `Url.Action` — I pass `new { area = "Admin" }` in route values.
+`new HubConnectionBuilder().withUrl("/ChatHub")` uses a capital "C" but the server registered `app.MapHub<ChatHub>("/chatHub")` with a lowercase "c". On Windows, URL routing is case-insensitive and the connection succeeds. On Linux, URL matching is case-sensitive and the negotiate request returns 404 — the SignalR client logs a negotiation failure and may retry with long polling, which also fails. The symptom is `connection.start()` rejecting its promise with a failed negotiation error. The fix is exact URL case matching between `withUrl()` on the client and `MapHub<T>()` on the server. Always test SignalR connections on a case-sensitive file system (Linux or a Linux Docker container) during development.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 9. `OnConnectedAsync` and `OnDisconnectedAsync` not called when connection drops ungracefully
 
 **Concepts**
-- Unchecked checkbox posting nothing, model binding defaulting to `false`
-- `[Required]` never failing since `false` is a valid value
-- `bool?` with `[Required]` requiring explicit selection
-- Hidden-field pattern for deliberate `false` posting
+- `OnDisconnectedAsync` — called when the hub detects a clean disconnect or timeout
+- Ungraceful disconnect — network cable pulled, tab closed without WebSocket close frame
+- Keep-alive ping timeout — server detects idle connection as dropped after timeout expires
+- State cleanup timing — `OnDisconnectedAsync` may run seconds after actual disconnect
 
 **Answer**
 
-An unchecked checkbox posts nothing, so model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid non-null value. I use `bool?` with `[Required]` when I need an explicit true selection for consent checkboxes, or the hidden-field pattern where a hidden input posts `false` and the checkbox posts `true`.
+`OnDisconnectedAsync(Exception? exception)` runs when the SignalR server detects a connection has closed. For a clean client-side `connection.stop()`, the server receives a close frame and `OnDisconnectedAsync` runs immediately. For ungraceful disconnects (network failure, tab killed), the server does not know immediately — it detects the drop only after the keep-alive ping times out (default: 30 seconds). During those 30 seconds, the connection appears active server-side and any `Groups` membership is still in place. Any cleanup logic (removing user from a presence list, notifying others they left) may run up to 30 seconds late. Design the application to tolerate this delay — do not rely on `OnDisconnectedAsync` for time-critical presence updates.
 
 ---
 
-#### Gotcha 11. Collection binding with gap indices
+#### Gotcha 10. Sending large messages without size limit — hub connection dropped
 
 **Concepts**
-- Contiguous zero-based index requirement for collection model binder
-- Client-side reindexing after row deletion
+- `MaximumReceiveMessageSize` — configures max allowed message size per hub message
+- Default limit — 32 KB per message
+- Message exceeding limit — connection closed with protocol error
+- Large payload alternative — send a reference (URL or id) and let the client fetch it separately
 
 **Answer**
 
-Deleting a row from a dynamic form leaving indices like `Lines[0]` and `Lines[2]` breaks model binder alignment — index 1 is missing and subsequent items may bind incorrectly or truncate. I reindex client-side after row deletion so indices are contiguous starting at zero.
+SignalR has a configurable maximum message size (`options.MaximumReceiveMessageSize`), defaulting to 32 KB. A client sending a hub message larger than this limit — a file upload, a large JSON payload, a base64-encoded image — receives a protocol error and the connection is closed with no descriptive error message at the application level. The symptom is the connection dropping immediately after sending a specific large message. Increasing the limit with `AddSignalR(options => options.MaximumReceiveMessageSize = 1024 * 1024)` raises the cap but does not solve the underlying design issue. The correct pattern for large data is to send a reference (an upload URL or a record id) via the hub message and let the client retrieve the large payload via a separate HTTP endpoint, keeping hub messages small and fast.
 
 ---
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor auto-encoding preventing XSS by default
-- `@Html.Raw` bypassing encoding for attacker-supplied content
-- Server-side sanitization before any raw rendering
-
-**Answer**
-
-Default Razor encoding prevents XSS by HTML-encoding output, so `@Html.Raw(Model.UserComment)` with unsanitized user content renders attacker-supplied script. I use `@Model.UserComment` for auto-encoding, or sanitize server-side with a trusted HTML sanitizer library before any raw rendering.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form tag helpers emitting antiforgery tokens automatically
-- `fetch`/jQuery AJAX requiring manual token inclusion
-- `[AutoValidateAntiforgeryToken]` rejecting missing tokens before action runs
-
-**Answer**
-
-Form tag helpers emit antiforgery tokens automatically, but `fetch` and jQuery AJAX must manually send the `RequestVerificationToken` header or `__RequestVerificationToken` form field — otherwise POSTs fail with 400 antiforgery errors. I read the hidden field value from the page and include it on every mutating AJAX request.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub not registered in DI; instantiated by SignalR per invocation with connection context
-- `IHubContext<THub>` as correct singleton proxy
-- Hub requiring active connection context that DI-resolved instance lacks
-
-**Answer**
-
-Hubs are not registered in DI for direct injection into controllers — they are instantiated by SignalR per invocation with connection context. Injecting a concrete `Hub` fails activation or produces an instance without active connection state. I inject `IHubContext<THub>` instead, which is registered as a singleton proxy by `AddSignalR()`.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane as pub/sub fan-out across all instances
-- Group membership and connection IDs local to each instance
-
-**Answer**
-
-Sticky sessions alone do not fan-out events across server instances — they route connections to the same node but do not relay messages. A controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users connected to instance B without a backplane. Multi-node deployments need a Redis backplane via `AddStackExchangeRedis` or Azure SignalR Service so messages sent from any instance reach clients on all instances.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 #### Q1. (R) Review this live auction hub. Bidding works in dev with one user; under load, bids from one user appear on another user's screen and `InvalidOperationException` surfaces in logs about scoped services.

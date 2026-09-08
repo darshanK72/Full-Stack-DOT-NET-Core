@@ -294,221 +294,149 @@ Nullable reference types must align with what HTML forms actually send — not w
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — ViewModels & Strongly Typed Views (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. Fat ViewModels containing business logic or methods
 
 **Concepts**
-- Business logic bypassing unit tests in views
-- Authorization placement in filters vs Razor
-- Service-layer calculations vs view-layer duplication
-- Presentation formatting as the boundary of view responsibility
+- ViewModel responsibility — flat data contract for the view, nothing more
+- `ApplyBusinessRules()` on ViewModel — policy hidden in UI layer, bypassed by API endpoints
+- Business methods on ViewModel — duplicates service layer and is untestable in isolation
+- Thin ViewModel — plain properties mapped from domain in the controller or mapping service
 
 **Answer**
 
-The problem with placing pricing, discount calculations, or authorization checks in `.cshtml` files is that Razor views cannot be meaningfully unit-tested in isolation, which means that business rule changes require verifying behavior through full integration tests or manual browser checks. Business logic in views also tends to diverge from the same logic in API endpoints or batch jobs, since the duplication is invisible and there is no shared test suite enforcing consistency. Authorization in particular belongs in filters, policies, or controller/service checks that run before the view even executes — a view that shows or hides UI based on role checks is not a substitute for server-enforced authorization. I treat Razor as a presentation layer responsible only for formatting data the controller or ViewModel already prepared, nothing more.
+A ViewModel with methods like `ApplyBusinessRules()` or `CalculateDiscount()` encodes business logic in the UI layer. Any API endpoint or background job that creates the same entity without going through the ViewModel bypasses those rules, causing silent correctness divergence. Business logic belongs in domain services or application services called by both MVC controllers and API controllers before mapping to a ViewModel. The ViewModel should be a flat data-transfer object containing exactly the properties the view renders — no computed policy, no mutation logic, and no external service calls. If a ViewModel property requires a computed value, compute it in the controller or mapping service and set it as a plain property.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. Using the same ViewModel for list display and form editing
 
 **Concepts**
-- Lazy-loaded navigation triggering N+1 queries in views
-- Mass assignment surface from entity properties
-- Schema coupling between UI and database
-- ViewModel whitelisting as the correct defense
+- List ViewModel — read-only display fields, possibly paginated, no validation annotations
+- Edit ViewModel — writable fields, validation attributes, file upload support
+- Shared ViewModel — `[Required]` on display-only fields causes false `ModelState` failures
+- Command/Query separation — `ProductListViewModel` vs `ProductEditViewModel` per purpose
 
 **Answer**
 
-Passing EF Core entities directly to Razor views creates several compounding problems. Lazy-loaded navigation properties can trigger unintended database queries during rendering — a loop over `Order.LineItems` in a partial can fire one query per order if the navigations were not eagerly loaded, causing N+1 performance issues that are invisible until load testing. On POST, binding an entity directly exposes every property to mass assignment: even if the form only renders `Name` and `Email`, an attacker can add `IsAdmin=true` to the request body and it will bind. Entities also carry schema-specific fields like `RowVersion`, `InternalMarginPercent`, and FK ids that should never appear in HTML. The fix is to define ViewModels that expose only the fields the view needs and map between entities and ViewModels in the controller or a mapping service.
+Sharing one ViewModel between a list display action and an edit form creates conflicting annotation pressure: `[Required]` on `Name` is correct for the edit form but irrelevant and harmful for the list view that populates `Name` from the database. When the list action binds to the shared type through a search form, the `[Required]` on display-only fields causes `ModelState.IsValid` to fail even with valid search input. The correct pattern is separate ViewModels per purpose: `ProductListViewModel` for display with `IReadOnlyList<ProductRow>`, and `ProductEditViewModel` for the form with `[Required]`, `[MaxLength]`, and other input-validation annotations applied only to the fields the user edits.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. `IEnumerable<T>` collection binding in forms producing index gaps
 
 **Concepts**
-- HTML form submitting `application/x-www-form-urlencoded`
-- `[FromBody]` expecting JSON via input formatter
-- Silent binding failure leaving model at defaults
-- `FormData` following form binding rules, not JSON path
+- Model binder — expects contiguous zero-based indices `Items[0]`, `Items[1]`, `Items[2]`
+- Row deletion — leaves gaps like `Items[0]`, `Items[2]`, causing binder to stop at first gap
+- Client-side reindexing — JavaScript must renumber remaining rows after deletion
+- Dictionary binder — key-value approach tolerates non-contiguous keys as an alternative
 
 **Answer**
 
-Standard browser forms submit `application/x-www-form-urlencoded` or `multipart/form-data` — they do not send JSON bodies. When an action parameter is decorated with `[FromBody]`, the model binder uses the JSON input formatter, finds no JSON in the request body, and leaves every property at its default value. The action runs with an apparently valid but empty model, so inserts save empty strings and zeroes with no error. The trap is that `ModelState` may appear clean since no conversion failure occurred — properties just stayed at defaults. The fix is to remove `[FromBody]` for conventional MVC form POSTs and allow the default form value provider to bind from the encoded body. `[FromBody]` belongs only on AJAX or API endpoints where the client explicitly sets `Content-Type: application/json` and sends a JSON payload.
+When a Razor form renders `name="Items[0].Qty"`, `name="Items[1].Qty"`, `name="Items[2].Qty"` and the user deletes the middle row client-side, the remaining rows post as `Items[0]` and `Items[2]`. The default model binder stops collecting at the first missing index — `Items[1]` is absent, so `Items[2]` and beyond are silently dropped. The fix is to reindex remaining rows with JavaScript after each deletion so indices are always contiguous starting at zero. Alternatively, use the dictionary-key approach where each row posts `Items[rowGuid].Qty` with a unique key, then implement a custom `IModelBinder` that tolerates non-contiguous keys. Never rely on the browser's rendered index staying valid after dynamic row operations.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. Forgetting to re-populate dropdown data on validation failure
 
 **Concepts**
-- Client validation as bypassable UX convenience
-- Server-side `ModelState.IsValid` as the mandatory security gate
-- Direct POST bypassing browser JavaScript
-- Remote validation not enforced on the server during POST
+- Select list data — loaded in GET action, not preserved in POST body or `ModelState`
+- POST with validation failure — `return View(model)` re-renders the form
+- Null `SelectListItems` — throws `NullReferenceException` or renders empty dropdown
+- Helper method — call `PopulateDropdowns(model)` before every `return View(model)` path
 
 **Answer**
 
-Client-side validation runs only in the browser and can be stripped out entirely by disabling JavaScript, using curl, Postman, or any HTTP client that never loads the page. An attacker submitting an invalid email, a negative price, or a missing required field directly to the action endpoint will succeed if the server does not check `ModelState.IsValid` before persisting. MVC controllers do not automatically return 400 on invalid models the way `[ApiController]` does, so the guard must be explicit. I always gate POST actions with `if (!ModelState.IsValid) return View(model);` before any service call or database write. Remote validation attributes (`[Remote]`) are particularly deceptive — they fire an AJAX check on the client but are never invoked during server-side POST processing, so uniqueness constraints and availability checks must be re-enforced on the server.
+A `CreateProductViewModel` has a `CategoryId` int and a `Categories IEnumerable<SelectListItem>` populated in the GET action. When the POST action returns `View(model)` on validation failure, the `model` was bound from the POST body — which contains no `Categories` data. The view tries to render the dropdown with `Model.Categories` which is null, throwing a `NullReferenceException`. The fix is to re-populate all dropdown and select data before returning the view on failure. A private helper method `PopulateDropdowns(model)` called at the end of the GET action and before every `return View(model)` in the POST action is the standard pattern. Missing this is one of the most common MVC form bugs.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. Nullable reference type warnings suppressed rather than handled properly
 
 **Concepts**
-- Duplicate submission on browser refresh after POST response
-- Post-Redirect-Get pattern separating mutation from display
-- `TempData` for flash messages surviving the redirect
-- AJAX idempotency as the equivalent concern
+- `#nullable enable` — project-level NRT enforcement in .NET 6+
+- `= null!` null-forgiving initializer — suppresses warning without preventing runtime null
+- POST body absence — model binder can still produce null for `string` properties
+- Defensive approach — `string?` with null checks in Razor, or `[Required]` to enforce non-null
 
 **Answer**
 
-Returning the same view directly after a successful POST leaves the browser on a POST URL, so pressing refresh resubmits the same form data — creating duplicate orders, double charges, or repeated inserts. The browser's built-in "Confirm Form Resubmission" dialog warns users but does not prevent the problem on automated retries or programmatic submissions. The correct pattern is Post-Redirect-Get: after a successful mutation, `return RedirectToAction(nameof(Index))` sends a 302 response and the browser follows with a GET request, making the final URL safe to refresh. Success messages should travel via `TempData` to the redirect target since they cannot survive the redirect in `ViewData`. For AJAX partial POSTs the same concern applies — I disable the submit button during the request or implement idempotency server-side so duplicate submissions produce the same safe result.
+In projects with nullable reference types enabled, marking a ViewModel property as `string Name { get; set; } = null!;` suppresses the NRT warning but the model binder can still produce null if the form field is absent from the POST body or a binding error occurs. At runtime `@Model.Name.Length` in Razor throws `NullReferenceException`. The fix is to treat ViewModel properties defensively: use `string?` with null checks in the view, add `[Required]` to enforce non-null at the binding layer, or initialize to `""` so the property is empty string rather than null when the field is missing. Collection properties should always be initialized to empty lists so the view does not need null checks on `foreach` loops.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. Navigation properties on ViewModels causing circular reference during serialization
 
 **Concepts**
-- `ModelState` as request-scoped state
-- Validation errors lost on `RedirectToAction`
-- `return View(model)` on failure vs redirect on success
-- `TempData` serialization for errors that must survive redirect
+- Circular ViewModel — `OrderViewModel.Customer` with `CustomerViewModel.Orders` back-reference
+- `System.Text.Json` — throws `JsonException: A possible object cycle was detected`
+- `Newtonsoft.Json` — enters infinite recursion on circular object graphs
+- Flat ViewModel — scalar properties only, no circular navigation links
 
 **Answer**
 
-`ModelState` is scoped to the current HTTP request and is discarded when the response is sent, which means validation errors do not survive a `RedirectToAction`. A common bug is redirecting on both success and failure: the redirect GET action sees an empty `ModelState`, renders a clean form, and the user has no idea what went wrong. The standard pattern is to redirect only on success and return `View(model)` on validation failure — this keeps errors visible inline without any special plumbing. When a redirect on failure is genuinely required (such as PRG with a pre-populated form), errors can be serialized to `TempData` as a dictionary and re-added to `ModelState` on the GET action, but this is complex enough that I treat it as a last resort and prefer the simpler return-on-failure approach.
+A `CustomerViewModel` with an `Orders` property containing `OrderViewModel` objects each referencing back to `CustomerViewModel` creates a circular object graph. When the controller calls `return Json(vm)` or the view engine serializes it for inline model data, `System.Text.Json` throws `JsonException: A possible object cycle was detected` and `Newtonsoft.Json` enters infinite recursion. ViewModels for server-rendered MVC views do not need circular navigation references — the view renders scalar properties. The correct fix is to break the cycle: `CustomerViewModel` contains `OrderSummary[]` (id, date, total only) with no back-reference, and `OrderDetailViewModel` contains a flat `string CustomerName` rather than a nested `CustomerViewModel`.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. Nested ViewModel objects not initialized causing `NullReferenceException` in Razor
 
 **Concepts**
-- `TempData` consumed on first read by default
-- `Peek()` for non-consuming reads
-- `Keep()` to retain after consuming
-- Single consumption point pattern
+- `public AddressViewModel Address { get; set; }` — null by default without initialization
+- `return View(new CustomerViewModel())` — leaves `Address = null`
+- `@Model.Address.City` — throws `NullReferenceException` when Address is null
+- Initialize in constructor — always-valid ViewModel objects prevent the entire null-ref class
 
 **Answer**
 
-TempData is designed to survive exactly one request after being set, but within a single request it is consumed on the first read — so if the layout reads a flash message to display a banner and the view also reads the same key to conditionally show an icon, the view sees `null`. The fix is to use `TempData.Peek("Message")` in whichever component reads first, since `Peek` returns the value without marking it consumed. Alternatively, call `TempData.Keep("Message")` after the first read to keep it available for the remainder of the request. The cleanest approach is to have a single consumption point — typically a dedicated layout partial that reads and renders the flash message — and keep views from trying to access the same key independently. Cookie-based `TempData` also has a size limit around 4 KB, so avoid stuffing large object graphs or lists into it.
+A `CustomerViewModel` with `public AddressViewModel Address { get; set; }` has a null `Address` unless the action initializes it. `return View(new CustomerViewModel())` leaves `Address` at its type default of null. The Razor view accessing `@Model.Address.City` then throws `NullReferenceException`. The fix is to initialize all nested ViewModel properties in the constructor: `public CustomerViewModel() { Address = new AddressViewModel(); }` or in an object initializer in the action. Collection properties should always be initialized to empty lists: `public List<OrderItemViewModel> Items { get; set; } = new();`. Always-valid ViewModel objects prevent the entire class of null-ref errors that only surface when specific routes are tested.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. Using `Id` in the ViewModel allowing IDOR attacks via POST body tampering
 
 **Concepts**
-- `[Area("AreaName")]` required for area route discovery
-- `{area:exists}` constraint in area route registration
-- Area-less controller treated as a root controller
-- Route registration order mattering for specificity
+- Edit ViewModel with `Id` — attacker can submit any resource id in the POST body (IDOR)
+- Route `id` parameter — more trustworthy than a hidden form field
+- Bind exclusion — exclude `Id` from binding; read only from the route
+- Ownership check — verify the route id belongs to the current user before saving
 
 **Answer**
 
-Controllers placed under `Areas/Admin/Controllers/` are not automatically associated with the Admin area — they require an explicit `[Area("Admin")]` attribute to be matched by the area route. Without the attribute, MVC treats the controller as an ordinary root controller, so requests to `/admin/dashboard` either 404 or accidentally match a catch-all route. Area routing is registered separately in `Program.cs` using `MapControllerRoute` with a `{area:exists}` constraint, and this route must be registered before the default catch-all route so area paths take priority. Forgetting the attribute while the route is registered produces confusing behavior where the area URL patterns exist in the route table but the controllers are never matched by them.
+A `ProductEditViewModel` with a public `Id` property allows a user to submit any product id in the form body and update a product they do not own. Even if the GET form sets the correct `Id` as a hidden field, a tampered POST body with a different `Id` binds that id and updates the wrong record — an Insecure Direct Object Reference (IDOR) vulnerability. The correct pattern is to take the resource identifier only from the route parameter — `[HttpPost("{id:int}")]` — and ignore or omit `Id` from the ViewModel entirely. Always verify the route `id` matches a resource owned by the current user before saving, using `IAuthorizationService` or a manual ownership check.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. Fat ViewModel loading all possible fields for all possible views
 
 **Concepts**
-- Tag Helper ambient area context for URL generation
-- `asp-area` required for cross-area link generation
-- Area links 404 or hitting wrong controller without it
-- `Url.Action` area route values requirement
+- Shared ViewModel with 40 properties — forces loading all data for every view
+- N+1 from eager loading — navigations loaded for properties the list view never renders
+- Purpose-built ViewModel per action — minimal query, minimal serialization overhead
+- `SELECT *` risk — schema changes add properties that views and serializers expose
 
 **Answer**
 
-Tag Helpers use the current request's route data as ambient values when generating URLs, which means they inherit the current area context automatically. From within the Admin area, omitting `asp-area` on a link to `AccountController` generates a URL in the Admin area segment, likely 404-ing because there is no `AccountController` in Admin. Crossing area boundaries requires explicitly setting `asp-area="Admin"` on the tag helper — omitting it generates a URL without the area segment when the current request is not in an area, or uses the wrong area when it is. The same rule applies to `Url.Action` calls: always pass `new { area = "Admin" }` in the route values dictionary when targeting an area controller from outside that area. Links from root views to area controllers and from one area to another both require `asp-area` to be explicit.
+A shared `CustomerViewModel` with 40 properties serving the list, detail, and edit views forces the controller to load all associated data — addresses, orders, contacts, payment methods — even when the list view renders only `Name` and `Email`. The EF query must eagerly load all navigations to avoid lazy-load exceptions, multiplying joins and data transfer. Purpose-built ViewModels per action keep queries minimal: `CustomerListItemViewModel` has `Id`, `Name`, `Email`, and `Status`; `CustomerEditViewModel` has the editable form fields; `CustomerDetailViewModel` has the display fields plus summary counts. This also makes `SELECT` queries faster and removes dead data from the HTTP response body if the endpoint returns JSON.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. Mixing `ViewBag` alongside a strongly typed ViewModel for supplemental data
 
 **Concepts**
-- Unchecked checkbox posting nothing vs posting `false`
-- Non-nullable `bool` binding empty field to `false`
-- `[Required]` not distinguishing `false` from absent
-- `bool?` with `[Required]` for true-or-null consent
-- `[Range(typeof(bool), "true", "true")]` for must-be-true validation
+- `@model ProductViewModel` — typed ViewModel for main view data
+- `ViewBag.PageTitle` alongside ViewModel — splits view contract into typed and untyped channels
+- Magic string keys — `ViewBag.PageTitle` typo produces null silently, no build error
+- Consolidated ViewModel — all view data as properties on the ViewModel or a base class
 
 **Answer**
 
-HTML checkboxes only submit their value when checked — an unchecked checkbox does not appear in the POST body at all. When the model property is non-nullable `bool`, the model binder sets missing fields to `false`, which is a perfectly valid non-null value, so `[Required]` passes without complaint. This means a required consent checkbox with `bool AcceptedTerms` can be submitted unchecked and validation will not catch it. The fix is to use `bool?` with `[Required]`, so an unchecked (absent) field binds to `null` and fails the required check, while an explicitly checked field binds to `true` and passes. For legal consent that must be positively affirmed, I also add `[Range(typeof(bool), "true", "true")]` or a custom attribute to reject `false` explicitly, since `bool?` with `[Required]` only distinguishes null from non-null.
+Mixing a strongly typed `@model ProductViewModel` with `ViewBag.PageTitle` and `ViewData["Breadcrumb"]` splits the view's data contract between a typed part and an untyped dictionary. The typed part is safe and IntelliSense-supported; the dictionary part is invisible to the compiler, prone to key-name typos, and loses type information when read in Razor. When the controller changes `ViewBag.PageTitle` to `ViewBag.Title`, the layout's `@ViewBag.PageTitle` silently returns null with no build error. The fix is to consolidate all view data — page title, breadcrumbs, any cross-cutting metadata — as properties on the ViewModel or a base ViewModel class. Every piece of data the view needs should come from `@Model`, not from a parallel `ViewBag` channel.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-zero-based index requirement for collection binding
-- Phantom null entries inserted at missing indices
-- Client-side re-indexing after row deletion
-- Server-side empty-row filtering as defense
-
-**Answer**
-
-Collection binding relies on contiguous indices starting at zero: `Lines[0]`, `Lines[1]`, `Lines[2]`. When a user deletes a middle row in the UI and the remaining rows keep their original indices — say `Lines[0]` and `Lines[2]` — the binder inserts a default/null entry at index 1 and places the actual data at index 2. Server logic that iterates `model.Lines` without filtering then processes a phantom empty line, potentially saving a blank order line or misaligning SKUs with quantities. The fix is to re-index rows in JavaScript immediately after any deletion so the submitted names are always gap-free. As a server-side safety net, filtering `model.Lines.Where(l => !string.IsNullOrEmpty(l.Sku))` before processing discards empty phantom rows even if the client-side re-indexing is buggy.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor auto HTML-encoding as the default XSS defense
-- `@Html.Raw` bypassing encoding entirely
-- Trusted HTML sanitizer library for rich content
-- Content-Security-Policy as defense-in-depth, not a replacement
-
-**Answer**
-
-Razor's default `@model.Property` output HTML-encodes the value, turning `<script>alert(1)</script>` into harmless entity-encoded text. `@Html.Raw(model.UserComment)` bypasses that encoding entirely and injects the string verbatim into the page, so attacker-supplied JavaScript executes in every viewer's browser. This is one of the most common XSS vectors in MVC applications. If rich HTML content from users must be rendered, the only safe approach is to sanitize it server-side with a trusted library (HtmlSanitizer) that allows a controlled whitelist of tags and attributes before it ever touches `@Html.Raw`. Content-Security-Policy headers limit the blast radius when XSS does occur but are not a substitute for encoding — a policy without `'unsafe-inline'` still leaves DOM-based XSS paths open.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form Tag Helper automatic antiforgery token injection
-- Manual `RequestVerificationToken` header or field for AJAX
-- `[AutoValidateAntiforgeryToken]` validating all unsafe methods
-- Same-origin cookie sent automatically vs header requiring manual setup
-
-**Answer**
-
-The Form Tag Helper automatically injects a hidden `__RequestVerificationToken` input when rendering a POST form, so full-page form submissions include the token without any developer action. AJAX requests made with `fetch` or jQuery do not go through the Form Tag Helper, so they must manually read the token value from the hidden field on the page and include it either as a form field or in a custom request header. Forgetting this produces a 400 `Bad Request` with an antiforgery validation failure message that can look like a generic server error. `[AutoValidateAntiforgeryToken]` on the controller class validates all unsafe HTTP methods automatically, so every AJAX POST, PUT, and DELETE to that controller requires the token. The fix is never to disable antiforgery validation to "fix" AJAX — add the token to the request instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub not registered in DI for direct injection
-- `IHubContext<THub>` as the singleton proxy for external broadcasting
-- Connection context required for hub method execution
-- Thin hub pattern with business logic in services
-
-**Answer**
-
-SignalR `Hub` subclasses are not registered in the DI container as injectable services — they are instantiated per connection by the SignalR infrastructure, which means injecting a concrete `Hub` into a controller constructor either fails at activation or produces an instance with no valid connection context. The correct approach is to inject `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()` that allows sending messages to connected clients from anywhere outside the hub — controllers, background services, or domain event handlers. The hub class itself should be kept thin, delegating business logic to scoped or transient services that can be injected normally. For multi-instance deployments, the `IHubContext` must be paired with a Redis backplane or Azure SignalR Service so the broadcast reaches clients connected to other instances.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane for multi-node fan-out
-- Instance-local connection IDs and group membership
-- `AddStackExchangeRedis` or `AddAzureSignalR` for scale-out
-
-**Answer**
-
-Sticky sessions ensure a client always reconnects to the same server instance, but they do not solve the fan-out problem. When a controller on instance A calls `IHubContext.Clients.User(id).SendAsync(...)`, that message is dispatched only to clients connected to instance A — users on instance B, C, and D never see it. This creates inconsistent real-time behavior under load that is nearly impossible to reproduce in single-server development. Connection IDs and group memberships are also stored locally per instance, so `Groups.AddToGroupAsync` on one node does not make the client a member on others. The fix is to register a shared backplane — `AddStackExchangeRedis(connectionString)` or `AddAzureSignalR(connectionString)` — so every instance publishes and subscribes to the same message bus and all clients receive every broadcast.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

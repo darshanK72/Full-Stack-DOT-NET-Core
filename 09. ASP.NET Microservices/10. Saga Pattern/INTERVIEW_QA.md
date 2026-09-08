@@ -387,3 +387,145 @@ Sagas achieve eventual consistency — the guarantee that the system will conver
 The most common mistakes fall into two categories: design mistakes made before writing code and implementation mistakes made during coding. Forgetting to define compensating transactions for every step before starting implementation is the most dangerous mistake — adding compensation after the fact is a major redesign because compensation logic must be consistent with what each step actually committed to its database. Making Saga steps non-idempotent by performing side effects such as charging a payment or sending an email without checking for duplicate message delivery is a frequent source of production incidents, especially when a broker or network blip causes redelivery. Choosing choreography for a complex multi-step workflow because it "feels simpler" initially, then struggling to trace failures across many event logs, is a pattern I see consistently — the observability cost of choreography is underestimated by teams new to the pattern. Storing saga state only in memory without a durable persistence repository means every application restart wipes out all in-progress Sagas, leaving the system permanently inconsistent for any Saga that was mid-flight. Not handling the "zombie saga" scenario is also common: a message from a long-delayed participant arrives after the Saga has already been compensated and finalized, causing the state machine to resurrect the Saga into an unexpected state — this must be handled with `DuringAny(When(LateEvent).Ignore())` or equivalent logic.
 
 ---
+
+## Gotchas — Saga Pattern (Interview Traps)
+
+---
+
+#### Gotcha 1. Compensating Transaction That Is Not Idempotent
+
+**Concepts**
+- At-least-once delivery causing compensation to execute twice
+- Duplicate compensation cancelling a payment that was already cancelled
+- Idempotency key in each compensating step
+- Conditional update checking current state before compensating
+
+**Answer**
+
+A Saga's compensating transactions execute under at-least-once delivery guarantees — if the compensation message is redelivered, the compensating step runs twice. A non-idempotent compensation such as issuing a full refund on every invocation will refund the customer twice for a single failure. Each compensating step must check whether the compensation has already been applied before executing it: cancel an order only if its current status is `Pending`, issue a refund only if no refund exists with the same correlation ID, decrement inventory only if the corresponding reservation still exists. Without this check, a redelivered compensation produces incorrect business state.
+
+---
+
+#### Gotcha 2. Saga State Not Persisted Durably
+
+**Concepts**
+- In-memory saga state lost on application restart
+- Mid-flight sagas permanently stuck after a deployment
+- Saga state repository backed by a database or Redis
+- MassTransit SagaDbContext persisting state to SQL
+
+**Answer**
+
+An in-memory Saga state machine (no repository configured) loses all in-progress Saga instances when the application restarts — any Saga mid-flight during a deployment is lost forever, leaving the system in a partially committed state with no mechanism for recovery or compensation. Every Saga state machine must persist its state to a durable store: MassTransit supports `EntityFrameworkSagaRepository<T>` backed by SQL, `MongoDpSagaRepository<T>`, and `RedisRepository<T>`. The persisted state includes the Saga's current state enum value, its correlation ID, and all fields needed to make compensation decisions — without durable persistence, the Saga pattern provides no reliability guarantee across process restarts.
+
+---
+
+#### Gotcha 3. No Timeout Handling for Long-Running Saga Steps
+
+**Concepts**
+- Saga waiting indefinitely for a participant response
+- Participant that never responds leaving Saga in limbo
+- MassTransit Schedule and Quartz for timeout events
+- Compensation triggered on timeout expiry
+
+**Answer**
+
+A Saga that requests payment authorisation and then waits indefinitely for `PaymentAuthorisedEvent` or `PaymentFailedEvent` will stay in the `AwaitingPayment` state forever if the payment service is down, the message is lost, or the external payment gateway never responds. Without a timeout, the order sits in an intermediate state with no inventory released and no customer notification, and customer support has no way to know the Saga is stuck. Each Saga step that waits for an external response must schedule a timeout event using MassTransit's `Schedule` and `Unschedule` API or Quartz — if the expected response does not arrive within the deadline, the timeout event triggers compensation and the Saga transitions to a terminal failed state.
+
+---
+
+#### Gotcha 4. Designing Compensating Transactions After Implementation
+
+**Concepts**
+- Compensation as a first-class design concern, not an afterthought
+- Compensation requiring knowledge of committed state per step
+- Impossible compensation when external API has no undo operation
+**Answer**
+
+Adding compensation logic after implementing the happy path is a major redesign risk — each compensating transaction requires precise knowledge of what state the forward step committed, which is difficult to reconstruct from code that was never written with compensation in mind. The correct approach is to design the compensating transaction for each forward step before writing any code: if `ReserveInventory` succeeds, the compensating transaction is `ReleaseInventoryReservation`; if `AuthorisePayment` succeeds, the compensation is `VoidAuthorisation`. Some steps have no natural compensation — a `SendConfirmationEmail` step cannot un-send an email — which is an important design constraint that must be accepted explicitly (the email is a known non-compensatable effect) rather than discovered at incident time.
+
+---
+
+#### Gotcha 5. Using a Distributed Transaction Instead of Local Transactions per Step
+
+**Concepts**
+- Two-phase commit across services defeating Saga's purpose
+- Each Saga step using a local database transaction only
+- Saga replacing the need for distributed transactions
+- XA transaction overhead and coordinator single point of failure
+
+**Answer**
+
+Using a distributed transaction (two-phase commit, XA) that spans the Saga coordinator and a participant service combines the worst properties of both approaches: distributed transaction overhead, a single coordinator that becomes a bottleneck, and rollback semantics that still do not work reliably across network partitions. The entire point of the Saga pattern is to replace distributed transactions with a sequence of local transactions, each of which commits independently — the Saga achieves overall consistency through compensation rather than distributed locking. Each step's participant service executes exactly one local database transaction and publishes a result event; the Saga coordinator never participates in that transaction.
+
+---
+
+#### Gotcha 6. Choreography Saga for a Complex Multi-Step Workflow
+
+**Concepts**
+- Choreography scaling poorly beyond 3–4 participants
+- No central visibility into which step failed and why
+- Distributed event chain difficult to trace in production
+- Orchestration providing a single state machine to query
+
+**Answer**
+
+A choreography-based Saga in which each service reacts to events and emits its own events works well for 2–3 steps but becomes operationally unmanageable at 6–8 steps — there is no single place to see the Saga's current state, no central timeout enforcement, and a failure mid-flow requires tracing events across multiple service logs to determine which step failed. A common production incident pattern is: "We processed payment but never shipped the order — but which service's event is missing and why?" An orchestration-based Saga with a central state machine (MassTransit Saga, Temporal workflow) provides a single queryable state record per Saga instance that shows exactly which step it is on, how long it has been waiting, and what events it has received — transforming a distributed mystery into an inspectable state.
+
+---
+
+#### Gotcha 7. Saga Re-Triggered While Already in Progress
+
+**Concepts**
+- Duplicate request creating a second Saga instance for the same business entity
+- Correlation ID uniqueness preventing duplicate Saga creation
+- InitiatedBy guard checking for existing Saga before starting
+- Duplicate Saga running parallel compensations for the same order
+
+**Answer**
+
+If a client retries a `PlaceOrder` request (network timeout, impatient user, load-balancer retry), two Saga instances may be created for the same order — both proceed to charge the payment, reserve inventory, and ship, resulting in double-charging and duplicate fulfilment. The Saga's correlation ID must be derived from a business-stable identifier (the order ID), not a new GUID generated on each request, so that a duplicate initiation event finds the existing Saga instance and is ignored rather than starting a new one. MassTransit's `CorrelateById` configuration ensures the correlation ID is matched before a new Saga row is inserted, and the `InitiatedBy` constraint prevents creating duplicate Sagas with the same correlation ID.
+
+---
+
+#### Gotcha 8. Not Persisting Enough Context to Make Compensation Decisions
+
+**Concepts**
+- Saga state missing amounts, IDs, or quantities needed for compensation
+- Compensation unable to determine what to reverse without stored context
+- Saga state as a record of all committed effects
+- Stale compensation data from relying on current database state
+
+**Answer**
+
+A compensation step that looks up the current order total from the database to issue a refund will refund the wrong amount if the order was modified between the forward step and the compensation — the amount at compensation time may differ from the amount that was charged. The Saga state must persist every piece of data needed to execute compensation deterministically: the exact amount that was authorised, the reservation ID returned by the inventory service, the external transaction reference from the payment gateway. Compensation decisions must be based on data captured at the time of the forward step, not on current database state which may have changed.
+
+---
+
+#### Gotcha 9. Zombie Saga Resurrected by Late-Arriving Messages
+
+**Concepts**
+- Late message from a slow participant arriving after Saga is finalized
+- Message creating a new Saga instance or updating a completed one
+- MassTransit DuringAny(When(LateEvent).Ignore()) handling
+- Saga instance deletion policy after reaching terminal state
+
+**Answer**
+
+A `PaymentAuthorisedEvent` that arrives 20 minutes late — after the Saga was already compensated and the instance deleted — is correlated to a new Saga row by MassTransit's `CorrelateById` and starts processing from the initial state, effectively re-triggering a completed Saga. The defence is to retain finalized Saga instances (status `Completed` or `Failed`) in the database for a retention period rather than deleting them immediately, and to add `DuringAny(When(LateEvent).Ignore())` or a terminal-state guard that discards events received after the Saga reached a final state. Without this, a late payment authorisation can trigger a shipment for an order that was already cancelled and refunded.
+
+---
+
+#### Gotcha 10. Synchronous HTTP Calls Inside a Saga Step
+
+**Concepts**
+- Synchronous HTTP inside a Saga step blocking the message consumer
+- HTTP failure preventing the Saga from advancing or compensating
+- Saga step publishing a command and waiting for an event asynchronously
+- HTTP wrapped as a command/response message pair
+
+**Answer**
+
+A Saga step that makes a synchronous HTTP call to a participant service tightly couples the Saga's processing speed to the participant's HTTP response time — if the participant is slow or unavailable, the Saga's message consumer thread blocks, holding up the consumer and preventing progress on all other Sagas using the same consumer. The Saga pattern is designed for asynchronous operation: each Saga step publishes a command message to the participant and transitions to a waiting state until the participant publishes its result event. Synchronous HTTP in a Saga step also makes compensation harder because an HTTP failure partway through the step leaves it ambiguous whether the operation completed on the participant's side or not.
+
+---

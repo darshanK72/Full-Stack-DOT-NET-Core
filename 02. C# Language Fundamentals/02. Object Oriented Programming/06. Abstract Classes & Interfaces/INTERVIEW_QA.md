@@ -207,52 +207,150 @@ The most powerful combination uses an interface for the external-facing contract
 
 ---
 
-## Gotcha Questions
+## Gotchas — Abstract Classes & Interfaces (Interview Traps)
 
 ---
 
-## Q13. An `IExportable` library interface adds a default method `ExportWithMetadata()`. A service targeting `netstandard2.0` references the updated package. What breaks?
+#### Gotcha 1. Abstract class cannot be instantiated even if all abstract members are implemented by a partial chain
 
 **Concepts**
-- Default interface methods require .NET Core 3.0+ runtime
-- `netstandard2.0` does not support DIMs at runtime
-- Compile may succeed (SDK resolution) but runtime fails
-- `NotSupportedException` or `MissingMethodException` at runtime
-- Forward-compatibility considerations when publishing NuGet packages
+- CS0144 — cannot create instance of abstract class
+- All abstract members must be implemented by a concrete derived class
+- Partial class chains must still resolve all abstract members
+- Abstract with no abstract members is valid but rare
 
 **Answer**
 
-Default interface methods (DIMs) are a compiler and runtime feature. The C# compiler in a modern SDK can produce the IL for a DIM in the library targeting `netstandard2.0`, because `netstandard2.0` is a compile-time abstraction. However, the runtime that executes the service — if it targets `netstandard2.0` on .NET Framework 4.x — does not support the virtual method dispatch mechanism that DIMs require. At runtime, invoking the default method on an instance cast to the interface may produce `MissingMethodException` or a `BadImageFormatException` depending on the runtime version. Even on a .NET 6+ runtime, a DIM is not callable through a derived class reference without casting to the interface, which surprises developers expecting normal virtual method semantics. The documentation obligation is: clearly state the minimum required TFM (`net6.0` or later) for any API that uses DIMs, and test the NuGet package against every claimed target framework using multi-targeted test projects.
+The `abstract` keyword on a class prevents instantiation regardless of whether any abstract methods exist. Only a fully concrete derived class — one that implements every abstract member — can be instantiated. A chain of abstract classes can each implement some abstract members but the class at the bottom must be concrete to be instantiated.
 
 ---
 
-## Q14. A storage service calls `invoice.GetName()` expecting a file-safe name, but gets `"Invoice: Q1-2025"` instead. Why?
+#### Gotcha 2. Interface explicit implementation is invisible through the concrete type reference — only visible via interface cast
 
 **Concepts**
-- Explicit interface implementation accessible only via interface reference
-- Public `GetName()` and `INamedDocument.GetName()` are different methods
-- Calling through class reference invokes public method
-- Calling through interface reference invokes explicit implementation
-- Common source of wrong behavior in service layers
+- Explicit implementation `IFoo.Method()` hidden from class reference
+- Must cast to interface type to call it
+- Implicit implementation is public and callable both ways
+- Common source of "wrong method called" bugs
 
 **Answer**
 
-`InvoiceDocument` has two `GetName` methods: a public `string GetName()` returning a human-readable label like `"Invoice: Q1-2025"`, and an explicit implementation `string INamedDocument.GetName()` returning the file-safe name. When `ResolveFileName` receives `InvoiceDocument` by its concrete type and calls `invoice.GetName()`, C# dispatches to the public method — the explicit interface implementation is invisible through the concrete-type reference. To call the explicit implementation, the variable must be typed as `INamedDocument` or cast to it: `((INamedDocument)invoice).GetName()`. The fix is to update `ResolveFileName` to accept `INamedDocument` rather than `InvoiceDocument`, or to cast internally: `string path = Path.Combine(_root, ((INamedDocument)invoice).GetName())`. The broader lesson is that if the file-safe name is the correct public behavior for all document types, it should be the public method, and the human-readable label should be a separate property (e.g., `DisplayName`).
+`string INamedDocument.GetName()` can only be called when the variable is typed as `INamedDocument` or cast to it. A caller holding the concrete class reference and calling `.GetName()` will call the public implicit implementation, not the explicit one. This is a common source of bugs where the wrong version of a method runs silently.
 
 ---
 
-## Q15. An abstract base class `NotifierBase` already has `Email` and `SMS` as subclasses. A new `SmsNotifier : INotificationSender` is introduced from an external library. How do you bridge the two hierarchies without breaking LSP?
+#### Gotcha 3. Default interface methods require .NET Core 3.0+ runtime — netstandard2.0 consumers will fail at runtime
 
 **Concepts**
-- Adapter pattern bridges incompatible hierarchies
-- Cannot change an external type's base class
-- Wrapper (`class SmsAdapter : NotifierBase`) delegates to external type
-- Interface as the unifying consumer contract
-- DI registration via `INotificationSender`
+- DIMs are a CLR feature added in .NET Core 3.0
+- `netstandard2.0` runs on .NET Framework 4.x which does not support DIMs
+- Compile may succeed; runtime throws `MissingMethodException`
+- Version the TFM requirement clearly in NuGet metadata
 
 **Answer**
 
-When `SmsNotifier` is an external type you cannot modify, and your codebase uses `NotifierBase` as the consumer contract internally, the standard bridge is the Adapter pattern. Create `public class SmsNotifierAdapter : NotifierBase` that holds a private `SmsNotifier` field and delegates `Send()` to it. This wraps the external type in your hierarchy without modifying either. For new code, the better design is to unify around the interface (`INotificationSender`) rather than the abstract base, because an interface imposes no inheritance constraint. Existing `NotifierBase` subclasses can implement `INotificationSender` explicitly or the base itself can implement the interface. The DI container registers all notifiers as `INotificationSender`, enabling polymorphic dispatch without needing a shared base class. The abstract base is then an implementation detail for types you own and control, not the external-facing contract. This is the design that most cleanly handles future cases where new notification channel providers come as external libraries.
+Default interface methods depend on runtime support added in .NET Core 3.0. A NuGet library that adds a default interface method and targets `netstandard2.0` may compile on a modern SDK but fail at runtime on .NET Framework. Library authors must raise the minimum TFM to `net6.0` or higher and document this requirement when introducing default interface methods.
+
+---
+
+#### Gotcha 4. Adding a member to a published interface is a breaking change — all implementing classes must update
+
+**Concepts**
+- Every existing implementor must add the new member
+- Unless a default implementation is provided (C# 8+)
+- Source and binary breaking change without defaults
+- Default implementation as non-breaking addition
+- ISP to keep interfaces narrow
+
+**Answer**
+
+Adding a new method to a published interface without a default implementation breaks all existing implementations — each must be updated to provide the new member or it fails to compile. C# 8 default interface methods mitigate this for library authors, but the added method is only callable through the interface type, not the concrete type directly, which surprises developers expecting normal virtual method behaviour.
+
+---
+
+#### Gotcha 5. An abstract class with only a static constructor still cannot be instantiated
+
+**Concepts**
+- Abstract = no direct instantiation regardless of ctor type
+- Static constructor runs on first type access
+- Does not affect the abstract instantiation restriction
+- Abstract class can still have instance constructor for derived use
+
+**Answer**
+
+`abstract class Base` cannot be instantiated with `new Base()` even if its only constructor is a static one. The `abstract` modifier on the class is independent of the constructors it contains. The static constructor is invoked by the CLR the first time the type is accessed, but it does not unlock direct instantiation.
+
+---
+
+#### Gotcha 6. Interfaces cannot hold instance state — any state simulation requires the implementing class
+
+**Concepts**
+- No fields in interfaces
+- Properties in interfaces are declarations, not storage
+- Auto-property in implementing class provides storage
+- Static fields allowed in C# 8+ (rare and often a smell)
+
+**Answer**
+
+Interfaces declare contracts — method signatures, property signatures, events — but do not hold any instance state. A property `string Name { get; set; }` in an interface is a contract that the implementing class must provide a `Name` with a getter and setter. The storage (backing field) is always in the implementing class, not the interface.
+
+---
+
+#### Gotcha 7. Implementing an interface with a sealed class prevents further overriding of interface members
+
+**Concepts**
+- `sealed class` implements interface but cannot be subclassed
+- Interface members are implicitly implemented (public)
+- Sealed class satisfies interface and closes the extension point
+- Test mocking of sealed classes requires special tools (Moq Shims, etc.)
+
+**Answer**
+
+When a `sealed class` implements an interface, it provides the only implementation — no subclass can override the interface members. This is fine when extension is not needed, but it makes the class untestable via normal mocking frameworks, since mocking typically requires subclassing. Prefer non-sealed implementation classes in production code that needs to be mockable.
+
+---
+
+#### Gotcha 8. Abstract method vs virtual method — abstract forces override, virtual provides default behavior
+
+**Concepts**
+- `abstract` has no body — derived must override
+- `virtual` has body — derived may override
+- Forgetting `abstract` means base has a body that silently runs
+- `abstract` methods only allowed in abstract classes
+
+**Answer**
+
+An `abstract` method has no implementation; every concrete derived class must provide one. A `virtual` method has a default body; derived classes may or may not override it. If you intend a method to have no default behavior and all derived classes must provide it, use `abstract`. Using `virtual` with an empty or exception-throwing body instead is a smell — use `abstract`.
+
+---
+
+#### Gotcha 9. Adapter pattern bridges two incompatible hierarchies without modifying either
+
+**Concepts**
+- Create wrapper class that extends hierarchy A and delegates to hierarchy B
+- External types cannot change their base class
+- Adapter holds a reference to the adaptee
+- Interface as the unified consumer contract
+- Avoids inheritance coupling to external types
+
+**Answer**
+
+When an external library type cannot inherit from your abstract base, create an adapter class that inherits from your base and wraps the external type. The adapter delegates each abstract member call to the wrapped type. This bridges incompatible hierarchies without modifying either. For maximum flexibility, unify consumer code around an interface rather than the abstract base so that adapters only need to implement the interface.
+
+---
+
+#### Gotcha 10. Interface segregation — one fat interface forces unnecessary member implementation in all types
+
+**Concepts**
+- ISP: clients should not depend on methods they do not use
+- Fat interface forces `throw NotImplementedException()` stubs
+- Split into focused interfaces
+- Implement only relevant interfaces per type
+- `NotImplementedException` in interface implementation is a design smell
+
+**Answer**
+
+A fat interface with many members forces every implementing class to provide all of them, even those irrelevant to the class. The common workaround is throwing `NotImplementedException` in unused methods, which is an LSP violation — callers expect any implementation to honor all members. Split large interfaces into focused, role-specific ones so each class implements only the subset relevant to its behavior.
 
 ---
 

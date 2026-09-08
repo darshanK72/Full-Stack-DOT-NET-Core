@@ -207,121 +207,157 @@ An anemic domain model has entities that are plain data bags — public getters 
 
 ---
 
-## Gotcha Questions
+## Gotchas — OOP Real-World Design (Interview Traps)
 
 ---
 
-## Q13. `OrderPaymentService` withdraws from a wallet, then calls `CardPaymentProcessor.ProcessOrderPayment()`. If the card is declined, the wallet is refunded. What OOP and correctness problems exist?
+#### Gotcha 1. Concrete class dependencies created with new are untestable — inject interfaces instead
 
 **Concepts**
-- Encapsulation failure — accessing balance state directly
-- Concrete class dependencies instead of interfaces
-- Non-atomic rollback pattern (race between withdraw and refund)
-- Hard-coded fallback to wallet processor
-- SRP violation — service does too much
-
-```csharp
-public sealed class OrderPaymentService
-{
-    public string Run(BankAccount wallet, decimal total, string orderRef)
-    {
-        var card = new CardPaymentProcessor();
-        var walletGw = new WalletPaymentProcessor();
-
-        if (wallet.Balance < total)
-            return "Insufficient funds";
-
-        wallet.TryWithdraw(total, out _);
-
-        string result = card.ProcessOrderPayment(total, orderRef);
-        if (result.Contains("declined", StringComparison.OrdinalIgnoreCase))
-        {
-            wallet.Deposit(total);
-            result = walletGw.ProcessOrderPayment(total, "WLT-" + orderRef);
-        }
-        return result;
-    }
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Concrete dependency | `new CardPaymentProcessor()` — not injectable or mockable | Tests hit real payment gateway |
-| Encapsulation breach | `wallet.Balance < total` reads internal state before calling `TryWithdraw` | TOCTOU race on balance |
-| Non-atomic rollback | Withdraw succeeds; card call may fail before `Deposit` runs | Balance permanently reduced if exception occurs between the two |
-| Ignored return value | `TryWithdraw` out `_` discarded | Assumes success; balance may not have been deducted |
-| SRP violation | Payment selection, execution, and fallback all in one method | Method will grow unbounded as payment types increase |
-
-**Fix priority list**
-1. Replace `new CardPaymentProcessor()` / `new WalletPaymentProcessor()` with injected `IPaymentProcessor` implementations.
-2. Replace TOCTOU balance check with a single `TryWithdraw` call and use its return value.
-3. Wrap withdraw + charge in a transaction scope or compensating transaction — do not withdraw until the charge succeeds, or use a two-phase commit pattern.
-4. Extract payment fallback selection into a `IPaymentFallbackStrategy`.
+- `new ConcreteClass()` inside a method hard-wires dependencies
+- No seam for test doubles
+- DIP: depend on abstractions, not concretions
+- Constructor injection via interface
+- Real infrastructure hits in tests
 
 **Answer**
 
-Three independent problems compound here. First, `new CardPaymentProcessor()` creates a hard dependency on the concrete class, making tests impossible without hitting real payment infrastructure. Inject `IPaymentProcessor` via the constructor. Second, reading `wallet.Balance` before calling `TryWithdraw` is a TOCTOU race: balance changes between the check and the withdraw are invisible. Use the return value of `TryWithdraw` to learn whether the withdrawal succeeded. Third, the rollback pattern is not atomic: if an exception is thrown between `wallet.TryWithdraw(total, out _)` and `wallet.Deposit(total)` (for example, a network timeout during the card call), the customer's wallet is permanently debited with no refund. The correct pattern is to not withdraw from the wallet until the payment gateway confirms — or use a saga/compensating transaction approach where the withdrawal is held as a reservation until confirmed. The method also violates SRP by combining payment method selection, execution, and fallback logic.
+When a method calls `new CardPaymentProcessor()`, it creates a hard dependency on the concrete class. Tests cannot substitute a fake without hitting real infrastructure. Inject `IPaymentProcessor` via the constructor instead. The DIP says high-level modules should not depend on low-level modules — both should depend on abstractions.
 
 ---
 
-## Q14. A logistics API uses an explicit type-switch to quote delivery cost by vehicle type. New vehicle types require editing the method. What OOP design replaces this?
+#### Gotcha 2. Type-switch on domain objects is an OCP violation — replace with polymorphic method on the base class
 
 **Concepts**
-- Open/Closed Principle violation
-- Polymorphic method on the base class
-- Each vehicle calculates its own cost
-- Abstract method or virtual override
-- Extensible without modifying the dispatch method
-
-```csharp
-public static decimal QuoteDelivery(Vehicle vehicle, decimal distanceKm, decimal ratePerKm)
-{
-    if (vehicle is Car)
-        return distanceKm * ratePerKm;
-    if (vehicle is Truck truck)
-        return distanceKm * ratePerKm * (1.0m + truck.PayloadTons * 0.05m);
-    return distanceKm * ratePerKm * 2.0m;  // unknown fallback
-}
-```
+- `is TypeA` / `is TypeB` checks in a switch
+- Adding new types requires editing the switch
+- OCP: closed for modification, open for extension
+- Abstract or virtual method on base class
+- Each type owns its own behavior
 
 **Answer**
 
-The method is a classic OCP violation: every new vehicle type requires editing `QuoteDelivery`, and the fallback constant `2.0m` silently produces wrong quotes for unhandled types. The correct design adds an abstract or virtual method to `Vehicle`: `public abstract decimal EstimateDeliveryCostKm(decimal ratePerKm)`. Each vehicle implements the formula that makes sense for its type — `Car` returns `distanceKm * ratePerKm`, `Truck` applies the payload surcharge, `Motorcycle` applies a different rate. The `QuoteDelivery` method becomes `return vehicle.EstimateDeliveryCostKm(ratePerKm) * distanceKm` — one line, no type checks, no fallback, no editing required when new vehicles are added. The compiler enforces that every new concrete `Vehicle` subclass implements the abstract method, eliminating the silent-omission fallback. This is the OCP closed-for-modification / open-for-extension payoff: adding `Drone` as a new vehicle type requires only writing `Drone : Vehicle` with its own `EstimateDeliveryCostKm` — no existing code is touched.
+An explicit type-switch that routes behavior by `vehicle is Car`, `vehicle is Truck`, etc. must be edited every time a new type is introduced, violating the Open/Closed Principle. Add an abstract or virtual method to the base class so each type encapsulates its own logic. The switch becomes a single polymorphic call with no editing needed for new types.
 
 ---
 
-## Q15. `OrderFulfillmentHub.Fulfill` does everything: payment, delivery, labeling, notification, and invoicing. Identify the SOLID violations and describe the refactor order.
+#### Gotcha 3. God class with all responsibilities violates SRP — extract each responsibility into its own service
 
 **Concepts**
-- SRP — five responsibilities in one class
-- DIP — `new Truck(...)`, `new Circle(...)` hard-coded
-- OCP — adding a delivery type requires editing `Fulfill`
-- God class anti-pattern
-- Service extraction and constructor injection order
-
-```csharp
-public sealed class OrderFulfillmentHub
-{
-    public string Fulfill(string customer, string orderRef, decimal total)
-    {
-        CustomerWallet.TryWithdraw(total, out _);
-        var card = new CardPaymentProcessor();
-        card.ProcessOrderPayment(total, orderRef);
-        var truck = new Truck("Tata", "LPT", 2021, 3.5m);
-        decimal cost = truck.EstimateDeliveryCostKm(2.4m) * 12.5m;
-        var circle = new Circle(3.5);
-        string label = $"Label area={Math.PI * circle.Radius * circle.Radius:0.##}";
-        var email = new EmailNotificationSender();
-        email.Send(customer, $"Order {orderRef} for {total:C}");
-        var invoice = new InvoiceDocument("INV-1", DateTime.UtcNow, customer, total);
-        return invoice.Render() + $" | delivery={cost:C} | {label}";
-    }
-}
-```
+- SRP: one reason to change per class
+- God class accumulates all responsibilities
+- Extract service classes with narrow contracts
+- Inject extracted services via constructor
+- Each step independently testable
 
 **Answer**
 
-`OrderFulfillmentHub.Fulfill` violates SRP by handling payment processing, delivery cost calculation, label geometry, email notification, and invoice generation — five separate responsibilities, each a reason to change the class. It violates DIP by instantiating concrete classes with `new` instead of using injected interfaces. It violates OCP because adding a new vehicle type for delivery requires editing this method. The refactor order for a single sprint: (1) First, introduce interfaces for the types with the most churn or test pain — `IPaymentProcessor`, `IDeliveryService`, `INotificationSender`, `IInvoiceService` — and inject them via constructor. This immediately enables test doubles. (2) Extract each responsibility into its own service class registered in DI. (3) Replace hard-coded geometry with a `ILabelGenerator` that encapsulates shape-based label creation. (4) Defer: infrastructure concerns like transactionality, retry, and distributed tracing can be addressed in a follow-up sprint once the seams are clear. Each step can be validated by a test that was previously impossible to write without real infrastructure.
+A class that handles payment, delivery, labeling, notification, and invoicing has five reasons to change — one for each responsibility. The refactor order is: introduce interfaces for each responsibility, inject them via the constructor, then extract each into its own class registered in DI. Each extracted service can be tested in isolation.
+
+---
+
+#### Gotcha 4. TOCTOU race — checking state before acting is not atomic with the action
+
+**Concepts**
+- Time-of-check to time-of-use (TOCTOU)
+- Balance may change between check and withdrawal
+- Use return value of the mutating call instead
+- Atomic operations via `TryWithdraw` pattern
+- Two-phase operations need compensation or reservation
+
+**Answer**
+
+Reading `wallet.Balance < total` and then calling `TryWithdraw` is a TOCTOU race — the balance can change between the two calls. Instead, use the return value of `TryWithdraw` itself: if it returns false, the funds were insufficient at the time of the attempt. The check and the action must be the same atomic operation.
+
+---
+
+#### Gotcha 5. Non-atomic rollback leaves state permanently corrupted on exception between withdraw and refund
+
+**Concepts**
+- Withdraw then charge — exception between them debits wallet with no charge
+- Not atomic: no transaction wraps both
+- Saga / compensating transaction pattern
+- Two-phase: reserve then confirm
+- Do not withdraw until charge succeeds
+
+**Answer**
+
+If the charge call throws after a successful wallet withdrawal, the wallet is debited but no charge was made. The rollback (`wallet.Deposit`) is also never reached. Use a two-phase pattern: reserve funds, attempt the charge, then confirm the reservation on success or release it on failure. A compensating transaction service logs both operations so failed charges can be reconciled.
+
+---
+
+#### Gotcha 6. Encapsulation breach — reading internal state from outside the owning class bypasses invariants
+
+**Concepts**
+- `wallet.Balance` read from outside BankAccount
+- External reader can make decisions based on stale state
+- Encapsulate in the owning object
+- Tell, don't ask: give the object the command, let it decide
+- Returns result instead of checking precondition externally
+
+**Answer**
+
+Reading `wallet.Balance` from an external service is an encapsulation breach — the caller makes decisions based on internal state that may be stale or inconsistently read. Apply "tell, don't ask": give `BankAccount` a `TryWithdraw` method that encapsulates the check-and-withdraw atomically and returns whether it succeeded. The caller acts on the result, not on pre-read state.
+
+---
+
+#### Gotcha 7. Ignoring return values from Try-pattern methods assumes success silently
+
+**Concepts**
+- `TryWithdraw(total, out _)` return value discarded
+- Method may return false (insufficient funds)
+- Code continues as if success regardless
+- Always check return values for Try-pattern methods
+- Prefer `bool TryX(...)` over void with exceptions for control flow
+
+**Answer**
+
+Calling `wallet.TryWithdraw(total, out _)` and ignoring the `bool` return means the code proceeds even if the withdrawal failed. The downstream logic (charging a card, generating an invoice) runs on the assumption that the withdrawal succeeded when it may not have. Always check and act on the return value of any `Try`-pattern method.
+
+---
+
+#### Gotcha 8. Hard-coded fallback values produce silently wrong results for unhandled cases
+
+**Concepts**
+- `return distanceKm * ratePerKm * 2.0m` for unknown type
+- No exception, no log, wrong number returned
+- Fail-fast is preferable: throw for unrecognized types
+- Exhaustive pattern matching in C# 8+
+- Abstract method eliminates the fallback entirely
+
+**Answer**
+
+A fallback constant like `2.0m` for unknown vehicle types silently produces a plausible-looking but wrong quote. The caller has no indication anything went wrong. Prefer either an `abstract` method (which forces all types to provide an implementation) or a `throw new NotSupportedException($"Unhandled vehicle type: {vehicle.GetType().Name}")` so unrecognized types are detected immediately.
+
+---
+
+#### Gotcha 9. Static factory method pattern hides the constructor but does not enforce interface injection
+
+**Concepts**
+- Static factory can return different concrete types
+- Still uses concrete type internally unless designed for DI
+- Useful for controlled construction with validation
+- Cannot be replaced in tests without DI
+- Named factory + interface + DI is the testable pattern
+
+**Answer**
+
+A static factory method like `Payment.Create(amount)` hides object construction behind a readable name and can enforce creation rules, but it still returns a concrete class by value. Tests that call the factory get the real implementation. For testability, register a factory interface (`IPaymentFactory`) in DI and inject it — tests can substitute a fake factory that returns mock payment objects.
+
+---
+
+#### Gotcha 10. Law of Demeter violation — method chains across object graphs create brittle coupling
+
+**Concepts**
+- `order.Customer.Address.City` chains three objects
+- Changes anywhere in chain break the caller
+- Encapsulate the query in the owning object
+- Introduce a property or method at the right level
+- Each object responsible for its own traversal
+
+**Answer**
+
+`order.Customer.Address.City` means the calling code knows the internal structure three levels deep. If `Customer` later wraps `Address` differently, or `Address` changes how `City` is stored, the caller breaks. The Law of Demeter says an object should only talk to its immediate collaborators. Encapsulate the navigation: `order.GetDeliveryCity()` delegates to its collaborators without exposing the chain.
 
 ---
 

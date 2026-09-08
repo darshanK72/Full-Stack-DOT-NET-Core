@@ -532,3 +532,69 @@ Developers sometimes believe `[AllowAnonymous]` only disables authorization on t
 **Answer**
 
 JWT Bearer is a stateless scheme that only implements the authenticate (and challenge/forbid) operations — calling `HttpContext.SignInAsync` against it throws an `InvalidOperationException` at runtime because the handler does not implement `IAuthenticationSignInHandler`. Sign-in and sign-out are meaningful only for stateful schemes such as Cookie authentication, which can persist and later revoke an identity on behalf of the server. In applications that issue JWTs, the token generation is done in a dedicated login endpoint using plain code outside the authentication pipeline, and the client is responsible for storing and attaching the token on subsequent requests. Confusing "issuing a JWT" with "calling SignInAsync" is a common mistake when migrating from cookie-based to JWT-based auth.
+
+---
+
+#### Gotcha 6. Setting a Fallback Policy When `RequireAuthenticatedUser` Was Already Applied
+
+**Concepts**
+- `options.FallbackPolicy` applying to endpoints with no `IAuthorizeData`
+- `RequireAuthenticatedUser` as a shorthand for `options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()`
+- Double-application causing confusion but no functional change
+- `[AllowAnonymous]` still overriding the fallback policy on individual endpoints
+
+**Answer**
+
+A common confusion is between calling `options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()` directly and calling `options.AddDefaultPolicy(...)`. The fallback policy applies to all endpoints that have no explicit `IAuthorizeData` metadata — meaning endpoints with no `[Authorize]` attribute and no `RequireAuthorization()` call. Applying both `RequireAuthenticatedUser` via the fallback policy and an explicit `[Authorize]` on the controller results in the policies combining (AND), which has no visible effect if both require only authentication, but causes hard-to-debug denials if the second policy adds additional requirements. The `[AllowAnonymous]` attribute still overrides the fallback policy, which is intentional but surprises developers who expected a strict default-deny enforcement.
+
+---
+
+#### Gotcha 7. `IAuthorizationService.AuthorizeAsync` Does Not Throw on Failure
+
+**Concepts**
+- `AuthorizationResult.Succeeded` boolean — not an exception on denial
+- Silently passing even when the authorization result is Failure
+- Calling `AuthorizeAsync` without checking the result granting unauthorized access
+
+**Answer**
+
+`IAuthorizationService.AuthorizeAsync` always completes successfully as a Task — it returns an `AuthorizationResult` with a `Succeeded` flag rather than throwing an exception when authorization is denied. Developers who forget to check the result and proceed with the protected action will inadvertently grant access to every caller, regardless of their permissions. Unlike the `[Authorize]` attribute, which wires the result into the response pipeline, programmatic authorization calls are entirely the developer's responsibility: check `result.Succeeded`, and if it is `false`, return a `ForbidResult()` or `ChallengeResult()` explicitly — the framework does nothing automatically when the result is ignored.
+
+---
+
+#### Gotcha 8. `User.IsInRole()` Is Case-Sensitive and Depends on the Role Claim Type
+
+**Concepts**
+- `ClaimsPrincipal.IsInRole` comparing claim values with OrdinalIgnoreCase by default
+- Role claim type varying between schemes — `ClaimTypes.Role` vs `"roles"` vs `"role"`
+- JWT Bearer mapping `roles` claim to `ClaimTypes.Role` only when `RoleClaimType` is configured
+
+**Answer**
+
+`ClaimsPrincipal.IsInRole` searches for claims whose type matches the identity's `RoleClaimType`, comparing values with `OrdinalIgnoreCase` by default — but the `RoleClaimType` itself varies between authentication schemes. Cookie authentication sets it to `ClaimTypes.Role` (a long URI), while JWT Bearer may emit role information in a `roles` or `role` claim with a short name. If the JWT Bearer options are not configured with `TokenValidationParameters.RoleClaimType = "roles"`, `User.IsInRole("Admin")` will always return `false` even when the token carries an `"Admin"` value in the `roles` claim, because the runtime is looking for the claim type `ClaimTypes.Role`, not `"roles"`. The fix is to configure `RoleClaimType` explicitly or to use policy-based authorization with a `RequireClaim` check that references the correct claim type.
+
+---
+
+#### Gotcha 9. Schemes Registered with `AddAuthentication` Do Not Run Unless Middleware Is Also Added
+
+**Concepts**
+- `AddAuthentication` registering services only — no middleware execution
+- `UseAuthentication` required for the handler to populate `HttpContext.User`
+- Handlers run only when invoked — not on every request by default
+
+**Answer**
+
+Calling `AddAuthentication().AddJwtBearer(...)` in the DI container registers the scheme and its handler as services, but it does not cause the handler to run on any request — that requires the `UseAuthentication()` middleware call in the pipeline. Omitting `UseAuthentication()` means `HttpContext.User` is never populated from the token, authentication challenges are never triggered, and `[Authorize]` always sees an anonymous user, but no error appears at startup. A subtler version of this problem arises when the middleware is present but authentication handlers are invoked for the wrong scheme because the default was not configured explicitly, causing the wrong handler to run and the correct one to be silently skipped.
+
+---
+
+#### Gotcha 10. Authorization Handler Registered as `Singleton` Using Scoped Services Causes Runtime Errors
+
+**Concepts**
+- Singleton authorization handler capturing scoped dependencies on first resolution
+- `IServiceProvider` injection pattern required to resolve scoped services safely
+- Silent stale data from a scoped service captured at startup rather than per-request
+
+**Answer**
+
+Authorization handlers that need database access or other per-request state must be registered as `Scoped` in the DI container — not `Singleton`. Registering a handler as `Singleton` while its constructor takes a `Scoped` dependency (such as `DbContext`) causes ASP.NET Core's DI container to throw an `InvalidOperationException` at startup in development mode (when scope validation is enabled) or, worse, to capture a single `DbContext` instance at first resolution in production, leading to stale query results and thread-safety violations across all requests. The correct fix is to register the handler with `services.AddScoped<IAuthorizationHandler, MyHandler>()`, which ensures a new instance — and a new `DbContext` — is created for each request.

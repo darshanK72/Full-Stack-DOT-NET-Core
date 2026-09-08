@@ -278,203 +278,148 @@ DataAnnotations validate nested complex objects recursively — if `OrderDto.Shi
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
+## Gotchas — Model Binding & Validation (Interview Traps)
 
 ---
 
-#### Gotcha 1. Middleware order — routing before auth
+#### Gotcha 1. `[FromBody]` can only be used once per action — multiple body parameters silently fail
 
 **Concepts**
-- `UseRouting` before `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata availability for auth middleware
-- Correct pipeline order in `Program.cs`
+- HTTP request body as a single, forward-only stream
+- Multiple `[FromBody]` parameters consuming the stream after it is exhausted
+- `[FromForm]` for multipart form data with multiple fields
+- `[AsParameters]` for binding complex objects from multiple sources
 
 **Answer**
 
-In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata — registering auth before routing means the endpoint has not been selected yet, which breaks endpoint-aware authorization and policy resolution. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms of wrong order include anonymous access to protected endpoints or 401 responses without proper challenge behavior.
+The HTTP request body is a single forward-only stream. ASP.NET Core reads it once for `[FromBody]` binding — a second `[FromBody]` parameter on the same action receives the default value because the stream is already exhausted, with no error or warning. If an action genuinely needs to receive two complex objects from a single request, wrap them in a single containing DTO. For form submissions with multiple fields, use `[FromForm]` which reads from multipart form data that can contain multiple named sections. Understanding this limitation is important when designing endpoints that accept both structured JSON and metadata in the same request.
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 2. `[ApiController]` automatically returns 400 before the action runs — `ModelState.IsValid` check is redundant
 
 **Concepts**
-- Captive `DbContext` living past its scope
-- Stale EF change tracker accumulating unrelated entities
-- `ValidateScopes` as the detection mechanism
+- `[ApiController]` attribute triggering automatic model validation filter
+- 400 `ValidationProblemDetails` response returned before action executes
+- Manual `if (!ModelState.IsValid) return BadRequest(...)` becoming dead code
+- Customizing automatic validation response via `InvalidModelStateResponseFactory`
 
 **Answer**
 
-Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`. The singleton holds one scoped instance forever instead of one per request, so EF change trackers accumulate unrelated entities across requests. Enable `ValidateScopes` in Development to catch illegal scope combinations at startup, and fix by injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation.
+When `[ApiController]` is applied to a controller, ASP.NET Core registers an action filter that automatically checks `ModelState.IsValid` before the action method runs. If validation fails, a 400 response with `ValidationProblemDetails` is returned and the action is never invoked. Manual `if (!ModelState.IsValid) return BadRequest(ModelState)` checks at the top of action methods are redundant — they are dead code that can never be reached because `[ApiController]` short-circuits first. When the automatic validation behavior needs customization — different response shape or conditional suppression — configure `services.Configure<ApiBehaviorOptions>(o => o.InvalidModelStateResponseFactory = ...)`.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 3. `Content-Type` header determines model binding source — wrong header causes silent default binding
 
 **Concepts**
-- Socket exhaustion from per-use `HttpClient` instantiation
-- `HttpMessageHandler` lifecycle managed by `IHttpClientFactory`
-- Named and typed client registration pattern
+- `application/json` triggering `[FromBody]` JSON deserialization
+- `application/x-www-form-urlencoded` and `multipart/form-data` for `[FromForm]`
+- Missing or wrong `Content-Type` causing binding to not find expected data
+- `[FromBody]` receiving default value when `Content-Type` is not JSON
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected. `HttpClient` is disposable but not meant for per-use disposal — the OS connection handle is held by the handler, not the client object. `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly; register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()`.
+Model binding uses the `Content-Type` request header to determine how to deserialize the body. A request with `Content-Type: application/x-www-form-urlencoded` and a `[FromBody]` parameter will not bind correctly — the parameter receives its default value. This is a common Postman mistake where the body is set to "form-data" instead of "raw JSON" — the endpoint appears to accept the request but the parameter is default. Conversely, sending JSON without `Content-Type: application/json` causes the JSON body to be ignored. Always verify the `Content-Type` header matches the binding source attribute when debugging model binding failures.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 4. Required reference types in .NET 8 — `[Required]` still needed for model validation
 
 **Concepts**
-- `IOptions<T>` — fixed snapshot at first resolution
-- `IOptionsSnapshot<T>` — per-request recalculation, scoped
-- `IOptionsMonitor<T>` — singleton-safe with change notifications
-- Stale configuration when `.Value` is cached in a constructor field
+- C# nullable reference type annotations vs runtime validation
+- `[Required]` on nullable `string?` vs non-nullable `string`
+- NRT compiler warnings not translated to runtime `ModelState` errors
+- `[Required]` attribute explicitly triggering validation
+- Null coming through from JSON body even on non-nullable property
 
 **Answer**
 
-`IOptions<T>` captures a configuration snapshot at first resolution — reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope so a singleton cannot inject it without creating a captive dependency. `IOptionsMonitor<T>` is the singleton-safe wrapper that supports change notifications via `OnChange` and exposes `CurrentValue` for the latest merged configuration.
+C# nullable reference types (NRTs) are a compile-time feature — the `?` annotation on a property produces a compiler warning but does not cause a runtime validation error. A non-nullable `string Name` on a DTO does not automatically produce a `ModelState` error when `Name` is absent from the JSON body — `System.Text.Json` sets it to `null` and no validation fires. To produce a 400 response for missing fields, `[Required]` must be explicitly added regardless of NRT annotation. In .NET 8, there is work toward treating non-nullable reference types as implicitly required, but it is opt-in and not the default. Always add `[Required]` explicitly for fields that must be present.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 5. Complex type binding from query string requires `[FromQuery]` with flat properties or `[AsParameters]`
 
 **Concepts**
-- HTTP GET body stripped by clients, proxies, and CDNs
-- `[FromQuery]` with `[AsParameters]` for complex GET filters
-- Silent binding failure rather than explicit error
+- Default binding source for complex types from query string vs route vs body
+- `[FromQuery]` binding complex DTO from individual query string keys
+- `[AsParameters]` mapping action parameter properties to query string keys
+- Nested complex types not bindable from query string without custom binder
 
 **Answer**
 
-Using `[FromBody]` on GET action parameters is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies, so binding fails silently in production. Query strings and route values are the correct binding sources for GET requests, and complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys.
+A complex DTO parameter without a binding source attribute uses the "composite" binder, which tries route values then query string then body in sequence. For `GET` endpoints, complex DTO parameters bound from query string require either `[FromQuery]` on each property or `[AsParameters]` on the DTO itself. `[AsParameters]` maps each property of the DTO to a corresponding query string key by name. Nested complex properties — a DTO with a nested `AddressFilter` object — are not automatically bindable from query string because query strings are flat key-value pairs. Deeply nested filtering DTOs should be redesigned as flat query parameters or accept a JSON body via a `POST` endpoint.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 6. Validation does not run on `null` nested complex objects — `[Required]` on the parent is needed
 
 **Concepts**
-- Default `JsonNamingPolicy.CamelCase` in ASP.NET Core 8
-- Silent binding to default values on case mismatch
-- `PropertyNameCaseInsensitive` as a compatibility bridge
+- DataAnnotations recursive validation on nested non-null complex objects
+- `[Required]` on parent property triggering validation of nested object
+- Null nested object skipping nested validation silently
+- FluentValidation's `.When(x => x.Address != null)` for conditional rules
 
 **Answer**
 
-ASP.NET Core 8 Web API serializes JSON with camelCase property names by default, so incoming JSON with PascalCase keys may not bind unless case-insensitive matching is enabled. Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values. Enable `JsonSerializerOptions.PropertyNameCaseInsensitive = true` as a bridge, or standardize clients on camelCase and add `[Required]` validation so silent binding failures become 400 responses instead of corrupt data.
+DataAnnotations validation validates nested complex object properties recursively, but only if the nested object is non-null. If `OrderDto.ShippingAddress` is `null`, none of the `[Required]` or `[StringLength]` attributes on `AddressDto` are evaluated — they are silently skipped. To require that a nested object be present, add `[Required]` to the `ShippingAddress` property on `OrderDto`. With FluentValidation, use `.SetValidator(new AddressValidator()).When(x => x.ShippingAddress != null)` to apply nested rules conditionally. Forgetting `[Required]` on an optional nested object leads to requests that omit the nested object being accepted when they should fail validation.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 7. Non-nullable `bool` in a PATCH DTO cannot represent "omitted" — use `bool?`
 
 **Concepts**
-- `throw ex` resetting the stack trace to the catch block
-- `throw;` preserving the original stack trace
-- `InnerException` preservation when wrapping in a new exception
+- `System.Text.Json` setting missing bool properties to `false` (default)
+- Inability to distinguish "field absent" from "explicitly false"
+- `bool?` for tri-state PATCH semantics: null = omitted, true = opt-in, false = opt-out
+- PATCH vs PUT semantics for partial updates
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown. Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis, so always use `throw;` when rethrowing after logging or cleanup in a catch block. Wrap in a new exception only when adding context — `throw new OrderProcessingException("...", ex)` — to preserve `InnerException`.
+A non-nullable `bool` on a PATCH DTO makes it impossible to distinguish "this field was not included in the request" from "the field was explicitly set to false" because `System.Text.Json` sets any missing boolean key to `false` (its default value). For consent flags, feature toggles, or any field where omission should mean "leave unchanged," use `bool?` on the PATCH DTO. A `null` value means omitted, `true` means explicitly enabled, and `false` means explicitly disabled. Alternatively, an explicit enum like `ConsentState { Unspecified, OptIn, OptOut }` makes the tri-state intent unambiguous in both the DTO and the generated OpenAPI contract.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 8. Custom model binders must be registered or attributed — they are not auto-discovered
 
 **Concepts**
-- Kestrel as application server vs full edge gateway
-- TLS termination, WAF, and rate limiting at the reverse proxy
-- `UseForwardedHeaders` required for accurate client IP and scheme
+- `IModelBinder` implementation requiring explicit registration
+- `[ModelBinder(typeof(MyBinder))]` attribute on parameter or type
+- `ModelBinderProviders.Insert(0, ...)` for global registration
+- Custom binder for value types vs complex types
 
 **Answer**
 
-Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching. Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front. Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy.
+Implementing `IModelBinder` does not automatically apply it to any parameter — the binder must be explicitly registered. Apply `[ModelBinder(typeof(MyBinder))]` to the specific parameter or to the DTO class itself for type-scoped binding. For global application to a specific type, insert a custom `IModelBinderProvider` at the beginning of `MvcOptions.ModelBinderProviders` — insertion at position 0 ensures it runs before built-in providers. Registering at the end means built-in providers match first and the custom binder is never reached for types the framework already handles. Custom binders for common types like `DateOnly`, `TimeOnly`, or domain value objects should be registered globally rather than attributed on every usage site.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 9. FluentValidation validators must be registered in DI and do not auto-discover
 
 **Concepts**
-- `launchSettings.json` as development-only launch configuration
-- Production host using environment variables, not launch profiles
-- `ASPNETCORE_ENVIRONMENT` and `ASPNETCORE_URLS` as runtime configuration
+- FluentValidation `AbstractValidator<T>` requiring DI registration
+- `AddFluentValidation()` extension and `RegisterValidatorsFromAssembly` for batch registration
+- FluentValidation validators not running unless integrated with `ModelState`
+- Manual `validator.Validate(model)` vs automatic `[ApiController]` integration
 
 **Answer**
 
-Settings in `Properties/launchSettings.json` apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts. Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings. Use `appsettings.Production.json` and host-level env vars for production values.
+Implementing an `AbstractValidator<OrderDto>` class does not automatically apply it to requests — FluentValidation validators must be registered in DI. Use `builder.Services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters()` and `builder.Services.AddValidatorsFromAssemblyContaining<OrderValidator>()` for batch registration. Without the `AddFluentValidationAutoValidation()` call, validators are registered in DI but not wired into the `ModelState` validation pipeline — `[ApiController]` never sees them and does not return 400 errors. Validators can also be called manually with `IValidator<T>.ValidateAsync(model)` for explicit validation control outside the `[ApiController]` filter pipeline.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 10. `ValidationProblemDetails` vs `ProblemDetails` — `[ApiController]` uses the former for validation errors
 
 **Concepts**
-- Non-nullable `bool` defaulting to `false` on JSON omission
-- Three-state intent: unspecified, opt-in, opt-out
-- `bool?` or enum tri-state for partial-update DTOs
+- `ProblemDetails` (RFC 7807) as the base problem response type
+- `ValidationProblemDetails` extending `ProblemDetails` with an `errors` dictionary
+- `[ApiController]` returning `ValidationProblemDetails`, not plain `ProblemDetails`
+- Clients parsing `ProblemDetails` missing the `errors` field
 
 **Answer**
 
-A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics. PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent. Marketing consent and feature flags are common domains where this bug causes compliance or logic errors.
-
----
-
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
-
-**Concepts**
-- `X-Forwarded-Proto` and `X-Forwarded-For` headers
-- Wrong scheme causing broken HTTPS redirects and cookie secure flags
-- `KnownProxies` configuration to prevent header spoofing
-
-**Answer**
-
-Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs. Call `UseForwardedHeaders()` early, before middleware that reads scheme or host. Configure `ForwardedHeadersOptions` to trust only your reverse proxy network since trusting all proxies enables header spoofing.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles()` serving all `wwwroot` contents unauthenticated
-- Secrets and config files must stay outside the web root
-- Build pipeline verification before deploy
-
-**Answer**
-
-Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default, so placing secrets, `.env`, backup configs, or private keys there exposes them over HTTP. Only public assets belong in `wwwroot`, while sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers. Use build pipelines to verify web root contents before deploy.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback returning `index.html` for unmatched routes including `/api/*`
-- API endpoint registration ordering before fallback
-- CORS and Swagger failures masked by HTML responses
-
-**Answer**
-
-SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers. Map API routes (`MapControllers`, minimal API groups) before `MapFallbackToFile("index.html")`, and scope fallback to non-API paths. The correct order in `Program.cs` is: API endpoints first, static files, fallback last.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- Singleton `BackgroundService` incompatible with constructor-injected scoped services
-- `CreateAsyncScope()` per job to create a fresh scope
-- `ValidateScopes` catching this defect at startup
-
-**Answer**
-
-A singleton `BackgroundService` that injects scoped services directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration. Inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes. Enabling `ValidateScopes` catches this defect before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR hub broadcasting to connected clients on the same instance only
-- Redis or Azure Service Bus backplane for multi-node event routing
-- Sticky sessions insufficient without a backplane
-
-**Answer**
-
-SignalR broadcasts from one server instance reach only clients connected to that instance — without a Redis or Azure Service Bus backplane, users on different nodes never receive each other's real-time events. Sticky sessions keep one client on one node but do not route events raised on other nodes to that client. Register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application, and test scale-out with at least two instances before launch.
+`ProblemDetails` is the RFC 7807 base type with `type`, `title`, `status`, `detail`, and `instance` fields. `ValidationProblemDetails` extends it with an `errors` dictionary mapping field names to arrays of error messages. `[ApiController]` returns `ValidationProblemDetails` for model validation failures — clients that parse the response as plain `ProblemDetails` lose the field-level error information in the `errors` dictionary. API contract documentation should specify which type to expect for 400 responses from validation vs business errors. Custom exception handlers that map domain exceptions to `ProblemDetails` should use `ValidationProblemDetails` when the error is field-level and `ProblemDetails` for general errors.
 
 ---
 

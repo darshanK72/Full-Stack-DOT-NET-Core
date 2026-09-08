@@ -1,4 +1,4 @@
-﻿# SortedList&lt;TKey,TValue&gt; & SortedDictionary&lt;TKey,TValue&gt; — Interview Q&A
+# SortedList&lt;TKey,TValue&gt; & SortedDictionary&lt;TKey,TValue&gt; — Interview Q&A
 
 ---
 
@@ -373,82 +373,147 @@ When neither the constructor argument nor the key type provides ordering informa
 
 ---
 
-## Gotchas
+## Gotchas — SortedList & SortedDictionary (Interview Traps)
 
 ---
 
-## Q18. Why does `sortedDict.Keys[0]` fail to compile even though `sortedList.Keys[0]` works fine?
+#### Gotcha 1. `SortedList` is array-backed — O(n) insert for out-of-order keys
 
 **Concepts**
-- `SortedDictionary.Keys` returns `ICollection<TKey>` — no integer indexer
-- `SortedList.Keys` returns `IList<TKey>` — has integer indexer
-- Both collections look identical at the `IDictionary<K,V>` level, masking the difference
-- Common mistake when refactoring from `SortedList` to `SortedDictionary`
-- Compiler error CS0021: cannot apply indexing with [] to an expression of type `ICollection<T>`
+- SortedList<K,V> stores keys and values in parallel sorted arrays
+- Inserting a key smaller than existing keys shifts all subsequent entries
+- O(n) worst case for random-order bulk insertion
+- SortedDictionary has O(log n) insertion regardless of order
 
 **Answer**
 
-`SortedDictionary<TKey,TValue>.Keys` is typed as `SortedDictionary<TKey,TValue>.KeyCollection`, which implements `ICollection<TKey>` — an interface that provides `foreach`, `Count`, and `CopyTo` but has no numeric indexer. `SortedList<TKey,TValue>.Keys` implements `IList<TKey>`, which inherits from `ICollection<TKey>` and adds the `this[int index]` indexer. The compiler enforces this: `sortedDict.Keys[0]` causes CS0021 because `ICollection<TKey>` does not define `this[int]`. The gotcha appears when a developer switches a field from `SortedList` to `SortedDictionary` to reduce insert cost, then discovers the rank-access code no longer compiles. If rank access is required, keep `SortedList`. If it is not required and you only need min or max key, iterate `Keys` with `foreach` or call `Keys.First()` via LINQ. Never cast to `IList<T>` at runtime hoping the underlying type provides it — `SortedDictionary.KeyCollection` does not implement `IList<TKey>`.
+`SortedList<K,V>` maintains two parallel arrays (one for keys, one for values) in sorted key order. Inserting a key that belongs at position `i` requires shifting all elements from `i` to the end by one slot, making insertion O(n - i). Bulk-loading data in unsorted order performs O(n²) total work. `SortedDictionary<K,V>` is red-black tree backed and inserts in O(log n) regardless of key order. Use `SortedList` only when the dataset is built once (or in sorted order) and then primarily read.
 
 ---
 
-## Q19. What happens when you pass `IEqualityComparer<TKey>` instead of `IComparer<TKey>` to a sorted collection constructor?
+#### Gotcha 2. `SortedDictionary` does not support indexed access — use `SortedList` for that
 
 **Concepts**
-- Sorted collection constructors require `IComparer<TKey>` — a different interface
-- `IEqualityComparer<TKey>` defines hash-based equality, not total order
-- The compiler rejects the wrong interface with CS1503 (argument type mismatch)
-- `StringComparer` implements both interfaces — it satisfies either constructor
-- Custom `IEqualityComparer` classes have no `Compare` method and cannot be adapted
+- SortedList exposes Keys[i] and Values[i] for positional indexed access
+- SortedDictionary has no positional index — only by-key access
+- IndexOfKey and IndexOfValue available only on SortedList
+- Choosing between the two depends on whether indexed access is needed
 
 **Answer**
 
-The constructor overloads of `SortedList<TKey,TValue>` and `SortedDictionary<TKey,TValue>` that accept a comparer are typed as `IComparer<TKey>`, not `IEqualityComparer<TKey>`. If you pass an object that implements `IEqualityComparer<TKey>` but not `IComparer<TKey>`, the compiler emits CS1503. This happens most often when a developer has an existing `IEqualityComparer<string>` for a `Dictionary` or `HashSet` and tries to reuse it for a sorted collection: the two interfaces are unrelated in the type hierarchy. The cleanest fix for string keys is to use one of the `StringComparer` singletons (`StringComparer.OrdinalIgnoreCase`, `StringComparer.Ordinal`, etc.) — the `StringComparer` abstract class implements both `IComparer<string>` and `IEqualityComparer<string>`, so its instances satisfy either constructor. For custom key types, you must implement `IComparer<TKey>` specifically — there is no adapter in the BCL to convert an `IEqualityComparer` into an `IComparer`.
+`SortedList<K,V>` exposes `Keys[index]` and `Values[index]` for O(log n) positional lookup (binary search on the sorted array), and `IndexOfKey(key)` / `IndexOfValue(value)` for reverse lookups. `SortedDictionary<K,V>` provides no positional access — you can only look up by key or iterate in order. If your algorithm needs to access the k-th smallest key or find an element's rank, use `SortedList`.
 
 ---
 
-## Q20. How can a locale-sensitive `StringComparer` cause duplicate logical keys in a sorted map on a different server?
+#### Gotcha 3. Both types use `IComparer<K>` — not `GetHashCode` + `Equals`
 
 **Concepts**
-- `StringComparer.CurrentCulture` delegates to the host OS culture at runtime
-- Turkish locale: dotted-I (`İ`) and dotless-I (`ı`) rules change case comparisons
-- Keys that compare equal on a developer's machine may differ on a production server
-- `OrdinalIgnoreCase` is culture-invariant — behaviour is identical on every host
-- Use culture-sensitive comparers only for UI display sort, not for key identity
+- SortedList and SortedDictionary use IComparer<K> for ordering and equality
+- GetHashCode is irrelevant to these types
+- IComparer returning 0 means equal — this defines key uniqueness
+- Inconsistent Comparer vs. Equals leads to phantom duplicates
 
 **Answer**
 
-`StringComparer.CurrentCulture` resolves to the culture of the thread or process at runtime. In the Turkish locale, the uppercase form of `"i"` is `"İ"` (dotted capital I), not `"I"` — so a case-insensitive comparison under `CurrentCulture` on a Turkish server treats `"image"` and `"IMAGE"` as different keys, while the same code on an English developer workstation treats them as the same key. The result is that a `SortedDictionary<string, T>` constructed with `StringComparer.CurrentCultureIgnoreCase` may silently accumulate duplicate logical keys on a server with a different culture, or throw `ArgumentException` from `Add` where none was expected. The fix is `StringComparer.OrdinalIgnoreCase`, which compares bytes directly without any culture-specific folding rules and produces identical results on every host. Reserve `CurrentCulture` for user-visible display sort orders (alphabetical lists presented to a Turkish-speaking user), never for canonical key identity in services.
+`SortedList<K,V>` and `SortedDictionary<K,V>` determine key equality by whether `IComparer<K>.Compare(a, b) == 0`, not by `Equals` or `GetHashCode`. This means a key type where `Equals` and `IComparer.Compare` disagree can produce phantom duplicates (two keys that `Equals` considers the same but `Compare` considers different, both stored) or phantom collisions. The `StringComparer.OrdinalIgnoreCase` passed at construction must be passed consistently so that the comparer used for ordering is the same one used for equality.
 
 ---
 
-## Q21. Why does `SortedList` perform poorly when entries are inserted in random order at large scale?
+#### Gotcha 4. Iterating `SortedDictionary` is O(n log n) to build an enumerator
 
 **Concepts**
-- Each insert: binary search O(log n) to find position, then O(n) array shift
-- Random order means the insertion point is on average in the middle — maximum shift
-- Total work for n random inserts: O(n²) in the worst case
-- `SortedDictionary` costs O(n log n) total for n random inserts (tree rebalance only)
-- Bulk-loading sorted data into `SortedList` avoids the worst shifts
+- SortedDictionary in-order traversal is O(n) but via tree traversal
+- Building a sorted snapshot costs O(n log n) if done naively
+- Direct foreach is O(n) and traverses tree nodes in order
+- No random access — cannot jump to the k-th element
 
 **Answer**
 
-When you insert entries into `SortedList` in random key order, each insertion lands somewhere in the middle of the array on average. After the binary search locates that position, every element to the right of it must shift one slot — and for a random distribution the average shift length is n/2. For n insertions the expected total shift work is n × (n/2) = O(n²). In practice this is observable: loading 100,000 randomly keyed entries into `SortedList` can take seconds, while the same entries in `SortedDictionary` take milliseconds because tree rebalance is bounded at O(log n) per insert regardless of key distribution. The only scenario where `SortedList` matches `SortedDictionary` for bulk construction is when entries arrive in already-sorted order, because then every insert appends to the end and the shift cost is zero. If you must use `SortedList` for its rank-access feature and your data arrives unsorted, collect entries in a `List<KeyValuePair<TKey,TValue>>`, sort the list once with `List.Sort`, then populate the `SortedList` from the constructor that accepts `IDictionary<TKey,TValue>`.
+`foreach` on `SortedDictionary<K,V>` performs an in-order tree traversal, which is O(n) — each element is visited exactly once. However, converting to an array with `ToArray()` first does not improve performance and adds allocation. The trap is assuming that because the tree is balanced, random access (getting the k-th smallest key) is O(log n) — it is not: `SortedDictionary` has no such index and you must iterate from the beginning, making k-th access O(k) or O(n).
 
 ---
 
-## Q22. How can comparing two keys that are equal by reference still result in a sorted collection treating them as different keys?
+#### Gotcha 5. `SortedList` memory advantage over `SortedDictionary`
 
 **Concepts**
-- Sorted collections use `IComparer<TKey>.Compare`, not reference equality
-- Custom comparers define key identity — `Compare(a, b) == 0` means "same key"
-- An inconsistent or poorly implemented `Compare` can declare two distinct objects as different keys
-- Value-type keys with identical values are always the same key (no reference ambiguity)
-- Mutable keys whose sort-relevant fields change after insertion corrupt the collection
+- SortedList: two arrays (dense memory) — better cache locality
+- SortedDictionary: one object per node (heap-scattered) — worse cache locality
+- SortedList typically uses less memory for the same data
+- Memory difference grows with the number of reference-type values
 
 **Answer**
 
-In sorted collections, two keys are considered equal — and therefore the same key — when `comparer.Compare(a, b)` returns 0. Reference equality is never consulted. This creates two related gotchas. First, a custom `IComparer<TKey>` that is inconsistent (violates the antisymmetry or transitivity requirements of a total order) can cause the binary search to miss an existing key, resulting in duplicate logical entries or `ArgumentException` on seemingly valid operations. Second, if you use a mutable class as a key and then change the fields that the comparer reads, the collection's internal invariant is broken: a subsequent lookup using the modified key runs binary search based on the new value but the node is filed at the old position — the key becomes unreachable. `SortedList` and `SortedDictionary` both assume keys are immutable with respect to their ordering once inserted. Use immutable types (`string`, `int`, `record` structs) or types you can guarantee will not change after insertion.
+`SortedList<K,V>` stores keys and values in two contiguous arrays, giving excellent cache locality for sequential iteration — processor prefetch can load the next elements efficiently. `SortedDictionary<K,V>` allocates one `TreeNode` object per entry on the heap, so iteration jumps across scattered heap addresses with frequent cache misses. For a dictionary with millions of entries iterated frequently, `SortedList` can be significantly faster in iteration benchmarks. The trade-off is insertion performance: `SortedList` is slower for out-of-order insertions.
+
+---
+
+#### Gotcha 6. Duplicate keys not allowed in either type
+
+**Concepts**
+- Both types throw ArgumentException on duplicate key insertion via Add
+- Indexer assignment silently updates an existing key (same as Dictionary)
+- No "SortedMultiDictionary" in BCL — use SortedDictionary<K, List<V>>
+- Lookup<K, V> from LINQ provides immutable multi-valued grouping
+
+**Answer**
+
+Neither `SortedList<K,V>` nor `SortedDictionary<K,V>` allows duplicate keys — `Add(key, value)` throws `ArgumentException` if the key already exists. The indexer `[key] = value` silently updates the existing entry (same semantics as `Dictionary`). For multi-valued sorted maps (one key to many values), use `SortedDictionary<K, List<V>>` and add to the inner list, or use LINQ's `ToLookup(x => x.Key)` which is immutable but not sorted.
+
+---
+
+#### Gotcha 7. `GetViewBetween` is available only on SortedSet, not SortedDictionary
+
+**Concepts**
+- `SortedSet<T>.GetViewBetween(lo, hi)` returns a view of elements in range
+- No equivalent range-view on SortedDictionary or SortedList
+- Range iteration on SortedDictionary requires SkipWhile/TakeWhile (O(n))
+- TreeMap-style range queries are limited in .NET BCL
+
+**Answer**
+
+`SortedSet<T>.GetViewBetween(lo, hi)` returns a live view of elements within a key range in O(log n) to find the boundaries, which is a tree-native operation. `SortedDictionary<K,V>` has no equivalent — range queries must be done via LINQ `SkipWhile`/`TakeWhile`, which iterates the entire collection from the beginning and is O(n). If range queries are a primary use case, consider a specialized data structure (interval tree, B-tree) or `SortedList` where you can binary-search for the range bounds via `IndexOfKey`.
+
+---
+
+#### Gotcha 8. Cannot modify a key — must remove and re-add
+
+**Concepts**
+- Keys in sorted collections must be immutable while stored
+- Changing a key field without remove/re-add corrupts the sort order
+- No in-place key update API exists
+- Use immutable key types to prevent accidental mutation
+
+**Answer**
+
+The sort order in both `SortedList` and `SortedDictionary` is established at insertion time based on the key's comparison value. If a mutable object is used as a key and a field that affects comparison is changed after insertion, the entry is now in the wrong sorted position — subsequent lookups may fail or return incorrect results without throwing. The only safe approach is to remove the entry, change the key, and re-insert. Use immutable types (string, int, `record`) for keys to make this mistake impossible.
+
+---
+
+#### Gotcha 9. `SortedList.ContainsValue` is O(n) — use a reverse mapping for fast value lookup
+
+**Concepts**
+- ContainsValue does a linear scan of the values array
+- ContainsKey is O(log n) binary search
+- Bidirectional lookup requires a second dictionary
+- No built-in BiMap in BCL
+
+**Answer**
+
+`SortedList<K,V>.ContainsValue(value)` performs a linear O(n) scan of the values array — it does not benefit from the sorted order of keys. `ContainsKey(key)` is O(log n) via binary search. If your algorithm needs fast lookup in both directions (key→value and value→key), maintain a separate `Dictionary<V,K>` as a reverse index. There is no built-in bidirectional map (BiMap) in the BCL.
+
+---
+
+#### Gotcha 10. Default `Comparer<K>.Default` uses `IComparable<K>` — custom types must implement it
+
+**Concepts**
+- Default comparer calls IComparable<K>.CompareTo
+- Types without IComparable<K> throw InvalidOperationException at first comparison
+- Pass a custom IComparer<K> at construction to avoid this
+- Null handling in custom comparers must be explicit
+
+**Answer**
+
+When no comparer is passed to `SortedList` or `SortedDictionary`, `Comparer<K>.Default` is used, which relies on `IComparable<K>`. If `K` does not implement `IComparable<K>`, the first insertion throws `InvalidOperationException` at runtime — a problem that is not caught at compile time. Always either use a type that implements `IComparable<K>` (such as `int`, `string`, or a `record`) or pass an `IComparer<K>` explicitly at construction. Custom comparers must also explicitly handle null arguments to avoid `NullReferenceException`.
 
 ---
 

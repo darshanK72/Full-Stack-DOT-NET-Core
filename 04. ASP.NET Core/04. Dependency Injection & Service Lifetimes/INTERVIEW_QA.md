@@ -295,24 +295,11 @@ Minimal API route handlers participate in the same DI container as controllers: 
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
+## Gotchas — DI & Service Lifetimes (Interview Traps)
 
 ---
 
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- `UseRouting` before `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata availability for auth middleware
-- Correct pipeline order in `Program.cs`
-
-**Answer**
-
-In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata — registering auth before routing means the endpoint has not been selected yet, which breaks endpoint-aware authorization and policy resolution. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints (`MapControllers` / `MapGet`). Symptoms of wrong order include anonymous access to protected endpoints or 401 responses without proper challenge behavior, so always verify middleware order in `Program.cs` during code review for new services.
-
----
-
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. Scoped service in a Singleton
 
 **Concepts**
 - Captive `DbContext` living past its scope
@@ -325,173 +312,147 @@ Registering a scoped service such as `DbContext` into a singleton creates a capt
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. `new HttpClient()` per call — socket and port exhaustion
 
 **Concepts**
+
 - Socket exhaustion from per-use `HttpClient` instantiation
-- `HttpMessageHandler` lifecycle managed by `IHttpClientFactory`
-- Named and typed client registration pattern
+- `HttpMessageHandler` pool not reused across disposals
+- Named and typed client registration via `IHttpClientFactory`
+- TLS handshake overhead on every new handler instance
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected. `HttpClient` is disposable but not meant for per-use disposal — `using var client = new HttpClient()` in a singleton is an anti-pattern because the OS connection handle is held by the handler, not the client object itself. `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly; register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()`. Symptoms include `SocketException` and timeout errors only under production traffic, not in local testing.
+Instantiating `HttpClient` per call exhausts ephemeral ports and socket handles under load because `using` disposes the client object but the underlying `HttpMessageHandler` (and its OS connection pool) lingers until GC finalization. New handler per call also means no DNS update propagation since each connection is freshly established without the rotation that `IHttpClientFactory` provides. Register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>(c => c.BaseAddress = ...)` and inject the client or factory; do not dispose the injected `HttpClient` since the factory owns the handler lifecycle. Symptoms appear as `SocketException` only under production traffic, not in local single-threaded testing.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. `BackgroundService` without `IServiceScopeFactory`
 
 **Concepts**
-- `IOptions<T>` — fixed snapshot at first resolution
-- `IOptionsSnapshot<T>` — per-request recalculation, scoped
-- `IOptionsMonitor<T>` — singleton-safe with change notifications
-- Stale configuration when `.Value` is cached in a constructor field
 
-**Answer**
-
-`IOptions<T>` captures a configuration snapshot at first resolution — reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled, because the wrapper holds the computed value without subscribing to change tokens. `IOptionsSnapshot<T>` recalculates per request scope so a singleton cannot inject it without creating a captive dependency. `IOptionsMonitor<T>` is the singleton-safe wrapper that supports change notifications via `OnChange` and exposes `CurrentValue` for the latest merged configuration. Misconfiguration persists silently until process restart when `.Value` was cached at construction, so singleton services that need live updates must use `IOptionsMonitor<T>`.
-
----
-
-#### Gotcha 5. GET with `[FromBody]`
-
-**Concepts**
-- HTTP GET body stripped by clients, proxies, and CDNs
-- `[FromQuery]` with `[AsParameters]` for complex GET filters
-- Silent binding failure rather than explicit error
-
-**Answer**
-
-Using `[FromBody]` on GET action parameters or minimal API handlers is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies, so binding fails silently in production. Query strings and route values are the correct binding sources for GET requests, and complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys. Failures often appear only in specific browsers or CDN layers, not in Swagger "Try it out" during development, since Swagger sends directly to local Kestrel without intermediate proxies. REST conventions expect GET to be safe and idempotent with parameters in the URL.
-
----
-
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
-
-**Concepts**
-- Default `JsonNamingPolicy.CamelCase` in ASP.NET Core 8
-- Silent binding to default values on case mismatch
-- `PropertyNameCaseInsensitive` as a compatibility bridge
-
-**Answer**
-
-ASP.NET Core 8 Web API serializes JSON with camelCase property names by default via `JsonNamingPolicy.CamelCase`, so incoming JSON with PascalCase keys (for example `"CustomerName"`) may not bind to `CustomerName` unless case-insensitive matching is enabled. Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values (empty string, zero) since System.Text.Json's default matching is exact-case on deserialization. Prefer standardizing clients on camelCase and documenting the contract in OpenAPI, and add validation attributes so silent binding failures become 400 responses instead of corrupt data.
-
----
-
-#### Gotcha 7. `throw ex` vs `throw`
-
-**Concepts**
-- `throw ex` resetting the stack trace to the catch block
-- `throw;` preserving the original stack trace
-- `InnerException` preservation when wrapping in a new exception
-
-**Answer**
-
-Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown. Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis, so always use `throw;` when rethrowing after logging or cleanup in a catch block. Wrap in a new exception only when adding context — `throw new OrderProcessingException("...", ex)` — to preserve `InnerException`. This trap appears in both application code and background worker error handlers.
-
----
-
-#### Gotcha 8. Kestrel as the only production layer
-
-**Concepts**
-- Kestrel as application server vs full edge gateway
-- TLS termination, WAF, and rate limiting at the reverse proxy
-- `UseForwardedHeaders` required for accurate client IP and scheme
-
-**Answer**
-
-Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching that production deployments typically require. Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front since TLS certificates are easier to manage at the proxy layer with automatic renewal. Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy, and containers typically bind Kestrel to port 8080 internally while the ingress controller handles HTTPS externally.
-
----
-
-#### Gotcha 9. `launchSettings.json` in production
-
-**Concepts**
-- `launchSettings.json` as development-only launch configuration
-- Production host using environment variables, not launch profiles
-- `ASPNETCORE_ENVIRONMENT` and `ASPNETCORE_URLS` as runtime configuration
-
-**Answer**
-
-Settings in `Properties/launchSettings.json` — including `applicationUrl`, environment variables, and launch profiles — apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts. Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings. Assuming `launchSettings.json` sets Production behavior leads to wrong environment or binding in deployed environments since the published application does not include or read the file. Use `appsettings.Production.json` and host-level env vars for production values.
-
----
-
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
-
-**Concepts**
-- Non-nullable `bool` defaulting to `false` on JSON omission
-- Three-state intent: unspecified, opt-in, opt-out
-- `bool?` or enum tri-state for partial-update DTOs
-
-**Answer**
-
-A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics. PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent, since a user omitting `sendNewsletter` should mean "leave as is" rather than "opt out". Marketing consent and feature flags are common domains where this bug causes compliance or logic errors, and nullable fields should be documented in OpenAPI so generated clients represent optional updates correctly.
-
----
-
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
-
-**Concepts**
-- `X-Forwarded-Proto` and `X-Forwarded-For` headers
-- Wrong scheme causing broken HTTPS redirects and cookie secure flags
-- `KnownProxies` configuration to prevent header spoofing
-
-**Answer**
-
-Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs. Call `UseForwardedHeaders()` early, before middleware that reads scheme or host such as HTTPS redirection, link generation, or rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your reverse proxy network since trusting all proxies enables header spoofing where a client can inject arbitrary `X-Forwarded-For` values. Local development without a proxy does not need this; production behind nginx/IIS/ALB does.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles()` serving all `wwwroot` contents unauthenticated
-- Secrets and config files must stay outside the web root
-- `appsettings.Production.json` in `wwwroot` as a critical security incident
-
-**Answer**
-
-Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default, so placing secrets, `.env`, backup configs, or private keys there exposes them over HTTP to anyone who can guess the filename. Only public assets (CSS, JS, images, public PDFs) belong in `wwwroot`, while sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers. An accidental copy of `appsettings.Production.json` into `wwwroot` is a critical security incident since the file is served as a plain-text download. Use build pipelines to verify web root contents before deploy.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback returning `index.html` for unmatched routes including `/api/*`
-- API endpoint registration ordering before fallback
-- CORS and Swagger failures masked by HTML responses
-
-**Answer**
-
-SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers. Map API routes (`MapControllers`, minimal API groups) before `MapFallbackToFile("index.html")`, and scope fallback to non-API paths or use conditional fallback that excludes `/api` prefixes. Symptoms include CORS errors masked as HTML responses and Swagger fetch failures in production SPA hosting, so the correct order in `Program.cs` is: API endpoints first, static files, fallback last.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
 - Singleton `BackgroundService` incompatible with constructor-injected scoped services
-- `CreateAsyncScope()` per job to create a fresh scope
-- `ValidateScopes` catching this defect at startup
+- `CreateAsyncScope()` per job creating a fresh scope and disposing scoped resources
+- `ValidateScopes` catching this defect at startup before production
 
 **Answer**
 
-A singleton `BackgroundService` that injects scoped services (`DbContext`, repositories) directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration, because hosted services live for the application lifetime and scoped dependencies must not be constructor-injected. Inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes. The same rule applies to timers and `Task.Run` loops started from singletons, and enabling `ValidateScopes` catches this defect before production deployment.
+A singleton `BackgroundService` that injects scoped services (`DbContext`, repositories) directly into its constructor either fails at startup with scope validation errors or holds a disposed context after the first scope ends, because hosted services live for the application lifetime. Inject `IServiceScopeFactory` instead, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services from `scope.ServiceProvider`, and dispose the scope when the job completes so `DbContext` and other disposables are cleaned up. The same rule applies to timer callbacks and `Task.Run` loops started from singletons; enabling `ValidateScopes` in development catches this defect before it reaches production.
 
 ---
 
-#### Gotcha 15. SignalR without a backplane on multiple instances
+#### Gotcha 4. Transient `IDisposable` leaked by the root provider
 
 **Concepts**
-- SignalR hub broadcasting to connected clients on the same instance only
-- Redis or Azure Service Bus backplane for multi-node event routing
-- Sticky sessions insufficient without a backplane
+
+- Root `IServiceProvider` tracking `IDisposable` transients until process shutdown
+- Scope disposal as the mechanism that calls `Dispose()`
+- Console apps and test fixtures most vulnerable to this leak
+- Explicit scope per operation as the fix
 
 **Answer**
 
-SignalR broadcasts from one server instance reach only clients connected to that instance — without a Redis or Azure Service Bus backplane (or Azure SignalR Service), users on different nodes never receive each other's real-time events. Sticky sessions keep one client on one node but do not route events raised on other nodes to that client, so adding a second instance without a backplane means events silently disappear for users on the wrong node. Register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application, and test scale-out with at least two instances before launch rather than single-node staging alone.
+When a transient service that implements `IDisposable` is resolved directly from the root `IServiceProvider` (not from a created scope), the root provider holds a reference to it for the entire process lifetime and disposes it only at shutdown, causing resource leaks under load. In test fixtures and console apps that call `provider.GetService<T>()` without creating a scope, transients accumulate without bounds. Always wrap work in a created scope: `using var scope = provider.CreateScope()` and resolve from `scope.ServiceProvider`. Web requests automatically solve this through the per-request scope; the risk is in background workers, hosted service startup, and direct provider access during initialization.
+
+---
+
+#### Gotcha 5. Singleton with mutable state — thread-safety bugs under concurrent requests
+
+**Concepts**
+
+- `List<T>` and `Dictionary<,>` not thread-safe under concurrent writes
+- Singleton lifetime requiring all mutable state to be explicitly synchronized
+- `ConcurrentDictionary<,>` or `IMemoryCache` as thread-safe alternatives
+- Corruption appearing only under production load, not in local testing
+
+**Answer**
+
+A singleton service that writes to an unsynchronized `List<T>`, `Dictionary<,>`, or instance field causes race conditions under concurrent requests because `AddSingleton` creates one instance shared by all threads. Parallel `Add` or indexer writes corrupt internal state non-deterministically — internal arrays can be partially updated, causing items to be lost or the structure to throw. The bug rarely surfaces in local development with single-threaded integration tests and typically appears only under production load or stress tests. Use `ConcurrentDictionary<,>` for in-process caches, `IMemoryCache` for TTL-based caches, or `lock`/`Interlocked` for simple counters and flags; avoid mutable instance state in singletons unless every access is explicitly synchronized.
+
+---
+
+#### Gotcha 6. Multiple `AddSingleton` calls for same interface — last-wins and orphaned services
+
+**Concepts**
+
+- Both descriptors surviving in the container rather than the second replacing the first
+- Last-registered wins for single-interface `T` resolution
+- `IEnumerable<T>` returning all registrations in order
+- `TryAddSingleton` skipping if already registered
+
+**Answer**
+
+`builder.Services.AddSingleton<IMailer, SmtpMailer>()` followed by `AddSingleton<IMailer, SendGridMailer>()` does not replace the first registration — both descriptors are appended to the container. Resolving a single `IMailer` returns `SendGridMailer` (last wins), while `SmtpMailer` is instantiated and held but never used — a hidden resource leak for types that open connections. `IEnumerable<IMailer>` injects both in registration order, which is the correct pattern for fan-out or chain-of-responsibility. Use `TryAddSingleton<T, TImpl>()` when you want library code to register a default that application code can override, and use keyed services (`.NET 8+`) for named implementation selection that avoids the ambiguity entirely.
+
+---
+
+#### Gotcha 7. `ValidateScopes` and `ValidateOnBuild` not enabled — DI bugs silently reach production
+
+**Concepts**
+
+- `ValidateOnBuild` resolving the entire service graph at host build to surface missing registrations
+- `ValidateScopes` throwing when a singleton captures a scoped service
+- Production provider skipping validation for startup performance
+- CI and staging as the correct environments to enable both checks
+
+**Answer**
+
+The default service provider does not validate scope mismatches or missing registrations unless explicitly configured. Without `ValidateScopes`, a scoped `DbContext` captured by a singleton silently passes startup and fails unpredictably under load. Without `ValidateOnBuild`, an unregistered service throws `InvalidOperationException` only when first resolved — possibly on a rarely hit endpoint in production. Enable both in `UseDefaultServiceProvider` for development and CI:
+
+```csharp
+builder.Host.UseDefaultServiceProvider((ctx, opts) =>
+{
+    opts.ValidateScopes = true;
+    opts.ValidateOnBuild = true;
+});
+```
+
+Production typically leaves validation off for startup performance; staging and CI must run with it on so defects are caught before deployment.
+
+---
+
+#### Gotcha 8. Service locator anti-pattern — `IServiceProvider` injected into domain services
+
+**Concepts**
+
+- `IServiceProvider.GetService<T>()` hiding dependencies from constructor signature
+- `ValidateOnBuild` unable to validate service-locator resolved services
+- Legitimate use of `IServiceScopeFactory` in singleton background workers only
+- Constructor injection as the testable, discoverable alternative
+
+**Answer**
+
+Injecting `IServiceProvider` into a domain service so it can call `GetService<T>()` internally hides actual dependencies from the constructor — callers and the DI container cannot see what the service truly needs. `ValidateOnBuild` cannot analyze run-time `GetService` calls, so missing registrations are discovered only at runtime. Unit tests must populate a real container instead of passing `Options.Create(new T())`, making tests slow and fragile. Reserve `IServiceScopeFactory` for infrastructure components — hosted services, queue workers — that genuinely need to create a new scope per unit of work, and inject concrete typed services everywhere else. If you find yourself using `IServiceProvider` in domain logic, it is a sign the class has too many responsibilities.
+
+---
+
+#### Gotcha 9. `AddTransient` for expensive types — repeated allocation on hot paths
+
+**Concepts**
+
+- Transient creating a new instance per resolution, not per request
+- Multiple injections of the same transient within one request creating separate instances
+- Scoped as the "one per request" alternative to reduce allocation
+- Singleton for stateless, thread-safe, expensive-to-construct services
+
+**Answer**
+
+Transient creates a new instance every time the service is resolved from any scope, including multiple times within the same request when the service is injected into several components. Registering a heavyweight service — one that allocates large buffers, initializes connection pools, or runs startup logic — as transient causes repeated expensive construction per request, adding GC pressure and latency that rarely appears in single-request local testing but compounds at scale. If the service has per-request state, use scoped (one instance per request, shared across all injections within that request). If it is stateless and thread-safe, singleton is the correct and most efficient lifetime. Reserve transient for lightweight, cheap-to-construct types with no shared state.
+
+---
+
+#### Gotcha 10. Keyed services vs marker interfaces for named implementation selection
+
+**Concepts**
+
+- Marker interface explosion pre-.NET 8 to distinguish named implementations
+- `AddKeyedSingleton<T, TImpl>("key")` and `[FromKeyedServices("key")]` as the .NET 8 solution
+- `IEnumerable<T>` for fan-out; keyed services for named single selection
+- Avoiding service locator (`GetService<T>()`) as a substitute for named resolution
+
+**Answer**
+
+Before .NET 8 keyed services, teams needing named implementations — primary versus fallback storage, multiple payment processors, per-tenant strategies — created empty marker interfaces or factory delegates, polluting the type system and making the container graph harder to understand. In .NET 8+, `AddKeyedSingleton<IPaymentProcessor, StripeProcessor>("stripe")` plus `[FromKeyedServices("stripe")] IPaymentProcessor` in the constructor resolves the correct implementation cleanly. `IEnumerable<T>` remains the right pattern when you need all implementations for a fan-out pipeline; keyed services are for selecting one specific implementation by name. Avoid the service locator workaround (`provider.GetRequiredKeyedService<T>("key")` inside domain logic) since it hides the dependency — use constructor injection with `[FromKeyedServices]` instead so the dependency is visible and testable.
 
 ---
 

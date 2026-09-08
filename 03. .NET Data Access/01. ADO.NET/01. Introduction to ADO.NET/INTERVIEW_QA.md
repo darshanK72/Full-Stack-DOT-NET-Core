@@ -131,45 +131,157 @@ Hand-written SQL offers precise control, predictable execution plans, and access
 
 ---
 
-## Gotchas
-
-#### Gotcha 1. String concatenation instead of parameters
-
-**Answer:** Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM.
-
-- ADO.NET and Dapper require explicit parameters — never embed raw user strings in SQL text.
-- EF Core `FromSqlInterpolated` is safe; passing an ordinary interpolated string to `FromSqlRaw` is not.
-- Code review should treat any dynamic SQL without placeholders as a blocking defect.
+## Gotchas — Introduction to ADO.NET (Interview Traps)
 
 ---
 
-#### Gotcha 2. Open DataReader blocks second command
+#### Gotcha 1. Using DataSet where SqlDataReader should be used
 
-**Answer:** Running another `SqlCommand` on the same connection while a `SqlDataReader` is still open fails on SQL Server unless Multiple Active Result Sets (MARS) is enabled in the connection string.
+**Concepts**
+- connected vs disconnected model mismatch
+- DataSet in-memory materialization overhead
+- SqlDataReader forward-only streaming efficiency
+- server-side resource hold time trade-off
+- full-table memory load under concurrent traffic
 
-- Always dispose or finish reading the `DataReader` before issuing the next command on that connection.
-- A common bug loads a header row then tries to load detail rows on the same connection without closing the reader.
-- EF Core manages readers internally, but raw ADO.NET code in the same request must respect this rule.
+**Answer**
 
----
-
-#### Gotcha 4. Leaked connections exhaust the pool
-
-**Answer:** Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load.
-
-- Always use `await using` for connections and readers so disposal runs on exceptions too.
-- Symptoms appear only under concurrent load, making this a classic production-only failure mode.
-- Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+Using `SqlDataAdapter.Fill(dataSet)` for large result sets pulls every row into application memory before any response is sent, causing excessive heap allocations and GC pressure under concurrent traffic. `SqlDataReader` streams rows forward-only and releases the connection as soon as the reader is disposed, which is far more efficient for stateless REST APIs. Reserve `DataSet` for disconnected editing workflows where in-memory snapshot navigation and batch updates are genuinely needed.
 
 ---
 
-#### Gotcha 5. Transaction started after first command
+#### Gotcha 2. ADO.NET objects not disposed — connection pool exhaustion
 
-**Answer:** Beginning a `SqlTransaction` only after the first statement already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first.
+**Concepts**
+- SqlConnection, SqlDataReader disposal requirement
+- `using`/`await using` disposal guarantee on exceptions
+- pool slot exhaustion under concurrent load
+- GC finalization too slow for production
+- undisposed reader blocking additional commands
 
-- Call `BeginTransaction` immediately after opening the connection, before any DML.
-- EF Core `SaveChanges` without an explicit transaction auto-commits each call — wrap multi-step work explicitly.
-- Integration tests with single-user data often miss this race because implicit commits appear to "work."
+**Answer**
+
+Failing to wrap `SqlConnection`, `SqlCommand`, and `SqlDataReader` in `using` or `await using` blocks leaves database connections checked out from the pool until garbage collection, which is far too slow under concurrent load. Under sustained traffic this exhausts the pool and causes "timeout expired obtaining connection from pool" errors that only surface in production, never in single-user local tests. Every ADO.NET object implementing `IDisposable` must be disposed deterministically even when exceptions occur.
+
+---
+
+#### Gotcha 3. String concatenation instead of parameterized queries
+
+**Concepts**
+- SQL injection via string interpolation
+- SqlParameter with `@placeholder` as prevention
+- query plan cache pollution from literal SQL strings
+- ADO.NET has no automatic sanitization
+- blocking defect in code review
+
+**Answer**
+
+Building SQL with string concatenation or C# interpolation (`$"WHERE Id = {id}"`) sends user input as literal SQL text, enabling SQL injection and preventing query plan reuse. ADO.NET provides no automatic sanitization — every user-supplied value must be bound through a `SqlParameter` with an explicit `@placeholder`. Code review should treat any dynamic SQL without parameter placeholders as a blocking security defect regardless of where the input originates.
+
+---
+
+#### Gotcha 4. SqlCommand.CommandTimeout units are seconds, not milliseconds
+
+**Concepts**
+- CommandTimeout unit confusion (seconds vs milliseconds)
+- default 30-second timeout for standard queries
+- long-running batch operations needing extended timeout
+- `SqlException: Execution Timeout Expired`
+- timeout is per command, not per connection
+
+**Answer**
+
+`SqlCommand.CommandTimeout` is measured in seconds, not milliseconds — a common unit confusion that sets timeouts 1000× shorter than intended when developers assume milliseconds. The default is 30 seconds, which is too short for long-running batch imports, aggregate reports, or index-heavy queries. Set `command.CommandTimeout = 300` for heavy operations and `0` for commands that must run to completion without any timeout, such as scheduled maintenance jobs.
+
+---
+
+#### Gotcha 5. ExecuteScalar returns DBNull.Value on empty aggregate results
+
+**Concepts**
+- `ExecuteScalar` return type is `object?`
+- `DBNull.Value` vs C# `null` vs integer `0`
+- `COUNT(*)` always returns 0, not null
+- `MAX`/`MIN`/`SUM` return `DBNull.Value` on empty set
+- direct cast to `int` throws `InvalidCastException`
+
+**Answer**
+
+`ExecuteScalar` returns `object?` — casting the result directly to `int` throws `InvalidCastException` when the value is `DBNull.Value`, which happens for aggregate functions like `MAX` or `SUM` applied to an empty result set. `COUNT(*)` always returns a non-null integer, but `MAX`, `MIN`, and `SUM` return `DBNull.Value` when no rows match the filter. Always check with `result is DBNull` or cast via `result as int?` before using the value, and supply an explicit default for the null case.
+
+---
+
+#### Gotcha 6. Open SqlDataReader blocks a second command on the same connection
+
+**Concepts**
+- MARS disabled by default in SQL Server
+- forward-only cursor holds connection busy state
+- second `ExecuteReader` throws `InvalidOperationException`
+- dispose first reader before issuing next command
+- MARS as workaround vs proper disposal as fix
+
+**Answer**
+
+Issuing a second `SqlCommand.ExecuteReader()` on the same open `SqlConnection` while the first `SqlDataReader` is still open throws `InvalidOperationException` unless Multiple Active Result Sets (MARS) is enabled in the connection string. Enabling MARS adds overhead and is rarely the right solution — the correct fix is to close and dispose the first reader before issuing the next command. The typical bug is loading a header row and then loading detail rows on the same connection without closing the reader in between.
+
+---
+
+#### Gotcha 7. Calling Open() on an already-open connection throws
+
+**Concepts**
+- `InvalidOperationException` on double-open
+- connection state check before `Open()`
+- connection pooling returns ready-to-use connection object
+- `connection.State` property for conditional open
+- short-lived per-operation connection pattern
+
+**Answer**
+
+Calling `Open()` on a `SqlConnection` that is already open throws `InvalidOperationException` — a common bug when a connection is shared across helper methods without tracking its state. The safest pattern is to create and open a new `SqlConnection` per operation inside a `using` block, allowing the pool to manage reuse transparently. If a single connection must span multiple commands, check `connection.State != ConnectionState.Open` before calling `Open()` defensively.
+
+---
+
+#### Gotcha 8. Transaction begun after first command — first DML auto-commits
+
+**Concepts**
+- implicit autocommit when no transaction is active
+- `BeginTransaction` must precede first DML statement
+- unit-of-work atomicity boundary
+- partial commit leaves database in inconsistent state
+- integration test masking in single-user scenarios
+
+**Answer**
+
+Beginning a `SqlTransaction` after the first `ExecuteNonQuery` has already executed means that command committed under implicit autocommit and is not enrolled in the transaction. When subsequent commands fail and the transaction rolls back, the first command's changes persist, leaving the database inconsistent. Always call `connection.BeginTransaction()` immediately after opening the connection, before any DML, and assign the transaction instance to every subsequent `SqlCommand.Transaction` property.
+
+---
+
+#### Gotcha 9. DataSet is not thread-safe under concurrent modification
+
+**Concepts**
+- `DataSet` and `DataTable` not thread-safe
+- concurrent row modification causes data corruption
+- shared static `DataSet` as application-level cache anti-pattern
+- explicit locking required for concurrent shared tables
+- immutable DTO snapshots as safer cache alternative
+
+**Answer**
+
+`DataSet` and `DataTable` are not thread-safe — concurrent reads and writes from multiple threads without synchronization cause data corruption and unpredictable exceptions. Unlike `SqlDataReader`, which is used sequentially on a single connection thread, a `DataSet` held as a shared instance (such as in a static field or an application-level cache) requires explicit locking for any concurrent modification. For high-concurrency read caches, prefer `IMemoryCache` with immutable DTO snapshots over a shared mutable `DataTable`.
+
+---
+
+#### Gotcha 10. Returning DataTable directly from a Web API produces non-standard JSON
+
+**Concepts**
+- `DataTable` JSON serialization includes schema metadata
+- `DBNull.Value` serialization inconsistency across serializers
+- API contract pollution from `RowState`, `RowError`, `TableName`
+- DTO projection as the correct pattern for API responses
+- `System.Text.Json` and Newtonsoft.Json handle `DataSet` differently
+
+**Answer**
+
+Returning a `DataSet` or `DataTable` directly from a Web API action produces schema-heavy, non-standard JSON that includes metadata like `TableName`, `RowState`, and `RowError` rather than clean DTO fields. `DBNull.Value` in rows serializes as `{}` in some serializers and as `null` in others, creating inconsistent API contracts. Always project query results into typed DTOs before returning from a controller action — never serialize `DataSet` or `DataRow` objects directly over an HTTP response.
 
 ---
 

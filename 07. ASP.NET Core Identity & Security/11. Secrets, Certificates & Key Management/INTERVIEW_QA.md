@@ -451,7 +451,7 @@ The most common mistake is claiming that user secrets are encrypted or secure fo
 
 ---
 
-## Gotcha 1. User Secrets Are Not Encrypted
+#### Gotcha 1. User Secrets Are Not Encrypted
 
 **Concepts**
 - "Secret Manager" name suggesting encryption — incorrect assumption
@@ -464,7 +464,7 @@ Developers often conflate the name "Secret Manager" with encrypted storage, but 
 
 ---
 
-## Gotcha 2. Deleting a Data Protection Key Does Not Decrypt Old Payloads
+#### Gotcha 2. Deleting a Data Protection Key Does Not Decrypt Old Payloads
 
 **Concepts**
 - Key revocation making old ciphertext permanently unreadable
@@ -477,7 +477,7 @@ Developers sometimes think that revoking or deleting a Data Protection key is a 
 
 ---
 
-## Gotcha 3. Kubernetes Secrets Are Not Encrypted by Default
+#### Gotcha 3. Kubernetes Secrets Are Not Encrypted by Default
 
 **Concepts**
 - Base-64 encoding vs encryption — easily decoded without a key
@@ -490,7 +490,7 @@ The resource is named "Secret," which implies protection, but Kubernetes Secrets
 
 ---
 
-## Gotcha 4. Environment Variable Secrets Are Visible to All Processes in the Container
+#### Gotcha 4. Environment Variable Secrets Are Visible to All Processes in the Container
 
 **Concepts**
 - /proc/<pid>/environ readable by processes in the same container namespace
@@ -503,7 +503,7 @@ Passing secrets via environment variables is safer than baking them into the ima
 
 ---
 
-## Gotcha 5. ProtectKeysWithAzureKeyVault Does Not Store the Key Ring in Key Vault
+#### Gotcha 5. ProtectKeysWithAzureKeyVault Does Not Store the Key Ring in Key Vault
 
 **Concepts**
 - Key Vault as KEK provider only — XML key ring stored externally
@@ -513,3 +513,68 @@ Passing secrets via environment variables is safer than baking them into the ima
 **Answer**
 
 Developers frequently assume that calling `ProtectKeysWithAzureKeyVault` stores the Data Protection key ring inside Azure Key Vault, but it only uses a Key Vault key to encrypt (wrap) the key ring XML; the XML itself must be stored separately, typically in Azure Blob Storage via `PersistKeysToAzureBlobStorage`. Omitting `PersistKeysToAzureBlobStorage` means the key ring is written to the default local file system path and is lost when the container or app instance is recycled — the key wrapping configuration is irrelevant if the wrapped keys themselves are not persisted durably. The complete production configuration combines both calls: `PersistKeysToAzureBlobStorage` for durability and `ProtectKeysWithAzureKeyVault` for encryption at rest, and both require appropriate managed identity permissions.
+
+---
+
+#### Gotcha 6. Certificate Private Key Must Be Imported with the `Exportable` Flag — Otherwise Runtime Access Is Blocked
+
+**Concepts**
+- `X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable` required for some crypto operations
+- `CryptographicException: Keyset does not exist` when the private key was imported without persistence flags
+- Docker and non-Windows environments — `EphemeralKeySet` as the correct cross-platform flag
+
+**Answer**
+
+When loading a PFX certificate in code with `new X509Certificate2(pfxBytes, password)`, the default key storage flags may not persist the private key in a location the current process can reach — particularly in containerized environments, Windows services running as limited accounts, or when the certificate was imported into the machine store without the `Exportable` flag. The symptom is a `CryptographicException: Keyset does not exist` or `No credentials are available` at the moment the certificate is used for signing or decryption, even though loading it succeeded. On non-Windows platforms (Linux containers), `X509KeyStorageFlags.EphemeralKeySet` avoids writing to the file system entirely and is the correct flag for in-memory certificate use; on Windows, `MachineKeySet | PersistKeySet` ensures the key is stored durably.
+
+---
+
+#### Gotcha 7. Certificate Thumbprint Changes on Renewal — Hardcoded Thumbprints Break After Rotation
+
+**Concepts**
+- Thumbprint as SHA-1 hash of the DER-encoded certificate — unique per certificate instance
+- New certificate (even from the same CA, same subject) producing a different thumbprint
+- Subject name or key identifier as the stable lookup key for rotation-safe configuration
+
+**Answer**
+
+The certificate thumbprint is a SHA-1 fingerprint of the specific certificate bytes — every renewal, even with the same CA and subject name, produces a completely different thumbprint. Configuration files, `appsettings.json`, or code that selects a certificate by thumbprint (`store.Certificates.Find(X509FindType.FindByThumbprint, thumbprint, true)`) will silently fail to find the new certificate after rotation, causing SSL handshake failures or signing errors. The rotation-safe alternatives are to find the certificate by subject name (`FindBySubjectName`) or by subject key identifier, and to select the most-recently-issued valid certificate from the result set. Certificate thumbprints are useful for audit logging and one-time validation but must never appear as a configuration value that persists across renewal cycles.
+
+---
+
+#### Gotcha 8. Azure Key Vault Access Requires Explicit Role Assignment — Not Just the Connection String
+
+**Concepts**
+- Managed identity authenticating to Entra ID — but needing Key Vault RBAC role or access policy
+- `DefaultAzureCredential` finding the identity but Key Vault returning 403 without role
+- `Key Vault Secrets User` role (RBAC) or access policy for reading secrets
+
+**Answer**
+
+A managed identity that authenticates successfully to Entra ID is not automatically authorized to read secrets from Azure Key Vault — it also needs a Key Vault access policy (in the legacy model) or an Azure RBAC role assignment (in the RBAC-based model) on the specific Key Vault resource. `DefaultAzureCredential` resolves the managed identity token successfully but Key Vault returns 403 Forbidden when no access has been granted. The minimal permission for reading secrets is the `Key Vault Secrets User` built-in RBAC role. The error message ("The user, group or application does not have secrets list permission") clearly identifies the missing grant, but developers who see 403 on a managed-identity-configured app often spend time debugging the identity itself rather than the authorization grant on the vault.
+
+---
+
+#### Gotcha 9. Secrets Loaded at Startup Are Not Automatically Reloaded When Key Vault Values Change
+
+**Concepts**
+- `IConfiguration` populated at startup — in-memory snapshot, not a live connection
+- Key Vault configuration provider not polling for changes by default
+- `reloadOnChange` or a custom `IOptionsSnapshot` pattern required for live rotation
+
+**Answer**
+
+The Azure Key Vault configuration provider (`AddAzureKeyVault`) reads all matching secrets at application startup and stores them in the `IConfiguration` in-memory dictionary. If a secret is rotated in Key Vault after the application starts, the running process continues to use the old value — there is no default polling or push mechanism to update the in-memory configuration. For secrets that may be rotated without a deployment (database passwords, API keys), the application must either restart on rotation (acceptable for some deployment models), use a polling reload interval via the `AzureKeyVaultConfigurationOptions.ReloadInterval` property, or retrieve the secret directly from the Key Vault SDK on each use rather than via `IConfiguration`. Services relying on `IOptionsSnapshot<T>` will pick up reloaded configuration between requests, but only if the configuration provider itself has refreshed the values.
+
+---
+
+#### Gotcha 10. PFX Password Protects the Container, Not the Certificate — The Private Key Is Accessible After Import
+
+**Concepts**
+- PFX (PKCS#12) password encrypting the archive container — not the certificate or private key at rest
+- Once imported into the OS certificate store, the key is protected by OS-level ACLs only
+- Private key exportability determined by import flags — not by the original PFX password
+
+**Answer**
+
+The password on a PFX file protects the transport container — it prevents unauthorized parties from importing the file. Once the certificate and private key are imported into the Windows certificate store or used directly in code, the PFX password provides no ongoing protection: the private key is stored in the key container and its access is governed by OS-level ACLs (Windows CNG/CAPI) or filesystem permissions (Linux). Developers who believe that keeping the PFX password secret permanently protects the private key are mistaken; anyone who can read the key container (e.g., with the right OS account) can use or export the private key regardless of the original PFX password. Production private keys should be stored in hardware security modules (HSM), Azure Key Vault with `Premium` tier (HSM-backed), or Managed HSM, where the private key is never exported in plaintext form.

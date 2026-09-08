@@ -664,3 +664,147 @@ A startup probe tells Kubernetes that the container is still initializing and th
 By default, ASP.NET Core maps `Healthy` and `Degraded` to HTTP 200 OK, and `Unhealthy` to HTTP 503 Service Unavailable. Kubernetes interprets any 2xx response as a passing probe and any non-2xx as a failing probe, so the 503 for `Unhealthy` correctly triggers the orchestrator's failure handling. `Degraded` returning 200 means the service stays in the load balancer rotation even when a non-critical dependency is slow — useful for graceful degradation scenarios where partial functionality is better than no traffic. The status-to-code mapping is controlled by `HealthCheckOptions.ResultStatusCodes`, a dictionary you can override if the default 200/503 mapping does not fit your infrastructure. Some teams map `Degraded` to 200 for the readiness probe — stay in rotation, serve degraded — and to 503 for the liveness probe — restart the pod if degraded for too long — which requires two separate `MapHealthChecks` calls with different `ResultStatusCodes` configurations. The response body is `text/plain` with the status name (`Healthy`, `Unhealthy`, etc.) by default; you can replace this with structured JSON using a custom `ResponseWriter`.
 
 ---
+
+## Gotchas — Observability & Distributed Tracing (Interview Traps)
+
+---
+
+#### Gotcha 1. Trace Context Not Propagated Across a Message Bus
+
+**Concepts**
+- W3C traceparent header propagation for HTTP automatically handled by OpenTelemetry
+- Message broker headers requiring explicit injection and extraction
+- Activity.Current.Id embedded in message headers at publish time
+- Consumer creating a child Activity linked to the publisher's trace
+
+**Answer**
+
+OpenTelemetry for .NET automatically propagates W3C trace context in HTTP headers — the `traceparent` header flows from service to service transparently. But when a service publishes an event to RabbitMQ, Kafka, or Azure Service Bus, the current trace context must be explicitly injected into the message headers at publish time and extracted at consume time. Without this, the consumer's trace starts a new root span with no link to the publisher's trace, making it impossible to follow a request end-to-end across the message boundary. MassTransit with `cfg.UseOpenTelemetry()` handles this automatically, but custom message bus integration requires manual `Propagators.DefaultTextMapPropagator.Inject(context, headers, setter)` calls.
+
+---
+
+#### Gotcha 2. Sampling Rate Too Low to Capture Rare Errors
+
+**Concepts**
+- Head-based sampling discarding most traces before completion
+- Low sampling rate making rare error traces statistically unlikely to be captured
+- Tail-based sampling retaining traces that contain errors
+- Adaptive sampling combining low rate for success with high rate for errors
+
+**Answer**
+
+A head-based sampling rate of 1% means 99% of all traces — including traces that contain errors or slow spans — are discarded before the trace completes. A production incident that affects 0.1% of requests may never produce a captured trace at the 1% sampling rate, making the issue invisible in the tracing backend. Tail-based sampling, which decides whether to keep a trace after it completes (and thus knows whether it contained an error or a slow span), solves this by keeping all error traces and a sample of success traces. The OpenTelemetry Collector supports tail sampling processors; at the SDK level, a custom `Sampler` can implement the same logic by marking error spans with `RecordException` and forcing them through with `ActivitySamplingResult.RecordAndSample`.
+
+---
+
+#### Gotcha 3. Correlation ID Not Injected Into Log Entries
+
+**Concepts**
+- Trace ID available in Activity.Current but not in log entries by default
+- Manual BeginScope or Serilog LogContext needed to include trace ID in logs
+- Log entries without trace ID impossible to correlate with spans
+- OpenTelemetry log bridge automatically enriching logs with trace and span IDs
+
+**Answer**
+
+The W3C trace ID from `Activity.Current.TraceId` is available at runtime but does not automatically appear in `ILogger` log entries unless explicitly added. Without it, a log entry saying "Database connection failed" cannot be correlated with the trace and span that caused the failure, making joint log-and-trace investigation impossible. The OpenTelemetry logging bridge (`AddOpenTelemetry().WithLogging()` with an OTLP exporter) automatically injects `TraceId` and `SpanId` into every log entry when inside an active Activity. Without the bridge, Serilog's `LogContext.PushProperty("TraceId", Activity.Current?.TraceId.ToString())` achieves the same result in middleware.
+
+---
+
+#### Gotcha 4. Metrics Without Labels Make Dashboards Useless
+
+**Concepts**
+- Counter incrementing without tags providing only a global total
+- Service name, endpoint, and status code as essential labels
+- High-cardinality labels causing metrics storage explosion
+- Label design balancing query flexibility with cardinality
+
+**Answer**
+
+A `Counter.Add(1)` with no tags produces a single cumulative number with no ability to filter by service, endpoint, status code, or environment — the metric can only tell you "requests happened" without telling you which endpoint, which service, or whether they succeeded. Every metric must include the labels needed to answer operational questions: `http.server.request.duration` with `http.method`, `http.route`, `http.response.status_code`, and `service.name` allows dashboards to show latency per endpoint and error rates per status code. The counter-risk is high-cardinality labels: including user ID, request ID, or full URL path as a label creates one metric series per unique value, causing exponential cardinality that breaks Prometheus and increases cost in managed metrics services.
+
+---
+
+#### Gotcha 5. Health Check Endpoint Including Slow Dependency Checks
+
+**Concepts**
+- Liveness probe health check calling databases and external services
+- Slow dependency making liveness check time out and killing healthy pods
+- Liveness check testing only the process's own health
+- Readiness check testing dependency connectivity
+
+**Answer**
+
+A liveness probe health check that includes database connectivity, downstream HTTP calls, and Redis pings will fail when any dependency is unavailable — causing Kubernetes to restart a pod that is actually healthy but temporarily can't reach its database due to a network blip. The liveness probe should verify only that the process itself is alive and responsive (not deadlocked, not out of memory) — a simple endpoint that returns 200 with no I/O. The readiness probe should test dependency connectivity (database reachable, cache warm) because a pod that cannot reach its dependencies should be removed from traffic. Separate the two probe endpoints: `/health/live` for liveness (no dependencies) and `/health/ready` for readiness (with dependencies).
+
+---
+
+#### Gotcha 6. Trace IDs Not Included in Error Responses to Clients
+
+**Concepts**
+- Client receiving 500 with no reference to find the server-side trace
+- Trace ID in ProblemDetails traceId field or X-Trace-Id header
+- Support team unable to locate the relevant trace without trace ID
+- ProblemDetails extension data carrying trace and span IDs
+
+**Answer**
+
+When a service returns a 500 error to a client, the client — and the user's support ticket — has no way to link the error to the server-side trace that contains the full diagnostic context. Including the trace ID in the error response, either in the `ProblemDetails.Extensions["traceId"]` field or an `X-Trace-Id` response header, allows support engineers to locate the exact trace in Jaeger or Zipkin by copying it from the client's error message. The ASP.NET Core `ProblemDetails` middleware can be extended with an `OnBeforeWriteDetails` callback that injects `Activity.Current?.TraceId.ToString()` into the extensions dictionary before writing the response.
+
+---
+
+#### Gotcha 7. Structured Logging Disabled or Minimised in Production
+
+**Concepts**
+- Minimum log level set too high, discarding warning and info context
+- Structured JSON logging switched off for cost reasons
+- Critical diagnostic context lost during incidents
+- Log sampling as a cost-reduction alternative to full disablement
+
+**Answer**
+
+Setting production minimum log level to `Error` or turning off structured logging entirely to reduce logging costs means that during an incident, the diagnostic context for warnings and informational events that led up to the error is gone — "database connection pool exhausted" warnings that would have shown the problem developing over hours are discarded. The appropriate cost optimisation is log sampling (log 1 in 100 successful requests at Info level, log all errors), not raising the minimum level so high that pre-error context is lost. Structured JSON logging must remain enabled in production since log aggregators require structured fields for filtering, aggregation, and alerting.
+
+---
+
+#### Gotcha 8. Span Attributes Containing PII
+
+**Concepts**
+- GDPR and data sovereignty requirements for trace data
+- User email, card number, and SSN as prohibited span attributes
+- Span attribute scrubbing at the OpenTelemetry Collector layer
+- Data classification review of span attribute additions
+
+**Answer**
+
+A distributed trace that includes `user.email`, `payment.card_number`, or `customer.ssn` as span attributes exports sensitive personal data to the tracing backend (Jaeger, Grafana Tempo, Azure Monitor) where it is stored in cleartext, accessible to every developer and operator with backend access, and potentially retained for months. GDPR and similar regulations prohibit this for many categories of personal data. Span attributes must be reviewed before inclusion for data classification compliance; a processor in the OpenTelemetry Collector can scrub or hash known PII attributes before they are exported to the backend. The tracing SDK's `FilteringActivityProcessor` or a custom `BaseProcessor<Activity>` can redact attributes at the SDK layer if Collector-level scrubbing is not feasible.
+
+---
+
+#### Gotcha 9. Metrics Collected Without Baseline Thresholds for Alerting
+
+**Concepts**
+- Alert threshold set arbitrarily without knowing normal range
+- Alert firing on normal traffic patterns (false positives)
+- Baseline measurement period before setting alert thresholds
+- Percentile-based alerting versus average-based alerting
+
+**Answer**
+
+An alert on `http.server.request.duration p99 > 500ms` set before the application has been in production is guesswork — if the normal p99 is 450ms, the alert fires continuously on normal traffic; if the normal p99 is 50ms and 500ms is only seen during incidents, the alert is too permissive. Alert thresholds must be set after observing baseline traffic for at least one full business cycle (one week, including peak periods) so that "normal" is known. Percentile-based alerting (p99, p95) is more useful than average-based alerting for user-facing latency because averages hide tail latency that affects a significant fraction of users. Burn-rate alerts on error budgets are more operationally useful than static threshold alerts for SLO-based monitoring.
+
+---
+
+#### Gotcha 10. Missing Spans for External HTTP Calls or Database Queries
+
+**Concepts**
+- HttpClient instrumentation not added to OpenTelemetry builder
+- EF Core activity source not registered for database spans
+- Custom span needed for code paths not covered by auto-instrumentation
+- End-to-end trace showing gaps where instrumentation is absent
+
+**Answer**
+
+A trace that shows the incoming request span and the response but has no child spans for the three downstream HTTP calls and two database queries it made internally provides no diagnostic value — the "black box" period where the work actually happened has no visibility. OpenTelemetry auto-instrumentation for .NET covers `HttpClient` (add `AddHttpClientInstrumentation()`), EF Core (add `AddEntityFrameworkCoreInstrumentation()`), and gRPC (add `AddGrpcClientInstrumentation()`) — each must be explicitly registered. Redis calls, custom HTTP clients that bypass `IHttpClientFactory`, and third-party SDK calls (S3, Cosmos DB) require their own instrumentation package or a manual `ActivitySource.StartActivity()` wrapper to appear as spans in the trace.
+
+---

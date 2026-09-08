@@ -207,52 +207,157 @@ When the publisher calls `BalanceChanged?.Invoke(this, e)` and one subscriber's 
 
 ---
 
-## Gotcha Questions
+## Gotchas — Events in C# (Interview Traps)
 
 ---
 
-## Q13. A lambda subscribed to an event holds a reference to `this`. After `Dispose()`, memory usage does not drop. Why?
+#### Gotcha 1. Lambda subscribed to an event creates a closure that keeps the subscriber alive — Dispose does not unsubscribe
 
 **Concepts**
-- Lambda captures `this` via closure
-- Delegate chain in publisher holds reference to closed-over `this`
+- Lambda capturing `this` creates a closure
+- Closure stored in publisher's invocation list
+- Publisher as GC root keeps subscriber reachable
 - `Dispose()` does not automatically unsubscribe
-- Publisher as GC root keeping subscriber alive
-- Fix: save handler reference, unsubscribe in `Dispose()`
+- Save handler reference; unsubscribe in `Dispose()`
 
 **Answer**
 
-The lambda `(_, e) => RefreshBalanceLabel(e.NewBalance)` captures `this` (the `AccountDetailPanel`) via a compiler-generated closure. This closure is stored in the delegate that the `BankAccount.BalanceChanged` event holds. As long as `BankAccount` is alive and the subscription exists, the delegate — and therefore the closure — and therefore `AccountDetailPanel` — are reachable from a GC root. Calling `Dispose()` on the panel does not automatically unsubscribe from `BalanceChanged`, so the reference chain persists. The fix is to save the handler in a field at subscription time and unsubscribe in `Dispose()`. `_handler = (_, e) => RefreshBalanceLabel(e.NewBalance); _account.BalanceChanged += _handler;` then in `Dispose()`: `_account.BalanceChanged -= _handler; _handler = null;`. After this, `BankAccount` no longer holds a reference to the panel, and the GC can collect it. Always implement `IDisposable` on objects that subscribe to events published by longer-lived objects.
+A lambda that captures `this` creates a closure object. The event publisher holds a reference to that closure in its invocation list, making the subscriber reachable from a GC root as long as the publisher is alive. Disposing the subscriber does not automatically remove the handler. Always store the handler in a field and call `event -= _handler` in `Dispose()`.
 
 ---
 
-## Q14. A delegate field `public Action<string>? PaymentCompleted` is used instead of `event`. A test resets it with `= null`. What production risks exist?
+#### Gotcha 2. Public delegate field instead of event keyword allows any caller to invoke or replace the entire invocation list
 
 **Concepts**
-- Public field allows assignment (`=`) from anywhere
-- Any caller can replace all subscriptions
-- Any caller can invoke the delegate directly with fake data
-- `event` restricts to `+=`/`-=` from outside the class
-- Security and correctness implications
+- `public Func<...>` has no access restriction
+- Any caller can assign (`=`) to replace all handlers
+- Any caller can invoke the delegate directly
+- `event` keyword restricts external code to `+=`/`-=`
+- Declaring class retains sole invoke/clear rights
 
 **Answer**
 
-A public delegate field has no protection. Any code with a reference to `PaymentGateway` can: (1) invoke `gateway.PaymentCompleted("Fake payment — ship order")`, triggering fulfillment logic with fabricated data; (2) set `gateway.PaymentCompleted = null`, silently clearing all audit subscriptions and payment handlers; (3) set `gateway.PaymentCompleted = myHandler`, replacing the entire invocation list rather than adding to it. In a test, using `= null` to reset the field before each test is convenient but in production the same mechanism allows any module to sabotage notifications. Declaring the field as `public event Action<string>? PaymentCompleted` restricts external code to `+=` and `-=`. The declaring class alone can invoke it and clear it. The test that previously used `= null` must instead unsubscribe known handlers individually or redesign the test to use separate instances. This restriction is the core value of the `event` keyword over a plain delegate field.
+A public delegate field exposes the full delegate API — assignment with `=`, direct invocation, and null assignment — to all callers. This allows one module to silently clear all subscriptions or inject fake invocations. The `event` keyword compiles into an add/remove pair that restricts external callers to `+=` and `-=` only; only the declaring class can invoke or null-out the event.
 
 ---
 
-## Q15. A scoped `OrderNotificationService` subscribes to a singleton `OrderStateTracker` event in its constructor. After thousands of requests, memory climbs. Why?
+#### Gotcha 3. Raising an event without a null check or local copy risks NullReferenceException on race conditions
 
 **Concepts**
-- Scoped service created per request
-- Singleton event publisher holds reference to scoped handler
-- Scoped service never GC'd — kept alive by singleton's event
-- Captive dependency (scoped in singleton) with event variant
-- Fix: `IHostedService` or `MediatR` for cross-lifetime notifications
+- Event can become null between null check and invocation
+- Race when another thread unsubscribes last handler
+- Copy-then-invoke pattern is thread-safe
+- `?.Invoke()` captures a local copy atomically in recent C#
+- Always use `SomeEvent?.Invoke(this, args)` idiom
 
 **Answer**
 
-`OrderStateTracker` is a singleton — it lives for the application's lifetime. `OrderNotificationService` is scoped — a new instance is created per HTTP request. In its constructor, `OrderNotificationService` subscribes a handler lambda (capturing `this`) to `OrderStateTracker.OrderPlaced`. Because the singleton holds a reference to every scoped handler via the event's invocation list, every scoped `OrderNotificationService` ever created is permanently rooted to the singleton and can never be GC'd. After thousands of requests, thousands of `OrderNotificationService` instances accumulate in memory, each holding its `IHubContext<OrderHub>`. The `IHubContext` holds connections, amplifying the leak. The fix is architectural: do not subscribe long-lived publisher events in short-lived scoped constructors. Instead, use a `IHostedService` with a singleton `IOrderEventChannel` (a `Channel<T>`) where the singleton pushes events and the scoped handler reads from the channel for its request lifetime, or use `MediatR` with `INotification`/`INotificationHandler` which the framework dispatches per-event without persistent subscriptions.
+Between checking `if (SomeEvent != null)` and calling `SomeEvent(...)`, another thread can unsubscribe the last handler, making the delegate null and causing `NullReferenceException`. The safe pattern is `SomeEvent?.Invoke(this, args)`, where `?.` captures a local reference to the delegate atomically before the null check and invocation — eliminating the race window.
+
+---
+
+#### Gotcha 4. Scoped subscriber subscribed to singleton event causes a memory leak — subscriber is never GC'd
+
+**Concepts**
+- Singleton holds delegate references in invocation list
+- Scoped subscriber re-created per request but never collected
+- Singleton as GC root keeps all scoped instances alive
+- Captive dependency variant via event subscription
+- Use `IHostedService` + channels or MediatR for cross-lifetime events
+
+**Answer**
+
+A singleton event publisher holds references to every handler ever subscribed. A scoped service that subscribes in its constructor but never unsubscribes accumulates in the singleton's invocation list across all requests. After thousands of requests, thousands of scoped instances are kept alive. Unsubscribe in the scoped service's `Dispose()`, or redesign using an event channel or message dispatcher that does not hold persistent subscriptions.
+
+---
+
+#### Gotcha 5. EventHandler<T> convention expects (object sender, T e) — deviating breaks framework interop
+
+**Concepts**
+- .NET event convention: `void Handler(object sender, EventArgs e)`
+- `EventHandler<TEventArgs>` is the generic form
+- Custom delegate signatures work but break WinForms, WPF, and Blazor binding
+- `EventArgs`-derived args class for extensibility
+- Sender is typically `this`
+
+**Answer**
+
+The .NET framework event convention is `EventHandler<TArgs>` with signature `void(object sender, TArgs e)`. Deviating from this convention means databinding frameworks, designer tooling, and standard add/remove infrastructure may not recognize the event. Always derive your event args from `EventArgs` and use `EventHandler<TDerivedArgs>` as the delegate type.
+
+---
+
+#### Gotcha 6. Multicast delegates invoke all handlers in registration order — an exception in one handler stops the rest
+
+**Concepts**
+- Multicast delegate calls each target in order
+- Unhandled exception in one target aborts remaining calls
+- Remaining handlers silently not called
+- Manual invocation loop for fault-isolated dispatch
+- `AggregateException` pattern for collecting all errors
+
+**Answer**
+
+When an event fires, each subscribed handler is called in turn. If one handler throws an unhandled exception, the remaining handlers in the invocation list are never called. Handlers expecting to always run — like audit loggers or cleanup routines — may silently be skipped. For fault-isolated dispatch, manually iterate the invocation list with individual try/catch blocks and collect exceptions.
+
+---
+
+#### Gotcha 7. Unsubscribing a lambda requires the same delegate instance — a new lambda expression does not match
+
+**Concepts**
+- `-=` compares delegate instances
+- New lambda expression compiles to a new object
+- Must store the original lambda in a field to unsubscribe
+- Method group references can be compared by name
+- Anonymous lambdas cannot be unsubscribed without stored reference
+
+**Answer**
+
+`event -= (s, e) => Handler(e)` does not unsubscribe a previously added lambda even if the lambda body looks identical. Each lambda expression is a new delegate object. To unsubscribe, store the original delegate: `_handler = (s, e) => Handler(e); event += _handler;` then `event -= _handler;`. Method group subscriptions (`event += Handler`) can be unsubscribed with `event -= Handler` because method group comparison matches by method identity.
+
+---
+
+#### Gotcha 8. Custom event accessors with add/remove allow thread-safe subscription but require explicit backing store
+
+**Concepts**
+- Custom `add`/`remove` replace automatic backing field
+- Needed for thread-safe `Interlocked.CompareExchange` pattern
+- Also used to filter or log subscriptions
+- No backing field generated automatically when add/remove declared
+- `Delegate.Combine` / `Delegate.Remove` for manipulation
+
+**Answer**
+
+Declaring `public event Action<T> MyEvent { add { ... } remove { ... } }` means the compiler no longer generates an automatic backing field — you must manage the delegate storage yourself. The custom accessors are typically used to implement thread-safe subscription using `Interlocked.CompareExchange` on a private delegate field. The `Delegate.Combine` and `Delegate.Remove` methods perform the add and remove operations on the underlying multicast delegate.
+
+---
+
+#### Gotcha 9. Weak event pattern prevents memory leaks for long-lived publishers and short-lived subscribers
+
+**Concepts**
+- Strong reference from publisher invocation list
+- WeakReference<T> on subscriber breaks the hold
+- `WeakEventManager` in WPF implements this
+- Custom implementation with `WeakReference<T>` in handler list
+- Subscriber is GC'd when no strong references remain
+
+**Answer**
+
+The standard event pattern holds a strong reference to the subscriber via the invocation list. The weak event pattern stores a `WeakReference<T>` to the subscriber instead. The publisher checks the reference before invoking, and if the subscriber has been GC'd, the dead entry is cleaned up. WPF provides `WeakEventManager`; in other contexts, build your own using `WeakReference<T>` in the event accessor.
+
+---
+
+#### Gotcha 10. Async event handlers fire-and-forget — await inside EventHandler is not awaited by the caller
+
+**Concepts**
+- `async void` event handlers cannot be awaited
+- Exception in `async void` propagates to `SynchronizationContext`
+- `async Task` handlers must be registered differently
+- Fire-and-forget risks unobserved exceptions
+- Use `IAsyncEventHandler` pattern or channels for async events
+
+**Answer**
+
+An event handler declared `async void` is fire-and-forget. The event raiser cannot await it, and any exception thrown inside the handler propagates to the synchronization context as an unhandled exception rather than being caught at the raise site. For async event handling, consider a channel-based dispatch pattern or a custom `IAsyncEventHandler<T>` interface that the publisher explicitly awaits.
 
 ---
 

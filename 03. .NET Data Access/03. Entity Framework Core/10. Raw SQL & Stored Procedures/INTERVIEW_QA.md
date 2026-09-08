@@ -102,33 +102,157 @@ Map stored procedure result sets to entity types or keyless types and invoke the
 
 ---
 
-## Gotchas
+## Gotchas — EF Core Raw SQL & Stored Procedures (Interview Traps)
 
 ---
 
-## Gotcha 1. String concatenation instead of parameters
+#### Gotcha 1. `FromSqlRaw` with string interpolation — SQL injection vulnerability
 
 **Concepts**
-- SQL injection via string concatenation
-- parameterization bypass risk
-- dynamic SQL as code review blocker
+- `FromSqlRaw` passes the string to the database without parameterization
+- C# interpolated string `$"WHERE Id = {id}"` in `FromSqlRaw` is injection risk
+- `FromSqlInterpolated` converts interpolation holes to SQL parameters safely
+- code review must flag all non-constant strings in `FromSqlRaw`
+- `EF.Parameter(value)` for explicit parameterization in `FromSqlRaw`
 
 **Answer**
 
-Building SQL with `$"WHERE Id = {id}"` or string concatenation sends user input as literal SQL text, bypassing parameterization and enabling SQL injection even when the rest of the application uses an ORM or micro-ORM. ADO.NET and Dapper require explicit parameters — never embed raw user strings in SQL text; EF Core `FromSqlInterpolated` is safe; passing an ordinary interpolated string to `FromSqlRaw` is not. Code review should treat any dynamic SQL without placeholders as a blocking defect.
+`FromSqlRaw` passes the SQL string to the database as-is — interpolating a user-supplied value (`$"WHERE Name LIKE '%{term}%'"`) creates a critical SQL injection vulnerability. `FromSqlInterpolated` is the safe alternative: it converts each interpolation hole to a SQL parameter automatically. Always use `FromSqlInterpolated` for any SQL containing user-controlled values, and treat every `FromSqlRaw` call with a non-constant string as requiring explicit review for parameterization correctness.
 
 ---
 
-## Gotcha 2. Open DataReader blocks second command
+#### Gotcha 2. `FromSqlRaw` result must be an entity type or keyless entity — no arbitrary shapes
 
 **Concepts**
-- open DataReader blocking second command
-- MARS requirement on shared connection
-- reader disposal before next command
+- `FromSqlRaw` maps columns to tracked entity properties
+- result shape must match a registered entity type or keyless entity
+- arbitrary DTO/anonymous type not directly supported by `FromSqlRaw`
+- `context.Database.SqlQueryRaw<T>` (EF Core 8+) for arbitrary scalar types
+- Dapper as the simpler alternative for arbitrary query shapes
 
 **Answer**
 
-Running another `SqlCommand` on the same connection while a `SqlDataReader` is still open fails on SQL Server unless Multiple Active Result Sets (MARS) is enabled in the connection string. Always dispose or finish reading the `DataReader` before issuing the next command on that connection; A common bug loads a header row then tries to load detail rows on the same connection without closing the reader. EF Core manages readers internally, but raw ADO.NET code in the same request must respect this rule.
+`FromSqlRaw<T>` requires `T` to be a registered entity type or a keyless entity (`[Keyless]` or `HasNoKey()`) — it cannot map to arbitrary DTOs or anonymous types directly. Attempting to use `FromSqlRaw<ProductSummaryDto>` where `ProductSummaryDto` is not registered in the model throws `InvalidOperationException`. Use `context.Database.SqlQueryRaw<T>` (EF Core 8+) for scalar projections, or use Dapper's `QueryAsync<T>` which maps to any POCO by column name without requiring entity registration.
+
+---
+
+#### Gotcha 3. Raw SQL cannot be composed with `Where`/`OrderBy` unless result is `IQueryable<T>`
+
+**Concepts**
+- `FromSqlRaw` returns `IQueryable<T>` — LINQ operators can be appended
+- composed query wraps raw SQL in a subquery
+- inner raw SQL must not contain `ORDER BY` without `OFFSET-FETCH`
+- `ExecuteSqlRaw` returns `int` and cannot be composed
+- verify `ToQueryString()` to check how raw SQL and LINQ compose
+
+**Answer**
+
+`FromSqlRaw` returns `IQueryable<T>`, allowing LINQ operators like `.Where()` and `.OrderBy()` to be chained — EF Core wraps the raw SQL in a subquery and appends the LINQ clause. However, a raw SQL string with a top-level `ORDER BY` (without `OFFSET-FETCH`) inside a subquery causes a SQL syntax error in SQL Server. If the raw SQL needs composability with LINQ, do not include `ORDER BY` in the inner SQL; let the outer LINQ apply ordering. `ExecuteSqlRaw` returns `int` (rows affected) and cannot be composed with LINQ operators at all.
+
+---
+
+#### Gotcha 4. `ExecuteSqlRawAsync` bypasses change tracker — tracked entity values not updated
+
+**Concepts**
+- `ExecuteSqlRawAsync("UPDATE ...")` modifies the database directly
+- tracked entities in the context still hold the old values
+- `SaveChanges` with tracked modifications will overwrite the raw SQL update
+- must reload tracked entities after `ExecuteSqlRawAsync` to reflect changes
+- EF Core 7+ `ExecuteUpdateAsync` for set-based updates via LINQ
+
+**Answer**
+
+`context.Database.ExecuteSqlRawAsync("UPDATE Products SET Price = 0 WHERE IsDiscontinued = 1")` modifies rows in the database directly, bypassing the change tracker. Any `Product` entities already tracked by the context still hold the old `Price` values. If a subsequent `SaveChanges` call flushes tracked modifications, it can overwrite the raw SQL update with stale tracked values. After `ExecuteSqlRawAsync`, either reload affected entities with `ReloadAsync`, clear the change tracker, or avoid mixing raw SQL updates with tracked-entity modifications for the same rows.
+
+---
+
+#### Gotcha 5. Stored procedure output parameters not supported via `FromSqlRaw` — requires ADO.NET
+
+**Concepts**
+- `FromSqlRaw("EXEC dbo.Proc @p1 OUTPUT")` does not capture output parameters
+- EF Core has no API for SP output parameter binding through `FromSqlRaw`
+- raw `SqlParameter` with `Direction.Output` via `context.Database.GetDbConnection()`
+- or use Dapper's `DynamicParameters` with output direction on the same connection
+- `FromSqlRaw` for SP result set only; output params require lower-level access
+
+**Answer**
+
+`FromSqlRaw("EXEC dbo.GetOrderSummary @orderId, @total OUTPUT")` executes the procedure and maps the result set to entities, but EF Core has no mechanism to bind or read `OUTPUT` parameters — the `@total` value is inaccessible. To read stored procedure output parameters, use `context.Database.GetDbConnection()` to obtain the underlying `DbConnection` and execute a `SqlCommand` with `SqlParameter` of `Direction = ParameterDirection.Output`, or use Dapper with `DynamicParameters` on the same connection.
+
+---
+
+#### Gotcha 6. Raw SQL includes `ORDER BY` without `OFFSET-FETCH` inside a composed query — SQL syntax error
+
+**Concepts**
+- SQL Server requires `OFFSET-FETCH` with `ORDER BY` inside a subquery
+- `FromSqlRaw` composing adds outer LINQ → raw SQL becomes inner subquery
+- `ORDER BY` in inner subquery without `OFFSET-FETCH` is invalid SQL
+- move `ORDER BY` to the outer LINQ: `.OrderBy(e => e.Name)`
+- `ToQueryString()` reveals the composed SQL before execution
+
+**Answer**
+
+When `FromSqlRaw` is composed with LINQ operators (`.Where()`, `.OrderBy()`, `.Take()`), EF Core wraps the raw SQL as an inner subquery. SQL Server does not allow `ORDER BY` in a subquery without `OFFSET-FETCH`, so including `ORDER BY` in the raw SQL string causes a SQL syntax error at runtime. Remove `ORDER BY` from the raw SQL and add it as a LINQ operator: `.OrderBy(e => e.CreatedAt)` after `FromSqlRaw(...)`. Use `ToQueryString()` to inspect the full composed SQL before running in production.
+
+---
+
+#### Gotcha 7. `FromSqlRaw` does not load navigation properties — `Include` required for related data
+
+**Concepts**
+- `FromSqlRaw` maps column values to entity properties only
+- no automatic navigation property loading from raw SQL result
+- `FromSqlRaw(...).Include(e => e.Category)` for eager loading after raw SQL
+- navigation loaded via separate EF query after materialization
+- lazy loading after raw SQL: context must still be open
+
+**Answer**
+
+`FromSqlRaw` maps the SQL result set to entity properties but does not automatically load navigation properties. `product.Category` is null after `context.Products.FromSqlRaw(...)` unless `.Include(p => p.Category)` is chained. EF Core translates the `Include` into an additional join or split query wrapping the raw SQL. Always add required `Include` clauses after `FromSqlRaw` the same way you would after a LINQ query — the navigation loading behavior is identical.
+
+---
+
+#### Gotcha 8. Raw SQL bypasses EF Core concurrency token check — lost update possible
+
+**Concepts**
+- EF Core appends `WHERE RowVersion = @orig` for tracked entity UPDATE
+- `ExecuteSqlRawAsync("UPDATE Products SET Price = @p WHERE Id = @id")` omits concurrency check
+- concurrent write between read and raw SQL update not detected
+- raw SQL with optimistic concurrency must manually check `@@ROWCOUNT`
+- mixing tracked entity updates and raw SQL on same rows creates concurrency gaps
+
+**Answer**
+
+When an entity has a `[Timestamp]` concurrency token, EF Core's `SaveChanges` appends `WHERE RowVersion = @original` to the UPDATE to detect concurrent modifications. `ExecuteSqlRawAsync` bypasses EF Core entirely and does not apply this concurrency check — two concurrent raw SQL updates on the same row will silently overwrite each other. When using raw SQL for updates on entities with concurrency tokens, manually include the RowVersion check in the WHERE clause and check `@@ROWCOUNT` to detect conflicts.
+
+---
+
+#### Gotcha 9. `FromSqlInterpolated` parameter names auto-generated — debugging composed queries is harder
+
+**Concepts**
+- `FromSqlInterpolated` generates parameter names `p0`, `p1`, `p2` etc.
+- generated SQL is less readable in profiler and logs
+- `@p0 = 5, @p1 = 'Electronics'` with no named context
+- `FromSqlRaw` with named `SqlParameter` objects for named parameters
+- `TagWith("GetProductsByCategory")` to annotate the query in SQL logs
+
+**Answer**
+
+`FromSqlInterpolated` converts interpolation holes to parameters named `@p0`, `@p1`, etc. When examining this query in SQL Profiler or EF Core logs, the parameter names carry no semantic meaning — `@p0 = 5` is less debuggable than `@categoryId = 5`. For complex raw SQL queries that will be profiled heavily, use `FromSqlRaw` with explicitly named `SqlParameter` objects to produce readable parameter names. Add `.TagWith("GetProductsByCategory")` to annotate the query with a comment visible in SQL logs to correlate the SQL back to the code.
+
+---
+
+#### Gotcha 10. Database-generated column values from SP not reflected in tracked entity after `FromSqlRaw`
+
+**Concepts**
+- SP may update columns (triggers, defaults, computed) not in the result set
+- tracked entity holds stale property values after SP execution
+- EF Core does not re-read all columns after `FromSqlRaw`
+- `ReloadAsync()` on the tracked entity to refresh from database
+- `AsNoTracking()` on `FromSqlRaw` for read-only use to avoid stale tracking
+
+**Answer**
+
+A stored procedure executed via `FromSqlRaw` may modify columns (via triggers, updated-by timestamps, or side-effect updates) that are not in the returned result set. EF Core maps the returned columns to the tracked entity but does not re-read columns absent from the result. The tracked entity holds stale values for those columns after the SP runs. Call `await context.Entry(entity).ReloadAsync()` after `FromSqlRaw` execution to refresh all properties from the current database state, or use `AsNoTracking()` on the `FromSqlRaw` query for read-only scenarios to avoid tracking altogether.
 
 ---
 

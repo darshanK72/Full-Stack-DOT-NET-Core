@@ -426,3 +426,147 @@ Key Vault emits diagnostic logs to Log Analytics, Azure Monitor, or Event Hub re
 Developers often believe that calling `AddAzureKeyVault` encrypts or sanitizes all configuration, when in reality it only supplies additional key-value pairs from the vault — any secret still present in committed `appsettings.json`, logged environment variables, or verbose exception messages remains exposed. `AddAzureKeyVault` does not delete or override secrets that exist only in JSON unless the same key is also defined in the vault with higher provider precedence, so placeholders in Git are still visible to anyone with repository access. A second common mistake is startup-level configuration logging: if developers indiscriminately log `IConfiguration` keys at `Debug` level, secret values can be printed to Application Insights traces. Local development often still loads user secrets and JSON that are shipped to production without review, reintroducing plaintext credentials beside the vault integration. A complete security model stores authoritative values in Key Vault, keeps JSON free of secrets, uses managed identity at runtime, audits vault access, and rotates versions on a schedule — `AddAzureKeyVault` is one step in that chain, not the whole solution.
 
 ---
+
+## Gotchas — Azure Key Vault (Interview Traps)
+
+---
+
+#### Gotcha 1. Managed identity not assigned to the resource — DefaultAzureCredential loops through all credential sources and gives a confusing error
+
+**Concepts**
+- `DefaultAzureCredential` tries multiple credential sources in order before failing
+- Missing managed identity assignment causes all sources to fail with individual errors
+- The aggregated exception message lists every source that was tried, which obscures the root cause
+- `ManagedIdentityCredential` directly is faster to diagnose
+
+**Answer**
+
+When a managed identity is not enabled or not assigned to an App Service or Azure Function, `DefaultAzureCredential` cycles through all built-in credential sources (environment variables, workload identity, managed identity, Visual Studio, Azure CLI, etc.) before raising an `AuthenticationFailedException` that lists every source and its individual failure reason. The actual root cause — managed identity not assigned — is buried inside a long multi-paragraph error message. Using `ManagedIdentityCredential` directly in production accelerates diagnosis because it fails immediately with a single message instead of exhausting all alternatives first.
+
+---
+
+#### Gotcha 2. Key Vault soft-delete cannot be disabled — a vault deleted by mistake is not gone and must be purged explicitly
+
+**Concepts**
+- Soft-delete retains deleted Key Vaults in a recoverable state for 7–90 days
+- Soft-delete has been mandatory since 2021 and cannot be disabled
+- A deleted vault with the same name blocks re-creation until purged
+- Purge protection, if enabled, prevents even manual purge for the retention period
+
+**Answer**
+
+Azure Key Vault soft-delete is now enforced on all vaults and cannot be disabled. When a Key Vault is deleted it enters a soft-deleted state and is retained for the configured retention period (7–90 days). If you try to create a new vault with the same name in the same region and subscription, the creation fails because the soft-deleted vault still occupies the name. The fix is to explicitly purge the soft-deleted vault using `az keyvault purge` before recreating with the same name. If purge protection is also enabled, you cannot purge the vault at all during the retention period, which means the name is locked for weeks.
+
+---
+
+#### Gotcha 3. Key Vault reference syntax in App Service requires Key Vault Secrets User role on the specific secret — vault-level role is not enough
+
+**Concepts**
+- App Service Key Vault references use the format `@Microsoft.KeyVault(SecretUri=...)`
+- The managed identity needs "Key Vault Secrets User" role
+- RBAC on the vault alone may not be sufficient; role must include the secret path
+- Reference resolution failure shows as `@Microsoft.KeyVault(...)` in the app setting value at runtime
+
+**Answer**
+
+App Service Key Vault references resolve at startup using the app's managed identity. For the reference to resolve successfully, the identity needs the "Key Vault Secrets User" role. This role can be assigned at the vault level (granting access to all secrets) or at the individual secret level for least-privilege access. A common trap is assigning a vault-level role such as "Reader" that does not include the `get` permission on secrets, which causes the reference to fail to resolve. At runtime an unresolved Key Vault reference is visible as the literal `@Microsoft.KeyVault(...)` string in the application setting value, not an error message.
+
+---
+
+#### Gotcha 4. Pinning a specific secret version in the Key Vault reference URI prevents automatic rotation
+
+**Concepts**
+- Key Vault reference URIs can include a version GUID (`/secrets/MySecret/<version>`) or omit it for the latest
+- A version-pinned reference always returns that specific version regardless of rotation
+- Omitting the version returns the current latest secret, enabling automatic rotation
+- Re-deploying with a new version URI is required if the version is pinned
+
+**Answer**
+
+A Key Vault secret URI has the form `https://<vault>.vault.azure.net/secrets/<name>/<version>`. When a Key Vault reference in App Service includes the version GUID, the reference is pinned to that exact secret version and does not pick up new versions created during secret rotation. Teams that implement secret rotation by creating a new secret version discover that the App Service continues reading the old pinned version until the application is redeployed with the updated URI. Omitting the version from the reference URI (`/secrets/<name>` with no trailing version) causes the reference to always resolve to the latest version and picks up rotation automatically after a brief cache refresh.
+
+---
+
+#### Gotcha 5. Key Vault Firewall enabled without VNet Service Endpoint blocks App Service connections
+
+**Concepts**
+- Key Vault firewall can be restricted to specific IP ranges or VNet Service Endpoints
+- App Service does not have a static outbound IP by default; IPs change during scale events
+- "Allow trusted Microsoft services" does not cover App Service by default
+- VNet integration with a VNet Service Endpoint on Key Vault is the production pattern
+
+**Answer**
+
+Enabling the Key Vault firewall and specifying allowed IP ranges requires knowing the App Service's outbound IP addresses, which are stable within an App Service Plan but change if the plan is migrated or if the app is moved to a different plan. Adding individual IPs is fragile; a scale event or plan migration changes the IPs and breaks connectivity. The "Allow trusted Microsoft services" toggle does not cover App Service in all scenarios. The production pattern is to enable VNet integration on the App Service and configure a VNet Service Endpoint on Key Vault so that traffic from the App Service's delegated subnet is permitted without relying on static IPs.
+
+---
+
+#### Gotcha 6. AddAzureKeyVault loads all secrets at startup — large vaults with hundreds of secrets cause slow cold starts
+
+**Concepts**
+- `AddAzureKeyVault()` in `Program.cs` pages through all secrets in the vault on startup
+- A vault with 500+ secrets causes several seconds of additional startup delay
+- Throttling on Key Vault (2,000 requests per 10 seconds) can fail startup if multiple instances start simultaneously
+- Secret prefix filtering or a custom `AzureKeyVaultConfigurationOptions` loads only needed secrets
+
+**Answer**
+
+`builder.Configuration.AddAzureKeyVault()` enumerates every secret in the vault at application startup and loads them all into the configuration system. For a vault that holds secrets for multiple teams or applications across hundreds of entries, this causes noticeable cold start delay and risks hitting Key Vault's request throttle limit (2,000 requests per 10 seconds) when multiple App Service instances start simultaneously during scale-out. The `AzureKeyVaultConfigurationOptions.Manager` property accepts a custom `KeyVaultSecretManager` that filters secrets by prefix so only the secrets belonging to the current application are loaded, dramatically reducing startup time and request volume.
+
+---
+
+#### Gotcha 7. Key Vault secret names use hyphens but IConfiguration maps them with double underscore — hierarchical keys don't round-trip
+
+**Concepts**
+- Key Vault secret names can contain hyphens but not colons or double underscores
+- `AddAzureKeyVault` default manager replaces `--` (double hyphen) with `:` for hierarchical keys
+- `MyApp--Database--ConnectionString` maps to `MyApp:Database:ConnectionString`
+- A secret named `MyApp:Database:ConnectionString` is invalid in Key Vault
+
+**Answer**
+
+Azure Key Vault secret names may contain letters, numbers, and hyphens, but not colons. The default Key Vault configuration provider for .NET (`KeyVaultSecretManager`) translates double hyphens (`--`) to colon separators (`:`) when loading secrets into IConfiguration. A secret named `MyApp--Database--ConnectionString` becomes `Configuration["MyApp:Database:ConnectionString"]`. Developers who name secrets with single hyphens (`MyApp-Database-ConnectionString`) and then try to read them as hierarchical configuration keys (`Configuration["MyApp:Database:ConnectionString"]`) get null because single hyphens are not translated. Only double hyphens trigger the section-separator mapping.
+
+---
+
+#### Gotcha 8. Key Vault access policies and RBAC are separate authorization models — mixing them causes unexpected access denials
+
+**Concepts**
+- Legacy Key Vault access policies (vault policy model) are separate from Azure RBAC
+- A vault set to "Vault access policy" model ignores RBAC role assignments on the vault resource
+- A vault set to "Azure role-based access control" model ignores vault access policies
+- Migrating from access policies to RBAC requires explicit migration and removes all existing policies
+
+**Answer**
+
+Key Vault supports two authorization models: the legacy "vault access policy" model and the newer "Azure role-based access control" model. These are mutually exclusive per vault; the active model is set in the vault's Properties. A managed identity granted "Key Vault Secrets User" via Azure RBAC on a vault that is still using the vault access policy model has no effective access, because RBAC assignments are ignored. Conversely, a vault access policy entry has no effect on a vault switched to RBAC model. When troubleshooting Key Vault access denials, the first thing to check is which authorization model the vault is using and whether the identity's permissions match that model.
+
+---
+
+#### Gotcha 9. Key Vault SDK throttles at 2,000 requests per 10 seconds — applications that fetch secrets per request hit the limit
+
+**Concepts**
+- Key Vault has service-level throttling at 2,000 GET requests per 10 seconds per vault
+- Applications that call `GetSecretAsync` on every HTTP request exceed this limit under moderate load
+- `SecretClient` caches are not built-in; the caller must implement caching
+- `AddAzureKeyVault` in Program.cs loads at startup and respects the cache — per-request calls do not
+
+**Answer**
+
+Azure Key Vault enforces a throttling limit of 2,000 GET requests per 10 seconds per vault. An application that calls `SecretClient.GetSecretAsync("connectionString")` inside a controller action or service method on every incoming HTTP request will hit this limit under moderate production traffic (200 requests per second to the app means 200 Key Vault calls per second). The `SecretClient` does not cache results internally; callers must implement their own caching using `IMemoryCache` or the `AddAzureKeyVault` configuration provider which loads at startup. Key Vault is designed for startup configuration loading and secret rotation, not as a per-request secrets store.
+
+---
+
+#### Gotcha 10. Certificates stored as Key Vault secrets return the full PEM chain — reading only the first certificate misses intermediate CA certificates
+
+**Concepts**
+- Key Vault certificates stored as secrets return base64-encoded PFX or PEM including the full chain
+- `X509Certificate2` loaded from the full chain must use the correct constructor flag for chain inclusion
+- Missing intermediate CA certificates causes TLS handshake failures in strict clients
+- The Key Vault certificate object and the secret representation have different access paths
+
+**Answer**
+
+When you store a TLS certificate in Key Vault, it is accessible both as a Key Vault Certificate object and as a Secret that returns the full certificate chain in PEM or PFX format. Code that reads the secret and loads only the leaf certificate (the first certificate in the chain) without including intermediate CA certificates can cause TLS handshake failures with clients that do strict chain validation. The correct approach is to read the full PFX bytes and use `new X509Certificate2(bytes, password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable)` which preserves the complete chain. Also note the Key Vault Certificate API and the Key Vault Secret API return different formats, and code that uses one when the other is expected produces decoding errors.
+
+---

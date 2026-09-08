@@ -556,3 +556,144 @@ A readiness probe tells Kubernetes whether the pod is ready to accept traffic �
 A service mesh or smart load balancer provides infrastructure-layer resilience — retry, timeout, circuit breaking, and load balancing — transparently to all services in the mesh without any application code changes. Application-layer resilience implemented with Polly or `Microsoft.Extensions.Http.Resilience` runs within the service process and can be aware of business logic, response content, and request context in ways that the infrastructure layer cannot. Infrastructure-layer retry is useful for basic transport-level transient faults such as TCP resets or brief DNS resolution failures and requires no deployment of new application code, but it cannot distinguish between a retryable application-level 500 and a non-retryable business-logic 500 — both look the same to the sidecar proxy. Application-layer resilience can inspect the response body, log structured correlation data, and decide whether a 500 is retryable based on error codes in the JSON payload — nuance that a generic mesh proxy cannot perform. The two layers are complementary: infrastructure retry handles transport-level failures and eliminates the need for redundant retry logic in every service, while application-layer circuit breaking, fallbacks, and hedging handle the richer failure semantics that only the application understands.
 
 ---
+
+## Gotchas — Resilience & Circuit Breaker (Interview Traps)
+
+---
+
+#### Gotcha 1. Circuit Breaker Threshold Too Sensitive
+
+**Concepts**
+- Low failure threshold opening the circuit on the first brief error burst
+- Transient network blip tripping a permanent circuit break
+- Minimum throughput requirement before circuit can open
+- Sampling window duration and failure rate percentage
+
+**Answer**
+
+A circuit breaker configured with `FailureRatio: 0.1` and `SamplingDuration: 2s` will open on one failure in a two-second window when traffic is low — a single transient timeout trips the circuit and all subsequent requests immediately fail open without ever reaching the dependency. The circuit breaker threshold must have both a minimum throughput requirement (`MinimumThroughput: 10`) and a sufficient sampling window so it opens only on a sustained failure pattern rather than a brief spike. Setting `MinimumThroughput` ensures the circuit does not open after a single failure during a low-traffic period, and a longer sampling duration (10–30 seconds) filters out brief transient errors from genuine dependency failures.
+
+---
+
+#### Gotcha 2. Retry Without Jitter Causing Thundering Herd
+
+**Concepts**
+- All callers retrying simultaneously after the same fixed delay
+- Coordinated retry load spike overwhelming the recovering dependency
+- Exponential backoff with jitter spreading retries over time
+- DecorrelatedJitterBackoffV2 as the recommended .NET strategy
+
+**Answer**
+
+A retry policy with fixed delays (`WaitAndRetry: 1s, 2s, 4s`) causes all failed callers to retry simultaneously at the same moment — if a dependency fails for 2 seconds, hundreds of callers retry at exactly 2 seconds, 4 seconds, and 8 seconds, generating coordinated load spikes that can prevent the recovering dependency from stabilising. Adding jitter randomises each caller's retry delay so retries are spread across a time window: `WaitAndRetryAsync(3, _ => TimeSpan.FromSeconds(Math.Pow(2, _) + Random.Shared.NextDouble()))` or Polly's `DecorrelatedJitterBackoffV2`. The jitter breaks the synchronisation so the recovering service receives a gentle ramp of retries rather than a thundering herd at each backoff interval.
+
+---
+
+#### Gotcha 3. No Bulkhead Isolation Between Callers of Different Dependencies
+
+**Concepts**
+- All downstream calls sharing the same thread pool or connection pool
+- Slow dependency exhausting shared resources and starving fast dependency calls
+- Bulkhead policy limiting concurrent calls per dependency
+- Semaphore-based bulkhead isolating each integration point
+
+**Answer**
+
+Without bulkhead isolation, a slow or failing dependency monopolises the thread pool or connection pool used by all outgoing calls — a blocked inventory service call consumes threads that would otherwise handle payment service calls and customer service calls, and the entire service grinds to a halt even though only one of its dependencies is unhealthy. A Polly `BulkheadAsync` policy (or `ConcurrencyLimiter` in `Microsoft.Extensions.Http.Resilience`) limits the maximum number of concurrent calls to a specific dependency and queues or rejects excess calls beyond the limit. This ensures that a slow dependency affects only its own bounded pool of threads, leaving sufficient capacity for all other integration points to operate normally.
+
+---
+
+#### Gotcha 4. Polly Policy Not Applied to the HttpClient Message Handler
+
+**Concepts**
+- Polly policy defined but not registered on the HttpClient pipeline
+- Policy object created but never wrapping the actual HTTP call
+- AddPolicyHandler vs ExecuteAsync wrapping a manual HttpClient call
+- Microsoft.Extensions.Http.Resilience as the integration pattern
+
+**Answer**
+
+A common mistake is creating a Polly retry policy with `Policy.Handle<HttpRequestException>().WaitAndRetryAsync(3, ...)` and then never hooking it into the HTTP call — the policy object exists but the `HttpClient` makes unprotected calls. The correct integration is `services.AddHttpClient<IMyService, MyService>().AddPolicyHandler(GetRetryPolicy())` or the newer `services.AddHttpClient<IMyService, MyService>().AddStandardResilienceHandler()` from `Microsoft.Extensions.Http.Resilience`, which registers the policy as a `DelegatingHandler` in the `HttpClient` pipeline so every request automatically passes through it. A policy that is only executed via `policy.ExecuteAsync(() => _httpClient.GetAsync(...))` scattered through service code is inconsistently applied and hard to centralise or update.
+
+---
+
+#### Gotcha 5. Retrying Non-Transient Errors
+
+**Concepts**
+- 400 Bad Request and 404 Not Found as non-retryable errors
+- Retry wasting time on errors that cannot succeed on retry
+- ShouldHandle predicate filtering retryable status codes
+- Exponential cost of three retries on every 400 request
+
+**Answer**
+
+A retry policy that retries on all `HttpRequestException` or all non-2xx status codes will retry `400 Bad Request` (invalid input that won't change), `401 Unauthorized` (expired token that won't auto-refresh), and `404 Not Found` (resource that doesn't exist) — all of which will fail identically on every retry, adding three times the latency while providing no value. The retry policy's `ShouldHandle` predicate must enumerate specifically retryable conditions: `HttpRequestException` (network-level failures), `TaskCanceledException` (timeouts), and specific HTTP status codes like `408 Request Timeout`, `429 Too Many Requests`, `502 Bad Gateway`, `503 Service Unavailable`, and `504 Gateway Timeout`. Status codes like 400, 401, 403, 404, and 409 are not retryable and must be excluded.
+
+---
+
+#### Gotcha 6. Circuit Breaker Not Shared Across All Callers of a Dependency
+
+**Concepts**
+- Per-request circuit breaker state reset between calls
+- Shared circuit breaker state reflecting the real dependency health
+- IHttpClientFactory creating new HttpClient instances with per-instance policies
+- Named HttpClient with shared policy state via Polly Context
+
+**Answer**
+
+A circuit breaker instantiated as `new` inside a service constructor or method has fresh state on every instantiation — after two failures it never opens because a new instance starts in the closed state. The circuit breaker must be a singleton shared by all callers of the same dependency so the failure count accumulates across all requests and correctly reflects the dependency's health. With `IHttpClientFactory`, registering the circuit breaker via `AddPolicyHandler` attaches it as part of the named client's handler pipeline where the policy instance is shared across all uses of that named client. Polly's `PolicyRegistry` provides a named singleton policy store for cases where policies are shared outside of `IHttpClientFactory`.
+
+---
+
+#### Gotcha 7. Timeout Not Set on Downstream HTTP Calls
+
+**Concepts**
+- Default HttpClient timeout of 100 seconds holding thread for 100 seconds
+- Cascading timeout causing caller service to also time out
+- TimeoutPolicy in Polly versus HttpClient.Timeout
+- Aggressive per-request timeout as the first defence
+
+**Answer**
+
+`HttpClient.Timeout` defaults to 100 seconds — a downstream service that is hanging will hold a caller thread for nearly two minutes before timing out, and with enough concurrent requests this exhausts the caller's thread pool entirely. A Polly `TimeoutAsync(5)` policy on each downstream call enforces a 5-second per-request timeout regardless of `HttpClient.Timeout`, giving the circuit breaker enough failures to open quickly and preventing thread pool exhaustion. The `TimeoutPolicy` should be placed outside the retry policy in the Polly policy wrap so the timeout applies to each individual attempt, not to the total retry duration.
+
+---
+
+#### Gotcha 8. Fallback Silently Hiding Real Errors From Metrics
+
+**Concepts**
+- Fallback returning default value making the dependency failure invisible
+- Error rate metric showing 0% despite frequent dependency failures
+- Fallback logged and recorded as a metric even when returning a value
+- Alerting on fallback activation, not just on unhandled errors
+
+**Answer**
+
+A Polly fallback policy that catches all exceptions and returns a cached or default value prevents errors from propagating to the caller — which is the intent — but also prevents them from appearing in error rate metrics and alerts. A dashboard showing 0% error rate while the fallback silently returns stale data for every request masks the dependency failure completely. Every fallback activation must be recorded as a named metric (`fallback_triggered_total{dependency="payment"}`) and logged at warning or error level so monitoring dashboards and alerting rules can detect sustained fallback usage. The fallback should be treated as an operational event requiring attention, not a silent default value return.
+
+---
+
+#### Gotcha 9. Hedged Request Not Cancelled When First Response Arrives
+
+**Concepts**
+- Hedging sending duplicate requests to reduce tail latency
+- All hedged requests completing after first response wastes resources
+- CancellationToken cancelling slow duplicates when winner responds
+- Hedging budget versus per-request overhead trade-off
+
+**Answer**
+
+Hedged requests — sending a duplicate request after a delay to reduce tail latency — must cancel the slower duplicate immediately when the first response arrives. If the winning response is received and the hedged duplicate is not cancelled, both requests complete on the downstream service — doubling or tripling load on an already-slow dependency. Polly's `HedgingAsync` policy handles this automatically by passing a `CancellationToken` to all hedged attempts and cancelling outstanding duplicates when the winning attempt completes. Without cancellation, hedging degrades into unconditional load multiplication that worsens the dependency's condition under stress.
+
+---
+
+#### Gotcha 10. Resilience Policy Applied to Non-Idempotent Operations
+
+**Concepts**
+- Retry on POST creating duplicate resources on the server
+- Non-idempotent operations requiring idempotency key, not just retry
+**Answer**
+
+A retry policy applied to a `POST` request that creates an order will create duplicate orders if the first request succeeded on the server but the response was lost in transit — the retry sees a network failure but the server already committed the create. Non-idempotent operations should not be retried without an idempotency key: the client generates a stable GUID for the operation, includes it as `Idempotency-Key: <guid>` in the request, and the server stores the key with its response so that duplicate requests with the same key are deduplicated and return the cached response. Only `GET`, `HEAD`, `PUT`, and `DELETE` are naturally idempotent and safe to retry without an idempotency key; `POST` and `PATCH` require server-side idempotency support before retry is safe.
+
+---

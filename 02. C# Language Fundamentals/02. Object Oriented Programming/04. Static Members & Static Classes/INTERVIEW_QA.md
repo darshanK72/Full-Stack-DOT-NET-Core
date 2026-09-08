@@ -208,67 +208,156 @@ A static class and a manual Singleton both provide a single globally-accessible 
 
 ---
 
-## Gotcha Questions
+## Gotchas — Static Members & Static Classes (Interview Traps)
 
 ---
 
-## Q13. A static field in an ASP.NET Core controller stores the "current user's cart" to avoid DI. What specific failure mode will occur under concurrent requests?
+#### Gotcha 1. Static fields are shared across all threads — concurrent mutation without synchronization corrupts state
 
 **Concepts**
-- Static field is process-wide, not request-scoped
-- All threads read and write the same field
-- Non-atomic list mutation
-- Request cross-contamination
-- No cleanup between requests
+- Static field has one copy per AppDomain
+- All threads access the same location
+- Non-atomic operations cause races
+- `lock` or `Interlocked` for thread safety
+- No per-request isolation
 
 **Answer**
 
-An ASP.NET Core application handles multiple HTTP requests concurrently on different thread-pool threads. A static field that stores the current user's cart has exactly one copy shared by all of them. When request A calls `CartContext.SetCart(cartA)` and request B simultaneously calls `CartContext.SetCart(cartB)`, one write overwrites the other. Then when A reads `CartContext.GetTotal()`, it reads B's cart or a partial state if the write is not atomic. Users see each other's data, get wrong totals, and potentially perform financial operations on another user's items. Beyond correctness, mutable static `List<T>` accessed without synchronization can corrupt the list's internal state under concurrent add/remove, causing `IndexOutOfRangeException` in seemingly unrelated code. The fix is to use `HttpContext.Items` or a scoped DI service keyed per request — state that is isolated to the current request and cleaned up automatically when the request ends.
+A static field exists once in the process. When multiple threads read and write it concurrently without synchronization, the result is a data race — each thread can overwrite another's write or read a partially-written state. For counters, use `Interlocked.Increment`; for collections, use `ConcurrentDictionary`; for request-scoped data, use DI scoped services instead of static fields.
 
 ---
 
-## Q14. A static constructor reads a config file. What happens if the file is missing on the first deployment, and how can it be recovered without restarting?
+#### Gotcha 2. Static constructor faults permanently — TypeInitializationException on every subsequent access if it throws
 
 **Concepts**
-- `TypeInitializationException` wrapping the original exception
-- Type permanently faulted — no retry in same AppDomain
-- Application restart is the only CLR recovery
-- `Lazy<T>` allows retry on failure
-- Fail-fast vs recoverable initialization
+- Static ctor runs once per type per AppDomain
+- Exception marks type as permanently faulted
+- `TypeInitializationException` wraps the original
+- No retry possible — restart the process
+- `Lazy<T>` with `PublicationOnly` allows retries
 
 **Answer**
 
-If a static constructor throws, the CLR catches the exception, wraps it in `TypeInitializationException`, and marks the type as permanently faulted. Every subsequent attempt to use that type — in any code path, including error-handling retries — throws `TypeInitializationException` again without re-running the constructor. The only recovery is restarting the process (which creates a new `AppDomain`). This is catastrophic in a web service where you want to retry after a transient failure like a missing config file that gets deployed a few seconds later. The solution is to move I/O out of the static constructor and into `Lazy<T>`: `private static readonly Lazy<Config> _config = new(() => Config.Load(), LazyThreadSafetyMode.PublicationOnly)`. With `PublicationOnly`, if the factory throws, the `Lazy` allows the next access to retry the factory. Alternatively, use an explicit `Initialize()` or `TryInitialize()` static method that returns a result rather than throwing, called once at application startup where you can handle and retry failure properly.
+If a static constructor throws, the CLR marks the type as failed and wraps the exception in `TypeInitializationException`. Every later attempt to use any member of that type throws the same exception — there is no retry path without restarting the process. Move fallible I/O out of static constructors and into `Lazy<T>` or explicit `Initialize()` methods.
 
 ---
 
-## Q15. Why is `public static class TaxHelper` with a constructor and instance field a compile error?
+#### Gotcha 3. A static class cannot have instance constructors or instance fields — CS0710
 
 **Concepts**
-- Static class restriction: all members must be static
-- No instance constructor allowed on a static class
-- CS0710 — static class cannot have instance members
-- CS0106 — constructor cannot have instance access
-- Fix: remove `static` from class or remove instance state
+- Static classes: all members must be static
+- No instance can be created
+- CS0710 for instance members
+- Instance state belongs in a regular class or record
+- Utility classes vs service classes
 
 **Answer**
 
-The C# compiler enforces that every member of a static class is itself static. A constructor (other than the static constructor) is an instance constructor — it exists to initialize instance state — which is meaningless on a type that can never be instantiated. Similarly, an instance field (`private decimal _regionRate`) requires an instance to hold its value, but static classes have no instances. The compiler reports CS0710 for instance members in a static class. The class declaration `public static class TaxHelper` with `private decimal _regionRate` and `public TaxHelper(decimal r)` does not compile. The design fix depends on intent: if per-region state is needed, remove `static` from the class declaration and register it as a DI-scoped or transient service; if the class is truly stateless, remove the instance field and constructor entirely and pass the rate as a parameter to each static method — `public static decimal Calculate(decimal amount, decimal rate)`.
+The compiler enforces that every member of a `static class` is itself static. Adding an instance field or a non-static constructor causes CS0710. If per-instance state is needed, remove `static` from the class declaration and register it as a DI service. Reserve `static class` for pure stateless utility methods.
 
 ---
 
-## Q16. Why does registering `AuditLogger.Instance` as a singleton in DI and using a non-thread-safe `_entryCount++` field produce wrong log counts under load?
+#### Gotcha 4. Static constructors have no access modifier — adding one is a compile error
 
 **Concepts**
-- `_entryCount++` is not atomic
-- Shared singleton state across all requests
-- Race condition on read-modify-write
-- `Interlocked.Increment` as fix
-- Singleton in DI vs static Singleton anti-pattern
+- Access modifier not allowed on static ctors
+- CLR-controlled invocation only
+- CS0515 if access modifier present
+- Private is implied but not writable
+- Contrast with instance constructors
 
 **Answer**
 
-`_entryCount++` expands to a non-atomic read-modify-write sequence. When hundreds of concurrent requests all call `AuditLogger.Record(...)` simultaneously, multiple threads interleave their reads and writes, causing the counter to advance by fewer than the actual number of log entries recorded. The DI registration `AddSingleton(AuditLogger.Instance)` makes the matter worse: it registers the existing static instance, so there is no boundary between the static Singleton and the DI singleton — they are the same object. Even if you replace the counter with `Interlocked.Increment(ref _entryCount)` to fix atomicity, the `Console.WriteLine` call is not synchronized, meaning log entries can interleave mid-output under concurrent access. The production fix is to replace `AuditLogger` with a proper `ILogger<T>` from `Microsoft.Extensions.Logging`, which is thread-safe by design, registers cleanly in DI, can be replaced with a mock in tests, and integrates with structured logging sinks.
+Static constructors are invoked by the CLR, never directly by user code, so specifying an access modifier such as `public` or `private` on them is a CS0515 compile error. The static constructor is implicitly private to the CLR's type system — you write `static MyClass() { }` with no modifier.
+
+---
+
+#### Gotcha 5. static readonly field vs const — constants are embedded at call site, readonly fields are resolved at runtime
+
+**Concepts**
+- `const` value embedded in caller's IL
+- Changing `const` requires recompiling callers
+- `static readonly` resolved at runtime from the defining assembly
+- Breaking vs non-breaking versioning difference
+- `const` only for values stable across versions
+
+**Answer**
+
+A `const` value is baked into the caller's compiled IL; if the library changes the constant and only the library DLL is replaced, existing callers continue using the old value until recompiled. A `static readonly` field is read from the library at runtime, so callers always see the current value. Use `const` only for values guaranteed never to change (mathematical constants, fixed protocol codes), and prefer `static readonly` for everything else in a library.
+
+---
+
+#### Gotcha 6. Extension methods are static but dispatched as instance methods — null check is not automatic
+
+**Concepts**
+- Extension method receives `this` as first parameter
+- `null` can be passed as `this`
+- No NullReferenceException until the body accesses the value
+- Guard `this` parameter explicitly
+- Behaviour differs from instance method dispatch
+
+**Answer**
+
+An extension method `public static string Truncate(this string s, int max)` can be called as `nullString.Truncate(10)` without immediately throwing. The `null` is passed as the `s` parameter. If the body does not check for null before using `s`, you get a `NullReferenceException` inside the extension method, not at the call site, making the stack trace confusing. Always guard the `this` parameter: `if (s is null) return string.Empty;`.
+
+---
+
+#### Gotcha 7. Static methods on generic types share the static member only within the same closed type
+
+**Concepts**
+- `Cache<string>._count` is separate from `Cache<int>._count`
+- One static field per closed generic type
+- Surprising when expecting a shared counter
+- Intentional per-type caches are a valid pattern
+- Must use a non-generic class for truly shared static state
+
+**Answer**
+
+A static field in `Cache<T>` exists separately for each closed type: `Cache<string>._count` and `Cache<int>._count` are different fields. A counter intended to track all cache accesses across all `T` values will silently under-count because each closed type has its own copy. Place shared-across-all-T state in a non-generic companion class.
+
+---
+
+#### Gotcha 8. Singleton pattern via static field is hard to test — DI registered singleton is preferred
+
+**Concepts**
+- Static singleton cannot be replaced in tests
+- DI singleton is scoped to the container
+- Container lifetime control vs static lifetime
+- `AddSingleton<T>()` for DI-managed singletons
+- Static singleton survives test runs unless reset
+
+**Answer**
+
+A static singleton (`static readonly Lazy<T> _instance`) is a process-global object that cannot be swapped for a test double without reflection hacks. A DI-registered singleton (`services.AddSingleton<IService, Service>()`) is scoped to the container's lifetime, and tests can build their own container with a mock registered as the singleton. Always prefer DI singletons over static singletons for testability.
+
+---
+
+#### Gotcha 9. Static imports (using static) can shadow local names silently
+
+**Concepts**
+- `using static System.Math` brings `Abs`, `Sqrt`, etc. into scope
+- Name collision with local method resolved by proximity
+- Harder to trace which type owns the method
+- Use sparingly — especially in large files
+
+**Answer**
+
+`using static System.Math` lets you write `Sqrt(x)` instead of `Math.Sqrt(x)`. If the same file also defines a local method or imports another static class with a method named `Sqrt`, the compiler resolves the nearest scope, which may not be the one intended. The ambiguity is a compile error only when both are equally accessible; otherwise a method silently shadows another. Limit `using static` to small, focused files where all imported names are immediately obvious.
+
+---
+
+#### Gotcha 10. Calling a static method through an instance reference compiles but is misleading — the instance is ignored
+
+**Concepts**
+- `obj.StaticMethod()` compiles
+- Instance is not passed; only the type is used
+- Resharper and Roslyn warnings flag this
+- Misleads readers about dependency
+- Use `ClassName.StaticMethod()` for clarity
+
+**Answer**
+
+C# allows calling a static method through an instance reference (`obj.StaticMethod()`), but the compiler discards `obj` entirely and emits a call to the static method on the type. Any null-check or side effect you expect from dereferencing `obj` does not occur. Code analysis tools (Roslyn, ReSharper) warn about this pattern because it misleads readers into thinking there is an instance dependency. Always use `ClassName.StaticMethod()` for static calls.
 
 ---
 

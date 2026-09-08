@@ -344,6 +344,150 @@ When using EF Core, defining navigation properties on entities allows the framew
 
 ---
 
+## Gotchas — LINQ Joins (Interview Traps)
+
+---
+
+#### Gotcha 1. `join` in LINQ Is an Inner Join — Unmatched Elements Are Excluded
+
+**Concepts**
+- LINQ `join` returns only elements where both sides have a matching key
+- Elements from either sequence that have no match on the other side are silently dropped
+- This mirrors `INNER JOIN` in SQL
+- Use `join into` (group join) to simulate a left outer join and retain unmatched left elements
+
+**Answer**
+
+The `join` keyword in LINQ query syntax performs an inner join: only pairs where a key from the left sequence exactly equals a key from the right sequence appear in the result. Elements with no matching counterpart — on either side — are silently discarded. Developers accustomed to SQL who expect all records from one side to appear are surprised when results are shorter than the left-side source. To retain unmatched left elements, use `join ... into` combined with `DefaultIfEmpty()`.
+
+---
+
+#### Gotcha 2. `join into` Produces a Group Join (Left Outer Join Equivalent)
+
+**Concepts**
+- `join right in R on left.Id equals right.Id into grp` creates a group for each left element
+- `grp` contains all matching right elements — zero elements if no match (not excluded)
+- Adding `from r in grp.DefaultIfEmpty()` flattens the group into a left outer join
+- Without `DefaultIfEmpty()`, `grp` is an empty sequence for unmatched left elements
+
+**Answer**
+
+`join ... into g` (a group join) pairs each left element with a sequence of all matching right elements, even if that sequence is empty. This means unmatched left elements are not discarded — they appear with an empty `g`. Calling `from r in g.DefaultIfEmpty()` then flattens each group into individual rows, substituting `null` for the right-side element when there is no match. This three-clause pattern is the standard LINQ idiom for a SQL left outer join.
+
+---
+
+#### Gotcha 3. The Standard Left Outer Join Pattern Requires `DefaultIfEmpty()`
+
+**Concepts**
+- Pattern: `from l in Left join r in Right on l.Id equals r.Id into g from r in g.DefaultIfEmpty()`
+- `g.DefaultIfEmpty()` yields a single `null` element when `g` is empty
+- The result `r` is `null` for unmatched left rows — always null-check before accessing `r`
+- Omitting `DefaultIfEmpty()` makes it a group join returning `IEnumerable` groups, not individual rows
+
+**Answer**
+
+The canonical LINQ left outer join is: `from l in left join r in right on l.Id equals r.Id into g from r in g.DefaultIfEmpty() select new { l, r }`. The key is `DefaultIfEmpty()`, which ensures that even when `g` contains no elements (no match on the right), the inner `from` yields one iteration with `r = null`. Without it, the result type is `IGrouping<K,V>` groups rather than flat rows. Always null-check `r` in the projection: `r?.Name ?? "N/A"`.
+
+---
+
+#### Gotcha 4. Join Key Equality Uses `Equals`/`GetHashCode` — Custom Types Need Override
+
+**Concepts**
+- `join` uses the default equality comparer for the key type
+- Custom classes use reference equality by default unless `Equals`/`GetHashCode` are overridden
+- Two different instances with the same logical value will NOT match unless equality is overridden
+- Value types (structs) use structural equality by default
+
+**Answer**
+
+LINQ `join` determines key matches using the key type's `Equals` method. For class types that do not override `Equals`, the default is reference equality — two distinct instances with identical field values are not equal. A `join` on such a key type will never find matches even when the logical content is identical. Either override `Equals` and `GetHashCode` on the key class, implement `IEquatable<T>`, or project to a simple value type (such as an `int` or `string`) before joining.
+
+---
+
+#### Gotcha 5. Null Join Keys Never Match — Null Does Not Equal Null
+
+**Concepts**
+- `null == null` returns `false` for LINQ join key comparison (SQL semantics)
+- Elements with a null key on either side are excluded from the join result
+- This mirrors SQL where `NULL = NULL` is `FALSE` in `JOIN ON` conditions
+- Filter out nulls before joining if null-keyed elements should be handled separately
+
+**Answer**
+
+LINQ join key equality follows SQL semantics: `null` does not equal `null`. If two elements each have a null key, they will not be matched — both will be silently excluded from the inner join result. A developer who expects all orders with a null `CustomerId` to match all customers with a null `Id` will find zero matches. Remove or handle null-keyed elements explicitly with a `Where` filter before the join, or treat them as a special case after the join.
+
+---
+
+#### Gotcha 6. Cross Join in LINQ Uses Two `from` Clauses Without `on`
+
+**Concepts**
+- `from a in A from b in B select new { a, b }` produces every pair — A.Count × B.Count results
+- There is no `on` clause; this is NOT a join keyword, just two range variables
+- Output size grows multiplicatively — 100 × 100 = 10,000 rows
+- Cross joins are rarely intentional; adding an accidental second `from` is a common bug
+
+**Answer**
+
+A cross join in LINQ query syntax is written as `from a in A from b in B select new { a, b }` — two `from` clauses with no `join ... on` condition. Every element of `A` is paired with every element of `B`, producing `A.Count × B.Count` results. Accidentally adding a second `from` clause when a `join` was intended is a common source of unexpected result-set explosions. Always verify that a multi-source query has an appropriate `join ... on` condition.
+
+---
+
+#### Gotcha 7. LINQ `join` vs. `SelectMany` + `Where` — Same Result, Different Readability
+
+**Concepts**
+- `from a in A from b in B where a.Id == b.AId select new { a, b }` is equivalent to `join`
+- Both produce the same result for equi-joins on the same key
+- The `join` keyword is more expressive and signals intent clearly
+- EF Core translates both to `INNER JOIN` in SQL
+
+**Answer**
+
+A LINQ `join` is semantically equivalent to a `SelectMany` followed by a `Where` filter on equal keys: `from a in A from b in B where a.Id == b.AId select ...` produces the same rows as `from a in A join b in B on a.Id equals b.AId select ...`. The `join` syntax is preferred for readability and intent communication. On `IQueryable<T>`, EF Core translates both to `INNER JOIN`, but the `join` form makes the intent auditable at a glance.
+
+---
+
+#### Gotcha 8. In EF Core, Navigation Properties Are Preferred Over Explicit `join`
+
+**Concepts**
+- EF Core navigation properties let you write `order.Customer.Name` without an explicit join
+- EF Core translates navigation property access to `LEFT JOIN` or `INNER JOIN` as appropriate
+- Explicit `join` in EF Core is necessary only when joining tables not connected by a navigation property
+- Navigation properties also support lazy loading and eager loading via `Include`
+
+**Answer**
+
+In EF Core, relationships between entities are modeled as navigation properties, and the framework knows how to translate `dbContext.Orders.Select(o => o.Customer.Name)` to a SQL join without an explicit `join` clause. Writing an explicit LINQ `join` in EF Core is error-prone and verbose when a navigation property already expresses the relationship. Reserve explicit `join` for cases where entities lack a navigation property — for example, joining to a lookup table not in the EF model.
+
+---
+
+#### Gotcha 9. Multi-Key Joins Use Anonymous Type Equality
+
+**Concepts**
+- `on new { a.K1, a.K2 } equals new { b.K1, b.K2 }` joins on two keys simultaneously
+- Anonymous types with the same property names and types are considered equal by the compiler
+- Both sides of `equals` must have the same anonymous type shape
+- EF Core translates multi-key joins to `ON a.K1 = b.K1 AND a.K2 = b.K2`
+
+**Answer**
+
+When a join requires matching on more than one key, LINQ does not provide a direct multi-column syntax — instead, you project both keys into an anonymous type on each side: `join b in B on new { a.K1, a.K2 } equals new { b.K1, b.K2 }`. The C# compiler generates `Equals` and `GetHashCode` for anonymous types based on all their properties, so two anonymous type instances with the same values are considered equal, making the multi-key join work correctly. Both property names and types must match exactly on both sides.
+
+---
+
+#### Gotcha 10. Avoid Method Calls in Join Key Selectors — They Are Called Per Element
+
+**Concepts**
+- The key selector is invoked once per element when building the hash lookup for the join
+- Expensive method calls (string parsing, database lookups, reflection) in key selectors multiply cost
+- Computed keys that produce non-deterministic results per call break the join
+- Pre-compute and store the key in a projection before joining
+
+**Answer**
+
+LINQ's hash-join implementation calls the key selector once for each element in the inner sequence when building the hash lookup, and once for each element in the outer sequence when probing it. Placing an expensive computation — such as parsing a date string or calling a remote service — inside a key selector multiplies that cost by the sequence size. Pre-compute the key with an intermediate `Select` projection before the join: `var prepared = source.Select(x => new { x, Key = Compute(x) })` then join on `prepared.Key`.
+
+---
+
 ## Q15. Scenario: A report shows duplicate customer rows after a join. How do you debug it? (Scenario)
 
 **Concepts**

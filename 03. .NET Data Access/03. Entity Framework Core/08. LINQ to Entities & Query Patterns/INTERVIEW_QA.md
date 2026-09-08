@@ -147,46 +147,157 @@ Enable sensitive logging and log EF Core database commands to the console or you
 
 ---
 
-## Gotchas
+## Gotchas — LINQ to Entities & Query Patterns (Interview Traps)
 
 ---
 
-## Gotcha 11. N+1 from lazy load or missing Include
+#### Gotcha 1. `AsEnumerable()` before `Where` — full table loaded into memory for client-side filter
 
 **Concepts**
-- N+1 from missing Include in loop
-- one query per parent row multiplication
-- eager loading and projection as fixes
+- `AsEnumerable()` switches from IQueryable to LINQ-to-Objects
+- every row fetched before the filter runs in memory
+- OOM risk under production data volumes
+- EF Core 3+ throws `InvalidOperationException` for untranslatable predicates instead of silent evaluation
+- rewrite predicate as translatable or use raw SQL
 
 **Answer**
 
-Listing parent entities then accessing navigation properties in a loop without eager loading or projection fires one SQL query per parent row — classic N+1 performance collapse in EF Core APIs. One query for N orders plus N queries for each order's lines equals N+1 round-trips per request; Fix with `Include`/`ThenInclude`, split queries, or `Select` projections that join needed data in one statement. EF Core command logging revealing identical query templates with different IDs signals N+1 immediately.
+Calling `AsEnumerable()` or `ToList()` before `Where` causes EF Core to emit `SELECT *` without a WHERE clause, pulling every row into memory before the filter runs in the application process. On a table with hundreds of thousands of rows this causes memory pressure and catastrophic latency. EF Core 3+ throws for untranslatable predicates in IQueryable `Where` rather than silently downloading whole tables. Always keep filter predicates on the IQueryable side — rewrite to translatable expressions, use `EF.Functions`, or use `FromSqlRaw` when the required predicate has no LINQ equivalent.
 
 ---
 
-## Gotcha 13. Client-side evaluation of LINQ
+#### Gotcha 2. `GroupBy` translated incorrectly — silent client-side aggregation
 
 **Concepts**
-- ToList before filter forces full table load
-- EF Core 3+ exception for accidental client evaluation
-- EF.Functions and translatable expression rewrites
+- complex `GroupBy` in EF Core may not translate to `GROUP BY` in SQL
+- EF Core pulls full table and groups in memory without warning
+- `Count()`, `Sum()`, `Average()` in a group selector may not translate
+- EF Core throws or falls back depending on version and complexity
+- raw SQL `GROUP BY` for complex aggregation as reliable alternative
 
 **Answer**
 
-Calling `ToList()` before filtering or using non-translatable C# logic in `Where` forces EF Core to pull entire tables into application memory — acceptable in development with small seeds, catastrophic in production at scale. EF Core 3+ throws on many accidental client evaluations instead of silently downloading whole tables; `AsEnumerable()` explicitly switches to LINQ to Objects — any following `Where` runs in memory. Rewrite with translatable expressions, `EF.Functions`, database-side filtering, or raw SQL for unsupported logic.
+EF Core's `GroupBy` translation has improved across versions but remains incomplete for complex grouping expressions. When EF Core cannot translate a `GroupBy` to SQL, it may pull all matching rows into memory and group them in the application — which is catastrophic for large tables. Verify every `GroupBy` query with `ToQueryString()` to inspect the generated SQL, and confirm that a `GROUP BY` clause appears. For complex aggregations (multiple levels, HAVING clauses, window functions), write raw SQL via `FromSqlRaw` or Dapper rather than relying on LINQ translation.
 
 ---
 
-## Gotcha 14. Tracking overhead on read-only queries
+#### Gotcha 3. `Skip()` / `Take()` without `OrderBy` — throws `InvalidOperationException`
 
 **Concepts**
-- change tracking snapshot overhead on read-only queries
-- AsNoTracking omission on GET endpoints
-- global QueryTrackingBehavior.NoTracking setting
+- EF Core requires `OrderBy` before `Skip`/`Take` for deterministic pagination
+- SQL Server `OFFSET-FETCH` requires `ORDER BY`
+- `InvalidOperationException: The query uses Skip/Take, which requires ordering`
+- consistent ordering required for keyset pagination as well
+- always `OrderBy` on a unique column for stable page results
 
 **Answer**
 
-Omitting `AsNoTracking()` on large read-only lists makes EF Core snapshot every entity for change detection that will never run, wasting memory and CPU on GET endpoints. Tracking stores original and current values per property for each row materialized; ASP.NET Core read services should default to `AsNoTracking()` plus DTO projection. Global `QueryTrackingBehavior.NoTracking` with explicit tracking on command paths prevents accidental overhead.
+EF Core throws `InvalidOperationException` when `Skip(n).Take(m)` is used without a preceding `OrderBy` because SQL Server's `OFFSET-FETCH` clause requires an `ORDER BY`. The result of pagination without ordering is also non-deterministic — different requests may return different rows in the same "page." Always add `.OrderBy(e => e.Id)` (or another stable, indexed column) before `.Skip()`, and prefer ordering on a unique column so that row ordering is deterministic and consistent across pages.
+
+---
+
+#### Gotcha 4. `String.Contains` case sensitivity depends on database collation, not C# semantics
+
+**Concepts**
+- `WHERE ProductName LIKE '%term%'` case sensitivity from database collation
+- C# `String.Contains(s, StringComparison.OrdinalIgnoreCase)` not translatable
+- `StringComparison` overloads in LINQ not supported by EF Core translator
+- `EF.Functions.ILike` for case-insensitive PostgreSQL search
+- SQL Server `COLLATE` hint or CI collation as case-insensitive fix
+
+**Answer**
+
+`context.Products.Where(p => p.Name.Contains("term"))` translates to `WHERE Name LIKE '%term%'`, but whether the LIKE is case-sensitive depends on the database collation, not C# semantics. On a case-sensitive collation, `Contains("Widget")` does not match `"widget"`. Passing `StringComparison.OrdinalIgnoreCase` throws because EF Core cannot translate the overload to SQL. For case-insensitive search, use a case-insensitive SQL Server collation on the column, or use `EF.Functions.Like(p.Name.ToLower(), "%term%")` — noting that `ToLower()` on the database column prevents index use.
+
+---
+
+#### Gotcha 5. `IQueryable<T>` stored in a variable and iterated after context disposal
+
+**Concepts**
+- `IQueryable<T>` stores the query expression, not the results
+- query executes when enumerated (ToList, foreach, FirstOrDefault)
+- context disposed before enumeration — `ObjectDisposedException`
+- returning `IQueryable` from repository and iterating outside context scope
+- always materialize with `ToListAsync` inside the context lifetime
+
+**Answer**
+
+`IQueryable<T>` is a deferred query — it stores the expression tree and executes against the database only when enumerated (via `ToListAsync`, `FirstOrDefaultAsync`, `foreach`, etc.). If an `IQueryable` is returned from a repository method and the `DbContext` is disposed before the caller iterates it, EF Core throws `ObjectDisposedException`. Always materialize the query with `await query.ToListAsync(ct)` inside the method that owns the context scope, and return `IReadOnlyList<T>` or `IEnumerable<T>` (already materialized) to callers.
+
+---
+
+#### Gotcha 6. Two separate LINQ queries where one join would suffice — extra database roundtrip
+
+**Concepts**
+- two sequential queries with separate await calls
+- first query result used as filter for second query (N+1 root cause)
+- single joined query or `Include` for one roundtrip
+- `Contains` translated to SQL `IN` for set-based filter in one trip
+- EF Core batching of dependent queries via `ExecuteAsync`
+
+**Answer**
+
+Loading parent entities then querying child entities in a second separate `await` call adds an unnecessary roundtrip. This is the N+1 pattern at the query level. Use `Include` for navigation properties, or write a single LINQ query with a `Join` or `SelectMany` that fetches both parent and child data in one SQL statement. When a second query must filter by IDs from the first, use `.Where(c => parentIds.Contains(c.ParentId))` — EF Core translates the `Contains` to a SQL `IN` clause, executing one query instead of N.
+
+---
+
+#### Gotcha 7. `FromSqlRaw` with C# string interpolation — SQL injection vulnerability
+
+**Concepts**
+- `FromSqlRaw` accepts raw SQL string — no automatic parameterization
+- C# interpolated string `$"WHERE Id = {id}"` in `FromSqlRaw` is injection risk
+- `FromSqlInterpolated` converts interpolation holes to SQL parameters safely
+- `EF.Parameter(value)` in raw SQL for explicit parameterization
+- code review must flag all `FromSqlRaw` calls with non-constant strings
+
+**Answer**
+
+`FromSqlRaw` passes the SQL string to the database as-is — passing a C# interpolated string `$"SELECT * FROM Products WHERE Id = {userInput}"` creates a SQL injection vulnerability. `FromSqlInterpolated` is the safe alternative that automatically converts interpolation holes to SQL parameters before sending to the database. Always use `FromSqlInterpolated` for user-supplied values, or pass pre-built `SqlParameter` objects to `FromSqlRaw`. Code review should treat every `FromSqlRaw` call with a non-constant string as a potential injection risk requiring explicit parameterization review.
+
+---
+
+#### Gotcha 8. `DateTime.Now` captured as constant in query — not evaluated per row
+
+**Concepts**
+- `DateTime.Now` in LINQ `Where` is captured and parameterized as a constant at query build time
+- value is the same for all rows in the result set
+- appropriate for "filter by current time" — not for per-row date comparison
+- `DateTime.UtcNow` vs `DateTime.Now` UTC mismatch with stored dates
+- `EF.Functions.DateDiffDay` for database-side date arithmetic
+
+**Answer**
+
+`context.Orders.Where(o => o.CreatedAt > DateTime.Now.AddDays(-7))` captures `DateTime.Now` once when the query is built and parameterizes it as a constant in the SQL — this is the correct behavior for time-windowed filters. However, storing `DateTime.Now` (local time) when the database stores UTC values produces silent date comparison errors. Always use `DateTime.UtcNow` for comparisons against UTC-stored columns, and use `EF.Functions.DateDiffDay` or `EF.Functions.DateDiffHour` for database-side date arithmetic that must account for time zones.
+
+---
+
+#### Gotcha 9. Projection to anonymous type includes navigation — still triggers N+1
+
+**Concepts**
+- `Select(o => new { o.Id, o.Customer.Name })` accesses navigation property
+- navigation not included → lazy load per row or null reference
+- projection must include navigation via `Include` or sub-query
+- `Select(o => new { o.Id, CustomerName = o.Customer!.Name })` with Include
+- `Select` with subquery vs `Include` → different SQL plans
+
+**Answer**
+
+`context.Orders.Select(o => new { o.Id, CustomerName = o.Customer.Name })` accesses the `Customer` navigation property inside the projection. Without `Include(o => o.Customer)`, EF Core either lazy-loads `Customer` per row (N+1 if lazy loading is on) or throws a `NullReferenceException` (if lazy loading is off). EF Core can often translate the navigation access in `Select` to a SQL JOIN automatically when the navigation is accessed directly in the projection — verify with `ToQueryString()` that a JOIN appears in the generated SQL rather than separate lazy load queries.
+
+---
+
+#### Gotcha 10. `ToListAsync` / `FirstAsync` from EF Core namespace — not from `System.Linq`
+
+**Concepts**
+- `ToListAsync` and `FirstOrDefaultAsync` are in `Microsoft.EntityFrameworkCore`
+- using `System.Linq` `ToList()` on an `IQueryable` runs synchronously
+- wrong namespace causes blocking instead of async execution
+- compiler picks non-async overload from `System.Linq` when EF namespace missing
+- `using Microsoft.EntityFrameworkCore;` required for async LINQ operators
+
+**Answer**
+
+`ToListAsync()`, `FirstOrDefaultAsync()`, `AnyAsync()`, and other async LINQ operators are EF Core extension methods in the `Microsoft.EntityFrameworkCore` namespace — they are not part of `System.Linq`. If the `using Microsoft.EntityFrameworkCore;` directive is missing, the compiler silently resolves `ToList()` (synchronous) instead of `ToListAsync()`, blocking the thread pool thread for the full query duration. Always verify the `using` directive is present and that the async overloads resolve to the EF Core namespace rather than `System.Linq`.
 
 ---
 

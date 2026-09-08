@@ -346,6 +346,150 @@ For custom `struct` types used as sort keys, `Comparer<T>.Default` checks whethe
 
 ---
 
+## Gotchas — Ordering (Interview Traps)
+
+---
+
+#### Gotcha 1. `OrderBy` in LINQ to Objects Is a Stable Sort
+
+**Concepts**
+- Stable sort: equal-keyed elements retain their original relative order
+- LINQ to Objects `OrderBy` and `OrderByDescending` are both stable
+- .NET's `Array.Sort` is NOT stable — it uses an unstable introspective sort
+- Stability matters when a secondary implicit order must be preserved
+
+**Answer**
+
+LINQ to Objects `OrderBy` uses a stable sort algorithm, meaning that elements with equal keys appear in the same relative order as in the original sequence. This is important when you want to sort by one key while preserving a prior ordering among ties. By contrast, `Array.Sort` is not stable, so combining raw array sorts with LINQ can produce surprising results if you rely on stability assumptions.
+
+---
+
+#### Gotcha 2. Chaining Two `OrderBy` Calls Discards the First Sort
+
+**Concepts**
+- `OrderBy(a).OrderBy(b)` applies two independent sorts; only the second sort survives
+- The second `OrderBy` creates a brand-new sorted sequence, ignoring the prior order
+- `OrderBy(a).ThenBy(b)` is the correct multi-key sort
+- `ThenBy` is only available on `IOrderedEnumerable<T>` — the return type of `OrderBy`
+
+**Answer**
+
+Calling `source.OrderBy(x => x.LastName).OrderBy(x => x.FirstName)` produces a sequence sorted solely by `FirstName` because the second `OrderBy` starts a completely new sort over the already-sorted sequence, discarding the first key entirely. To sort by `LastName` ascending and then by `FirstName` ascending for ties, write `source.OrderBy(x => x.LastName).ThenBy(x => x.FirstName)`. This is one of the most frequently cited LINQ ordering traps in interviews.
+
+---
+
+#### Gotcha 3. `OrderByDescending` + `ThenBy` Mixes Sort Directions
+
+**Concepts**
+- `OrderByDescending(primary).ThenBy(secondary)` — primary key descends, secondary key ascends
+- `ThenByDescending` makes the secondary key descend as well
+- The two directions are independent per key level
+- EF Core generates `ORDER BY primary DESC, secondary ASC` correctly from this pattern
+
+**Answer**
+
+`OrderByDescending` and `ThenBy` can be combined freely to produce mixed-direction sorts. `source.OrderByDescending(x => x.Score).ThenBy(x => x.Name)` sorts by score from highest to lowest, then alphabetically by name for ties. When translated by EF Core, this produces `ORDER BY Score DESC, Name ASC`. Developers who assume `OrderByDescending` makes all sort levels descending will incorrectly add `ThenByDescending` when ascending order on the secondary key is actually desired.
+
+---
+
+#### Gotcha 4. `OrderBy` Places `null` Values Before Non-Null Values for Reference Types
+
+**Concepts**
+- `null` compares as less than any non-null reference in the default comparer
+- `OrderBy` places `null` keys at the start of the ascending sequence
+- `OrderByDescending` places `null` keys at the end
+- To control null placement explicitly, use a custom `IComparer<T>` or a null-coalescing projection
+
+**Answer**
+
+When ordering a sequence of strings or other reference types that may be null, the default comparer treats `null` as less than any non-null value. An ascending `OrderBy` therefore places null-keyed elements first; a descending `OrderByDescending` places them last. If the requirement is to push nulls to the end regardless of sort direction, use a projection: `OrderBy(x => x.Name == null ? 1 : 0).ThenBy(x => x.Name)`.
+
+---
+
+#### Gotcha 5. `IQueryable.OrderBy` with EF Core Generates SQL `ORDER BY`, Not an In-Memory Sort
+
+**Concepts**
+- `IQueryable<T>.OrderBy` builds an expression node; the provider emits `ORDER BY` in SQL
+- The sort is performed by the database engine, not the .NET runtime
+- Column collation in the database affects string sort order independently of C# comparers
+- Calling `OrderBy` after `AsEnumerable()` reverts to in-memory sort
+
+**Answer**
+
+On an `IQueryable<T>` backed by EF Core, `OrderBy` does not sort in memory — it adds an `ORDER BY` clause to the SQL query, and the database engine performs the sort. The effective sort order is therefore governed by the database column's collation, not by any C# `IComparer<T>` or `StringComparer`. Case-sensitivity, accent-sensitivity, and locale-specific ordering are all controlled at the database level, which can produce results that differ from what `OrderBy(x => x.Name)` would produce in a LINQ to Objects query.
+
+---
+
+#### Gotcha 6. `Reverse()` Reverses Sequence Order; `OrderByDescending()` Sorts Descending
+
+**Concepts**
+- `Reverse()` flips the existing order of elements — it does not sort
+- `OrderByDescending(key)` sorts elements by key from largest to smallest
+- On an already-sorted ascending sequence, `Reverse()` and `OrderByDescending()` may coincidentally agree
+- On an unsorted sequence, `Reverse()` produces reversed-input order, not sorted order
+
+**Answer**
+
+`Reverse()` simply reads the sequence backwards — the last element becomes the first — without any comparison. `OrderByDescending(key)` performs a sort, comparing elements by key to produce a largest-to-smallest result. On a sequence that is already sorted ascending, `Reverse()` and `OrderByDescending` happen to produce the same output, which misleads developers into treating them as equivalent. On any unsorted input they diverge, and the distinction is always significant for correctness.
+
+---
+
+#### Gotcha 7. String Comparisons in `OrderBy` Are Case-Sensitive by Default
+
+**Concepts**
+- The default string comparer is `StringComparer.Ordinal` — case-sensitive, culture-invariant
+- `"apple"` sorts after `"Banana"` under ordinal comparison because uppercase letters have lower code points
+- Pass `StringComparer.OrdinalIgnoreCase` (or a culture-aware comparer) to the `OrderBy` overload
+- EF Core string sorting is governed by database collation, not by C# comparers
+
+**Answer**
+
+LINQ to Objects `OrderBy(x => x.Name)` uses the default equality and comparison for `string`, which is ordinal and case-sensitive. Upper-case letters (A–Z, code points 65–90) sort before lower-case letters (a–z, code points 97–122), so `"Banana"` appears before `"apple"` in an ascending sort. To achieve a case-insensitive alphabetical sort, pass a comparer explicitly: `source.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)`.
+
+---
+
+#### Gotcha 8. `OrderBy` on a Large In-Memory Dataset Buffers the Entire Sequence
+
+**Concepts**
+- LINQ to Objects `OrderBy` cannot start yielding results until it has seen all input elements
+- The entire source is loaded into a buffer to perform the sort — O(n log n) time, O(n) space
+- This is a buffering operator, unlike `Where` and `Select` which are streaming
+- For large in-memory datasets, prefer pre-sorted collections or a database-side sort
+
+**Answer**
+
+Unlike `Where` and `Select`, which are streaming operators that process one element at a time, `OrderBy` is a buffering operator: it must read all elements into memory before it can determine the correct output order. On a large `IEnumerable<T>`, this means the entire dataset is allocated in a sort buffer before the first element is yielded to the consumer. For large in-memory datasets this can cause significant memory pressure; consider sorting at the database level or using a data structure that maintains sorted order on insertion.
+
+---
+
+#### Gotcha 9. Passing a Custom `IComparer<T>` to `OrderBy`
+
+**Concepts**
+- `OrderBy(keySelector, comparer)` accepts an `IComparer<T>` as the second argument
+- The comparer is applied to the projected key, not to the full element
+- `Comparer<T>.Create(lambda)` builds an inline comparer without a separate class
+- Custom comparers are not translatable to SQL by EF Core — they force client-side evaluation
+
+**Answer**
+
+When the default comparison for a key type is insufficient — for example, sorting version strings like `"2.10"` after `"2.9"` — you can pass a custom `IComparer<T>` as the second argument to `OrderBy`: `source.OrderBy(x => x.Version, new VersionComparer())`. The comparer receives projected key values, not full elements. Note that custom comparers are a LINQ to Objects feature only; EF Core cannot translate them to SQL and will throw or fall back to client evaluation, so avoid custom comparers on `IQueryable<T>` queries.
+
+---
+
+#### Gotcha 10. `OrderBy` Returns `IOrderedEnumerable<T>`, Which Is Required for `ThenBy`
+
+**Concepts**
+- `OrderBy` and `OrderByDescending` return `IOrderedEnumerable<T>`, not `IEnumerable<T>`
+- `ThenBy` and `ThenByDescending` are defined on `IOrderedEnumerable<T>`, not on `IEnumerable<T>`
+- Assigning an `OrderBy` result to `IEnumerable<T>` loses the ability to call `ThenBy` without a cast
+- `IOrderedQueryable<T>` is the `IQueryable` equivalent for `IQueryable.OrderBy`
+
+**Answer**
+
+`OrderBy` returns `IOrderedEnumerable<T>`, a subtype of `IEnumerable<T>` that exposes `ThenBy` and `ThenByDescending` for adding subsequent sort keys. If you assign the `OrderBy` result to a variable typed as `IEnumerable<T>`, you lose direct access to `ThenBy` without an explicit cast. Always type the variable as `IOrderedEnumerable<T>` — or chain `ThenBy` immediately — to preserve multi-key sort capability. The same applies to `IQueryable<T>`: `OrderBy` on an `IQueryable` returns `IOrderedQueryable<T>`.
+
+---
+
 ## Q19. Scenario: A paginated API returns inconsistent results across pages because records appear on multiple pages or are skipped. What is the root cause? (Scenario)
 
 **Concepts**

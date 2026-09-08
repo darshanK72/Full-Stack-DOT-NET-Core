@@ -117,46 +117,157 @@ Choose based on how much related data you know you need at query time and whethe
 
 ---
 
-## Gotchas
+## Gotchas — Loading Related Data (Interview Traps)
 
 ---
 
-## Gotcha 10. Lazy loading after the context is disposed
+#### Gotcha 1. Lazy loading enabled — hidden N+1 per navigation property access in loop
 
 **Concepts**
-- lazy loading after context disposal
-- serializer-triggered navigation access
-- explicit Include or projection before scope ends
+- lazy loading proxy fires SQL on every navigation property access
+- `UseLazyLoadingProxies()` + `virtual` properties enable lazy loading
+- N parent entities → N separate queries for each child navigation
+- EF Core 3+ requires explicit opt-in for lazy loading
+- `LogTo(Console.WriteLine)` reveals hidden lazy queries in development
 
 **Answer**
 
-Lazy loading triggers SQL when navigation properties are accessed — if that happens after the request-scoped `DbContext` is disposed, EF Core throws or the serializer triggers hidden queries that fail mid-response. ASP.NET Core disposes scoped contexts at the end of the request pipeline — serialization often runs near that boundary; Prefer explicit includes or projections inside the request scope instead of returning entity graphs with unresolved lazy navigations. Proxy types plus disposed contexts produce intermittent failures depending on property access order.
+With lazy loading enabled, accessing a navigation property on a tracked entity that is not yet loaded fires a hidden SQL query. In a loop over 100 orders, `order.Customer.Name` fires 100 separate `SELECT` queries — one per order — for a total of 101 database roundtrips. This is invisible in source code unless EF Core command logging is active. Disable lazy loading by default and use `Include` for known navigations. If lazy loading is necessary, always profile query counts with `LogTo` in development before shipping to production.
 
 ---
 
-## Gotcha 11. N+1 from lazy load or missing Include
+#### Gotcha 2. Missing `ThenInclude` on nested navigation — inner navigation is null
 
 **Concepts**
-- N+1 from missing Include in loop
-- one query per parent row multiplication
-- eager loading and projection as fixes
+- `Include(o => o.Lines)` loads direct child navigation only
+- `ThenInclude(l => l.Product)` required for grandchild navigation
+- `o.Lines.First().Product` is null without `ThenInclude`
+- chain as many `ThenInclude` levels as needed
+- verify loaded graph with logging before relying on deeply nested properties
 
 **Answer**
 
-Listing parent entities then accessing navigation properties in a loop without eager loading or projection fires one SQL query per parent row — classic N+1 performance collapse in EF Core APIs. One query for N orders plus N queries for each order's lines equals N+1 round-trips per request; Fix with `Include`/`ThenInclude`, split queries, or `Select` projections that join needed data in one statement. EF Core command logging revealing identical query templates with different IDs signals N+1 immediately.
+`Include(o => o.Lines)` loads the `Lines` collection of each `Order`, but `Lines[0].Product` remains null — loading a child's child requires `.ThenInclude(l => l.Product)` chained after `Include`. Each navigation level requires its own `Include` or `ThenInclude` call. Accessing a deeply nested navigation that was not included does not throw — the property is simply null, producing silent bugs. Always verify the full graph with `ToQueryString()` or logging, and add every `ThenInclude` level required by the operation.
 
 ---
 
-## Gotcha 12. Cartesian explosion with multiple Includes
+#### Gotcha 3. Cartesian explosion from multiple collection `Include` paths
 
 **Concepts**
-- cartesian explosion from multiple collection Includes
-- row multiplication by collection cardinality product
-- AsSplitQuery and DTO projection as mitigations
+- two collection `Include` paths produce Cartesian JOIN
+- 10 OrderLines × 5 Tags = 50 rows per order in result set
+- EF Core deduplicates in memory but network already transmitted inflated rows
+- `AsSplitQuery()` uses separate SELECT per collection — no Cartesian product
+- split query trade-off: no atomic snapshot, extra round-trips
 
 **Answer**
 
-Eager-loading two or more collection navigations in one SQL query multiplies result rows by the product of collection sizes, spiking memory and network use even though parent entity count is modest. EF Core deduplicates parents during fix-up, but SQL Server already sent the inflated rowset across the wire; Use `AsSplitQuery()` to fetch collections with separate SELECT statements instead of one giant join. Projection to DTOs avoids loading full collection graphs when only counts or summaries are needed.
+When two collection navigation properties are both eager-loaded in one query (`Include(o => o.Lines).Include(o => o.Tags)`), SQL Server returns a Cartesian JOIN — each line is repeated for every tag, multiplying the row count by the product of the collection sizes. EF Core deduplicates parent entities during fix-up, but the inflated rowset was already transmitted over the network. Use `AsSplitQuery()` to fetch each collection in a separate SQL query, reducing network overhead at the cost of the queries no longer being a single atomic snapshot.
+
+---
+
+#### Gotcha 4. Lazy loading after `DbContext` disposal — serializer triggers hidden queries post-scope
+
+**Concepts**
+- lazy loading proxy accesses navigation when property touched after context disposal
+- JSON serializer touches all public properties including navigations
+- `ObjectDisposedException` thrown mid-serialization
+- `Include` required navigations before context scope ends
+- DTO projection eliminates navigation property serialization entirely
+
+**Answer**
+
+If an entity with unloaded navigation properties is returned from a method where the `DbContext` has already been disposed, the JSON serializer touches the navigation property and triggers a lazy load — but the context is gone, causing `ObjectDisposedException`. This is intermittent because it depends on when the serializer accesses the property relative to context disposal. Load all required navigations with `Include` inside the request handler, or project to a DTO that contains no navigation properties, eliminating the problem entirely.
+
+---
+
+#### Gotcha 5. Explicit loading (`LoadAsync`) called after context disposed — `ObjectDisposedException`
+
+**Concepts**
+- `context.Entry(entity).Collection(e => e.Lines).LoadAsync()` for explicit loading
+- explicit load must be called while context is still alive
+- calling outside `using` scope after context disposal throws
+- explicit loading appropriate only for conditional, branch-specific loading
+- eager loading with `Include` as the simpler alternative
+
+**Answer**
+
+Explicit loading via `context.Entry(entity).Collection(e => e.Lines).LoadAsync()` must be called while the `DbContext` is still open and in scope. Calling it after the context is disposed throws `ObjectDisposedException`. Explicit loading is appropriate for conditional scenarios where only some requests need the related data, but it requires the context to remain alive for the full duration of the conditional load path. For simpler patterns, use `Include` in the initial query — loading navigation properties that are not needed for some requests is a minor efficiency cost compared to the lifetime management complexity of explicit loading.
+
+---
+
+#### Gotcha 6. `AsSplitQuery` no longer provides atomic snapshot — race condition in high-concurrency writes
+
+**Concepts**
+- `AsSplitQuery` issues separate SELECT statements per collection
+- concurrent write between the first and second SELECT changes data
+- first SELECT returns entity state A; second SELECT returns state B
+- single-query `Include` provides one consistent snapshot
+- `AsSplitQuery` appropriate for read-heavy, low-write scenarios
+
+**Answer**
+
+`AsSplitQuery()` issues separate SQL queries for each collection navigation — the parent entities are loaded in the first query, and each collection is loaded in a subsequent query. If a concurrent write occurs between these queries, the split result may be inconsistent: the parent row reflects state before the write while the child collection reflects state after (or vice versa). For write-heavy entities where snapshot consistency is critical (financial operations, audit trails), use the default single-query approach with `Include` and accept the potential Cartesian join overhead.
+
+---
+
+#### Gotcha 7. Filtered `Include` (EF Core 5+) predicate excludes needed related rows silently
+
+**Concepts**
+- `Include(o => o.Lines.Where(l => !l.IsCancelled))` as filtered include
+- predicate excludes matching child rows — not an error, just missing data
+- navigation collection appears to have fewer items than expected
+- missing rows cause business logic to produce wrong totals or decisions
+- always assert filtered include result in tests with controlled data
+
+**Answer**
+
+Filtered `Include` (EF Core 5+) allows `Include(o => o.Lines.Where(l => l.IsActive))` to load only matching child rows. If the predicate is wrong or too restrictive, the loaded collection silently excludes rows the calling code expects to be present — navigation properties have fewer items than actually exist in the database. Business logic that totals order amounts from the loaded collection produces incorrect results without any error. Always write integration tests with controlled seed data asserting that filtered collections return exactly the expected row count.
+
+---
+
+#### Gotcha 8. Lazy loading proxies require `virtual` navigation properties — missing `virtual` silently disables proxy
+
+**Concepts**
+- `UseLazyLoadingProxies()` generates runtime proxy subclasses
+- proxy intercepts `virtual` property access to trigger lazy load
+- non-`virtual` navigation property is not proxied — always null
+- sealed entity class cannot be subclassed — proxy creation fails
+- proxy requirement: class not sealed, constructor not private, properties `virtual`
+
+**Answer**
+
+`UseLazyLoadingProxies()` generates a proxy subclass at runtime that overrides navigation property getters to trigger lazy loads. If a navigation property is not marked `virtual`, the proxy cannot override it and the property is never loaded — it remains null. If the entity class is `sealed`, proxy generation fails entirely at startup. For lazy loading to function, every navigation property that should be lazily loaded must be `virtual`, the class must not be sealed, and the constructor must be accessible to the proxy generator.
+
+---
+
+#### Gotcha 9. Loading a large graph with `Include` when only a summary is needed
+
+**Concepts**
+- `Include(o => o.Lines).ThenInclude(l => l.Product)` loads full entities
+- loading 50 columns per entity when only 3 are needed wastes bandwidth
+- projection to DTO with only required columns as the efficient alternative
+- `AsNoTracking()` omitted on full entity load adds change tracking overhead
+- rule: if response does not update the entities, project, don't `Include`
+
+**Answer**
+
+Using `Include`/`ThenInclude` to load full entity graphs when the response only needs a few fields from each entity fetches far more data than required. Loading `Order` with full `Lines` and `Products` to display an order summary card (id, date, total, line count) transmits dozens of unused columns per row. Use `Select` projection to a DTO with only the needed fields: `context.Orders.Select(o => new OrderSummaryDto { Id = o.Id, Total = o.Lines.Sum(l => l.Price), LineCount = o.Lines.Count })`. This also eliminates change-tracking overhead since projections are never tracked.
+
+---
+
+#### Gotcha 10. Collection navigation not initialized before `Add()` call — `NullReferenceException`
+
+**Concepts**
+- reference navigation default is null when entity loaded without `Include`
+- collection navigation EF-initialized as empty collection on entity materialization
+- hand-constructed `new Order()` — collection navigation is null until initialized
+- `order.Lines.Add(line)` on null `Lines` throws `NullReferenceException`
+- initialize collection in entity constructor or property initializer
+
+**Answer**
+
+When you construct a new `Order` entity in code (not loaded from database), the collection navigation property `Lines` is null unless initialized in the constructor or via a property initializer. Calling `order.Lines.Add(new OrderLine())` on a null collection throws `NullReferenceException`. Initialize collection navigation properties in the entity class: `public ICollection<OrderLine> Lines { get; set; } = new List<OrderLine>();`. EF Core initializes collections on materialized entities, but code that constructs entities with `new` must handle initialization explicitly.
 
 ---
 

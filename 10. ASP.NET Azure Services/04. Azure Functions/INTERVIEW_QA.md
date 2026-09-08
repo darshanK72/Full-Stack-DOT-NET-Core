@@ -444,3 +444,147 @@ Common pitfalls include exhausting SQL connection limits under scale-out, using 
 Microsoft is retiring the in-process .NET programming model for Azure Functions, meaning it will stop receiving new features and eventually leave support — new projects should use the isolated worker model, and existing in-process apps should plan migration rather than expand. In-process runs my code inside the Functions host process, which is convenient for early .NET Core adoption but couples my app lifecycle to host releases and blocks independent .NET versioning. Isolated worker is the default in current Visual Studio and `func` templates for .NET 8+ and receives binding updates, performance work, and security patches aligned with modern .NET. Migration changes the project SDK, attributes (`[FunctionName]` becomes `[Function]`), HTTP types, and extension packages, but triggers, bindings, and deployment targets remain conceptually the same — the HTTP-to-SQL pattern survives with updated syntax. I treat in-process samples as a learning baseline for triggers and SQL output bindings; greenfield production work should start from isolated worker templates to avoid a forced migration later.
 
 ---
+
+## Gotchas — Azure Functions (Interview Traps)
+
+---
+
+#### Gotcha 1. Cold start on Consumption plan can delay the first request by several seconds
+
+**Concepts**
+- Consumption plan de-allocates workers when idle and allocates on first trigger
+- Cold start includes language runtime init, DI container build, and extension loading
+- HTTP-triggered functions appear to hang before the first response
+- Premium plan and Dedicated (App Service) plan eliminate cold starts with always-warm instances
+
+**Answer**
+
+On the Consumption plan, Azure Functions de-allocates workers after a period of inactivity and must spin up a new worker on the next trigger event. For a .NET isolated worker function, this includes loading the .NET runtime, initializing the DI container, and registering all extensions, which can take 2–10 seconds on the first request. Users who hit the URL after a quiet period experience an apparent hang before the response arrives. Premium plan solves this with always-ready instances, but adds cost. Developers testing locally with `func start` never see cold starts, so the first production deployment surprises them with intermittent latency spikes.
+
+---
+
+#### Gotcha 2. Durable Function orchestrators must be deterministic — non-deterministic calls during replay cause incorrect behavior
+
+**Concepts**
+- Orchestrators replay from history on every activation; non-deterministic calls return different values each replay
+- `context.CurrentUtcDateTime` replaces `DateTime.UtcNow` for safe deterministic time
+- `context.NewGuid()` replaces `Guid.NewGuid()` for safe deterministic IDs
+- Calling external HTTP or databases directly in the orchestrator breaks replay correctness
+
+**Answer**
+
+Durable Function orchestrators are re-executed from the beginning each time they are woken up, replaying previously recorded history to restore state. Any call to `DateTime.UtcNow`, `Guid.NewGuid()`, or a random number generator during replay returns a different value than the original execution, causing incorrect branching and silent data corruption. The Durable Functions SDK provides `context.CurrentUtcDateTime` and `context.NewGuid()` as deterministic equivalents that return recorded values during replay. The same constraint means orchestrators must never call external HTTP endpoints or databases directly; all I/O must go through activity functions that are called via `context.CallActivityAsync` so replay skips them when already recorded.
+
+---
+
+#### Gotcha 3. Trigger vs binding confusion — a trigger activates the function; a binding only reads or writes data
+
+**Concepts**
+- One trigger per function; it determines when the function executes
+- Input bindings read external resources when the function starts
+- Output bindings write external resources when the function completes
+- Confusing a trigger with a binding leads to functions that never fire or double-process
+
+**Answer**
+
+Azure Functions has exactly one trigger per function that determines when execution starts (a Service Bus message arriving, a timer firing, an HTTP request arriving). Input and output bindings read and write external resources like Blob Storage or Cosmos DB containers, but they do not fire the function. A common confusion is expecting a Blob input binding to trigger the function when a blob is uploaded; it does not — only the BlobTrigger binding causes the function to fire on a new blob. Using a BlobTrigger for large blobs on Consumption plan can cause timeout issues because large blobs take time to download within the 5-minute default timeout.
+
+---
+
+#### Gotcha 4. Function app scale is per-app, not per-function — one hot function starves others on the same plan
+
+**Concepts**
+- Consumption plan scales the entire function app as one unit
+- All functions in the app share the same worker instances
+- A CPU-bound function consuming all CPU blocks timer-triggered and queue-triggered functions
+- Separating high-throughput functions into dedicated apps is the production pattern
+
+**Answer**
+
+On the Consumption plan, the Azure Functions runtime scales the entire function app (all functions together) on shared workers. If one function in the app is receiving heavy traffic and saturating CPU, other functions in the same app (such as a timer-triggered cleanup job or a Service Bus processor) receive fewer worker cycles and may not fire on time. The scale controller does not independently scale individual functions within an app. High-throughput or CPU-intensive functions should be deployed to separate function apps to isolate their scaling behavior from lower-priority functions that share the same plan.
+
+---
+
+#### Gotcha 5. Timer trigger fires in UTC — functions scheduled with local time fire at wrong hours in production
+
+**Concepts**
+- CRON expression in TimerTrigger uses UTC by default
+- `WEBSITE_TIME_ZONE` app setting changes the time zone for timer evaluation
+- A 9 AM daily trigger written in local time fires at a different UTC hour in production
+- Local func.exe also uses the machine's time zone, masking the UTC difference during testing
+
+**Answer**
+
+Azure Functions timer triggers interpret CRON expressions in UTC by default. A developer who writes `0 0 9 * * *` intending "9 AM every day" will find the function fires at 9 AM UTC, which is 2 PM in IST or 4 AM in PDT, depending on the deployment region. Testing with `func start` locally uses the machine's local time zone, so the trigger fires at 9 AM local time during development and the discrepancy is only discovered in production. The fix is either to convert the schedule to UTC explicitly or set the `WEBSITE_TIME_ZONE` application setting to the desired time zone identifier (for example `"India Standard Time"`).
+
+---
+
+#### Gotcha 6. Durable Function fan-out with many activities creates large orchestration history — queries slow over time without purging
+
+**Concepts**
+- Each activity call appends events to the orchestration history in Azure Storage
+- Fan-out of 1000 parallel activities creates thousands of history table rows per orchestration
+- History purge must be done explicitly via the Durable Functions management API or admin endpoint
+- Unbounded history growth causes latency in `GetStatusAsync` and orchestration startup
+
+**Answer**
+
+Every activity call in a Durable Function orchestration appends started and completed events to the orchestration history stored in Azure Table Storage or Azure SQL (depending on backend). A fan-out that calls 1,000 activities in parallel creates 2,000+ history rows for a single orchestration instance. Over months of production use without purging, the history table grows to millions of rows, causing `GetStatusAsync` queries and new orchestration startup to become progressively slower. The Durable Functions SDK exposes a purge history API and management endpoint; a scheduled purge function that removes completed or failed orchestrations older than a retention window is required in production.
+
+---
+
+#### Gotcha 7. Service Bus trigger connection string with Queue-level SAS must include EntityPath — namespace SAS fails
+
+**Concepts**
+- `ServiceBusConnection` app setting holds the connection string for the trigger
+- A namespace-level SAS grants access to all queues; a queue-level SAS is scoped
+- Queue-level SAS connection strings require `EntityPath=<queue-name>` appended
+- Missing `EntityPath` with a queue SAS causes `MessagingEntityNotFoundException`
+
+**Answer**
+
+Azure Functions Service Bus trigger requires a connection string in the `ServiceBusConnection` application setting. When using a namespace-level Shared Access Signature the trigger resolves the queue name from the trigger attribute and the namespace SAS grants access without additional parameters. When using a queue-specific SAS (scoped to a single queue), the connection string must include `EntityPath=<queue-name>` so the SDK knows which entity to connect to; omitting it causes `MessagingEntityNotFoundException` even though the key is correct. Developers who use a namespace SAS during development and switch to a queue-scoped SAS in production for least privilege hit this gap.
+
+---
+
+#### Gotcha 8. Functions isolated worker model requires explicit middleware for request correlation — in-process correlation behavior does not carry over
+
+**Concepts**
+- In-process model automatically propagated `Activity` and Application Insights correlation
+- Isolated worker model runs in a separate process; correlation headers must be forwarded explicitly
+- `AddApplicationInsightsTelemetryWorkerService()` is required in the worker's `Program.cs`
+- Missing correlation causes Application Insights to show Function invocations as unrelated traces
+
+**Answer**
+
+In the isolated worker model, the Functions host and the worker process are separate, so the in-process automatic correlation propagation between Service Bus triggers and Application Insights does not apply automatically. Without calling `AddApplicationInsightsTelemetryWorkerService()` and configuring correlation in the worker's `Program.cs`, Application Insights shows Function invocations as top-level traces with no connection to upstream HTTP or Service Bus operations, breaking the distributed trace map. This is a common migration mistake when moving from in-process to isolated worker model because the Application Insights integration is wired differently.
+
+---
+
+#### Gotcha 9. Output binding failures do not retry — only trigger-level retry policies apply
+
+**Concepts**
+- `FunctionRetryAttribute` or `RetryPolicy` applies to trigger invocations, not output bindings
+- A Cosmos DB or Blob output binding that fails after the function completes is not automatically retried
+- The function invocation is marked as succeeded even if an output binding write fails
+- Wrapping output writes in explicit retry logic or using idempotent upserts is required
+
+**Answer**
+
+Azure Functions retry policies configured on the trigger (via `[FixedDelayRetry]` or `[ExponentialBackoffRetry]`) retry the entire function invocation when it throws. However, if an output binding (such as a Cosmos DB output binding) throws after the function's main logic completes, the retry policy re-executes the entire function including all already-completed logic. More critically, transient output binding failures that occur after the trigger's lease is completed are not automatically retried at all; the function host considers the invocation complete once the method returns. For reliable output writes, use explicit retry logic in the function body rather than relying on binding infrastructure.
+
+---
+
+#### Gotcha 10. In-process Azure Functions on .NET is being retired — new projects on .NET 8+ must use isolated worker model
+
+**Concepts**
+- In-process model runs inside the Functions host process; it is being retired
+- Isolated worker model runs in a separate `dotnet.exe` process for full control over DI and middleware
+- Migration changes extension packages, attribute names, and HTTP request/response types
+- Starting a new project with in-process templates and then migrating adds unnecessary rework
+
+**Answer**
+
+Microsoft has announced the retirement of the in-process Azure Functions hosting model for .NET, meaning it will receive no new features and will eventually leave support. For .NET 8 and later, the isolated worker model is the only officially supported path, and new Azure Functions templates default to isolated worker. The isolated worker model brings full standard .NET host (`IHost`) DI, middleware, and .NET versioning independence, but it requires different NuGet packages (`Microsoft.Azure.Functions.Worker.*`), changes attribute names from `[FunctionName]` to `[Function]`, and uses `HttpRequestData`/`HttpResponseData` instead of `HttpRequest`/`IActionResult`. Starting a project with in-process templates today means planning a migration in the near term.
+
+---

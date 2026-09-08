@@ -938,3 +938,148 @@ public class DiscountShippingDiagnosticTests
 ```
 
 When the test is flaky under parallel execution, timestamps in `[TestInitialize]` and `[TestCleanup]` reveal whether tests interleave. Adding the machine name (`Environment.MachineName`) and thread ID (`Thread.CurrentThread.ManagedThreadId`) to the init log catches environment-specific flakiness. Once the root cause is identified and fixed, remove the diagnostic `WriteLine` calls or consolidate them into a helper method gated on a compilation symbol so they are stripped from release test builds.
+
+
+## Gotchas — MSTest (Interview Traps)
+
+---
+
+#### Gotcha 1. `[TestMethod]` without `[TestClass]` — test is silently ignored; both attributes required
+
+**Concepts**
+- MSTest discovery requires both `[TestClass]` on the class and `[TestMethod]` on the method
+- a `[TestMethod]` inside a class without `[TestClass]` is silently not discovered
+- no compiler warning; the test simply does not appear in the test explorer
+- common when refactoring: moving methods to a new class and forgetting `[TestClass]`
+
+**Answer**
+
+MSTest's test discovery engine scans for classes marked with `[TestClass]` and then finds methods marked with `[TestMethod]` within those classes. A method annotated with `[TestMethod]` inside a class that lacks `[TestClass]` is invisible to the test runner — it is never executed and never appears in results. There is no compiler error or warning; the test is silently excluded. This is a common mistake when creating a new test class by copy-pasting a method without copying the class attribute. The fix is always to ensure every test class carries `[TestClass]` and every test method carries `[TestMethod]`.
+
+---
+
+#### Gotcha 2. `[TestInitialize]` vs `[ClassInitialize]` — per-test vs per-class setup; ClassInitialize must be static
+
+**Concepts**
+- `[TestInitialize]` runs before each test method — instance method, no parameters
+- `[ClassInitialize]` runs once before the first test in the class — must be `static` with `TestContext` parameter
+- using `[ClassInitialize]` as an instance method is a compile error
+- expensive one-time setup belongs in `[ClassInitialize]`; fast per-test setup in `[TestInitialize]`
+
+**Answer**
+
+`[TestInitialize]` is an instance method that MSTest calls before each individual test, making it ideal for resetting mutable state or creating a fresh SUT instance. `[ClassInitialize]` must be a `public static void` method with a single `TestContext` parameter — `public static void Initialize(TestContext context)` — and runs once before any test in the class runs. Using `[ClassInitialize]` as an instance method produces a compile error. A common mistake is putting expensive initialization (loading a file, seeding a database) into `[TestInitialize]` when it only needs to happen once per class; this multiplies the cost by the number of tests. Move one-time, read-only initialization to `[ClassInitialize]` and per-test mutable state to `[TestInitialize]`.
+
+---
+
+#### Gotcha 3. `Assert.AreEqual(expected, actual)` — order matters; expected comes first (affects error message)
+
+**Concepts**
+- convention: `Assert.AreEqual(expected, actual)` — first argument is the expected value
+- reversed order `Assert.AreEqual(actual, expected)` compiles and runs but produces misleading error messages
+- error message: "Expected: [arg1], Actual: [arg2]" — reads wrong when arguments are swapped
+- xUnit has the same convention; NUnit uses `Assert.That(actual, Is.EqualTo(expected))`
+
+**Answer**
+
+`Assert.AreEqual(99.99m, order.Total)` will report "Expected: 99.99, Actual: 105.00" when `order.Total` is wrong. If you accidentally write `Assert.AreEqual(order.Total, 99.99m)` (reversed), the failure message says "Expected: 105.00, Actual: 99.99" — which implies the test expects 105, not 99.99, confusing the reviewer. The code compiles and runs identically; the only impact is the failure message's readability. Code review checkers and static analysis rules (like `MSTest.Analyzers`) can flag reversed argument order. The convention exists across all major testing frameworks: the expected/known value is always the first argument.
+
+---
+
+#### Gotcha 4. `[DataTestMethod]` with `[DataRow]` — MSTest's equivalent of xUnit Theory
+
+**Concepts**
+- `[DataTestMethod]` + `[DataRow(arg1, arg2)]` for parameterized tests
+- each `[DataRow]` is a separate test run with distinct results in the test report
+- `[DataRow]` attribute arguments must be compile-time constants
+- `[DataSource]` attribute for data from external files (CSV, database)
+
+**Answer**
+
+MSTest's `[DataTestMethod]` combined with one or more `[DataRow]` attributes creates a parameterized test equivalent to xUnit's `[Theory]`. Each `[DataRow(1, "A"), DataRow(2, "B")]` produces a separate named test entry in the results. The arguments in `[DataRow]` must be compile-time constants — literals and `const` values — which means `decimal` literals like `99.99m` cause a compiler error (decimals are not valid attribute argument types). The workaround is to pass a `double` and cast inside the test, or use `[DataSource]` to load decimal values from an external source. `[DisplayName]` on `[DataRow]` customizes the test name shown in the runner.
+
+---
+
+#### Gotcha 5. `[ExpectedException]` attribute — deprecated pattern; use `Assert.ThrowsException<T>()` instead
+
+**Concepts**
+- `[ExpectedException(typeof(ArgumentNullException))]` passes if any line in the test throws
+- does not verify which specific line threw the exception
+- `Assert.ThrowsException<T>(action)` targets a specific action and returns the exception
+- `await Assert.ThrowsExceptionAsync<T>(asyncAction)` for async code
+
+**Answer**
+
+`[ExpectedException(typeof(InvalidOperationException))]` on a test method passes as long as any code in the method throws `InvalidOperationException`. This is dangerous because an exception thrown during the Arrange phase (e.g., a failing mock setup) also satisfies the attribute, making a broken test appear green. `Assert.ThrowsException<T>(() => sut.DoSomething())` wraps only the specific Act call in the assertion, so a setup exception in the Arrange phase is not swallowed. Additionally, `ThrowsException` returns the exception object for further inspection of the message or inner exception. The `[ExpectedException]` attribute is retained for compatibility but should not be used in new tests.
+
+---
+
+#### Gotcha 6. Test run order is not guaranteed — do not rely on alphabetical or declaration order
+
+**Concepts**
+- MSTest does not guarantee test method execution order within a class
+- tests that depend on the outcome of another test are order-dependent and brittle
+- `[TestInitialize]` and `[TestCleanup]` for per-test state reset
+- MSTest V3 added `[TestOrder]` (experimental) for explicit ordering when truly necessary
+
+**Answer**
+
+MSTest's internal test scheduler may run methods in any order — alphabetically, by declaration order, or in parallel if parallelism is enabled. A test that asserts "after `CreateOrder` runs, `GetOrder` should find it" will fail intermittently if `GetOrder` runs before `CreateOrder`. Each test must independently arrange its own preconditions: `GetOrder_ExistingId_ReturnsOrder` should create the order in its own Arrange phase, not rely on another test to have created it previously. If tests genuinely represent a workflow that must execute in sequence, consider collapsing them into a single test with multiple assertions or using the experimental `[TestOrder]` attribute available in MSTest V3 for acceptance-style integration tests.
+
+---
+
+#### Gotcha 7. `[Ignore]` attribute — skips a test; appears in results as skipped
+
+**Concepts**
+- `[Ignore("reason")]` skips a test method or the entire class
+- MSTest V3 requires a non-empty reason string — compile error without it
+- skipped tests appear in the test report as "Skipped" (not "Passed" or "Failed")
+- `[Ignore]` is a short-term workaround, not a long-term strategy
+
+**Answer**
+
+`[Ignore("Flaky — pending fix in issue #456")]` tells MSTest to skip the test without removing it. The test still appears in the test report as Skipped, making the skip visible and auditable. In MSTest V3, the message argument is required — `[Ignore]` without a reason string causes a compile error, enforcing documentation discipline. A class annotated with `[Ignore]` causes all test methods in the class to be skipped. Using `[Ignore]` is appropriate for temporarily disabling a test during a known broken period; accumulating many permanently ignored tests is a maintenance liability and reduces confidence in the test suite.
+
+---
+
+#### Gotcha 8. MSTest V2 vs V1 — V2 is the modern NuGet package; V1 is the legacy built-in
+
+**Concepts**
+- MSTest V1: built into Visual Studio, referenced as `Microsoft.VisualStudio.TestTools.UnitTesting`
+- MSTest V2/V3: NuGet packages `MSTest.TestAdapter` + `MSTest.TestFramework`
+- V2 added `Assert.ThrowsException`, `[DataTestMethod]`, async test support
+- V3 added parallel execution, required `[Ignore]` message, and `ITestOutputHelper`-equivalent
+
+**Answer**
+
+MSTest V1 shipped as part of Visual Studio and could not be independently updated. Features like `Assert.ThrowsException<T>`, parameterized `[DataTestMethod]`, and first-class async test support required V2, which is distributed as NuGet packages (`MSTest.TestAdapter` and `MSTest.TestFramework`). A project still referencing the legacy assembly (`Microsoft.VisualStudio.TestTools.UnitTesting` from the GAC) lacks these features. Migrating to V2 is a package reference change and is backward compatible. MSTest V3 (available from 2024) adds parallel execution within classes, the required `[Ignore]` message, and additional analyzer rules. New projects should always start with V3 via `<PackageReference Include="MSTest" Version="3.x" />`.
+
+---
+
+#### Gotcha 9. `[AssemblyInitialize]` / `[AssemblyCleanup]` — one-time setup/teardown for the entire test assembly
+
+**Concepts**
+- `[AssemblyInitialize]` runs once before any test in the assembly
+- must be `public static void` with a `TestContext` parameter
+- `[AssemblyCleanup]` runs once after all tests in the assembly complete
+- appropriate for global infrastructure (Docker containers, test databases, configuration)
+
+**Answer**
+
+`[AssemblyInitialize]` and `[AssemblyCleanup]` are the outermost lifecycle hooks in MSTest — they run exactly once per test assembly execution, before the first test and after the last. They must be `public static` methods. `[AssemblyInitialize]` requires a `TestContext` parameter; `[AssemblyCleanup]` does not. These hooks are appropriate for starting a shared Docker container, loading a configuration file, or initializing a connection pool that all tests in the assembly share. Unlike `[ClassInitialize]`, which runs per test class, assembly-level hooks run globally — errors in `[AssemblyInitialize]` prevent all tests from running, making robust error handling and clear error messages critical.
+
+---
+
+#### Gotcha 10. `Assert.Inconclusive()` — marks a test as inconclusive (not pass/fail); use sparingly
+
+**Concepts**
+- `Assert.Inconclusive("reason")` marks the test result as Inconclusive
+- neither passes nor fails; counts separately in the summary
+- intended for tests that cannot determine correctness due to missing infrastructure
+- overuse of Inconclusive masks real test failures in the summary counts
+
+**Answer**
+
+`Assert.Inconclusive("External pricing API unavailable in this environment")` marks the test as neither passed nor failed — it is counted separately in the MSTest summary. This is appropriate when a test cannot meaningfully run because a required resource is unavailable (a licensed external API, an environment-specific file). Inconclusive results do not cause the test run to fail, which makes them useful for optional environment checks. However, overusing `Assert.Inconclusive` to skip tests that could otherwise be run with proper mocking is a design smell — it signals that external dependencies were not properly abstracted. A test suite with many Inconclusive results becomes hard to interpret; aim for tests that run deterministically in all environments through dependency injection and mocking.
+
+---

@@ -390,3 +390,147 @@ The main operational costs are the number of databases to provision, monitor, ba
 Starting with a shared database is a pragmatic choice for early-stage products where the domain boundaries are not yet well understood, since splitting prematurely locks you into the wrong boundaries and creates expensive data migrations. The right time to split is when teams working on different parts of the schema are regularly stepping on each other's migrations, or when one service's database load is noticeably affecting another service's performance. If two teams frequently need to coordinate schema migrations because their tables are in the same database, that coordination cost is a clear signal to split. When a service becomes a scaling bottleneck and you want to move it to a different database instance for resource isolation, splitting the data is necessary to do so. A useful intermediate step is to separate schemas or user accounts on the same server first — this enforces access boundaries and removes accidental cross-service joins while deferring the infrastructure cost of separate servers. Domain-Driven Design Bounded Contexts are the conceptual guide: each Bounded Context maps naturally to one service and one database, so if two schemas feel like they belong to the same Bounded Context, they probably should not be split yet.
 
 ---
+
+## Gotchas — Database per Service (Interview Traps)
+
+---
+
+#### Gotcha 1. Cross-Service Join Implemented as API Call N+1
+
+**Concepts**
+- Report requiring data from three services making three API calls per row
+- N+1 HTTP calls per page of results instead of one database join
+- Data denormalisation into read-model projections solving the join
+- API composition gateway aggregating in parallel, not sequentially
+
+**Answer**
+
+A reporting query that joins orders, customers, and products — data owned by three separate services — cannot use a database join and must fetch each service's data separately. A naive implementation fetches 100 orders, then makes 100 HTTP calls to CustomerService for each customer, and 100 calls to ProductService for each product — 300 HTTP round trips instead of one SQL join. The solution is to denormalise the data needed for reporting into a read-model projection that each service populates via domain events, so the read model has all fields in one queryable table. For ad-hoc aggregation, an API composition layer fetches all required data in parallel with `Task.WhenAll` rather than sequentially, but this still cannot beat a database join for complex filtering and sorting.
+
+---
+
+#### Gotcha 2. Eventual Consistency Confusing the UI
+
+**Concepts**
+- UI showing stale data after a command because the read model hasn't updated
+- Customer seeing the order they just placed as not existing
+- "Read your own writes" pattern returning command result immediately
+- Optimistic UI update while projection catches up
+
+**Answer**
+
+When a user places an order and immediately navigates to the order list, the read-model projection that backs the list may not yet have processed the `OrderPlacedEvent` — the user sees a list that does not include the order they just created. Eventual consistency is inherent when the write and read databases are separate and updated asynchronously. The standard mitigation is to include the created resource in the command response body: the `POST /orders` response returns the full `OrderDto` directly from the write side so the UI can display it immediately without querying the eventually-consistent read model. This "return what you wrote" approach eliminates the visible inconsistency for the most common case.
+
+---
+
+#### Gotcha 3. No Data Ownership Rule Leading to Duplication Without Authority
+
+**Concepts**
+- Same entity (Customer) stored by multiple services with no owner
+- Updates to the authoritative source not propagated to copies
+- One service as the System of Record per entity type
+- Integration events propagating changes from owner to consumers
+
+**Answer**
+
+When both OrderService and ShippingService store customer address data and there is no defined rule for which service owns the authoritative copy, an address update in CustomerService (the logical owner) may not be propagated to either service — both end up with stale addresses. The rule is: one service is the System of Record for each piece of data; every other service that needs the data holds a read-only copy populated via integration events. CustomerService owns `Customer.Address` and publishes `CustomerAddressChangedEvent` when it changes; OrderService and ShippingService consume this event and update their local copies. Data duplication is acceptable and expected; undefined ownership is the defect.
+
+---
+
+#### Gotcha 4. Using a Shared Database With Per-Schema Ownership and Calling It "Database per Service"
+
+**Concepts**
+- Schema-per-service still sharing database engine, credentials, and connection pool
+- Cross-schema foreign key still possible via SQL
+- Schema isolation as an intermediate step, not the pattern
+- True isolation requiring separate database instances or clusters
+
+**Answer**
+
+Placing each service's tables in a separate schema on the same database instance provides name isolation and prevents accidental joins — but it is not Database per Service. All schemas share the same database engine, the same connection pool, the same compute resources, and the same credentials if not managed carefully. A DBA can still write `SELECT * FROM orders.OrderLines JOIN inventory.Products ON ...` bypassing the inter-service API boundary entirely. Database per Service requires separate database instances (separate servers, or separate managed database services) so that one service's query load, migrations, and outages cannot affect another service. Schema separation is a valid intermediate step when splitting a shared database incrementally, not the end state.
+
+---
+
+#### Gotcha 5. Schema Migration Not Coordinated With Rolling Deployment
+
+**Concepts**
+- Destructive migration running while old service version still active
+- Old code breaking when a column is renamed or removed
+- Expand-Contract migration pattern for zero-downtime schema changes
+- Feature flag controlling code path switch after migration completes
+
+**Answer**
+
+A schema migration that renames column `customer_id` to `customerId` runs against the database while old service instances in the rolling update are still reading `customer_id` — those old instances immediately start failing with "column not found" errors before the new instances have taken over. The Expand-Contract pattern prevents this: first deploy an Additive migration that adds the new column `customerId` alongside the old one (Expand); then deploy new code that writes to both columns; then remove reads from the old column; then deploy a second migration that drops the old column (Contract). This three-phase approach ensures old and new service versions can coexist during the deployment window without schema conflicts.
+
+---
+
+#### Gotcha 6. Reporting Query Spanning All Services With No Read Model
+
+**Concepts**
+- Business report requiring aggregation across 5 services
+- API composition too slow and fragile for complex queries
+- Dedicated reporting database aggregated from all services
+- CQRS read model or data warehouse as the solution
+
+**Answer**
+
+A quarterly business report that combines data from OrderService, CustomerService, ProductService, InventoryService, and PaymentService cannot be built efficiently by making API calls and joining results in application code — filtering, sorting, aggregating, and paginating across millions of records requires database-level operations that are impossible via API composition. The solution is a dedicated reporting service or data warehouse that subscribes to integration events from all source services and builds a denormalised reporting schema optimised for query patterns. The reporting database is a read-only secondary that can use any query technology (SQL analytics, OLAP cube, search index) without affecting the operational service databases.
+
+---
+
+#### Gotcha 7. Service Splitting Along Technical Lines Instead of Domain Boundaries
+
+**Concepts**
+- Splitting by technology (all reads in one service, all writes in another)
+- Tight business coupling remaining despite the split
+- DDD Bounded Context as the split criterion
+- Chatty inter-service calls revealing a misdrawn boundary
+
+**Answer**
+
+Splitting a service along technical lines — one service handles database reads and another handles writes, or one service per entity type (OrderService, OrderLineService, OrderStatusService) — creates technically separate services that are still tightly coupled in business terms. The OrderLineService calling OrderService on every operation means the services need to be deployed together, tested together, and changed together, which provides none of the organisational independence that Database per Service is designed to achieve. Service and database boundaries must follow domain boundaries (Bounded Contexts): an entire order concept — lines, status, payment — belongs in one OrderManagement service if they must always be consistent and are managed by the same team.
+
+---
+
+#### Gotcha 8. Cross-Service Transaction Using a Shared Database Transaction
+
+**Concepts**
+- Cross-service database transaction creating tight deployment coupling
+- Distributed transaction failing when one service restarts
+- Saga pattern replacing distributed transactions
+- Local transaction per service as the unit of atomicity
+
+**Answer**
+
+Two services sharing a database connection and participating in a single `BEGIN TRANSACTION / COMMIT` achieve atomicity at the cost of tight coupling — both services must use the same database type, both must be available simultaneously, and neither can be deployed independently. When one service restarts mid-transaction, the transaction is rolled back and the other service's operation is lost without compensation. The correct pattern is to treat each service's local database transaction as the unit of atomicity and use the Saga pattern to coordinate multi-service workflows with compensating transactions — each service commits its own transaction and publishes an event, and the Saga handles failures by triggering compensation.
+
+---
+
+#### Gotcha 9. Integration Tests Using All Services' Live Databases
+
+**Concepts**
+- Integration test modifying shared production or staging database
+- Test data polluting other services' data or being affected by it
+- Per-test database isolation using Docker Compose test environments
+- TestContainers providing ephemeral isolated databases per test run
+
+**Answer**
+
+An integration test that writes to the live staging database of OrderService and then calls CustomerService — which reads from its own staging database — introduces cross-service test data dependencies, test pollution, and flakiness caused by other tests or developers modifying the shared data simultaneously. Each service's integration tests must use an isolated database instance — TestContainers spins up a Docker container with a fresh database for each test run, and Docker Compose provides a complete isolated environment for cross-service integration tests with no shared state between runs. Integration tests should never touch shared staging or production databases.
+
+---
+
+#### Gotcha 10. Saga Not Used When a Multi-Service Business Operation Requires Consistency
+
+**Concepts**
+- Multi-service write failing halfway and leaving data inconsistent
+- No compensation mechanism to roll back committed steps
+- Saga as the required pattern for multi-service consistency
+- Manual cleanup in support tickets as the alternative anti-pattern
+
+**Answer**
+
+An order placement flow that calls PaymentService, InventoryService, and ShippingService in sequence with no Saga — using direct HTTP calls without compensation — will leave the system inconsistent if ShippingService fails after PaymentService has already charged the card and InventoryService has reserved the stock. With no automated compensation, the support team manually cancels the payment via the payment gateway and releases the inventory reservation — operational work that the Saga should perform automatically. Any business operation that modifies data in more than one service must use the Saga pattern or be redesigned so all data lives in the same service. The lack of a Saga is not a minor omission; it is a missing reliability guarantee for the entire business operation.
+
+---

@@ -87,20 +87,157 @@ Define indexes in Fluent API with `HasIndex` on the entity builder, optionally m
 
 ---
 
-## Gotchas
+## Gotchas — Fluent API & Data Annotations (Interview Traps)
 
 ---
 
-## Gotcha 9. Scoped `DbContext` captured in a singleton
+#### Gotcha 1. Fluent API overrides Data Annotations on the same facet — silent truncation or wrong constraint
 
 **Concepts**
-- scoped DbContext captured in singleton field
-- captive dependency anti-pattern
-- IDbContextFactory for singleton database access
+- both annotations and Fluent API configure the same EF facet
+- Fluent API wins when they conflict on the same property
+- `[MaxLength(100)]` on entity + `HasMaxLength(50)` in Fluent API → column is 50
+- developer reading entity sees 100, actual column is 50 — silent truncation
+- single source of truth: choose one convention and enforce it
 
 **Answer**
 
-Registering a singleton service that holds a scoped `DbContext` creates a captive dependency — the context may be disposed while the singleton lives, or state leaks across HTTP requests. `DbContext` is scoped per request in ASP.NET Core — singletons must not store it in fields; Inject `IDbContextFactory<TContext>` into singletons when long-lived services need occasional database access. Symptoms include "Cannot access a disposed context" or cross-user data contamination in tracked entities.
+When `[MaxLength(100)]` on a property and `HasMaxLength(50)` in Fluent API both configure the same facet, Fluent API wins. The database column is `nvarchar(50)`, but a developer reading only the entity class sees `[MaxLength(100)]` and trusts it, leading to unexpected truncation errors with values between 51 and 100 characters. Establish a team convention — either use Data Annotations exclusively for simple per-property rules, or use Fluent API centralized in `IEntityTypeConfiguration<T>` classes — and enforce it so the same facet is never configured in both places.
+
+---
+
+#### Gotcha 2. `[Required]` on a reference type does not add NOT NULL without NRT enabled
+
+**Concepts**
+- without nullable reference types, all reference properties are nullable in C#
+- `[Required]` adds NOT NULL constraint and model validation
+- without `[Required]`, `string` property mapped as nullable `nvarchar`
+- NRT enabled: non-nullable `string` automatically treated as required by EF Core
+- `HasRequired` not available — use `IsRequired()` in Fluent API
+
+**Answer**
+
+Without nullable reference types (NRT) enabled on the project, a `string` property without `[Required]` is mapped as nullable `nvarchar` in the database, even if the business rule says it must have a value. `[Required]` adds the NOT NULL constraint and also triggers model validation in ASP.NET Core. With NRT enabled, EF Core infers `IsRequired()` from the `string` (non-nullable) vs `string?` (nullable) declaration, eliminating the need for `[Required]` on non-nullable string properties. Ensure the project's NRT mode matches the team's approach.
+
+---
+
+#### Gotcha 3. `[MaxLength]` vs `[StringLength]` — different purposes
+
+**Concepts**
+- `[MaxLength(200)]` configures EF Core column length
+- `[StringLength(200)]` configures ASP.NET Core model validation only
+- `[StringLength]` does NOT generate a column length constraint in EF Core
+- `[MaxLength]` used for both EF column length and validation
+- using `[StringLength]` alone leaves column as `nvarchar(max)`
+
+**Answer**
+
+`[StringLength(200)]` configures ASP.NET Core model validation (enforced during `ModelState.IsValid`) but does not configure the database column length in EF Core — the column remains `nvarchar(max)`. `[MaxLength(200)]` configures both the EF Core column length (generating `nvarchar(200)` in migrations) and works as validation input. For database column size constraints, always use `[MaxLength]` or `HasMaxLength()` in Fluent API. `[StringLength]` is appropriate only for controller model validation without any database schema intent.
+
+---
+
+#### Gotcha 4. `decimal` without `HasPrecision` defaults to `decimal(18,2)` — rounding financial data
+
+**Concepts**
+- EF Core default for `decimal` is `decimal(18,2)` if not configured
+- four-decimal precision money values silently rounded to two places
+- `HasPrecision(precision, scale)` in Fluent API to control precision
+- migration must be regenerated after adding `HasPrecision`
+- financial calculations with rounded storage produce penny-off errors
+
+**Answer**
+
+EF Core maps `decimal` properties to `decimal(18,2)` by default. If your financial model requires four decimal places (e.g., exchange rates, unit prices to millicents), values are silently rounded to two decimal places at the database level. Use `entity.Property(p => p.ExchangeRate).HasPrecision(18, 6)` in Fluent API to set the required precision. After adding `HasPrecision`, generate a new migration to alter the column type — the existing migration may have used the wrong precision that is already in production.
+
+---
+
+#### Gotcha 5. Index not configured — EF Core generates only PK and FK indexes by default
+
+**Concepts**
+- EF Core auto-generates PK index and FK indexes
+- non-FK columns with frequent WHERE, JOIN, or ORDER BY — no automatic index
+- `HasIndex(p => p.Email).IsUnique()` in Fluent API for explicit indexes
+- missing index on high-cardinality filter columns causes table scans
+- index review required when EF model goes to production
+
+**Answer**
+
+EF Core automatically creates indexes for primary keys and foreign keys, but no other indexes are generated automatically. Columns frequently used in `WHERE`, `ORDER BY`, or `JOIN` conditions without indexes force SQL Server to perform table or index scans. Production performance issues often stem from missing explicit indexes on columns like `Email`, `Sku`, `OrderDate`, or `Status`. Add `HasIndex(e => e.Email)` (and `.IsUnique()` for unique constraints) in `OnModelCreating` or `IEntityTypeConfiguration<T>` to generate the required indexes in migrations.
+
+---
+
+#### Gotcha 6. `[NotMapped]` property still serialized by JSON serializer
+
+**Concepts**
+- `[NotMapped]` is an EF Core attribute — tells EF to ignore the property
+- JSON serializers read all public properties regardless of EF attributes
+- `[NotMapped]` computed property still appears in API response JSON
+- `[JsonIgnore]` required to exclude from JSON serialization
+- separation of persistence and serialization concerns
+
+**Answer**
+
+`[NotMapped]` instructs EF Core to ignore a property during schema mapping and query generation, but JSON serializers (`System.Text.Json`, Newtonsoft.Json) read all public properties regardless of EF attributes. A `[NotMapped]` computed property (e.g., `FullName { get; }`) appears in the serialized JSON response even though it is not persisted. To exclude it from JSON output, add `[JsonIgnore]` (System.Text.Json) or `[JsonIgnore]`/`[JsonProperty(Ignored = true)]` (Newtonsoft.Json) in addition to `[NotMapped]`.
+
+---
+
+#### Gotcha 7. `HasComputedColumnSql` without `stored: true` — value not returned after INSERT/UPDATE
+
+**Concepts**
+- virtual computed column recalculated on every SELECT
+- `stored: true` persisted computed column written to disk
+- EF Core does not re-read virtual computed column after INSERT/UPDATE
+- tracked entity has stale property value after write without explicit reload
+- `ValueGeneratedOnAddOrUpdate()` needed for EF to know value is DB-generated
+
+**Answer**
+
+`HasComputedColumnSql("expression")` without `stored: true` creates a virtual computed column that SQL Server recalculates on every SELECT but does not physically store. After EF Core inserts or updates a row, the tracked entity's corresponding property still holds the pre-save value — EF Core does not automatically re-read virtual computed columns after writes. Add `stored: true` to persist the value to disk (allowing EF Core to read it back in the INSERT result), or call `context.Entry(entity).ReloadAsync()` after `SaveChanges` to refresh the entity from the database.
+
+---
+
+#### Gotcha 8. `[Column(TypeName = "...")]` with wrong type string causes migration failure
+
+**Concepts**
+- `[Column(TypeName = "datetime")]` vs `datetime2` precision difference
+- wrong TypeName accepted by EF Core but rejected by SQL Server
+- `datetime` max precision vs `datetime2` range difference
+- `money` vs `decimal` precision semantics
+- migration generates correct DDL but wrong type causes runtime data loss
+
+**Answer**
+
+`[Column(TypeName = "datetime")]` maps the property to the SQL Server `datetime` type (millisecond precision, 1753–9999 range) rather than `datetime2` (100-nanosecond precision, 0001–9999 range). For modern .NET `DateTime` values before 1753, `datetime` storage fails. Using `[Column(TypeName = "money")]` maps to SQL Server's monetary type with fixed 4-decimal precision instead of a configurable `decimal`. Always verify the TypeName matches SQL Server's actual type behavior, and prefer `datetime2` over `datetime` for all new date/time columns.
+
+---
+
+#### Gotcha 9. `IEntityTypeConfiguration<T>` not registered — Fluent API silently not applied
+
+**Concepts**
+- `IEntityTypeConfiguration<T>` must be registered via `ApplyConfiguration` or `ApplyConfigurationsFromAssembly`
+- class not registered → no Fluent API applied → defaults used silently
+- `modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly())`
+- configuration missing from `OnModelCreating` — no error, wrong schema
+- migration generates different schema than intended
+
+**Answer**
+
+An `IEntityTypeConfiguration<Product>` class that is not registered in `OnModelCreating` has no effect — EF Core uses convention defaults for that entity type without any error. Forgetting `modelBuilder.ApplyConfiguration(new ProductConfiguration())` means all the Fluent API in that class (precision, indexes, relationship behavior) is silently ignored and the migration generates the wrong schema. The safest registration is `modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly())` which discovers and applies all `IEntityTypeConfiguration<T>` implementations automatically.
+
+---
+
+#### Gotcha 10. `[Key]` on non-integer property requires `DatabaseGeneratedOption.None` to avoid auto-increment attempt
+
+**Concepts**
+- EF Core convention assumes `int`/`long` PK is auto-incremented by database
+- `[Key]` on `string` or `Guid` PK defaults to `DatabaseGeneratedOption.Identity`
+- EF Core may try to read back a server-generated key on a GUID PK
+- `[DatabaseGenerated(DatabaseGeneratedOption.None)]` for client-assigned keys
+- `HasDefaultValueSql("NEWSEQUENTIALID()")` for SQL Server–generated GUID PKs
+
+**Answer**
+
+For primary keys of type `string` or `Guid`, EF Core defaults to `DatabaseGeneratedOption.Identity`, expecting the database to generate the key value. On a `string` PK (natural key like an ISO code), EF Core will attempt to read back a server-generated value that does not exist. Add `[DatabaseGenerated(DatabaseGeneratedOption.None)]` or `ValueGeneratedNever()` in Fluent API to tell EF Core that the application supplies the key value. For `Guid` PKs where you want the database to generate the value, use `HasDefaultValueSql("NEWSEQUENTIALID()")` in Fluent API.
 
 ---
 

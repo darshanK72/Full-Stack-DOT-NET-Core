@@ -281,198 +281,147 @@ A thin controller validates input, authorizes the caller, calls one application 
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
-
-#### Gotcha 1. POST returning 200 instead of 201
-
-**Concepts**
-- `201 Created` with `Location` header as REST create contract
-- `CreatedAtAction` / `CreatedAtRoute` generating correct response
-
-**Answer**
-
-A successful resource creation via POST should return `201 Created` with a `Location` header pointing to the new resource URI — returning `200 OK` omits that contract and breaks REST clients. I use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to produce `201`. Returning `200` for create operations hides the new resource URL from standard HTTP client libraries and OpenAPI-generated SDKs.
+## Gotchas — API Controllers & Action Results (Interview Traps)
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 1. `[ApiController]` auto-400 behavior surprises
 
 **Concepts**
-- GET defined as safe and idempotent
-- Browsers, CDNs, and crawlers invoking GET without user intent
+- `[ApiController]` automatically returns `ValidationProblemDetails` 400 before action runs
+- `ModelState.IsValid` check in action body is redundant and never reached
+- Missing attribute means invalid requests reach action with bad data
+- Assembly-level `[ApiController]` applying to all controllers
 
 **Answer**
 
-GET must be safe and idempotent — performing deletes or updates on GET violates HTTP semantics, breaks caching proxies, and creates security holes when URLs are prefetched, logged, or opened in email clients. I use POST, PUT, PATCH, or DELETE for state changes and keep GET read-only.
+When `[ApiController]` is present, the framework evaluates `ModelState` during model binding and short-circuits to `400 ValidationProblemDetails` before the action method body runs — any manual `if (!ModelState.IsValid) return BadRequest(ModelState)` check inside the action is dead code. The real trap is the inverse: a controller missing `[ApiController]` receives invalid models silently, allowing requests with wrong data types or missing required fields to reach service layer code and produce unexpected behavior or corrupt data.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 2. `IActionResult` vs `ActionResult<T>` for OpenAPI schema generation
 
 **Concepts**
-- `ProblemDetails` / `ValidationProblemDetails` as standard error shapes
-- HTTP status codes driving client retry logic and APM alerting
+- `IActionResult` — no generic type; Swashbuckle cannot infer 200 response schema
+- `ActionResult<T>` — implicit conversion from `T` or `IActionResult`; schema inferred as `T`
+- `[ProducesResponseType(typeof(T), 200)]` needed when using `IActionResult`
+- `TypedResults` in minimal APIs for compile-time return type safety
 
 **Answer**
 
-Business failures must map to appropriate `4xx` or `5xx` status codes — a `200` response with an error flag forces every client to parse the body and masks failures in dashboards. I return `ValidationProblemDetails` with `400` for validation failures and `404`, `409`, or `422` for domain errors.
+Declaring a controller action as `IActionResult` leaves Swashbuckle with no information about the 200 response body schema — the generated OpenAPI document shows `object` or omits the schema entirely, and code-generated clients produce untyped objects. `ActionResult<T>` allows the compiler to use implicit conversion so `return dto` works alongside `return NotFound()`, and Swashbuckle reads `T` to document the success schema automatically. I use `IActionResult` only when the success-path return shape genuinely varies across branches, and annotate every branch with `[ProducesResponseType]`.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 3. Returning 200 with null body vs 204 No Content
 
 **Concepts**
-- Navigation properties triggering N+1 queries during serialization
-- Circular references causing JSON serializer loops
-- DTOs as stable public contract
+- `Ok(null)` — produces 200 with empty body, confusing REST clients expecting a resource
+- `NoContent()` — produces 204 with no body, the correct idiom for void mutations
+- `OkResult` (no body) vs `OkObjectResult` (with body) vs `NoContentResult`
+- Client expectations — 200 signals a body; 204 signals intentionally empty
 
 **Answer**
 
-EF Core entities expose navigation properties, shadow fields, and circular references that are not meant for public contracts. Lazy-loaded navigations trigger N+1 queries during serialization and circular references cause `JsonException` at runtime. I return DTOs projected from EF queries to decouple the API contract from schema migrations.
+`return Ok(null)` produces `200 OK` with an empty body, which tells clients to expect a JSON body that is simply missing — some clients throw a deserialization error on the empty body. `return NoContent()` produces `204 No Content`, the correct HTTP idiom for operations that succeed without returning a resource, such as DELETE and update operations that echo nothing back. I use `NoContent()` for DELETE and PUT-with-no-echo actions, `Ok(dto)` when the updated or created resource is returned, and avoid `Ok(null)` entirely.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 4. `CreatedAtAction` referencing a renamed or misnamed action
 
 **Concepts**
-- ASP.NET Core 8 defaulting to camelCase via `System.Text.Json`
-- PascalCase client payloads binding as missing properties silently
+- `CreatedAtAction(nameof(GetById), ...)` resolves at runtime via routing system
+- Wrong action name produces incorrect `Location` header or a broken `null` URL
+- `nameof` prevents compile errors but not silent mismatches after rename
+- Integration test asserting `Location` header follows up with GET
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json` — PascalCase property names from some clients bind as missing properties at default values, causing silent data loss. I use `[JsonPropertyName]` or a custom `PropertyNamingPolicy` to align server expectations with legacy client payloads, or enable `PropertyNameCaseInsensitive = true`.
+`CreatedAtAction("GetUser", new { id }, dto)` fails silently when the target action was renamed to `GetById` — link generation produces an incorrect or empty `Location` header without throwing. Using `nameof` catches the rename at compile time, but only if the symbol exists; if you type `nameof(GetUser)` when the action is `GetById`, the string compiles fine and only fails at runtime. I always write an integration test that POSTs a resource, reads the `Location` header, and issues a GET to that URL asserting 200 — this is the only reliable way to catch `CreatedAtAction` breakage.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 5. Returning EF entities directly from actions
 
 **Concepts**
-- HTTP clients, proxies, and caches stripping GET request bodies
-- `[FromQuery]` for filters; POST to search endpoint for complex objects
+- Navigation properties causing lazy-load N+1 during JSON serialization
+- Circular references causing `JsonException` at runtime
+- Internal DB columns exposed as public API contract
+- DTOs as stable public shape decoupled from schema migrations
 
 **Answer**
 
-Many HTTP clients, proxies, and caches ignore or strip GET request bodies — filters sent as JSON in GET requests fail silently. I use query strings with `[FromQuery]` for simple filters or POST to a dedicated search endpoint for complex filter objects.
+Returning an EF Core entity directly from a controller serializes every public property including navigation properties, shadow fields, and internal audit columns that were never meant to be public. Lazy-loaded navigations trigger one SQL query per navigation access during serialization — a list of 100 orders with a `Customer` navigation produces 101 queries. Circular entity references (`Order → Customer → Orders`) cause `System.Text.Json` to throw `JsonException`. I always project to a DTO inside the LINQ query or map with AutoMapper before returning from an action, which fixes all three problems at once.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 6. `ControllerBase` vs `Controller` in Web API projects
 
 **Concepts**
-- CORS enforced by browsers only
-- Authentication and authorization as actual security boundary
+- `Controller` inherits `ControllerBase` and adds Razor view helpers (`View()`, `PartialView()`)
+- View helpers pull in MVC view-rendering dependencies irrelevant to JSON APIs
+- `ControllerBase` — correct base for Web API controllers with no view rendering
+- `[ApiController]` requires `ControllerBase`; works with `Controller` but adds unnecessary weight
 
 **Answer**
 
-CORS is enforced by browsers only — it does not stop curl, Postman, server-to-server calls, or direct API requests. I register `AddCors` and `UseCors` for browser SPA access, and enforce JWT, cookies, or API keys separately for actual security.
+Inheriting from `Controller` in a Web API project adds the Razor view engine helper methods (`View()`, `PartialView()`, `Json()`) to every action, which adds unnecessary assembly dependencies and makes the view-rendering surface available by accident. `ControllerBase` is the correct base class for JSON APIs — it provides `Ok()`, `NotFound()`, `BadRequest()`, `CreatedAtAction()`, and the full `IActionResult` helper set without view-rendering overhead. Web API project templates use `ControllerBase` by default; switching to `Controller` is usually a mistake from copying MVC tutorial code.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 7. `OkResult` vs `OkObjectResult` — empty vs valued 200
 
 **Concepts**
-- Browsers rejecting `*` origin with credentialed requests
-- `WithOrigins` and `AllowCredentials` required together
+- `Ok()` — `OkResult`, HTTP 200 with no body
+- `Ok(value)` — `OkObjectResult`, HTTP 200 with serialized body
+- `return Ok()` instead of `return Ok(dto)` — produces empty body on GET
+- Unit test casting `result` to `OkObjectResult` throws when action returned `OkResult`
 
 **Answer**
 
-Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers — I must specify explicit origins with `WithOrigins` and call `AllowCredentials`. `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined.
+`Ok()` and `Ok(dto)` both return 200 but `Ok()` produces no response body while `Ok(dto)` serializes the object. A GET action that accidentally calls `return Ok()` rather than `return Ok(dto)` sends an empty 200 response to the client — the HTTP client library may throw a deserialization error or return a default empty object depending on the SDK. In unit tests, casting `result` to `OkObjectResult` throws `InvalidCastException` when the action returned `OkResult`. I always test the full return type when verifying action results.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 8. Multiple possible return types and OpenAPI documentation
 
 **Concepts**
-- Swagger UI disclosing full API surface to public
-- Environment check gating `MapSwagger` and `UseSwaggerUI`
+- `[ProducesResponseType]` documenting each possible status code and body type
+- `[ProducesDefaultResponseType]` for undocumented error shapes
+- `ActionResult<T>` documenting the 200 success type automatically
+- Undocumented 400/404/500 responses in OpenAPI spec
 
 **Answer**
 
-Public Swagger UI discloses the full API surface, schemas, and try-it-out access. I gate `MapSwagger` and `UseSwaggerUI` behind environment checks or authorization middleware — Production APIs serve OpenAPI only to authenticated developers or internal tooling.
+An action that can return `200 OrderDto`, `400 ValidationProblemDetails`, and `404 ProblemDetails` must have all three documented for generated clients to handle them correctly. `ActionResult<T>` documents the 200 schema automatically, but 400 and 404 must be declared with `[ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]` and `[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]`. Omitting these declarations leaves client SDK generators with no error type information. I use an operation filter to globally inject the common error responses rather than repeating the attributes on every action.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 9. `[ApiController]` binding source inference surprises with complex types
 
 **Concepts**
-- `[ApiController]` enabling automatic `400` validation and binding source inference
-- Mixed controllers producing inconsistent error contracts
+- Complex types inferred as `[FromBody]` by `[ApiController]`
+- Two complex parameters on one action — two body-bound params, only one body allowed
+- `[FromServices]` explicitly required for injected service parameters on actions
+- Primitive types inferred as `[FromRoute]` or `[FromQuery]`
 
 **Answer**
 
-Without `[ApiController]`, automatic `400 ValidationProblemDetails` and binding source inference differ — mixed controllers in the same Web API produce inconsistent error contracts. I apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions.
+With `[ApiController]`, complex type parameters are automatically inferred as `[FromBody]` — this is convenient for single-body actions but breaks when an action has two complex parameters, since HTTP only allows one request body. The second parameter also inferred as `[FromBody]` causes a binding conflict or silently binds as `null`. I explicitly annotate each parameter with `[FromBody]`, `[FromQuery]`, `[FromRoute]`, or `[FromServices]` when there is any ambiguity, especially in actions that receive both a route-identified resource and a command body.
 
 ---
 
-#### Gotcha 11. Blocking on `.Result` in async actions
+#### Gotcha 10. Using `[HttpGet]` without `[Route]` on `ControllerBase` — missing attribute routing
 
 **Concepts**
-- Thread-pool starvation from `.Result` / `.Wait()` under concurrent load
-- Classic deadlock from synchronization context contention
+- `[ApiController]` enforces attribute routing — no conventional route fallback
+- Controller without `[Route]` class attribute produces no routable endpoints
+- Action-level `[HttpGet("path")]` only works when class-level `[Route]` is present or action has absolute path
+- Conventional routing `MapControllerRoute` ignored for `[ApiController]` controllers
 
 **Answer**
 
-Blocking on `.Result` or `.Wait()` causes thread-pool starvation and deadlocks under load. I always mark controller actions `async Task<IActionResult>` and `await` all the way through the service layer to EF Core and HTTP clients.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness checking whether process should be restarted
-- SQL, Redis, and external service checks belonging on readiness only
-
-**Answer**
-
-If the liveness probe fails when SQL is down, Kubernetes restarts pods that cannot fix the dependency. I put SQL, Redis, and external service checks on readiness only and map `/health/live` to a lightweight self-check.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- Lazy-loaded navigation properties triggering one SQL query per row
-- `Select` projection to DTOs generating a single bounded query
-
-**Answer**
-
-Returning entities with lazy-loaded navigation properties triggers one SQL query per row. I project directly to DTOs in LINQ so EF Core generates a single query with only the columns needed.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Concurrent inserts and deletes shifting offset window between pages
-- Keyset pagination using stable indexed key
-
-**Answer**
-
-Concurrent inserts and deletes between offset pages cause duplicate or skipped rows — `Skip/Take` shifts the window when rows are added or removed. Keyset pagination with `WHERE id > @lastId ORDER BY id LIMIT @pageSize` is stable regardless of concurrent writes.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers querying the database per parent row
-- DataLoader batching concurrent resolutions into single round-trips
-
-**Answer**
-
-Field resolvers that query the database per parent row explode SQL under load. I register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC using HTTP/2 binary framing not exposed to browser JavaScript
-- gRPC-Web middleware required for browser clients
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript. I add `AddGrpcWeb()` and `EnableGrpcWeb()` on mapped gRPC services to translate between gRPC-Web and native gRPC, and configure CORS for the browser origin.
+`[ApiController]` requires attribute routing — controllers with it cannot be reached via conventional `MapControllerRoute` route tables. A controller with `[ApiController]` but without a class-level `[Route]` attribute will simply not be reachable: action-level `[HttpGet("items")]` registers relative to an empty prefix, which may produce unexpected route shapes or 404s. I always place `[Route("api/[controller]")]` (or a literal path) on the controller class and use relative paths on action attributes, keeping the full URL visible at the class + action level.
 
 ---
 

@@ -520,3 +520,147 @@ Azure Cache for Redis encrypts data in transit with TLS on port 6380, authentica
 Monitor server health through Azure Monitor metrics and diagnostics, track application-level hit and miss rates in your own logging, alert on connection errors and memory pressure, and troubleshoot latency by correlating Redis slowlog with expensive commands. Azure metrics to watch include `connectedclients`, `cachehits` / `cachemisses`, `usedmemory`, `evictedkeys`, `operationsPerSecond`, `serverLoad`, and replication lag. At the application layer, log cache operation duration, fallback-to-database counts, and serialization size; use Application Insights dependencies for Redis calls when using direct StackExchange.Redis. Set alerts when memory exceeds 80%, when evictions are sustained above zero, when connection count drops during steady traffic, or when health check failures appear on `/health/ready`. Common issues include large values causing high latency, `KEYS *` blocking the server in production (use `SCAN` instead), missing TTL filling memory, a wrong `InstanceName` prefix causing apparent misses, and firewall blocking App Service outbound IPs after a scale change. Validate failover behavior on Standard/Premium during a planned maintenance window before production dependence to ensure multiplexer reconnect logic is active during infrastructure changes.
 
 ---
+
+## Gotchas — Azure Cache for Redis (Interview Traps)
+
+---
+
+#### Gotcha 1. Connection string in appsettings.json exposes the Redis access key in source control
+
+**Concepts**
+- Azure Cache for Redis access keys are in the connection string
+- Connection strings checked into source control expose keys to all repo readers
+- Key rotation does not invalidate old keys immediately if they are hardcoded in config files
+- Azure Key Vault or App Service Key Vault references are the correct pattern
+
+**Answer**
+
+The default `StackExchange.Redis` connection string includes the Redis host, port, and access key (password) in a single string. Placing this connection string in `appsettings.json` and committing it to a repository exposes the access key to every developer with repository access, build system logs, and any tool that reads the configuration file. Even in a private repository, this violates least-privilege principles. The correct approach is to store the connection string in Azure Key Vault and reference it from App Service application settings as a Key Vault reference, or to use `DefaultAzureCredential` with Microsoft Entra ID authentication for Redis (available on Enterprise tier) to eliminate the shared key entirely.
+
+---
+
+#### Gotcha 2. Default eviction policy is noeviction — memory exhaustion causes write errors instead of evicting stale data
+
+**Concepts**
+- `noeviction` returns errors on write when memory is full, preserving all existing keys
+- `allkeys-lru` evicts the least recently used keys when memory is full
+- `volatile-lru` evicts only keys with an expiry (TTL) set, preserving keys with no TTL
+- Setting the appropriate eviction policy is required before Go-Live for a cache workload
+
+**Answer**
+
+Azure Cache for Redis defaults to `noeviction` policy, which means when the cache reaches its memory limit, all write operations return an error (`OOM command not allowed when used memory > 'maxmemory'`) and no existing keys are evicted. For a typical application-level cache where all cached values can be evicted and recomputed from the database, this policy is the wrong choice — it turns a cache memory limit into a hard error rather than gracefully dropping least-used entries. The `allkeys-lru` policy evicts the least recently used key regardless of TTL when memory is full, providing natural cache pressure management. Set the eviction policy in the Redis Configuration section of the portal before deploying to production.
+
+---
+
+#### Gotcha 3. Cache-aside without locking causes thundering herd — all concurrent requests hit the database when a key expires
+
+**Concepts**
+- Cache-aside pattern reads from cache; on miss, reads from database and writes to cache
+- Multiple concurrent requests that find the same key missing all call the database simultaneously
+- The "thundering herd" or "cache stampede" occurs at high traffic and can overwhelm the database
+- Mutex-based locking or probabilistic early expiry ("jitter") reduces stampede impact
+
+**Answer**
+
+The cache-aside pattern reads a cache key; on a miss it fetches from the database and writes the result to the cache. When a heavily cached key expires and hundreds of concurrent requests find it missing simultaneously, they all invoke the database fetch before any of them can write the result back to the cache. This thundering herd can spike database load by 100× in milliseconds. Mitigations include adding a per-key distributed lock (using `StringSet` with `NX` and a short TTL to act as a mutex) so only the first requester fetches from the database, or adding random TTL jitter to prevent many keys from expiring simultaneously.
+
+---
+
+#### Gotcha 4. ConnectionMultiplexer must be a singleton — creating one per request leaks connections and causes SocketException under load
+
+**Concepts**
+- `ConnectionMultiplexer` establishes a persistent multiplexed TCP connection to Redis
+- Creating a new instance per request opens a new TCP connection each time
+- TCP connections in TIME_WAIT state accumulate and eventually exhaust ephemeral ports
+- Register `ConnectionMultiplexer.Connect()` result as a singleton in DI
+
+**Answer**
+
+`StackExchange.Redis.ConnectionMultiplexer` is designed to be a shared long-lived singleton. It maintains a small set of persistent multiplexed TCP connections to Redis and handles reconnection internally. Creating a new `ConnectionMultiplexer` per HTTP request opens a new TCP connection each time and the old connections do not close immediately but enter TCP TIME_WAIT state. Under moderate traffic (100+ req/s) this exhausts the operating system's ephemeral port range, resulting in `SocketException: No connection could be made because the target machine actively refused it`. The correct DI registration is `services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(config))`.
+
+---
+
+#### Gotcha 5. Redis Cluster hashes keys across slots — multi-key commands and pipelines fail on keys in different slots
+
+**Concepts**
+- Redis Cluster divides the keyspace into 16,384 hash slots across multiple nodes
+- Multi-key commands (`MGET`, `MSET`, `DEL` with multiple keys) require all keys in the same slot
+- Hash tags (`{tag}`) force keys to the same slot: `user:{123}:name` and `user:{123}:email` share a slot
+- Azure Cache for Redis Standard/Premium in cluster mode enforces slot constraints
+
+**Answer**
+
+Azure Cache for Redis Enterprise and clustered Premium configurations distribute keys across hash slots. Commands that operate on multiple keys (`MGET`, `MSET`, `MULTI/EXEC` transactions, `SUNION`) require all specified keys to hash to the same slot; if they don't, the command returns `CROSSSLOT Keys in request don't hash to the same slot`. Applications that assume single-instance Redis semantics fail silently or with this error after migrating to a clustered tier. The fix is to use hash tags: wrapping a common string in curly braces forces co-location: `{user:123}:name` and `{user:123}:age` both hash based on `user:123` and land in the same slot.
+
+---
+
+#### Gotcha 6. Keys without TTL grow indefinitely — unbounded key growth exhausts memory silently
+
+**Concepts**
+- Redis does not expire keys unless `EXPIRE` or `PEXPIRE` is set
+- A key written with no TTL persists until explicitly deleted or the eviction policy removes it
+- Session data, rate-limit counters, and feature flags stored without TTL accumulate permanently
+- Regular key scanning or TTL audits identify keys that should have expiry but don't
+
+**Answer**
+
+Redis does not automatically expire keys without an explicit TTL. Application code that writes cache entries using `StringSet` or `HashSet` without the `expiry` parameter creates permanent entries that persist indefinitely until explicitly deleted or evicted under memory pressure. For a workload that continuously generates new cache keys — user sessions keyed by session ID, per-request rate limit counters, event processing deduplication entries — omitting TTL causes unbounded memory growth. In a `noeviction` policy environment this eventually causes write errors; in an LRU eviction environment it silently evicts useful data to make room for stale permanent entries.
+
+---
+
+#### Gotcha 7. Redis Pub/Sub does not persist messages — a subscriber offline when a message is published misses it permanently
+
+**Concepts**
+- Redis PUBLISH/SUBSCRIBE is fire-and-forget; messages are not stored
+- A subscriber that is not connected at the moment of publish never receives the message
+- Redis Pub/Sub is suitable only for optional notifications, not reliable messaging
+- Azure Service Bus or Event Grid must be used when guaranteed delivery is required
+
+**Answer**
+
+Redis Pub/Sub (`SUBSCRIBE`, `PUBLISH`) works by forwarding a published message to all currently connected subscribers in real time. If a subscriber is disconnected, restarting, or scaling, it never receives messages published during its absence — there is no message queue, replay, or acknowledgment. This is fundamentally different from Service Bus or Event Grid where messages are stored and delivered to consumers when they connect. Redis Pub/Sub is appropriate for cache invalidation broadcasts, real-time notifications, and live dashboards where losing occasional messages has no consequence. For event-driven workflows where every event must be processed, Service Bus or Event Grid must be used instead.
+
+---
+
+#### Gotcha 8. SSL must be enabled in the connection string — Azure Cache for Redis rejects plaintext connections
+
+**Concepts**
+- Azure Cache for Redis listens on SSL port 6380 and non-SSL port 6379 by default
+- Non-SSL port can be disabled in the portal for additional security
+- `StackExchange.Redis` connection string must include `ssl=true` and connect to port 6380
+- Some older Redis clients default to port 6379 and plaintext, causing silent connection failures
+
+**Answer**
+
+Azure Cache for Redis supports TLS (port 6380) and by default also allows non-TLS connections on port 6379. In production deployments, the non-TLS port should be disabled in the Azure portal, and all client connection strings must use port 6380 with `ssl=true`. A `StackExchange.Redis` connection string like `myredis.redis.cache.windows.net:6379,password=...` without `ssl=true` attempts a plaintext connection that fails if the non-SSL port is disabled, producing a connection timeout rather than an explicit TLS error. The correct production connection string format is `myredis.redis.cache.windows.net:6380,password=<key>,ssl=True,abortConnect=False`.
+
+---
+
+#### Gotcha 9. Redis MONITOR command reduces cache throughput significantly — never run it in production for more than seconds
+
+**Concepts**
+- `MONITOR` streams every command executed on the Redis server to the connected client
+- The overhead of serializing and streaming all commands can reduce throughput by 50% or more
+- It is a diagnostic tool, not a production monitoring solution
+- Azure Monitor metrics and Redis `INFO` statistics are the production observability path
+
+**Answer**
+
+The Redis `MONITOR` command streams every command received by the Redis server to the connected client in real time, which is invaluable for debugging command patterns in development. However, running `MONITOR` on a busy production cache instance causes significant performance degradation — typically 30–50% throughput reduction — because the server must serialize and transmit every command regardless of volume. A Redis instance handling 100,000 commands per second becomes effectively a 50,000 commands per second instance while `MONITOR` is connected. Never run `MONITOR` in production except for extremely brief (5–10 second) diagnostic captures during an active investigation.
+
+---
+
+#### Gotcha 10. Geo-replication is active-passive — writing to a secondary replica silently discards the write
+
+**Concepts**
+- Azure Cache for Redis Premium geo-replication links two caches in different regions
+- The secondary (geo-replicated) cache is read-only; write operations are silently discarded
+- The secondary becomes the primary only after a manual failover
+- Active-active replication (Enterprise tier) allows writes to both caches simultaneously
+
+**Answer**
+
+Azure Cache for Redis Premium geo-replication creates a read-only secondary cache in a linked region. Write operations sent to the secondary endpoint are not rejected with an error — they are silently discarded. An application that uses the secondary endpoint's connection string for all operations will appear to write successfully but no data is persisted, and reads of the written keys return null. Monitoring confirms nothing is stored. The secondary is intended for read-only workloads in the remote region, with failover promoted to primary only through a manual process. For true active-active replication that accepts writes in both regions, Azure Cache for Redis Enterprise with Active Geo-Replication is required.
+
+---

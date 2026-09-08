@@ -217,67 +217,147 @@ A compiled expression tree generates actual IL code that the JIT can optimize, u
 
 ---
 
-## Gotchas
+## Gotchas — Reflection & Attributes (Interview Traps)
 
 ---
 
-## Q13. Why does MethodInfo.Invoke wrap exceptions in TargetInvocationException?
+#### Gotcha 1. Reflection is slow — cache `MethodInfo`/`PropertyInfo` objects; avoid per-call `GetMethod`
 
 **Concepts**
-- TargetInvocationException.InnerException
-- logging the wrong exception
-- ExceptionDispatchInfo.Capture / Throw for rethrow
-- unwrapping pattern
-- Splunk / telemetry showing surface exception
+- `GetMethod` / `GetProperty` perform metadata lookup on every call
+- caching in `static readonly` fields or `ConcurrentDictionary<Type, PropertyInfo[]>`
+- `MethodInfo.Invoke` overhead vs compiled delegate
+- source generators as the zero-overhead compile-time alternative
 
 **Answer**
 
-When `MethodInfo.Invoke` calls a method that throws, the CLR catches the exception and wraps it inside a `TargetInvocationException` before surfacing it to the caller. The stack trace and message of the original exception are preserved in `ex.InnerException`. Code that logs `TargetInvocationException` directly shows only "Exception has been thrown by the target of an invocation" in monitoring tools — the root cause is hidden one level down and requires manual drill-down to diagnose. The correct pattern is to catch `TargetInvocationException`, log `ex.InnerException` (or the full exception including inner), and rethrow the inner exception to preserve the original type for catch clauses upstream. To rethrow while preserving the stack trace, use `ExceptionDispatchInfo.Capture(ex.InnerException!).Throw()` rather than a bare `throw ex.InnerException` which resets the stack trace to the current location.
+Calling `type.GetMethod("Calculate")` searches the type's metadata table on every invocation. In a serializer or ORM that processes thousands of objects per request, this per-call lookup produces measurable latency and significant allocations. The fix is to resolve `MethodInfo` and `PropertyInfo` objects once — during startup or on first use per type — and store them in a `static readonly` dictionary keyed by type. For even better performance, compile the `MethodInfo` to a delegate using `CreateDelegate` or build an expression tree and call `.Compile()`, reducing repeated invocation to a virtual dispatch. Source generators eliminate the runtime reflection cost entirely by generating strongly typed accessor code at compile time.
 
 ---
 
-## Q14. Why does string-based method lookup via GetMethod break silently after a rename refactor?
+#### Gotcha 2. `Type.GetMethod` with overloads — must specify binding flags and parameter types; ambiguous match exception
 
 **Concepts**
-- string literals not refactor-safe
-- nameof operator as compile-time guard
-- null return from GetMethod after rename
-- silent zero/null result propagation
-- test coverage gap
+- `AmbiguousMatchException` when multiple overloads exist
+- `Type.GetMethod(string, Type[])` overload for precise resolution
+- `BindingFlags.Public | BindingFlags.Instance` defaults
+- `BindingFlags.NonPublic` required for private methods
 
 **Answer**
 
-`type.GetMethod("CalculateLineTotal")` is a raw string that the compiler treats as opaque — renaming the method in C# does not update the string, so after a refactor the method is simply not found. `GetMethod` returns `null`, which propagates silently when the caller does `result is decimal total ? total : 0m` — the fallback zero is returned as the line total with no exception, no log entry, and no test failure unless the test explicitly asserts on a non-zero value. The fix has two parts: replace the string with `nameof(T.MethodName)` so that a rename causes a compile error; and add a null guard on the `MethodInfo` that throws an explicit, descriptive exception rather than silently defaulting. Beyond the immediate fix, the broader design question is whether dynamic method lookup via reflection is the right approach at all — if the set of methods is known at compile time, a virtual dispatch or interface call is safer, faster, and refactor-proof.
+`Type.GetMethod("Process")` throws `AmbiguousMatchException` when the type has more than one public instance method named `Process` with different parameter lists. The fix is to use the overload that accepts a `Type[]` parameter array: `type.GetMethod("Process", new[] { typeof(string), typeof(int) })`. Additionally, `GetMethod` by default searches only public instance methods; to find a static or non-public method you must pass `BindingFlags` explicitly — `BindingFlags.NonPublic | BindingFlags.Instance` for a private instance method. Omitting the flags when looking for a private method returns `null` silently, which is then typically used as `null.Invoke(...)` causing a `NullReferenceException` rather than a helpful message about why the method was not found.
 
 ---
 
-## Q15. What happens when Inherited = false on an attribute and a subclass is checked?
+#### Gotcha 3. `Attribute.GetCustomAttribute` vs `MemberInfo.GetCustomAttributes` — single vs multiple
 
 **Concepts**
-- Inherited = false skips base-class attribute
-- GetCustomAttributes(inherit: false) vs (true)
-- ORM / mapper base-class attribute not visible on derived type
-- fix: change Inherited = true or re-apply attribute
-- IsDefined behavior with inheritance
+- `Attribute.GetCustomAttribute` returns one `Attribute` or throws if multiple exist
+- `MemberInfo.GetCustomAttributes(typeof(T), inherit)` returns an array
+- `[AttributeUsage(AllowMultiple = true)]` allows multiple instances on one target
+- `IsDefined` for fast existence check without allocating the attribute instance
 
 **Answer**
 
-When `[AttributeUsage(…, Inherited = false)]` is set, calling `GetCustomAttributes(typeof(EntityTableAttribute), inherit: true)` on a subclass returns an empty array — the attribute on the base class is invisible. The CLR's `IsDefined` method behaves the same way. This is the source of "table not mapped" errors when an ORM reads the table-name attribute from a base `Product` class but a `PremiumProduct` subclass is not explicitly annotated. There are two correct fixes: change `Inherited = false` to `Inherited = true` on the attribute definition if all subclasses should inherit the mapping automatically; or have each subclass re-apply the attribute explicitly if each needs its own distinct mapping. The right choice depends on whether the inheritance chain represents the same entity (one table, inheritance is fine) or distinct entities (each subclass maps to a different table, explicit attributes per class). `Inherited = false` is appropriate for attributes that have no sensible meaning on a subclass — for example, an attribute that marks a class as a specific serialization root should not silently propagate to derived types that might have different serialization shapes.
+`Attribute.GetCustomAttribute(memberInfo, typeof(ValidateAttribute))` retrieves the single attribute of that type applied to the member. If `AllowMultiple = true` and two instances of the attribute are applied, this method throws `AmbiguousMatchException`. When an attribute allows multiple applications, always use `Attribute.GetCustomAttributes` (plural) or `memberInfo.GetCustomAttributes(typeof(ValidateAttribute), inherit: true)`, which returns an array. Using the singular form on a multi-occurrence attribute is a runtime exception that only surfaces when someone actually applies the attribute twice — a subtle late-discovery bug. If you only need to know whether the attribute exists at all, `Attribute.IsDefined` performs the check without instantiating the attribute and is the most efficient option.
 
 ---
 
-## Q16. Why is scanning GetExecutingAssembly().GetTypes() fragile in large solutions?
+#### Gotcha 4. `AttributeUsage(AttributeTargets.Method, AllowMultiple = false)` — applying twice throws at compile time
 
 **Concepts**
-- GetExecutingAssembly scope (only one assembly)
-- AppDomain.CurrentDomain.GetAssemblies() for loaded assemblies
-- late-loaded assemblies missed
-- performance of type scanning at startup
-- Span of time between scan and first use
+- `AllowMultiple = false` (default) prevents duplicate application
+- compile-time error on duplicate attribute
+- `AllowMultiple = true` required for multi-application scenarios
+- `AttributeTargets` controls which element types can be annotated
 
 **Answer**
 
-`Assembly.GetExecutingAssembly().GetTypes()` scans only the assembly containing the code that calls it. In a multi-project solution where entity types, controllers, or plugin types are defined in separate class library projects, those types are in different assemblies and will not appear in the scan even if those assemblies are loaded. The broader alternative `AppDomain.CurrentDomain.GetAssemblies()` returns all assemblies that have been loaded into the default AppDomain at the time of the call — but assemblies loaded lazily (on first type access) may not yet appear. The practical solution for framework-level scanning (ORM entity discovery, attribute-based route registration) is to require explicit registration via a builder API or a marker interface, supplemented by optional convention-based scanning of explicitly listed assemblies rather than relying on `GetExecutingAssembly`. Source generators are the compile-time alternative that completely eliminates runtime scanning.
+When `[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]` is set on an attribute (or when `AllowMultiple` is omitted, since `false` is the default), applying the same attribute twice to the same method produces a compile-time error: `Duplicate 'MyAttribute' attribute`. This is the intended safety mechanism — the compiler prevents accidental duplication before the code reaches runtime. To support legitimate multiple applications (e.g., a `[RequiredRole("Admin"), RequiredRole("Manager")]` security attribute), the attribute must explicitly declare `AllowMultiple = true`. A common design mistake is forgetting to set `AllowMultiple = true` on attributes that are logically intended to stack, discovering the restriction only when a consumer attempts to apply them multiple times.
+
+---
+
+#### Gotcha 5. Private member access via reflection — requires `BindingFlags.NonPublic | BindingFlags.Instance`
+
+**Concepts**
+- `GetField` / `GetMethod` without flags returns only public members
+- `BindingFlags.NonPublic | BindingFlags.Instance` for private/protected members
+- `BindingFlags.Static` required for private static members
+- accessing privates via reflection is a test design smell
+
+**Answer**
+
+Reflection methods like `GetField`, `GetMethod`, and `GetProperty` default to returning only public members. A call to `type.GetField("_cache")` returns `null` for a private backing field — not an exception. Code that then calls `field.SetValue(instance, value)` on the `null` reference throws `NullReferenceException`, making the null field lookup the real bug rather than a missing access. The correct flags are `BindingFlags.NonPublic | BindingFlags.Instance` for private instance members and `BindingFlags.NonPublic | BindingFlags.Static` for private static members. In tests, accessing private members via reflection is generally a design smell — test through the public API instead. Legitimate uses include framework-level code (serializers, ORMs) that must operate on the full object graph regardless of access modifiers.
+
+---
+
+#### Gotcha 6. Invoking a method via `MethodInfo.Invoke` boxes value type arguments
+
+**Concepts**
+- `MethodInfo.Invoke(obj, object[] args)` parameter array accepts `object`
+- value types are boxed into the `object[]` array before the call
+- boxing/unboxing allocation on every invocation
+- compiled delegate via `CreateDelegate` avoids boxing
+
+**Answer**
+
+`MethodInfo.Invoke` accepts arguments as `object[]`, which requires boxing every value type — `int`, `bool`, `decimal`, `struct` — into heap-allocated objects before the call. On a hot path that invokes methods on thousands of structs per second, this produces significant GC pressure. The return value is also boxed if the method returns a value type. To eliminate boxing, compile the `MethodInfo` into a typed delegate: `(Func<int, int>)methodInfo.CreateDelegate(typeof(Func<int, int>), target)` bypasses the `object[]` indirection entirely and executes at near-native speed. For generic scenarios, expression tree compilation (`Expression.Lambda(...).Compile()`) achieves the same result with a typed `Func<T, TResult>` delegate.
+
+---
+
+#### Gotcha 7. `typeof(T)` vs `obj.GetType()` — compile-time type vs runtime type
+
+**Concepts**
+- `typeof(T)` resolves at compile time to the declared type
+- `obj.GetType()` resolves at runtime to the actual concrete type
+- polymorphic dispatch difference: base vs derived type metadata
+- sealed classes / value types: `typeof(T) == obj.GetType()` always true
+
+**Answer**
+
+`typeof(Animal)` gives the `Type` object for `Animal` as known at compile time — if `T` is `Animal` in a generic method, `typeof(T)` is `Animal` even when the actual object passed is a `Dog`. `obj.GetType()` returns the runtime type: for a `Dog` instance, `obj.GetType()` is `typeof(Dog)`. When a serializer uses `typeof(T)` to discover properties, it finds only those declared on `Animal`; when it uses `obj.GetType()`, it finds all properties including those added in `Dog`. Using the wrong one causes silent data loss — derived-type properties are ignored. The correct choice depends on intent: serializing the full concrete object requires `obj.GetType()`; generic constraints that should operate on the declared contract use `typeof(T)`.
+
+---
+
+#### Gotcha 8. Attributes are instantiated at reflection access time, not at compile time
+
+**Concepts**
+- attribute constructor runs when `GetCustomAttribute` is called, not at application time
+- mutable attribute state: changes to fields after `GetCustomAttribute` are per-instance
+- attribute with side effects in constructor: executed on every reflection call
+- caching attribute instances avoids repeated construction
+
+**Answer**
+
+An attribute's constructor does not run when the `[MyAttribute(...)]` syntax is compiled into the assembly. It runs each time `GetCustomAttribute` or `GetCustomAttributes` is called — every call creates a new attribute instance. An attribute that opens a file, reads configuration, or has expensive initialization in its constructor will pay that cost on every reflection call. If the attribute maintains mutable state (a writable property set by the consumer), each `GetCustomAttribute` call returns a fresh instance so mutations on one instance do not affect another. To avoid repeated construction, cache the attribute instance in a static `ConcurrentDictionary<MemberInfo, MyAttribute>` keyed by the member.
+
+---
+
+#### Gotcha 9. `dynamic` uses reflection internally — boxing/unboxing + DLR overhead
+
+**Concepts**
+- `dynamic` invokes the DLR (Dynamic Language Runtime) on each member access
+- call sites are cached after first dispatch, but first-call overhead is significant
+- boxing of value types through `object` binder
+- `dynamic` in a tight loop is measurably slower than a typed call
+
+**Answer**
+
+When you write `dynamic obj = GetObject(); obj.Process()`, the C# compiler emits a DLR call site that performs late-bound member resolution on the first invocation. The DLR caches the resolved method and binding rule, so repeated calls on the same runtime type are faster than the first — but even cached DLR dispatch is significantly slower than a direct virtual call or interface call. Value types accessed through `dynamic` are boxed and unboxed on every access. In hot paths — inner loops, high-throughput message processing — `dynamic` can be 10-100x slower than a typed dispatch. Prefer interfaces or `MethodInfo`-compiled delegates when performance matters, and reserve `dynamic` for genuinely schema-free scenarios such as interop with COM, `ExpandoObject`, or scripting engines.
+
+---
+
+#### Gotcha 10. Source generators as the compile-time alternative to runtime reflection
+
+**Concepts**
+- source generators run during compilation, emit C# code, no runtime cost
+- `IIncrementalGenerator` API in .NET 6+
+- AOT-compatible: no `Assembly.GetTypes()` or `MethodInfo.Invoke` at runtime
+- `System.Text.Json`'s `[JsonSerializable]` and `Regex`'s `[GeneratedRegex]` as built-in examples
+
+**Answer**
+
+Source generators execute as part of the compilation pipeline and emit additional C# source files that are compiled alongside user code. The generated code contains direct property accessors, switch dispatches, or lookup tables — no runtime reflection required. This makes source-generated code fully compatible with Native AOT, which cannot JIT-compile reflection-based code at deployment time. The `[JsonSerializable(typeof(MyDto))]` attribute on a partial `JsonSerializerContext` class causes the `System.Text.Json` source generator to emit typed serializer code that is faster than the reflection-based path. Similarly, `[GeneratedRegex(@"\d+")]` generates a compiled state machine at build time. When writing custom infrastructure code (mappers, validators, serializers), implementing a source generator is the modern alternative that achieves zero runtime overhead while supporting AOT deployment.
 
 ---
 

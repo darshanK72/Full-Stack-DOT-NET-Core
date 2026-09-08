@@ -299,97 +299,147 @@ A lambda's conciseness is a net gain when the logic is trivial, used in exactly 
 
 ---
 
-## Gotchas
+## Gotchas — Lambda Expressions (Interview Traps)
 
 ---
 
-## G1. Why does a loop-captured variable cause all lambdas to see only the last value?
+#### Gotcha 1. Loop Variable Capture — All Lambdas See the Final Value of `i`
 
 **Concepts**
-- captured variable reference, not value snapshot
-- single `i` or `item` variable hoisted by compiler
-- classic `for`/`foreach` closure bug
-- fix: local copy inside the loop
-- `foreach` implicit copy in modern C# (C# 5+)
+- closure captures the variable reference, not the value at capture time
+- `for` loop counter is a single shared variable across all iterations
+- all lambdas created in the loop see the post-loop final value
+- local copy inside the loop body creates an independent variable per iteration
 
 **Answer**
 
-The capture bug is one of the most asked-about lambda gotchas in C# interviews. When you write `for (int i = 0; i < 5; i++) { actions.Add(() => Console.WriteLine(i)); }`, every lambda in the list captures the same variable `i` — the single integer storage location that the loop mutates on each iteration. By the time any of the stored lambdas execute, the loop has finished and `i` equals 5, so every lambda prints 5. The fix is to introduce a loop-local copy before the lambda: `int copy = i; actions.Add(() => Console.WriteLine(copy));`. Each iteration creates a new `copy` variable with its own storage location, so each lambda captures a distinct value. In `foreach` loops, C# 5 and later changed the language spec so that the iteration variable is implicitly scoped per iteration — `foreach (var item in list) { actions.Add(() => Use(item)); }` is safe in modern C#. However, `for`-loop variables are still single variables; the copy pattern is mandatory there. The classic production manifestation is a loop that registers lambdas as event handlers, LINQ queries, or factory methods, all referencing an outer loop variable — the symptom is every handler or query operating on the last value.
+The classic loop-capture trap is `for (int i = 0; i < n; i++) list.Add(() => i)` — when any stored lambda is later invoked, every one of them prints `n`, not the per-iteration value. This happens because all lambdas share the same captured variable `i`, which by execution time holds its final loop-exit value. The fix is to introduce a loop-local copy: `int copy = i; list.Add(() => copy);` — each iteration's `copy` is a distinct variable on its own display class, so each lambda is independent.
 
 ---
 
-## G2. What restrictions apply to a `static` lambda, and what compile error do you get if you violate them?
+#### Gotcha 2. Closure Keeps the Captured Variable Alive Beyond Its Original Scope
 
 **Concepts**
-- `static` lambda prevents capture
-- CS8971 — static lambda captures instance member or local
-- `this` reference forbidden
-- outer local variable forbidden
-- static fields accessible (they are not captures)
+- display class promotes captured variable to the heap
+- delegate holds a strong reference to the display class
+- large objects or `IDisposable` resources captured unintentionally stay alive
+- event subscription with a capturing lambda creates a GC root through the publisher
 
 **Answer**
 
-A `static` lambda, introduced in C# 9, guarantees zero capture by refusing to close over anything in the enclosing instance or method scope. If you mark a lambda `static` and then reference `this`, an instance field, or a local variable from the enclosing method, the compiler emits CS8971: "A static anonymous function cannot contain a reference to 'x'." This is a hard compile-time error, not a warning, which is precisely the point — the `static` modifier acts as a machine-enforced contract that the lambda is allocation-safe. Static fields and static methods are permitted because they are not captured in the closure sense; they live in a fixed memory location and accessing them does not require hoisting any variable onto the heap. The most common mistake is writing `static x => x * _rate` where `_rate` is an instance field — remove the `static` modifier or, better, pass the rate as a parameter so the lambda remains static. In hot-path scenarios where you explicitly want the caching benefit, the compiler error from a stray capture is a useful guard against inadvertently introducing allocations.
+When a lambda captures a variable, the compiler lifts it into a heap-allocated display class. The display class lives as long as any delegate referencing it is reachable, which can be far longer than the method's stack frame. Capturing a large collection, an `HttpContext`, or a `DbContext` inside a lambda stored in a static field or a long-lived event subscription prevents the garbage collector from reclaiming those objects. Always ask: what does this lambda capture, and for how long will the delegate holding it live?
 
 ---
 
-## G3. How does capturing a variable extend its lifetime, and why can that be a resource concern?
+#### Gotcha 3. Static Lambdas (C# 9) Prevent Accidental Capture
 
 **Concepts**
-- display class holds reference beyond method return
-- GC root via delegate/closure object
-- large objects or IDisposable resources captured
-- lambda stored longer than expected (field, static, event)
-- memory leak pattern with event subscriptions
+- `static` modifier forbids capture of `this`, locals, and instance members
+- CS8971 compile error on any attempted capture
+- allocation benefit: no closure object; delegate can be cached statically
+- static fields and static methods remain accessible inside a static lambda
 
 **Answer**
 
-When a lambda captures a variable, the compiler moves that variable into a heap-allocated display class and gives both the lambda and the original method a reference to it. The display class survives as long as any delegate referencing it is reachable — which may be far longer than the method that created it. The practical concern arises in two patterns. The first is capturing a large collection or a resource-heavy object: if a lambda stored in a long-lived field or a static event captures `this` (because it references any instance member), the entire object graph rooted at `this` is kept alive for the lifetime of that delegate, even if nothing else holds a reference to the object. The second is event subscription: `someService.DataArrived += _ => UpdateDisplay();` — because `_` refers to a method on the current object, the lambda captures `this`, and `someService` holds a reference to the lambda, meaning the current object cannot be garbage-collected as long as `someService` is alive. The fix is to unsubscribe in `Dispose`, use weak-event patterns, or restructure so the lambda does not capture `this`. When reviewing code for memory issues, the first question to ask about any long-lived delegate is: what does it capture, and for how long does the capturing delegate live?
+Adding the `static` keyword before a lambda — `static x => x * 2` — instructs the compiler to refuse any variable or instance-member capture. This is a compile-time guardrail, not a mere performance hint: if a later code change accidentally introduces a capture inside a static lambda, the compiler reports CS8971 immediately rather than silently introducing a closure allocation. For hot-path code where allocation matters, static lambdas give the runtime enough information to cache the delegate in a static slot, eliminating per-call allocation.
 
 ---
 
-## G4. What is the `async void` lambda pitfall, and how does it differ from `async Task`?
+#### Gotcha 4. Lambda vs Method Group — Different Delegate Equality Semantics
 
 **Concepts**
-- `async void` swallows or rethrows on SynchronizationContext
-- no `Task` to await or observe exceptions on
-- `Action` parameter accepts `async void` silently
-- `Func<Task>` is the safe signature
-- fire-and-forget vs observed async
+- method group conversion to the same method on the same instance produces equal delegates
+- two lambda expressions are never equal even with identical bodies
+- `-=` with a wrapping lambda fails silently; `-=` with a method group succeeds
+- use a cached delegate or method group when reliable unsubscription is required
 
 **Answer**
 
-When an `async` lambda is assigned to an `Action` or a delegate that returns `void`, the compiler produces an `async void` method. Unlike `async Task`, an `async void` method has no `Task` for the caller to await, so exceptions thrown after the first `await` are not propagated back to the call site — they are rethrown on the synchronisation context, which in ASP.NET Core typically means an unhandled exception that kills the request or the process without a comprehensible stack trace. The insidious part is that the mismatch is silent: `SomeMethod(async () => await FetchAsync())` compiles without warning if `SomeMethod` accepts `Action`. The caller may believe it is handling the work correctly, but any exception in `FetchAsync` disappears into the void. The rule is to never write an `async` lambda unless the parameter or variable type is `Func<Task>`, `Func<Task<T>>`, or another delegate returning a `Task`. If you are calling a legacy API that only accepts `Action`, extract the async logic into a named `async Task` method and use `task.GetAwaiter().GetResult()` (with full understanding of deadlock risk) or restructure the API. In modern code, treat any `async void` lambda as a bug until proven otherwise.
+Two delegates created from the same method group — `service.Handler += obj.HandleEvent` followed by `service.Handler -= obj.HandleEvent` — compare as equal and unsubscription works correctly. Two delegates created from separately written lambda expressions, even with identical bodies, compare as unequal, and the `-=` is a silent no-op. When reliable unsubscription is required, prefer a cached delegate or a method group over an inline lambda.
 
 ---
 
-## G5. Why can a statement lambda not be assigned to `Expression<Func<T, TResult>>`?
+#### Gotcha 5. Expression Trees vs Delegates — `Func<T>` Compiles to IL; `Expression<Func<T>>` Is an AST
 
 **Concepts**
-- expression tree requires representable structure
-- block bodies contain imperative statements
-- `Expression<TDelegate>` models pure expressions
-- compiler limitation, not a runtime restriction
-- workaround: rewrite as single expression or use `Func`
+- `Func<T>` compiles the lambda body to IL executable code
+- `Expression<Func<T>>` compiles the lambda body to an in-memory syntax tree; no IL for the body
+- statement lambdas cannot be expression trees
+- EF Core and other `IQueryable` providers require `Expression<Func<T,bool>>` for SQL translation
 
 **Answer**
 
-An expression tree is a data structure that represents code as an inspectable object graph — nodes for parameters, constants, binary operations, and method calls. The `Expression<TDelegate>` type models only lambda expressions whose body is a single expression, because the tree's node types do not have representations for statements like `if`, `while`, local variable declarations, or `return`. A statement lambda has a block body with zero or more statements, which cannot be mapped onto the available expression-tree node types, so the compiler refuses the assignment with an error at compile time. This is not a runtime limitation that could theoretically be relaxed — the expression-tree API simply has no `IfStatementExpression` node. The practical consequence is that any lambda you intend to pass to an ORM or any other `IQueryable` provider must be expressible as a pure expression: no intermediate variables, no conditionals with blocks, no early returns. Complex predicates can often be restructured into ternary operators or `&&`/`||` chains to stay in expression form. If the logic genuinely requires imperative steps, it cannot be translated to SQL and you must accept that the filtering will happen in memory after the query, which means loading more rows than necessary.
+When you assign a lambda to `Func<T, bool>`, the compiler emits IL for the body and you get an executable delegate. When you assign the same lambda to `Expression<Func<T, bool>>`, the compiler emits code that constructs an abstract syntax tree object — the body is never compiled to IL directly. LINQ-to-database providers walk this tree and translate it to SQL; they cannot work with a compiled `Func` because there is no IL to inspect. Statement lambdas (block bodies with braces) cannot be converted to expression trees because the AST model has no representation for imperative statements.
 
 ---
 
-## G6. What causes lambda type ambiguity when two delegate types match, and how do you resolve it?
+#### Gotcha 6. Lambda in LINQ-to-SQL/EF Must Be Translatable to SQL
 
 **Concepts**
-- overload resolution failure — ambiguous conversion
-- `Func<T, bool>` vs custom delegate with same signature
-- explicit cast to resolve
-- typed intermediate variable pattern
-- delegate types are not structurally equivalent
+- `IQueryable<T>` extension methods accept `Expression<Func<T,bool>>`
+- lambdas calling C# methods the provider cannot translate throw at runtime
+- calling `.AsEnumerable()` or `.ToList()` before `Where` switches to in-memory evaluation
+- provider-specific functions (`EF.Functions.Like`) are safe; arbitrary C# methods are not
 
 **Answer**
 
-C# delegate types are nominally typed, not structurally typed. Two delegate declarations with identical signatures — `delegate bool Filter(decimal x)` and `Func<decimal, bool>` — are different types. When you call an overloaded method where one overload accepts `Filter` and another accepts `Func<decimal, bool>`, and you pass a lambda, the compiler finds two equally valid conversions and reports an ambiguity error rather than guessing which you intended. The resolution is explicit: either cast the lambda `(Filter)(x => x > 0m)` or assign it to a typed intermediate variable `Filter f = x => x > 0m; Method(f);`. A similar ambiguity arises in generic methods where type inference cannot distinguish `Func<T, bool>` from `Expression<Func<T, bool>>` without additional context. In API design, avoid publishing two overloads that accept different delegate types with the same arity and underlying signature; if both overloads are necessary for functional reasons (one for in-memory, one for queryable translation), name them differently or use a discriminating generic constraint so the caller's intent is unambiguous.
+When LINQ executes against an `IQueryable` provider such as EF Core, every lambda inside `Where`, `Select`, and similar operators must be translatable to the target query language. Calling a custom C# method — `p => p.Name.ToTitleCase()` — compiles without error but throws an `InvalidOperationException` at runtime because EF has no SQL equivalent. The fix is either to pull the query result into memory first with `ToList()` and then apply the untranslatable filter in-memory, or to rewrite the predicate using only BCL methods and EF-specific functions that the provider knows how to translate.
+
+---
+
+#### Gotcha 7. `var` Cannot Infer a Lambda's Type Without an Explicit Target Type
+
+**Concepts**
+- lambdas have no standalone type before C# 10
+- C# 10 natural type requires explicit parameter type annotations
+- without a target type or annotations, compiler reports CS8917
+- must assign to an explicit `Func<>`, `Action<>`, or custom delegate type
+
+**Answer**
+
+Before C# 10, a lambda expression had no type of its own and could not be assigned to `var`. The compiler requires a target delegate type — either from the variable declaration, a method parameter, or an explicit cast — to resolve parameter and return types. C# 10 introduced a natural type: if you annotate the parameters explicitly, the compiler synthesises a `Func` or `Action` delegate type and allows `var f = (int x) => x * 2;`. Without the annotation the compiler still reports CS8917, so the natural type feature is not a full substitute for an explicit delegate type on the left side.
+
+---
+
+#### Gotcha 8. Recursive Lambda — A Lambda Cannot Reference Itself by Name
+
+**Concepts**
+- lambda has no name to call recursively
+- declare a variable first, then assign the lambda that closes over it
+- forward-reference problem: variable must be declared before the lambda uses it
+- local function is the idiomatic solution for recursion
+
+**Answer**
+
+A lambda expression has no name, so it cannot call itself directly the way a named method can. The workaround is to declare the variable first, then assign the lambda that references the variable: `Func<int,int> fib = null!; fib = n => n <= 1 ? n : fib(n-1) + fib(n-2);`. This works because the variable is in scope when the lambda body executes, even though it was null at the moment the lambda was written. The cleaner idiomatic solution is a local function, which supports direct recursion by name without the null-initialization ceremony.
+
+---
+
+#### Gotcha 9. Lambdas Cannot Capture `ref` or `out` Variables
+
+**Concepts**
+- `ref`/`out` variables are aliases to stack locations that cannot be heap-promoted
+- captured variables must outlive the declaring method's stack frame
+- combining heap promotion with a stack alias is unsafe
+- CS1628 compile error when attempting to capture a `ref`/`out` variable
+
+**Answer**
+
+The compiler prohibits capturing a variable declared with `ref` or `out` inside a lambda because those variables are aliases to stack locations that the runtime cannot safely promote to the heap. If the stack frame is released while the delegate is still alive, the captured `ref` would point to garbage memory. The compiler catches this with CS1628 at compile time. The workaround is to copy the `ref`/`out` value into a regular local variable before the lambda, capturing the copy instead of the original ref-typed variable.
+
+---
+
+#### Gotcha 10. Lambda Allocation — Every Capturing Lambda Creates a Closure Object
+
+**Concepts**
+- non-capturing lambda: no allocation (can be cached as a static delegate)
+- capturing lambda: allocates a display class object on each enclosing method call
+- allocations on hot paths accumulate GC pressure
+- static lambda or pre-allocated delegate field avoids repeated allocation
+
+**Answer**
+
+A lambda that captures no outer variables can be cached by the compiler as a single static delegate instance, so no heap allocation occurs at the call site. A lambda that captures even one variable creates a new display class object on every invocation of the enclosing method, because each call needs independent captured variable storage. In tight loops or request-handling hot paths, this allocation can add measurable GC pressure. The mitigation is to use static lambdas where possible, move capturing lambdas to instance fields so the closure object is allocated once per object lifetime, or use local functions which the compiler can sometimes implement without a display class.
 
 ---
 

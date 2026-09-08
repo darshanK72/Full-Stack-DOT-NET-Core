@@ -412,121 +412,147 @@ NSubstitute uses `Arg.Any<T>()` and `Arg.Is<T>(predicate)` as equivalents to Moq
 
 ---
 
-## Gotcha Questions
+## Gotchas — Mocking & Test Doubles (Interview Traps)
 
 ---
 
-## Q17. Why does Moq silently return default values for unstubbed calls, and how can this hide production bugs?
+#### Gotcha 1. `Mock<T>.Setup` — only overridable (virtual/interface) members can be mocked; non-virtual methods cannot
 
 **Concepts**
-- Loose mock default behavior
-- false positive tests
-- unstubbed method returning false
-- MockBehavior.Loose pitfall
-- VerifyNoOtherCalls as safeguard
+- Moq requires the target member to be `virtual`, `abstract`, or an interface method
+- non-virtual class methods cannot be intercepted by the proxy
+- `InvalidOperationException` or `NotSupportedException` at setup time for non-virtual members
+- solution: extract an interface, or mark the method `virtual`
 
 **Answer**
 
-Moq's Loose mode returns `default(T)` for any method call without a matching setup: `false` for `bool`, `null` for objects, `0` for integers, and a completed `Task` for void-async methods. This is convenient but dangerous. Consider a test where the developer forgets to set up `HasStock` for the second order line:
-
-```csharp
-inventoryMock.Setup(i => i.HasStock("WIDGET-01", 2)).Returns(true);
-// Missing: HasStock("GADGET-05", 1) — returns false by default
-```
-
-The SUT's all-or-nothing check sees `false` for `GADGET-05` and aborts the reservation. If the test only checks that `Reserve` was not called, it may still pass — but for the wrong reason. The test is accidentally testing the failure path when it intended to test the success path. Worse, if a code path proceeds on a `null` return without a null check, a missing setup can mask a `NullReferenceException` that only surfaces in production. The fix is to be explicit about every setup relevant to the test path. An intermediate safeguard is `inventoryMock.VerifyNoOtherCalls()` at the end of tests where you want to enumerate all expected calls exhaustively — this fails the test if the SUT made any call not previously verified, catching gaps without the full rigidity of `MockBehavior.Strict` during setup.
+Moq creates a runtime proxy that overrides the target member to return configured values. This only works for `virtual` methods on classes, `abstract` methods, and interface members — non-virtual class methods are sealed at the IL level and cannot be overridden by a proxy. Attempting `mock.Setup(x => x.ConcreteMethod())` on a non-virtual method throws `InvalidOperationException: Non-overridable members may not be used in setup / verification expressions`. The idiomatic fix is to extract the dependency as an interface and program to the interface — the proxy then overrides the interface's virtual dispatch table. Marking methods `virtual` on concrete classes is a second option but weakens encapsulation.
 
 ---
 
-## Q18. What is over-specification in tests and why does it create fragile tests?
+#### Gotcha 2. `Mock<T>.Verify` — forgetting to call Verify means the test passes even if the dependency was never called
 
 **Concepts**
-- over-specification
-- coupling to implementation details
-- refactoring breakage
-- testing behavior vs mechanism
-- assertion granularity
+- `Setup` alone does not assert that the method was called
+- `mock.Verify(x => x.Save(It.IsAny<Order>()), Times.Once)` is required to assert invocation
+- `MockBehavior.Strict` enforces that every call is set up but still requires `Verify` for call-count assertions
+- `mock.VerifyAll()` verifies all setups that were configured with a verifiable setup
 
 **Answer**
 
-Over-specification is the practice of asserting on interactions that are implementation details rather than observable contract requirements. For `OrderService`, the contract is: when all lines have stock, reserve all of them and send a confirmation; when any line lacks stock, reserve nothing. The implementation may check stock sequentially, in parallel, or grouped by warehouse — those are internal concerns. An over-specified test adds `Verify` assertions on the exact order of `HasStock` calls, asserts that `HasStock` was called exactly twice (hard-coding the number of lines), or checks that `HasStock` was called before `Reserve`. These assertions break when a developer refactors the iteration strategy, even though the observable behavior is unchanged. The result is a test suite that resists change: every refactoring requires updating tests that should never have been affected, which trains the team to distrust the suite and skip it before merging. The guideline is to verify outcomes — state changes and commands issued to external boundaries — rather than the sequence of internal decisions. In the `OrderService` scenario the right assertions are that `Reserve` was called for every in-stock SKU and never for any out-of-stock SKU, not the precise number of times `HasStock` was queried or the order those queries occurred.
+`mock.Setup(x => x.SendEmail(It.IsAny<string>()))` configures what the mock returns when called but does not assert that the method was actually called. If the production code path that calls `SendEmail` is never reached (a bug), the test still passes — the mock simply never invoked the setup. Adding `mock.Verify(x => x.SendEmail(It.IsAny<string>()), Times.Once())` at the end of the test asserts that `SendEmail` was called exactly once, catching the missing call as a test failure. The most common cause of false-positive tests in Moq-based test suites is omitting `Verify` for interactions that are critical to the business logic.
 
 ---
 
-## Q19. What happens when you call Verify() on a method that was never set up, and when is that a valid pattern?
+#### Gotcha 3. Strict vs Loose mocks — Strict throws on unexpected calls; Loose returns default values
 
 **Concepts**
-- Verify without Setup
-- call log independence from setup
-- command verification pattern
-- void-return method testing
-- Loose mock call recording
+- `MockBehavior.Loose` (default): unexpected calls return `default(T)` — `false`, `null`, `0`
+- `MockBehavior.Strict`: unexpected calls throw `MockException`
+- Loose mocks hide missing setups; Strict mocks force all expected interactions to be explicit
+- `MockBehavior.Strict` + `VerifyNoOtherCalls()` for exhaustive interaction testing
 
 **Answer**
 
-In Moq, `Verify()` checks the call log independently of whether a `Setup()` was registered. Because Loose mocks record every intercepted call — including calls with no matching setup — you can call `Verify()` on a method that was never configured. This is a valid and common pattern when you are testing a command method (void return or no meaningful return value) and do not need to control its output, only confirm it was invoked. For example, `IEmailSender.Send()` likely returns `void`. No `Setup()` is needed, but the call should still be verified:
-
-```csharp
-// No Setup for emailMock.Send()
-sut.PlaceOrder(order);
-emailMock.Verify(e => e.Send(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-```
-
-Moq records the call to `Send` on the Loose proxy and `Verify()` finds it in the log. The gotcha runs in the opposite direction: calling `Verify(..., Times.Once)` when the method was never called rightly fails — but confusing "not set up" with "not called" is a common authoring mistake. Remember that `Setup()` controls what the mock returns; the call log is maintained regardless of setup. A missing setup on a void method (under Loose mode) does not prevent the method from being recorded — it simply means the proxy does nothing when called, which for void methods is exactly the right default.
+Moq's default `MockBehavior.Loose` returns `default(T)` for any method call without a matching setup. This silently swallows unexpected calls and can mask bugs where the SUT calls a dependency in an unintended scenario. `MockBehavior.Strict` makes Moq throw a `MockException` on the first call that has no corresponding `Setup`, forcing the test author to be explicit about every interaction. Strict mocks require more setup code but provide higher confidence that no surprising calls are made. A middle ground is to use Loose mocks and call `mock.VerifyNoOtherCalls()` at the end of the test to assert that no unexpected calls were made without requiring all calls to be pre-declared.
 
 ---
 
-## Q20. Why can you not mix literal arguments and It.* matchers in the same Setup() or Verify() call?
+#### Gotcha 4. `It.IsAny<T>()` vs `It.Is<T>(pred)` — broad vs precise argument matching
 
 **Concepts**
-- argument matcher mixing constraint
-- thread-local matcher queue
-- InvalidOperationException at runtime
-- It.Is<T> workaround
-- consistent matching mode rule
+- `It.IsAny<T>()` matches any value of type `T` — no argument validation
+- `It.Is<T>(x => predicate)` matches only values satisfying the predicate
+- using `IsAny` for critical arguments hides incorrect argument values passed to the dependency
+- `It.IsIn(...)` and `It.IsNotNull<T>()` for common constraint patterns
 
 **Answer**
 
-Moq's argument matching is implemented through a thread-local queue of `IArgumentMatcher` instances. When the expression tree in `Setup(i => i.HasStock("WIDGET-01", It.IsAny<int>()))` is compiled and evaluated to capture matchers, the literal `"WIDGET-01"` does not go through the matcher queue — it is captured directly as a value — while `It.IsAny<int>()` enqueues a wildcard matcher. At the point Moq reads the setup expression it finds one queued matcher and one literal, which it cannot reconcile consistently, resulting in `InvalidOperationException` or a matcher-out-of-order error depending on the Moq version. The fix is to wrap the literal in an `It.Is<T>` predicate so both arguments go through the matcher queue:
-
-```csharp
-inventoryMock.Setup(i => i.HasStock(
-    It.Is<string>(s => s == "WIDGET-01"),
-    It.IsAny<int>()
-)).Returns(true);
-```
-
-Alternatively, when both argument values are fixed, use two literals and no matchers at all — Moq handles all-literal setups through equality comparison. The mixing restriction applies identically to `Verify()`. Learning this rule early prevents a class of runtime errors that produce confusing messages not obviously related to argument matching.
+`mock.Setup(x => x.Save(It.IsAny<Order>()))` configures the mock to respond regardless of which `Order` is passed. This is convenient but means the test does not verify that the correct `Order` was saved — a production bug that passes the wrong object goes undetected. `mock.Setup(x => x.Save(It.Is<Order>(o => o.Id == expectedId)))` constrains the setup and the corresponding `Verify` to fire only when the specific order is passed. Prefer `It.Is<T>` for arguments that carry business-logic significance (correct entity, correct amount, correct status) and reserve `It.IsAny<T>` for arguments that are truly irrelevant to the test's assertion (logging correlation IDs, timestamps, etc.).
 
 ---
 
-## Q21. What happens when you use Returns() instead of ReturnsAsync() for an async dependency method?
+#### Gotcha 5. `Returns` vs `ReturnsAsync` — synchronous vs async method stubbing in Moq
 
 **Concepts**
-- Returns() vs ReturnsAsync()
-- Task<T> wrapping requirement
-- NullReferenceException on await
-- Returns(Task.CompletedTask) for void async
-- async setup correctness
+- `Returns(value)` for synchronous return values
+- `ReturnsAsync(value)` for methods returning `Task<T>` or `ValueTask<T>`
+- using `Returns(Task.FromResult(value))` is equivalent but more verbose
+- `ThrowsAsync(exception)` for async exception simulation
 
 **Answer**
 
-When a mocked interface method returns `Task<bool>`, the setup must return a `Task<bool>`, not a raw `bool`. `ReturnsAsync(true)` creates `Task.FromResult(true)` and configures the mock correctly. `Returns(true)` attempts to use `bool` as the return value where `Task<bool>` is expected; it compiles because `Returns()` accepts `object`, but at interception time Moq casts the stored value to the method's declared return type. Since `bool` is not assignable to `Task<bool>`, the result is a `NullReferenceException` or `InvalidCastException` when the SUT awaits. The correct patterns:
+`mock.Setup(x => x.GetOrderAsync(id)).Returns(order)` attempts to return a raw `Order` from a method that returns `Task<Order>` — this compiles but at runtime the `Task<Order>` returned by the mock wraps the `Order` incorrectly, typically resulting in a `null` or default value when the caller awaits. The correct form is `mock.Setup(x => x.GetOrderAsync(id)).ReturnsAsync(order)`, which wraps the value in a completed `Task<Order>`. For `void`-returning async methods (`Task` with no type parameter), use `.Returns(Task.CompletedTask)`. Mixing `Returns` and `ReturnsAsync` on async setups is one of the most common Moq mistakes and produces subtle bugs that are hard to diagnose from stack traces.
 
-```csharp
-// For Task<bool>
-inventoryMock.Setup(i => i.HasStockAsync("WIDGET-01", 2)).ReturnsAsync(true);
+---
 
-// For Task (void async)
-emailMock.Setup(e => e.SendAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+#### Gotcha 6. Test spy — a real object that records interactions; different from a mock
 
-// For exception on async method
-inventoryMock
-    .Setup(i => i.ReserveAsync("WIDGET-01", 2))
-    .ThrowsAsync(new InvalidOperationException("Warehouse offline"));
-```
+**Concepts**
+- spy: a real implementation that additionally records calls
+- mock: an entirely synthetic object with configured return values
+- Moq `CallBase = true` creates a partial mock that is closer to a spy
+- test double taxonomy: dummy, stub, spy, mock, fake
 
-For `ValueTask<bool>`, use `Returns(new ValueTask<bool>(true))` in older Moq versions; recent Moq releases allow `ReturnsAsync` on `ValueTask` as well. The simplest rule to internalize: check the interface method's return type signature before writing the setup. If it starts with `Task` or `ValueTask`, use the `Async` variants.
+**Answer**
+
+A test spy wraps a real (or partial) implementation and records how it was called — the object actually executes production logic. A mock replaces the implementation entirely with configured stubs. In Gerard Meszaros's test double taxonomy, stubs provide canned answers (no assertions), mocks additionally verify interactions, spies use real logic but capture call records, and fakes are working lightweight implementations (like an in-memory repository). Moq is primarily a mock/stub library; enabling `mock.CallBase = true` turns a mock into a partial spy that calls the real method unless overridden. Confusing spies and mocks leads to tests that accidentally test real dependencies under the guise of a unit test.
+
+---
+
+#### Gotcha 7. Mocking `DateTime.Now` — cannot mock a static; inject `IDateTimeProvider` interface
+
+**Concepts**
+- `DateTime.Now` is a static property — not interceptable by Moq
+- inject `IDateTimeProvider` with a `Now` property to make time testable
+- `TimeProvider` (abstract class from .NET 8) as the standard injectable abstraction
+- hard-coded `DateTime.Now` in business logic causes non-deterministic tests
+
+**Answer**
+
+`DateTime.Now` is a static property on a sealed class and cannot be overridden by Moq or any proxy-based library. A service that calls `DateTime.Now` directly to check expiry or generate audit timestamps produces tests that pass or fail depending on the real wall-clock time, making them flaky and impossible to make deterministic. The solution is to inject an abstraction: in .NET 8+, `TimeProvider` is the built-in abstract class (`TimeProvider.System` in production, `FakeTimeProvider` from `Microsoft.Extensions.Time.Testing` in tests). In earlier projects, a custom `IDateTimeProvider` interface with a single `Now` property achieves the same goal. The mock is then set up as `mock.Setup(p => p.Now).Returns(new DateTime(2025, 1, 1))`.
+
+---
+
+#### Gotcha 8. `MockBehavior.Strict` and virtual members — abstract members are automatically setup-able
+
+**Concepts**
+- `MockBehavior.Strict` throws on any call without a matching `Setup`
+- abstract members on abstract base classes are always interceptable (no implementation to call)
+- `protected` virtual members require `protected` setup syntax in Moq
+- forgetting to setup a member called during object construction causes immediate failure
+
+**Answer**
+
+With `MockBehavior.Strict`, every method the SUT calls on the mock must have a corresponding `Setup` or the test throws `MockException: Invocation was not expected`. Abstract members are always interceptable because they have no concrete implementation — Moq's proxy must provide one. Protected virtual methods require `mock.Protected().Setup<int>("MethodName", ItExpr.IsAny<string>())` using Moq's protected member API. A subtle timing issue with Strict mocks occurs when the constructor of the SUT calls a dependency method — the test fails during object construction, before any `Act` code runs, making the error message confusing. Always ensure all calls made during construction are set up before instantiating the SUT.
+
+---
+
+#### Gotcha 9. `CallBase = true` — calls the real implementation for non-set-up members; useful for partial mocking
+
+**Concepts**
+- `Mock<T> { CallBase = true }` calls the real base implementation unless overridden by `Setup`
+- useful for testing abstract or base class behavior while mocking only specific dependencies
+- the real implementation must be accessible (public or protected virtual)
+- combining `CallBase = true` with `Verify` validates interactions on partially real objects
+
+**Answer**
+
+`new Mock<OrderProcessor> { CallBase = true }` creates a mock where any method not explicitly set up falls through to the real class implementation. This is useful for testing a class that has both concrete business logic and virtual/abstract dependency methods — you mock only the I/O boundary methods and let the real logic execute. The risk is that the "real" implementation might have its own external dependencies (database, HTTP), which is why `CallBase = true` is typically used only for thin service facades or when the concrete class is designed for partial override (template method pattern). Tests using `CallBase = true` are integration-adjacent — be deliberate about which dependencies are real vs mocked.
+
+---
+
+#### Gotcha 10. Over-mocking — mocking value objects or data classes is a design smell
+
+**Concepts**
+- value objects (`Money`, `Address`, `OrderId`) should be used as real instances, not mocked
+- mocking a type that has no interface and no virtual members produces a thin unusable mock
+- over-mocking makes tests harder to read and ties them to implementation details
+- mock only types that represent service dependencies or external boundaries
+
+**Answer**
+
+A test that mocks `Money` or `Address` — simple data-holding types — is over-mocked. These types have no external dependencies, no I/O, and no side effects; creating a real instance is trivial and makes the test more readable. Mocking them adds boilerplate (`mock.Setup(m => m.Amount).Returns(100m)`) that obscures the test's intent and ties the test to the internal structure of the type. The rule of thumb is to mock only types that cross a boundary: database repositories, HTTP clients, message queues, file systems, and clocks. Value objects, DTOs, and domain entities should be instantiated with real data. Over-mocking is often a symptom of insufficient constructors or factory methods on domain types — the fix is to improve the production API, not to add more mocks.
 
 ---
 

@@ -248,3 +248,147 @@ _Answer not found._
 _Answer not found._
 
 ---
+
+## Gotchas — Kubernetes Orchestration (Interview Traps)
+
+---
+
+#### Gotcha 1. Confusing Liveness and Readiness Probes
+
+**Concepts**
+- Liveness probe restarting a stuck container
+- Readiness probe removing a not-yet-ready container from Service endpoints
+- Wrong probe type causing restart loops or premature traffic
+- Startup probe as a third option for slow-starting applications
+
+**Answer**
+
+A liveness probe that returns failure during normal startup causes Kubernetes to restart the pod in an infinite loop before the application is ready to serve traffic — the container never gets a chance to complete initialisation. A readiness probe misconfigured as a liveness probe means a temporarily unhealthy pod (e.g., during a cache warm-up) gets killed and restarted rather than simply removed from the load balancer pool. The distinction is: liveness tells Kubernetes whether the container needs to be restarted (process is deadlocked); readiness tells Kubernetes whether the container should receive traffic (is it initialised and able to handle requests). For slow-starting applications, a `startupProbe` with a generous `failureThreshold` prevents the liveness probe from killing the pod before the app has started.
+
+---
+
+#### Gotcha 2. No Resource Requests and Limits Defined
+
+**Concepts**
+- Scheduler cannot place pods without resource requests
+- Noisy-neighbour consuming all node CPU without limits
+- OOMKilled pod without memory limits specified
+- QoS class (Guaranteed, Burstable, BestEffort) determined by requests/limits
+
+**Answer**
+
+A pod without `resources.requests` defined allows the Kubernetes scheduler to place it on any node regardless of available capacity, potentially overcommitting the node and causing CPU throttling or OOMKilled evictions for all pods on that node. Without `resources.limits`, a memory leak in one pod can consume all node memory and cause the OOM killer to terminate other pods on the same node. Setting requests (the minimum guaranteed allocation used for scheduling) and limits (the maximum allowed) is mandatory for production workloads; the QoS class is `Guaranteed` (requests == limits) for critical latency-sensitive services and `Burstable` (requests < limits) for services that can tolerate occasional throttling.
+
+---
+
+#### Gotcha 3. Rolling Update Disrupting In-Flight Requests
+
+**Concepts**
+- Rolling update terminating pods while they serve active HTTP connections
+- preStop hook adding a delay before SIGTERM processing
+- terminationGracePeriodSeconds giving the app time to drain
+- SIGTERM handling in ASP.NET Core with graceful shutdown
+
+**Answer**
+
+During a rolling update, Kubernetes terminates old pods while routing new requests to new pods — but there is a propagation delay between the pod being removed from the Service endpoint list and clients and load balancers actually stopping sending requests to it. Without a `preStop: exec: command: ["/bin/sh", "-c", "sleep 5"]` hook and an adequate `terminationGracePeriodSeconds`, the pod receives SIGTERM and starts shutting down while in-flight requests are still being processed, causing connection-reset errors visible to clients. ASP.NET Core's graceful shutdown drains active connections when `IHostApplicationLifetime.StopApplication()` is called, but Kubernetes must give the pod enough time to drain, set via `terminationGracePeriodSeconds` matching or exceeding the longest expected request duration.
+
+---
+
+#### Gotcha 4. Secrets Stored in ConfigMap Instead of Secret
+
+**Concepts**
+- ConfigMap storing plaintext values readable by any pod in the namespace
+- Kubernetes Secret base64-encoded but not encrypted by default
+- etcd encryption at rest required for true secret security
+- External secrets operator integrating with Vault or Key Vault
+
+**Answer**
+
+A Kubernetes `ConfigMap` is intended for non-sensitive configuration — its values are stored as plain text in etcd and readable by any pod in the same namespace with `kubectl get configmap`. Using a ConfigMap for database passwords, API keys, or certificates means any compromised pod or developer with namespace read access can extract them. Kubernetes `Secret` objects are base64-encoded (not encrypted) but have additional access controls and can be encrypted at rest in etcd with the `EncryptionConfiguration` API server feature. For production security, integrate with an external secrets manager — HashiCorp Vault, Azure Key Vault via the External Secrets Operator — which stores the actual secret value outside the cluster and injects it at pod runtime.
+
+---
+
+#### Gotcha 5. Single Replica Deployment With No Pod Disruption Budget
+
+**Concepts**
+- Single replica having zero availability during rolling updates
+- PodDisruptionBudget preventing forced eviction below minimum available
+- minAvailable and maxUnavailable PDB settings
+- Node maintenance draining pods versus PDB eviction rejection
+
+**Answer**
+
+A Deployment with `replicas: 1` and no `PodDisruptionBudget` will have zero running pods during a rolling update (the old pod is terminated before the new one is ready) and can have the single pod evicted during node maintenance without warning — the service is completely unavailable. A PodDisruptionBudget with `minAvailable: 1` ensures Kubernetes will not voluntarily evict or drain the last pod, which forces the cluster operator to be intentional about maintenance windows. For services that must have zero planned downtime, `replicas: 2` with `maxUnavailable: 0` in the rolling update strategy and `minAvailable: 1` in the PDB provides continuous availability during both updates and node drains.
+
+---
+
+#### Gotcha 6. Logs Written to Files Instead of stdout/stderr
+
+**Concepts**
+- Kubernetes log aggregation reading stdout/stderr from kubelet
+- Log file inside container inaccessible without exec or sidecar
+- Serilog/NLog configured to write to Console sink in containers
+- kubectl logs --follow reading the stdout stream
+
+**Answer**
+
+A container that writes application logs to a file inside the container filesystem (`/app/logs/app.log`) makes those logs inaccessible via `kubectl logs`, invisible to the cluster's log aggregation agents (Fluentd, Fluent Bit, Loki promtail), and lost when the pod is evicted and the container filesystem is destroyed. Containers must write logs to stdout/stderr so the kubelet captures them and log aggregators can read the node's container log files. In ASP.NET Core with Serilog, the production `appsettings.json` must configure the `Console` sink — not a file sink — and the logging format should be JSON structured output for machine parsing by the log aggregator.
+
+---
+
+#### Gotcha 7. imagePullPolicy: Always in Production Increasing Pod Startup Latency
+
+**Concepts**
+- imagePullPolicy: Always contacting the registry on every pod start
+- Registry unavailability preventing pod scheduling
+- imagePullPolicy: IfNotPresent using cached layer
+- Immutable image tags removing the need for Always
+
+**Answer**
+
+Setting `imagePullPolicy: Always` causes Kubernetes to contact the image registry and check for updates every time a pod is scheduled — including during scaling events, node reassignments, and pod restarts triggered by liveness probe failures. Under registry outage or network partitioning, `imagePullPolicy: Always` prevents pod scheduling entirely because Kubernetes cannot confirm the image is current. With immutable image tags (every release gets a unique version tag, never reusing the same tag name), `imagePullPolicy: IfNotPresent` is correct: the tag guarantees identity so cached layers are safe to use, and registry availability is required only for the initial pull, not every subsequent pod start.
+
+---
+
+#### Gotcha 8. Horizontal Pod Autoscaler Without Resource Requests Defined
+
+**Concepts**
+- HPA scaling based on CPU utilisation as a percentage of requests
+- No resource requests making HPA unable to compute utilisation
+- HPA showing "unknown" for current utilisation
+- Resource requests as a prerequisite for HPA CPU metrics
+
+**Answer**
+
+A HorizontalPodAutoscaler configured to scale on CPU utilisation computes the target as a percentage of the pod's `resources.requests.cpu` — if no CPU request is defined, the HPA cannot calculate a utilisation percentage and will show `<unknown>` as the current value, never scaling. The HPA controller requires `resources.requests.cpu` to be set on the container spec before CPU-based autoscaling can function. Deploying an HPA without resource requests produces a deployment that looks configured for autoscaling but never scales regardless of load, a mistake that is only discovered under the first traffic spike.
+
+---
+
+#### Gotcha 9. Not Handling SIGTERM in the Application
+
+**Concepts**
+- Kubernetes sending SIGTERM before SIGKILL
+- Application ignoring SIGTERM and being force-killed after terminationGracePeriodSeconds
+- ASP.NET Core IHostApplicationLifetime.ApplicationStopping
+- In-flight request draining requiring SIGTERM handling
+
+**Answer**
+
+Kubernetes always sends SIGTERM first, waits for `terminationGracePeriodSeconds` (default 30 seconds), then sends SIGKILL if the process has not exited. An application that does not handle SIGTERM — a console app started with `Environment.Exit(0)` on a different signal, or a .NET process ignoring the signal — will be force-killed after 30 seconds with any in-flight requests abruptly terminated and any pending background work abandoned. ASP.NET Core's `IHost` handles SIGTERM via `StopAsync`, which triggers the `ApplicationStopping` cancellation token and drains Kestrel connections, but only if the application uses `Host.CreateDefaultBuilder` or `WebApplication.CreateBuilder` and does not override the default signal handling.
+
+---
+
+#### Gotcha 10. Using NodePort as the Service Type in Production
+
+**Concepts**
+- NodePort exposing a fixed port on every cluster node
+- Direct node IP traffic bypassing load balancer health checks
+- LoadBalancer or Ingress as the correct production exposure pattern
+- NodePort used for local clusters only
+
+**Answer**
+
+NodePort services expose a fixed port (30000–32767) on every cluster node's IP address and require clients to know a node IP and the assigned port — there is no automatic load balancing across nodes, no TLS termination, no path-based routing, and no cloud load balancer health integration. A node that goes down leaves clients pointing to a dead IP until they switch to another node IP manually. In production, internet-facing services use a `LoadBalancer` service type (provisioning a cloud load balancer) or a Kubernetes Ingress with a managed Ingress controller (NGINX, Traefik, Azure Application Gateway) for TLS termination, path-based routing, and automatic backend health management. NodePort is appropriate for local development clusters (minikube, kind) where a cloud load balancer is unavailable.
+
+---

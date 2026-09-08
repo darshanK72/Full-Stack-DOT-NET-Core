@@ -357,6 +357,150 @@ This is a deferred-execution gotcha. A LINQ query variable holds a live referenc
 
 ---
 
+## Gotchas — Filtering & Aggregation (Interview Traps)
+
+---
+
+#### Gotcha 1. `Where` Predicates with Side Effects Are Called Per Enumeration
+
+**Concepts**
+- The `Where` predicate is called once per element per enumeration of the query
+- Re-enumerating a deferred query with a side-effect predicate repeats all side effects
+- Materializing with `ToList()` freezes the filtered result and prevents re-execution
+- Side effects inside `Where` (logging, counters, file writes) are a code-smell in LINQ
+
+**Answer**
+
+A `Where` predicate is invoked once for each element each time the query is enumerated. If the same deferred `IEnumerable<T>` query is consumed by both a `Count()` call and a subsequent `foreach`, the predicate runs twice over the entire source. Any side effect inside the predicate — incrementing a counter, writing a log line — accumulates on every re-enumeration. The fix is to materialize once with `.ToList()` before consuming the result in multiple places.
+
+---
+
+#### Gotcha 2. `Aggregate` Without a Seed Throws on an Empty Sequence
+
+**Concepts**
+- `Aggregate(func)` uses the first element as the initial accumulator value
+- An empty source sequence causes `InvalidOperationException` at runtime
+- `Aggregate(seed, func)` is empty-safe because the seed acts as the initial accumulator
+- `Aggregate(seed, func, resultSelector)` further transforms the final accumulated value
+
+**Answer**
+
+The single-argument `Aggregate(func)` overload initializes the accumulator with the first element of the sequence and then folds the remaining elements. When the source is empty, there is no first element and the method throws `InvalidOperationException`. To guard against empty inputs, always use the two-argument overload `Aggregate(seed, func)` and provide an appropriate seed — typically the identity value for the operation, such as `0` for addition or `1` for multiplication.
+
+---
+
+#### Gotcha 3. `Sum` on an Empty Sequence Returns 0; `Max`/`Min` on an Empty Sequence Throw
+
+**Concepts**
+- `Sum()` on an empty sequence returns `0` — it does not throw
+- `Max()` and `Min()` throw `InvalidOperationException` on an empty sequence
+- Nullable overloads `Max<T?>()` and `Min<T?>()` return `null` instead of throwing
+- Use `.DefaultIfEmpty(fallback)` before `Max`/`Min` if the source may be empty
+
+**Answer**
+
+`Sum()` is defined to return zero for an empty sequence, which is mathematically the identity for addition. `Max()` and `Min()`, however, have no meaningful value for an empty set and throw `InvalidOperationException`. This asymmetry surprises developers who assume all aggregation methods handle empty sequences consistently. To safely compute a max or min when the source may be empty, use `source.DefaultIfEmpty(defaultValue).Max()` or switch to the nullable overloads.
+
+---
+
+#### Gotcha 4. `Count(predicate)` vs. `Where(predicate).Count()` — One Chain vs. Two
+
+**Concepts**
+- `Count(predicate)` iterates the source once, applying the filter inline
+- `Where(predicate).Count()` creates an intermediate iterator then counts it — also O(n) but with slightly more object allocation
+- Both produce the same result; `Count(predicate)` is the idiomatic single-call form
+- Neither short-circuits — both must inspect every element to count
+
+**Answer**
+
+`source.Count(x => x.IsActive)` and `source.Where(x => x.IsActive).Count()` are functionally equivalent and both O(n). The first form is more concise and avoids allocating an intermediate iterator wrapper. The real gotcha is that neither version short-circuits: both inspect every element. If you only need to know whether at least one element satisfies a condition, use `Any(predicate)`, which stops at the first match.
+
+---
+
+#### Gotcha 5. `Any()` Short-Circuits; `Count() > 0` Enumerates the Entire Sequence
+
+**Concepts**
+- `Any()` returns `true` as soon as the first element is found — O(1) in the best case
+- `Count() > 0` must traverse all elements before the comparison can be evaluated — always O(n)
+- `Any(predicate)` similarly stops at the first match
+- `!Any()` is the idiomatic replacement for `Count() == 0`
+
+**Answer**
+
+Using `Count() > 0` to check emptiness is a performance anti-pattern because `Count()` must traverse the entire sequence even though the answer is known after finding the first element. `Any()` returns `true` immediately upon encountering the first element and `false` only after confirming the sequence is empty. On a database-backed `IQueryable<T>`, `Any()` also generates a more efficient `EXISTS` query rather than a full `COUNT(*)`.
+
+---
+
+#### Gotcha 6. `All()` on an Empty Sequence Returns `true` (Vacuous Truth)
+
+**Concepts**
+- `All(predicate)` returns `true` when the source contains no elements
+- This is mathematically correct (vacuous truth) but practically surprising
+- `All()` with an empty input is indistinguishable from a genuinely passing result
+- Add an explicit emptiness check with `Any()` before `All()` when empty-is-false is required
+
+**Answer**
+
+By mathematical convention, a universal quantifier over an empty set is vacuously true — there are no elements that violate the predicate. LINQ follows this convention: `Enumerable.Empty<int>().All(x => x > 0)` returns `true`. This surprises developers who expect `All()` to return `false` when the sequence is empty. When the business rule is "all elements must satisfy the condition AND there must be at least one element", write `source.Any() && source.All(predicate)`.
+
+---
+
+#### Gotcha 7. `Average()` on an `int` Sequence Returns `double`, Not `int`
+
+**Concepts**
+- `Enumerable.Average(IEnumerable<int>)` returns `double`, not `int`
+- Integer division is not used; the result is a true arithmetic mean
+- Assigning the result to an `int` variable requires an explicit cast and truncates the fractional part
+- For financial calculations, use `decimal` input to get a `decimal` average
+
+**Answer**
+
+`Enumerable.Average` on an `int` sequence is defined to return `double` so that fractional averages are not silently truncated. Attempting to assign the result directly to an `int` variable is a compile-time error. If you explicitly cast — `(int)list.Average()` — the fractional portion is discarded, which is rarely the desired behavior. For monetary calculations, project to `decimal` first: `list.Average(x => (decimal)x)` or ensure the source sequence is already `IEnumerable<decimal>`.
+
+---
+
+#### Gotcha 8. `Sum` with a Nullable Selector Treats `null` as Zero
+
+**Concepts**
+- `Sum(x => x.NullableInt)` skips null values — they contribute zero to the total
+- The return type is the nullable form: `int?` for `IEnumerable<int?>`
+- A sequence of all-null values returns `0` via `Sum`, not `null`
+- This differs from `Max`/`Min` on nullable types, which return `null` for all-null input
+
+**Answer**
+
+When `Sum` is called with a nullable selector — `items.Sum(x => x.Discount)` where `Discount` is `int?` — null values are treated as zero and excluded from the addition. The return type is also nullable (`int?`), and a sequence where every element is null still returns `0`. This silent zero-for-null behavior is intentional for financial summation but can mask data quality issues; if null should signal "no data rather than zero", check for nulls before summing.
+
+---
+
+#### Gotcha 9. Chaining Multiple `Where` Clauses Is Lazy and Efficient
+
+**Concepts**
+- Each `Where` call wraps the previous iterator — no intermediate collection is allocated
+- All `Where` predicates are evaluated lazily on a single pass through the source
+- Composing `Where` clauses across method boundaries is safe and idiomatic
+- Contrast with multiple `ToList()` calls mid-chain, which allocate intermediate collections
+
+**Answer**
+
+Calling `.Where(a).Where(b).Where(c)` creates a chain of lightweight iterator wrappers, not three separate passes over the data. When the final result is enumerated, each element passes through all three predicates in sequence during a single traversal. No intermediate `List<T>` is allocated between the filters. This makes it safe and idiomatic to build up filter conditions across method boundaries, for example when constructing dynamic query pipelines.
+
+---
+
+#### Gotcha 10. `GroupBy` Followed by `Where` Filters Groups, Not Elements
+
+**Concepts**
+- `Where` after `GroupBy` filters `IGrouping<K,V>` objects — entire groups, not individual elements
+- To filter elements within a group, project the group and filter its inner sequence
+- `Where(g => g.Count() > 1)` removes groups with fewer than two elements
+- To filter elements in a group: `Select(g => new { g.Key, Items = g.Where(pred) })`
+
+**Answer**
+
+After a `GroupBy`, each element in the resulting sequence is an `IGrouping<K,V>` — a group object, not an individual source element. A subsequent `Where` therefore filters entire groups based on the predicate applied to the group (e.g., its key or count), not to individual elements within the group. To filter elements inside each group, project with `Select`: `groups.Select(g => new { g.Key, Items = g.Where(pred) })`. Confusing these two filtering levels is a common source of incorrect grouping results.
+
+---
+
 ## Q22. Scenario: A report endpoint is counting records with `Count()` but the page sometimes loads slowly. What might be wrong? (Scenario)
 
 **Concepts**

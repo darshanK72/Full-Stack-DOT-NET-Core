@@ -93,67 +93,157 @@ Dapper has no navigation properties or automatic graph loading — I shape graph
 
 ---
 
-## Gotchas
+## Gotchas — Dapper Mapping, Multi-Mapping & Advanced Patterns (Interview Traps)
 
 ---
 
-## Gotcha 8. Multi-map `splitOn` wrong column
+#### Gotcha 1. `splitOn` wrong column — silent NULL or wrong values in nested objects
 
 **Concepts**
-- forward-only splitOn matching
-- default "Id" ambiguity in JOINs
-- silent NULL or wrong value mapping
-- SELECT column order requirement
-- integration test assertion necessity
+- `splitOn` names the column where next POCO type begins
+- wrong column name splits at incorrect boundary
+- nested object populated with NULL or wrong values silently
+- default `"Id"` fails when second type's first column is not `Id`
+- explicit column aliases required for duplicate column names in JOIN
 
 **Answer**
 
-Dapper multi-mapping uses `splitOn` to name the column where the next object type begins. An incorrect column causes the split to land at the wrong boundary, silently mapping NULL or wrong values into nested objects without throwing an exception. The `splitOn` default of `"Id"` requires that the second type's first mapped column is literally named `Id` — duplicate column names in SELECT lists require explicit aliases and matching `splitOn` values. Column order in the SELECT must align with the generic type order in `Query<TFirst, TSecond, TReturn>`. Integration tests that assert nested property values are the reliable way to catch split errors.
+Dapper multi-mapping uses the `splitOn` parameter to determine where one POCO type ends and the next begins in the SELECT list. Specifying the wrong column name (or relying on the default `"Id"` when the second type's first column has a different name) silently splits at the wrong position, populating nested POCO properties with NULL or incorrect values from the wrong columns without throwing an exception. Always specify `splitOn` explicitly and match it to the actual column name of the first property of the second type in the SELECT list.
 
 ---
 
-## Gotcha 9. Scoped `DbContext` captured in a singleton
+#### Gotcha 2. Duplicate column names in JOIN — last value overwrites previous
 
 **Concepts**
-- captive dependency anti-pattern
-- singleton service lifetime
-- scoped DbContext per HTTP request
-- IDbContextFactory for long-lived services
-- disposed context cross-request contamination
+- two joined tables with same column name (e.g., both have `Id`, `Name`)
+- Dapper maps by name — duplicate name overwrites with last value
+- `SELECT o.Id AS OrderId, c.Id AS CustomerId` disambiguation
+- `splitOn = "CustomerId"` to split on renamed column
+- no error thrown — only incorrect property values
 
 **Answer**
 
-Registering a singleton service that holds a scoped `DbContext` creates a captive dependency — the context may be disposed while the singleton remains alive, or its tracked state leaks across HTTP requests from different users. `DbContext` is scoped per request in ASP.NET Core, so singletons must never store it in fields. When a long-lived service genuinely needs database access, inject `IDbContextFactory<TContext>` instead, which lets the singleton create and dispose short-lived context instances on demand. Symptoms include "Cannot access a disposed context" exceptions or cross-user data contamination in tracked entities.
+When a JOIN produces two columns with the same name (both tables have `Id`, for example), Dapper maps all columns by name and the last duplicate overwrites the earlier one. `Order.Id` ends up with `Customer.Id`'s value, and `Customer.Id` is mapped correctly, but without diagnosis the Order properties appear incorrect. Always alias every column that could produce a name collision: `o.Id AS OrderId, c.Id AS CustomerId`, and update `splitOn` to reference the aliased column name that marks the start of the second type.
 
 ---
 
-## Gotcha 11. N+1 from lazy load or missing Include
+#### Gotcha 3. `LEFT JOIN` produces null child rows — multi-map creates empty object, not null reference
 
 **Concepts**
-- N+1 query pattern
-- navigation property loop access
-- eager loading with Include/ThenInclude
-- split queries
-- EF Core command logging detection
+- `LEFT JOIN` returns NULL column values when no child row exists
+- Dapper creates a new instance of the child POCO even for all-NULL columns
+- empty child object `{ Id = 0, Name = null }` instead of `null` reference
+- null-check in map callback: `if (child.Id == 0) return null`
+- discriminator column check in the mapping lambda
 
 **Answer**
 
-Listing parent entities and then accessing navigation properties in a loop without eager loading fires one SQL query per parent row — the classic N+1 performance collapse. One query for N orders plus N queries for each order's lines equals N+1 round-trips per request, which compounds into catastrophic latency and database load at scale. The fix is `Include`/`ThenInclude`, split query mode, or `Select` projections that join the needed data in one statement. EF Core command logging revealing identical query templates with different ID parameters is the diagnostic signal that N+1 is occurring.
+When a `LEFT JOIN` returns no child row, all child columns are NULL in the result. Dapper still instantiates the child POCO and maps the NULLs to default property values — you get an `Order` with a `Customer { CustomerId = 0, Name = null }` rather than a null `Customer` reference. In the mapping callback, check the child's key property: `(order, customer) => { order.Customer = customer.CustomerId != 0 ? customer : null; return order; }` to convert the empty-key object back to a null reference.
 
 ---
 
-## Gotcha 12. Cartesian explosion with multiple Includes
+#### Gotcha 4. Custom `SqlMapper.TypeHandler` not registered globally — fallback to string mapping
 
 **Concepts**
-- cross-join row multiplication
-- multiple collection include inflation
-- AsSplitQuery separation
-- EF Core change tracker deduplication
-- DTO projection as avoidance strategy
+- `SqlMapper.AddTypeHandler(new MyTypeHandler())` must be called once at startup
+- unregistered custom type handled by `Convert.ToString` fallback
+- DI container registration does not automatically register Dapper type handlers
+- order of registration: must occur before first query using that type
+- `DateOnly`, `TimeOnly`, custom value objects as common use cases
 
 **Answer**
 
-Eager-loading two or more collection navigations in one SQL query multiplies result rows by the product of collection sizes — an order with 10 lines and 5 notes produces 50 rows, spiking memory and network use even though the parent entity count is modest. EF Core deduplicates parent instances during fix-up, but SQL Server has already transmitted the inflated rowset across the wire. The fix is `AsSplitQuery()`, which fetches collections with separate SELECT statements that each return only the rows they need. Projecting to DTOs is another avoidance strategy when only summaries or counts are needed rather than full collection graphs.
+Dapper custom type handlers (implementing `SqlMapper.TypeHandler<T>`) must be registered with `SqlMapper.AddTypeHandler(new MyTypeHandler())` before any query that uses that type. Registration through the DI container or as a service class does not automatically register the handler with Dapper's global mapper — they are separate systems. For `DateOnly`, `TimeOnly`, or custom value objects, registration typically belongs in `Program.cs` or a startup extension method, and it must happen exactly once before the first database call using that type.
+
+---
+
+#### Gotcha 5. Mapping to C# `record` types — requires positional constructor matching column order
+
+**Concepts**
+- `record` with `init`-only properties requires constructor injection
+- Dapper uses constructor injection when no default constructor exists
+- parameter names in constructor must match column names (case-insensitive)
+- column order in SELECT must match positional constructor parameter order
+- mismatch between constructor and SELECT produces wrong values silently
+
+**Answer**
+
+Dapper can map to C# `record` types that have only an init constructor, but the constructor parameter names must match column names case-insensitively. When the SELECT column order does not match the constructor parameter order, Dapper matches by name — but if a column name does not match any constructor parameter, it silently passes `default(T)` for that argument. Verify that every column alias in the SELECT corresponds to a constructor parameter name in the target record, or add property setters to allow property-name-based mapping as a fallback.
+
+---
+
+#### Gotcha 6. `SqlMapper.AddTypeHandler` is not thread-safe for concurrent registrations
+
+**Concepts**
+- `SqlMapper` global handler dictionary modified without lock
+- concurrent calls to `AddTypeHandler` during startup race condition
+- register all handlers before starting the web host, not lazily
+- `Lazy<T>` initialization pattern for safe one-time registration
+- application startup single-thread registration as safe window
+
+**Answer**
+
+`SqlMapper.AddTypeHandler` modifies a global, non-thread-safe dictionary. Registering type handlers from multiple threads simultaneously (e.g., in lazy initialization triggered by the first concurrent requests) can cause dictionary corruption or lost registrations. Register all Dapper type handlers sequentially during application startup in `Program.cs`, before `app.Run()` starts the request pipeline. Never register handlers lazily on first use in a multi-threaded context.
+
+---
+
+#### Gotcha 7. Column-to-property name mismatch — Dapper skips unmapped columns silently
+
+**Concepts**
+- Dapper maps by column name to property name (case-insensitive)
+- `ProductName` column not mapped to `Name` property — stays at default value
+- no `MissingMemberHandling` warning by default
+- column alias in SQL or `ITypeMap` custom mapping as solutions
+- `DefaultTypeMap.MatchNamesWithUnderscores` for snake_case columns
+
+**Answer**
+
+Dapper silently skips any column in the result set that has no matching property name on the target POCO, leaving those properties at their default values without any warning or exception. A column named `ProductName` does not map to a property named `Name` — the property stays `null` or `0`. Fix by aliasing the column in SQL (`SELECT ProductName AS Name`), implementing a custom `ITypeMap`, or enabling `DefaultTypeMap.MatchNamesWithUnderscores = true` for databases that use snake_case conventions. Add integration tests that assert every mapped property value to catch silent mapping gaps.
+
+---
+
+#### Gotcha 8. Multi-map callback returning parent without flattening duplicates — N parent copies
+
+**Concepts**
+- one-to-many JOIN produces one row per child — same parent repeated
+- multi-map creates a new parent POCO instance per row
+- `ToDictionary` or `GroupBy` deduplication required after multi-map
+- Dapper does not deduplicate parents like EF Core's identity map
+- explicit parent-key grouping in the mapping callback
+
+**Answer**
+
+A JOIN between a parent and its children returns one row per child with the parent columns repeated. Dapper's multi-mapping creates a new parent POCO instance for each row — you get N copies of the same parent rather than one parent with N children. Unlike EF Core's identity map, Dapper has no automatic deduplication. After `Query<Order, OrderLine, Order>`, group by the parent key: `results.GroupBy(o => o.OrderId).Select(g => { var parent = g.First(); parent.Lines = g.Select(o => o.Lines.First()).ToList(); return parent; })`.
+
+---
+
+#### Gotcha 9. `Contrib` extension `Insert<T>` / `Update<T>` maps all properties — extra columns cause SQL error
+
+**Concepts**
+- `Dapper.Contrib` generates INSERT/UPDATE for all non-key properties
+- computed, identity, or read-only columns included silently
+- `[Computed]` and `[Write(false)]` attributes required to exclude columns
+- identity columns must be `[Key]` not `[ExplicitKey]` to be excluded from INSERT
+- extra column in INSERT on non-nullable column throws `SqlException`
+
+**Answer**
+
+`Dapper.Contrib`'s `Insert<T>` generates an INSERT statement for every property of the entity that is not annotated with `[Key]` (identity) or `[Computed]`. If the entity has a computed column, a trigger-managed column, or a read-only column that maps to a database constraint, including it in the INSERT throws a `SqlException`. Annotate excluded columns with `[Computed]` or `[Write(false)]`, and use `[Key]` (not `[ExplicitKey]`) for identity primary keys so Contrib excludes them from INSERT automatically.
+
+---
+
+#### Gotcha 10. Buffered multi-map building large object graph in memory — no streaming for parent-child join
+
+**Concepts**
+- multi-map always buffers the full join result into memory
+- large join with thousands of children exhausts memory
+- `buffered: false` not available for multi-map overloads
+- Dapper two-query pattern as memory-efficient alternative
+- EF Core AsSplitQuery vs Dapper separate queries trade-off
+
+**Answer**
+
+Dapper's multi-mapping always buffers the full JOIN result into a `List<TReturn>` in memory — the `buffered: false` option is not available on multi-map overloads. A parent with thousands of children in a JOIN produces thousands of result rows, all held in memory simultaneously, even after deduplication. For large one-to-many data, use two separate Dapper queries: one for parents and one for all children matching the parent IDs, then assemble the graph in memory from two smaller result sets rather than a single large JOIN.
 
 ---
 

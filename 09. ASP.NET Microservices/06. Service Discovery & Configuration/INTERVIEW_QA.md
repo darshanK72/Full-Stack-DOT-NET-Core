@@ -419,3 +419,147 @@ builder.Services.AddOptions<OrdersOptions>()
 ASP.NET Core builds configuration by layering multiple sources in a defined priority order — later sources override earlier ones for the same key. This is the mechanism by which environment-specific values override shared defaults without modifying shared files. In a microservices fleet, each environment applies its own overrides through environment variables or a centralized configuration store, while common defaults live in `appsettings.json` committed to source control. The default priority order from lowest to highest precedence is: `appsettings.json` for shared defaults safe to commit; `appsettings.{Environment}.json` for environment-specific overrides of non-sensitive values; User Secrets for developer-local secrets never committed; environment variables set by the container orchestrator; and command-line arguments at highest precedence. In Kubernetes, each deployment's pod spec includes an `env` section or references a `ConfigMap` or `Secret` to inject environment-specific values, and these environment variables override `appsettings.json` without rebuilding the image. The colon separator in configuration keys maps to double-underscore in environment variable names on Linux — `ConnectionStrings__Database` rather than `ConnectionStrings:Database` — because colon is not valid in Linux environment variable names. A centralized store such as Azure App Configuration or Consul KV is added as an additional provider with higher precedence than file-based sources so it overrides defaults, while environment variables can still override the centralized store. Sensitive production values should not appear in `appsettings.Production.json` even if it is not committed — they belong in a secrets store accessed via managed identity.
 
 ---
+
+## Gotchas — Service Discovery & Configuration (Interview Traps)
+
+---
+
+#### Gotcha 1. Health Check Not Wired to Discovery Registration
+
+**Concepts**
+- Service registered in discovery but not passing health checks
+- Traffic routed to an unhealthy instance
+- Health check TTL registration versus live probe
+- Deregistration trigger tied to health-check failure threshold
+
+**Answer**
+
+A service that registers itself in Consul or Kubernetes without configuring a health check will be considered healthy by the discovery registry indefinitely, even if the process is deadlocked or the database connection has been lost — the gateway or load balancer continues routing traffic to it and clients receive errors. The registration must include an active health check definition: a URL the registry polls at a defined interval, with a failure threshold that triggers automatic deregistration. In Kubernetes, the readiness probe serves this role — a pod that fails its readiness probe is removed from the Service endpoint list and receives no traffic until it recovers.
+
+---
+
+#### Gotcha 2. Stale Address Cache in Client-Side Discovery
+
+**Concepts**
+- Client caching service addresses from the registry
+- Cache not refreshed after a service instance is scaled down
+- Connection attempts to deregistered addresses before cache expires
+- TTL tuning and passive failure detection as mitigations
+
+**Answer**
+
+In client-side service discovery, the client caches the list of healthy instances from the registry and uses that cached list for load balancing. If an instance is terminated and deregistered from the registry while the client's cache is still valid, the client will continue sending a fraction of requests to the dead address until the cache TTL expires — those requests fail with connection refused. The mitigation is a short cache TTL (typically 5–30 seconds), combined with passive failure detection that immediately removes an address from the local pool when a connection attempt fails, and a background refresh task that refreshes the cache independently of requests.
+
+---
+
+#### Gotcha 3. Secret Stored in Source Control or a ConfigMap
+
+**Concepts**
+- appsettings.json containing connection strings committed to git
+- Kubernetes ConfigMap readable by any pod in the namespace
+- Kubernetes Secret vs. ConfigMap for sensitive values
+- Managed identity and secrets store as the production pattern
+
+**Answer**
+
+A connection string, API key, or database password in `appsettings.json` committed to a git repository is immediately accessible to every developer, every CI runner, and any third party who gains read access to the repository — this is one of the most common credential-leak sources in practice. In Kubernetes, a `ConfigMap` is plain text readable by any pod in the namespace and should never hold secrets. Sensitive values belong in a Kubernetes `Secret` (base64-encoded but still requires RBAC) or, preferably, in a managed secrets store such as Azure Key Vault accessed via managed identity and the CSI Secrets Store driver — the secret never appears in the cluster's etcd or source control.
+
+---
+
+#### Gotcha 4. Configuration Changes Requiring App Restart
+
+**Concepts**
+- IOptions<T> snapshot versus IOptionsMonitor<T> live reload
+- Feature flags requiring redeployment to toggle
+- Azure App Configuration dynamic refresh
+- IOptionsMonitor.OnChange callback registering a reload handler
+
+**Answer**
+
+Binding configuration to `IOptions<T>` takes a snapshot at startup — changes to environment variables, ConfigMap values, or remote configuration stores are invisible until the service restarts. For values that should change without a restart — feature flags, rate-limit thresholds, connection pool sizes — use `IOptionsMonitor<T>`, which re-reads the configuration source when it changes and raises an `OnChange` callback. Azure App Configuration provides a `RefreshAsync()` call combined with a sentinel key: the provider polls the sentinel key every 30 seconds and reloads configuration only when the sentinel changes, avoiding polling every key on every interval.
+
+---
+
+#### Gotcha 5. No Startup Validation of Required Configuration
+
+**Concepts**
+- Missing required config key discovered at runtime under load
+- ValidateDataAnnotations and ValidateOnStart detecting problems early
+- IOptions.Value throwing a runtime exception on first access
+- Fail-fast at startup as the operational preference
+
+**Answer**
+
+A service that reads configuration values lazily — accessing `_options.Value.ConnectionString` the first time a request triggers it — will start successfully, pass health checks, receive traffic, and then fail on the first real operation when the missing or malformed value is accessed. Startup validation with `.ValidateDataAnnotations().ValidateOnStart()` forces all configuration bindings to be validated during `Program.cs` startup; if any required field is missing or invalid, the service refuses to start and the deployment fails immediately rather than silently serving errors to users. This fail-fast behaviour is far preferable to a service that appears healthy but fails on first use.
+
+---
+
+#### Gotcha 6. All Services Sharing the Same Environment Variables
+
+**Concepts**
+- Shared pod environment polluting service-specific config
+- Namespace-level environment variable injection affecting all deployments
+- Per-service ConfigMap and Secret scoping
+- Principle of least privilege in configuration
+
+**Answer**
+
+Injecting all configuration for all services into a single shared namespace-level ConfigMap or as global environment variables means every service can read every other service's connection strings, API keys, and database passwords — a compromised service can extract secrets it has no business reason to know. Each service should have its own ConfigMap and Secret, mounted only into the pods of that specific service's deployment, following the principle of least privilege. This also prevents accidental configuration collision where two services have a key named `ConnectionStrings__Default` but expect different values.
+
+---
+
+#### Gotcha 7. Discovery Client Not Deregistering on Graceful Shutdown
+
+**Concepts**
+- SIGTERM received but service remains registered in Consul
+- Traffic routed to a shutting-down instance during the deregistration delay
+- IHostApplicationLifetime.ApplicationStopping for cleanup
+- Pre-stop hook in Kubernetes ensuring deregistration before termination
+
+**Answer**
+
+When Kubernetes sends SIGTERM to terminate a pod, there is a gap between the termination signal and the pod being removed from the Service endpoints list — requests continue arriving at the shutting-down pod during this window. For Consul-based discovery, the service must explicitly call `consul.Agent.ServiceDeregister(serviceId)` in the `ApplicationStopping` lifetime event so it is removed from the registry before the process exits. In Kubernetes, a `preStop` hook with a short sleep (e.g., 5 seconds) allows the Service endpoint controller to propagate the pod's removal before the container receives SIGTERM, preventing in-flight requests from hitting a terminating pod.
+
+---
+
+#### Gotcha 8. Config Drift Between Environments
+
+**Concepts**
+- Dev environment config diverging silently from production
+- Feature enabled in dev but disabled in prod via undocumented difference
+- Infrastructure-as-Code for configuration as the solution
+- Config parity verification in CI pipeline
+
+**Answer**
+
+Configuration drift occurs when a developer adds a new key to their local `appsettings.Development.json` and the feature works in development, but the key is never added to the production configuration — the service runs in production with the default value or throws a NullReferenceException on first access. The mitigation is to treat configuration management as code: required keys with non-sensitive values should have documented defaults in `appsettings.json`, required secrets should fail validation at startup, and CI pipelines should include a configuration parity check that verifies all required keys are defined in each environment's configuration store before a release is promoted.
+
+---
+
+#### Gotcha 9. Service-to-Service Calls Using Hard-Coded Hostnames
+
+**Concepts**
+- Hard-coded IP or hostname bypassing service discovery
+- DNS name as the Kubernetes-native service address
+- Hard-coded address breaking on redeployment or scaling
+- Configuration-driven service addresses with environment variable injection
+
+**Answer**
+
+Embedding `http://order-service:8080` as a hard-coded string in an `HttpClient` base address bypasses service discovery, breaks if the service name or port changes, and prevents the address from being overridden per environment. Service addresses should come from configuration — an `IOptions<ServiceEndpoints>` populated from environment variables — so the address for `OrderService` is injected at deployment time and can be different in development (localhost), staging, and production without code changes. In Kubernetes, the Kubernetes DNS service provides the canonical `http://order-service.namespace.svc.cluster.local` address, but it must still come from configuration rather than be compiled into the binary.
+
+---
+
+#### Gotcha 10. Using Consul/etcd Discovery Without TLS or ACL
+
+**Concepts**
+- Consul datacenter accessible without authentication
+- Any pod reading all service registrations and KV store entries
+- ACL tokens scoping read/write access per service
+- TLS between Consul agent and server preventing eavesdropping
+
+**Answer**
+
+A Consul cluster deployed without TLS and without ACL tokens allows any service or process that can reach the Consul HTTP API to read all registered service addresses, all KV store entries (which often contain configuration values and connection strings), and to register or deregister services — a compromised pod can poison the service registry to redirect traffic. Consul's ACL system issues per-service tokens that allow a service to register only itself, read only the services it needs to discover, and read only its own KV namespace. TLS between clients and the Consul server prevents eavesdropping on service addresses and tokens on the network. These are non-optional security controls for a production service discovery system.
+
+---

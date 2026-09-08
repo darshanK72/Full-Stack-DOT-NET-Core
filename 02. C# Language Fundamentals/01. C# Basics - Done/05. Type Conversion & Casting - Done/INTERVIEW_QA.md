@@ -261,82 +261,147 @@ Custom conversion operators are declared as `public static implicit operator Tar
 
 ---
 
-## Gotchas
+## Gotchas — Type Conversion & Casting (Interview Traps)
 
 ---
 
-## Q16. Why does `(long)(object)42` throw `InvalidCastException` even though `42` fits in a `long`?
+#### Gotcha 1. (int) cast on double truncates toward zero, not rounds
 
 **Concepts**
-- exact-type unbox rule
-- heap type descriptor mismatch
-- widening not applied during unbox
-- surprising exception on seemingly valid widening
-- cast to `int` then widen as the fix
+- Truncation drops the fractional part
+- Math.Round then cast for rounding
+- Math.Floor/Ceiling are floor/ceiling
+- Convert.ToInt32 rounds ties to even (banker's rounding)
 
 **Answer**
 
-When `42` is boxed via `object boxed = 42`, the heap object stores the literal `int` type descriptor alongside the four-byte value. Writing `(long)boxed` attempts to unbox as `long`, but the runtime finds the stored descriptor says `int`, not `long`, and throws `InvalidCastException`. The widening rule that allows `int` to silently become `long` in ordinary assignment applies only to compile-time variable assignment and arithmetic expressions — it does not extend to unboxing. Unboxing copies a specific bit layout: an `int` is four bytes; a `long` is eight bytes; the runtime cannot simply extend the stored bytes without a numeric promotion step, and unboxing does not perform that step. This gotcha frequently surfaces in generic interop and JSON deserialization code where boxed numeric types are passed across API boundaries as `object`. The rule to internalize is: unbox to the exact stored type, then promote in a second step. The fixes are `long value = (int)boxed` or the pattern form `if (boxed is int n) { long value = n; }`. When the exact boxed type is unknown, use a multi-branch `is int i` / `is long l` check rather than assuming a widening cast will succeed.
+(int)2.9 evaluates to 2, not 3, because the cast truncates by dropping the fractional part. For true rounding, use (int)Math.Round(value) — but be aware that Math.Round uses banker's rounding (round-half-to-even) by default, which means (int)Math.Round(2.5) returns 2, not 3.
 
 ---
 
-## Q17. Why does `(int)3.9999` produce `3` and not `4`?
+#### Gotcha 2. Unboxing must exactly match the boxed type — widening conversions do not apply
 
 **Concepts**
-- truncation toward zero
-- no rounding in cast operator
-- `Math.Round` as the correct rounding path
-- negative value symmetric truncation
-- `checked` does not prevent fractional loss
+- Boxing records the exact CLR type
+- (long)boxedInt throws InvalidCastException
+- (int)boxedInt then (long) works
+- Convert.ToInt64(obj) handles the conversion
 
 **Answer**
 
-The cast operator `(int)` truncates toward zero — it discards the fractional portion of the value regardless of how close it is to the next integer. So `(int)3.9999` yields `3`, `(int)3.5` yields `3`, and `(int)0.9999` yields `0`. Developers accustomed to rounding in calculators or database operations are surprised because `3.9999` feels like it should produce `4`. The truncation is symmetric around zero: `(int)-3.9999` yields `-3`, not `-4`, making the cast equivalent to `Math.Truncate` rather than `Math.Floor`. `Math.Floor(-3.9999)` would give `-4`. When rounding is intended the correct pattern is `(int)Math.Round(value, MidpointRounding.AwayFromZero)`. Using `checked` does not change this behavior: `checked` detects overflow of the resulting integer value but accepts `3` for input `3.9999` because `3` is a valid `int`. There is no built-in cast that rounds — rounding is always an explicit choice in C#, which keeps truncation behavior consistent and predictable even if it is not what every developer initially expects.
+If you box an int into an object, you must unbox it back to int before applying any numeric widening. Writing (long)(object)42 throws InvalidCastException at the unboxing step because the stored type is System.Int32, not System.Int64 — the widening conversion from int to long is a compile-time implicit conversion, not a runtime operation.
 
 ---
 
-## Q18. Why does `Convert.ToString(null)` return an empty string instead of throwing?
+#### Gotcha 3. Convert.ToInt32(null) returns 0; (int)null throws NullReferenceException
 
 **Concepts**
-- `Convert.ToString` null-safe design
-- `NullReferenceException` from instance `.ToString()`
-- empty string versus null string return
-- database interop philosophy
-- null-safe conversion use case
+- Convert class handles null for numeric types
+- Explicit cast on null throws
+- as operator returns null for reference types
+- Difference between Convert, cast, and as
 
 **Answer**
 
-`Convert.ToString(null)` returns `""` — an empty string — rather than throwing. The `Convert` class treats `null` as a valid input and maps it to an empty string for all `ToString` conversions, following the database-interop philosophy where null fields should produce empty output rather than crash the application. By contrast, calling `.ToString()` directly on a `null` object reference throws `NullReferenceException` because `.ToString()` is an instance method that dereferences the object. This asymmetry is exactly why `Convert.ToString` exists as a separate utility: it serves as a null-safe bridge in contexts where the source value might be null — legacy collections, reflection outputs, `DataRow` column values, and anything typed as `object?`. The practical pattern when a guaranteed non-null string is needed from a potentially null object reference is `Convert.ToString(value) ?? string.Empty`. One subtlety: the actual return type of `Convert.ToString` is `string?`, so a null return is possible for certain overloads — the `?? string.Empty` guard handles that. When you have a known non-null value type, the instance `.ToString()` call is always safe and remains the preferred choice for its format-specifier support.
+Convert.ToInt32(null) is defined to return 0 by design, following the principle that null represents zero for numeric conversions. The explicit cast (int)null throws NullReferenceException because there is no unboxing operation that can produce an int from nothing, making Convert the safer choice when the input might be null.
 
 ---
 
-## Q19. Why is `obj as int` a compile error when `obj as string` compiles fine?
+#### Gotcha 4. The as operator returns null for incompatible types — it does not work with value types
 
 **Concepts**
-- `as` restricted to reference and nullable value types
-- non-nullable value type cannot hold null
-- CS0039 compiler error
-- `obj as int?` as a valid nullable alternative
-- `is int n` as the idiomatic fix
+- as returns null instead of throwing for reference types
+- as is invalid with non-nullable value types
+- as string on non-string produces null
+- is pattern preferred in modern C#
 
 **Answer**
 
-The `as` operator is defined only for reference types and nullable value types. Its contract is "convert or return null if the conversion fails," but a plain `int` cannot hold `null` — it is a non-nullable value type. The compiler rejects `obj as int` with error CS0039 because returning null is the only way `as` can signal failure, and that signal is not representable in a plain `int`. `obj as string` compiles because `string` is a reference type that can hold `null`. To safely attempt a value-type unbox from `object`, use the `is` declaration pattern: `if (obj is int n)` tests the type and binds `n` only when the check succeeds, never producing a null. If you are certain the box contains an `int`, the direct cast `(int)obj` throws `InvalidCastException` on type mismatch. You can also write `obj as int?` — the nullable form of `int` can hold null, so `as int?` is valid and returns `null` when the object is not a boxed `int`. In modern C# the `is` pattern is cleaner and is the idiomatic solution; `as int?` is occasionally useful when you want to chain from the result with the null-conditional operator.
+Writing obj as string returns null if obj is not a string (or null itself), rather than throwing InvalidCastException. However, as cannot be used with non-nullable value types like int because null is not a valid int — use the is pattern (if obj is int n) or (obj is int) followed by a cast for value type checks.
 
 ---
 
-## Q20. Does placing a narrowing cast inside a `checked` block prevent all forms of data loss?
+#### Gotcha 5. Implicit numeric widening can unexpectedly select a different overload
 
 **Concepts**
-- `checked` detects overflow only
-- fractional truncation silently accepted in `checked`
-- `OverflowException` only for out-of-range integer values
-- distinction between overflow and precision loss
-- explicit pre-cast validation required
+- Compiler applies widening for overload resolution
+- short selects int overload over long if only int overload exists
+- Adding a long overload can break existing call sites
+- Explicit cast forces the intended overload
 
 **Answer**
 
-`checked` protects against overflow — values outside the target type's representable range — but it does not protect against truncation of fractional digits. In a `checked` context, `checked((int)3.9)` produces `3` with no exception, because `3` is a valid `int`. The check only fires if the integer portion of the floating-point value exceeds `int.MaxValue` or falls below `int.MinValue`. For example, `checked((int)3_000_000_000.0)` throws `OverflowException` because three billion exceeds `int.MaxValue`. But `checked((int)3.9999)` quietly yields `3` because `3` fits in `int`. This surprises developers who believe wrapping a cast in `checked` makes it safe in all data-loss senses. Data loss through truncation is a silent error that `checked` cannot detect — the runtime sees a valid integer result and has no basis to complain. To prevent unintended fractional truncation, validate or round explicitly before the cast: compare the value with `Math.Truncate(value)` and reject inputs where they differ, or apply `Math.Round` when rounding is acceptable. The `checked` keyword is a narrowing-overflow guard, not a general-purpose precision-loss guard.
+When a method has overloads for int and long, passing a short selects the int overload because int is the nearest widening target. Adding a new long overload to a library later can silently change which overload is selected for short arguments in consuming code, subtly changing behavior without a compile error.
+
+---
+
+#### Gotcha 6. Checked arithmetic applies to both casts and operators — unchecked is the default context
+
+**Concepts**
+- checked block covers arithmetic and explicit casts
+- checked((int)longValue) throws for out-of-range
+- unchecked silently truncates
+- Project-level checked context via /checked compiler flag
+
+**Answer**
+
+The checked keyword enables overflow detection for both arithmetic operations and explicit casts in the same expression. checked((int)longValue) throws OverflowException when longValue exceeds int's range, while the default unchecked context silently truncates the high bits, producing an incorrect negative value with no indication of the problem.
+
+---
+
+#### Gotcha 7. is and as pattern checks are not equivalent to successful cast availability
+
+**Concepts**
+- obj is string succeeds only for non-null string
+- null is SomeType is always false
+- as vs is keyword
+- Pattern matching with is produces bound variable
+
+**Answer**
+
+if (obj is string) returns true only for a non-null reference of runtime type string or a subtype. A null reference fails the is check for any type, including string. When you need to both check and use the value, the pattern match form if (obj is string s) is the cleanest — it tests, casts, and declares s in one operation.
+
+---
+
+#### Gotcha 8. string to numeric conversion fails on whitespace, commas, and locale-specific separators
+
+**Concepts**
+- int.Parse(" 5 ") throws unless NumberStyles.AllowLeadingWhite is specified
+- double.Parse("1,5") fails in en-US locale (comma is not decimal)
+- NumberStyles and IFormatProvider overloads
+- TryParse with NumberStyles
+
+**Answer**
+
+int.Parse("1 000") fails with FormatException because spaces are not allowed by default in the integer format. double.Parse("1,5") succeeds on a French system where comma is the decimal separator but throws on US machines — always pass CultureInfo.InvariantCulture when parsing numbers from machine-generated strings.
+
+---
+
+#### Gotcha 9. Dynamic dispatch bypasses compile-time widening conversions
+
+**Concepts**
+- object o = (int)42; (long)o throws InvalidCastException
+- Widening is a compile-time rewrite not a runtime op
+- Surprising exception on seemingly valid widening
+- Convert.ToInt64(o) uses reflection-based numeric conversion
+
+**Answer**
+
+Writing (long)(object)42 throws InvalidCastException at runtime because widening (int to long) is purely a compile-time transformation that the compiler inserts before boxing. Once the int is boxed as object, the runtime only recognizes its exact boxed type (Int32), and (long) cannot unbox an Int32. Convert.ToInt64 handles this correctly by reading the boxed value and performing a numeric conversion.
+
+---
+
+#### Gotcha 10. Narrowing unsigned types wraps differently from signed — (byte)300 == 44, not -44
+
+**Concepts**
+- byte range 0-255; 300 mod 256 = 44 (truncation of high bits)
+- Signed narrowing truncates high bits which can produce negative values
+- checked context throws for both
+- Unsigned behavior differs from signed at negative boundary
+
+**Answer**
+
+Narrowing an unsigned type like (byte)300 produces 44 (300 mod 256 = 44) because unsigned arithmetic truncates high bits and the result is always non-negative. Narrowing a signed type like (sbyte)200 produces -56 because the high bit in the truncated result is set, making the value negative in two's-complement representation — a subtle behavioral difference between signed and unsigned narrowing.
 
 ---
 

@@ -147,46 +147,157 @@ Catch `DbUpdateConcurrencyException`, inspect `exception.Entries` for conflictin
 
 ---
 
-## Gotchas
+## Gotchas — Change Tracking, Async & Transactions (Interview Traps)
 
 ---
 
-## Gotcha 14. Tracking overhead on read-only queries
+#### Gotcha 1. `SaveChangesAsync` without `await` — fire-and-forget swallows `DbUpdateException`
 
 **Concepts**
-- change tracking snapshot overhead on read-only queries
-- AsNoTracking omission on GET endpoints
-- global QueryTrackingBehavior.NoTracking setting
+- unawaited `Task` from `SaveChangesAsync` runs but exceptions are lost
+- `DbUpdateException`, `DbUpdateConcurrencyException` silently swallowed
+- changed entities appear to be saved but database is not updated
+- compiler warns on unawaited task — warning must not be suppressed
+- always `await context.SaveChangesAsync(ct)` for guaranteed exception propagation
 
 **Answer**
 
-Omitting `AsNoTracking()` on large read-only lists makes EF Core snapshot every entity for change detection that will never run, wasting memory and CPU on GET endpoints. Tracking stores original and current values per property for each row materialized; ASP.NET Core read services should default to `AsNoTracking()` plus DTO projection. Global `QueryTrackingBehavior.NoTracking` with explicit tracking on command paths prevents accidental overhead.
+Calling `context.SaveChangesAsync()` without `await` runs the save in the background but discards the returned `Task`. If the save fails — FK violation, concurrency conflict, constraint error — the exception is never observed and is silently swallowed. The caller returns normally, believing the data was saved, while the database was never updated. Always `await context.SaveChangesAsync(cancellationToken)` so exceptions propagate to the caller and are handled or logged appropriately.
 
 ---
 
-## Gotcha 9. Scoped `DbContext` captured in a singleton
+#### Gotcha 2. `AsNoTracking` entities modified — changes silently ignored by `SaveChanges`
 
 **Concepts**
-- scoped DbContext captured in singleton field
-- captive dependency anti-pattern
-- IDbContextFactory for singleton database access
+- `AsNoTracking()` materializes entities not added to the change tracker
+- modifications to no-tracking entities not detected by `DetectChanges`
+- `SaveChanges` generates no SQL for modified no-tracking entities
+- `context.Update(entity)` to attach and mark dirty for untracked entities
+- load entity with tracking or re-attach before calling `SaveChanges`
 
 **Answer**
 
-Registering a singleton service that holds a scoped `DbContext` creates a captive dependency — the context may be disposed while the singleton lives, or state leaks across HTTP requests. `DbContext` is scoped per request in ASP.NET Core — singletons must not store it in fields; Inject `IDbContextFactory<TContext>` into singletons when long-lived services need occasional database access. Symptoms include "Cannot access a disposed context" or cross-user data contamination in tracked entities.
+Entities loaded with `AsNoTracking()` are not registered in the `ChangeTracker`. Modifying their properties and calling `SaveChanges` produces no SQL — the change is silently ignored. This is the most common source of "I called SaveChanges but nothing was updated" bugs. To persist changes to a no-tracking entity, either load it again without `AsNoTracking()` and mutate the tracked instance, or call `context.Update(entity)` to attach the entity and mark all its properties as modified (which generates an UPDATE for all columns).
 
 ---
 
-## Gotcha 15. `SaveChanges` without a transaction for multi-step updates
+#### Gotcha 3. `context.Entry(entity).State = EntityState.Modified` marks all columns dirty — over-UPDATE
 
 **Concepts**
-- independent SaveChanges commits without explicit transaction
-- partial update on multi-step failure
-- BeginTransactionAsync and CommitAsync wrapping
+- `EntityState.Modified` marks every property as changed
+- UPDATE statement includes all columns, not just the intended ones
+- concurrent write to a different column overwritten by the over-UPDATE
+- load entity and mutate specific properties for minimal UPDATE
+- `SetProperty` (EF Core 7+) in `ExecuteUpdateAsync` for targeted set-based UPDATE
 
 **Answer**
 
-Multiple `SaveChanges` calls or separate database operations that must succeed together commit independently by default, allowing partial updates that leave data in an inconsistent state when a later step fails. Wrap related saves and raw SQL in `BeginTransactionAsync`/`CommitAsync` on one `DbContext`; Prefer one `SaveChanges` per unit of work when all changes are tracked together on the same context. Retry logic after failure cannot assume earlier steps rolled back unless they shared a transaction boundary.
+Setting `context.Entry(entity).State = EntityState.Modified` marks every property as modified. The generated `UPDATE` includes all columns, potentially overwriting columns that were changed by a concurrent operation between your read and write. The correct approach for partial updates is to load the entity with tracking (`Find` or `FirstOrDefaultAsync`), change only the specific properties, then call `SaveChanges` — EF Core's snapshot-based change detection generates a minimal `UPDATE` for only the changed columns.
+
+---
+
+#### Gotcha 4. Concurrent `SaveChangesAsync` calls on the same `DbContext` — not thread-safe
+
+**Concepts**
+- `DbContext` internal state is not thread-safe
+- parallel `Task.WhenAll` with shared context corrupts change tracker
+- separate context instances required for parallel work
+- `IDbContextFactory<TContext>` for concurrent access patterns
+- `ParallelOptions.MaxDegreeOfParallelism` alone does not prevent races on shared context
+
+**Answer**
+
+`DbContext` is not thread-safe — issuing concurrent `SaveChangesAsync` calls or running parallel queries on the same instance corrupts the change tracker and produces unpredictable exceptions or data corruption. `Task.WhenAll(context.SaveChangesAsync(), context.SaveChangesAsync())` is always wrong. For parallel work, obtain separate `DbContext` instances from `IDbContextFactory<TContext>` — each unit of work gets its own isolated context with no shared state.
+
+---
+
+#### Gotcha 5. Multiple `SaveChanges` calls without explicit transaction — partial commit on failure
+
+**Concepts**
+- each `SaveChanges` is a separate database commit
+- two calls: first commit durable, second fails → inconsistent state
+- no automatic rollback of first commit when second fails
+- `BeginTransactionAsync` + `CommitAsync` for multi-`SaveChanges` atomicity
+- single `SaveChanges` preferred when all changes can be batched
+
+**Answer**
+
+Each `SaveChangesAsync` call issues its own `BEGIN TRANSACTION` / `COMMIT`. If two calls in sequence represent one logical unit of work and the second fails, the first is already committed permanently with no rollback. Wrap the entire multi-step operation in an explicit transaction: `await using var tx = await context.Database.BeginTransactionAsync(ct); try { await Step1(); await context.SaveChangesAsync(ct); await Step2(); await context.SaveChangesAsync(ct); await tx.CommitAsync(ct); } catch { await tx.RollbackAsync(ct); throw; }`.
+
+---
+
+#### Gotcha 6. `BeginTransactionAsync` vs `Database.UseTransaction` — use the right one for external transactions
+
+**Concepts**
+- `BeginTransactionAsync` starts a new EF-owned transaction
+- `Database.UseTransaction` enlists an externally-opened `DbTransaction`
+- Dapper + EF Core sharing the same `SqlTransaction` requires `UseTransaction`
+- enrolling wrong transaction causes commands to run outside intended scope
+- same `DbConnection` required for `UseTransaction`
+
+**Answer**
+
+`context.Database.BeginTransactionAsync()` creates a new transaction owned by EF Core. When EF Core and Dapper (or raw ADO.NET) must share the same transaction, the transaction must be opened on the underlying `DbConnection` first, then passed to EF Core via `context.Database.UseTransaction(sqlTransaction)`. Calling `BeginTransactionAsync` when an external transaction already exists starts a second transaction, causing the Dapper and EF Core commands to execute in separate, non-atomic transactions. Always use `UseTransaction` when coordinating EF Core with other data-access layers on the same connection.
+
+---
+
+#### Gotcha 7. `ChangeTracker.DetectChanges` overhead — called automatically before every `SaveChanges`
+
+**Concepts**
+- `DetectChanges` compares current vs snapshot property values for every tracked entity
+- large tracked entity set: `DetectChanges` becomes expensive
+- `AutoDetectChangesEnabled = false` to disable for bulk-add scenarios
+- `context.ChangeTracker.DetectChanges()` called manually after batch
+- tracking thousands of entities before `SaveChanges` slows down performance
+
+**Answer**
+
+EF Core calls `ChangeTracker.DetectChanges()` automatically before every `SaveChanges` to identify modified, added, and deleted entities. This scans all tracked entities, comparing current property values to snapshots. When thousands of entities are tracked (e.g., during a bulk import that adds entities in a loop), `DetectChanges` becomes the performance bottleneck. Set `context.ChangeTracker.AutoDetectChangesEnabled = false` during the bulk loop, call `context.ChangeTracker.DetectChanges()` once before `SaveChanges`, then re-enable `AutoDetectChangesEnabled` afterward.
+
+---
+
+#### Gotcha 8. Ambient `TransactionScope` not compatible with async in .NET Core
+
+**Concepts**
+- `TransactionScope` with `async/await` requires `TransactionScopeAsyncFlowOption.Enabled`
+- without the option, async continuations lose the ambient transaction
+- `TransactionScope` ambient transaction not propagated across `await` points
+- MSDTC escalation not supported on Linux/.NET Core
+- prefer `BeginTransactionAsync` over `TransactionScope` for EF Core async code
+
+**Answer**
+
+Using `new TransactionScope()` around async code without `TransactionScopeAsyncFlowOption.Enabled` loses the ambient transaction after the first `await` point — subsequent operations run outside the transaction even though they appear to be inside the `using` block. Add `new TransactionScope(TransactionScopeAsyncFlowOption.Enabled)` to maintain the ambient transaction across `await` continuations. For most EF Core scenarios, use `context.Database.BeginTransactionAsync()` instead of `TransactionScope`, which avoids the ambient transaction complexity and the MSDTC escalation issues that `TransactionScope` introduces in .NET Core.
+
+---
+
+#### Gotcha 9. `DbUpdateConcurrencyException` vs `DbUpdateException` — caught at wrong level
+
+**Concepts**
+- `DbUpdateConcurrencyException` inherits from `DbUpdateException`
+- catching `DbUpdateException` first swallows concurrency exceptions
+- concurrency exception handler must be caught before or instead of `DbUpdateException`
+- `catch (DbUpdateConcurrencyException)` before `catch (DbUpdateException)` in catch chain
+- different retry strategies for concurrency vs general database errors
+
+**Answer**
+
+`DbUpdateConcurrencyException` inherits from `DbUpdateException`. If a `catch (DbUpdateException)` block appears before `catch (DbUpdateConcurrencyException)`, the concurrency exception is caught by the more general handler and treated as a generic database error rather than a recoverable optimistic concurrency conflict. Order the catch blocks from most specific to least specific: `catch (DbUpdateConcurrencyException)` first (handled with reload-and-retry or HTTP 409), then `catch (DbUpdateException)` for other database errors. Use separate retry strategies for each.
+
+---
+
+#### Gotcha 10. Long-running `DbContext` holds stale tracked entity values — stale data after external updates
+
+**Concepts**
+- tracked entity values reflect the state at last load or `SaveChanges`
+- external update to the same row not reflected in the tracked entity
+- `entry.ReloadAsync()` to refresh a single tracked entity from database
+- `ChangeTracker.Clear()` to discard all tracked state for full refresh
+- long-lived contexts inappropriate for production web APIs
+
+**Answer**
+
+A tracked entity loaded at the beginning of a request reflects the database state at that moment. If another process updates the same row during the request, the tracked entity holds stale values — EF Core does not poll the database for updates to tracked entities. In long-lived contexts (background services, console apps), this produces decisions based on outdated data. Call `await context.Entry(entity).ReloadAsync()` to force a fresh read of a specific entity, or `context.ChangeTracker.Clear()` to discard all tracked state before a fresh query cycle. In ASP.NET Core, use the scoped context's short lifetime to naturally avoid staleness.
 
 ---
 

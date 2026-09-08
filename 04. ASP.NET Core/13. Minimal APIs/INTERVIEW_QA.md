@@ -301,211 +301,147 @@ app.MapPost("/orders", async (CreateOrderRequest req, IOrderService svc) =>
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
-
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- UseRouting must precede UseAuthentication and UseAuthorization
-- Endpoint metadata not selected before routing runs
-- Recommended pipeline order for ASP.NET Core 8
-
-**Answer**
-
-In ASP.NET Core endpoint routing, `UseAuthentication` and `UseAuthorization` must run after `UseRouting` so the auth middleware can read endpoint metadata — if auth runs before routing, the endpoint has not been selected yet and policy resolution for `[Authorize]` and `RequireAuthorization()` cannot inspect the correct attributes. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms of wrong order include anonymous access to protected endpoints and 401 challenges that fire without correctly applying per-endpoint allow-anonymous overrides.
+## Gotchas — Minimal APIs (Interview Traps)
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. Scoped services injected directly into route handlers are resolved from the root scope — use `[FromServices]` or handler parameters
 
 **Concepts**
-- Captive dependency lifetime violation
-- EF DbContext stale change tracker accumulation
-- ValidateScopes detecting the problem at startup
-- IServiceScopeFactory as the correct fix
+- Minimal API route handlers as delegates resolved at startup
+- Service parameters bound from DI per request via implicit `[FromServices]`
+- Root-scope resolution for captured closures vs per-request for handler parameters
+- `IServiceScopeFactory` for manually scoped work inside handlers
 
 **Answer**
 
-A scoped service injected into a singleton is held for the entire application lifetime, long after the scope that created it was disposed. The most common case is `DbContext`: the change tracker accumulates entities from unrelated requests, and after the scope is torn down any access throws `ObjectDisposedException`. Enable `ValidateScopes = true` in Development and staging to catch these combinations at startup rather than under production load. The fix is to inject `IServiceScopeFactory` and create a scope per unit of work, or use `IDbContextFactory<T>` to get a short-lived context per operation.
+In Minimal API handlers, parameters of interface or class types are automatically treated as `[FromServices]` and resolved from the request's scoped DI container per request. This is correct and is the intended mechanism. However, a handler that captures a service from outside via a closure — `var svc = app.Services.GetRequiredService<IOrderService>(); app.MapGet("/", () => svc.Get())` — resolves the service from the root (singleton) container once at startup, making a scoped service behave as a singleton. Always declare scoped services as handler parameters rather than capturing them in closures to get correct per-request lifetime behavior.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. `TypedResults` provides better OpenAPI metadata than `Results` — prefer it for documented APIs
 
 **Concepts**
-- HttpMessageHandler lifetime and socket exhaustion
-- IHttpClientFactory managed handler recycling
-- Named and typed client registration pattern
+- `Results.Ok(data)` returning `IResult` with no type information for OpenAPI
+- `TypedResults.Ok(data)` returning `Ok<T>` preserving generic type for OpenAPI metadata
+- `.Produces<T>()` extension required with `Results` to annotate OpenAPI output
+- `TypedResults` making response type visible without additional `.Produces<T>()` calls
 
 **Answer**
 
-Instantiating `HttpClient` with `new` in a long-lived singleton prevents socket reuse because each instance holds its own `HttpMessageHandler` and the underlying TCP connections are not returned to a pool until garbage collection. Under load this causes socket exhaustion — `SocketException` and timeout errors that do not appear in local testing with low concurrency. `IHttpClientFactory` manages handler lifetimes and recycles connections correctly, so the fix is to register named or typed clients via `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()` and inject them rather than constructing `HttpClient` directly.
+`Results.Ok(value)` returns an `IResult` that hides the response type from OpenAPI generation — the Swagger schema shows no response body type without explicitly chaining `.Produces<T>()`. `TypedResults.Ok(value)` returns `Ok<T>`, which preserves the generic type argument and allows OpenAPI generators to automatically infer the response schema without additional annotation. For endpoints documented in Swagger, consistently use `TypedResults` so schema generation is automatic. The difference matters most for response body types; both work correctly at runtime for sending the response to the client.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. Endpoint filters wrap the entire handler, not just before and after phases separately
 
 **Concepts**
-- IOptions<T> frozen snapshot at first resolution
-- IOptionsSnapshot<T> recalculates per request scope
-- IOptionsMonitor<T> live change notifications for singletons
-- Silent staleness until process restart
+- `IEndpointFilter.InvokeAsync(context, next)` wrapping handler execution
+- Before-`next` code running pre-handler, after-`next` code running post-handler
+- Short-circuit by returning an `IResult` without calling `next`
+- `RouteHandlerBuilder.AddEndpointFilter<T>()` for per-endpoint filters
 
 **Answer**
 
-`IOptions<T>` resolves once and caches the configuration snapshot for the service's lifetime, so a singleton that reads `.Value` in its constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope but is only usable in scoped services. `IOptionsMonitor<T>` supports change notifications via `OnChange` and works correctly in singletons. The failure mode is silent — misconfiguration persists until process restart because `.Value` was captured at construction.
+Minimal API `IEndpointFilter` works like a middleware delegate: `InvokeAsync` receives the handler invocation context and a `next` delegate representing the endpoint handler (or the next filter). Code before `await next(context)` runs before the handler; code after `next` runs after. Short-circuit by returning an `IResult` without calling `next` — the handler is never invoked. This pattern handles validation, audit logging, and caching. Unlike MVC filters, there is no separate exception filter type — exceptions from endpoint filters and handlers flow to the middleware pipeline's exception handling. The first registered filter is outermost; the last is innermost (closest to the handler).
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 4. `MapGroup` requires explicit route prefix — sub-groups do not inherit the parent prefix automatically without configuration
 
 **Concepts**
-- HTTP GET semantics and safe/idempotent URL parameters
-- Proxies and caches stripping GET request bodies
-- [FromQuery] with [AsParameters] for complex filter criteria
-- Silent failures in CDN and proxy layers
+- `RouteGroupBuilder` for organizing endpoints with shared prefix and metadata
+- Group prefix applied to all endpoints registered on the builder
+- Nested groups building prefixes cumulatively
+- `WithTags()`, `RequireAuthorization()`, and `AddEndpointFilter()` applied to all group endpoints
 
 **Answer**
 
-`[FromBody]` on a GET endpoint is an anti-pattern because HTTP GET is defined as safe and idempotent with parameters in the URL — many clients, CDNs, and caching proxies strip or ignore request bodies on GET requests, so binding fails silently in production while "Try it out" in Swagger may appear to work. Use `[FromQuery]` with separate parameter names or `[AsParameters]` on a record type to aggregate complex filter criteria into a single clean parameter object.
+`app.MapGroup("/api/orders")` creates a group where all endpoints registered on the builder receive the `/api/orders` prefix. The group prefix is an explicit argument — sub-groups do not inherit parent prefixes automatically unless the child group is created from the parent builder: `var orderGroup = apiGroup.MapGroup("/orders")`. Calling `app.MapGroup("/orders")` independently does not connect to an existing group. Group-level metadata — `WithTags("Orders")`, `RequireAuthorization()`, `AddEndpointFilter<LoggingFilter>()` — applies to all endpoints registered within the group, which is the primary organizational benefit of using groups over individual `MapGet/Post/Put/Delete` calls.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 5. Route conflicts in Minimal APIs are detected at startup — unlike controller attribute routing
 
 **Concepts**
-- JsonNamingPolicy.CamelCase as ASP.NET Core default
-- Silent binding producing default values instead of errors
-- PropertyNameCaseInsensitive as a mitigation
-- Validation attributes turning silent failure into 400 responses
+- Minimal API routes verified at `app.Build()` time
+- `InvalidOperationException` thrown at startup for conflicting routes
+- Controller attribute route conflicts detected at runtime on first request
+- Startup route conflict detection as an advantage of Minimal API routing
 
 **Answer**
 
-ASP.NET Core Web API serializes JSON with `JsonNamingPolicy.CamelCase` by default, which means incoming JSON with PascalCase keys like `"CustomerName"` does not match the property — the model binds successfully but properties silently hold default values (null, zero, false). The preferred fix is standardizing all clients on camelCase and enforcing it through OpenAPI contracts. As a mitigation, `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)` relaxes matching. Add required validation attributes so silent binding failures produce 400 responses rather than corrupt data silently stored to the database.
+Minimal API routes are registered and verified at `builder.Build()` time — conflicting routes with identical HTTP method and path throw `InvalidOperationException` at startup before the first request. Controller-based attribute routing delays conflict detection until runtime, throwing `AmbiguousMatchException` on the first request to the conflicting path. This startup-time detection in Minimal API is an advantage: it surfaces routing bugs in integration tests and local startup rather than in production. When migrating from controllers to Minimal API, duplicate route templates from controller actions that were never discovered as conflicts may surface as startup errors.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 6. `[FromBody]` is implicit for complex types in Minimal APIs — explicit attribute needed when mixing sources
 
 **Concepts**
-- throw; preserving original stack trace
-- throw ex; resetting stack trace to the catch site
-- InnerException preservation when intentionally wrapping
-- APM and structured logging dependency on accurate stack traces
+- Complex type parameters automatically bound from JSON body in Minimal API handlers
+- Route and query string parameters bound by name matching
+- `[FromBody]` explicitly required when mixing body with services parameters
+- No `[ApiController]` attribute on Minimal APIs — binding rules differ slightly
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, which means Application Insights, Serilog, and `IExceptionHandler` all point at the handler rather than the code that actually failed. Bare `throw;` preserves the full original stack trace. Use `throw;` when logging and delegating upward; wrap with a new exception type only when adding context — `throw new OrderProcessingException("...", ex)` — so the original failure is preserved in `InnerException`. This rule applies identically in async code after `await`.
+In Minimal API route handlers, a complex type parameter that is not a service, `HttpContext`, `CancellationToken`, or a route/query parameter is automatically bound from the JSON request body — equivalent to `[FromBody]` in a controller. This is implicit and does not need the attribute in most cases. However, when a handler has multiple complex type parameters or when the intent is ambiguous, adding `[FromBody]` explicitly makes the binding source unambiguous for both the runtime and readers of the code. Unlike MVC controllers, Minimal API binding source rules are simpler and more deterministic, but they still require care when the same parameter name exists in both the route template and would otherwise be bound from the body.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 7. `Results.Json` serializes with default options — `TypedResults.Ok` uses the configured `JsonOptions`
 
 **Concepts**
-- Kestrel as application server vs edge gateway
-- TLS termination and certificate management at the reverse proxy
-- WAF, rate limiting, and static file caching at the edge
-- UseForwardedHeaders required for client IP logging
+- `Results.Json(obj)` using default `JsonSerializerOptions`
+- `TypedResults.Ok(obj)` respecting `AddJsonOptions` registered serializer settings
+- Inconsistent serialization: camelCase from `Ok` vs PascalCase from `Json`
+- Content negotiation not applied to `Results.Json`
 
 **Answer**
 
-Kestrel is a production-grade application server optimized for running .NET efficiently, but directly exposing it to the internet skips TLS certificate centralization, WAF filtering, centralized rate limiting, and efficient static-file caching that reverse proxies handle. nginx, IIS, Azure Front Door, or AWS ALB typically sit in front so certificates are managed at the proxy layer with automatic renewal. If Kestrel is exposed directly, client IP logging requires `UseForwardedHeaders` configuration, and containers typically bind Kestrel to an internal port while the ingress controller handles external HTTPS.
+`Results.Json(obj)` creates a response using default `JsonSerializerOptions` — ignoring any custom naming policy, converters, or settings configured via `AddJsonOptions()`. `TypedResults.Ok(obj)` goes through the content negotiation pipeline and respects the registered `JsonSerializerOptions`, including camelCase naming, custom converters, and `ReferenceHandler` settings. Mixing `Results.Json` for some handlers and `TypedResults.Ok` for others produces inconsistent serialization in the same API — some endpoints return camelCase, others return PascalCase — which breaks clients that rely on consistent naming. Standardize on `TypedResults.Ok` for all handlers that should respect the configured serialization settings.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 8. `.WithName()` is required for `LinkGenerator` to generate URLs for Minimal API endpoints
 
 **Concepts**
-- launchSettings.json applies only to dotnet run and IDE launch
-- ASPNETCORE_URLS and ASPNETCORE_ENVIRONMENT as production env vars
-- appsettings.Production.json for non-secret production tuning
+- `RouteHandlerBuilder.WithName("EndpointName")` assigning an endpoint name
+- `LinkGenerator.GetPathByName("EndpointName")` for URL generation
+- Anonymous Minimal API endpoints not referenceable by name
+- Consistent naming strategy for endpoints used in redirect responses
 
 **Answer**
 
-`Properties/launchSettings.json` contains URLs, environment variables, and launch profiles that are read only by `dotnet run`, Visual Studio, and VS Code — the file is not deployed to production hosts and has no effect on them. Relying on it for environment name or URL configuration leads to wrong `ASPNETCORE_ENVIRONMENT` or binding address in deployed environments. Production URLs and environment come from host-level environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings.
+Minimal API endpoints do not have a name by default — they are anonymous route registrations. `LinkGenerator.GetPathByName("GetOrderById")` returns `null` for an unnamed endpoint because the route is not registered with a name in the endpoint data source. Call `.WithName("GetOrderById")` on the `RouteHandlerBuilder` to register the endpoint under a resolvable name. This is required when using `Results.RedirectToRoute("GetOrderById", ...)` or `Results.Created(generator.GetPathByName(...), order)` in handler responses. Establish a naming convention early in the project — using action-method-style names consistent with the HTTP method and resource name prevents naming collisions in large endpoint collections.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 9. OpenAPI metadata requires explicit `.WithSummary()`, `.WithDescription()`, `.Produces<T>()` — not inferred from code
 
 **Concepts**
-- default(false) for missing JSON field
-- Nullable bool? for tri-state intent
-- PATCH semantics requiring omitted-vs-false distinction
-- Update DTO design for partial updates
+- Minimal APIs not inferring OpenAPI summaries from XML documentation comments
+- `.WithSummary()`, `.WithDescription()`, `.WithTags()` for endpoint documentation
+- `.Produces<T>()` for documenting non-primary response types (errors, 201, 404)
+- `TypedResults` partially automating 200-response type metadata
 
 **Answer**
 
-A non-nullable `bool` property in a PATCH DTO cannot distinguish "field omitted from JSON" from "explicitly set to false" because `System.Text.Json` deserializes missing properties to `default(false)`, which corrupts partial-update semantics — a client updating only an email address accidentally resets a consent flag to false. PATCH endpoints need `bool?`, separate update DTOs that only include fields being modified, or tri-state enums like `Unspecified | OptIn | OptOut` to represent intent explicitly. Document nullable fields in OpenAPI so generated clients represent optional updates correctly.
+Unlike controller actions, Minimal API endpoints do not use XML documentation comments for OpenAPI summaries — `/// <summary>` on the lambda does nothing. Endpoint summaries, descriptions, and tags must be added fluently: `.WithSummary("Get an order by ID").WithDescription("Returns the full order details including line items").WithTags("Orders")`. `TypedResults.Ok<T>` automatically registers the 200 response type, but additional responses (404, 400, 422) must be added with `.Produces(404).Produces<ProblemDetails>(400)`. Without this metadata, Swagger UI shows undocumented endpoints with no schema information, making the API contract impossible to understand from the generated documentation.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 10. Minimal API handlers cannot use `[Authorize]` attribute — use `.RequireAuthorization()` instead
 
 **Concepts**
-- X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host headers
-- ForwardedHeadersOptions.KnownProxies for trusted network restriction
-- Pipeline position — must run before HTTPS redirection and auth
-- Header spoofing risk when trusting all proxies
+- `[Authorize]` attribute applying to controller actions, not Minimal API lambdas
+- `.RequireAuthorization("PolicyName")` for per-endpoint authorization
+- `RouteGroupBuilder.RequireAuthorization()` for group-level authorization
+- Anonymous Minimal API endpoints bypassing authorization by default
 
 **Answer**
 
-Without `UseForwardedHeaders()` configured with known proxy IPs, `HttpContext.Request.Scheme` stays `http` even when clients used HTTPS, `Request.Host` reflects the internal address, and the client IP is the proxy — breaking HTTPS redirects, secure cookie flags, and audit logs. Call `UseForwardedHeaders()` as early as possible, before HTTPS redirection, authentication, link generation, and rate limiting by IP. Configure `ForwardedHeadersOptions` to trust only your specific reverse proxy network rather than all proxies, since trusting all enables header spoofing by any client.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- UseStaticFiles() serving without authentication
-- wwwroot as a public CDN root
-- Secrets management via environment variables and Key Vault
-- Build pipeline verification of publish output
-
-**Answer**
-
-Every file in `wwwroot` is served to unauthenticated anonymous clients by `UseStaticFiles()` — there is no authentication gate by default. Placing `.env` files, `appsettings.Production.json`, private keys, or backup configs there makes them directly downloadable via their URL path. Only public assets such as CSS, JavaScript, images, and public PDFs belong in `wwwroot`. Sensitive configuration must live in environment variables, Azure Key Vault, or similar secret managers, and build pipelines should verify that publish output does not include secrets in the web root.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback order relative to API endpoint mapping
-- /api/* returning index.html with HTTP 200 as a silent failure
-- Endpoint-first ordering in Program.cs
-
-**Answer**
-
-Registering `MapFallbackToFile("index.html")` before API endpoint mapping causes any unmatched API route — including valid 404s — to return `index.html` with HTTP 200, which breaks JSON parsers on clients and masks the real failure. The correct order is to map API routes with `MapControllers()` or `MapGroup("/api")` first, then static files, then the SPA fallback last. Symptoms include CORS errors appearing as HTML responses and Swagger fetch failures in production SPA hosting.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- BackgroundService singleton lifetime
-- Scoped service constructor injection causing disposal errors
-- IServiceScopeFactory.CreateAsyncScope() per background job
-- ValidateScopes detecting this at startup
-
-**Answer**
-
-A singleton `BackgroundService` cannot constructor-inject scoped services like `DbContext` because hosted services live for the application lifetime while scoped instances are disposed after their first scope ends, causing `ObjectDisposedException` or scope validation errors at startup. The fix is to inject `IServiceScopeFactory`, then inside each background job call `await using var scope = factory.CreateAsyncScope()`, resolve the scoped service from `scope.ServiceProvider`, and dispose the scope when the job finishes. Enable `ValidateScopes` in Development to catch this before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR broadcast scope — single server instance only
-- Redis or Azure Service Bus backplane for multi-instance routing
-- Sticky sessions vs backplane trade-offs
-- Azure SignalR Service as a managed alternative
-
-**Answer**
-
-SignalR tracks connected clients per server instance, so a broadcast from one instance reaches only the clients connected to that instance. With multiple instances behind a load balancer, users on different nodes never receive events raised on other nodes — a critical failure for real-time chat or notifications. Sticky sessions keep one client on one node but do not route server-side events across nodes. The solution is a Redis or Azure Service Bus backplane registered with `AddSignalR().AddStackExchangeRedis(...)`, or the managed Azure SignalR Service. Test scale-out with at least two instances before launch.
+`[Authorize]` is an MVC filter attribute and has no effect on Minimal API route handler lambdas or local function handlers — placing it before a lambda compiles but is silently ignored. Minimal APIs use the fluent `.RequireAuthorization()` extension method on the `RouteHandlerBuilder` returned by `MapGet/Post/Put/Delete`. Specify a policy name with `.RequireAuthorization("AdminPolicy")` or call without arguments to require any authenticated user. For groups of endpoints that share the same authorization requirement, apply `.RequireAuthorization()` on the `RouteGroupBuilder` rather than on each endpoint individually. Without explicitly calling `.RequireAuthorization()`, endpoints are anonymous by default.
 
 ---
 

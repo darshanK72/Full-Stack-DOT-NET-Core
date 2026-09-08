@@ -277,215 +277,147 @@ I choose GraphQL when diverse clients — mobile, web, third-party — need flex
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — GraphQL with HotChocolate (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. N+1 queries without DataLoader
 
 **Concepts**
-- HTTP 201 Created with Location header for resource creation
-- CreatedAtAction and CreatedAtRoute response helpers
-- REST client reliance on status codes and Location header
+- Field resolver executing one database query per parent object
+- 100 authors triggering 100 separate `SELECT books WHERE authorId = ?` queries
+- DataLoader batching concurrent resolver calls into a single parameterized query
+- `IDataLoader<TKey, TValue>` scoped to request, deduplicating repeated keys
 
 **Answer**
 
-A successful resource creation must return HTTP 201 Created because that status communicates where the new resource lives via the `Location` header — returning 200 omits that contract and breaks REST clients that rely on status codes to decide their next action. I use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with a `Location` header pointing at the new resource URL, including the created representation or a minimal payload when clients need immediate data. OpenAPI-generated SDKs and standard HTTP client libraries inspect the status code, so returning 200 hides the resource URL from them silently.
+Without DataLoader, a `books` field resolver on `Author` executes one `SELECT` per author — a list query returning 100 authors triggers 101 database round-trips. DataLoader solves this by collecting all the author IDs requested during one execution phase and dispatching a single `SELECT ... WHERE authorId IN (...)`. I register `BooksByAuthorDataLoader` in DI, inject it into the type's resolver, and `await loader.LoadAsync(author.Id)`. The DataLoader is request-scoped so concurrent resolver calls within the same request are batched; repeated requests for the same key within one request are deduplicated automatically.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. Field-level `[Authorize]` bypassed by `UseProjection`
 
 **Concepts**
-- HTTP safe and idempotent method semantics
-- Browser prefetch and CDN cache replay risk
-- GET read-only contract enforcement
+- `[Authorize]` on a field — requires the caller to have permission to resolve that field
+- `UseProjection()` with `Include` — EF Core may eagerly load the related data regardless of auth check
+- Authorized field accessible via an included navigation despite not being resolved by the client
+- Field authorization and projection must both be enforced
 
 **Answer**
 
-GET must be safe and idempotent, which means performing deletes or updates inside a GET handler violates HTTP semantics and creates real hazards. Browsers, CDNs, and link-preview crawlers may invoke GET URLs without any user intent, so side effects run unintentionally. Cached GET responses can replay destructive operations or deliver stale mutations across clients. State changes belong on POST, PUT, PATCH, or DELETE — GET stays read-only.
+`[Authorize]` on a HotChocolate field prevents the field's resolver from executing for unauthorized callers. However, `UseProjection()` with EF Core may load the related navigation property via an `Include` regardless of whether the field is requested or authorized, and a resolver that returns the parent entity exposes the unauthorized navigation through JSON serialization. The field authorization check runs at the resolver level, not the database level. I ensure that projections exclude unauthorized fields by checking authorization before including navigations, or by using separate queries for authorized and unauthorized contexts rather than relying solely on field-level decorators.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. Schema introspection enabled in production
 
 **Concepts**
-- HTTP status codes driving retry logic and APM alerting
-- ProblemDetails and ValidationProblemDetails for failures
-- Envelope error pattern anti-pattern
+- Introspection query — `{ __schema { types { name } } }` reveals full schema
+- Production exposure — enumerates all types, fields, and their nullability
+- `options.EnableSchemaIntrospection = false` (or environment gate) for production
+- Persisted queries as an alternative to disabling introspection for authorized clients
 
 **Answer**
 
-Business failures must map to appropriate 4xx or 5xx status codes because HTTP status codes are what drive client retry logic, API gateway routing, and APM alerting. A 200 response with a `{ success: false }` flag forces every client to parse the body before knowing whether the call worked, which bypasses standard HTTP semantics entirely. I return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures and 404, 409, or 422 for domain errors. Envelope patterns like `{ success: false }` require custom handling in every consumer and break OpenAPI contract expectations.
+GraphQL schema introspection exposes the complete type system — every query, mutation, field name, argument, and type nullability — to any client that can reach the endpoint. This is valuable for developers but a reconnaissance goldmine in production. I disable introspection in non-development environments with `options.EnableSchemaIntrospection = builder.Environment.IsDevelopment()` in the HotChocolate configuration, or gate the introspection endpoint behind an authorization policy so only authenticated internal developers can enumerate the schema.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. Mutation not idempotent — duplicate execution on network retry
 
 **Concepts**
-- Navigation property N+1 during serialization
-- Circular reference serializer loop risk
-- DTO decoupling from database schema
+- Mutations in GraphQL — not idempotent by specification
+- Client retry on network timeout — mutation may execute twice
+- Idempotency key in mutation input type — server deduplicates on key
+- `createOrder` executed twice triggering duplicate charges
 
 **Answer**
 
-EF Core entities expose navigation properties, shadow fields, and circular references that are not designed for public contracts. When the JSON serializer encounters a lazy-loaded navigation it triggers a database query per row, and circular references between entities cause serializer loops or require fragile reference-handling settings. I always serialize DTOs with explicit shapes so the API contract is decoupled from the database schema and clients only receive the fields they need.
+GraphQL mutations are not idempotent by design. A network timeout after the mutation executes but before the client receives the response causes a client retry that creates a duplicate order or charge. I add an `idempotencyKey: String!` field to mutation input types for state-changing operations (create, charge, send). The resolver checks whether a result for that key already exists and returns the cached result instead of re-executing the mutation, giving clients safe retry semantics. This is the GraphQL equivalent of the `Idempotency-Key` header pattern used in REST APIs.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. DataLoader not scoped to request — batching across requests
 
 **Concepts**
-- System.Text.Json camelCase default in ASP.NET Core 8
-- Silent binding failure on case mismatch
-- JsonPropertyName attribute and PropertyNamingPolicy override
+- `IDataLoader` should be request-scoped — one batch per execution
+- Singleton DataLoader — accumulates keys across requests, batches from different users mixed
+- Transient DataLoader — no batching benefit; creates new loader on every injection
+- `[UseDataLoader]` / `[BindService]` with correct lifetime in DI
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json`, so PascalCase property names from some clients bind as missing, leaving model properties at default values and causing silent data loss on POST and PUT. I align expectations using `[JsonPropertyName("PropertyName")]` on specific fields, a custom `PropertyNamingPolicy`, or `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)` when I must accept mixed casing from a legacy client. The failure is especially insidious because the server returns 201 or 204 with no error while the data is silently incomplete.
+`IDataLoader` must be scoped to the request to batch all resolver calls for a single execution. A singleton DataLoader accumulates keys across concurrent requests and may batch data from different tenants together — a multi-tenancy security issue where one user's DataLoader resolves another's data. A transient DataLoader creates a new instance on every injection, providing no batching since each resolver call gets its own isolated loader. I register DataLoaders as scoped services so they live exactly one request and batch only the keys requested within that execution.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Missing pagination on large collections — schema returns full list
 
 **Concepts**
-- GET body stripping by proxies and HTTP clients
-- [FromQuery] for simple filters
-- OpenAPI and browser fetch GET body restrictions
+- `IQueryable<Book>` field without `[UsePaging]` — resolves entire table by default
+- `[UsePaging]` — HotChocolate cursor-based pagination via Relay spec connection type
+- `[UseOffsetPaging]` — offset-based `page`/`pageSize` pagination
+- Unpaginated field — memory exhaustion and slow response under realistic data volumes
 
 **Answer**
 
-Many HTTP clients, proxies, and caches ignore or strip GET request bodies, so filters sent as JSON in a GET request fail silently or never reach the action. I use query strings with `[FromQuery]` for simple filter parameters, or POST to a dedicated search endpoint for complex filter objects. OpenAPI tools and browser `fetch` also discourage or block GET bodies, which makes this pattern fragile in production regardless of what ASP.NET Core itself accepts.
+A HotChocolate field that returns `IQueryable<Book>` without `[UsePaging]` or `[UseOffsetPaging]` executes a query that fetches the entire table. In development with seeded data (100 rows) the field is fast; in production with 10 million rows it causes an out-of-memory exception or a multi-second query that blocks the thread pool. I apply `[UsePaging]` on collection fields by default and set a maximum page size in the global options: `options.SetMaxPageSize(100)`. Callers must specify a `first` or `last` argument; the field raises an error if pagination arguments are missing.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. Subscription without a distributed backplane — single-node only
 
 **Concepts**
-- CORS as browser-only enforcement mechanism
-- curl and server-to-server bypass of CORS
-- Authentication and authorization as real API security
+- In-memory subscription provider — events only reach subscribers on the same pod
+- Multi-pod deployment — subscriber connected to Pod A misses event published on Pod B
+- Redis or Azure Service Bus backplane for cross-pod subscription delivery
+- `AddRedisSubscriptions()` in HotChocolate for distributed pub/sub
 
 **Answer**
 
-CORS is enforced only by browsers — it does not stop curl, Postman, server-to-server calls, or any direct API request. CORS headers tell a browser whether JavaScript on one origin may read a cross-origin response; they authenticate nothing. A public API without auth is fully accessible to any non-browser client regardless of the CORS policy configured. I register `AddCors` and `UseCors` specifically to enable browser SPA access, and I enforce JWT, cookies, or API keys separately as the actual security mechanism.
+The default HotChocolate subscription provider uses an in-process pub/sub mechanism — an event published on Pod A is only delivered to subscribers connected to Pod A. In a multi-pod deployment, a client connected to Pod B subscribed to `orderUpdated` never receives events published on Pod A. I add `AddRedisSubscriptions()` (or the Azure Service Bus provider) which routes events through a shared message broker, ensuring all pods receive all events and deliver them to their local subscribers. For single-pod deployments the in-memory provider is fine, but any horizontal scaling requires the distributed backplane.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. `IError` vs exception handling in resolvers
 
 **Concepts**
-- Access-Control-Allow-Origin wildcard and credentials incompatibility
-- WithOrigins explicit list requirement for credentialed requests
-- AllowCredentials requirement for cookies and Authorization headers
+- Throwing `Exception` from resolver — HotChocolate converts to generic error, hides detail
+- `IError` / `ErrorBuilder` — structured error with code, message, and extensions
+- `GraphQLException` — wraps one or more `IError` instances
+- `QueryError` vs field error — field error does not abort the entire query
 
 **Answer**
 
-Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers, so `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined in ASP.NET Core — the framework will not emit a valid CORS response for credentialed requests with a wildcard origin. I specify every trusted frontend origin explicitly with `WithOrigins` and pair that with `AllowCredentials()`. Credentialed cross-origin calls require both a matching explicit origin and `Access-Control-Allow-Credentials: true` in the response headers.
+Throwing an unhandled `Exception` from a resolver causes HotChocolate to return a generic error message with the exception details hidden (in non-development environments) to prevent leaking internal information. For expected domain errors (resource not found, permission denied, business rule violation), I return structured `IError` results using `ErrorBuilder.New().SetMessage("Order not found").SetCode("ORDER_NOT_FOUND").Build()` wrapped in `new GraphQLException(error)`. Field-level errors allow the rest of the query to succeed while the failing field returns null with error information in the `errors` array, which is the correct GraphQL behavior for partial success.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. Non-nullable GraphQL type on a nullable EF Core column
 
 **Concepts**
-- OpenAPI schema reconnaissance risk
-- Environment-gated Swagger UI registration
-- Production API surface disclosure
+- `String!` in GraphQL schema — guarantees a non-null value; runtime null throws
+- EF Core column allowing NULL — resolver may return `null` for `String!` field
+- HotChocolate enforcing non-nullability — throws `UnexpectedErrorException` at runtime
+- C# nullable annotations on resolver return types controlling schema nullability
 
 **Answer**
 
-Public Swagger UI discloses the full API surface, schemas, and try-it-out access to anyone who discovers the endpoint, which makes it useful reconnaissance for attackers. I wrap `MapSwagger` and `UseSwaggerUI` in `Program.cs` with an environment check so they only serve in Development or Staging, and for internal tooling that needs OpenAPI in production I gate it behind authentication middleware.
+A HotChocolate field declared as `String!` (non-nullable) throws at runtime if the resolver returns `null`. When the underlying EF Core entity has a nullable column (e.g. `Address?`), a resolver returning `entity.Address` can produce `null` for the `String!` field, causing HotChocolate to replace the field value with an error and propagate nullability up through parent fields. I align schema nullability with data reality: optional EF Core columns map to nullable `String` GraphQL fields, and I add `[Required]` or a not-null constraint at the database level if the field should truly never be null in the schema contract.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. Schema stitching exposing internal service errors to clients
 
 **Concepts**
-- [ApiController] enabling automatic model-state 400 responses
-- [FromBody] inference for complex types
-- Inconsistent error contracts from mixed controller conventions
+- Schema stitching / gateway — combines multiple downstream GraphQL services
+- Downstream service error — forwarded to client with internal service detail
+- `RequestExecutorBuilder.AddRemoteSchema` — stitches remote schema
+- Error transformation — strip internal fields before forwarding to external clients
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses, binding source inference, and attribute routing behaviors differ from controllers that do have it. A mix of attributed and non-attributed controllers produces inconsistent error contracts — some endpoints return 200 with invalid models while others automatically validate and reject. I apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- Sync-over-async thread-pool starvation
-- SynchronizationContext deadlock under ASP.NET Core
-- async Task<IActionResult> propagation through service layer
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` in async API actions ties up Kestrel request threads while I/O completes, which reduces throughput under concurrent load. Deadlocks occur when the blocked thread holds a synchronization context the async continuation needs to resume on. I mark controller actions `async Task<IActionResult>` and propagate `await` through the entire service layer down to EF Core and `HttpClient` calls, so no thread is blocked waiting for I/O.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness vs readiness probe semantics in Kubernetes
-- Unnecessary pod restart from database-down liveness failure
-- /health/live lightweight self-check vs /health/ready dependency check
-
-**Answer**
-
-If the liveness probe fails when SQL is down, Kubernetes restarts the pod — but restarting the application cannot fix a database outage. Liveness answers whether the process itself is healthy enough to continue running; readiness answers whether the pod should receive traffic. I put SQL, Redis, and external service checks on the readiness probe only, mapping `/health/live` to a lightweight self-check and `/health/ready` to `AddDbContextCheck` or custom dependency tags so pods are removed from the load balancer during an outage without being killed.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- Lazy-loaded navigation property per-row SQL query
-- LINQ projection to DTO in a single query
-- Include/ThenInclude for explicit eager loading
-
-**Answer**
-
-Returning entities with lazy-loaded navigation properties triggers one SQL query per row in the list. I fix this by projecting directly to DTOs in LINQ so EF Core generates a single query with only the columns needed, or by using `Include`/`ThenInclude` for graphs that must be loaded together. Serialization must never drive database queries — all data needed for the response should be fetched in a bounded number of round trips before serialization begins.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination instability under concurrent writes
-- Keyset pagination with stable indexed key
-- Cursor token exposure in response metadata
-
-**Answer**
-
-`Skip((page - 1) * pageSize).Take(pageSize)` shifts the window when rows are inserted or deleted between page requests, causing duplicates or gaps in the client's view. Keyset pagination avoids this by using `WHERE id > @lastId ORDER BY id LIMIT @pageSize` with the last seen key from the previous response. I expose cursor tokens in link headers or response metadata for high-churn data, and I keep offset pagination only for small, mostly static tables where the instability risk is negligible.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolver per-parent database query explosion
-- DataLoader batching into single IN clause
-- Eager loading at root query as alternative
-
-**Answer**
-
-Field resolvers in HotChocolate that query the database per parent row explode into N+1 SQL calls under load — a list of 100 authors each resolving `books` individually fires 101 queries instead of one batched query. The fix is DataLoader: I register a batch loader in DI that collects author IDs during field resolution and issues a single `WHERE AuthorId IN (...)` query. When the client always requests nested fields together, I can also eager-load at the root query, but DataLoader is the more flexible solution.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC HTTP/2 trailing headers inaccessible to browsers
-- gRPC-Web middleware translation requirement
-- CORS configuration alongside gRPC-Web
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing and trailing headers that browser `fetch` and `XMLHttpRequest` APIs do not expose to JavaScript. Blazor WASM and SPA browsers require the gRPC-Web protocol — I add `AddGrpcWeb()` and call `EnableGrpcWeb()` on mapped gRPC services to translate between gRPC-Web and native gRPC on the server side. I also configure CORS for the browser origin alongside gRPC-Web, since cross-origin browser calls still enforce CORS on preflight and response headers.
+In a stitched GraphQL gateway, an error from a downstream internal service (including stack traces, internal service names, or sensitive error codes) is forwarded directly to the external client unless an error transformation is applied at the gateway layer. I add an error filter on the gateway that strips or replaces internal error extensions before the response is sent to the client — similar to the ProblemDetails sanitization pattern in REST APIs. Only safe fields (`message`, `code`, client-facing `locations`, and `path`) are forwarded; `exception`, `stackTrace`, and internal `extensions` are removed for unauthenticated or external callers.
 
 ---
 

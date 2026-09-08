@@ -276,203 +276,147 @@ Legacy routing (pre-3.0) used `UseMvc()` with routing middleware that did not in
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
+## Gotchas — Routing & Endpoints (Interview Traps)
 
 ---
 
-#### Gotcha 1. Middleware order — routing before auth
+#### Gotcha 1. `AmbiguousMatchException` at runtime — two routes with identical precedence
 
 **Concepts**
-- `UseRouting` before `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata availability for auth middleware
-- Correct pipeline order in `Program.cs`
+- Endpoint routing scoring templates by specificity at startup
+- `AmbiguousMatchException` when two endpoints have equal score for the same path
+- Duplicate `[HttpGet("users")]` on two controllers causing runtime failure
+- Mixing Minimal API and controller endpoints with identical templates
 
 **Answer**
 
-In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata — registering auth before routing means the endpoint has not been selected yet, which breaks endpoint-aware authorization and policy resolution. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints (`MapControllers` / `MapGet`). Symptoms of wrong order include anonymous access to protected endpoints or 401 responses without proper challenge behavior, so always verify middleware order in `Program.cs` during code review for new services.
+When two or more endpoints have identical routing precedence for the same HTTP method and path, the endpoint matcher throws `AmbiguousMatchException` at runtime for matching requests. Unlike compile-time errors, this failure only surfaces when the conflicting path is actually requested. Common causes include identical `[HttpGet("orders")]` on two controllers, a Minimal API `MapGet("/orders", ...)` alongside a controller action with the same template, or a base controller route combined with an action-level template that accidentally matches an existing route. Detect conflicts early by enumerating `EndpointDataSource` entries in a startup integration test or by using `UseRouting` with `DeveloperExceptionPage` in development.
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 2. Route constraint mismatch returns 404 — no error or log entry explains the miss
 
 **Concepts**
-- Captive `DbContext` living past its scope
-- Stale EF change tracker accumulating unrelated entities
-- `ValidateScopes` as the detection mechanism
+- Route constraints evaluated as part of template matching
+- Constraint failure returning 404, not 400 or 500
+- `{id:int}` not matching non-integer values silently
+- Incorrect constraint syntax compiling but never matching any request
 
 **Answer**
 
-Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`. The singleton holds one scoped instance forever instead of one per request, so EF change trackers accumulate unrelated entities across requests. Enable `ValidateScopes` in Development/staging to catch illegal scope combinations at startup, and fix by injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation.
+When a route template includes a constraint — `{id:int}`, `{date:datetime}`, `{slug:regex(^[a-z]+$)}` — and the incoming request value does not satisfy the constraint, the route does not match and a 404 is returned. No log entry, no error message, and no indication that a matching route exists but failed a constraint. A client sending `GET /orders/abc` when the route is `[HttpGet("{id:int}")]` receives 404 without any hint that the route exists. Debugging this requires manually checking the route template and constraint, often by temporarily removing the constraint to confirm the route matches without it.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 3. Attribute route on a derived controller inherits from base — combined template may be wrong
 
 **Concepts**
-- Socket exhaustion from per-use `HttpClient` instantiation
-- `HttpMessageHandler` lifecycle managed by `IHttpClientFactory`
-- Named and typed client registration pattern
+- `[Route]` on base controller class inherited by derived controllers
+- Derived controller `[Route]` replacing, not appending to, base route
+- Token replacement `[controller]` evaluated on the concrete type
+- Route template combination rules for class-level and method-level attributes
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected. `HttpClient` is disposable but not meant for per-use disposal — the OS connection handle is held by the handler, not the client object. `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly; register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()`. Symptoms include `SocketException` and timeout errors only under production traffic, not in local testing.
+A base controller class with `[Route("api/[controller]")]` and an action `[HttpGet("details")]` produces the route `api/BaseController/details` — not `api/DerivedController/details`. When a derived controller inherits from a base with a class-level `[Route]`, the derived class must add its own `[Route]` to override the base route. Adding `[Route("api/[controller]")]` on the derived class uses `[controller]` token replacement, which resolves to the derived class name. Forgetting this means all actions from both the base and derived classes share the same URL prefix, potentially causing `AmbiguousMatchException` or routing requests to the wrong controller.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 4. `[HttpGet]` without a template vs `[Route]` — matching behavior differs
 
 **Concepts**
-- `IOptions<T>` — fixed snapshot at first resolution
-- `IOptionsSnapshot<T>` — per-request recalculation, scoped
-- `IOptionsMonitor<T>` — singleton-safe with change notifications
-- Stale configuration when `.Value` is cached in a constructor field
+- `[HttpGet]` without template matching root controller route
+- `[HttpGet("")]` explicitly matching the empty path segment
+- `[Route("path")]` on an action combined with controller-level route
+- Order of route attributes on the same action
 
 **Answer**
 
-`IOptions<T>` captures a configuration snapshot at first resolution — reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope so a singleton cannot inject it without creating a captive dependency. `IOptionsMonitor<T>` is the singleton-safe wrapper that supports change notifications via `OnChange` and exposes `CurrentValue` for the latest merged configuration.
+`[HttpGet]` without a template means the action matches at the controller's root route — for `[Route("api/orders")]` controller, `[HttpGet]` matches `GET /api/orders`. `[HttpGet("")]` is equivalent. Applying both `[HttpGet]` and `[Route("path")]` to the same action creates two separate routes for the action, not a combined one. Multiple `[Route]` attributes on the same action register multiple templates pointing to the same handler, which is intentional for versioned or aliased routes but surprising when done accidentally. Verify the effective URL by checking `EndpointDataSource.Endpoints` at startup in a test.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 5. `MapControllers()` is required — without it, controller attribute routes return 404
 
 **Concepts**
-- HTTP GET body stripped by clients, proxies, and CDNs
-- `[FromQuery]` with `[AsParameters]` for complex GET filters
-- Silent binding failure rather than explicit error
+- `AddControllers()` registering MVC services in DI
+- `MapControllers()` activating endpoint routing from controller attributes
+- 404 with no error when `MapControllers()` is omitted
+- Distinction between service registration and route activation
 
 **Answer**
 
-Using `[FromBody]` on GET action parameters or minimal API handlers is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies, so binding fails silently in production. Query strings and route values are the correct binding sources for GET requests, and complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys. REST conventions expect GET to be safe and idempotent with parameters in the URL.
+`builder.Services.AddControllers()` registers the MVC infrastructure — model binding, validation, filters, formatters — but does not create any routes. Routes are created by `app.MapControllers()`, which scans controller classes for routing attributes and registers them with the endpoint routing system. Omitting `MapControllers()` means no controller routes exist and every request to a controller path returns 404 silently. This separation between registration and activation is intentional in the minimal hosting model but trips up developers used to the conventional `app.UseEndpoints(e => e.MapControllers())` pattern from earlier versions, which has the same requirement but was historically bundled differently.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 6. Route parameter optional vs nullable query string — fundamentally different binding
 
 **Concepts**
-- Default `JsonNamingPolicy.CamelCase` in ASP.NET Core 8
-- Silent binding to default values on case mismatch
-- `PropertyNameCaseInsensitive` as a compatibility bridge
+- Optional route parameter `{id?}` matching with or without the segment
+- Nullable query string parameter `int?` binding from absence of key
+- `[FromRoute]` vs `[FromQuery]` explicit binding source attributes
+- URL structure changes when route vs query string approach is chosen
 
 **Answer**
 
-ASP.NET Core 8 Web API serializes JSON with camelCase property names by default via `JsonNamingPolicy.CamelCase`, so incoming JSON with PascalCase keys may not bind unless case-insensitive matching is enabled. Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values. Prefer standardizing clients on camelCase and documenting the contract in OpenAPI, and add validation attributes so silent binding failures become 400 responses instead of corrupt data.
+An optional route segment `{id?}` produces different URL structures depending on presence — `GET /orders` and `GET /orders/123` are different paths. A nullable query string parameter `int? id` always uses `GET /orders` with an optional `?id=123` suffix. These are not interchangeable: changing from route to query string binding changes the API contract and breaks existing clients. Use `[FromRoute]` and `[FromQuery]` explicitly to make binding intent clear. When an action has both route and query string parameters with the same name, the binding source must be explicit — ASP.NET Core applies precedence rules that may not match the intended behavior.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 7. Conventional routing order matters — more specific routes must be registered before more general ones
 
 **Concepts**
-- `throw ex` resetting the stack trace to the catch block
-- `throw;` preserving the original stack trace
-- `InnerException` preservation when wrapping in a new exception
+- `MapControllerRoute` evaluated in registration order for conventional routing
+- First matching pattern wins — more general patterns shadow specific ones
+- Attribute routing evaluated by specificity, not registration order
+- Mixing conventional and attribute routing in the same application
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown. Exception filters, middleware, and Application Insights rely on accurate stack traces for root-cause analysis, so always use `throw;` when rethrowing after logging or cleanup in a catch block. Wrap in a new exception only when adding context — `throw new OrderProcessingException("...", ex)` — to preserve `InnerException`.
+In conventional routing (using `MapControllerRoute`), routes are evaluated in registration order and the first match wins. A general catch-all route registered before a specific route shadows the specific route — requests that should match the specific route are handled by the catch-all instead. This is different from attribute routing, where specificity is calculated and the most specific template wins regardless of registration order. Mixing conventional and attribute routing in the same application adds complexity: attribute-routed controllers are not affected by `MapControllerRoute` patterns, but conventional controllers are, and understanding which applies to each controller is critical during debugging.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 8. Route values take precedence over query string — unexpected parameter binding
 
 **Concepts**
-- Kestrel as application server vs full edge gateway
-- TLS termination, WAF, and rate limiting at the reverse proxy
-- `UseForwardedHeaders` required for accurate client IP and scheme
+- Route values populated by matched URL segments
+- Query string keys with same name as route parameters overridden by route values
+- `HttpContext.Request.RouteValues` vs `HttpContext.Request.Query`
+- Model binding source priority: route → query → body
 
 **Answer**
 
-Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination at the edge, centralized rate limiting, WAF protection, and efficient static-file caching that production deployments typically require. Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front. Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy.
+When a route template contains `{id}` and a request arrives with both `/orders/5?id=10`, the model binder receives `id=5` from route values and `id=10` from the query string. Route values take priority, so the action receives `5`. This matters when APIs evolve and the same parameter name is used in both the URL template and as a query parameter for filtering — the route value silently wins. Use `[FromRoute]` and `[FromQuery]` attributes explicitly to avoid ambiguous binding and to document intent clearly to both the runtime and API consumers.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 9. Endpoint metadata is not available until after `UseRouting` runs
 
 **Concepts**
-- `launchSettings.json` as development-only launch configuration
-- Production host using environment variables, not launch profiles
-- `ASPNETCORE_ENVIRONMENT` and `ASPNETCORE_URLS` as runtime configuration
+- Endpoint selection happening inside `UseRouting`
+- `IEndpointFeature` on `HttpContext` populated by routing
+- Middleware reading `context.GetEndpoint()` before routing returning `null`
+- Authorization and rate limiting requiring routing to have run first
 
 **Answer**
 
-Settings in `Properties/launchSettings.json` apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile; they are not deployed to production hosts. Production URLs and environment come from environment variables (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`), container configuration, or IIS/nginx site settings. Use `appsettings.Production.json` and host-level env vars for production values.
+`context.GetEndpoint()` returns `null` until `UseRouting` has run and selected an endpoint. Any middleware registered before `UseRouting` that tries to read endpoint metadata — authorization policies, rate limit policies, or custom attributes — sees `null` and cannot apply endpoint-specific behavior. This is why `UseAuthentication` and `UseAuthorization` must be registered after `UseRouting`: they read `[Authorize]` attributes and policy names from the selected endpoint's metadata, which only exists after routing has matched the request. Custom middleware that reads custom endpoint metadata should similarly be placed after `UseRouting` in the pipeline.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 10. `MapFallbackToFile` intercepts unmatched API paths — API 404s become 200 HTML responses
 
 **Concepts**
-- Non-nullable `bool` defaulting to `false` on JSON omission
-- Three-state intent: unspecified, opt-in, opt-out
-- `bool?` or enum tri-state for partial-update DTOs
+- SPA fallback returning `index.html` for all unmatched routes
+- Registration order — API endpoints must be mapped before fallback
+- API 404 responses masked as HTTP 200 with HTML body
+- Conditional fallback excluding `/api` prefix to protect API 404 semantics
 
 **Answer**
 
-A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics. PATCH endpoints need `bool?`, separate update DTOs, or enums such as `Unspecified | OptIn | OptOut` for tri-state intent. Marketing consent and feature flags are common domains where this bug causes compliance or logic errors.
-
----
-
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
-
-**Concepts**
-- `X-Forwarded-Proto` and `X-Forwarded-For` headers
-- Wrong scheme causing broken HTTPS redirects and cookie secure flags
-- `KnownProxies` configuration to prevent header spoofing
-
-**Answer**
-
-Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs. Call `UseForwardedHeaders()` early, before middleware that reads scheme or host. Configure `ForwardedHeadersOptions` to trust only your reverse proxy network since trusting all proxies enables header spoofing.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles()` serving all `wwwroot` contents unauthenticated
-- Secrets and config files must stay outside the web root
-- Build pipeline verification before deploy
-
-**Answer**
-
-Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default, so placing secrets, `.env`, backup configs, or private keys there exposes them over HTTP. Only public assets belong in `wwwroot`, while sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers. Use build pipelines to verify web root contents before deploy.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback returning `index.html` for unmatched routes including `/api/*`
-- API endpoint registration ordering before fallback
-- CORS and Swagger failures masked by HTML responses
-
-**Answer**
-
-SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses to clients and breaking JSON parsers. Map API routes (`MapControllers`, minimal API groups) before `MapFallbackToFile("index.html")`, and scope fallback to non-API paths. The correct order in `Program.cs` is: API endpoints first, static files, fallback last.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- Singleton `BackgroundService` incompatible with constructor-injected scoped services
-- `CreateAsyncScope()` per job to create a fresh scope
-- `ValidateScopes` catching this defect at startup
-
-**Answer**
-
-A singleton `BackgroundService` that injects scoped services directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration. Inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes. Enabling `ValidateScopes` catches this defect before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR hub broadcasting to connected clients on the same instance only
-- Redis or Azure Service Bus backplane for multi-node event routing
-- Sticky sessions insufficient without a backplane
-
-**Answer**
-
-SignalR broadcasts from one server instance reach only clients connected to that instance — without a Redis or Azure Service Bus backplane, users on different nodes never receive each other's real-time events. Sticky sessions keep one client on one node but do not route events raised on other nodes to that client. Register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application, and test scale-out with at least two instances before launch.
+`MapFallbackToFile("index.html")` matches any request that no other endpoint claims, including `GET /api/nonexistent`. When registered before `MapControllers()`, it intercepts API paths that should return 404 and returns `index.html` with status 200 instead. JSON clients receive unexpected HTML, fetch calls throw `SyntaxError` when parsing the HTML body as JSON, and debugging is difficult because the status code is 200. Always register `MapControllers()` and all API endpoint mappings before `MapFallbackToFile`. For extra protection, add a path exclusion guard that prevents the fallback from matching requests beginning with `/api`.
 
 ---
 

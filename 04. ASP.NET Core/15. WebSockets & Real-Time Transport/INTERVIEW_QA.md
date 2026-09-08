@@ -318,187 +318,147 @@ If the server accepts a client-supplied user ID or tenant ID in the first WebSoc
 
 ---
 
-## Gotchas — ASP.NET Core (Interview Traps)
-
-#### Gotcha 1. Middleware order — routing before auth
-
-**Concepts**
-- `UseRouting` before `UseAuthentication` and `UseAuthorization`
-- Endpoint metadata — only available after routing selects the endpoint
-- `[Authorize]` policy resolution depends on endpoint selection
-
-**Answer**
-
-In ASP.NET Core 8 endpoint routing, `UseRouting` must run before `UseAuthentication` and `UseAuthorization` so the auth middleware can inspect endpoint metadata. When auth runs before routing, the endpoint has not been selected yet, which means `[Authorize]` metadata on minimal routes or controllers may not apply correctly. The recommended order is exception handling → forwarded headers → routing → authentication → authorization → endpoints. Symptoms include anonymous access to protected endpoints or 401 responses without proper challenge behavior.
+## Gotchas — WebSockets & Real-Time Transport (Interview Traps)
 
 ---
 
-#### Gotcha 2. Scoped service in a Singleton
+#### Gotcha 1. WebSocket upgrade must happen before any response body is written
 
 **Concepts**
-- Captive dependency — singleton outliving the scoped instance
-- EF change tracker corruption across requests
-- `ValidateScopes` — startup detection of scope violations
+- HTTP upgrade handshake requiring a 101 Switching Protocols response
+- `HttpContext.WebSockets.AcceptWebSocketAsync()` sending the upgrade response
+- `InvalidOperationException` when response body has already started
+- WebSocket upgrade as the point of no return for the HTTP response
 
 **Answer**
 
-Registering a scoped service such as `DbContext` into a singleton creates a captive dependency that lives for the application lifetime while the scoped instance is disposed after its first scope ends, causing stale data, thread-safety bugs, or `ObjectDisposedException`. The singleton holds one scoped instance forever rather than one per request, so EF change trackers accumulate unrelated entities. Enabling `ValidateScopes` in Development and staging catches illegal scope combinations at startup. The fix is injecting `IServiceScopeFactory` or `IDbContextFactory<T>` and creating a scope per operation.
+A WebSocket connection begins with an HTTP Upgrade handshake — the client sends an HTTP GET with `Upgrade: websocket` headers, and the server responds with 101 Switching Protocols. `context.WebSockets.AcceptWebSocketAsync()` sends this 101 response, transitioning the connection to WebSocket protocol. If any response body bytes have been written before this call, the 101 response cannot be sent and `AcceptWebSocketAsync` throws `InvalidOperationException`. Middleware must check `context.WebSockets.IsWebSocketRequest` before executing any other response-writing logic and call `AcceptWebSocketAsync` as the first response action. Placing the WebSocket upgrade inside a try-catch and falling through to normal response writing on failure also prevents the upgrade.
 
 ---
 
-#### Gotcha 3. `new HttpClient()` in a singleton
+#### Gotcha 2. Not reading from the WebSocket receive loop causes the sender to block
 
 **Concepts**
-- `HttpClient` socket exhaustion from per-use instantiation
-- `IHttpClientFactory` — handler lifetime and connection pooling
+- WebSocket protocol flow control — sender blocks when receive buffer is full
+- `ReceiveAsync` loop required even for send-only server scenarios
+- Receive loop detecting graceful close from the client
+- Deadlock pattern: both endpoints waiting for the other to read
 
 **Answer**
 
-Instantiating `HttpClient` with `new` inside a long-lived singleton prevents socket reuse and causes socket exhaustion under load because each instance holds its own connection pool until garbage-collected. `IHttpClientFactory` manages `HttpMessageHandler` lifetimes and recycles connections correctly. I register named or typed clients with `builder.Services.AddHttpClient<IExternalApi, ExternalApiClient>()`. Symptoms include `SocketException` and timeout errors only under production traffic.
+WebSocket connections are bidirectional, and the underlying TCP flow control means a sender blocks when the receive buffer on the other side is full. A server that sends messages but never reads from the WebSocket — because it only pushes data to clients — causes its clients to eventually block trying to send to the server, and vice versa. Even for a push-only server, a receive loop is required: `WebSocket.ReceiveAsync(buffer, token)` must be called continuously to drain any client-sent messages (including close frames) and to detect when the client disconnects. Failing to run a receive loop prevents clean close detection and causes the connection to appear active after the client has disconnected.
 
 ---
 
-#### Gotcha 4. `IOptions<T>` vs reload
+#### Gotcha 3. Closing a WebSocket requires `CloseAsync` before disposal — abrupt close sends RST instead of close frame
 
 **Concepts**
-- `IOptions<T>` — snapshot at first resolution, never updates
-- `IOptionsMonitor<T>` — change notifications for singletons
+- WebSocket close handshake: `CloseAsync` sending `Close` frame, waiting for response
+- `CloseOutputAsync` sending close frame without waiting for acknowledgement
+- `Abort()` for immediate termination without graceful handshake
+- Resource leak when `WebSocket.Dispose()` is called without closing first
 
 **Answer**
 
-`IOptions<T>` captures a configuration snapshot at first resolution, so reading `.Value` once in a singleton constructor freezes settings even when `appsettings.json` reloads with `ReloadOnChange` enabled. `IOptionsSnapshot<T>` recalculates per request scope while `IOptionsMonitor<T>` supports change notifications. Singleton services must use `IOptionsMonitor<T>` or read options inside scoped operations if they need live updates. Misconfiguration persists silently until process restart.
+A WebSocket connection should be closed with `socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Done", token)` before disposing the socket. This sends a WebSocket `Close` frame and waits for the peer to acknowledge it, completing the graceful close handshake defined by RFC 6455. Calling `Dispose()` directly or letting the `WebSocket` go out of scope without a close sends a TCP RST, which the client sees as an unexpected disconnection rather than a clean close and may trigger reconnect logic or error handling on the client side. Use `CloseOutputAsync` when you want to initiate close without blocking on the acknowledgement, and `Abort()` only when the connection is in an error state and clean close is not possible.
 
 ---
 
-#### Gotcha 5. GET with `[FromBody]`
+#### Gotcha 4. WebSocket authentication must be established at HTTP upgrade time — post-upgrade frame auth is insecure
 
 **Concepts**
-- HTTP GET body — stripped by proxies, caches, and browsers
-- `[FromQuery]` with `[AsParameters]` for complex GET filters
+- JWT or cookie authentication checked during HTTP upgrade request
+- `context.User` populated from the upgrade request's auth headers
+- Post-upgrade frames accepting user-supplied identity bypassing auth
+- Combining `UseAuthentication` in the pipeline with WebSocket endpoint protection
 
 **Answer**
 
-Using `[FromBody]` on GET action parameters is an anti-pattern because HTTP GET semantics discourage bodies, and many clients, proxies, and caches strip or ignore GET request bodies so binding fails silently in production. Query strings and route values are the correct binding sources for GET requests. Complex filters should use `[FromQuery]` with `[AsParameters]` or flattened query keys. Failures often appear only in specific browsers or CDN layers, not in Swagger during development.
+WebSocket authentication must be enforced during the HTTP Upgrade request — the standard HTTP authentication mechanisms (JWT Bearer, cookies) apply to the upgrade's HTTP request and populate `context.User` before `AcceptWebSocketAsync` is called. If the server instead accepts an unauthenticated WebSocket upgrade and then trusts a JSON `{ "userId": "..." }` frame sent post-upgrade to identify the user, any anonymous connection can impersonate any user. Validate `context.User.Identity.IsAuthenticated` and extract the user identity from `context.User` claims after `UseAuthentication` has run. Apply `[Authorize]` to controller actions or `.RequireAuthorization()` to Minimal API endpoints that perform the WebSocket upgrade to ensure only authenticated clients can connect.
 
 ---
 
-#### Gotcha 6. PascalCase JSON keys with default camelCase policy
+#### Gotcha 5. Binary vs text WebSocket frames — frame type mismatch causes deserialization failures
 
 **Concepts**
-- `JsonNamingPolicy.CamelCase` — ASP.NET Core 8 default
-- `PropertyNameCaseInsensitive` — opt-in case-insensitive binding
+- `WebSocketMessageType.Text` vs `WebSocketMessageType.Binary` frame types
+- Client and server must agree on frame type for each message
+- `Text` frames expected to be valid UTF-8; `Binary` frames are arbitrary bytes
+- Checking `WebSocketReceiveResult.MessageType` before interpreting payload
 
 **Answer**
 
-ASP.NET Core 8 Web API serializes JSON with camelCase property names by default, so incoming JSON with PascalCase keys such as `"CustomerName"` may not bind unless case-insensitive matching is enabled. Mobile or legacy clients sending PascalCase appear to succeed but properties remain default values. The optional mitigation is `AddJsonOptions(o => o.JsonSerializerOptions.PropertyNameCaseInsensitive = true)`, but explicit camelCase contracts are cleaner.
+WebSocket messages have a type: `Text` (UTF-8 string) or `Binary` (raw bytes). When the client sends `Text` frames and the server reads them as `Binary`, the bytes are correct but the server treats them as opaque binary data rather than strings. When the client sends `Binary` and the server expects `Text`, JSON deserialization fails because binary-encoded data is not valid UTF-8. Always check `result.MessageType` in the receive loop before interpreting the payload. JavaScript WebSocket clients send strings as `Text` frames by default and `ArrayBuffer` or `Blob` as `Binary`. Standardize on one type in the protocol contract and enforce it by closing the connection with an appropriate close status when the wrong message type is received.
 
 ---
 
-#### Gotcha 7. `throw ex` vs `throw`
+#### Gotcha 6. WebSocket connections hold memory and OS sockets — unbounded connections cause resource exhaustion
 
 **Concepts**
-- `throw ex` — resets stack trace to catch block
-- Bare `throw` — preserves original exception origin
+- Each WebSocket connection consuming memory for receive/send buffers
+- No default connection limit in ASP.NET Core for WebSocket connections
+- `MaxConcurrentUpgradedConnections` Kestrel limit for WebSocket connections
+- Connection pool management and connection tracking for active WebSocket sessions
 
 **Answer**
 
-Rethrowing with `throw ex` resets the stack trace to the catch block line, hiding the original failure location in logs and diagnostics, while bare `throw` preserves the full stack trace from where the exception was first thrown. I always use `throw;` when rethrowing after logging or cleanup in a catch block. Wrapping in a new exception is appropriate only when adding context: `throw new OrderProcessingException("...", ex)` preserves `InnerException`.
+Each WebSocket connection consumes a TCP socket, memory for I/O buffers, and a thread pool task for the receive loop. With no connection limit, a long-running application accepting connections from mobile clients (which frequently disconnect without sending a close frame) can accumulate thousands of zombie connections. Set `KestrelServerOptions.Limits.MaxConcurrentUpgradedConnections` to a reasonable bound. Track active connections in a `ConcurrentDictionary<string, WebSocket>` or similar structure to support broadcasting, timeout stale connections, and enforce per-user connection limits. Monitor `dotnet counters` for `Microsoft.AspNetCore.Http.Connections` if using SignalR, or track custom metrics for raw WebSocket connection counts.
 
 ---
 
-#### Gotcha 8. Kestrel as the only production layer
+#### Gotcha 7. Receive buffer must be large enough for a single message — fragmented messages require looping
 
 **Concepts**
-- Kestrel — application server, not an edge gateway
-- Reverse proxy — TLS termination, WAF, rate limiting
+- `WebSocket.ReceiveAsync(buffer, token)` reading one fragment, not a complete message
+- `WebSocketReceiveResult.EndOfMessage` indicating last fragment of a message
+- Small buffer causing multiple receive calls needed to assemble one message
+- Memory accumulation when building complete messages from fragments
 
 **Answer**
 
-Running Kestrel exposed directly to the internet without a reverse proxy skips TLS termination, centralized rate limiting, WAF protection, and efficient static-file caching. Kestrel is production-grade as an application server but is not a full edge gateway — nginx, IIS, Azure Front Door, or AWS ALB commonly sit in front. Direct exposure also complicates client IP logging unless `UseForwardedHeaders` is configured with a trusted proxy.
+`WebSocket.ReceiveAsync(buffer, token)` fills the buffer with up to one fragment of data and returns a `WebSocketReceiveResult`. If `result.EndOfMessage` is false, the message continues in subsequent fragments — additional `ReceiveAsync` calls are needed to reassemble the complete message. A common bug is treating the first fragment as the complete message, which works in testing with small payloads but fails silently when a client sends a message larger than the buffer size. Use a `MemoryStream` or `ArrayBufferWriter<byte>` to accumulate fragments, calling `ReceiveAsync` in a loop until `result.EndOfMessage` is true, then process the complete assembled message.
 
 ---
 
-#### Gotcha 9. `launchSettings.json` in production
+#### Gotcha 8. DI scope for WebSocket handlers — no automatic scope per connection, unlike HTTP requests
 
 **Concepts**
-- `launchSettings.json` — development ergonomics only, not deployed
-- `ASPNETCORE_URLS` and `ASPNETCORE_ENVIRONMENT` — runtime configuration
+- HTTP request scope created automatically by ASP.NET Core for each request
+- WebSocket connection lifetime extending beyond the upgrade HTTP request
+- Scoped services resolved at upgrade time becoming long-lived
+- Manual scope creation per WebSocket connection via `IServiceScopeFactory`
 
 **Answer**
 
-Settings in `Properties/launchSettings.json` apply only when starting from Visual Studio, VS Code, or `dotnet run` with a profile — they are not deployed to production hosts. Production URLs and environment come from environment variables such as `ASPNETCORE_URLS` and `ASPNETCORE_ENVIRONMENT`, container configuration, or IIS and nginx site settings. The file is development ergonomics, not runtime configuration.
+During the HTTP Upgrade handshake, ASP.NET Core creates a request scope that is associated with the upgrade HTTP request. Once the upgrade succeeds and the WebSocket is opened, the HTTP request technically completes but the connection lives on. Scoped services resolved from `HttpContext.RequestServices` during upgrade are valid for the duration of the request scope, which may be disposed when the upgrade request lifecycle ends depending on the hosting model. For connection-lifetime services (tracking connection state, per-connection repositories), create an explicit scope with `IServiceScopeFactory` after the upgrade and use it for the WebSocket handler's lifetime, disposing it when the WebSocket closes.
 
 ---
 
-#### Gotcha 10. Non-nullable `bool` for PATCH semantics
+#### Gotcha 9. SignalR without a backplane on multiple instances — hub broadcasts only reach locally connected clients
 
 **Concepts**
-- Non-nullable `bool` — cannot distinguish omitted from explicit `false`
-- `bool?` for tri-state PATCH intent
+- SignalR hub in-memory connection tracking per server instance
+- `Clients.All.SendAsync` reaching only clients on the same instance
+- Redis backplane via `AddSignalR().AddStackExchangeRedis()`
+- Azure SignalR Service as a managed backplane alternative
 
 **Answer**
 
-A non-nullable `bool` property cannot distinguish "field omitted from JSON" from "explicitly set to false" because System.Text.Json deserializes missing properties to `default(false)`, corrupting partial-update semantics. PATCH endpoints need `bool?`, separate update DTOs, or enums for tri-state intent. Marketing consent and feature flags are common domains where this bug causes compliance or logic errors.
+SignalR's hub connection state is stored in memory on each server instance. A hub broadcast (`Clients.All.SendAsync`, `Clients.Group(name).SendAsync`) only reaches clients connected to the same instance — clients on other instances behind the load balancer never receive it. Sticky sessions (keeping each client on the same pod) prevent reconnection issues but do not route broadcasts across instances. The fix is a Redis backplane: `builder.Services.AddSignalR().AddStackExchangeRedis(connectionString)` installs a Redis pub/sub channel shared by all instances so broadcasts fan out globally. Azure SignalR Service manages the backplane as a managed service, removing the need to operate Redis. Test multi-instance scenarios before launch — single-instance staging hides this problem completely.
 
 ---
 
-#### Gotcha 11. Forgetting `UseForwardedHeaders` behind a proxy
+#### Gotcha 10. Server-Sent Events (SSE) and `application/json` clients — `text/event-stream` content type is required
 
 **Concepts**
-- `X-Forwarded-For`, `X-Forwarded-Proto` headers
-- `ForwardedHeadersOptions` — trust only known proxy networks
+- SSE requiring `Content-Type: text/event-stream` response header
+- `data:` prefixed lines in SSE protocol format
+- Keep-alive headers to prevent proxy timeout disconnection
+- SSE unidirectional — client cannot push data to server over SSE
 
 **Answer**
 
-Without forwarded headers middleware configured with known proxy IPs, `HttpContext.Request.Scheme` remains `http`, `Request.Host` reflects the internal address, and client IP is the proxy — breaking HTTPS redirects, cookie secure flags, and audit logs. I call `UseForwardedHeaders()` early in the pipeline and configure `ForwardedHeadersOptions` to trust only the reverse proxy network, because trusting all proxies enables header spoofing.
-
----
-
-#### Gotcha 12. Static files in `wwwroot` are public
-
-**Concepts**
-- `UseStaticFiles` — serves `wwwroot` to unauthenticated clients
-- Sensitive config outside web root
-
-**Answer**
-
-Any file under `wwwroot` is served by `UseStaticFiles()` to unauthenticated clients by default. Only public assets such as CSS, JS, and images belong in `wwwroot`. Sensitive configuration stays outside the web root and is loaded through `IConfiguration`, environment variables, or secret managers. Accidental copy of `appsettings.Production.json` into `wwwroot` is a critical security incident.
-
----
-
-#### Gotcha 13. `MapFallbackToFile` intercepting API routes
-
-**Concepts**
-- SPA fallback — must be registered after API endpoint mapping
-- `/api/*` 404 responses returned as `index.html`
-
-**Answer**
-
-SPA fallback middleware registered before API endpoint mapping returns `index.html` for `/api/*` 404 responses, making API failures look like successful HTML responses and breaking JSON parsers. I map API routes with `MapControllers` or minimal API groups before `MapFallbackToFile("index.html")`. The order in `Program.cs` is: API endpoints first, static files, fallback last.
-
----
-
-#### Gotcha 14. Background service without scope factory
-
-**Concepts**
-- Singleton hosted service — cannot constructor-inject scoped services
-- `IServiceScopeFactory.CreateAsyncScope` — per-job scope
-
-**Answer**
-
-A singleton `BackgroundService` that injects scoped services directly into its constructor fails at startup with scope validation errors or uses disposed instances after the first background iteration. The fix is to inject `IServiceScopeFactory`, create `await using var scope = factory.CreateAsyncScope()` per job, resolve scoped services inside the scope, and dispose when the job completes. Enabling `ValidateScopes` catches this defect before production deployment.
-
----
-
-#### Gotcha 15. SignalR without a backplane on multiple instances
-
-**Concepts**
-- SignalR backplane — Redis or Azure Service Bus for cross-instance fan-out
-- Sticky sessions — per-client affinity, not cross-instance event routing
-
-**Answer**
-
-SignalR broadcasts from one server instance reach only clients connected to that instance. Without a Redis or Azure Service Bus backplane, users on different nodes never receive each other's real-time events. Sticky sessions keep one client on one node but do not route events raised on other nodes to that client. I register `AddSignalR().AddStackExchangeRedis(...)` with a consistent channel prefix per application and test scale-out with at least two instances before launch.
+Server-Sent Events require the response `Content-Type` to be `text/event-stream` and the response to follow the SSE protocol format: `data: {payload}\n\n` for events, optional `id:` and `event:` fields, and comment lines starting with `:` for keep-alive. Setting `Content-Type: application/json` breaks the client's `EventSource` API, which only handles `text/event-stream`. Proxies and load balancers with short idle timeouts close SSE connections that receive no data — send `:keepalive\n\n` comment lines every 15-30 seconds to prevent proxy-side timeouts. SSE is unidirectional: the client can only receive events from the server, not send data over the SSE connection. Use WebSockets when bidirectional communication is needed.
 
 ---
 

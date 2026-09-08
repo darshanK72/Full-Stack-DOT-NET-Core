@@ -540,3 +540,147 @@ A deployment slot is a separate live instance of an App Service app — `staging
 Build failures almost always trace to one of four causes: the SDK version installed by `UseDotNet@2` does not match the `TargetFramework` in the project file; NuGet restore fails because private feed credentials are missing (fixed by adding `NuGetAuthenticate@1` before restore); failing or timing-out tests block the step; or the `projects:` glob in the task matches nothing because the project was moved or the pattern is wrong. Deployment failures have a different set of root causes: the service connection is unauthorized or the service principal's role assignment expired; the artifact download step did not run or the `package` path glob does not match the zip file name; the App Service runtime stack in the Azure portal is set to a different .NET version than the published TFM; or the app fails to start after a successful deploy because connection strings or `ASPNETCORE_ENVIRONMENT` are misconfigured — those appear in the App Service log stream, not the pipeline log. Setting `system.debug: true` as a pipeline variable enables verbose diagnostic output from all tasks, which is the fastest way to diagnose authentication and MSDeploy issues without guessing.
 
 ---
+
+## Gotchas — Azure DevOps Pipelines (Interview Traps)
+
+---
+
+#### Gotcha 1. Secret variables are not automatically passed to child stages — they must be explicitly mapped
+
+**Concepts**
+- Secret pipeline variables are accessible as environment variables only when explicitly mapped
+- `env:` mapping in job steps is required; reading `$(MySecret)` directly in a script fails
+- Multi-stage pipelines require variable output or explicit variable passing between stages
+- Secret variables cannot be echoed; they are masked in logs even when referenced directly
+
+**Answer**
+
+Pipeline variables marked as secret are not automatically injected as environment variables in every step. They must be explicitly mapped in the `env:` section of a step: `env: MY_SECRET: $(MySecret)`. A script that tries to read a secret variable using `$(MySecret)` inline in a bash or PowerShell command may see an empty string because the shell has no environment variable of that name, and the masking behavior hides the difference between an empty value and a masked value in the logs. Multi-stage pipelines have an additional restriction: secret variables defined in stage A are not automatically available in stage B; they require an output variable mechanism or must be declared at the pipeline level.
+
+---
+
+#### Gotcha 2. Service connection permissions are project-scoped — a pipeline in project A cannot use project B's service connection
+
+**Concepts**
+- Azure service connections are defined within a specific Azure DevOps project
+- Cross-project service connection sharing requires explicit sharing configuration in project settings
+- A pipeline that references a service connection by name from another project fails with "not found"
+- Organization-level service connections do not exist; they must be shared per project
+
+**Answer**
+
+Azure DevOps service connections (used to deploy to Azure resources) are scoped to the project where they are created. A pipeline in a different project that references the connection by name receives a "service connection not found" error, even if both projects are in the same organization. To share a service connection, you must explicitly share it from the source project's settings to the target project. This is a common failure in organization-wide repository templates that reference a centrally managed service connection by a fixed name, when the consuming project has not had the connection shared to it.
+
+---
+
+#### Gotcha 3. Artifact retention policy silently deletes old pipeline runs — scripts referencing artifacts by run number break after retention expiry
+
+**Concepts**
+- Pipeline retention policies delete runs and their artifacts after a configured number of days
+- Deployment stages that reference an artifact from a specific prior run fail if the run is deleted
+- Retained runs (pinned) are exempt from the policy
+- Passing artifact version information through output variables is more robust than run number references
+
+**Answer**
+
+Azure DevOps applies retention policies that delete pipeline runs and their associated artifacts after a configured period (typically 30 days by default). If a deployment script or release pipeline references an artifact by storing the originating run number, the reference will break after retention expires, causing deployment failures for rollback scenarios that rely on older artifact versions. The production practice is to pin important runs (retain indefinitely) for release builds, or to publish artifacts to Azure Artifacts or Azure Blob Storage outside the pipeline run scope, so they are not subject to pipeline retention limits.
+
+---
+
+#### Gotcha 4. Self-hosted agent runs as the configured service account — deployment to App Service requires that account to have Azure RBAC
+
+**Concepts**
+- Self-hosted agents run tasks as the Windows service account or Linux user they are configured with
+- Azure CLI and deployment tasks authenticate using that account's Azure credentials or service principal
+- Missing Azure RBAC on the subscription or resource group causes silent authentication errors
+- Microsoft-hosted agents use ephemeral credentials; self-hosted agents carry persistent identity
+
+**Answer**
+
+A self-hosted Azure DevOps agent runs pipeline tasks as the Windows service account or Linux user it is installed under. When a pipeline step uses the Azure CLI or an Azure DevOps service connection to deploy to App Service, the agent's configured identity must have sufficient Azure RBAC (at minimum Contributor on the target resource group). On a Microsoft-hosted agent, this is handled automatically through the service connection; on a self-hosted agent, the underlying service account must separately have the correct roles. A common mistake is configuring the service connection correctly but using a self-hosted agent whose service account has no Azure permissions, producing an "Insufficient privileges" error.
+
+---
+
+#### Gotcha 5. Parallel stages without explicit dependsOn can deploy to production before staging validation completes
+
+**Concepts**
+- YAML multi-stage pipelines run stages in parallel unless `dependsOn` is specified
+- A production deployment stage without `dependsOn: [Staging]` runs concurrently with staging
+- Build stage success does not imply staging deployment success in parallel pipelines
+- Explicit `dependsOn` with `condition: succeeded()` chains stages sequentially
+
+**Answer**
+
+In a YAML pipeline, multiple stages that do not declare `dependsOn` run in parallel by default. A pipeline with separate Build, Staging, and Production stages where Production does not declare `dependsOn: [Staging]` will deploy to production simultaneously with staging, not after it. This means staging validation, smoke tests, and approval gates in the staging stage have no bearing on production deployment timing. Every downstream stage must explicitly declare `dependsOn` on its predecessor to create a sequential dependency chain, and `condition: succeeded('Staging')` adds an explicit gate so a staging failure stops production deployment.
+
+---
+
+#### Gotcha 6. Environment approvals only apply to deployment jobs — regular pipeline jobs bypass environment gates
+
+**Concepts**
+- `environment:` key in a deployment job associates it with an APIM-protected Environment resource
+- Regular `job:` steps that deploy using Azure CLI do not go through Environment approval gates
+- Gates (pre-deployment conditions) are also only available on deployment jobs
+- Approval checks configured on the Environment have no effect on non-deployment jobs
+
+**Answer**
+
+Azure DevOps Environments provide approval gates, required reviewer checks, and deployment history tracking. These controls apply only when a stage uses a `deployment` job type with the `environment:` key. A pipeline step inside a regular `job:` that runs `az webapp deploy` bypasses all environment approval checks completely, even if that environment has required approvals configured. Teams that configure environment approvals expecting all deployments to require sign-off are unaware that non-deployment job types silently bypass the gate, until an unauthorized deployment reaches production.
+
+---
+
+#### Gotcha 7. Key Vault variable group requires service connection approval — pipelines fail with access denied if not approved
+
+**Concepts**
+- Variable groups linked to Azure Key Vault use a service connection to fetch secrets at queue time
+- The service connection must be approved for use in the pipeline in Azure DevOps project settings
+- First-time use of a linked variable group prompts an approval that must be granted manually
+- Pipeline failure message "access denied to variable group" is cryptic about the service connection requirement
+
+**Answer**
+
+An Azure DevOps variable group linked to Azure Key Vault uses an Azure service connection to access Key Vault secrets when the pipeline is queued. The first time a pipeline uses this variable group, Azure DevOps prompts for an authorization that must be explicitly granted in the pipeline settings or Project Settings. Pipelines that fail with "access denied to variable group" after a recent Key Vault variable group was added are almost always missing this authorization step. The service connection must also have Key Vault Secrets User role on the target Key Vault; otherwise secret fetch fails at runtime with a permissions error.
+
+---
+
+#### Gotcha 8. Running dotnet test without --no-build in a post-build stage causes double compilation
+
+**Concepts**
+- `dotnet test` compiles the project by default before running tests
+- A pipeline stage that has already run `dotnet build` compiles twice if `--no-build` is not passed
+- Double compilation doubles build time and wastes agent minutes
+- `--no-build` combined with `--no-restore` produces the fastest test run in a multi-step pipeline
+
+**Answer**
+
+`dotnet test` invokes the build system by default before running tests, which is useful for standalone execution but wasteful in a CI pipeline where a preceding step has already called `dotnet build`. In a pipeline that separates Build and Test into two tasks, omitting `--no-build` on the `dotnet test` command causes the project to compile twice, doubling compile time and wasting agent minutes. The correct CI pipeline pattern is `dotnet build --configuration Release` followed by `dotnet test --no-build --configuration Release`, optionally combined with `--no-restore` if the restore step ran separately.
+
+---
+
+#### Gotcha 9. Branch policies for required pipeline success only apply to PRs — direct pushes to main bypass the pipeline
+
+**Concepts**
+- Branch policies requiring build validation apply to pull requests, not direct pushes
+- A developer with push permission can bypass PR policies by pushing directly to main
+- Branch protection that requires PR also requires "Require a pull request before merging" setting
+- Service accounts used in pipelines may also have push access and bypass PR policies
+
+**Answer**
+
+Azure DevOps branch policies can require a successful build validation pipeline before a PR is completed. However, this policy applies only to pull request merges; it does not block direct pushes to the protected branch. A developer with Contribute permission can `git push` directly to main, bypassing the PR requirement and build validation entirely. To prevent this, the branch policy must also enable "Require a minimum number of reviewers" and check "When new changes are pushed, reset all approval votes", which together force all changes through PRs. Service accounts and pipeline identities with Contribute permission must also have their direct push access reviewed.
+
+---
+
+#### Gotcha 10. YAML template references require the template repository to be explicitly listed as a resource — cross-org templates silently fail
+
+**Concepts**
+- `extends: template@<alias>` requires the repository alias to be declared in `resources.repositories`
+- Templates from external repositories require explicit access grants in project settings
+- YAML syntax errors in referenced templates cause the pipeline to fail to parse with a confusing error
+- Updating a shared template can break multiple consuming pipelines if the template interface changes
+
+**Answer**
+
+Using YAML templates from another repository (via `extends: template` or `steps: template`) requires the external repository to be declared in the pipeline's `resources.repositories` section with a `name`, `type`, and optionally a `ref`. Without this declaration, the template reference produces a confusing parse error rather than a clear "repository not found" message. Additionally, for external repositories in a different Azure DevOps project or organization, the service connection used for the repository resource must be explicitly authorized for pipeline use. Changing the interface of a shared template (renaming parameters, removing required inputs) breaks all consuming pipelines simultaneously unless versioned `ref` pinning is used.
+
+---

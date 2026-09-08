@@ -261,82 +261,147 @@ A recursive method calls itself as part of its own implementation, reducing the 
 
 ---
 
-## Gotchas
+## Gotchas — Methods in C# (Interview Traps)
 
 ---
 
-## Q16. What compiler error results from declaring two methods that differ only in return type, and why does C# prohibit it?
+#### Gotcha 1. Default parameter values are compile-time constants — changing them requires recompiling callers
 
 **Concepts**
-- CS0111: type already defines a member with the same parameter types
-- Return type is not part of the method signature
-- Ambiguity: caller can discard the return value — compiler has no basis to select
-- Fix: rename one method or use a single method with a suitable return type
-- Contrast with operator overloading where return type is structurally fixed
+- Default values embedded in calling assembly metadata
+- No runtime dispatch
+- static readonly cannot be a default
+- optional parameters are evaluated at call site
 
 **Answer**
 
-Declaring two methods with the same name and identical parameter types but different return types causes CS0111. The compiler reports that the type already defines a member with the same parameter types, and rejects the duplicate. Return type is deliberately excluded from the method signature because a caller can always discard the return value. If you write `Format(42);` as a statement and two versions exist — one returning int, one returning string — the compiler has no signal about which you want. Overload resolution would be fundamentally ambiguous. This rule occasionally surprises developers coming from languages that support return-type covariance or more flexible overloading. The fix is to give the two methods distinct names that reflect what they return or what they do, or to use a generic method where the return type is a type parameter. The single exception in C# is method overriding in inheritance: an overriding method may return a more derived type than the base (covariant returns, supported since C# 9), but that is not a new overload in the same type — it replaces an inherited member.
+When a method has an optional parameter like void Send(string message, int retries = 3), the value 3 is baked into every compiled caller. Changing the default to 5 in the library and redeploying only the library leaves all existing callers still passing 3. This is the silent versioning problem that distinguishes optional parameters from runtime-configurable defaults.
 
 ---
 
-## Q17. Optional parameter defaults are baked into the call site at compile time — why is this a library versioning trap?
+#### Gotcha 2. ref requires an initialized variable before the call; out does not
 
 **Concepts**
-- Compile-time baking: default value inlined into calling assembly's IL, not the library's IL
-- Changing a default in the library does not update pre-compiled callers
-- No error or warning — silent behavioral inconsistency
-- Fix: use overloads so default logic lives in library's method body
-- Applies to any cross-assembly call; intra-assembly is recompiled together
+- ref passes initialized value
+- out declares result only
+- the method must assign out before returning
+- ref can read the value inside the method
 
 **Answer**
 
-When the compiler encounters `FormatMoney(amount)`, it does not emit an instruction saying "fetch the default at runtime." Instead, it writes `FormatMoney(amount, "USD")` directly into the calling assembly's IL, with the literal "USD" stamped in the caller's binary. The default value lives in the caller, not in the library. This is binary-invisible: if you ship version 1.0 with `currency = "USD"` and later publish version 2.0 with `currency = "GBP"`, every application that was compiled against version 1.0 continues to pass "USD" forever, even after upgrading to the new library DLL. There is no runtime error, no warning, and no obvious diagnostic — the application just silently uses the old default until someone recompiles it. For libraries distributed via NuGet or shared across teams, this makes optional parameter defaults a maintenance hazard. The mitigation is to use overloads: the shorter overload calls the longer one with the current default written in the library's method body. When you update that internal call, all callers pick up the change on the next load without needing recompilation. Optional parameters are fine for private or internal helpers where the caller and callee are always compiled together.
+A ref parameter must point to a variable that already has a value because the method can read that value at entry. An out parameter only declares that the method will produce a value; the variable is considered uninitialized until the method assigns it. Mixing up ref and out causes CS0165 (use of unassigned variable) for ref and CS0177 (out param must be assigned) for out.
 
 ---
 
-## Q18. Named arguments do not participate in overload resolution — what does this mean and what mistake does it prevent?
+#### Gotcha 3. Passing null to a params parameter is different from passing no arguments
 
 **Concepts**
-- Overload resolution based on argument count and types only — names ignored
-- Named arguments applied after the overload is chosen, to bind arguments to parameters
-- Cannot use parameter name to select a differently-typed overload
-- Two overloads differing only in parameter names are still ambiguous — CS0121
-- Common misconception: naming steers to the "correct" overload
+- params T[] x; M(null) passes null array
+- M() passes empty array
+- M((T[])null) is explicit
+- null check needed in body if callers may pass null
 
 **Answer**
 
-A common misconception is that supplying a named argument can influence which overload the compiler selects. It cannot. Overload resolution examines the number and types of arguments, ignoring their names entirely, to identify and rank applicable candidates. Only after the overload is definitively chosen does the compiler apply named arguments, mapping each named argument to the parameter that matches its name within that already-selected overload. The practical consequence is that if two overloads share the same parameter types in the same positions but have different parameter names, they are still ambiguous: the compiler sees identical signatures and raises CS0111 (or CS0121 if both are accessible). You cannot use `Apply(amount: 100m, percentOff: 5)` to force the int-percent overload when the compiler has already resolved the overload based on types. Named arguments are purely a readability and reordering tool: they clarify intent at the call site, allow skipping optional parameters, and permit argument reordering — but they make no contribution to the type-based selection that determines which overload runs.
+A method declared as void M(params string[] args) receives an empty string[] array when called as M() with no arguments. Calling M(null) passes a null reference as the params array, which will cause NullReferenceException if the body iterates args without a null check. Use M((string[])null) as a deliberate and readable way to pass null when needed.
 
 ---
 
-## Q19. When you pass a reference-type argument and the method reassigns the parameter, why does the caller's variable remain unchanged?
+#### Gotcha 4. Local functions can be recursive; a lambda cannot refer to itself by name
 
 **Concepts**
-- Default pass copies the reference value (address), not the heap object
-- Reassigning the parameter changes the local address copy only
-- Caller's variable still holds the original address — unaffected
-- Mutation through the shared reference IS visible (same heap object)
-- ref modifier needed to redirect the caller's pointer
+- Local function declares itself in scope
+- lambda must be assigned to a variable first
+- recursive lambda uses the variable name
+- local function is more readable for recursion
 
 **Answer**
 
-Passing a reference-type argument without a modifier copies the reference — the address pointing to the heap object — not the object itself. After the call, both the caller and the method hold separate address variables that both point to the same heap object. If the method calls mutating methods on the object or writes to its fields through the parameter, the caller observes those changes because both addresses lead to the same memory. However, if the method writes `param = new Foo()`, it is only overwriting its local copy of the address. The caller's address variable is entirely separate and still holds the original address — nothing about the caller's heap object changed. To allow a method to redirect the caller's pointer to a different object, you must pass the address variable itself by reference using ref, making the parameter an alias for the caller's address variable. A concrete example in the warehouse context: passing an `Order` instance allows the method to update `order.Quantity` visibly, but assigning `order = new Order()` inside the method leaves the caller's Order reference pointing at the original object. Understanding this prevents a class of subtle bugs where developers expect a method to "replace" an object but the caller continues using the original.
+A local function defined inside a method can call itself by name directly, just like a regular method. A recursive lambda requires the Func<int,int> variable to be declared before the lambda is assigned, so the lambda can capture the variable by reference and call it — a pattern that is valid but requires null initialization of the delegate variable before assignment.
 
 ---
 
-## Q20. How can two numeric overloads produce a CS0121 ambiguous call, and what is the correct fix?
+#### Gotcha 5. Expression-bodied methods cannot contain multiple statements
 
 **Concepts**
-- CS0121: method call is ambiguous between two methods
-- Ambiguity: argument type converts implicitly to both overloads' parameter types at equal cost
-- Example: a literal whose type fits two overloads without one being strictly better
-- Fix: explicit cast at the call site to select a single applicable overload
-- Alternative fix: rename overloads to remove reliance on type-driven disambiguation
+- => expression evaluates to single expression
+- statement body uses braces
+- ; after void expression body is required
+- useful for simple property-like methods
 
 **Answer**
 
-Overload ambiguity arises when the compiler finds two applicable candidates and neither is strictly better than the other by any tie-breaking rule. A common numeric scenario: suppose a class declares `Apply(decimal price, decimal rate)` and `Apply(decimal price, float rate)`. A caller passing a float literal matches the float overload exactly. But if both overloads require only one implicit conversion from the argument's type, and neither conversion is strictly cheaper, neither overload wins and the compiler emits CS0121. C# integer literals (such as 10) have type int by default, so `Apply(price, 10)` can resolve unambiguously if one overload accepts int and another does not. Floating-point literals depend on their suffix: `10.0` is double by default, `10.0f` is float, `10.0m` is decimal — choosing a literal suffix often resolves the ambiguity without an explicit cast. When a cast is needed, writing `Apply(price, (decimal)rate)` makes the intended overload explicit and eliminates the CS0121. The alternative is to rename overloads to reflect their intent in the name rather than the type, eliminating the need for callers to reason about numeric promotion rules to pick the right variant.
+An expression-bodied method (public int GetCount() => _list.Count) compiles the expression directly as the method body. Attempting to put multiple statements separated by semicolons after => is a compile error — the syntax only accepts a single expression. For methods that need multiple steps, use a regular statement body with braces.
+
+---
+
+#### Gotcha 6. Overload resolution with implicit conversions can select unexpected overloads
+
+**Concepts**
+- Exact match is first priority
+- widening is second
+- boxing to object is last
+- explicit cast forces the intended overload; params is lowest priority
+
+**Answer**
+
+When calling M(42) where overloads exist for int and long, the compiler selects the int overload as the exact match. If no int overload exists but long and double do, the compiler selects long as the nearest widening target — not double, even though both require widening. Adding a new overload to a library can silently redirect existing call sites.
+
+---
+
+#### Gotcha 7. in parameter prevents reassignment but not mutation of reference-type fields
+
+**Concepts**
+- in passes by readonly reference
+- in prevents re-assigning the parameter itself
+- fields of the referenced object remain mutable
+- used for large struct performance
+
+**Answer**
+
+The in modifier passes a struct argument by read-only reference to avoid copying. It prevents the method body from writing struct.Field = newValue (because that would mutate the caller's value), but if the struct contains a reference-type field like List<int>, the method can still call that list's Add method because the restriction is on the reference, not the referenced object.
+
+---
+
+#### Gotcha 8. new keyword on a method hides without polymorphism; override enables polymorphism
+
+**Concepts**
+- new hides base method without virtual dispatch
+- calling through base type reference invokes base version
+- override on virtual enables polymorphism
+- hiding breaks Liskov expectations
+
+**Answer**
+
+Adding new to a derived class method that matches a base class signature suppresses the CS0108 warning but produces a method that is hidden only when called through the derived reference. Calling through a base type reference (Animal a = new Dog(); a.Speak()) always invokes the base version when new hides, but calls the derived version when override overrides — the difference between hiding and polymorphism.
+
+---
+
+#### Gotcha 9. ValueTask should be awaited exactly once — a second await on a completed ValueTask is undefined behavior
+
+**Concepts**
+- ValueTask wraps synchronous result or IValueTaskSource
+- second await on pool-backed source may use a recycled state
+- Task can be awaited multiple times safely
+- await once or use AsTask() for multi-await scenarios
+
+**Answer**
+
+Unlike Task, which is a reference to a heap object that can be awaited any number of times, ValueTask represents a single consumption pattern. A ValueTask backed by a pooled IValueTaskSource may be returned to the pool after its first await, making a second await observe recycled (incorrect) state. Convert to Task via .AsTask() if you need to await the result from multiple places.
+
+---
+
+#### Gotcha 10. Named arguments after positional arguments is legal; positional after named is CS1738
+
+**Concepts**
+- Named args lock parameter by name
+- positional args after named arg is CS1738
+- named args can reorder parameters
+- useful for optional param disambiguation
+
+**Answer**
+
+C# allows named arguments after positional ones in a method call — M(value, timeout: 5000) is valid because all positional arguments precede all named ones. Writing M(timeout: 5000, value) with a positional argument after a named one is CS1738. Named arguments are most useful for disambiguating which optional parameter you are setting when a method has many optional parameters.
 
 ---
 

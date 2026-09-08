@@ -287,219 +287,149 @@ The cleanest design is separate actions — `Create` for full-page form submissi
 
 ---
 
-## Gotchas — ASP.NET Core MVC (Interview Traps)
+## Gotchas — AJAX & Partial Page Updates (Interview Traps)
 
 ---
 
-#### Gotcha 1. Business logic in Razor views
+#### Gotcha 1. Antiforgery token missing from AJAX POST causing 400 error
 
 **Concepts**
-- Business logic in Razor — untestable and duplicated from the service layer
-- Separation of concerns — view as presentation only
-- Authorization checks in templates bypassing security layers
-- Divergent behavior when view and API/batch logic run the same rule separately
+- Form tag helper — emits `__RequestVerificationToken` hidden field automatically
+- `fetch` / jQuery AJAX — must manually send the token as a header or form field
+- `[ValidateAntiForgeryToken]` — validates the token on every unsafe verb request
+- `[AutoValidateAntiforgeryToken]` — controller-level protection for all unsafe methods
 
 **Answer**
 
-Placing pricing, discount, authorization, or business rules in `.cshtml` files bypasses unit tests, duplicates service-layer logic, and makes behavior hard to change consistently. Views should render only what the controller or ViewModel already prepared, since Razor calculations cannot be tested independently and often diverge from API or batch logic. Authorization belongs in filters, policies, or controller checks executed before the view — not in view conditionals that a developer can accidentally omit.
+HTML forms rendered with the `<form asp-action="...">` tag helper include an antiforgery token hidden field automatically. JavaScript `fetch` or jQuery `$.ajax` calls do not include this token unless the code explicitly reads it and sends it. Without the token, any endpoint decorated with `[ValidateAntiForgeryToken]` returns 400. The fix is to read the token from the hidden field in the page and include it in every AJAX POST as `RequestVerificationToken` in the request header (for JSON requests) or as `__RequestVerificationToken` in the form data (for `application/x-www-form-urlencoded`). Disabling antiforgery validation on AJAX endpoints to "fix" the 400 is a CSRF vulnerability — add the token instead.
 
 ---
 
-#### Gotcha 2. EF entities passed directly to views
+#### Gotcha 2. Returning `View()` from an AJAX action delivering full HTML page instead of a fragment
 
 **Concepts**
-- Over-posting via direct entity binding on POST
-- Lazy-loaded navigation properties triggering unexpected queries during rendering
-- ViewModel as the narrow data contract between controller and view
-- Entity-to-ViewModel mapping responsibility
+- `return View()` — renders the complete view including the layout
+- AJAX expects a fragment — receives full `<!DOCTYPE html>` document inside a target `<div>`
+- `return PartialView()` — renders the view without the layout
+- `return View()` with `Layout = null` — alternative to partial view for AJAX-targeted views
 
 **Answer**
 
-Binding and displaying EF Core entities exposes navigation properties, enables over-posting on POST, and couples the UI to the database schema. Lazy-loaded navigations can trigger unexpected queries during Razor rendering — each navigation access issues a database round-trip. Mass assignment on POST can update properties the user should never control, such as `IsAdmin`. The correct pattern is a dedicated ViewModel with only the fields the view needs, mapped from the entity in the controller or a mapping service.
+An AJAX call targeting `GET /Products/List` that returns `return View("List", model)` renders the full `_Layout.cshtml` wrapper around the product list HTML. When jQuery's `.load()` or JavaScript inserts this into a `<div>`, the page contains nested `<html>`, `<head>`, and `<body>` tags — breaking the page structure. The correct return type for AJAX partial updates is `return PartialView("_ProductList", model)`, which renders only the template content without the layout. Alternatively, a regular view with `@{ Layout = null; }` at the top omits the layout. A third option is `return Content(html)` for simple string HTML fragments, but typed partial views with `@model` are preferable.
 
 ---
 
-#### Gotcha 3. `[FromBody]` on HTML form POST
+#### Gotcha 3. `ModelState` validation errors not returned to AJAX caller in usable format
 
 **Concepts**
-- Browser form encoding — `application/x-www-form-urlencoded` vs JSON
-- `[FromBody]` routing to the JSON input formatter only
-- Silent binding failure — model parameter receives default values
-- `FormData` following the form value provider rules
+- AJAX POST with invalid data — `ModelState.IsValid == false`
+- `return View(model)` on AJAX — returns full HTML page, not structured error data
+- `return BadRequest(ModelState)` — returns errors as JSON for API-style handling
+- `return PartialView` with errors — returns HTML form fragment with validation messages
 
 **Answer**
 
-Standard browser forms send `application/x-www-form-urlencoded` or `multipart/form-data`, not JSON. `[FromBody]` tells MVC to use the JSON input formatter — when a form POST arrives, the formatter finds no matching content and the model receives default values while the action runs silently. Remove `[FromBody]` for conventional form POSTs and let the form value provider bind fields. Use `[FromBody]` only when the client explicitly sends JSON with the correct Content-Type header.
+When a form is submitted via AJAX and `ModelState.IsValid` is false, `return View(model)` returns a full HTML page which the JavaScript receives as a 200 response body — it cannot easily extract the validation errors from the full page HTML. The two correct patterns are: (1) return `BadRequest(new { errors = ModelState.ToDictionary(...) })` as structured JSON so the AJAX handler can display field-specific errors programmatically; or (2) return `PartialView("_ProductForm", model)` with the form partial that already contains `asp-validation-for` spans populated by `ModelState` — the AJAX handler replaces the form container's HTML with the returned fragment, which shows the errors inline. Choose based on whether the client or server owns the error display logic.
 
 ---
 
-#### Gotcha 4. Skipping `ModelState.IsValid` because of client validation
+#### Gotcha 4. `Content-Type: application/json` missing from AJAX POST causing model binding failure
 
 **Concepts**
-- Client validation as a UX convenience, not a security boundary
-- Server-side validation mandatory before any persist, redirect, or side effect
-- Direct POST attacks bypassing browser scripts entirely
+- `fetch` with `JSON.stringify(data)` — sends JSON body but default `Content-Type` is `text/plain`
+- `[FromBody]` — uses JSON input formatter; requires `Content-Type: application/json`
+- Missing header — body is present but formatter skips it; model parameter receives defaults
+- `headers: { 'Content-Type': 'application/json' }` — required alongside `JSON.stringify`
 
 **Answer**
 
-Client-side validation is bypassable — attackers can POST directly without running browser scripts. Server-side `ModelState.IsValid` is mandatory before any persist, redirect, or side effect. Always gate POST actions with `if (!ModelState.IsValid) return View(model);` or equivalent. Treating missing server validation as a security defect regardless of client script presence is the right standard.
+`fetch('/api/orders', { method: 'POST', body: JSON.stringify(orderData) })` sends a JSON body but the default `Content-Type` is `text/plain;charset=UTF-8` when no headers are specified. The `[FromBody]` model binder uses the JSON input formatter which only processes requests with `Content-Type: application/json`. Without the correct header, the formatter skips the body entirely and the parameter receives default values — all strings are null, all numbers are zero. The fix is `headers: { 'Content-Type': 'application/json' }` in the `fetch` options. This is the most common cause of "my AJAX POST always receives null model" when the request body clearly contains the data in browser devtools.
 
 ---
 
-#### Gotcha 5. `return View()` after successful POST
+#### Gotcha 5. Double-encoding JSON response — `JSON.parse` receives a string, not an object
 
 **Concepts**
-- Duplicate form submission triggered by browser refresh after POST
-- Post-Redirect-Get (PRG) pattern — mutation then safe redirect
-- `RedirectToAction` separating command (POST) from display (GET)
-- TempData carrying flash messages across the redirect
+- `return Json(model)` — MVC serializes model to JSON response body
+- `JSON.stringify(returnedObject)` on client — re-serializes an already-serialized string
+- Double encoding — `"{ \"name\": \"test\" }"` instead of `{ name: "test" }`
+- `JSON.parse(text)` on double-encoded — returns the inner string, not the object
 
 **Answer**
 
-Returning the same view after a successful POST means the browser's last request was the POST. When the user refreshes, the browser re-submits the POST body, which can duplicate an order or registration. The fix is Post-Redirect-Get: return `RedirectToAction(nameof(Index))` after a successful mutation so the browser's last request is a safe GET. TempData carries flash success messages across the redirect.
+`return Json(model)` in MVC serializes `model` and sends it with `Content-Type: application/json`. When jQuery AJAX or `fetch` parses the response, it automatically deserializes the JSON into a JavaScript object — the callback receives a plain object, not a JSON string. If the JavaScript handler then calls `JSON.parse(data)` on the already-deserialized object, it converts the object to a string first and then tries to parse the string — producing either a parse error or a double-encoded object. The fix is to remove the manual `JSON.parse` call when the `Content-Type` is `application/json`, since the client library already performed the deserialization. Manual `JSON.parse` is only needed when the response is `text/plain` JSON.
 
 ---
 
-#### Gotcha 6. `ModelState` after redirect
+#### Gotcha 6. AJAX call replacing wrong container because of an incorrect jQuery selector
 
 **Concepts**
-- `ModelState` as request-scoped data lost on redirect
-- Return `View(model)` on validation failure to preserve errors inline
-- TempData serialization as a fallback for post-redirect error persistence
-- AJAX partial forms avoiding the redirect problem entirely
+- `$('#product-list').load('/Products/List')` — targets element by id
+- Duplicate `id` attribute — second element with same id silently ignored; wrong element updated
+- Missing `#` prefix — class selector used instead of id selector
+- Empty container after AJAX — wrong selector matches nothing; `load` silently does nothing
 
 **Answer**
 
-`ModelState` lives in the controller's `ViewDataDictionary` for the current request only — a redirect ends that request with an empty `ModelState`. The standard pattern is redirect only on success and return `View(model)` on validation failure. If a redirect on failure is truly required, serialize errors to TempData or run a second validation pass on the GET action.
+`$('#product-list').load('/Products/List')` updates the element with `id="product-list"`. If the page has two elements with `id="product-list"` (a duplicate, which is invalid HTML), jQuery selects the first one — the intended element may not be updated. If the selector is accidentally `$('.product-list')` (class selector), it matches all elements with that class — potentially updating multiple containers or the wrong one. If the selector matches nothing, `.load()` silently does nothing — no error, no update, no indication of failure. Always validate selectors in browser devtools before wiring AJAX callbacks, and avoid duplicate `id` attributes which also break accessibility.
 
 ---
 
-#### Gotcha 7. TempData read twice in layout and view
+#### Gotcha 7. Antiforgery token expiring after session timeout causing silent AJAX failure
 
 **Concepts**
-- TempData consume-on-read default semantics
-- Layout consuming flash key before the child view reads it
-- `Peek()` — read without marking for deletion in the same request
-- `Keep()` — preserve a consumed key for the next request
+- Antiforgery token — generated per session; expires when the session expires
+- Long-lived page — user leaves the tab open; token becomes stale
+- POST after session timeout — 400 `Bad Request` antiforgery validation failure
+- Client-side handling — detect 401/400 antiforgery failure and redirect to login
 
 **Answer**
 
-TempData marks entries for deletion the moment they are read via the indexer. If the layout reads a flash message first, the child view returns null. The fix is to use `TempData.Peek("Message")` in the layout, which reads without consuming. Centralizing flash display in a single partial avoids the double-read problem entirely.
+Antiforgery tokens are tied to the user's session. If a user leaves a page open for hours without activity, the session expires and the antiforgery token embedded in the form becomes invalid. The next AJAX POST using that stale token receives a 400 response from `[ValidateAntiForgeryToken]` — with no explanation in the response body by default. The AJAX handler should treat unexpected 400 responses containing antiforgery validation messages as session expiry indicators and redirect the user to the login page. A user-friendly approach is to add a global `fetch` interceptor that detects 400 responses and checks the response body for antiforgery error text, then refreshes the page to get a new token.
 
 ---
 
-#### Gotcha 8. Missing `[Area]` attribute on area controllers
+#### Gotcha 8. Partial view returned by AJAX not re-initializing JavaScript plugins
 
 **Concepts**
-- `[Area("AreaName")]` as required routing metadata on area controllers
-- Controller in `Areas/` folder without attribute treated as a root controller
-- `{area:exists}` constraint not matching unannotated controllers
-- Compile-time success masking a runtime 404
+- jQuery plugins — initialized on `document.ready` for elements present at page load
+- Dynamically inserted HTML — not processed by initial `document.ready` handlers
+- `$.fn.plugin()` re-initialization — must be called explicitly after AJAX content insertion
+- Event delegation — `$(document).on('event', '.selector', handler)` survives DOM replacement
 
 **Answer**
 
-A controller physically in `Areas/Admin/Controllers/` is not automatically registered with the area route — it needs `[Area("Admin")]` on the class. Without it, MVC treats it as a root controller and requests return 404. The project compiles without the attribute, giving false confidence until the first HTTP request hits the area URL.
+jQuery plugins such as date pickers, select2 dropdowns, and rich-text editors initialize on DOM elements present when the page first loads via `$(document).ready(...)`. When AJAX replaces a section of the page with new HTML, the newly inserted elements are not automatically re-initialized. Date pickers in the new HTML render as plain text inputs until the plugin is re-applied. The fix is to call the plugin initialization code again after the AJAX callback inserts the new HTML: `$('#container').load('/Products/Form', function() { $(this).find('.datepicker').datepicker(); });`. For event handlers, switch to event delegation via `$(document).on(...)` so handlers apply to current and future elements without re-initialization.
 
 ---
 
-#### Gotcha 9. Link generation without `asp-area`
+#### Gotcha 9. AJAX partial update response containing a full layout causing nested page structure
 
 **Concepts**
-- Ambient area route values from the current request
-- Absent area context in root views producing wrong URLs
-- Explicit `asp-area` required for cross-area and root-to-area links
-- `Url.Action` requiring area route values in the anonymous object
+- `return View("List", model)` — includes layout; AJAX insertion produces nested HTML
+- `return PartialView("_List", model)` — omits layout; returns pure fragment
+- `Request.Headers["X-Requested-With"]` — legacy check for AJAX; not reliable in modern `fetch` calls
+- `IsAjaxRequest()` — removed from ASP.NET Core; not a substitute for proper partial view usage
 
 **Answer**
 
-Tag Helpers inherit ambient route values from the current request. From a root view, `asp-controller="Users"` generates `/Users` with no area prefix. Cross-area links require explicit `asp-area="Admin"` on every anchor targeting an area controller. The same rule applies to `Url.Action` — pass `new { area = "Admin" }` in the route values object.
+`return View("List", model)` renders the full `_Layout.cshtml` wrapper. When AJAX inserts this into a `<div>`, the page contains duplicate `<html>`, `<body>`, and `<nav>` elements — breaking CSS, JavaScript, and accessibility. The `Request.Headers["X-Requested-With"] == "XMLHttpRequest"` check was a JQuery-era convention that `fetch` does not send by default. Using this check to branch between `View()` and `PartialView()` misses all `fetch`-based calls. The correct approach is dedicated partial views for AJAX targets, separate from full-page views: `_ProductList.cshtml` for AJAX updates and `Index.cshtml` (with layout) for full-page renders. Route them to separate actions or the same action with an explicit parameter.
 
 ---
 
-#### Gotcha 10. Checkbox `[Required]` on non-nullable `bool`
+#### Gotcha 10. No loading state or error handling on AJAX requests producing silent failures
 
 **Concepts**
-- Unchecked checkbox posting no value — binding sets non-nullable `bool` to `false`
-- `[Required]` passing validation because `false` is a valid non-null value
-- `bool?` with `[Required]` requiring explicit `true` for consent scenarios
-- Hidden-field pattern for deliberate `false` submission
+- AJAX fire-and-forget — no feedback when request fails, times out, or returns error
+- Network error — `fetch` rejects the promise; unhandled rejection logs to console only
+- HTTP 500 from server — `fetch` resolves (not rejects) for 4xx/5xx responses
+- UX — user sees no indication of failure; assumes success
 
 **Answer**
 
-An unchecked checkbox posts nothing, so model binding sets a non-nullable `bool` to `false`. `[Required]` passes because `false` is non-null. For explicit consent, use `bool?` with `[Required]` — null (no field posted) fails `[Required]`. The hidden-field pattern ensures the form always posts a value.
+`fetch('/api/save', { method: 'POST', ... }).then(r => r.json()).then(data => updateUI(data))` silently fails when the server returns 500 — `fetch` resolves for any HTTP response including error codes, it only rejects on network failures. The `.then(r => r.json())` call may also fail if the server returned HTML instead of JSON (on error). The fix is explicit error handling: `if (!response.ok) throw new Error(response.statusText)` after the fetch, a `.catch` handler that shows an error message to the user, and a loading indicator that is hidden in both `.then` and `.catch`. Silent AJAX failures are among the hardest bugs to reproduce because the user sees nothing wrong while the server logs the error.
 
 ---
-
-#### Gotcha 11. Collection binding with gap indices
-
-**Concepts**
-- Contiguous-index requirement for MVC form collection binding
-- Gap indices causing silent truncation or misalignment
-- Client-side reindexing after row deletion
-- Custom `IModelBinder` for non-contiguous index tolerance
-
-**Answer**
-
-MVC's collection binder expects contiguous indices starting at zero. Gap indices cause the binder to stop so subsequent items are silently dropped. The fix is to reindex client-side after every row deletion. A custom `IModelBinder` can tolerate non-contiguous indices for complex scenarios.
-
----
-
-#### Gotcha 12. `@Html.Raw` with user content
-
-**Concepts**
-- Razor default `@` encoding preventing XSS
-- `Html.Raw` bypassing encoding for attacker-supplied strings
-- AJAX partial HTML injection via `innerHTML` as an XSS surface
-- Content-Security-Policy as defense in depth, not a substitute
-
-**Answer**
-
-Razor's default `@` encoding prevents XSS. `@Html.Raw(Model.UserComment)` bypasses that protection, rendering `<script>` tags and event handlers. AJAX-loaded partials injected via `innerHTML` carry the same risk. Use `@Model.UserComment` for auto-encoded output, or sanitize with a trusted HTML sanitizer library.
-
----
-
-#### Gotcha 13. AJAX POST without antiforgery token
-
-**Concepts**
-- Antiforgery cookie-and-field/header pair preventing CSRF
-- Form Tag Helpers emitting the hidden token field automatically
-- Manual `RequestVerificationToken` header required for `fetch` and jQuery AJAX
-- `[AutoValidateAntiforgeryToken]` covering all unsafe methods on a controller
-
-**Answer**
-
-Form Tag Helpers emit the token automatically, but `fetch` and jQuery AJAX must include it manually as the `RequestVerificationToken` header or form field. Without it, antiforgery validation returns 400 before the action executes. Disabling antiforgery on MVC cookie-auth endpoints to work around the 400 is not acceptable.
-
----
-
-#### Gotcha 14. Injecting Hub into MVC controller
-
-**Concepts**
-- Hub — per-connection transient lifecycle, not registered in DI for direct injection
-- `IHubContext<THub>` — singleton proxy for server-side broadcasting
-- Hub instance lacking connection context when activated outside SignalR
-- Redis backplane or Azure SignalR for cross-instance message fan-out
-
-**Answer**
-
-Hubs are not registered in DI for direct injection — injecting a concrete `Hub` either fails activation or produces an instance without a connection context. The correct mechanism is `IHubContext<THub>`, a singleton proxy registered by `AddSignalR()`. For multi-instance deployments, pair it with a Redis backplane or Azure SignalR Service.
-
----
-
-#### Gotcha 15. SignalR scale-out without backplane
-
-**Concepts**
-- In-memory connection registry local to each pod
-- Sticky sessions routing connections but not cross-instance messages
-- Redis backplane and Azure SignalR Service for full fan-out
-- Group membership and connection IDs scoped per process instance
-
-**Answer**
-
-Each process maintains its own in-memory connection registry. Sticky sessions route a client to the same pod but do not fan-out cross-instance messages — a controller on instance A calling `IHubContext.Clients.User(id).SendAsync` misses users on instance B. The fix is a Redis backplane or Azure SignalR Service.
-
----
-
 ## Scenario-Based Questions (Karat Format)
 
 ---

@@ -533,245 +533,157 @@ For ASP.NET Core, there is no `SynchronizationContext`. Each request is handled 
 
 ---
 
-## Gotchas & Traps
+## Gotchas — Synchronization and Locks (Interview Traps)
 
 ---
 
-## Q16. How does inconsistent lock ordering cause a deadlock?
+#### Gotcha 1. Locking on `this` or a Public Object Invites External Deadlocks
 
 **Concepts**
-- Thread A: locks X then Y
-- Thread B: locks Y then X
-- Each holds what the other needs — circular wait
-- Deadlock condition: mutual exclusion + hold and wait + no preemption + circular wait
-- Fix: consistent global lock ordering or lock hierarchy
+- `this` is accessible to all callers — any external code can lock on the same object
+- External lock held while calling a method that also locks `this` = deadlock
+- `typeof(T)` is shared across all instances and AppDomains — same risk at class scope
+- Fix: lock on a private readonly object field only visible inside the class
+- Static methods: private static readonly object _staticLock = new object()
 
 **Answer**
 
-```csharp
-// DEADLOCK: two threads acquire the same two locks in different orders
-private static readonly object _lockA = new object();
-private static readonly object _lockB = new object();
-
-// Thread 1:
-void Thread1Work()
-{
-    lock (_lockA)           // acquires A
-    {
-        Thread.Sleep(10);   // simulates work; Thread 2 acquires B meanwhile
-        lock (_lockB)       // waits for B — DEADLOCK
-        {
-            DoWork();
-        }
-    }
-}
-
-// Thread 2:
-void Thread2Work()
-{
-    lock (_lockB)           // acquires B
-    {
-        Thread.Sleep(10);   // simulates work; Thread 1 acquired A meanwhile
-        lock (_lockA)       // waits for A — DEADLOCK
-        {
-            DoWork();
-        }
-    }
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Deadlock | Circular lock dependency between Thread 1 (A→B) and Thread 2 (B→A) | Both threads hang forever |
-| Detection | No automatic detection in .NET — must use WinDbg or deadlock detection tool | Silent application freeze |
-| Severity | Cannot recover without process restart | Full service outage |
-
-**Fix priority:**
-1. Establish a global lock acquisition order: always acquire `_lockA` before `_lockB` in all code paths.
-2. Use `Monitor.TryEnter` with timeout and deadlock-detection fallback if reordering is not possible.
-3. Refactor to eliminate the need for holding multiple locks simultaneously (merge into one lock or restructure data).
+`lock(this)` exposes the lock object to all callers, because `this` is the instance reference they already hold. Any external code can write `lock(myInstance)` and contend with the class's internal lock, or cause a deadlock by holding an external lock on the instance while calling a method that also locks `this`. `lock(typeof(T))` is even broader — it is shared across all instances and across AppDomains. Always lock on a `private readonly object` field that is completely invisible outside the class, eliminating any possibility of external code interfering with the internal lock protocol.
 
 ---
 
-## Q17. What are the dangers of locking on `this` or `typeof(T)`?
+#### Gotcha 2. Inconsistent Lock Ordering Causes Deadlock
 
 **Concepts**
-- `this` is public: external code can lock on your object
-- `typeof(T)` shared across all instances and AppDomains
-- External locks can deadlock with internal locks
-- Principle: lock objects should be private to their owner
-- Static lock should be private static field
+- Thread A acquires lockX then lockY
+- Thread B acquires lockY then lockX
+- Circular wait: each holds what the other needs
+- .NET has no automatic deadlock detection
+- Fix: establish a consistent global ordering for all lock acquisitions
 
 **Answer**
 
-```csharp
-// DANGEROUS: locking on `this`
-public class DataProcessor
-{
-    public void Process()
-    {
-        lock (this) // any caller can also lock on `this`
-        {
-            DoWork();
-        }
-    }
-}
-
-// External code causing deadlock:
-var processor = new DataProcessor();
-lock (processor) // grabs the lock
-{
-    Thread.Sleep(10000); // holds while calling Process
-    processor.Process(); // tries to lock `this` again — if non-reentrant: deadlock
-}
-
-// SAFE:
-private readonly object _lock = new object();
-public void Process()
-{
-    lock (_lock) { DoWork(); }
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Encapsulation | External code can interfere with internal locking | Unpredictable deadlocks from unrelated code |
-| `typeof(T)` sharing | All instances share the same lock object | One instance's lock blocks all instances |
-| Static lock risk | Static `typeof(T)` lock serializes all instances globally | Throughput bottleneck |
-
-**Fix priority:**
-1. Replace `lock(this)` with `lock(_lockObject)` using a dedicated private field.
-2. Replace `lock(typeof(T))` with `lock(_staticLock)` where `_staticLock` is a `private static readonly object`.
+When two threads acquire the same two locks in opposite orders, each holds a lock the other needs, creating a circular wait that neither can break — a deadlock. .NET provides no automatic deadlock detection; the symptom is the application freezing with 100% thread-wait time and no CPU activity. The fix is a global lock ordering rule: always acquire `lockA` before `lockB` in every code path. When ordering is impossible to impose (e.g., locks are acquired dynamically), use `Monitor.TryEnter` with a timeout to detect and recover from potential deadlocks.
 
 ---
 
-## Q18. What happens if you throw an exception inside a lock block?
+#### Gotcha 3. Monitor.Enter Without try/finally Leaks the Lock on Exception
 
 **Concepts**
-- try/finally in lock statement guarantees lock release even on exception
-- Lock is always released — no leaking
-- But shared state may be partially modified — corrupted invariant
-- Finally block is not "exception safe" for data
-- Compensating transactions or state rollback required
+- If an exception is thrown between Monitor.Enter and Monitor.Exit, the lock is never released
+- All other threads waiting on that lock block forever
+- The `lock` keyword compiles to Monitor.Enter inside try/finally — the lock is always released
+- Explicitly calling Monitor.Enter/Exit (without lock) requires manual try/finally
+- Never call Monitor.Enter/Exit manually; use the lock keyword
 
 **Answer**
 
-The `lock` statement guarantees the lock is released even if an exception is thrown inside the block — this is why it compiles to `Monitor.Enter` inside `try/finally`. The lock itself does not leak. However, the shared state protected by the lock may be left in an inconsistent intermediate state:
-
-```csharp
-lock (_lock)
-{
-    _list.Add(item);           // succeeds
-    _index[item.Id] = item;    // throws — but lock is still released
-    // Invariant violated: item in _list but not in _index
-}
-// Another thread can now enter and see inconsistent state
-```
-
-If the lock is released while state is inconsistent, subsequent operations may behave incorrectly. The options are: (1) catch and rollback: undo the partial changes before the exception propagates; (2) design the operation to be atomic — perform all validation before modifying state; (3) use a transactional data model. The key insight is that `lock` provides mutual exclusion, not transactional consistency — maintaining invariants is the developer's responsibility.
+The `lock` statement compiles to `Monitor.Enter(obj)` inside a `try` block with `Monitor.Exit(obj)` in the `finally`. This guarantees the lock is released even if an exception is thrown. If you call `Monitor.Enter` manually (e.g., to use `Monitor.TryEnter`) and forget to wrap it in `try/finally`, any exception between entry and exit leaks the lock permanently — all threads waiting to acquire it will block forever. Always use the `lock` keyword for simple mutual exclusion; use `Monitor.TryEnter` with `try/finally` only when the timeout feature is specifically needed.
 
 ---
 
-## Q19. What is the missing Release in SemaphoreSlim?
+#### Gotcha 4. volatile Guarantees Visibility — Not Atomicity
 
 **Concepts**
-- SemaphoreSlim count is permanently decremented
-- Subsequent callers block forever
-- Dispose does not release waiting threads cleanly
-- Always use try/finally with SemaphoreSlim.Release()
-- ObjectDisposedException if disposed while threads waiting
+- volatile prevents compiler/CPU reordering and ensures fresh reads
+- count++ is three operations: read, add, write — not atomic even with volatile
+- Two threads can read the same value, compute the same result, both write it — lost update
+- Interlocked.Increment is the correct atomic increment
+- Use volatile only for single-read/single-write flag patterns (bool, reference fields)
 
 **Answer**
 
-```csharp
-// BUG: missing finally — semaphore permanently starved
-private readonly SemaphoreSlim _sem = new SemaphoreSlim(3, 3);
-
-public async Task ProcessAsync(Item item)
-{
-    await _sem.WaitAsync();
-    // If ProcessItemAsync throws, Release() is never called
-    await ProcessItemAsync(item); // throws InvalidOperationException
-    _sem.Release(); // unreachable on exception — semaphore slot lost forever
-}
-```
-
-| Category | Problem | Impact |
-|---|---|---|
-| Resource Leak | Semaphore count permanently decremented on exception | After 3 exceptions, all subsequent calls block forever |
-| Deadlock | System becomes deadlocked waiting on a semaphore that can never be released | Complete service unavailability |
-| Detection | No runtime warning — appears as a hang | Hard to diagnose without examining semaphore count |
-
-**Fix priority:**
-1. Wrap the protected section in `try/finally`:
-```csharp
-await _sem.WaitAsync();
-try { await ProcessItemAsync(item); }
-finally { _sem.Release(); }
-```
-2. Use a scope guard helper or extension method that enforces the pattern.
-3. Consider `SemaphoreSlim` as a resource that obeys a using-like pattern.
+`volatile` guarantees that reads and writes are not cached in registers and are not reordered by the compiler or CPU. It does not make compound operations atomic. `_count++` on a `volatile int` still consists of three separate steps — read, add, write — and two threads can interleave these steps to lose an update. Replace `_count++` with `Interlocked.Increment(ref _count)`, which is a single atomic CPU instruction. Remove the `volatile` keyword when using `Interlocked` — `Interlocked` methods include the necessary memory barriers.
 
 ---
 
-## Q20. What is lock convoy and how does it affect high-throughput systems?
+#### Gotcha 5. Interlocked.CompareExchange Is the Foundation of Lock-Free CAS
 
 **Concepts**
-- Many threads repeatedly contending on the same lock
-- OS schedules woken thread, but another thread may re-acquire first
-- Woken thread goes back to sleep — "convoy" of waiting threads
-- Performance degrades with thread count despite apparent low hold time
-- Mitigation: reduce lock scope, use lock-free structures, partition data
+- CompareExchange(ref location, newValue, comparand): atomically sets location to newValue only if it equals comparand
+- Returns the original value before the exchange
+- Used to build optimistic lock-free updates (spin until CAS succeeds)
+- Non-trivial to compose correctly — ABA problem is a known pitfall
+- Prefer Interlocked.Increment/Add for simple scalars; CAS for custom update logic
 
 **Answer**
 
-A lock convoy occurs when many threads are simultaneously waiting for the same lock. When a thread releases the lock, the OS wakes a waiting thread. But before that newly-woken thread can run (context switch overhead), the original thread (or another running thread) re-acquires the lock. The woken thread finds the lock taken and immediately goes back to sleep. Over time, a "convoy" of sleeping threads forms — throughput degrades because threads spend more time sleeping and waiting for context switches than doing useful work.
-
-Symptoms: high lock contention metrics (from `dotnet-counters` or ETW), thread count growing, latency spikes, CPU surprisingly low for the throughput observed.
-
-Mitigations: (1) reduce the work inside the lock to absolute minimum; (2) partition the data so different threads rarely contend on the same lock (e.g., striped locks, per-partition counters); (3) replace lock-based structures with concurrent collections (`ConcurrentDictionary`) or `Interlocked` operations; (4) use `ReaderWriterLockSlim` if reads dominate; (5) redesign the data model to avoid shared mutable state.
+`Interlocked.CompareExchange` performs an atomic compare-and-swap: it reads the current value, compares it to an expected value, and writes the new value only if the comparison succeeds — all in one uninterruptible CPU instruction. The return value is the original value before the swap. This is the primitive underlying all lock-free data structures and spin-update loops: read the current value, compute the new value, attempt CAS, retry the loop if CAS failed (another thread changed the value). The ABA problem — where a value is changed from A to B and back to A between read and CAS — can cause CAS to succeed incorrectly; mitigate with version stamps or `Interlocked.CompareExchange` on a `long` combining value + version.
 
 ---
 
-## Q21. What is the volatile not-enough-for-compound-operations trap?
+#### Gotcha 6. ReaderWriterLockSlim Upgradeable Read Lock Recursion Causes Deadlock
 
 **Concepts**
-- volatile guarantees visibility and prevents reordering
-- Does NOT make compound operations (increment, swap) atomic
-- Common mistake: using volatile as a substitute for Interlocked
-- Memory model confusion: visibility vs atomicity are separate concerns
-- Use Interlocked for any read-modify-write regardless of volatile
+- EnterUpgradeableReadLock allows upgrade to write lock from within a read
+- Only one thread can hold the upgradeable read lock at a time
+- If that thread also tries to enter a normal read lock (recursion), it deadlocks
+- LockRecursionPolicy.SupportsRecursion enables recursion but adds overhead
+- Prefer simple lock for most scenarios; use RWLS only for high read-to-write ratios
 
 **Answer**
 
-```csharp
-// BUG: volatile does not make increment atomic
-private volatile int _requestCount = 0;
+`ReaderWriterLockSlim` allows concurrent reads and exclusive writes. The upgradeable read lock allows a single thread to hold a read lock and later upgrade it to a write lock atomically. However, if the thread holding an upgradeable read lock recursively tries to enter a normal read lock (default recursion policy is `NoRecursion`), it deadlocks because the normal read lock cannot be acquired while the upgradeable lock is held. Additionally, only one thread can hold the upgradeable read lock at a time, so multiple "readers that may write" still serialize on it. `ReaderWriterLockSlim` is beneficial only when reads dominate (>95%) and write operations are rare and brief.
 
-// Thread 1:
-void HandleRequest()
-{
-    _requestCount++; // reads count (e.g., 42), increments (43), writes (43)
-}
+---
 
-// Thread 2 (simultaneously):
-void HandleRequest()
-{
-    _requestCount++; // reads count (42, same stale value), increments (43), writes (43)
-}
-// Expected: 44. Actual: 43. Lost one increment.
-```
+#### Gotcha 7. SemaphoreSlim.Wait() Blocks a Thread — WaitAsync() Does Not
 
-| Category | Problem | Impact |
-|---|---|---|
-| False Safety | Developer believes volatile makes operations thread-safe | Incorrect counts, missed operations |
-| Subtle Bug | Works correctly at low concurrency, fails under load | Hard to reproduce in tests |
-| Misunderstanding | Confuses memory visibility with atomicity | Common interview failure point |
+**Concepts**
+- SemaphoreSlim.Wait() occupies a ThreadPool thread for the entire wait
+- SemaphoreSlim.WaitAsync() releases the thread during the wait, resumes via continuation
+- Mixing sync and async waits on the same semaphore is safe but unusual
+- Always use WaitAsync() in async code to avoid pool thread starvation
+- Forgetting Release() after WaitAsync() permanently decrements the count
 
-**Fix priority:**
-1. Replace `_requestCount++` with `Interlocked.Increment(ref _requestCount)`.
-2. Remove `volatile` keyword — `Interlocked` includes the necessary memory barriers.
-3. For multi-field atomic updates, use `lock` instead of attempting multiple `Interlocked` calls (which are not atomically composable).
+**Answer**
+
+`SemaphoreSlim.Wait()` blocks the calling thread synchronously, holding a pool slot for the entire wait duration. `WaitAsync()` returns a `Task` that completes when the semaphore is acquired — the thread is released during the wait and a pool thread picks up the continuation afterward. In async code that uses `SemaphoreSlim` for rate-limiting or bounded concurrency, always use `await semaphore.WaitAsync(cancellationToken)` inside `try/finally` with `Release()` in the finally block. Using `Wait()` in async code wastes pool threads and can cause pool exhaustion under load.
+
+---
+
+#### Gotcha 8. SpinLock Is Only Beneficial for Microsecond-Duration Critical Sections
+
+**Concepts**
+- SpinLock avoids kernel context switch by busy-waiting in a CPU loop
+- Beneficial only when the wait is shorter than a context switch (~1–10 μs)
+- For longer critical sections, spinning wastes CPU while blocking achieves the same result
+- SpinLock is a struct — must be passed by ref; copying it breaks it
+- In most .NET code, lock keyword is correct; SpinLock only for ultra-low-latency paths
+
+**Answer**
+
+`SpinLock` repeatedly checks whether the lock is free in a tight CPU loop, avoiding the overhead of a kernel context switch. This is faster than `lock` only when the critical section completes in a few microseconds — shorter than the ~1–10 μs cost of a context switch. For critical sections longer than that, spinning wastes CPU cycles that could be used by other threads. An important structural trap: `SpinLock` is a `struct`. Copying it (passing by value, assigning to a new variable) creates an independent copy that does not share lock state — always store and pass `SpinLock` by `ref`.
+
+---
+
+#### Gotcha 9. Mutex Is Cross-Process but Significantly Slower Than lock
+
+**Concepts**
+- Mutex is a kernel object — acquire/release crosses to kernel mode
+- lock (Monitor) is user-mode — no kernel call in the uncontended case
+- Mutex is ~30× slower than lock for uncontended acquisition
+- Use Mutex only when cross-process synchronization is genuinely required
+- Named mutexes allow cross-process exclusive access (single-instance pattern)
+
+**Answer**
+
+`Mutex` and `lock` both provide mutual exclusion, but `Mutex` is a kernel-mode object requiring a user-to-kernel context switch on every acquire and release. `lock` (backed by `Monitor`) operates entirely in user space when uncontended, making it orders of magnitude faster. The only legitimate use of `Mutex` in .NET code is cross-process synchronization — for example, ensuring only one instance of an application runs, or coordinating access to a named shared resource across processes. For single-process mutual exclusion, always use `lock` or `SemaphoreSlim`.
+
+---
+
+#### Gotcha 10. Lock Cannot Be Awaited — Using lock with async Code Requires SemaphoreSlim
+
+**Concepts**
+- lock keyword cannot contain await — compiler error
+- Awaiting inside a lock would hold the lock across thread switches
+- Lock is not owned by a thread in async contexts — Monitor.Enter/Exit must be on the same thread
+- SemaphoreSlim(1, 1) is the async-compatible mutual exclusion primitive
+- Always use WaitAsync() + try/finally + Release() pattern
+
+**Answer**
+
+The `lock` keyword cannot contain `await` — the compiler rejects it. The reason is fundamental: `Monitor` (which backs `lock`) is thread-affine — the thread that calls `Monitor.Enter` must be the same thread that calls `Monitor.Exit`. After an `await`, the continuation may resume on a different ThreadPool thread, making it impossible to call `Monitor.Exit` on the correct thread. The async-compatible replacement is `SemaphoreSlim(1, 1)` — a semaphore with a maximum count of 1 behaves as a mutex. Use `await semaphore.WaitAsync()` inside `try/finally` with `semaphore.Release()` in the finally block to ensure the semaphore is always released.
 
 ---
 

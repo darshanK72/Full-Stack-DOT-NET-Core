@@ -358,93 +358,147 @@ An alternative to JIT is Ahead-of-Time (AOT) compilation, available in .NET via 
 
 ---
 
-## Gotchas
+## Gotchas — Hello World & Program Entry Points (Interview Traps)
 
 ---
 
-## Q18. What compile error occurs when `Console.WriteLine` is called without `using System;` and ImplicitUsings is disabled?
+#### Gotcha 1. ImplicitUsings does not import every namespace — only a fixed BCL set
 
 **Concepts**
-- CS0103 error code
-- unresolved identifier
-- ImplicitUsings disabled scope
-- fully-qualified fallback
+- ImplicitUsings adds ~10 BCL namespaces globally
+- Third-party types still need explicit using
+- Disabled with <ImplicitUsings>disable</ImplicitUsings>
 - global using alternative
 
 **Answer**
 
-When `ImplicitUsings` is set to `disable` in the `.csproj` and there is no `using System;` directive in the file, the compiler cannot resolve the identifier `Console`. It emits CS0103: "The name 'Console' does not exist in the current context." The error points to the exact line where `Console` appears.
-
-The gotcha here is that developers who have previously worked in projects with `ImplicitUsings` enabled — which includes all `dotnet new console` projects since .NET 6 — become accustomed to writing `Console.WriteLine` without any using directive. When they open a legacy project or a learning repository that deliberately disables implicit usings, the same code fails to compile with a confusing-looking error about a type they know perfectly well exists. The fix is either to add `using System;` at the top of the file, use the fully-qualified name `System.Console.WriteLine(...)`, or add a `global using System;` directive in a separate `GlobalUsings.cs` file. The error is not about the method being removed or renamed — it is purely about namespace resolution.
+ImplicitUsings in .NET 6+ SDK automatically generates a GlobalUsings.g.cs file with using statements for System, System.Linq, System.Collections.Generic, and a handful of others. Third-party packages like Newtonsoft.Json or Microsoft.Extensions.DependencyInjection still require explicit using statements; ImplicitUsings does not add everything automatically.
 
 ---
 
-## Q19. What happens when a C# project contains two methods both named `Main`?
+#### Gotcha 2. Top-level statements and a class-with-Main in the same project causes CS0017
 
 **Concepts**
-- CS0017 compile error
-- single entry point requirement
-- StartupObject MSBuild property
-- disambiguating multiple Main methods
+- Compiler synthesizes Main from top-level statements
+- CS0017 = more than one entry point
+- StartupObject property to resolve
+- Only one top-level file allowed per project
 
 **Answer**
 
-The C# compiler requires exactly one entry point in an executable project. If two types in the same project each contain a valid `Main` signature, the compiler emits CS0017: "Program has more than one entry point defined. Compile with /main to specify the type that contains the entry point." The build fails and no binary is produced.
-
-The surprising aspect is that the error fires even when the two `Main` methods are in different classes or different files. The compiler performs a project-wide search for valid entry-point candidates, not a file-by-file one. Developers who copy-paste a Hello World example into a project that already has a `Program.cs` often encounter this error and are confused because both files look correct in isolation.
-
-The resolution in .NET SDK projects is to set `<StartupObject>Namespace.ClassName</StartupObject>` in the `.csproj`, naming the fully-qualified type whose `Main` should be used. Alternatively, remove or rename one of the `Main` methods so only one valid entry point remains, which is the cleaner long-term solution.
+If one file uses top-level statements and another file in the same project defines a class with a static Main method, the compiler sees two valid entry points and emits CS0017. The fix is to remove one entry point or set <StartupObject> in the csproj to specify which class owns Main.
 
 ---
 
-## Q20. Why does `Console.WriteLine('H');` behave differently from `Console.WriteLine("H");`?
+#### Gotcha 3. char vs string: single-quote is char, double-quote is string — they are different types
 
 **Concepts**
-- char vs string type distinction
-- single-quote char literal
-- double-quote string literal
-- Console.WriteLine overload resolution
-- CS1012 for multi-character char literals
+- char is UTF-16 code unit (System.Char)
+- string is a sequence of chars
+- Different Console.WriteLine overloads for char vs string
+- CS1012 for multi-char char literal
 
 **Answer**
 
-Single quotes in C# delimit a `char` literal — a single Unicode character. `'H'` is the `char` value for the capital letter H. Double quotes delimit a `string` literal — a sequence of zero or more characters. `"H"` is a `string` containing one character. Both compile and run, but they invoke different overloads of `Console.WriteLine`: the `char` overload writes the character directly, while the `string` overload writes a managed string object.
-
-For a single-character input the console output is identical, which is why beginners sometimes do not notice. The gotcha emerges the moment you try to put more than one character in single quotes: `'Hello'` is a compile error CS1012 — "Too many characters in character literal" — because `char` holds exactly one UTF-16 code unit. Developers coming from JavaScript, where single and double quotes for strings are interchangeable, frequently hit this. In C#, the rule is absolute: single quotes for `char`, double quotes for `string`.
+In C# single quotes create a char literal holding exactly one UTF-16 code unit, while double quotes create a string. Writing 'Hello' (single-quoted) is a compile error CS1012 because a char can hold only one character; developers coming from JavaScript where both quote styles create strings frequently encounter this.
 
 ---
 
-## Q21. What is the behavioral difference between embedding `\n` in a string argument and calling `Console.WriteLine` twice?
+#### Gotcha 4. await in top-level statements silently makes Main async — .Result can deadlock
 
 **Concepts**
-- \n as embedded newline character
-- Console.WriteLine appended line terminator
-- platform-specific newline (Environment.NewLine)
-- single string vs two method calls
-- stdout line buffering
+- Top-level await generates async Task Main()
+- Combining with sync .Result or .Wait() creates deadlock
+- SynchronizationContext matters
+- Prefer full async chain
 
 **Answer**
 
-Calling `Console.WriteLine("Line 1\nLine 2")` writes a single string that contains an embedded line-feed character (`\n`, Unicode U+000A), followed by the method's own platform-specific newline sequence at the end. On Windows, `Console.WriteLine` appends `\r\n` (carriage return + line feed). This means the output is `Line 1` + `\n` + `Line 2` + `\r\n` — the embedded newline is a bare line feed while the terminator is CRLF.
-
-Calling `Console.WriteLine("Line 1")` followed by `Console.WriteLine("Line 2")` writes `Line 1` + `\r\n` + `Line 2` + `\r\n` on Windows — both terminators are CRLF. On Unix either approach produces `\n` separators only. Most text terminals and editors handle both transparently, so the visual output looks the same. However, tools that process raw bytes — binary file comparisons, network protocols, unit tests asserting exact stdout content — will see a difference on Windows between `\n` and `\r\n` and produce unexpected results. Using `Environment.NewLine` instead of the `\n` escape produces the platform-correct line ending in both cases.
+Using await in a top-level statements file makes the synthesized Main method return Task, which the runtime awaits. Adding .Result or .Wait() on a Task inside the same top-level code can deadlock in environments with a SynchronizationContext (like certain UI frameworks or test runners) because the awaited code needs the context thread, which is blocked by .Result.
 
 ---
 
-## Q22. What is surprising about the `args` variable in a top-level statements file?
+#### Gotcha 5. Environment.Exit() skips finally blocks and using statement cleanup
 
 **Concepts**
-- compiler-synthesized args variable
-- implicit availability without declaration
-- string[] type
-- only in top-level file
-- no explicit parameter declaration
+- Environment.Exit flushes Process.ProcessExit handlers
+- using blocks do NOT run on Exit
+- Prefer return from Main or throw
+- CancellationToken for graceful shutdown
 
 **Answer**
 
-In a file using top-level statements, the variable `args` is available as if it were a local variable declared at the top of the file, even though no declaration appears in source. The compiler synthesizes a `static void Main(string[] args)` entry point and makes `args` available as an implicit variable throughout the top-level code. Writing `Console.WriteLine(args.Length)` in a top-level file compiles and correctly reports the number of command-line arguments without any visible method signature.
+Unlike returning from Main or throwing an unhandled exception, Environment.Exit() terminates the process immediately after running ProcessExit event handlers, completely bypassing any try/finally blocks and IDisposable.Dispose calls in using statements. This makes it unsuitable for graceful shutdown in applications that hold database connections, file locks, or other resources that require deterministic cleanup.
 
-The gotcha is twofold. First, developers who try to declare their own `string[] args` variable in the same file get a compile error because `args` is already defined by the generated code. Second, developers who are not aware of the implicit variable may look at `args` in someone else's top-level file and be confused about where it was declared, since there is no `string[] args` declaration visible anywhere in the file. The variable is a language-level magic name in top-level statement context — similar in spirit to the implicit `this` keyword in instance methods — and understanding this avoids both the accidental redeclaration error and the readability confusion.
+---
+
+#### Gotcha 6. Console.WriteLine's line terminator is platform-specific — embedded \n is always LF
+
+**Concepts**
+- Console.WriteLine appends Environment.NewLine (\r\n on Windows, \n on Unix)
+- Embedded \n in a string is always LF (U+000A)
+- Binary comparison tools see the difference
+- Use Environment.NewLine for platform-correct output
+
+**Answer**
+
+Console.WriteLine("Line1\nLine2") writes a bare LF (embedded) between the two words, then appends \r\n (on Windows) as the final terminator. Tools that compare raw bytes will see mixed line endings, which causes failures in log-parsing scripts or file-diff tools that expect uniform line endings throughout a stream.
+
+---
+
+#### Gotcha 7. The compiler-generated args variable in top-level statements cannot be re-declared
+
+**Concepts**
+- Compiler generates string[] args as implicit variable
+- Redeclaring string[] args causes CS0136
+- args is always available in top-level context
+- Passed from command line
+
+**Answer**
+
+The C# compiler that processes top-level statements synthesizes a string[] args parameter and makes it available as an implicit variable throughout the file. Attempting to declare your own string[] args variable in the same scope produces CS0136 (variable already declared in parent scope), a confusing error since no explicit declaration is visible.
+
+---
+
+#### Gotcha 8. A project can have only one file with top-level statements
+
+**Concepts**
+- CS8802 if two files use top-level statements
+- Each file must be a class-based file except the entry-point file
+- Partial classes can help but not for top-level code
+- SDK project structure
+
+**Answer**
+
+Only one source file in a project is allowed to use top-level statements (the entry-point file). Placing top-level statements in a second file produces CS8802. All other source files in the same project must define types in the traditional class-based format.
+
+---
+
+#### Gotcha 9. Console.Write leaves cursor mid-line; subsequent ReadLine reads from that same line
+
+**Concepts**
+- Write does not append newline
+- ReadLine returns everything up to the next newline
+- Cursor position affects interactive prompts
+- Console.ReadKey works regardless of cursor position
+
+**Answer**
+
+Console.Write("Enter name: ") prints the prompt without a newline, so Console.ReadLine() reads from the same line the prompt is on. This is intentional for prompts, but developers who accidentally use Write instead of WriteLine in logging code produce output that runs the log message and the next input onto the same terminal line.
+
+---
+
+#### Gotcha 10. Project SDK version controls whether ImplicitUsings and Nullable are on by default
+
+**Concepts**
+- <Project Sdk="Microsoft.NET.Sdk"> SDK version determines defaults
+- New console projects in .NET 6+ enable both
+- Upgrading old .csproj does not auto-enable
+- Explicit opt-in required on upgrade
+
+**Answer**
+
+Running dotnet new console with .NET 6+ SDK produces a project file with <ImplicitUsings>enable</ImplicitUsings> and <Nullable>enable</Nullable> set by default. Upgrading an existing .NET Framework or early .NET Core project to SDK-style format does not retroactively add these settings; they must be explicitly added to avoid breaking thousands of lines of code that assumed the old defaults.
 
 ---
 

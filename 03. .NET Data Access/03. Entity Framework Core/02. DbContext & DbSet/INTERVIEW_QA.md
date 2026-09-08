@@ -132,46 +132,157 @@ No. `DbContext` is not thread-safe — concurrent operations on the same instanc
 
 ---
 
-## Gotchas
+## Gotchas — DbContext & DbSet (Interview Traps)
 
 ---
 
-## Gotcha 9. Scoped `DbContext` captured in a singleton
+#### Gotcha 1. Registering DbContext as singleton — thread-safety and lifetime violations
 
 **Concepts**
-- scoped DbContext captured in singleton field
-- captive dependency anti-pattern
-- IDbContextFactory for singleton database access
+- `DbContext` is not thread-safe — singleton causes concurrent modification
+- `AddDbContext` defaults to `ServiceLifetime.Scoped` — do not override with singleton
+- tracked entities from one request visible to next request on same context
+- connection pool exhaustion from one long-lived context holding one connection
+- `IDbContextFactory<TContext>` for singleton services needing occasional DB access
 
 **Answer**
 
-Registering a singleton service that holds a scoped `DbContext` creates a captive dependency — the context may be disposed while the singleton lives, or state leaks across HTTP requests. `DbContext` is scoped per request in ASP.NET Core — singletons must not store it in fields; Inject `IDbContextFactory<TContext>` into singletons when long-lived services need occasional database access. Symptoms include "Cannot access a disposed context" or cross-user data contamination in tracked entities.
+Registering `DbContext` as a singleton violates its design contract — `DbContext` is not thread-safe, so concurrent requests sharing one instance corrupt the change tracker and produce unpredictable exceptions or cross-user data leaks. `AddDbContext` defaults to `ServiceLifetime.Scoped` (one instance per HTTP request), which is the correct lifetime. Never pass `ServiceLifetime.Singleton` to `AddDbContext`; if a singleton service needs database access, inject `IDbContextFactory<TContext>` and create and dispose short-lived context instances on demand.
 
 ---
 
-## Gotcha 4. Leaked connections exhaust the pool
+#### Gotcha 2. Scoped DbContext captured in a singleton field — captive dependency
 
 **Concepts**
-- connection pool exhaustion from undisposed connections
-- await using for guaranteed disposal
-- DbContext undisposed as equivalent risk
+- singleton service holding scoped `DbContext` — captive dependency
+- scoped context disposed at end of first request while singleton lives on
+- `ObjectDisposedException: Cannot access a disposed context`
+- `IDbContextFactory<TContext>` as the correct singleton pattern
+- long-lived background service as a common offender
 
 **Answer**
 
-Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load. Always use `await using` for connections and readers so disposal runs on exceptions too; Symptoms appear only under concurrent load, making this a classic production-only failure mode. Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+A singleton service that injects and stores a scoped `DbContext` in a field will receive the context disposed at the end of the first HTTP request — all subsequent calls throw `ObjectDisposedException`. ASP.NET Core's DI container produces a warning for captive dependencies but does not prevent them. For background services and singletons that need periodic database access, inject `IDbContextFactory<TContext>` and call `factory.CreateDbContext()` inside each operation, disposing the context when the operation completes.
 
 ---
 
-## Gotcha 10. Lazy loading after the context is disposed
+#### Gotcha 3. `OnConfiguring` hardcodes connection string — overrides DI registration
 
 **Concepts**
-- lazy loading after context disposal
-- serializer-triggered navigation access
-- explicit Include or projection before scope ends
+- `OnConfiguring` called on every context instance construction
+- hardcoded `UseSqlServer` in `OnConfiguring` ignores DI-registered options
+- `DI-registered options` passed via `AddDbContext` silently replaced
+- integration test uses production database instead of test database
+- guard: `if (!optionsBuilder.IsConfigured)` before applying defaults
 
 **Answer**
 
-Lazy loading triggers SQL when navigation properties are accessed — if that happens after the request-scoped `DbContext` is disposed, EF Core throws or the serializer triggers hidden queries that fail mid-response. ASP.NET Core disposes scoped contexts at the end of the request pipeline — serialization often runs near that boundary; Prefer explicit includes or projections inside the request scope instead of returning entity graphs with unresolved lazy navigations. Proxy types plus disposed contexts produce intermittent failures depending on property access order.
+Overriding `OnConfiguring` in a `DbContext` subclass with a hardcoded `optionsBuilder.UseSqlServer(...)` call silently overrides the options registered via `AddDbContext` in `Program.cs`. Integration tests that register a different connection string via DI still use the hardcoded production database because `OnConfiguring` runs after DI option injection and overwrites it. Add the guard `if (!optionsBuilder.IsConfigured)` before any hardcoded configuration so that DI-provided options take precedence over defaults.
+
+---
+
+#### Gotcha 4. `DbSet<T>.Local` does not query the database — tracks only in-memory entities
+
+**Concepts**
+- `DbSet<T>.Local` returns only entities currently tracked in the context
+- entities not yet loaded are absent from `Local` even if they exist in DB
+- `Find(key)` checks `Local` first, then queries the database
+- `DbSet.Local` useful for checking pending adds before `SaveChanges`
+- common mistake: treating `Local.Count` as database row count
+
+**Answer**
+
+`DbSet<T>.Local` is an `ObservableCollection<T>` of entities currently tracked by the `ChangeTracker` — it does not issue a database query. An entity that exists in the database but has not been loaded by a prior query is absent from `Local`. Code that checks `context.Products.Local.Count` or iterates `Local` expecting all database rows will see only the entities already loaded in the current context scope. Use `Local` only to inspect or manipulate the in-context tracked state, not as a substitute for a database query.
+
+---
+
+#### Gotcha 5. `Database.EnsureCreated` and migrations are incompatible
+
+**Concepts**
+- `EnsureCreated` creates schema without recording migration history
+- subsequent `MigrateAsync` attempts to apply all migrations including `InitialCreate`
+- schema already exists — migration fails with table already exists error
+- `EnsureCreated` appropriate only for ephemeral test databases
+- production must always use `MigrateAsync` or migration bundle scripts
+
+**Answer**
+
+`Database.EnsureCreated()` creates the database schema from the current model snapshot without recording any entries in `__EFMigrationsHistory`. If you then run `dotnet ef database update`, EF Core sees no applied migrations and tries to apply all of them from the beginning — `InitialCreate` fails because the tables already exist. Use `EnsureCreated` only for ephemeral test databases that are dropped and recreated per test run. All other environments must use `MigrateAsync()` or the migration bundle/script tooling.
+
+---
+
+#### Gotcha 6. Multiple `SaveChanges` calls in one request — separate commits, not one unit of work
+
+**Concepts**
+- each `SaveChanges` issues a separate database commit
+- two `SaveChanges` calls are not atomic — second can fail after first commits
+- first commit's changes persist if second call throws
+- one `SaveChanges` per unit of work as the design principle
+- explicit `BeginTransactionAsync` + `CommitAsync` for true atomicity
+
+**Answer**
+
+Calling `SaveChanges` twice in one request handler commits changes to the database in two separate transactions. If the second call fails, the first commit is already durable — you have a partial state with no rollback path. The correct design is one `SaveChanges` per unit of work, accumulating all changes on the tracked context before the single commit. When two separate operations must be atomic together, wrap both in an explicit `await using var tx = await context.Database.BeginTransactionAsync()` and `await tx.CommitAsync()`.
+
+---
+
+#### Gotcha 7. Long-lived DbContext accumulates tracked entities — memory growth
+
+**Concepts**
+- every entity materialized by the context is tracked until disposal
+- long-lived context grows tracked entity count without bound
+- `ChangeTracker.Clear()` (EF Core 5+) to detach all tracked entities
+- `AsNoTracking()` on read queries to avoid tracking read entities
+- context lifetime should match unit-of-work lifetime
+
+**Answer**
+
+A `DbContext` instance tracks every entity it materializes in its `ChangeTracker` for the duration of the context's lifetime. A long-lived context (e.g., one held for minutes in a background job) accumulates tracked entities indefinitely, causing memory growth and increasingly slow `SaveChanges` calls as change detection must inspect a larger and larger tracked entity graph. Call `context.ChangeTracker.Clear()` after each logical unit of work in long-lived contexts, or use `AsNoTracking()` for read operations that do not need change tracking.
+
+---
+
+#### Gotcha 8. `context.Entry(entity).State = EntityState.Modified` marks all properties dirty
+
+**Concepts**
+- setting `EntityState.Modified` marks every property as modified
+- UPDATE generated includes all columns, not just changed ones
+- concurrency conflict risk from overwriting unchanged columns
+- EF Core `Update(entity)` is equivalent — same behavior
+- load entity first or use `SetProperty` (EF Core 7+) for targeted UPDATE
+
+**Answer**
+
+Setting `context.Entry(entity).State = EntityState.Modified` (or calling `context.Update(entity)`) marks every property of the entity as modified. The generated `UPDATE` statement includes all columns, overwriting values in the database even if those columns were not changed by the application. This can cause lost-update issues in concurrent systems where another process updated a different column between your read and write. Load the entity with `Find` or `FirstOrDefaultAsync`, mutate only the properties that changed, and call `SaveChanges` to generate a minimal UPDATE.
+
+---
+
+#### Gotcha 9. Transient DbContext from `AddTransient` creates a new context per injection
+
+**Concepts**
+- `AddTransient<AppDbContext>` creates a new instance per injection point
+- two services in the same request each get separate contexts
+- changes saved in one context not visible to the other
+- no shared unit of work across transient contexts
+- `Scoped` as the correct lifetime for request-level unit of work
+
+**Answer**
+
+Registering `DbContext` as transient (using `AddTransient`) creates a separate context instance for every service that injects it. Two services in the same request each operate on independent change trackers — changes tracked in one context are invisible to the other, and a `SaveChanges` in one does not include changes from the other. This breaks the unit-of-work pattern. Use the default `Scoped` lifetime so all services within a single HTTP request share one context and one unit of work.
+
+---
+
+#### Gotcha 10. `DbSet.Add()` on an already-tracked entity — duplicate key or duplicate tracking exception
+
+**Concepts**
+- `Add` marks entity as `EntityState.Added` regardless of prior tracking
+- double-tracking causes `InvalidOperationException: entity already being tracked`
+- `Attach` + `State.Modified` for pre-existing entities
+- `Find()` to check if entity is already in `Local` before `Add`
+- EF Core identity map: second load of same key returns tracked instance
+
+**Answer**
+
+Calling `context.Products.Add(entity)` on an entity that is already tracked by the context (e.g., loaded by an earlier query in the same request) throws `InvalidOperationException: The instance of entity type already has a key value and is being tracked`. For pre-existing entities you want to update, use `context.Products.Update(entity)` or load the entity with `Find`/`FirstOrDefault` and mutate the properties directly. `Add` is only for genuinely new entities with no matching key in the database.
 
 ---
 

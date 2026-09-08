@@ -434,3 +434,147 @@ I import an OpenAPI JSON or YAML document through the Azure portal under APIs �
 Teams sometimes implement multi-step business workflows, database lookups, or domain rules entirely in APIM policy XML because it is convenient at the gateway, but that logic becomes hard to test, version, debug, and reuse compared with code in the ASP.NET Core backend. APIM policies excel at cross-cutting gateway concerns — auth, throttling, routing, header injection, and simple transforms — not at maintaining order totals, inventory checks, or saga orchestration. Complex C# expressions embedded in XML lack unit tests, pull requests, and static analysis that normal `.cs` projects provide, and policy errors surface only at runtime in production traffic. When requirements change frequently, redeploying backend code through standard CI/CD is safer than editing a policy fragment that multiple APIs include. I keep APIM thin: validate and protect at the edge, and execute business rules in the API service where domain experts and developers already work.
 
 ---
+
+## Gotchas — Azure API Management (Interview Traps)
+
+---
+
+#### Gotcha 1. Backend URL hardcoded in set-backend-service policy bypasses the backend pool — version changes require policy edits
+
+**Concepts**
+- `set-backend-service` in inbound policy overrides the API's configured backend URL
+- Backend entities (Backend resource in APIM) enable named, versioned backend URLs
+- Hardcoded URL in policy creates a deployment coupling between policy XML and backend versions
+- Policy expressions can use named values to parameterize URLs without backend entities
+
+**Answer**
+
+A `set-backend-service` policy element with a literal URL (`base-url="https://myapi.azurewebsites.net"`) bypasses APIM's backend configuration entirely. When the backend URL changes — for example after migrating to a new App Service or introducing a new version — the policy XML must be edited manually in the portal or through ARM/Bicep. The APIM Backend resource (`<backend-id>`) solves this by letting you define a named backend URL once and reference it from multiple policies, so a URL change only requires updating the backend entity rather than every policy that references the URL.
+
+---
+
+#### Gotcha 2. Subscription key passed as a query string parameter is logged by proxies and appears in browser history
+
+**Concepts**
+- APIM accepts subscription keys via `Ocp-Apim-Subscription-Key` header or `subscription-key` query parameter
+- Query parameter keys appear in server access logs, CDN logs, and browser history
+- Header-based key transmission avoids query string logging exposure
+- Disable query string key transmission in the APIM product settings to enforce header-only
+
+**Answer**
+
+Azure APIM accepts subscription keys in both the `Ocp-Apim-Subscription-Key` request header and the `subscription-key` query string parameter. Clients who send the key as a query parameter expose it in server-side access logs, reverse proxy logs, CDN access logs, browser address bar history, and referrer headers of subsequent requests. This is an accidental secret exposure that many developers miss because the default APIM test console uses the query parameter for convenience. The fix is to enforce header-only transmission by disabling the query string option in the APIM product or API settings.
+
+---
+
+#### Gotcha 3. validate-jwt policy does not validate the audience claim by default — tokens from unrelated apps pass
+
+**Concepts**
+- JWT validation in APIM checks signature and expiry by default
+- `<required-claims>` block is needed to enforce `aud` claim values
+- A token issued for Application A is valid against Application B's APIM policy without explicit audience validation
+- Audience must match the API's app registration application ID URI
+
+**Answer**
+
+The APIM `validate-jwt` policy validates the token's signature against the issuer's signing keys and checks that the token has not expired, but it does not enforce the `aud` (audience) claim unless you add a `<required-claims>` block that explicitly requires the expected audience value. Without audience validation, an access token issued for a different application in the same Entra ID tenant passes APIM validation and reaches the backend. Every `validate-jwt` policy in production must include `<required-claims><claim name="aud" match="any"><value>{expected-app-id-uri}</value></claim></required-claims>` to prevent token cross-use.
+
+---
+
+#### Gotcha 4. Caching policy without tenant-discriminating vary-by returns one tenant's response to another
+
+**Concepts**
+- APIM caching uses the URL and any configured `vary-by-header` or `vary-by-query-parameter` as the cache key
+- Multi-tenant APIs must include tenant identifier (`tid` claim, Authorization header, or tenant path segment) in the cache key
+- A cache hit for tenant A's cached response is served to tenant B if the key is identical
+- The `vary-by-header` element adds headers to the cache key for per-caller differentiation
+
+**Answer**
+
+The APIM `cache-lookup` policy stores responses keyed by URL path. For a multi-tenant API where the tenant context is carried in the JWT `tid` claim or the `Authorization` header, the default URL-only cache key will serve one tenant's cached response to a different tenant when both make the same request path. The `cache-lookup` policy's `vary-by-header` element must include `Authorization` or an explicit `X-Tenant-Id` header in the cache key to ensure each tenant receives their own cached response. Failure to include tenant discriminators in the cache key is a data isolation security vulnerability.
+
+---
+
+#### Gotcha 5. Inbound policy order matters — JWT validation placed after rate-limit or transformation policies leaks rate limit budget to unauthenticated callers
+
+**Concepts**
+- APIM evaluates inbound policy elements top-to-bottom
+- `rate-limit` before `validate-jwt` counts unauthenticated requests against the quota
+- Security validation should appear first in the inbound block to fail fast
+- Policy scopes (global, product, API, operation) apply in order; later scopes can override earlier ones
+
+**Answer**
+
+APIM policy elements in the `<inbound>` section execute in the order they are written. If a `rate-limit` policy appears before `validate-jwt`, unauthenticated requests are counted against the rate limit before being rejected, allowing an attacker to exhaust the rate limit budget with token-less requests while legitimate callers are throttled. Authentication and authorization policies (`validate-jwt`, `check-header`) should be the first policies in the inbound block so requests that will ultimately be rejected never consume rate limit, transformation, or logging budget.
+
+---
+
+#### Gotcha 6. Named values are not secret by default — plain named values are visible to any user with APIM portal access
+
+**Concepts**
+- APIM Named Values can be plain or secret type
+- Plain named values are visible in cleartext in the portal and ARM templates
+- Secret named values are masked in the portal but stored in APIM's internal store, not Key Vault
+- Key Vault-backed named values require the APIM managed identity to have Key Vault Secrets User role
+
+**Answer**
+
+APIM Named Values are frequently used to parameterize policy expressions (API keys for backends, JWT signing secrets). Plain named values are stored as cleartext and visible to any portal user with APIM Contributor access, making them unsuitable for storing secrets. Marking a named value as "secret" in the portal masks its value in the UI but stores it in APIM's own encrypted store, not Azure Key Vault. For production secrets, named values should be backed by Key Vault secrets, requiring the APIM service's managed identity to have the Key Vault Secrets User role and the Key Vault's soft-delete enabled, or the reference will fail silently.
+
+---
+
+#### Gotcha 7. APIM does not retry failed backend calls by default — a slow or 5xx backend returns immediately to the caller
+
+**Concepts**
+- APIM forwards backend errors to the caller without retry unless a `retry` policy is configured
+- `retry` policy with `condition="@(context.Response.StatusCode >= 500)"` adds backend resilience
+- Retry on the same backend instance does not help if the issue is instance-level; `set-backend-service` rotation is needed
+- Circuit-breaker pattern requires policy conditions and a custom on-error policy
+
+**Answer**
+
+Azure APIM acts as a transparent proxy by default; it forwards the backend's 502, 503, or 504 response directly to the caller without retrying. Adding a `retry` policy element to the inbound section adds resilience for transient backend failures. However, retrying against the same backend URL when the backend instance itself is down is futile; true failover requires a backend pool with multiple backends and a `set-backend-service` policy that selects a healthy backend. Without explicit retry and circuit-breaker policies, APIM provides no protection against transient backend degradation.
+
+---
+
+#### Gotcha 8. Self-hosted gateway loses connection to APIM control plane if outbound HTTPS is blocked — it processes no traffic
+
+**Concepts**
+- Self-hosted gateway polls the APIM control plane for configuration updates over HTTPS
+- Firewall rules that block outbound 443 to APIM's management endpoint disconnect the gateway
+- A disconnected self-hosted gateway can still process traffic using cached configuration for a time
+- After cache expiry, the gateway starts rejecting requests
+
+**Answer**
+
+The APIM self-hosted gateway maintains a persistent HTTPS connection to the APIM control plane to receive configuration, certificates, and policy updates. If an on-premises or private-network firewall blocks outbound port 443 to the APIM management endpoint (`*.azure-api.net`), the gateway silently disconnects. For a configured timeout period, the gateway continues processing requests using its cached configuration, after which it begins rejecting requests with errors. This is a common failure mode when deploying self-hosted gateways in corporate networks with strict egress filtering where Azure hostnames are not in the allowlist.
+
+---
+
+#### Gotcha 9. APIM latency adds 20-100 ms per call — routing every microservice internal call through APIM is an anti-pattern
+
+**Concepts**
+- APIM is a gateway for external-facing APIs, not an internal service mesh
+- Each APIM request adds network round-trip, policy evaluation, and logging overhead
+- Internal microservice-to-microservice calls should use direct service URLs or a service mesh
+- Over-routing causes latency multiplication in request chains
+
+**Answer**
+
+Azure API Management is optimized for managing external API traffic: authentication, throttling, transformation, and monitoring at the API boundary. Every request that flows through APIM incurs additional network latency (20–100 ms depending on tier and region), policy evaluation time, and logging overhead. Architectures that route every internal microservice-to-microservice call through APIM multiply this latency across each hop in a request chain. APIM belongs at the edge of the system, exposing APIs to external consumers; internal service-to-service communication should use direct service URLs, Azure Service Bus for async calls, or a service mesh like Dapr.
+
+---
+
+#### Gotcha 10. APIM API versioning by URL path requires explicit product and subscription assignment for each version — missing assignment returns 401
+
+**Concepts**
+- APIM API versions (`/v1/`, `/v2/`) are separate API entities in the portal
+- Products and subscriptions control which consumers can call each API version
+- A new API version that is not added to a product is inaccessible even with a valid subscription key
+- Version sets link versioned APIs but do not inherit product assignments
+
+**Answer**
+
+When you add a new version of an API in APIM using URL path versioning (`/v1/` and `/v2/`), the new version is a separate API entity. Products — which gate access via subscription keys — must explicitly include each version of the API. A new `v2` API that is published but not added to any product returns 401 Unauthorized to all callers even when they supply a valid subscription key, because the key is scoped to a product that does not include `v2`. Developers who test with the APIM subscription master key (which bypasses product restrictions) during development miss this gap and discover it when customers' product-scoped keys fail in production.
+
+---

@@ -538,3 +538,147 @@ An Anemic Domain Model is a domain layer in which Entity classes contain only pr
 I should not use Clean Architecture when the service is small, the domain is simple, the team is small, and the expected lifespan is short — the structural overhead will slow the team down without delivering meaningful benefits. For CRUD microservices with minimal business logic, Vertical Slice Architecture or a simple Feature Folder approach inside a single project often delivers better developer velocity and clarity. Vertical Slice Architecture, popularized by Jimmy Bogard, organizes code by feature rather than by layer — each feature folder contains its own handler, DTO, validator, and data access code in one place with no Domain or Application layer abstraction — which scales well for services with many small, independent features and little cross-feature domain logic. A Minimal API with EF Core and a flat structure is appropriate for simple data services: one `Program.cs`, a few route handlers, a `DbContext`, and FluentValidation, with no interfaces, no mediators, and no mapping. A Modular Monolith with Clean Architecture per module can be a middle ground: each bounded context gets its own Domain, Application, and Infrastructure, but they all run in one process and share a single API host, avoiding the distributed systems overhead of microservices while still providing Clean Architecture's testability within each module. The decision rule: if a Use Case in the Application layer contains only one repository call and no domain logic, Clean Architecture is adding ceremony without value for that feature — the architecture complexity should match the domain complexity.
 
 ---
+
+## Gotchas — Clean Architecture (Interview Traps)
+
+---
+
+#### Gotcha 1. Domain Layer Depending on Infrastructure
+
+**Concepts**
+- Dependency Rule violated when Domain references outer layers
+- EF Core DbContext or NuGet packages leaked into Domain project
+- Circular dependency breaking the compile-time enforcement
+- Domain project's `.csproj` as the audit target
+
+**Answer**
+
+The most common and most damaging Clean Architecture mistake is adding an EF Core, Newtonsoft.Json, or any infrastructure NuGet package to the Domain project. The Domain layer must have zero dependencies on frameworks or persistence libraries — once `Microsoft.EntityFrameworkCore` appears in `Domain.csproj`, the Dependency Rule is broken and every stated benefit of Clean Architecture (framework independence, in-memory testability) disappears. The fix is to check the Domain project has no project references and no NuGet packages beyond base class library helpers, and to move any ORM-related attributes or interfaces to the Infrastructure project.
+
+---
+
+#### Gotcha 2. Anemic Domain Model — All Logic Lives in Application Services
+
+**Concepts**
+- Entity as a property bag with only getters and setters
+- Business rules scattered across Application Service methods
+- ORM-first design as the root cause
+- Private setters and behavioral methods as the cure
+
+**Answer**
+
+An anemic domain model means Entity classes contain only public properties with no business methods, so all logic ends up in Application Services — this is a procedural design wearing Clean Architecture clothing. Interviewers look for whether you recognise that a `Customer` entity should have methods like `Activate()`, `ChangeEmail(string newEmail)`, and `Deactivate()` with invariant guards inside them, not a `CustomerService` that directly sets `customer.IsActive = true` from outside. The usual cause is starting from an EF Core entity and leaving setters public for the ORM, then never adding behavior — the fix is private setters with EF Core's Fluent API `HasField` configuration and explicit domain methods that enforce all business rules before mutating state.
+
+---
+
+#### Gotcha 3. Over-Engineering a Simple CRUD Service
+
+**Concepts**
+- Complexity cost versus domain complexity mismatch
+- Ceremony without benefit in simple services
+- Vertical Slice Architecture as the alternative
+- One-line handlers as the smell indicator
+
+**Answer**
+
+Applying Clean Architecture to a microservice that is essentially a thin CRUD wrapper over a database table produces four projects, five mapping steps, and dozens of interfaces for what amounts to three lines of EF Core code — the overhead is real and the benefit is zero. The signal that the pattern is being misapplied is when every command handler looks like `await _repo.Save(entity); return Unit.Value;` with no domain logic whatsoever. Interviewers expect you to know when to reach for Vertical Slice Architecture, Minimal API with EF Core, or even a simple CRUD controller — architecture complexity must be proportional to domain complexity.
+
+---
+
+#### Gotcha 4. Repository Interface Defined in the Infrastructure Layer
+
+**Concepts**
+- Interface ownership belonging to the consumer, not the implementer
+- Infrastructure project referencing Application instead of the reverse
+- Dependency inversion versus dependency injection confusion
+- Application layer defining the contract it needs
+
+**Answer**
+
+A common mistake is defining `IOrderRepository` inside the Infrastructure project alongside its `SqlOrderRepository` implementation, then referencing Infrastructure from Application to use the interface — this inverts the intended direction and reintroduces the coupling Clean Architecture is designed to remove. The Dependency Rule requires that the interface belongs to the Application layer (the layer that depends on the contract), not the Infrastructure layer (the implementer). The Infrastructure project references Application to implement Application's interfaces; Application references nothing in Infrastructure. Placing the interface in Infrastructure and having Application reference Infrastructure for it defeats the pattern entirely.
+
+---
+
+#### Gotcha 5. Returning `IQueryable<T>` from a Repository
+
+**Concepts**
+- IQueryable leaking EF Core execution context outside the repository
+- LINQ expressions evaluated in the wrong layer
+- Test doubles unable to reproduce EF Core query translation
+- Materialised collections as the correct return type
+
+**Answer**
+
+Returning `IQueryable<T>` from a repository interface leaks the EF Core execution context into the Application layer — any LINQ expression chained by the caller is translated and executed against the database, which means the Application layer is silently coupled to the EF Core query provider. When you mock the repository in a unit test with `IEnumerable<T>`, LINQ-to-Objects behaves differently from LINQ-to-SQL, so tests pass but production queries fail or vice versa. The contract of the repository interface should return fully materialised collections or single objects so the query is completely executed within the Infrastructure layer and the Application layer sees only plain in-memory objects.
+
+---
+
+#### Gotcha 6. Domain Entity Used Directly as HTTP Response
+
+**Concepts**
+- Sensitive field exposure from direct entity serialization
+- Domain model shape change propagating to API contract
+- Circular reference and infinite recursion in JSON serializer
+- Dedicated output DTO at each boundary
+
+**Answer**
+
+Returning a Domain Entity directly from a controller exposes every property on the entity to the API consumer, including internal audit fields, cost calculations, or navigation properties that should remain private, and it couples the public API contract to the internal domain model shape so any domain refactoring changes the wire format. Additionally, domain entities with navigation properties cause JSON serializers to follow object graphs and produce either circular reference exceptions or unintentionally deep JSON trees. The correct approach is to map the Domain Entity to a dedicated output DTO in the Application layer and return that DTO from the handler, keeping the HTTP contract independent of the domain model.
+
+---
+
+#### Gotcha 7. Infrastructure Types Registered Directly in `Program.cs`
+
+**Concepts**
+- Composition root leaking infrastructure type names
+- DI wiring responsibility belonging to AddInfrastructure extension
+- Testability broken when infrastructure types are hard-coded in the host
+- Per-layer ServiceCollection extension methods as the pattern
+
+**Answer**
+
+When `Program.cs` contains lines like `services.AddScoped<SqlOrderRepository>()` or `services.AddDbContext<AppDbContext>(...)`, the host project has taken on knowledge of internal infrastructure types — knowledge that should be hidden inside an `AddInfrastructure(IServiceCollection, IConfiguration)` extension method in the Infrastructure project. Registering infrastructure types directly in `Program.cs` means you cannot swap implementations without editing the host, and integration test hosts must replicate the same registration list manually. The per-layer extension method pattern (each layer exposes one `AddXxx` method) keeps `Program.cs` at three lines and makes the infrastructure swappable by changing only the extension method body.
+
+---
+
+#### Gotcha 8. Application Layer Referencing Infrastructure for Concrete Types
+
+**Concepts**
+- Application project adding a project reference to Infrastructure
+- Concrete EF Core types visible in Use Case handlers
+- Circular dependency risk as the compile-time symptom
+- Interface abstraction as the only allowed reference direction
+
+**Answer**
+
+Adding a project reference from Application to Infrastructure is a red flag that the Dependency Rule has been violated — handlers start calling `_dbContext.SaveChangesAsync()` directly instead of going through the `IUnitOfWork` abstraction, or they new up `EmailSender` directly instead of injecting `IEmailSender`. Once Application references Infrastructure, the entire inward-only dependency direction is destroyed and the domain core is no longer infrastructure-independent. The allowed reference graph is `Infrastructure → Application → Domain`; Application must only know about interfaces it defines itself, and Infrastructure implements those interfaces.
+
+---
+
+#### Gotcha 9. Sharing Domain Entities Across Bounded Contexts
+
+**Concepts**
+- Bounded context isolation preventing cross-context coupling
+- Shared kernel versus shared entity distinction
+- One change propagating breakage to multiple contexts
+- Anti-Corruption Layer for cross-context communication
+
+**Answer**
+
+Using the same Domain Entity class in two different bounded contexts — for example, a `Customer` entity shared between an Order context and a Billing context — creates tight coupling that defeats the purpose of bounded context separation. Changes to `Customer` required by the Order context will break the Billing context, and the single class accumulates fields from both contexts until it serves neither well. Each bounded context must own its own model of the concept: the Billing context has its `BillingCustomer` with billing-specific fields, and the Order context has its `OrderingCustomer` with order-specific fields; an Anti-Corruption Layer or an integration event translates between them when they need to communicate.
+
+---
+
+#### Gotcha 10. Unit of Work Scope Mismatched With Business Transaction
+
+**Concepts**
+- Single business operation spanning multiple repositories
+- SaveChangesAsync called in each repository instead of once
+- Unit of Work coordinating a single transaction across repositories
+- Partial save leaving data in an inconsistent state
+
+**Answer**
+
+When multiple repositories each call `_dbContext.SaveChangesAsync()` independently, a business operation that modifies two aggregates — creating an order and decrementing inventory — can partially succeed: the order is saved but the inventory update fails in a separate call, leaving the database in an inconsistent state. The Unit of Work pattern addresses this by giving a single `IUnitOfWork.CommitAsync()` call that saves all changes accumulated across multiple repositories in one database transaction. A common mistake in Clean Architecture is treating the repository as responsible for saving — the repository handles loading and staging changes, and the Application layer calls `unitOfWork.CommitAsync()` once at the end of the Use Case to commit the entire business operation atomically.
+
+---

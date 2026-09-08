@@ -568,3 +568,68 @@ Because a refresh token is long-lived and can be used to obtain new access token
 The `state` parameter protects the authorization request against Cross-Site Request Forgery by binding the redirect response to a specific browser session. The `nonce` protects the ID Token against replay attacks by binding the token to a specific login request. They are not interchangeable and both should be used in OIDC flows because they protect against different attack vectors. The `state` is echoed back in the redirect response query parameters and validated by the client before processing the authorization code; a mismatch means a CSRF attempt is in progress — someone else initiated the authorization request on behalf of this user. The `nonce` is embedded in the ID Token by the AS and validated by the client after receiving and decoding the token; a mismatch means the token was replayed from a different session or a different login request. Omitting `state` opens the application to CSRF; omitting `nonce` opens it to ID Token replay; most OIDC client libraries generate and validate both automatically, so the gotcha is when developers implement the flow manually and overlook one or both parameters.
 
 ---
+
+#### Gotcha 6. PKCE `code_verifier` and `code_challenge` Are Different Values — Never the Same String
+
+**Concepts**
+- `code_verifier` — high-entropy random secret, never sent over the wire before redemption
+- `code_challenge` — `BASE64URL(SHA-256(ASCII(code_verifier)))` — a one-way derivative
+- Sending the verifier as the challenge exposes the secret before the code is issued
+
+**Answer**
+
+PKCE works by splitting a secret into a verifier (kept by the client) and a challenge (sent in the authorization request). The challenge is `BASE64URL(SHA-256(ASCII(code_verifier)))` — a one-way hash of the verifier, not the verifier itself. Developers who manually implement PKCE sometimes send the same string for both `code_challenge` and `code_verifier` (or use the plain `code_verifier` as `code_challenge` with `code_challenge_method=plain`), which undermines the security guarantee: if an attacker intercepts the authorization request, they already have the verifier and can redeem the code themselves. Only use `S256` as the challenge method; plain should be avoided unless the client's environment genuinely cannot compute SHA-256.
+
+---
+
+#### Gotcha 7. The `openid` Scope Is Required for OIDC — Without It the Response Has No ID Token
+
+**Concepts**
+- `openid` scope as the signal that triggers OIDC ID Token issuance
+- Omitting `openid` producing a standard OAuth 2.0 access token response with no `id_token`
+- UserInfo endpoint as the fallback — but requires an additional authenticated request
+
+**Answer**
+
+The Authorization Server issues an ID Token only when the `openid` scope is present in the authorization request — this is what distinguishes an OIDC flow from a plain OAuth 2.0 flow. A request that includes `scope=profile email` but omits `scope=openid` will receive an access token and optionally a refresh token, but no `id_token`; the client will therefore have no way to identify the authenticated user from the token endpoint response alone. OIDC client libraries like `AddOpenIdConnect` include `openid` automatically, but developers who build the authorization URL manually or customize scope lists through `ClaimsIdentity` or query string manipulation can inadvertently omit it. The resulting authentication failure may surface as a null `id_token` claim or as a `TokenValidationException` when the library tries to validate a token that does not exist.
+
+---
+
+#### Gotcha 8. Access Token `aud` Must Match the Resource Server — Mismatch Causes a Validation Error
+
+**Concepts**
+- `aud` claim in JWT access tokens binding the token to its intended recipient
+- Resource server rejecting tokens whose `aud` does not include its own identifier
+- Tokens issued for one API cannot be reused against a different API
+
+**Answer**
+
+The `aud` (audience) claim in a JWT access token names the resource server(s) the token is intended for. A resource server must reject any token whose `aud` does not include its own identifier, because accepting tokens issued for a different audience is the "confused deputy" attack vector. When `TokenValidationParameters.ValidAudience` (or `ValidAudiences`) is configured, a mismatch produces a `SecurityTokenInvalidAudienceException` and a 401 response. A common mistake is issuing a single token with a broad or missing `aud` and expecting it to work against multiple downstream APIs — the correct model is to issue one access token per target audience, or to include all intended audiences in the `aud` claim when token issuance is centralized.
+
+---
+
+#### Gotcha 9. The Authorization Code Is Single-Use — Replaying It May Trigger Automatic Token Revocation
+
+**Concepts**
+- Authorization Code valid for one redemption only — reuse detected by the AS
+- RFC 6749 and RFC 9700 recommending automatic revocation of all tokens on code replay
+- Network error between client and AS producing a used-up code that the client retries
+
+**Answer**
+
+The authorization code returned in the redirect response is designed to be redeemed exactly once against the token endpoint. Most authorization servers that detect a code being presented a second time will not only reject the second request but will also revoke all tokens previously issued from that code's original redemption, as recommended by the OAuth 2.0 Security BCP. This means a client that retries a failed token request with the same code — because a network error occurred after the code was redeemed but before the client received the response — will find its freshly issued tokens invalidated. Client implementations must store the received tokens immediately upon success and treat any second token-endpoint request with the same code as a potential compromise signal, not a simple retry.
+
+---
+
+#### Gotcha 10. ID Token `exp` Sets Token Validity, Not User Session Length — The Client Decides Session Policy
+
+**Concepts**
+- `exp` claim controlling how long the ID Token is valid for signature verification
+- Session lifetime managed by the client's cookie or session store — independent of `exp`
+- Expired ID Token not requiring user re-authentication unless the client enforces it
+
+**Answer**
+
+The `exp` claim in an ID Token is the token's cryptographic validity window — it tells the client (and any validator) until when the token's signature can be trusted. It does not dictate how long the user's session should last: the client application's own session policy (cookie expiry, idle timeout, explicit logout) controls that independently. An OIDC client that equates ID Token expiry with session expiry will log users out far too frequently, since ID Tokens are typically valid for only a few minutes. Conversely, a client that never re-validates session state against the ID Token's `exp` may continue to serve a session from an ID Token that has been superseded by a security event at the AS. The best practice is to use the ID Token only for establishing the initial session, manage session lifetime through the application's cookie, and use the access token (and refresh token lifecycle) to determine when re-authentication is required.
+
+---

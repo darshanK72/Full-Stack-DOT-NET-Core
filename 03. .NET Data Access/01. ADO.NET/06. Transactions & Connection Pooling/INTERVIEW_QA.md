@@ -116,35 +116,157 @@ Begin the transaction after the connection is open, execute all commands inside 
 
 ---
 
-## Gotchas
-
-#### Gotcha 5. Transaction started after first command
-
-**Answer:** Beginning a `SqlTransaction` only after the first statement already executed means that statement committed under implicit autocommit, so later steps in the intended unit of work are not atomic with the first.
-
-- Call `BeginTransaction` immediately after opening the connection, before any DML.
-- EF Core `SaveChanges` without an explicit transaction auto-commits each call — wrap multi-step work explicitly.
-- Integration tests with single-user data often miss this race because implicit commits appear to "work."
+## Gotchas — Transactions & Connection Pooling (Interview Traps)
 
 ---
 
-#### Gotcha 4. Leaked connections exhaust the pool
+#### Gotcha 1. Transaction started after the first DML command — partial auto-commit
 
-**Answer:** Failing to dispose `SqlConnection`, `SqlDataReader`, or abandoning a `using` block early leaks connection pool slots until timeout, eventually causing "timeout expired obtaining connection from pool" errors under load.
+**Concepts**
+- implicit autocommit when no transaction is active
+- `BeginTransaction` must precede every DML in the unit of work
+- partial commit on failure leaves inconsistent database state
+- `SqlCommand.Transaction` property must reference the transaction
+- integration test masking in single-user isolation
 
-- Always use `await using` for connections and readers so disposal runs on exceptions too.
-- Symptoms appear only under concurrent load, making this a classic production-only failure mode.
-- Long-lived undisposed `DbContext` instances cause the same exhaustion pattern.
+**Answer**
+
+Beginning a `SqlTransaction` after the first `ExecuteNonQuery` has already committed means that command runs under implicit autocommit and is not enrolled in the transaction. When subsequent commands fail and the transaction rolls back, the first command's changes persist, creating an inconsistency. Always call `connection.BeginTransaction()` immediately after opening the connection and before any DML, and assign the returned transaction to every subsequent command's `Transaction` property.
 
 ---
 
-#### Gotcha 6. Dapper `Query` without `using` on connection
+#### Gotcha 2. Not rolling back after exception — connection left in aborted state
 
-**Answer:** Returning deferred `IEnumerable<T>` from Dapper before disposing the connection postpones execution until enumeration, failing at runtime or holding connections open until garbage collection.
+**Concepts**
+- unhandled exception leaves open transaction on the connection
+- returning connection to pool with active transaction causes errors for next borrower
+- `catch` block must call `Rollback()` before rethrowing
+- `await using` transaction with explicit `Rollback` in `catch`
+- aborted transaction on borrowed pool connection
 
-- Materialize inside the connection scope with `.ToList()` or `.ToArray()` before returning from the method.
-- Deferred execution means SQL runs when the caller iterates — often after the `using` block closed the connection.
-- Async variants (`QueryAsync`) still require materialization before leaving the connection lifetime.
+**Answer**
+
+If a `SqlTransaction` is left open when its connection returns to the pool (because an exception was thrown and not caught), the next borrower receives a connection with an active transaction context, causing unpredictable behavior or errors. The `catch` block must call `tx.Rollback()` before rethrowing to ensure the transaction is cleanly aborted. The safe pattern is `await using var tx = await conn.BeginTransactionAsync()` with `try { ... await tx.CommitAsync(); } catch { await tx.RollbackAsync(); throw; }`.
+
+---
+
+#### Gotcha 3. `Read Uncommitted` isolation reads dirty data from concurrent transactions
+
+**Concepts**
+- `IsolationLevel.ReadUncommitted` reads uncommitted rows
+- dirty read: reading data that may be rolled back
+- phantom rows from concurrent inserts visible at lowest isolation
+- `NOLOCK` hint equivalent behavior
+- appropriate only for approximate aggregate reads
+
+**Answer**
+
+`IsolationLevel.ReadUncommitted` allows reading rows that have been written by another transaction but not yet committed. If that transaction later rolls back, your read returned data that never officially existed in the database — a dirty read. This isolation level is appropriate only for non-critical approximate reads (e.g., dashboard counters where slight inaccuracy is acceptable), never for financial transactions or any query where data integrity is required.
+
+---
+
+#### Gotcha 4. Serializable isolation increases deadlock frequency
+
+**Concepts**
+- `Serializable` acquires range locks to prevent phantom reads
+- range locks held for transaction duration
+- two transactions with intersecting WHERE ranges deadlock
+- deadlock victim throws `SqlException` error 1205
+- lower isolation or optimistic concurrency as alternatives
+
+**Answer**
+
+`IsolationLevel.Serializable` acquires range locks on the rows that match the WHERE clause to prevent phantom reads, but these range locks are held for the full transaction duration and block any other transaction attempting to insert or update in the same range. Under concurrent workloads this dramatically increases deadlock frequency — two transactions with overlapping WHERE ranges will deadlock each other. Use `Serializable` only when phantom read prevention is explicitly required, and implement retry logic on deadlock error 1205.
+
+---
+
+#### Gotcha 5. ADO.NET does not support true nested transactions — use savepoints instead
+
+**Concepts**
+- `BeginTransaction` on a connection with an active transaction throws on SQL Server
+- savepoints as the SQL Server mechanism for partial rollback
+- `SqlTransaction.Save("savepoint")` for nested-style rollback
+- `SqlTransaction.Rollback("savepoint")` to roll back to a savepoint
+- `TransactionScope` for distributed/nested transaction coordination
+
+**Answer**
+
+SQL Server does not support nested transactions via ADO.NET — calling `connection.BeginTransaction()` a second time while a transaction is already open throws an exception rather than starting a nested scope. The SQL Server mechanism for partial rollback within a transaction is savepoints: `tx.Save("CheckpointName")` marks a point in the transaction, and `tx.Rollback("CheckpointName")` rolls back only the work since that savepoint while leaving the outer transaction active. Use `TransactionScope` when coordinating work across multiple connections or resource managers.
+
+---
+
+#### Gotcha 6. Connection pool exhaustion — undisposed connections under concurrent load
+
+**Concepts**
+- pool slot not returned until `Dispose()` or GC finalization
+- default `Max Pool Size` of 100 per connection string
+- "timeout expired obtaining connection from pool" under load
+- `await using` disposal pattern for guaranteed return
+- long-lived connection held during non-database work
+
+**Answer**
+
+An undisposed `SqlConnection` holds its pool slot until garbage collection, which is not fast enough to keep up with concurrent requests. Reaching `Max Pool Size` (default 100) causes subsequent connection attempts to queue and eventually throw "timeout expired obtaining connection from pool." Always wrap connections in `await using`, keep the connection lifetime as short as possible (open immediately before the first query, close immediately after the last), and avoid holding a connection open during non-database work like HTTP calls or heavy computation.
+
+---
+
+#### Gotcha 7. Distributed transactions (MSDTC) not supported in .NET Core by default
+
+**Concepts**
+- `TransactionScope` escalates to MSDTC when spanning multiple connections
+- MSDTC not supported in .NET Core on Linux or most cloud deployments
+- `PlatformNotSupportedException` at runtime when escalation is attempted
+- alternative: single connection, application-layer compensation, or saga pattern
+- explicit `EnlistTransaction` on second connection as a workaround check
+
+**Answer**
+
+In .NET Framework, `TransactionScope` automatically escalates to a distributed transaction (MSDTC) when a second connection enlists in the same scope. In .NET Core, MSDTC support is absent on Linux and is not available in most cloud environments, causing `PlatformNotSupportedException` at runtime when escalation is attempted. Design around this limitation by keeping all operations on a single connection inside one `SqlTransaction`, using application-level compensation (saga pattern), or choosing a database that supports multi-statement atomic operations without MSDTC.
+
+---
+
+#### Gotcha 8. `Min Pool Size` keeps idle connections open — resource usage in low-traffic periods
+
+**Concepts**
+- `Min Pool Size` default is 0 (no idle connections kept)
+- warm pool reduces first-request latency after idle period
+- idle connections consume SQL Server sessions
+- balance between warm pool and license/connection cost
+- `Min Pool Size` tuning for production traffic patterns
+
+**Answer**
+
+`Min Pool Size` (default 0) controls how many connections remain open in the pool when idle. Setting it to 0 means all connections are closed after the pool idles, causing the first requests after a quiet period to bear the full connection establishment latency. Setting it too high keeps SQL Server sessions open unnecessarily, consuming server memory and potentially conflicting with connection limits or licensing. A `Min Pool Size` of 5–10 balances warm-up latency with idle resource consumption for most production APIs.
+
+---
+
+#### Gotcha 9. Isolation level change not reset after connection returns to pool
+
+**Concepts**
+- connection pool reuses connections without resetting isolation level
+- `SET TRANSACTION ISOLATION LEVEL` persists on a pooled connection
+- subsequent borrower inherits unexpected isolation level
+- `sp_reset_connection` call on pool return does reset isolation level
+- `SqlConnection.Open()` resets to `ReadCommitted` only when pool recycles
+
+**Answer**
+
+SQL Server's `sp_reset_connection` procedure is called when a connection is returned to the pool, and it does reset the isolation level to `ReadCommitted` before the connection is reused. However, isolation level changes made via `SET TRANSACTION ISOLATION LEVEL` T-SQL inside a command (rather than via `SqlTransaction`) may not always be reset correctly in older SQL Server/driver combinations. Always set isolation level through `connection.BeginTransaction(isolationLevel)` rather than raw SQL, and verify behavior explicitly when upgrading driver or SQL Server versions.
+
+---
+
+#### Gotcha 10. Transaction not committed — row locks held until server-side session timeout
+
+**Concepts**
+- uncommitted transaction holds row-level or page locks
+- lock escalation under concurrent writes causes blocking
+- `LockMonitor` / `sys.dm_exec_requests` for lock visibility
+- always `Commit()` or `Rollback()` before returning connection to pool
+- long-running transactions blocking short CRUD operations
+
+**Answer**
+
+An uncommitted `SqlTransaction` holds row or page locks on every row it has touched, blocking other transactions that need to read or modify those rows. If the transaction is never committed or rolled back before the connection is returned to the pool, the locks remain held until the SQL Server session timeout expires (typically many minutes). This causes downstream requests to block or time out, often manifesting as seemingly random slowness that is hard to correlate to the root cause. Always ensure every code path either commits or rolls back the transaction explicitly.
 
 ---
 

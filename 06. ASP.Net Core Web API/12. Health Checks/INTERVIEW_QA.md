@@ -294,231 +294,147 @@ External-facing health endpoints should expose only aggregate status (`Healthy` 
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — Health Checks (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. SQL health check in liveness probe causing restart cascade
 
 **Concepts**
-- HTTP 201 Created with Location header as REST create contract
-- CreatedAtAction / CreatedAtRoute for correct response
-- Resource discovery via Location header
-- Status code semantics for OpenAPI-generated clients
+- Liveness probe — Kubernetes kills and restarts the pod on failure
+- Readiness probe — removes pod from load balancer rotation until ready
+- SQL outage triggering liveness failure — all pods restart, cannot fix external dependency
+- `/health/live` (in-process only) vs `/health/ready` (SQL, Redis, dependencies)
 
 **Answer**
 
-A successful resource creation with POST should return HTTP 201 Created and a `Location` header pointing at the new resource URL, because 200 OK carries no hint that a new resource was created or where to find it. Standard HTTP clients, API gateways, and OpenAPI-generated SDKs all look at the status code first — returning 200 means the response body is the only way to discover the new resource id, and clients that skip parsing the body miss it entirely. Use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with the Location header, and include the created representation or a minimal payload in the body when clients need immediate data without a follow-up GET.
+A liveness probe answers whether the process itself should be killed and restarted — it should only check things a restart can fix, like a deadlock or a corrupted in-process state. Adding a SQL connectivity check to liveness means every pod restarts when the database goes down, producing a restart loop that exhausts pod restart budgets without making any progress. SQL, Redis, and external HTTP dependency checks belong on the readiness probe, which removes the pod from load balancer rotation until the dependency recovers. Restarting the pod cannot fix a database outage.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. Health endpoint requiring authentication — blocking Kubernetes probes
 
 **Concepts**
-- GET as safe and idempotent per HTTP specification
-- Prefetch and crawler risks from side-effecting GETs
-- Caching proxy behavior replaying GET responses
-- Correct HTTP verbs for state-changing operations
+- Kubernetes liveness/readiness probes — unauthenticated HTTP requests from kubelet
+- `[Authorize]` on health controller or global auth filter blocking 200 response
+- `RequireAuthorization()` on `MapHealthChecks` — must use explicit anonymous access
+- Separate anonymous health path vs authenticated detailed health path
 
 **Answer**
 
-GET must be safe and idempotent per HTTP semantics — performing deletes or updates in a GET handler violates the specification, breaks caching proxies that may replay GET responses, and creates security holes when URLs are prefetched by browsers, link-preview crawlers, or email clients. The problem is that these callers invoke GET URLs without user intent, so a delete fires without anyone clicking anything. Cached GET responses can replay destructive operations across clients since the proxy treats the response as a normal cacheable resource. Use POST, PUT, PATCH, or DELETE for any operation that changes state and reserve GET strictly for reads.
+Kubernetes health probes are unauthenticated HTTP requests from the kubelet — they cannot carry a JWT or cookie. If a global authentication policy or `[Authorize]` attribute is applied to the health check endpoints, probes receive `401 Unauthorized` and the pod is killed or removed from rotation. I configure `MapHealthChecks("/health/live")` without `RequireAuthorization()` for basic probes, and provide a separate authenticated endpoint (e.g. `/health/detailed`) for internal monitoring tools that need the full check output with sensitive details about individual service states.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. Slow health check degrading API response time
 
 **Concepts**
-- HTTP status code as the universal success vs failure contract
-- 200 with error flag defeating monitoring, retries, and API gateways
-- ProblemDetails for consistent structured failure responses
-- APM alerting and circuit breakers depending on HTTP status
+- Synchronous health check blocking the thread pool
+- Health check timeout — default no timeout; slow DB query blocks forever
+- `HealthCheckContext.CancellationToken` — respect cancellation from the probe deadline
+- Caching health check results — `MapHealthChecks` with `CacheDuration` option
 
 **Answer**
 
-Business failures must map to appropriate 4xx or 5xx status codes because HTTP status is the universal contract that drives client retry logic, API gateway circuit breakers, and APM alerting thresholds — a 200 response with `success: false` in the body masks every failure from every system that does not parse the body. API gateways route and throttle on status code; if every response is 200, failed calls look healthy in dashboards and no alert fires. Return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for semantic rejections. Envelope patterns like `{ success: false }` require every consumer to implement a custom parser and break OpenAPI contract expectations.
+A health check that executes a full-table SQL query or waits for a slow external HTTP call can take seconds per probe. Under high-frequency probing combined with concurrent requests, health checks consume thread pool capacity and degrade API throughput. I use lightweight connectivity checks (`SELECT 1` rather than business queries), respect the `CancellationToken` in `CheckHealthAsync` to honor probe timeouts, and configure a cache duration on `MapHealthChecks` options so repeated rapid polls return the cached result rather than re-running every check on each probe call.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. `HealthStatus` mapping to non-standard HTTP status codes
 
 **Concepts**
-- EF entity navigation properties not suitable for public HTTP contracts
-- Lazy-loading N+1 triggered during JSON serialization
-- Circular reference serializer loops
-- DTO decoupling API contract from persistence schema
+- Default: `Healthy` and `Degraded` both return HTTP 200; `Unhealthy` returns 503
+- `Degraded` returning 200 — load balancer treats pod as fully healthy despite degradation
+- Custom `ResultStatusCodes` mapping `Degraded` to 207 or 503 for stricter routing
+- Load balancer health check — only respects HTTP 200/non-200, not JSON body content
 
 **Answer**
 
-EF Core entities carry navigation properties, change-tracker state, and database-internal fields that were never meant to be a public HTTP contract, so serializing them directly leaks schema details and invites circular reference errors. Lazy-loaded navigations trigger N+1 queries during serialization when the JSON serializer walks the object graph — each navigation fires a new SQL query, exhausting the connection pool under load. Circular references between related entities cause the JSON serializer to loop indefinitely or require fragile `ReferenceHandler.IgnoreCycles` settings that hide design problems. Map entities to DTOs with explicit shapes in the service layer or via EF projection so the API contract evolves independently of table schema changes.
+By default, `Degraded` status maps to HTTP 200, so a load balancer health check sees a degraded pod as fully healthy and continues sending traffic. Depending on what "degraded" means (one secondary dependency unavailable vs primary cache miss), returning 200 may be correct or may send traffic to a pod that cannot serve it correctly. I configure `ResultStatusCodes` in `MapHealthChecks` to map `Degraded` to `207 Multi-Status` (distinguishable from success) or `503 Service Unavailable` for strict setups where any degradation should remove the pod from rotation.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. `AddDbContextCheck` exhausting the connection pool
 
 **Concepts**
-- System.Text.Json defaulting to camelCase serialization in ASP.NET Core 8
-- Silent binding failure from PascalCase client payloads
-- JsonPropertyName and PropertyNamingPolicy as alignment tools
-- PropertyNameCaseInsensitive for legacy mixed-casing clients
+- `AddDbContextCheck<TContext>()` — opens a connection and executes `CanConnectAsync()`
+- Probe frequency times pod count times connection pool size — pool exhaustion under high-frequency probing
+- Short-lived connection per health check — connections returned to pool, but rapid probing opens many
+- Single dedicated low-pool-size DbContext for health checks vs sharing with request pool
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON serialization via `System.Text.Json`, so PascalCase property names from legacy clients bind as missing properties because the case does not match — the model properties default to `null` or `0` rather than the values the client sent. The failure is silent: the request returns 201 or 204 with no validation error, but the persisted record has default values instead of the submitted data. Fix with `[JsonPropertyName("PropertyName")]` attributes on DTO properties or a custom `PropertyNamingPolicy` to align server expectations with legacy payloads. When accepting mixed casing from various clients, enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)`.
+`AddDbContextCheck<AppDbContext>()` opens a database connection on every probe to verify connectivity. With a 10-second probe interval and 20 pods, that is 2 connections per second just for health checks. In combination with request traffic, this can exhaust the connection pool, causing health checks to fail not because the database is down but because the pool is exhausted — a self-inflicted false negative that removes all pods from rotation. I register a separate minimal `DbContext` with a pool size of 2 dedicated to health checks, isolated from the request-serving connection pool.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. Startup probe vs liveness probe — pod killed before app warms up
 
 **Concepts**
-- GET request body not reliably supported across the HTTP ecosystem
-- [FromBody] on GET failing silently through proxies and caches
-- [FromQuery] for simple filters as the correct alternative
-- OpenAPI tools and browser fetch blocking GET bodies
+- Startup probe — disables liveness and readiness until startup succeeds; prevents kill during warmup
+- Without startup probe — liveness fails during slow startup (migrations, warm-up), pod restarted repeatedly
+- `failureThreshold` times `periodSeconds` — startup probe timeout window
+- `MapHealthChecks("/health/startup")` for a dedicated startup-complete check
 
 **Answer**
 
-Many HTTP clients, proxies, CDNs, and caches ignore or strip GET request bodies because the HTTP specification does not define semantics for GET bodies — filters sent as JSON in GET requests fail silently or never reach the action in ASP.NET Core 8. Model binding for `[FromBody]` on GET is therefore unreliable across the full HTTP ecosystem even if it works in direct testing. Use query strings with `[FromQuery]` for simple filter parameters, or POST to a dedicated search endpoint for complex filter objects that do not fit in a URL. Browser fetch API and OpenAPI tooling also discourage or block GET bodies, making the pattern fragile in any production environment where the full request path includes a proxy.
+On slow-starting applications — those that run database migrations, warm up caches, or compile Roslyn expressions at startup — liveness probes may fire before the app is ready to respond, causing the pod to be killed and restarted in a loop. The startup probe prevents this by disabling liveness and readiness checks until the startup probe succeeds, effectively giving the app an extended grace period. I map a `/health/startup` endpoint that returns `Healthy` only after all startup tasks complete, configure Kubernetes with `startupProbe` using a long timeout, and switch to the standard liveness probe thereafter.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. Health check tags not used for readiness-only filtering
 
 **Concepts**
-- CORS as browser-only enforcement — not server-side authentication
-- Non-browser clients unaffected by CORS headers
-- Authentication and authorization as actual server protection
-- CORS enabling SPA browser access alongside real auth
+- `AddCheck<T>("check", tags: new[] { "ready" })` — tag categorizes the check
+- `MapHealthChecks("/health/ready", opts => opts.Predicate = c => c.Tags.Contains("ready"))` — filters by tag
+- Without predicate — all checks run on all endpoints regardless of probe type
+- `live` tag for lightweight checks; `ready` tag for dependency checks
 
 **Answer**
 
-CORS is enforced by browsers only — it prevents JavaScript on one origin from reading cross-origin responses, but it does nothing to stop curl, Postman, server-to-server calls, or any direct API request. The `Access-Control-Allow-Origin` header is a signal browsers check after receiving the response; a non-browser client simply ignores it and reads the data. A public API without authentication is fully accessible to any non-browser caller regardless of CORS policy, so CORS is never a substitute for JWT, API keys, or cookies. Register `AddCors` and `UseCors` to enable browser SPA access on cross-origin calls, and enforce actual authentication and authorization separately for real protection.
+Without filtering by tags, every registered health check runs on every health endpoint — liveness, readiness, and startup probes all execute SQL, Redis, and external HTTP checks. This negates the liveness vs readiness separation because the liveness probe still fails when SQL is down even if it only runs the SQL check because all checks run on all paths. I tag checks as `"ready"` or `"live"` and use `Predicate = c => c.Tags.Contains("ready")` on `MapHealthChecks("/health/ready")` so each endpoint runs only the checks appropriate for its probe type.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. Health check response exposing sensitive internal details to public
 
 **Concepts**
-- Browser rejection of wildcard origin on credentialed requests
-- AllowAnyOrigin and AllowCredentials as mutually exclusive
-- WithOrigins for explicit trusted frontend origins
-- Access-Control-Allow-Credentials header requirement
+- Default JSON response — includes check names, descriptions, exception messages
+- Exception message revealing internal topology (server names, connection strings)
+- `Predicate` and `ResponseWriter` customization — control what is exposed
+- Authenticated detailed endpoint vs anonymous summary endpoint
 
 **Answer**
 
-Browsers reject a response with `Access-Control-Allow-Origin: *` when the request includes cookies or an `Authorization` header, because the CORS specification explicitly forbids wildcard origins on credentialed cross-origin requests. `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined — ASP.NET Core will not emit a valid CORS response for credentialed requests when both are set. Instead, use `WithOrigins("https://app.example.com", "https://localhost:3000")` to list every trusted frontend origin explicitly, including local development URLs and all production domains. The browser also requires `Access-Control-Allow-Credentials: true` in the response, which `AllowCredentials()` handles.
+The default `HealthCheckOptions.ResponseWriter` serializes the full check result including exception messages, which may include the database server name, connection string fragments, or internal network hostnames. This is exposed to any caller who can reach the health endpoint — including internet-facing probes on a public API. I use a custom `ResponseWriter` on the public health endpoint that returns only `{"status":"Healthy"}` or `{"status":"Unhealthy"}` without any detail, and provide a separate authenticated endpoint with full JSON output for internal use by operations teams.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. Non-representative health check — database accessible but app logic broken
 
 **Concepts**
-- Swagger UI disclosing full API surface and schema to public internet
-- Environment checks wrapping MapSwagger and UseSwaggerUI
-- OpenAPI document exposure revealing endpoint names and enum values
-- Authentication or IP allowlist gating for API documentation
+- `SELECT 1` confirms connectivity but not that business queries work
+- Health check passing while migrations are missing or schema is wrong
+- Business-critical query as health check — lightweight SELECT from key table
+- "Health" from the user's perspective vs infrastructure perspective
 
 **Answer**
 
-Public Swagger UI discloses the full API surface, all schemas, enum values, and try-it-out access to anyone who finds the URL — giving potential attackers a complete map of your endpoints and data structures without any effort. Gate `MapSwagger` and `UseSwaggerUI` in `Program.cs` behind environment checks so they run only in Development and Staging, or require authentication middleware before the Swagger middleware. Production APIs should serve OpenAPI documents only to authenticated developers or internal tooling, not the public internet. Exposed OpenAPI documents reveal internal endpoint names, field names, and request schemas that are directly useful for targeted reconnaissance.
+A health check that only verifies connectivity (`SELECT 1` or `CanConnectAsync()`) returns `Healthy` even when the database is missing required tables (due to missing migrations), or query indexes are dropped causing timeouts. A pod can pass all health checks while being completely unable to serve business requests. I add a simple business-representative query to the readiness check — a fast `COUNT(1)` from the most-used table — which validates that the schema is correct and queries execute within a reasonable time, not just that the TCP connection is open.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. `IHealthCheck` returning `Unhealthy` on transient failure without retry
 
 **Concepts**
-- [ApiController] enabling automatic ModelStateInvalidFilter
-- Binding source inference for complex types
-- Mixed controllers producing inconsistent error contracts
-- Assembly-level [ApiController] for uniform behavior
+- Single transient network hiccup — check returns `Unhealthy`, pod removed from rotation
+- Retry logic or tolerance in health check vs instant failure
+- `Degraded` for marginal but functional state vs `Unhealthy` for fully non-functional
+- `HealthCheckOptions.Predicate` and Kubernetes `failureThreshold` for tolerance
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses, binding source inference for complex types, and attribute routing enforcement all differ from controllers that have the attribute — so mixed controllers in the same API produce inconsistent error shapes that break partner integrations. A controller missing `[ApiController]` may return 200 OK with a partially bound model when model validation fails, because `ModelStateInvalidFilter` does not run, and `[FromBody]` is not inferred for complex parameters. Apply `[ApiController]` at the controller or assembly level using `[assembly: ApiController]` in an attribute file so every endpoint shares the same conventions without per-class annotation.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- Sync-over-async causing thread-pool starvation under load
-- Deadlock when synchronization context is held during blocking call
-- async Task<IActionResult> propagating await through service layer
-- Kestrel throughput reduction from blocked request threads
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` in async API actions causes thread-pool starvation under load because the calling thread is blocked waiting for I/O to complete while no thread is available to process the continuation. Deadlocks also occur in environments with a synchronization context when the blocked thread holds the context that the async continuation needs to resume on — the task never completes because the thread it needs is the thread that is waiting for it. Always `await` async service and database calls in controller actions, which means the action signature is `async Task<IActionResult>` and the `await` propagates through the entire service and repository layer. Kestrel processes many concurrent requests efficiently precisely because async I/O frees threads while waiting — sync-over-async defeats this design entirely.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness as process restart signal — unrelated to external dependency recovery
-- Readiness as traffic drain signal for dependency failures
-- Kubernetes restart loop from liveness including external checks
-- Tag-based separation of liveness and readiness health checks
-
-**Answer**
-
-If the liveness probe includes SQL and the database goes down for maintenance, Kubernetes kills and restarts pods even though restarting cannot fix a database outage — creating a restart loop that adds startup overhead and delays recovery. Liveness answers whether the ASP.NET Core process is alive and responsive; it should return healthy as long as the process can handle an HTTP request, independent of downstream dependencies. Readiness answers whether the instance should receive traffic; SQL, Redis, and message bus checks belong here because a failing dependency means the instance will return errors. Map `/health/live` with a tag predicate selecting only the self-check and `/health/ready` with the predicate selecting `AddDbContextCheck` and other dependency checks.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- N+1 pattern: one parent query plus N child queries per row
-- Lazy loading triggering extra SQL during serialization
-- EF projection with Select fetching only required columns
-- Include/ThenInclude for explicit eager loading in one round trip
-
-**Answer**
-
-N+1 occurs when a list endpoint loads a parent collection and then each item triggers an additional query for a related navigation — one query for 100 orders plus 100 queries for each order's customer. The most common cause in APIs is serializing entity objects with lazy-loaded navigation properties: the JSON serializer accesses a navigation, EF fires a SELECT, and this repeats once per row. Fix with a single translated query: project directly to DTOs using `.Select(o => new OrderDto { CustomerName = o.Customer.Name })` so EF generates one SQL JOIN, or use explicit `.Include(o => o.Customer)` before materialization. Validate with EF logging or APM to confirm list endpoints produce a fixed small number of SQL round trips regardless of result set size.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination page drift from concurrent inserts and deletes
-- Skip/Take without stable OrderBy producing undefined row order
-- Keyset pagination anchored to a stable indexed key
-- Large OFFSET performance cost scanning and discarding preceding rows
-
-**Answer**
-
-Concurrent inserts and deletes shift row positions in the dataset while a client walks pages — a new row inserted at page 1 pushes all subsequent rows one position, so page 2 either repeats the last row of page 1 or skips a row entirely. `Skip((page - 1) * pageSize).Take(pageSize)` also requires the database to count and discard all preceding rows, which becomes expensive on large offsets. Keyset pagination avoids both problems by using `WHERE id > @lastSeenId ORDER BY id LIMIT @pageSize` with the last key from the previous response — no scanning skipped rows and no drift because the filter is anchored to a specific key rather than a count. Offset pagination remains acceptable for small mostly-static tables; expose cursor tokens in link headers or response metadata for high-churn datasets.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers executing one database query per parent row
-- DataLoader batching concurrent field resolutions into a single query
-- 101 queries for a 100-row list without batching
-- Root-level eager loading as alternative for static parent-child fields
-
-**Answer**
-
-Field resolvers in HotChocolate or other GraphQL servers execute independently per parent row — resolving `books` for each of 100 authors runs 100 separate queries plus the initial author query, totaling 101 round trips. DataLoader batches concurrent field resolutions within a single request: all 100 `books` resolver calls accumulate the author ids during the execution tick, then DataLoader fires one grouped query for all of them at once. Register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips automatically. For fields the client almost always requests together with the parent, eager-load or project at the root query level rather than using DataLoader.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC HTTP/2 binary framing not accessible to browser JavaScript
-- gRPC-Web protocol as browser-compatible translation layer
-- AddGrpcWeb and EnableGrpcWeb for middleware setup
-- CORS configuration required alongside gRPC-Web for cross-origin calls
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript APIs — browsers cannot control trailers or binary framing at the level gRPC requires, so `@grpc/grpc-js` in the browser fails. Browser clients need the gRPC-Web protocol, which translates between the browser-accessible HTTP/1.1 or HTTP/2 fetch API and the native gRPC binary format via ASP.NET Core middleware. Add `AddGrpcWeb()` to services and call `.EnableGrpcWeb()` on each mapped gRPC service to activate the translation layer. CORS must also be configured for the browser origin because cross-origin browser calls still enforce CORS preflight and response header checks regardless of gRPC-Web. Standard .NET or Node gRPC clients communicating server-to-server continue using native gRPC without gRPC-Web.
+A health check that calls an external HTTP API and immediately returns `Unhealthy` on a single timeout may cause the pod to be removed from rotation due to a 500ms network glitch that the application would have retried successfully in normal request processing. I build tolerance into the health check by retrying once with a short delay before returning `Unhealthy`, or by returning `Degraded` for a single failure and `Unhealthy` only after two consecutive failures. Kubernetes `failureThreshold: 3` on the readiness probe adds a second layer of tolerance, keeping the pod in rotation through transient network instability.
 
 ---
 

@@ -635,3 +635,68 @@ Developers sometimes implement `IClaimsTransformation` with an unconditional dat
 When an `IAuthorizationRequirement` is added to a policy but no `IAuthorizationHandler` is registered for it, the requirement is never satisfied and the policy fails with 403 Forbidden — but no exception, warning, or log entry indicates the missing registration. This makes the bug invisible at startup; the application runs without error but every request hitting that policy is silently denied, which can look identical to a correctly configured access-denied scenario. The diagnostic approach is to inspect `AuthorizationResult.Failure.FailedRequirements` in a logging middleware or to temporarily add verbose authorization event logging to surface which requirements were left unsatisfied.
 
 ---
+
+#### Gotcha 6. `[Authorize(Roles = "Admin,Manager")]` Uses OR Logic — Not AND
+
+**Concepts**
+- Comma-separated roles in a single `[Authorize]` attribute evaluated as OR
+- Stacking two `[Authorize]` attributes required for AND semantics
+- Policy-based authorization as the preferred approach for complex role combinations
+
+**Answer**
+
+A single `[Authorize(Roles = "Admin,Manager")]` attribute allows access if the user is in **either** the Admin role **or** the Manager role — the comma is a separator for an OR condition, not AND. Developers who intend to require both roles must stack two separate attributes: `[Authorize(Roles = "Admin")]` on one line and `[Authorize(Roles = "Manager")]` on the next, because multiple `[Authorize]` attributes combine with AND semantics. For complex role combinations, policy-based authorization with a `RequireRole` policy or a custom `IAuthorizationRequirement` is the more maintainable approach because the intent is explicit in code rather than implicit in a comma-separated string.
+
+---
+
+#### Gotcha 7. `ClaimsPrincipal.HasClaim` Type Comparison Is Case-Sensitive
+
+**Concepts**
+- `HasClaim(type, value)` using `Ordinal` string comparison for the claim type
+- `ClaimTypes.Role` URI vs short string `"role"` or `"roles"` — treated as different types
+- JWT Bearer not mapping short claim names to `ClaimTypes` constants without explicit configuration
+
+**Answer**
+
+`ClaimsPrincipal.HasClaim(string type, string value)` compares the claim type using `Ordinal` (case-sensitive, culture-insensitive) string comparison. Because `ClaimTypes.Role` is the long URI `http://schemas.microsoft.com/ws/2008/06/identity/claims/role`, and JWT tokens commonly use the short string `"role"` or `"roles"`, a call to `User.HasClaim(ClaimTypes.Role, "Admin")` will return `false` when the token contains `"roles": "Admin"` unless the JWT Bearer handler is configured to map the short name to the long URI via `TokenValidationParameters.RoleClaimType`. The safest approach for heterogeneous environments is to write policies using `RequireClaim("roles", "Admin")` with the exact claim type string the identity provider emits.
+
+---
+
+#### Gotcha 8. `RequireAssertion` Cannot Inject Scoped Services — Use a Custom `IAuthorizationHandler` Instead
+
+**Concepts**
+- `RequireAssertion` accepting a synchronous or async delegate with no DI injection point
+- Scoped service captured via closure from a Singleton policy builder — stale or disposed context
+- `IAuthorizationHandler` registered as Scoped as the injection-safe alternative
+
+**Answer**
+
+`policy.RequireAssertion(async context => { ... })` is convenient for simple inline rules, but the delegate has no DI injection point — any scoped service such as `DbContext` must be accessed via `context.Resource` or closure capture, both of which are unsafe. Capturing a `DbContext` from a `Singleton` policy builder creates a single long-lived context that becomes stale and eventually throws `ObjectDisposedException`. For authorization rules that need database access — such as "the user must own the resource they are accessing" — the correct approach is a custom `IAuthorizationHandler<TRequirement>` registered as `Scoped`, which receives services through its constructor and is instantiated fresh per request.
+
+---
+
+#### Gotcha 9. Resource-Based Authorization Requires Passing the Resource Explicitly to `IAuthorizationService`
+
+**Concepts**
+- `[Authorize(Policy)]` attribute not carrying the resource instance — only metadata
+- `IAuthorizationService.AuthorizeAsync(user, resource, policy)` required for resource context
+- `context.Resource` null when called via attribute — handler must guard against null
+
+**Answer**
+
+The `[Authorize(Policy = "OwnerOnly")]` attribute triggers authorization but does not pass any resource object to the handler — `AuthorizationHandlerContext.Resource` is `null` when authorization is driven by the attribute alone. Resource-based authorization requires calling `IAuthorizationService.AuthorizeAsync(User, resource, "OwnerOnly")` programmatically from within the action method, passing the specific entity (e.g., a loaded `Order` object) as the resource argument. A handler that tries to read `context.Resource` and cast it to the expected type without null-checking will throw a `NullReferenceException` when invoked via the attribute path. The pattern is: load the resource, call `AuthorizeAsync` with it, return `Forbid()` if it fails, and only proceed with the action if it succeeds.
+
+---
+
+#### Gotcha 10. `User.FindFirstValue` Returns `null` for Missing Claims — Not an Empty String
+
+**Concepts**
+- `FindFirstValue` returning `null` when no matching claim exists
+- Null-reference or silent logic errors when the result is used without null-check
+- `FindAll` as the safe alternative when multiple values are expected
+
+**Answer**
+
+`ClaimsPrincipal.FindFirstValue(claimType)` returns `null` when no claim of the specified type is present on the principal — it does not return an empty string or throw an exception. Code that passes the result directly to a comparison or string method without a null-check — such as `if (User.FindFirstValue("department") == "Engineering")` — will evaluate to `false` silently when the claim is absent, which is correct by accident. Code that passes the result to `int.Parse(...)` or uses it as a parameter to a database query will throw a `NullReferenceException` or `ArgumentNullException`. The safe pattern is to null-check before use: `var dept = User.FindFirstValue("department"); if (dept is null) { return Forbid(); }`, or to use `FindAll` and check `Any()` when the claim may appear zero or more times.
+
+---

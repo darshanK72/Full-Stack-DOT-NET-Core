@@ -208,79 +208,147 @@ Converting an anonymous method to a lambda is mechanical. Replace `delegate(T1 p
 
 ---
 
-## Gotchas
+## Gotchas — Anonymous Methods (Interview Traps)
 
 ---
 
-## Q13. Why can you not use `yield return` inside an anonymous method?
+#### Gotcha 1. Anonymous Method vs Lambda — `delegate(int x) { }` Is Legacy Syntax
 
 **Concepts**
-- iterator method restriction
-- state machine generation requirement
-- anonymous method compilation model
-- workaround using local function
+- anonymous method syntax uses the `delegate` keyword
+- lambda syntax using `=>` is the modern replacement
+- lambdas support expression tree conversion; anonymous methods do not
+- `delegate { }` without a parameter list is one anonymous method advantage over lambdas
 
 **Answer**
 
-`yield return` transforms a method into a state machine, and the C# compiler requires the entire method to be designated as an iterator — a constraint that anonymous methods cannot satisfy because they have no return type declaration that the compiler can change to `IEnumerable<T>`. Attempting to use `yield return` inside a `delegate { }` block causes a compile error. The idiomatic workaround before C# 7 was to extract a named iterator method. Since C# 7, local functions provide a cleaner in-place solution: `IEnumerable<int> GetItems() { yield return 1; yield return 2; }` defined inside the outer method captures the same enclosing variables without needing a class-level method. If you truly need an anonymous-method-like syntax, LINQ's `Select` and `SelectMany` often replace what a yield-based closure would have done.
+Anonymous methods using the `delegate` keyword were introduced in C# 2.0 and are now considered legacy syntax. Lambdas introduced in C# 3.0 are shorter, support expression tree conversion, and are preferred in all new code. The one case where anonymous methods retain an advantage is the parameterless form `delegate { }`, which can be assigned to any delegate type regardless of parameter count — useful as a no-op event handler that intentionally discards all parameters without listing them.
 
 ---
 
-## Q14. What happens when two anonymous methods capture the same outer variable?
+#### Gotcha 2. Anonymous Methods Cannot Use `yield return`
 
 **Concepts**
-- shared display class instance
-- aliased field access
-- unintended mutation coupling
-- multi-delegate interaction
+- `yield return` requires the compiler to generate an iterator state machine
+- state machine generation requires a full method declaration with a return type
+- anonymous method lacks a named return type the compiler can transform
+- local function is the correct in-scope iterator replacement
 
 **Answer**
 
-When multiple anonymous methods in the same scope capture the same outer variable, the compiler places all of them into the same display class instance. This means they all share the same field representing that variable, and any write performed through one anonymous method is immediately visible to all others. This coupling is often unintentional — a developer writes two seemingly independent closures, tests them in isolation, and is surprised when invoking one changes the observable state seen by the other. The fix is to ensure that each closure that needs an independent copy of a value captures a separate local: `var a1 = val; var a2 = val; Action f1 = delegate { Use(a1); }; Action f2 = delegate { Use(a2); };`. The two locals get separate display class fields and mutations are isolated.
+The `yield return` statement transforms the enclosing method into a state machine whose return type is `IEnumerable<T>` or `IEnumerator<T>`. Anonymous methods compile to hidden static or instance methods without a declared return type the compiler can change to an iterator type, so using `yield return` inside a `delegate { }` block is a compile-time error. The recommended replacement is a local function, which has a named return type declaration and full support for `yield return`, while still being declared inline within the enclosing method.
 
 ---
 
-## Q15. Why does an event handler using an anonymous method create a memory leak risk?
+#### Gotcha 3. Parameter List Can Be Omitted When No Parameters Are Used
 
 **Concepts**
-- event subscription lifetime
-- publisher–subscriber lifetime coupling
-- GC root via delegate reference
-- inability to unsubscribe anonymous delegate
-- weak event pattern
+- `delegate { body }` compiles against any delegate type
+- useful for no-op event handlers that discard sender and args
+- lambda requires an explicit parameter list even when parameters are unused
+- potential confusion with a zero-parameter delegate type
 
 **Answer**
 
-When you subscribe to an event with an anonymous method and never unsubscribe, the event's invocation list holds a delegate that in turn holds a reference to the display class (or the subscriber object captured inside it). This keeps the subscriber alive in memory as long as the event source is alive, even if the subscriber has logically finished its work. In long-lived objects such as singletons, static event sources, or application-lifetime services, this becomes a genuine memory leak pattern. Because you have no stored reference to the anonymous delegate, you cannot call `-=` on it. The fix is to store the delegate in a variable so you can unsubscribe, use a weak event pattern (via `WeakReference` or the WeakEventManager in WPF), or design the subscription lifetime to match the subscriber's lifetime explicitly.
+An anonymous method written as `delegate { DoWork(); }` with no parentheses at all can be assigned to any delegate type regardless of how many parameters the delegate declares, because the compiler does not expose the parameters inside the body. This is the one syntactic feature anonymous methods have over lambdas, which always require an explicit parameter list (even an empty one or a discard). It is most useful for subscribing to events where you want to perform a side effect but have no interest in the sender or event arguments.
 
 ---
 
-## Q16. Can an anonymous method be used where an `Expression<Func<T>>` is expected?
+#### Gotcha 4. Variable Capture Semantics Identical to Lambdas — Same Loop-Closure Trap
 
 **Concepts**
-- expression tree vs delegate
-- compile-time representation
-- lambda-only conversion
-- LINQ IQueryable requirement
+- anonymous method captures the variable reference, not a value snapshot
+- shared display class field for all closures in the same scope
+- `for` loop counter is shared across all iterations
+- local copy inside the loop body is required for independent captures
 
 **Answer**
 
-No. Expression trees require the compiler to capture the code as a data structure (an abstract syntax tree) rather than compiling it to IL. This analysis happens only when a lambda expression is assigned to an `Expression<TDelegate>` type. Anonymous methods use the `delegate` keyword and are always compiled directly to IL; the compiler has no mechanism to treat them as expression trees. Practically, this means anonymous methods cannot be passed to LINQ providers like Entity Framework's `IQueryable<T>` extension methods, which use `Expression<Func<T, bool>>` parameters to translate predicates to SQL. You must use lambda syntax there. This is a concrete reason why modern C# code overwhelmingly prefers lambdas: they are a strict superset of anonymous methods for functional-style scenarios.
+Anonymous methods and lambdas use the same compiler mechanism for closure capture: both promote captured variables to fields on a display class and share a single field for all closures in the same scope. This means the classic for-loop variable capture bug applies equally to anonymous methods: `for (int i = 0; i < 5; i++) list.Add(delegate { Console.WriteLine(i); });` prints `5` five times. The fix is identical — declare `int copy = i;` inside the loop body and capture `copy` instead.
 
 ---
 
-## Q17. Is it safe to use an anonymous method inside a multi-threaded loop?
+#### Gotcha 5. Anonymous Methods Cannot Be Converted to Expression Trees
 
 **Concepts**
-- shared mutable captured variable
-- race condition
-- display class field access
-- `Interlocked` or lock requirement
-- thread-local copy pattern
+- expression tree conversion requires lambda syntax
+- anonymous method always compiles to IL
+- `IQueryable<T>` providers require `Expression<Func<T,bool>>` for SQL translation
+- replacing anonymous methods with lambdas is required for ORM usage
 
 **Answer**
 
-Not without explicit synchronization. If an anonymous method captures a variable and multiple threads invoke delegates that close over it concurrently, all threads access the same display class field without any memory ordering guarantees. This is a classic data race. A common mistake is capturing a loop counter in a multi-threaded scenario: `for (int i = 0; i < 10; i++) { ThreadPool.QueueUserWorkItem(delegate { Console.WriteLine(i); }); }`. Here all delegates share the same `i` field, and by the time they execute, `i` may have already reached 10. The fix is to copy the loop variable into a local before the delegate: `int copy = i; ThreadPool.QueueUserWorkItem(delegate { Console.WriteLine(copy); });`. For shared mutable state across threads, use `Interlocked` operations or `lock` on a dedicated object.
+Expression tree conversion is a compile-time feature available only for lambda expressions. When you assign a lambda to `Expression<Func<T, bool>>`, the compiler emits AST construction code instead of IL for the body. Anonymous methods using the `delegate` keyword always compile to IL and cannot be assigned to `Expression` types. This means anonymous methods are incompatible with Entity Framework Core and other `IQueryable` providers that depend on expression trees for SQL translation — the method must be rewritten as a lambda.
+
+---
+
+#### Gotcha 6. `goto` Inside an Anonymous Method Cannot Jump to an Outside Label
+
+**Concepts**
+- `goto` label scope is restricted to the anonymous method body
+- control flow cannot escape the anonymous method via `goto`
+- `break` and `continue` are similarly scoped to the anonymous method
+- extract code outside the anonymous method if cross-body flow is needed
+
+**Answer**
+
+The `goto`, `break`, and `continue` statements inside an anonymous method can only target labels and loops within the anonymous method's own body. Attempting to jump to a label declared outside the anonymous method is a compile-time error. This scoping rule exists because the anonymous method compiles to a separate hidden method; a `goto` across method boundaries has no IL equivalent. If the desired control flow genuinely needs to exit the anonymous method's scope, restructure the logic so the condition is checked after the delegate returns, using a return value or a captured boolean flag.
+
+---
+
+#### Gotcha 7. Anonymous Method Type Inference — Cannot Use `var` for Assignment
+
+**Concepts**
+- anonymous method has no standalone type
+- requires an explicit delegate type on the left side
+- `var` inference fails with no target type
+- compile error when no surrounding context provides the delegate type
+
+**Answer**
+
+Like lambdas before C# 10, anonymous methods have no natural type of their own. Assigning `var handler = delegate(int x) { return x * 2; };` is a compile-time error because the compiler cannot infer a delegate type from the anonymous method alone. The variable must be given an explicit type: `Func<int, int> handler = delegate(int x) { return x * 2; };` or a custom delegate type. Even in C# 10+, the natural type feature that allows `var` with lambdas does not extend to anonymous methods using the `delegate` keyword.
+
+---
+
+#### Gotcha 8. Removing an Anonymous Method Event Handler Requires a Stored Reference
+
+**Concepts**
+- each `delegate { }` expression creates a new delegate instance
+- `-=` with a second anonymous method expression never matches the first
+- must store the anonymous method in a field before subscribing
+- named method or stored delegate is the only way to unsubscribe
+
+**Answer**
+
+When you subscribe to an event with an inline anonymous method, the delegate instance created by that expression is never stored anywhere accessible for later removal. A subsequent `-=` with a different anonymous method expression — even with the same body — creates a fresh delegate instance that does not match the subscribed one, so `Delegate.Remove` finds no match and the subscription persists silently. The only way to unsubscribe is to save the delegate in a field before calling `+=`: `EventHandler h = delegate { Handle(); }; obj.Event += h;`, then call `obj.Event -= h;` when cleanup is needed.
+
+---
+
+#### Gotcha 9. `params` in Anonymous Methods — Allowed but Rarely Used Correctly
+
+**Concepts**
+- anonymous method parameter list can include the `params` keyword
+- must match the delegate type's `params` signature exactly
+- `Func` and `Action` do not support `params` parameters
+- custom delegate type required to use this feature
+
+**Answer**
+
+Anonymous methods can declare a `params` parameter as long as the delegate type they are assigned to also declares a `params` parameter with a matching element type. However, the generic `Func` and `Action` families do not include any overloads with `params` parameters, so this feature is only accessible when using a custom-declared delegate type. In practice, `params` in anonymous methods is rarely encountered because the use cases are narrow, and modern code tends to use lambda expressions and collection expressions instead.
+
+---
+
+#### Gotcha 10. Anonymous Method in Generic Context — Enclosing Type Parameters Are Available
+
+**Concepts**
+- anonymous method can use type parameters of the enclosing generic method
+- the compiler-generated display class is also generic with those type parameters
+- type parameter is not re-declared inside the anonymous method
+- capture semantics are identical to non-generic contexts
+
+**Answer**
+
+An anonymous method declared inside a generic method has access to that method's type parameters and uses them correctly. The compiler makes the generated display class generic with the same type parameters, so the captured type context is preserved. For example, inside `void Process<T>(T value)`, writing `Action printer = delegate { Console.WriteLine(value.ToString()); };` correctly closes over `value` of type `T` without requiring any special syntax. This is sometimes surprising to developers who expect type parameters to be lost in anonymous method compilation, but the generated display class handles the generics transparently.
 
 ---
 

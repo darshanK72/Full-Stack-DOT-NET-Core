@@ -364,140 +364,157 @@ In modern MVVM patterns, binding-driven property changes use `INotifyPropertyCha
 
 ---
 
-## Gotchas & Traps
+## Gotchas — Threads & Thread Lifecycle (Interview Traps)
 
 ---
 
-## Q16. Why was Thread.Abort() removed in .NET Core and what should you use instead?
+#### Gotcha 1. Thread.Abort() Is Removed in .NET Core
 
 **Concepts**
-- ThreadAbortException injection into arbitrary IL
-- Cannot abort blocked native calls
-- Leaves shared state inconsistent
-- CancellationToken as the cooperative replacement
-- CancellationTokenSource.Cancel()
+- Thread.Abort() injected ThreadAbortException at arbitrary IL points
+- Could not abort blocked native/P/Invoke calls
+- Left shared state inconsistent mid-operation
+- PlatformNotSupportedException thrown in .NET 5+
+- CancellationToken is the cooperative replacement
 
 **Answer**
 
-`Thread.Abort()` worked by injecting a `ThreadAbortException` at an arbitrary point in the target thread's execution. The fundamental problem is that the thread may be in the middle of a multi-step operation — updating a data structure, writing to a file, executing inside a `catch` or `finally` block — and the abrupt exception leaves that operation half-done. Even with `finally` blocks, the cleanup code itself could be aborted. Additionally, if the thread was blocked inside an unmanaged (P/Invoke) call, `Abort()` had no effect and the thread simply kept running.
-
-The replacement is cooperative cancellation via `CancellationToken`. The worker periodically checks `token.ThrowIfCancellationRequested()` at safe points — points where it is appropriate to stop — and the infrastructure disposes any held resources through normal code paths.
-
-```csharp
-void Worker(CancellationToken token)
-{
-    while (!token.IsCancellationRequested)
-    {
-        DoUnitOfWork();
-        token.ThrowIfCancellationRequested();
-    }
-}
-```
-
-This gives the worker full control over when it stops, ensuring invariants are maintained. In .NET 5+, calling `Thread.Abort()` throws `PlatformNotSupportedException`.
+`Thread.Abort()` was removed in .NET Core because it injected `ThreadAbortException` at an unpredictable point in the target thread's execution, potentially leaving data structures half-updated even if `finally` blocks ran. In .NET 5+, calling it throws `PlatformNotSupportedException`. The replacement is `CancellationToken`: the worker periodically calls `token.ThrowIfCancellationRequested()` at safe checkpoints, giving it full control over when it stops and ensuring invariants are maintained.
 
 ---
 
-## Q17. What is the variable capture trap in loop-started threads?
+#### Gotcha 2. Foreground Threads Prevent Process Exit
 
 **Concepts**
-- Closure captures variable by reference, not by value
-- Loop variable mutated before thread starts
-- All threads see the same final value
-- Fix: copy to a local variable inside the loop
+- Thread.IsBackground defaults to false (foreground)
+- CLR waits for all foreground threads before exiting
+- Background threads are killed when last foreground thread ends
+- ThreadPool threads are always background
+- Test runners can hang because of forgotten foreground threads
 
 **Answer**
 
-A classic bug occurs when starting threads (or tasks) inside a loop and capturing the loop variable:
-
-```csharp
-// BUG: all threads may print the same value
-for (int i = 0; i < 5; i++)
-{
-    new Thread(() => Console.WriteLine(i)).Start();
-}
-
-// FIX: capture a local copy
-for (int i = 0; i < 5; i++)
-{
-    int local = i;
-    new Thread(() => Console.WriteLine(local)).Start();
-}
-```
-
-In C#, a `for` loop with `int i` generates a single variable that is incremented. The lambda captures `i` by reference — meaning it holds a reference to the variable itself, not its value at the time of capture. By the time the thread actually runs and reads `i`, the loop has likely already advanced `i` to 5. Assigning `i` to a fresh local variable `local` inside each iteration creates a new variable per iteration, so each lambda captures a distinct slot.
-
-Note: `foreach` in C# 5+ captures a new variable per iteration (the spec was corrected), so this problem does not apply to `foreach`. The issue is specific to `for` loops and similar patterns with a shared mutable variable.
+Every `new Thread()` is a foreground thread by default. The CLR will not exit the process until all foreground threads terminate, so a worker stuck in an infinite loop or blocked on I/O will silently prevent shutdown. Set `IsBackground = true` before `Start()` for non-critical workers, or implement cooperative shutdown with `CancellationToken` and `Thread.Join()`. This is especially insidious in unit test runners, where one forgotten foreground thread can hang the entire runner after all tests pass.
 
 ---
 
-## Q18. How can a long-running foreground thread prevent a process from exiting?
+#### Gotcha 3. Thread.Sleep(0) vs Thread.Sleep(1) Behave Differently
 
 **Concepts**
-- Thread.IsBackground = false (default)
-- Process waits for all foreground threads
-- Symptoms: process hangs after main returns
-- Fix: set IsBackground = true or use cancellation + Join
-- Test runners, console apps, Windows Services affected
+- Thread.Sleep(0) yields only to equal-or-higher priority threads
+- If no equal-or-higher priority thread is ready, calling thread resumes immediately
+- Thread.Sleep(1) yields to any ready thread on any priority level
+- OS timer resolution (~15 ms on Windows) makes Sleep(1) sleep much longer
+- SpinWait.SpinOnce() for adaptive yielding in tight loops
 
 **Answer**
 
-Every thread created with `new Thread()` is a foreground thread by default (`IsBackground = false`). The CLR will not exit the process until all foreground threads have terminated. This means if you start a worker thread and the main method returns, the process appears to hang until that thread finishes — even if it is stuck in an infinite loop or waiting on I/O.
-
-The fix is either: (1) set `IsBackground = true` before calling `Start()` to let the process exit without waiting, or (2) implement cooperative shutdown with a `CancellationToken` and call `Join()` at shutdown to wait gracefully. Background behavior is appropriate for non-critical work (e.g., periodic cache refresh). Foreground is appropriate for critical work that must complete before exit (e.g., flushing a write-behind cache).
-
-This issue is particularly insidious in unit test frameworks: a test that creates a foreground thread and returns without joining it can cause the test runner process to hang after all tests complete, with no obvious error message pointing to the cause.
+`Thread.Sleep(0)` is a limited yield: the scheduler only switches to a thread of equal or higher priority. If no such thread is ready, the calling thread immediately continues — making it a no-op in some scenarios. `Thread.Sleep(1)` yields to any ready thread regardless of priority, but the actual sleep time is governed by the OS timer resolution (approximately 15 ms on Windows), so it may sleep much longer than 1 ms. For tight spin loops, `SpinWait.SpinOnce()` is preferred because it adaptively transitions from CPU spin to yield to sleep based on contention duration.
 
 ---
 
-## Q19. What is priority inversion and how can it occur in .NET?
+#### Gotcha 4. ThreadLocal\<T\> Initializer Runs Only on the First Thread
 
 **Concepts**
-- High-priority thread blocked waiting for low-priority thread's lock
-- Low-priority thread preempted by medium-priority threads
-- Lock chain: high → lock → low → never scheduled
-- CLR lacks automatic priority inheritance
-- Mitigation: minimize lock scope, avoid priority elevation
+- [ThreadStatic] field initializer runs only for the creating thread
+- Other threads see the type default (null for references, 0 for int)
+- ThreadLocal<T> with a factory Func<T> initializes correctly on every thread
+- ThreadLocal<T> implements IDisposable — failing to Dispose leaks memory
+- Values persist across work items on ThreadPool threads
 
 **Answer**
 
-Priority inversion occurs when a high-priority thread is blocked waiting to acquire a synchronization primitive (a `lock`, `Mutex`, or `Semaphore`) that is held by a low-priority thread. If medium-priority threads are continuously runnable, the scheduler will repeatedly preempt the low-priority holder, which means the high-priority thread is effectively prevented from running even though it has the highest priority. The system appears deadlocked but is technically livelock — it is making progress on medium-priority work but not the work that actually matters.
-
-Real-time operating systems implement priority inheritance to automatically boost the low-priority thread while it holds a contested resource; the CLR does not. To reduce this risk in .NET: keep lock scopes short so the window of vulnerability is small, avoid holding locks while doing I/O, and avoid mixing threads of very different priorities that share common resources. In most business applications this is a theoretical concern, but it can appear in embedded or near-real-time scenarios built on .NET.
+The `[ThreadStatic]` attribute gives each thread its own copy of a static field, but the field initializer (e.g., `= new List<T>()`) runs only on the thread that first loaded the class — all other threads start with the type default, which is `null` for reference types. This is a silent bug. `ThreadLocal<T>` solves this by accepting a `Func<T>` factory that is invoked lazily the first time each thread accesses `Value`, guaranteeing correct initialization on every thread. Always dispose `ThreadLocal<T>` instances when done to prevent memory leaks from its internal tracking list.
 
 ---
 
-## Q20. What are the risks of using ThreadLocal<T> with ThreadPool threads?
+#### Gotcha 5. Thread.Name Is Not Unique and Is Write-Once
 
 **Concepts**
-- ThreadPool threads are reused across work items
-- Thread-local state persists between work items on the same thread
-- Stale values from prior work item
-- No per-work-item initialization guarantee
-- Dispose requirement to avoid memory leaks
+- Thread.Name can be set only once; reassignment throws InvalidOperationException
+- Duplicate names are allowed — not unique identifiers
+- ManagedThreadId is the stable per-thread identifier within a process
+- Names appear in Visual Studio Threads window and debugger
+- ThreadPool thread names persist across work items (can mislead)
 
 **Answer**
 
-`ThreadLocal<T>` values are initialized once per thread using the factory and persist for the thread's lifetime. With ThreadPool threads — which are reused across many work items — this means a value set during one work item will still be present when a different work item later runs on the same thread. If the value represents request-scoped context (like a correlation ID, a database transaction, or a security principal), this is a subtle data corruption bug.
+`Thread.Name` is a convenience for debugging, not an identifier. The CLR allows multiple threads to share the same name and will not throw on duplicates. Attempting to set `Thread.Name` a second time throws `InvalidOperationException`, so once set it is immutable. `ManagedThreadId` is the reliable per-thread numeric identifier, though it can be reused after thread termination. For ThreadPool threads, names persist across work items — setting a name inside a task body can mislead you in a later work item that runs on the same thread.
 
-```csharp
-// DANGER: stale RequestId from a previous work item
-private static ThreadLocal<string> _requestId = new ThreadLocal<string>();
+---
 
-Task.Run(() =>
-{
-    _requestId.Value = "REQ-001";
-    ProcessRequest(); // fine
-});
-// Later, same thread services a different request
-Task.Run(() =>
-{
-    // _requestId.Value may still be "REQ-001" from above
-    ProcessRequest(); // reads stale request id
-});
-```
+#### Gotcha 6. StackOverflowException Terminates the Entire Process
 
-The fix is to reset the value at the start of each work item, or better yet, use `AsyncLocal<T>` for per-request state in async scenarios, since `AsyncLocal` flows with the execution context rather than the thread. Also, always dispose `ThreadLocal<T>` instances when no longer needed; they hold a global list of all thread-local values internally and will leak memory if not disposed.
+**Concepts**
+- StackOverflowException is unrecoverable — CLR terminates the process
+- Cannot be caught in a try/catch block
+- AppDomain.UnhandledException does not fire before termination
+- Deep recursion is the primary cause
+- Increase stack size via Thread constructor overload for legitimate deep recursion
+
+**Answer**
+
+Unlike most exceptions, `StackOverflowException` cannot be caught. When a thread exhausts its stack, the CLR calls `TerminateProcess` directly — no `finally` blocks run, no unhandled exception event fires, and no diagnostic output is written. Every thread in the process is killed instantly. The only mitigation for algorithms with deep recursion is to either rewrite them iteratively, increase the thread's stack size via the `Thread(ParameterizedThreadStart, int)` constructor overload, or detect and limit recursion depth manually before the stack is exhausted.
+
+---
+
+#### Gotcha 7. Thread.IsAlive Has a TOCTOU Race Condition
+
+**Concepts**
+- IsAlive returns true from Running through WaitSleepJoin
+- Thread can terminate between reading IsAlive and acting on the result
+- TOCTOU: time-of-check / time-of-use race
+- Thread.Join() provides a proper happens-before guarantee
+- Use IsAlive for diagnostics/logging only, not for control flow
+
+**Answer**
+
+`Thread.IsAlive` returns `true` for any running or blocked state and `false` after the thread has terminated or before it has started. However, because the thread can terminate in the microseconds between your check and your next action, `IsAlive` is unreliable as a gate condition — this is the time-of-check/time-of-use (TOCTOU) problem. If you need to know whether a thread has finished and then act on that knowledge safely, use `Thread.Join()`, which provides a proper memory barrier and happens-before guarantee. Reserve `IsAlive` for informational logging and diagnostic assertions.
+
+---
+
+#### Gotcha 8. Thread Priority Is a Hint, Not a Guarantee
+
+**Concepts**
+- ThreadPriority enum maps to OS priority values
+- OS scheduler makes final scheduling decisions
+- High-priority thread can still be preempted on Windows
+- Setting to Highest can starve Normal-priority threads
+- Priority inversion can occur; CLR has no automatic priority inheritance
+
+**Answer**
+
+Setting a thread's `ThreadPriority` to `AboveNormal` or `Highest` requests preferential scheduling from the OS but does not guarantee it. The Windows scheduler applies its own time-slicing, aging, and boost policies regardless. Setting a thread to `Highest` can starve all lower-priority threads, causing UI freezes or service unresponsiveness. Priority inversion — where a high-priority thread is blocked waiting for a resource held by a low-priority thread that itself rarely gets scheduled — is a classic hard-to-diagnose bug, and the CLR does not implement automatic priority inheritance. Leave priority at `Normal` for almost all threads.
+
+---
+
+#### Gotcha 9. Creating Raw Threads Is Expensive — Prefer ThreadPool
+
+**Concepts**
+- Each Thread allocates a 1–4 MB stack and a kernel thread object
+- Thread creation takes microseconds; ThreadPool reuses existing threads
+- ThreadPool.QueueUserWorkItem or Task.Run for short-lived work
+- TaskCreationOptions.LongRunning for long-running dedicated threads
+- new Thread() reserved for STA, custom stack size, or true long-running work
+
+**Answer**
+
+Creating a `Thread` with `new Thread()` allocates a kernel thread object, a memory-mapped stack (1 MB on 64-bit Windows by default), and triggers a kernel-mode transition. For short-lived units of work, this overhead typically exceeds the actual work time. The ThreadPool amortizes creation cost by maintaining warm threads that are reused across many work items. Use `Task.Run` for any work that completes in under a few seconds; use `TaskCreationOptions.LongRunning` for work that blocks or runs for minutes; reserve `new Thread()` for work requiring STA apartment state or a custom stack size.
+
+---
+
+#### Gotcha 10. Unhandled Thread Exceptions Terminate the Process
+
+**Concepts**
+- CLR 2.0+: unhandled exception on any thread kills the process
+- Background threads are not exempt
+- AppDomain.UnhandledException fires before crash but cannot prevent it
+- Thread entry point must contain its own top-level try/catch
+- Task propagates exceptions; raw Thread does not
+
+**Answer**
+
+Since CLR 2.0, an unhandled exception on any managed thread — including background threads — terminates the entire process immediately. `AppDomain.CurrentDomain.UnhandledException` fires first, allowing you to log the error, but you cannot prevent the crash from that handler. Every thread entry method must have its own top-level `try/catch` if you want error recovery. This is one of the key reasons to prefer `Task` over raw `Thread` for concurrent work: a faulted task stores its exception and rethrows it when awaited, giving you composable error handling instead of a process-killing crash.
 
 ---
 

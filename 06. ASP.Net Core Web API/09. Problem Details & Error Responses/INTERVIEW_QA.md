@@ -294,231 +294,147 @@ Clients should expect HTTP **400** (or whatever the team has standardized as —
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
+## Gotchas — Problem Details & Error Responses (Interview Traps)
 
 ---
 
-#### Gotcha 1. POST returning 200 instead of 201
+#### Gotcha 1. Custom error envelope instead of RFC 7807 `ProblemDetails`
 
 **Concepts**
-- HTTP 201 Created with Location header as REST create contract
-- CreatedAtAction / CreatedAtRoute for correct response
-- Resource discovery via Location header
-- Status code semantics for OpenAPI-generated clients
+- `{ "success": false, "error": "..." }` — non-standard shape; clients must special-case it
+- RFC 7807 `ProblemDetails` — `type`, `title`, `status`, `detail`, `instance` fields
+- `ValidationProblemDetails` — RFC 7807 extension with `errors` dictionary for field errors
+- OpenAPI tooling and client generators understanding `ProblemDetails` natively
 
 **Answer**
 
-A successful resource creation with POST should return HTTP 201 Created and a `Location` header pointing at the new resource URL, because 200 OK carries no hint that a new resource was created or where to find it. Standard HTTP clients, API gateways, and OpenAPI-generated SDKs all look at the status code first — returning 200 means the response body is the only way to discover the new resource id, and clients that skip parsing the body miss it entirely. Use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to return 201 with the Location header, and include the created representation or a minimal payload in the body when clients need immediate data without a follow-up GET.
+A custom error envelope forces every consumer to parse a proprietary structure instead of the RFC 7807 standard that HTTP clients, OpenAPI code generators, and monitoring tools already understand. `ProblemDetails` provides a machine-readable `type` URI, a human-readable `title`, the HTTP `status` code, a `detail` explanation, and an `instance` URI identifying the specific request that failed. `ValidationProblemDetails` extends it with a field-keyed `errors` dictionary for validation failures. I adopt `ProblemDetails` from day one because it is the ASP.NET Core default and avoids the maintenance burden of a custom error contract.
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 2. HTTP 500 leaking stack traces to clients
 
 **Concepts**
-- GET as safe and idempotent per HTTP specification
-- Prefetch and crawler risks from side-effecting GETs
-- Caching proxy behavior replaying GET responses
-- Correct HTTP verbs for state-changing operations
+- Default developer exception page (`UseDeveloperExceptionPage`) — stack trace in response
+- Production — `UseDeveloperExceptionPage` must not run; `UseExceptionHandler` instead
+- Stack trace exposing internal paths, library versions, and business logic
+- `ProblemDetails` 500 response with no internal detail — sanitized by `IExceptionHandler`
 
 **Answer**
 
-GET must be safe and idempotent per HTTP semantics — performing deletes or updates in a GET handler violates the specification, breaks caching proxies that may replay GET responses, and creates security holes when URLs are prefetched by browsers, link-preview crawlers, or email clients. The problem is that these callers invoke GET URLs without user intent, so a delete fires without anyone clicking anything. Cached GET responses can replay destructive operations across clients since the proxy treats the response as a normal cacheable resource. Use POST, PUT, PATCH, or DELETE for any operation that changes state and reserve GET strictly for reads.
+`app.UseDeveloperExceptionPage()` returns full stack traces, source paths, and library version information in the HTTP response — this is appropriate for local development but must never reach production. Without explicitly switching to `app.UseExceptionHandler(...)` in non-development environments, an unhandled exception in production sends an HTML stack trace to any client that triggers it. I configure `UseExceptionHandler` in all non-development environments to catch unhandled exceptions and return a sanitized `ProblemDetails` 500 with no internal detail, logging the full exception server-side only.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 3. `ProblemDetails` vs `ValidationProblemDetails` distinction
 
 **Concepts**
-- HTTP status code as the universal success vs failure contract
-- 200 with error flag defeating monitoring, retries, and API gateways
-- ProblemDetails for consistent structured failure responses
-- APM alerting and circuit breakers depending on HTTP status
+- `ProblemDetails` — general-purpose error shape (404, 409, 500)
+- `ValidationProblemDetails` — extends `ProblemDetails` with `errors: { field: [messages] }`
+- `400 Bad Request` from `[ApiController]` — returns `ValidationProblemDetails`, not `ProblemDetails`
+- Clients testing `errors` property on a `ProblemDetails` 404 — null dereference
 
 **Answer**
 
-Business failures must map to appropriate 4xx or 5xx status codes because HTTP status is the universal contract that drives client retry logic, API gateway circuit breakers, and APM alerting thresholds — a 200 response with `success: false` in the body masks every failure from every system that does not parse the body. API gateways route and throttle on status code; if every response is 200, failed calls look healthy in dashboards and no alert fires. Return `ValidationProblemDetails` or `ProblemDetails` with 400 for validation failures, 404 for missing resources, 409 for conflicts, and 422 for semantic rejections. Envelope patterns like `{ success: false }` require every consumer to implement a custom parser and break OpenAPI contract expectations.
+`ValidationProblemDetails` is a `ProblemDetails` subtype that adds an `errors` dictionary mapping field names to arrays of error messages — it is what `[ApiController]` returns for `400 ModelState` failures. A general `ProblemDetails` for a `404` has no `errors` field. Client code that assumes every error response has an `errors` property and dereferences it without null-checking will throw on a `404` or `500`. I always check the `status` code before accessing `errors` in client code, and I document which error shapes each status code produces in the OpenAPI response types.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 4. `application/problem+json` media type not set on error responses
 
 **Concepts**
-- EF entity navigation properties not suitable for public HTTP contracts
-- Lazy-loading N+1 triggered during JSON serialization
-- Circular reference serializer loops
-- DTO decoupling API contract from persistence schema
+- RFC 7807 mandates `Content-Type: application/problem+json` for `ProblemDetails`
+- Default — responses may use `application/json` even for `ProblemDetails` bodies
+- Clients switching error handling path based on `Content-Type`
+- `AddProblemDetails()` in ASP.NET Core 7+ configures the correct media type automatically
 
 **Answer**
 
-EF Core entities carry navigation properties, change-tracker state, and database-internal fields that were never meant to be a public HTTP contract, so serializing them directly leaks schema details and invites circular reference errors. Lazy-loaded navigations trigger N+1 queries during serialization when the JSON serializer walks the object graph — each navigation fires a new SQL query, exhausting the connection pool under load. Circular references between related entities cause the JSON serializer to loop indefinitely or require fragile `ReferenceHandler.IgnoreCycles` settings that hide design problems. Map entities to DTOs with explicit shapes in the service layer or via EF projection so the API contract evolves independently of table schema changes.
+RFC 7807 specifies that problem detail documents must be served with `Content-Type: application/problem+json` so clients can distinguish error payloads from success payloads by media type alone. Without `builder.Services.AddProblemDetails()`, manually constructed `ProblemDetails` responses often use the default `application/json` content type. Calling `AddProblemDetails()` ensures the framework sets the correct media type for both `[ApiController]` auto-400 responses and exception handler-generated 500 responses. I verify the `Content-Type` header in integration tests for all error paths.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 5. `IExceptionHandler` vs `UseExceptionHandler` middleware confusion
 
 **Concepts**
-- System.Text.Json defaulting to camelCase serialization in ASP.NET Core 8
-- Silent binding failure from PascalCase client payloads
-- JsonPropertyName and PropertyNamingPolicy as alignment tools
-- PropertyNameCaseInsensitive for legacy mixed-casing clients
+- `IExceptionHandler` (ASP.NET Core 8) — registered in DI, called per-exception type, chainable
+- `UseExceptionHandler(path)` — catches unhandled exceptions and re-routes to a path
+- `UseExceptionHandler(handler)` — inline delegate to produce the error response
+- Both are needed: `AddExceptionHandler<T>()` registers handler; `UseExceptionHandler()` activates it
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON serialization via `System.Text.Json`, so PascalCase property names from legacy clients bind as missing properties because the case does not match — the model properties default to `null` or `0` rather than the values the client sent. The failure is silent: the request returns 201 or 204 with no validation error, but the persisted record has default values instead of the submitted data. Fix with `[JsonPropertyName("PropertyName")]` attributes on DTO properties or a custom `PropertyNamingPolicy` to align server expectations with legacy payloads. When accepting mixed casing from various clients, enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)`.
+`IExceptionHandler` is an ASP.NET Core 8 abstraction registered via `builder.Services.AddExceptionHandler<MyHandler>()` that allows typed exception handling with ordering and fallback. It does not activate without also calling `app.UseExceptionHandler()` in the pipeline — the middleware and the DI registration are separate concerns. A common mistake is registering `AddExceptionHandler<T>()` but forgetting `UseExceptionHandler()`, so exceptions are never caught and the developer exception page or raw 500 is returned instead. I register handlers in DI order (most specific exception types first) and always pair them with `UseExceptionHandler()`.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 6. 422 Unprocessable Entity vs 400 Bad Request for domain errors
 
 **Concepts**
-- GET request body not reliably supported across the HTTP ecosystem
-- [FromBody] on GET failing silently through proxies and caches
-- [FromQuery] for simple filters as the correct alternative
-- OpenAPI tools and browser fetch blocking GET bodies
+- `400 Bad Request` — malformed request syntax, failed model binding, validation annotation failure
+- `422 Unprocessable Entity` — well-formed request that violates domain business rules
+- Using `400` for everything conflates syntax errors with semantic domain failures
+- `ValidationProblemDetails` appropriate for both, but `status` distinguishes the category
 
 **Answer**
 
-Many HTTP clients, proxies, CDNs, and caches ignore or strip GET request bodies because the HTTP specification does not define semantics for GET bodies — filters sent as JSON in GET requests fail silently or never reach the action in ASP.NET Core 8. Model binding for `[FromBody]` on GET is therefore unreliable across the full HTTP ecosystem even if it works in direct testing. Use query strings with `[FromQuery]` for simple filter parameters, or POST to a dedicated search endpoint for complex filter objects that do not fit in a URL. Browser fetch API and OpenAPI tooling also discourage or block GET bodies, making the pattern fragile in any production environment where the full request path includes a proxy.
+`400 Bad Request` is for requests that cannot be understood — malformed JSON, type mismatch, missing required fields. `422 Unprocessable Entity` is for requests that are syntactically valid but semantically incorrect — booking a hotel for a date in the past, transferring more money than the account balance. Using `400` for both collapses the distinction and forces clients to parse error messages to distinguish validation failures from domain rule violations. I return `400` with `ValidationProblemDetails` for model binding failures and `422` with `ProblemDetails` for domain constraint violations, which gives clients distinct status codes to route to different error-handling paths.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 7. Extensions dictionary for custom problem fields ignored
 
 **Concepts**
-- CORS as browser-only enforcement — not server-side authentication
-- Non-browser clients unaffected by CORS headers
-- Authentication and authorization as actual server protection
-- CORS enabling SPA browser access alongside real auth
+- `ProblemDetails.Extensions` — `IDictionary<string, object?>` for custom fields
+- JSON serialization — custom fields flattened into the response object, not nested under `extensions`
+- `extensions.traceId` vs `traceId` at root — serializer behavior
+- Custom fields helping clients correlate errors with support tickets
 
 **Answer**
 
-CORS is enforced by browsers only — it prevents JavaScript on one origin from reading cross-origin responses, but it does nothing to stop curl, Postman, server-to-server calls, or any direct API request. The `Access-Control-Allow-Origin` header is a signal browsers check after receiving the response; a non-browser client simply ignores it and reads the data. A public API without authentication is fully accessible to any non-browser caller regardless of CORS policy, so CORS is never a substitute for JWT, API keys, or cookies. Register `AddCors` and `UseCors` to enable browser SPA access on cross-origin calls, and enforce actual authentication and authorization separately for real protection.
+`ProblemDetails` has an `Extensions` dictionary for application-specific fields. These are serialized as top-level properties in the JSON output — `{ "type": "...", "traceId": "abc123" }` — not nested under an `extensions` key. This is the correct RFC 7807 behavior but surprises developers expecting a separate `extensions` object. I add useful fields like `traceId`, `correlationId`, and `errorCode` to `Extensions` rather than creating a subclass, which keeps the response standard-compliant while providing operational context clients need for support requests.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 8. `AddProblemDetails()` not covering all error paths
 
 **Concepts**
-- Browser rejection of wildcard origin on credentialed requests
-- AllowAnyOrigin and AllowCredentials as mutually exclusive
-- WithOrigins for explicit trusted frontend origins
-- Access-Control-Allow-Credentials header requirement
+- `AddProblemDetails()` — configures `ProblemDetails` for unhandled exceptions and middleware errors
+- Short-circuit middleware (auth, rate limiting) — may return non-`ProblemDetails` 401/403/429
+- `StatusCodePages` middleware — required to convert bare status-code responses to `ProblemDetails`
+- Complete coverage: `AddProblemDetails()` + `UseStatusCodePages()` + `UseExceptionHandler()`
 
 **Answer**
 
-Browsers reject a response with `Access-Control-Allow-Origin: *` when the request includes cookies or an `Authorization` header, because the CORS specification explicitly forbids wildcard origins on credentialed cross-origin requests. `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined — ASP.NET Core will not emit a valid CORS response for credentialed requests when both are set. Instead, use `WithOrigins("https://app.example.com", "https://localhost:3000")` to list every trusted frontend origin explicitly, including local development URLs and all production domains. The browser also requires `Access-Control-Allow-Credentials: true` in the response, which `AllowCredentials()` handles.
+`AddProblemDetails()` alone does not ensure every error response uses `ProblemDetails`. Authentication middleware returning `401` and authorization middleware returning `403` produce empty bodies unless `UseStatusCodePages()` is in the pipeline to intercept bare status codes and add a body. Similarly, rate-limiting middleware returning `429` produces an empty response by default. I combine `AddProblemDetails()`, `app.UseStatusCodePages()`, and `app.UseExceptionHandler()` to ensure that every 4xx and 5xx response — regardless of which middleware produces it — includes a `ProblemDetails` body with the correct media type.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 9. Exception handler re-throwing with `throw ex` losing stack trace
 
 **Concepts**
-- Swagger UI disclosing full API surface and schema to public internet
-- Environment checks wrapping MapSwagger and UseSwaggerUI
-- OpenAPI document exposure revealing endpoint names and enum values
-- Authentication or IP allowlist gating for API documentation
+- `throw ex` — resets stack trace, losing original exception location
+- `throw` (bare rethrow) — preserves stack trace
+- `ExceptionDispatchInfo.Capture(ex).Throw()` — preserves stack trace from capture point
+- Logging full exception before mapping to `ProblemDetails` — must happen first
 
 **Answer**
 
-Public Swagger UI discloses the full API surface, all schemas, enum values, and try-it-out access to anyone who finds the URL — giving potential attackers a complete map of your endpoints and data structures without any effort. Gate `MapSwagger` and `UseSwaggerUI` in `Program.cs` behind environment checks so they run only in Development and Staging, or require authentication middleware before the Swagger middleware. Production APIs should serve OpenAPI documents only to authenticated developers or internal tooling, not the public internet. Exposed OpenAPI documents reveal internal endpoint names, field names, and request schemas that are directly useful for targeted reconnaissance.
+Inside an exception handler or filter, `throw ex` creates a new stack trace starting at the throw site, discarding the original exception location that makes the error actionable in logs. `throw` (bare rethrow) preserves the original stack trace. In `IExceptionHandler` implementations I log the full original exception with its stack trace before constructing the `ProblemDetails` response, then return `true` to mark the exception as handled — never rethrowing it, since the exception handler's job is to convert it to an HTTP response, not to propagate it.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 10. Validation error messages exposing internal model property names
 
 **Concepts**
-- [ApiController] enabling automatic ModelStateInvalidFilter
-- Binding source inference for complex types
-- Mixed controllers producing inconsistent error contracts
-- Assembly-level [ApiController] for uniform behavior
+- `ModelState` keys using C# property names not JSON names
+- `[JsonPropertyName("order_id")]` vs `ModelState["OrderId"]` mismatch
+- Client validation highlighting wrong field due to key mismatch
+- Custom `InvalidModelStateResponseFactory` normalizing field name casing
 
 **Answer**
 
-Without `[ApiController]`, automatic 400 `ValidationProblemDetails` responses, binding source inference for complex types, and attribute routing enforcement all differ from controllers that have the attribute — so mixed controllers in the same API produce inconsistent error shapes that break partner integrations. A controller missing `[ApiController]` may return 200 OK with a partially bound model when model validation fails, because `ModelStateInvalidFilter` does not run, and `[FromBody]` is not inferred for complex parameters. Apply `[ApiController]` at the controller or assembly level using `[assembly: ApiController]` in an attribute file so every endpoint shares the same conventions without per-class annotation.
-
----
-
-#### Gotcha 11. Blocking on `.Result` in async actions
-
-**Concepts**
-- Sync-over-async causing thread-pool starvation under load
-- Deadlock when synchronization context is held during blocking call
-- async Task<IActionResult> propagating await through service layer
-- Kestrel throughput reduction from blocked request threads
-
-**Answer**
-
-Blocking on `.Result` or `.Wait()` in async API actions causes thread-pool starvation under load because the calling thread is blocked waiting for I/O to complete while no thread is available to process the continuation. Deadlocks also occur in environments with a synchronization context when the blocked thread holds the context that the async continuation needs to resume on — the task never completes because the thread it needs is the thread that is waiting for it. Always `await` async service and database calls in controller actions, which means the action signature is `async Task<IActionResult>` and the `await` propagates through the entire service and repository layer. Kestrel processes many concurrent requests efficiently precisely because async I/O frees threads while waiting — sync-over-async defeats this design entirely.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness as process restart signal — unrelated to external dependency recovery
-- Readiness as traffic drain signal for dependency failures
-- Kubernetes restart loop from liveness including external checks
-- Tag-based separation of liveness and readiness health checks
-
-**Answer**
-
-If the liveness probe includes SQL and the database goes down for maintenance, Kubernetes kills and restarts pods even though restarting cannot fix a database outage — creating a restart loop that adds startup overhead and delays recovery. Liveness answers whether the ASP.NET Core process is alive and responsive; it should return healthy as long as the process can handle an HTTP request, independent of downstream dependencies. Readiness answers whether the instance should receive traffic; SQL, Redis, and message bus checks belong here because a failing dependency means the instance will return errors. Map `/health/live` with a tag predicate selecting only the self-check and `/health/ready` with the predicate selecting `AddDbContextCheck` and other dependency checks.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- N+1 pattern: one parent query plus N child queries per row
-- Lazy loading triggering extra SQL during serialization
-- EF projection with Select fetching only required columns
-- Include/ThenInclude for explicit eager loading in one round trip
-
-**Answer**
-
-N+1 occurs when a list endpoint loads a parent collection and then each item triggers an additional query for a related navigation — one query for 100 orders plus 100 queries for each order's customer. The most common cause in APIs is serializing entity objects with lazy-loaded navigation properties: the JSON serializer accesses a navigation, EF fires a SELECT, and this repeats once per row. Fix with a single translated query: project directly to DTOs using `.Select(o => new OrderDto { CustomerName = o.Customer.Name })` so EF generates one SQL JOIN, or use explicit `.Include(o => o.Customer)` before materialization. Validate with EF logging or APM to confirm list endpoints produce a fixed small number of SQL round trips regardless of result set size.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Offset pagination page drift from concurrent inserts and deletes
-- Skip/Take without stable OrderBy producing undefined row order
-- Keyset pagination anchored to a stable indexed key
-- Large OFFSET performance cost scanning and discarding preceding rows
-
-**Answer**
-
-Concurrent inserts and deletes shift row positions in the dataset while a client walks pages — a new row inserted at page 1 pushes all subsequent rows one position, so page 2 either repeats the last row of page 1 or skips a row entirely. `Skip((page - 1) * pageSize).Take(pageSize)` also requires the database to count and discard all preceding rows, which becomes expensive on large offsets. Keyset pagination avoids both problems by using `WHERE id > @lastSeenId ORDER BY id LIMIT @pageSize` with the last key from the previous response — no scanning skipped rows and no drift because the filter is anchored to a specific key rather than a count. Offset pagination remains acceptable for small mostly-static tables; expose cursor tokens in link headers or response metadata for high-churn datasets.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers executing one database query per parent row
-- DataLoader batching concurrent field resolutions into a single query
-- 101 queries for a 100-row list without batching
-- Root-level eager loading as alternative to DataLoader for static fields
-
-**Answer**
-
-Field resolvers in HotChocolate or other GraphQL servers execute independently per parent row — resolving `books` for each of 100 authors runs 100 separate queries plus the initial author query, totaling 101 round trips. DataLoader batches concurrent field resolutions within a single request: all 100 `books` resolver calls accumulate the author ids during the execution tick, then DataLoader fires one grouped query for all of them at once. Register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips automatically. For fields the client almost always requests together with the parent, eager-load or project at the root query level rather than using DataLoader.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC HTTP/2 binary framing not accessible to browser JavaScript
-- gRPC-Web protocol as browser-compatible translation layer
-- AddGrpcWeb and EnableGrpcWeb for middleware setup
-- CORS configuration required alongside gRPC-Web for cross-origin calls
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript APIs — browsers cannot control trailers or binary framing at the level gRPC requires, so `@grpc/grpc-js` in the browser fails. Browser clients need the gRPC-Web protocol, which translates between the browser-accessible HTTP/1.1 or HTTP/2 fetch API and the native gRPC binary format via ASP.NET Core middleware. Add `AddGrpcWeb()` to services and call `.EnableGrpcWeb()` on each mapped gRPC service to activate the translation layer. CORS must also be configured for the browser origin because cross-origin browser calls still enforce CORS preflight and response header checks regardless of gRPC-Web. Standard .NET or Node gRPC clients communicating server-to-server continue using native gRPC without gRPC-Web.
+`ValidationProblemDetails.Errors` uses the C# property name as the key — `"OrderId"` — but the JSON contract may serialize it as `"order_id"` via a `[JsonPropertyName]` attribute or a `snake_case` naming policy. Client-side form validation logic that maps the field names in the error response back to form field names will fail to highlight the correct field when the key casing differs. I configure a custom `InvalidModelStateResponseFactory` that normalizes error keys to match the serialized JSON field names, or use FluentValidation which respects the configured naming policy when building error keys.
 
 ---
 

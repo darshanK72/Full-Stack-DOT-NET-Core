@@ -293,82 +293,151 @@ Declaring a variable as `dynamic` tells the compiler to defer all member access 
 
 ---
 
-## Gotcha Questions
+## Gotchas — Classes & Objects (Interview Traps)
 
 ---
 
-## Q18. If you declare a class with only a parameterized constructor and then use an object initializer in another file, will it compile? Why or why not?
+#### Gotcha 1. Object initializer syntax requires a parameterless constructor that may not be synthesized
 
 **Concepts**
-- Object initializer compiles to: constructor call + sequential assignments
-- Parameterless constructor required for object initializer
-- CS7036 compile error: no accessible parameterless constructor
-- Explicit parameterless ctor as the fix
-- `required` modifier (C# 11) as an alternative
+- `{ }` initializer desugars to ctor call + assignments
+- Any explicit ctor suppresses default
+- CS7036 if no parameterless ctor
+- `required` properties (C# 11) as enforced alternative
 
 **Answer**
 
-No, it will not compile. Object initializer syntax (`new Student { RollNumber = 1 }`) is not a different form of construction — the compiler desugars it to a parameterless constructor call followed by the named assignments. If no parameterless constructor exists (because you added a parameterized one and the compiler stopped synthesizing the default), you get CS7036: "There is no argument given that corresponds to the required formal parameter." The confusion arises because the initializer block looks like it sets all the fields, so developers assume no constructor is needed. The fix is either to call the parameterized constructor explicitly (`new Student("Ada", 1)`) or to add an explicit parameterless constructor — but adding a public parameterless constructor to a class that required a parameterized one typically weakens invariants, since objects can now be created with uninitialized identity fields. In C# 11+, the `required` modifier on a property or field combined with an object initializer enforces that the member must be set at construction, which is a stricter alternative: `required public string StudentName { get; set; }` causes a compile error if the initializer omits it, without needing to remove the parameterless constructor.
+When you write `new Student { Name = "Ada" }`, the compiler desugars this to first call a parameterless constructor, then assign `Name`. If the `Student` class defines only a parameterized constructor, no parameterless one is synthesized and the object initializer fails with CS7036. The fix is to explicitly add a parameterless constructor or switch to direct constructor argument syntax.
 
 ---
 
-## Q19. Does `==` always compare by reference for class types in C#?
+#### Gotcha 2. == compares references for user-defined classes unless operator is overloaded
 
 **Concepts**
-- Default `==` is reference comparison for user-defined classes
-- `string` overloads `==` to compare content
-- `record` generates value-based `==`
-- Operator overloading with `public static bool operator ==(T a, T b)`
-- `is null` as a null-safe identity check
+- Default `==` is reference equality
+- `string` overloads `==` to content
+- `record` auto-generates value-based `==`
+- `ReferenceEquals` is always reference equality regardless of overloads
 
 **Answer**
 
-No — `==` compares references for user-defined classes by default, but this can be changed. The most common exception every developer encounters is `string`: despite being a reference type, `string` overloads `==` to compare character content, so `"hello" == "hello"` is `true` even when the two literals resolve to different heap objects (though string interning often collapses them to one). Records in C# 9+ also override `==` to provide value-based equality automatically. Any class can define `public static bool operator ==(T a, T b)` to give `==` whatever semantics make sense. This is why `ReferenceEquals(a, b)` is the only guaranteed-identity check — it cannot be overloaded. A subtle gotcha arises with null checks: if a class overloads `==`, writing `obj == null` invokes the overloaded operator, which may have a bug; `obj is null` always compiles to a `ceq` instruction comparing to `null` directly and cannot be intercepted by an operator. In production code, always use `is null` / `is not null` for null tests and `ReferenceEquals` for identity tests, reserving `==` for value-semantic comparisons on types you know have overloaded it.
+Two distinct `Student` instances with identical property values are not `==` by default because `==` for classes compares references (addresses on the heap). The `string` class and `record` types override `==` to perform value comparison, which is why string equality works intuitively. For custom classes needing value semantics, explicitly overload `==` (and `!=`) and override `Equals` and `GetHashCode` consistently.
 
 ---
 
-## Q20. What happens to an object's fields before the constructor body runs?
+#### Gotcha 3. Field initializers run before the constructor body — base constructor runs before derived constructor body
 
 **Concepts**
-- Zero-initialization by the CLR before any user code
-- Field initializers run before the constructor body
-- Base class constructor runs before the derived constructor body
-- Execution order: zero-init → field initializers (top to bottom) → ctor body
-- Interaction with `this()` chaining
+- CLR zero-initializes first
+- Derived field initializers run
+- `base()` chain runs
+- Derived ctor body last
+- Field init order is top-to-bottom within the class
 
 **Answer**
 
-Three layers of initialization execute before the constructor body runs. First, the CLR zero-initializes all allocated memory for the object — numeric fields become `0`, `bool` fields become `false`, and reference fields become `null`. This happens at the memory-allocation level, not in user code, and it is why C# does not require you to explicitly initialize every field before reading it (unlike local variables). Second, field initializers written at the declaration site execute, in top-to-bottom source order: `public string StudentName = string.Empty` runs here, overwriting the zero-initialized `null` with `string.Empty`. Third, the constructor body executes. If the class uses constructor chaining (`:this(...)` calling another overload), the chained constructor — including its own field initializer pass if this is the first ctor in the chain — runs first. Similarly, if the class inherits from a base class, the base class constructor completes fully before the derived constructor body begins. This order means you can safely call instance methods from a constructor body that read field-initialized values, but you must be careful about calling virtual methods from a constructor — the derived class may not yet have run its own constructor and its fields may still be zero-initialized.
+The execution order for object creation is: CLR zeroes all memory, derived class field initializers execute in source order, the base class constructor (and its chain) runs to completion, and then the derived class constructor body executes. Calling virtual methods in a constructor is dangerous precisely because the derived class body has not run yet, leaving derived fields at their zero values.
 
 ---
 
-## Q21. Can a `struct` be `null` when used as a field inside a class?
+#### Gotcha 4. Calling virtual methods from a constructor invokes the derived override before derived fields are initialized
 
 **Concepts**
-- Unboxed value types cannot be null
-- `Nullable<T>` (`T?`) wraps a value type to allow null
-- Boxing a struct produces a reference on the heap, which can be null-assigned via `object`
-- Default value of a value-type field in a class is zero-initialized
-- Nullable value types vs nullable reference types (two different mechanisms)
+- Virtual dispatch goes to most-derived override
+- Derived ctor body has not run at base ctor time
+- Derived fields still zero
+- `NullReferenceException` risk
+- `sealed` or non-virtual methods in ctors are safe
 
 **Answer**
 
-An unboxed value type (struct) cannot hold `null` — it is always stored as its zero-initialized state by default. A `DateTime` field inside a `Customer` class will be `DateTime.MinValue` (January 1, 0001) if never assigned, never `null`. However, wrapping the struct in `Nullable<T>` (syntactic sugar: `DateTime?`) introduces a containing struct that adds a boolean `HasValue` flag; `DateTime? nextReview = null` is valid and stores a state that represents "no date." This is a distinct mechanism from nullable reference types (which are a compiler annotation on reference types) — `Nullable<T>` is a real generic struct in the BCL. An indirect way to have a "null struct" is boxing: assign a value type to an `object` variable (`object boxed = myStruct`) — this allocates a heap wrapper (boxing), and separately setting `boxed = null` drops the reference to that wrapper, but the wrapper itself is either there or gone — it is not the struct that is null. In class field design, use `T?` (nullable value type) to represent genuinely optional value-type state, and document your intent clearly since a zero-valued `DateTime` is syntactically valid but semantically often meaningless without a null check.
+If a base class constructor calls a virtual method, and a derived class overrides that method and accesses its own fields, those fields are still `null` or zero because the derived constructor body has not yet executed at the time the base constructor runs. This pattern reliably produces `NullReferenceException` or incorrect behavior in the derived class, and the only safe fix is to avoid calling virtual methods from constructors.
 
 ---
 
-## Q22. Is `var x = new Student()` statically typed or dynamically typed?
+#### Gotcha 5. A struct cannot be null in its unboxed form; Nullable<T> wraps it with a HasValue flag
 
 **Concepts**
-- `var` as compile-time type inference
-- Static typing preserved — `x` has type `Student` at compile time
-- Different from `dynamic`, which defers to runtime
-- No boxing, no runtime overhead from `var`
-- `var` cannot be used without an initializer
+- Value types have no null state
+- `Nullable<T>` adds `HasValue` + `Value`
+- `typeof(int?) != typeof(int)`
+- Boxing a null `int?` produces null object reference
 
 **Answer**
 
-`var` is purely a compile-time convenience — the compiler infers the type from the right-hand side expression and replaces `var` with the concrete type in the emitted IL. `var x = new Student("Ada", 1)` is exactly equivalent to `Student x = new Student("Ada", 1)` at the IL level. After this line, the compiler knows `x` is of type `Student`, so IntelliSense shows all `Student` members, and assigning `x = new Customer()` causes a compile error. This is the opposite of `dynamic`, which explicitly suppresses compile-time checking and routes member access through the DLR at runtime. A common interview confusion pairs `var` with `dynamic` as if they are related — they are not. `var` is about reducing syntactic verbosity for types the compiler can already determine. The only restriction is that `var` requires an initializer on the same line (so `var x;` is a compile error) and cannot be used for method parameters or return types (C# 9 added `var` in pattern matching for local captures, but that is distinct). Use `var` when the type is already obvious from the right-hand side (as in `new` expressions or LINQ chains), and prefer explicit types when the right-hand side does not make the type obvious to a reader.
+An `int` field in a class is always zero-initialized by the CLR, never null. To represent 'no value', you need `int?` (`Nullable<int>`), which is a different struct type with a `HasValue` bool and a `Value` field. The null state in `Nullable<T>` is a `HasValue=false` struct value — there is no heap object, no reference, just a stack value with an extra boolean.
+
+---
+
+#### Gotcha 6. var is compile-time type inference — the type is fixed at the declaration and cannot change
+
+**Concepts**
+- Compiler infers concrete type at declaration
+- `var x = 42` makes `x` an `int` forever
+- Different from `dynamic`
+- IDE shows inferred type
+- Useful for complex generic types
+
+**Answer**
+
+`var` instructs the compiler to infer the variable's type from the right-hand side initializer expression. The result is a statically-typed variable identical to one declared with an explicit type name. Writing `var x = 42` and then attempting `x = "text"` fails with CS0029 (int does not implicitly convert to string) because `x` was inferred as `int` at compile time.
+
+---
+
+#### Gotcha 7. MemberwiseClone produces a shallow copy — reference-type fields are aliased between source and copy
+
+**Concepts**
+- `MemberwiseClone` copies field values
+- Reference fields copy the address
+- Source and copy alias same objects
+- Mutation through copy visible in original
+- Deep copy requires explicit cloning
+
+**Answer**
+
+`Object.MemberwiseClone()` creates a new object with the same field values, but for reference-type fields it copies the reference (the address), not the object it points to. After `MemberwiseClone`, both the original and the copy point to the same list or sub-object. Modifying that list through the copy modifies it in the original, which is why 'copy' is misleading — only a deep copy provides true independence.
+
+---
+
+#### Gotcha 8. Partial classes must be in the same assembly and must have consistent access modifiers
+
+**Concepts**
+- Partial merges at compile time within same assembly
+- Access modifier must match or be absent
+- Partial method body is optional (calls removed if absent)
+- Useful for code-gen + developer split
+
+**Answer**
+
+Partial classes are a compile-time mechanism where the compiler merges all partial declarations into a single type. All parts must reside in the same assembly — placing a partial class part in a separate DLL is a compile error. If one part declares the class as `public`, the other must also declare `public` or omit the access modifier; mixing `public` and `internal` on different parts causes CS0262.
+
+---
+
+#### Gotcha 9. sealed class prevents further inheritance but not interface implementation
+
+**Concepts**
+- `sealed` prevents being a base class
+- Sealed class can still implement interfaces
+- All methods are implicitly final
+- Useful for preventing fragile base class problems
+
+**Answer**
+
+Marking a class `sealed` means no other class can inherit from it, which eliminates the fragile base class problem for that type and allows the JIT to devirtualize calls. A sealed class can still implement any number of interfaces — sealing restricts inheritance only, not interface contracts. In fact, sealing a small value-object or utility class with no intended extension points is a good practice that also enables minor JIT optimizations.
+
+---
+
+#### Gotcha 10. Nested private class is accessible to the outer class but not to external code — even in the same assembly
+
+**Concepts**
+- Private nested type is invisible outside the outer class
+- Inner class can access outer class private members
+- Useful for implementation detail encapsulation
+- Differs from `internal` visibility
+
+**Answer**
+
+A private nested class is entirely hidden from code outside the declaring class, including other classes in the same assembly. The outer class, however, can use the nested class freely including accessing its private members. This is stronger encapsulation than `internal` visibility, making private nested types ideal for implementation-detail data structures that no external code should ever construct or reference.
 
 ---
 

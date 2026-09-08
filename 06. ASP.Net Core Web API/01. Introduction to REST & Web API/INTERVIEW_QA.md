@@ -287,214 +287,147 @@ A RESTful endpoint models resources with noun-based URIs, uses HTTP methods acco
 
 ---
 
-## Gotchas — ASP.NET Core Web API (Interview Traps)
-
-#### Gotcha 1. POST returning 200 instead of 201
-
-**Concepts**
-- `201 Created` with `Location` header as REST create contract
-- `CreatedAtAction` / `CreatedAtRoute` / `Created` generating correct response
-- `200` hiding new resource URL from HTTP client libraries
-
-**Answer**
-
-A successful resource creation via POST should return `201 Created` with a `Location` header pointing to the new resource URI — returning `200 OK` omits that contract and breaks REST clients that rely on status codes and the `Location` header. I use `CreatedAtAction`, `CreatedAtRoute`, or `Created` to produce `201` with a route-generated `Location`. Returning `200` for create operations hides the new resource URL from standard HTTP client libraries and OpenAPI-generated SDKs.
+## Gotchas — REST & Web API Fundamentals (Interview Traps)
 
 ---
 
-#### Gotcha 2. GET that mutates state
+#### Gotcha 1. Treating HTTP GET as a catch-all "read" verb regardless of safety
 
 **Concepts**
-- GET defined as safe and idempotent
-- Browsers, CDNs, and crawlers invoking GET without user intent
-- Cached GET responses replaying destructive operations
+- GET is safe and idempotent — no side effects by contract
+- Browsers, CDNs, and crawlers invoke GET without user intent
+- Side-effecting GET actions execute on prefetch, link preview, and log replay
+- Correct verbs — POST/PUT/PATCH/DELETE for mutations
 
 **Answer**
 
-GET must be safe and idempotent — performing deletes or updates on GET violates HTTP semantics, breaks caching proxies, and creates security holes when URLs are prefetched, logged, or opened in email clients. Browsers, CDNs, and link-preview crawlers may invoke GET URLs without user intent so side effects run unintentionally. I use POST, PUT, PATCH, or DELETE for state changes and keep GET read-only.
+GET must be safe and idempotent by the HTTP specification, meaning it must produce no side effects no matter how many times it is called. Building a "delete by ID" or a "charge account" endpoint on GET is a real production bug — browsers prefetch anchor hrefs, CDNs cache and replay GET requests, and email link-preview crawlers execute the URL without user intent. Any state mutation must live behind POST, PUT, PATCH, or DELETE so the HTTP layer's caching and safety semantics remain reliable.
 
 ---
 
-#### Gotcha 3. `{ success: false }` with HTTP 200
+#### Gotcha 2. Treating PUT and PATCH as synonyms
 
 **Concepts**
-- Business failures mapping to 4xx/5xx status codes
-- `ProblemDetails` / `ValidationProblemDetails` as standard error shapes
-- HTTP status codes driving client retry logic, gateways, and APM alerting
+- PUT — full replacement of the resource at the given URI (idempotent)
+- PATCH — partial update, only the supplied fields change
+- Idempotency — identical PUT repeated converges to same state; PATCH with increment does not
+- Missing fields on PUT — set to default, not preserved
 
 **Answer**
 
-Business failures must map to appropriate `4xx` or `5xx` status codes — a `200` response with an error flag forces every client to parse the body instead of using standard HTTP semantics. I return `ValidationProblemDetails` or `ProblemDetails` with `400` for validation failures and `404`, `409`, or `422` for domain errors. HTTP status codes drive client retry logic, API gateways, and APM alerting; a `200` masks failures in dashboards and causes incident blind spots.
+PUT replaces the entire resource representation: any field absent from the PUT body is set to its default value rather than left unchanged. Sending only a changed email via PUT silently zeros out every other field on the record. PATCH is the correct verb for partial updates — it applies only the supplied changes. PATCH is not guaranteed idempotent (a PATCH that increments a counter is not), while PUT is defined as idempotent, which matters for retry logic in mobile clients and API gateways.
 
 ---
 
-#### Gotcha 4. Returning EF entities from API actions
+#### Gotcha 3. Embedding verbs in URI paths (RPC-over-HTTP)
 
 **Concepts**
-- Navigation properties triggering N+1 queries during serialization
-- Circular references causing JSON serializer loops
-- DTOs as stable public contract decoupled from schema migrations
+- REST resource orientation — nouns in paths, verbs in HTTP method
+- Verb-in-path examples: `/api/createOrder`, `/api/cancelInvoice`
+- HTTP verb redundancy — POST `/api/createOrder` duplicates meaning
+- Route design — `POST /api/orders`, `DELETE /api/orders/{id}`
 
 **Answer**
 
-EF Core entities expose navigation properties, shadow fields, and circular references that are not meant for public contracts. Lazy-loaded navigations trigger N+1 queries during serialization and can pull entire object graphs into the response. Circular references between entities cause `JsonException` at runtime. I return DTOs projected from EF queries, which decouples the API contract from schema migrations and exposes only the fields clients need.
+Embedding action words in URL paths — `/api/createOrder`, `/api/getUser/{id}`, `/api/cancelOrder` — is RPC-style design over HTTP, not REST. The HTTP verb already carries the action semantics, so the URL should name the resource, not the operation. `POST /api/orders` creates an order; `DELETE /api/orders/{id}` cancels it; `GET /api/orders/{id}` retrieves it. Verb-in-path routes collide badly in OpenAPI documentation and force every consumer to learn a proprietary operation naming scheme rather than using HTTP conventions.
 
 ---
 
-#### Gotcha 5. PascalCase JSON with default camelCase policy
+#### Gotcha 4. Returning HTTP 200 for all outcomes including errors
 
 **Concepts**
-- ASP.NET Core 8 defaulting to camelCase via `System.Text.Json`
-- PascalCase client payloads binding as missing properties
-- `PropertyNameCaseInsensitive` or `[JsonPropertyName]` for legacy client alignment
+- HTTP status codes as semantic communication to gateways, monitors, and retries
+- Business errors mapping to 4xx — validation (400), not found (404), conflict (409)
+- 200 masking failures in APM dashboards and load-balancer health checks
+- `ProblemDetails` / `ValidationProblemDetails` as RFC 7807 error bodies
 
 **Answer**
 
-ASP.NET Core 8 defaults to camelCase JSON via `System.Text.Json` — PascalCase property names from some clients bind as missing properties, leaving model properties at default values and causing silent data loss on POST and PUT. I use `[JsonPropertyName("PropertyName")]` or a custom `PropertyNamingPolicy` to align server expectations with legacy client payloads, or enable `PropertyNameCaseInsensitive = true` in `AddControllers().AddJsonOptions(...)` when accepting mixed casing.
+Returning `{ "success": false, "message": "Not found" }` with HTTP 200 forces every client to parse the body to detect failure rather than using standard HTTP semantics. API gateways, APM tools, and client retry logic all key on status codes — a 200 registers as success in dashboards and alert rules even when the domain operation failed. I return `404` for missing resources, `400` with `ValidationProblemDetails` for validation failures, `409` for conflicts, and `422` for domain rule violations so the HTTP layer carries the failure signal.
 
 ---
 
-#### Gotcha 6. GET with `[FromBody]`
+#### Gotcha 5. Assuming REST and HTTP API mean the same thing
 
 **Concepts**
-- HTTP clients, proxies, and caches ignoring or stripping GET request bodies
-- `[FromQuery]` for simple filters; POST to search endpoint for complex filter objects
-- OpenAPI tools discouraging GET bodies
+- REST — architectural style with uniform interface, statelessness, layered system, and HATEOAS
+- HTTP API — an API transported over HTTP without necessarily meeting REST constraints
+- Richardson Maturity Model levels 0–3
+- "REST" API commonly means level 2 — resources + HTTP verbs, not full hypermedia
 
 **Answer**
 
-Many HTTP clients, proxies, and caches ignore or strip GET request bodies — filters sent as JSON in GET requests fail silently or never reach the action. Model binding for `[FromBody]` on GET is not reliably supported across the HTTP ecosystem. I use query strings with `[FromQuery]` for simple filters or POST to a dedicated search endpoint for complex filter objects.
+REST is an architectural style defined by Fielding's constraints — uniform interface, statelessness, cacheability, layered system, and optionally hypermedia as the engine of application state (HATEOAS). Most production APIs called "REST" are actually resource-oriented HTTP APIs at Richardson Maturity Level 2, using URLs for resources and HTTP verbs for operations but omitting hypermedia links. The distinction matters in interviews because interviewers may probe for HATEOAS, statelessness implications for tokens, and cacheability; and in practice because calling a SOAP-over-POST API "REST" misleads consumers about caching and idempotency guarantees.
 
 ---
 
-#### Gotcha 7. CORS as server security
+#### Gotcha 6. Misunderstanding statelessness — storing session state server-side
 
 **Concepts**
-- CORS enforced by browsers only — does not stop curl or server-to-server calls
-- Authentication and authorization as actual security boundary
-- `AddCors` and `UseCors` for browser SPA access only
+- REST statelessness — every request contains all context needed to process it
+- Server-side session violating stateless constraint
+- Horizontal scaling complication from session affinity
+- JWTs and client-carried claims as stateless auth
 
 **Answer**
 
-CORS is enforced by browsers only — it does not stop curl, Postman, server-to-server calls, or direct API requests. CORS headers tell a browser whether JavaScript on one origin may read a cross-origin response; they do not authenticate callers. A public API without auth remains fully accessible to any non-browser client regardless of CORS policy. I register `AddCors` and `UseCors` for browser SPA access, and enforce JWT, cookies, or API keys separately for actual security.
+REST's stateless constraint means each request from client to server must contain all information necessary to understand the request — the server stores no session state between requests. Using `HttpContext.Session` or in-memory session stores violates this, requires sticky-session load balancing, and prevents horizontal scaling without a distributed session store. I carry authentication state in JWT claims sent with every request and pass filter/pagination state as request parameters rather than storing it between calls.
 
 ---
 
-#### Gotcha 8. `AllowAnyOrigin` with credentials
+#### Gotcha 7. POST not being idempotent — duplicates on retry
 
 **Concepts**
-- Browsers rejecting `*` origin with credentialed requests
-- `WithOrigins` and `AllowCredentials` required together
-- Explicit origin listing including local dev and production domains
+- POST — not idempotent by definition; repeated calls create duplicate resources
+- Idempotency key header — client-supplied token deduplicating retries
+- `Idempotency-Key` header pattern from Stripe and payment APIs
+- Safe retry window and key expiry
 
 **Answer**
 
-Browsers reject `Access-Control-Allow-Origin: *` when the request sends cookies or authorization headers — I must specify explicit origins with `WithOrigins` and call `AllowCredentials`. `AllowAnyOrigin()` and `AllowCredentials()` cannot be combined; ASP.NET Core will not emit a valid CORS response for credentialed requests. I list every trusted frontend origin explicitly, including local dev URLs and production domains.
+POST creates a new resource on every call by definition, so a mobile client that retries after a network timeout without an idempotency mechanism creates duplicate orders, charges, or accounts. PUT to a known URI is idempotent and the right choice when the client controls the resource identifier. For POST-based creation where deduplication is required, I implement an `Idempotency-Key` header — the server stores the first response keyed on the client-supplied UUID and returns it verbatim on repeated requests with the same key within a configurable window.
 
 ---
 
-#### Gotcha 9. Swagger UI exposed in Production
+#### Gotcha 8. Conflating safe and idempotent
 
 **Concepts**
-- Swagger UI disclosing full API surface and try-it-out access
-- Environment check gating `MapSwagger` and `UseSwaggerUI`
-- Exposed OpenAPI revealing endpoint names and enum values for reconnaissance
+- Safe — does not modify server state (GET, HEAD, OPTIONS)
+- Idempotent — repeated identical requests produce same result (GET, PUT, DELETE)
+- POST — neither safe nor idempotent
+- DELETE — idempotent (second DELETE on absent resource returns 404, state unchanged)
 
 **Answer**
 
-Public Swagger UI discloses the full API surface, schemas, and try-it-out access — I gate it behind authentication or disable it outside Development and Staging. `MapSwagger` and `UseSwaggerUI` in `Program.cs` should be wrapped in environment checks or authorization middleware. Exposed OpenAPI documents reveal internal endpoints, field names, and enum values useful for reconnaissance.
+Safe means the request has no side effects on server state; idempotent means repeating the identical request any number of times produces the same server-side result. GET is both safe and idempotent. DELETE is idempotent but not safe — deleting an already-deleted resource should return 404 without changing state further. PUT is idempotent but not safe. POST is neither — it creates a new resource each time. Confusing these properties leads to incorrect caching decisions and broken retry logic, since clients must not retry non-idempotent operations without deduplication.
 
 ---
 
-#### Gotcha 10. Missing `[ApiController]` on some controllers
+#### Gotcha 9. Using numeric IDs in URLs and exposing database primary keys
 
 **Concepts**
-- `[ApiController]` enabling automatic `400` validation and binding source inference
-- Mixed controllers producing inconsistent error contracts
-- Assembly-level attribute for consistent application
+- Sequential integer IDs revealing record count and enumeration attack surface
+- GUID vs UUID vs slug as opaque identifiers
+- IDOR — insecure direct object reference using predictable IDs
+- `GET /api/orders/1` vs `GET /api/orders/01HXYZ...`
 
 **Answer**
 
-Without `[ApiController]`, automatic `400 ValidationProblemDetails`, binding source inference, and attribute routing behaviors differ — mixed controllers in the same Web API produce inconsistent error contracts. Controllers missing the attribute may return `200` with invalid models or require manual `ModelState` checks. I apply `[ApiController]` at the controller or assembly level so every endpoint shares the same API conventions.
+Exposing auto-incrementing integer primary keys in REST URLs leaks business intelligence (total order count, user growth rate) and enables enumeration attacks where a caller iterates IDs to scrape all records — even with authentication, insecure direct object reference bugs are easier to exploit with predictable keys. I use UUIDs, ULIDs, or opaque slug identifiers in public URLs and enforce authorization checks that verify the caller owns the requested resource, regardless of whether the ID is guessable.
 
 ---
 
-#### Gotcha 11. Blocking on `.Result` in async actions
+#### Gotcha 10. Ignoring HTTP caching semantics for GET responses
 
 **Concepts**
-- `.Result` / `.Wait()` blocking the thread pool thread while async I/O continues
-- Thread-pool starvation under concurrent load
-- Classic deadlock from synchronization context contention
-- `async Task<IActionResult>` with `await` as the fix
+- `Cache-Control`, `ETag`, and `Last-Modified` headers for conditional requests
+- `If-None-Match` / `If-Modified-Since` enabling 304 Not Modified
+- CDN and proxy caching reducing origin load
+- Sensitive data with `Cache-Control: no-store, private`
 
 **Answer**
 
-Blocking on `.Result` or `.Wait()` inside async-capable request actions causes thread-pool starvation — each blocked thread holds a slot while I/O completes, so Kestrel cannot accept new requests under concurrent load. Classic deadlocks occur when the blocked thread holds the synchronization context the continuation needs to resume. I always mark controller actions `async Task<IActionResult>` and `await` all the way through the service layer.
-
----
-
-#### Gotcha 12. Liveness probe includes SQL check
-
-**Concepts**
-- Liveness checking whether the process should be restarted
-- Readiness removing pod from load balancer until dependencies recover
-- SQL, Redis, and external service checks belonging on readiness only
-
-**Answer**
-
-If the liveness probe fails when SQL is down, Kubernetes restarts pods that cannot fix the dependency — a restarted app still cannot reach the same down SQL server. I put SQL, Redis, and external service checks on readiness only. Liveness answers whether the process should be killed and restarted; readiness answers whether it should receive traffic. I map `/health/live` to a lightweight self-check and `/health/ready` to `AddDbContextCheck` or custom dependency tags.
-
----
-
-#### Gotcha 13. N+1 queries in list endpoints
-
-**Concepts**
-- Lazy-loaded navigation properties triggering one SQL query per row
-- `Select` projection to DTOs generating a single bounded query
-- `Include`/`ThenInclude` for intentional eager loading
-
-**Answer**
-
-Returning entities with lazy-loaded navigation properties triggers one SQL query per row — serializing a list of `Order` entities with `Customer` navigation executes 1 + N queries under default lazy loading. I project directly to DTOs in LINQ so EF Core generates a single query with only the columns needed. For graphs that must be included, I use `Include`/`ThenInclude` or split queries deliberately rather than relying on lazy load during JSON output.
-
----
-
-#### Gotcha 14. Unstable pagination with Skip/Take
-
-**Concepts**
-- Concurrent inserts and deletes shifting offset window between pages
-- Keyset pagination using stable indexed key for consistent results
-- Offset pagination acceptable for small static tables
-
-**Answer**
-
-Concurrent inserts and deletes between offset pages cause duplicate or skipped rows — `Skip((page - 1) * pageSize).Take(pageSize)` shifts the window when rows are added or removed. Keyset pagination uses `WHERE id > @lastId ORDER BY id LIMIT @pageSize` with the last seen key from the previous response, so the window is stable regardless of concurrent writes. Offset pagination remains acceptable for small, mostly static tables.
-
----
-
-#### Gotcha 15. GraphQL N+1 without DataLoader
-
-**Concepts**
-- Field resolvers querying the database per parent row
-- DataLoader batching concurrent field resolutions into single round-trips
-- Eager-loading or root-query projection as alternative
-
-**Answer**
-
-Field resolvers in HotChocolate or other GraphQL servers that query the database per parent row explode SQL under load — 100 authors each resolving `books` individually executes 101 queries. I register DataLoader services in DI so concurrent field resolutions within a request are grouped into single round-trips, or I eager-load at the root query when the client always requests nested fields together.
-
----
-
-#### Gotcha 16. gRPC in browser without gRPC-Web
-
-**Concepts**
-- Native gRPC using HTTP/2 binary framing not exposed to browser JavaScript
-- gRPC-Web middleware translating between browser and native gRPC
-- CORS configuration required alongside gRPC-Web for cross-origin browser calls
-
-**Answer**
-
-Native gRPC uses HTTP/2 binary framing that browsers do not expose to JavaScript — browser clients need gRPC-Web middleware plus CORS configuration. Standard `@grpc/grpc-js` in Node or .NET clients works server-to-server; Blazor WASM and SPA browsers require the gRPC-Web protocol. I add `AddGrpcWeb()` and `EnableGrpcWeb()` on mapped gRPC services to translate between gRPC-Web and native gRPC, and configure CORS for the browser origin.
+GET responses without `Cache-Control` headers leave caching decisions to proxies and clients, which may cache sensitive user data in shared CDN caches or never cache public reference data that could be served cheaply. I set `Cache-Control: no-store, private` on any response containing user-specific or sensitive data to prevent shared caching. For public, infrequently-changed resources I add `Cache-Control: public, max-age=300` with `ETag` and support conditional `If-None-Match` requests so clients can validate stale entries with a lightweight 304 rather than re-downloading the full body.
 
 ---
 
