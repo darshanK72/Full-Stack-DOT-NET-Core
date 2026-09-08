@@ -68,34 +68,50 @@ The three names describe different eras of the same ecosystem. .NET is the umbre
 
 ---
 
-## Q3. Compare .NET Framework and modern .NET across every major dimension — deployment, platform, web stack, desktop, security, hosting, configuration, and package management.
+## Q3. Compare .NET Framework and modern .NET across every major dimension — platform, open source, deployment, containerization, web stack, application frameworks, desktop, tooling, performance, security, configuration, and package management.
 
 **Concepts**
 - Platform: Windows-only vs. cross-platform (Windows, Linux, macOS)
-- Deployment: machine-wide GAC vs. per-app with side-by-side versioning
-- Web stack: System.Web + IIS vs. ASP.NET Core + Kestrel
-- Security model: Code Access Security (CAS, removed) vs. OS/container boundaries
-- Configuration: web.config (XML) vs. appsettings.json + environment variables
-- AppDomains removed — replaced by AssemblyLoadContext and process isolation
+- Open source: closed/Microsoft-only vs. fully open source on GitHub with community contributions
+- Deployment: machine-wide GAC vs. per-app side-by-side versioning; self-contained and Native AOT options
+- Containerization: no Linux container support vs. official Docker images and container-first design
+- Web stack: System.Web + IIS-coupled vs. ASP.NET Core + Kestrel, middleware pipeline, Minimal APIs
+- Application frameworks: bundled monolithic install vs. modular NuGet opt-in; Blazor, MAUI, gRPC added; Web Forms and WCF not ported
+- Tooling: Visual Studio–only MSBuild vs. cross-platform dotnet CLI + Roslyn analyzers + source generators
+- Performance: frozen baseline vs. continuous gains — Span\<T\>, tiered JIT, SIMD, Native AOT
+- Security model: Code Access Security (CAS, removed) vs. OS/container boundaries + ASP.NET Core policies
+- Configuration: web.config XML vs. layered appsettings.json + environment variables + IOptions\<T\>
 
 **Answer**
 
-The most fundamental difference is platform scope — .NET Framework runs only on Windows because it relies on Win32, COM, and IIS internals, while modern .NET runs on Windows, Linux, and macOS with Linux containers as a first-class scenario. Deployment changed just as dramatically: Framework required a machine-wide install so all apps on the server shared one runtime version, whereas modern .NET apps either carry their own runtime in self-contained mode or bind to a specific installed version, allowing a server to host apps targeting different runtimes without conflict.
+**Platform and open source.** .NET Framework runs only on Windows because it depends on Win32, COM, and IIS internals. Modern .NET runs on Windows, Linux, and macOS. Equally important is the open source shift: .NET Framework was a closed, Microsoft-controlled codebase; modern .NET (CoreCLR, BCL, ASP.NET Core, EF Core) is fully open source at github.com/dotnet with community PRs, public roadmap, and transparent release process.
 
-The web stack changed completely. Framework's ASP.NET ran through the IIS pipeline with `System.Web` and the `HttpContext.Current` static god-object. ASP.NET Core uses Kestrel with a composable middleware pipeline, injects `IHttpContextAccessor` through DI, and runs standalone without IIS — containerizable and cross-platform. Performance reflects this: modern .NET consistently tops TechEmpower benchmarks due to `Span<T>`, tiered JIT, and years of focused optimization that will never come to Framework 4.8.
+**Deployment and containerization.** Framework required a machine-wide installer so all apps on the server shared one runtime version. Modern .NET apps either use side-by-side versioning (each app binds its own runtime version), self-contained publish (runtime bundled in the output folder), or Native AOT (no runtime at all — single native binary). This makes Linux containers practical: official `mcr.microsoft.com/dotnet` images exist for runtime, SDK, and ASP.NET Core, enabling `FROM mcr.microsoft.com/dotnet/aspnet:10.0` multi-stage Docker builds. .NET Framework has no official Linux container support.
 
-Security simplified by removing Code Access Security, which performed expensive stack walks on every sensitive call and could be bypassed with reflection tricks. Security now lives at the OS and container boundary, with application-layer authorization handled by ASP.NET Core policies. Configuration moved from XML `web.config` to layered `appsettings.json` plus environment variables, which composes naturally with secrets management and `IOptions<T>`. Package management moved from `packages.config` folder copies to SDK-style `PackageReference` with transitive NuGet resolution. AppDomains were removed because process and container isolation is stronger and cheaper.
+**Web stack and application frameworks.** Framework's ASP.NET ran through the IIS HTTP pipeline via `System.Web`, with `HttpContext.Current` as a static ambient object — this tight coupling is why Web Forms and classic MVC/Web API have no port path. ASP.NET Core uses Kestrel with a composable middleware pipeline, DI-injected `IHttpContextAccessor`, and runs standalone without IIS. Modern .NET adds frameworks that never existed in Framework: Blazor (component-based web UI with Server and WebAssembly render modes), .NET MAUI (cross-platform mobile/desktop), gRPC via grpc-dotnet, and Minimal APIs. On the other side, WCF's full server stack and Web Forms are not ported — CoreWCF covers basic HTTP/SOAP only.
+
+**Tooling.** Framework builds required Visual Studio on Windows; the `msbuild.exe` CLI was cumbersome and Windows-only. Modern .NET ships the `dotnet` CLI — cross-platform, scriptable, and the single entry point for `new`, `restore`, `build`, `test`, `publish`, and `run`. Roslyn analyzers and source generators ship as NuGet packages and run in every editor (VS, VS Code, Rider), not just Visual Studio.
+
+**Performance.** Framework 4.8 receives security patches only — no runtime performance improvements. Modern .NET receives continuous investment: `Span<T>` and `Memory<T>` enable zero-copy buffer operations, tiered JIT promotes hot methods to fully optimized native code, hardware intrinsics expose SIMD directly, and Native AOT eliminates JIT startup entirely. ASP.NET Core consistently tops TechEmpower plaintext and JSON benchmarks by orders of magnitude over classic ASP.NET.
+
+**Security, configuration, and packages.** Code Access Security was removed — its stack walks were expensive and bypassable. Security now lives at the OS and container boundary with ASP.NET Core claims-based policies for application-layer authorization. Configuration moved from XML `web.config` (deploy-time only) to a layered provider model: `appsettings.json`, environment variables, Azure Key Vault, and user secrets compose at startup and surface as typed `IOptions<T>`. Package management moved from `packages.config` (local folder copies) to SDK-style `PackageReference` with NuGet transitive resolution. AppDomains were removed — `AssemblyLoadContext` replaces them for plugin/assembly isolation scenarios.
 
 | Area | .NET Framework | Modern .NET |
 |---|---|---|
 | OS | Windows only | Windows, Linux, macOS |
-| Deployment | Machine-wide, GAC | Per-app, NuGet, containers |
-| Web | System.Web + IIS | ASP.NET Core + Kestrel |
-| Security | CAS (removed) | OS/container boundaries |
-| Config | web.config (XML) | appsettings.json + env vars |
-| Packages | packages.config | PackageReference |
+| Open source | Closed | github.com/dotnet |
+| Deployment | Machine-wide GAC | Per-app, side-by-side, self-contained, AOT |
+| Containers | No Linux support | Official Docker images, container-first |
+| Web | System.Web + IIS | ASP.NET Core + Kestrel + Minimal APIs |
+| New frameworks | None | Blazor, MAUI, gRPC, SignalR |
+| Missing in modern | — | Web Forms, WCF full server |
+| Tooling | VS on Windows | dotnet CLI, cross-platform |
+| Performance | Frozen at 4.8 | Continuous — Span\<T\>, tiered JIT, AOT |
+| Security | CAS (removed) | OS/container + ASP.NET Core policies |
+| Config | web.config (XML) | appsettings.json + env vars + IOptions\<T\> |
+| Packages | packages.config | PackageReference + NuGet |
 | AppDomains | Yes | No → AssemblyLoadContext |
-| Status | Maintenance | Active, annual releases |
+| Status | Maintenance only | Active, annual LTS/STS releases |
 
 ---
 
